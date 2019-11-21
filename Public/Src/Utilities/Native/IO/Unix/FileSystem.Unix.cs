@@ -1243,7 +1243,7 @@ namespace BuildXL.Native.IO.Unix
         public bool IsDirectorySymlinkOrJunction(string path)
         {
             var reparsePointType = TryGetReparsePointType(path);
-            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink;
+            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink && Directory.Exists(path);
         }
     }
 }

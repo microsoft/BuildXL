@@ -194,9 +194,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
-                var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
-                    rotateLogs: true,
+                var possibleStore = KeyValueStoreAccessor.Open(
+                    new KeyValueStoreAccessor.RocksDbStoreArguments()
+                    {
+                        StoreDirectory = storeLocation,
+                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                        RotateLogs = true,
+                        EnableStatistics = true,
+                        FastOpen = true,
+                    },
                     failureHandler: failureEvent =>
                     {
                         // By default, rethrow is true iff it is a user error. We invalidate only if it isn't

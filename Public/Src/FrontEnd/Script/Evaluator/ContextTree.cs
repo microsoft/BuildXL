@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -84,7 +85,8 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// office for mac about.
         /// Storing the cache here will also make it only availalbe to DScript and not the other frontends.
         /// </remarks>
-        public ConcurrentDictionary<Fingerprint, EvaluationResult> ValueCache { get; private set; }
+        private IDictionary<Fingerprint, EvaluationResult> ValueCache { get; set; }
+        private readonly object m_valueCacheLock = new object();
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
@@ -119,7 +121,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             EvaluationScheduler = evaluationScheduler;
             QualifierValueCache = qualifierValueCache;
             ToolDefinitionCache = new ConcurrentDictionary<ObjectLiteral, CachedToolDefinition>();
-            ValueCache = new ConcurrentDictionary<Fingerprint, EvaluationResult>();
+            ValueCache = new Dictionary<Fingerprint, EvaluationResult>();
             CommonConstants = new CommonConstants(frontEndContext.StringTable);
 
             RootContext =
@@ -139,6 +141,27 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// Whether this instance is valid, i.e., not disposed.
         /// </summary>
         public bool IsValid => FrontEndHost != null;
+
+        /// <summary>
+        /// Similar to <see cref="ConcurrentDictionary{TKey, TValue}.GetOrAdd(TKey, Func{TKey, TValue})"/>
+        /// except that it guarantees that <paramref name="factory"/> is called at most once for any given key.
+        /// </summary>
+        public EvaluationResult ValueCacheGetOrAdd(Fingerprint key, Func<EvaluationResult> factory)
+        {
+            EvaluationResult result;
+            if (!ValueCache.TryGetValue(key, out result))
+            {
+                lock (m_valueCacheLock)
+                {
+                    if (!ValueCache.TryGetValue(key, out result))
+                    {
+                        result = factory();
+                        ValueCache.Add(key, result);
+                    }
+                }
+            }
+            return result;
+        }
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "<RootContext>k__BackingField", Justification = "MeasuredDispose")]

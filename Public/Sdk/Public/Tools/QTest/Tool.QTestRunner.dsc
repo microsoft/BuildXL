@@ -112,9 +112,9 @@ function validateArguments(args: QTestArguments): void {
  * Find Flaky Supression file from the .config directory of source code
  */
 function findFlakyFile(): File {
-    let configDir = d`${Context.getMount("SourceRoot").path}\.config`;
-    let flakyDir = d`${configDir}\flakytests`;
-    let flakyFileName = 'CloudBuild.FlakyTests.json';
+    let configDir = d`${Context.getMount("SourceRoot").path}/.config`;
+    let flakyDir = d`${configDir}/flakytests`;
+    let flakyFileName = a`CloudBuild.FlakyTests.json`;
 
     if (File.exists(f`${flakyDir}/${flakyFileName}`)) {
         return f`${flakyDir}/${flakyFileName}`;
@@ -123,6 +123,7 @@ function findFlakyFile(): File {
     if (File.exists(f`${configDir}/${flakyFileName}`)) {
         return f`${configDir}/${flakyFileName}`;
     }
+    return undefined;
 }
 
 /**
@@ -236,14 +237,14 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
-        Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
+        Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions),
         Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
         Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
-        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.input(flakyFile), flakyFile ? true : false),
+        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.input(flakyFile)),
     ];          
 
     let unsafeOptions = {

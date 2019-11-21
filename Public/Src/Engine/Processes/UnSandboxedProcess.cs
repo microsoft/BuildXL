@@ -388,7 +388,7 @@ namespace BuildXL.Processes
             if (LoggingContext != null)
             {
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
-                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, PipDescription, fullMessage);
+                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, fullMessage);
             }
         }
 

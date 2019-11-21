@@ -101,7 +101,7 @@ namespace BuildXL.Native.IO
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/> handleEntry,
             bool isEnumerationForDirectoryDeletion = false,
             bool followSymlinksToDirectories = false);
-        
+
         /// <summary>
         /// Enumerates the files in the given directory using a search pattern.
         /// </summary>
@@ -243,12 +243,12 @@ namespace BuildXL.Native.IO
         FileFlagsAndAttributes GetFileFlagsAndAttributesForPossibleReparsePoint(string expandedPath);
 
         /// <summary>
-        /// Thin wrapper for native GetFileAttributesW that throws an exception on failure
+        /// Thin wrapper for native GetFileAttributesW that throws an exception on failure by default
         /// </summary>
         /// <remarks>
         /// Supports paths greater than MAX_PATH.
         /// </remarks>
-        FileAttributes GetFileAttributes(string path);
+        FileAttributes GetFileAttributes(string path, bool throwOnFailure = true);
 
         /// <summary>
         /// Calls GetFileInformationByHandleEx on the given file handle to retrieve its attributes. This requires 'READ ATTRIBUTES' access on the handle.

@@ -560,8 +560,8 @@ namespace BuildXL.Native.IO
             }
         }
 
-        /// <see cref="IFileSystem.GetFileAttributes(string)"/>
-        public static FileAttributes GetFileAttributes(string path) => s_fileSystem.GetFileAttributes(path);
+        /// <see cref="IFileSystem.GetFileAttributes(string, bool)"/>
+        public static FileAttributes GetFileAttributes(string path, bool throwOnFailure = true) => s_fileSystem.GetFileAttributes(path, throwOnFailure);
 
         /// <see cref="IFileSystem.SetFileAttributes(string, FileAttributes)"/>
         public static void SetFileAttributes(string path, FileAttributes attributes)
@@ -727,13 +727,16 @@ namespace BuildXL.Native.IO
         /// </summary>
         public static bool IsDirectorySymlinkOrJunction(string path)
         {
-            if (Directory.Exists(path))
+            if (OperatingSystemHelper.IsUnixOS)
             {
                 var reparsePointType = FileUtilities.TryGetReparsePointType(path);
                 return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink;
             }
 
-            return false;
+            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+            FileAttributes attributes = FileUtilities.GetFileAttributes(path, throwOnFailure: false);
+
+            return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
         }
 
 #endregion

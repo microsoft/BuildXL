@@ -756,12 +756,12 @@ namespace BuildXL.Native.IO.Unix
         public bool TryReadSeekPenaltyProperty(SafeFileHandle driveHandle, out bool hasSeekPenalty, out int error) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public FileAttributes GetFileAttributes(string path)
+        public FileAttributes GetFileAttributes(string path, bool throwOnFailure = true)
         {
-            return TryGetFileAttributes(path);
+            return TryGetFileAttributes(path, throwOnFailure);
         }
 
-        private static FileAttributes TryGetFileAttributes(string path)
+        private static FileAttributes TryGetFileAttributes(string path, bool throwOnFailure)
         {
             try
             {
@@ -769,8 +769,13 @@ namespace BuildXL.Native.IO.Unix
             }
             catch (Exception ex)
             {
-                throw new BuildXLException("Getting file attributes failed", ex);
+                if (throwOnFailure)
+                {
+                    throw new BuildXLException("Getting file attributes failed", ex);
+                }
             }
+
+            return FileAttributes.Normal;
         }
 
         /// <inheritdoc />
@@ -1238,6 +1243,5 @@ namespace BuildXL.Native.IO.Unix
 
         /// <inheritdoc />
         public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
-
     }
 }

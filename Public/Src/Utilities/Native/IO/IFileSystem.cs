@@ -243,12 +243,12 @@ namespace BuildXL.Native.IO
         FileFlagsAndAttributes GetFileFlagsAndAttributesForPossibleReparsePoint(string expandedPath);
 
         /// <summary>
-        /// Thin wrapper for native GetFileAttributesW that throws an exception on failure by default
+        /// Thin wrapper for native GetFileAttributesW that throws an exception on failure
         /// </summary>
         /// <remarks>
         /// Supports paths greater than MAX_PATH.
         /// </remarks>
-        FileAttributes GetFileAttributes(string path, bool throwOnFailure = true);
+        FileAttributes GetFileAttributes(string path);
 
         /// <summary>
         /// Calls GetFileInformationByHandleEx on the given file handle to retrieve its attributes. This requires 'READ ATTRIBUTES' access on the handle.
@@ -623,6 +623,11 @@ namespace BuildXL.Native.IO
         /// Flag indicating if the enlistment volume supports copy on write.
         /// </summary>
         bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
+
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        bool IsDirectorySymlinkOrJunction(string path);
 
         #endregion
     }

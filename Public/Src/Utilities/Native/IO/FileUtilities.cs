@@ -560,8 +560,8 @@ namespace BuildXL.Native.IO
             }
         }
 
-        /// <see cref="IFileSystem.GetFileAttributes(string, bool)"/>
-        public static FileAttributes GetFileAttributes(string path, bool throwOnFailure = true) => s_fileSystem.GetFileAttributes(path, throwOnFailure);
+        /// <see cref="IFileSystem.GetFileAttributes(string)"/>
+        public static FileAttributes GetFileAttributes(string path) => s_fileSystem.GetFileAttributes(path);
 
         /// <see cref="IFileSystem.SetFileAttributes(string, FileAttributes)"/>
         public static void SetFileAttributes(string path, FileAttributes attributes)
@@ -722,22 +722,8 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
         }
 
-        /// <summary>
-        /// Checks if a path is a directory symlink or a junction.
-        /// </summary>
-        public static bool IsDirectorySymlinkOrJunction(string path)
-        {
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                var reparsePointType = FileUtilities.TryGetReparsePointType(path);
-                return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink;
-            }
-
-            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
-            FileAttributes attributes = FileUtilities.GetFileAttributes(path, throwOnFailure: false);
-
-            return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
-        }
+        /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>
+        public static bool IsDirectorySymlinkOrJunction(string path) => s_fileSystem.IsDirectorySymlinkOrJunction(path);
 
 #endregion
 

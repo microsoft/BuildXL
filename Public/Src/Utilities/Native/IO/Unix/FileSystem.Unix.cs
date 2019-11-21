@@ -756,12 +756,12 @@ namespace BuildXL.Native.IO.Unix
         public bool TryReadSeekPenaltyProperty(SafeFileHandle driveHandle, out bool hasSeekPenalty, out int error) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public FileAttributes GetFileAttributes(string path, bool throwOnFailure = true)
+        public FileAttributes GetFileAttributes(string path)
         {
-            return TryGetFileAttributes(path, throwOnFailure);
+            return TryGetFileAttributes(path);
         }
 
-        private static FileAttributes TryGetFileAttributes(string path, bool throwOnFailure)
+        private static FileAttributes TryGetFileAttributes(string path)
         {
             try
             {
@@ -769,13 +769,8 @@ namespace BuildXL.Native.IO.Unix
             }
             catch (Exception ex)
             {
-                if (throwOnFailure)
-                {
-                    throw new BuildXLException("Getting file attributes failed", ex);
-                }
+                throw new BuildXLException("Getting file attributes failed", ex);
             }
-
-            return FileAttributes.Normal;
         }
 
         /// <inheritdoc />
@@ -1243,5 +1238,12 @@ namespace BuildXL.Native.IO.Unix
 
         /// <inheritdoc />
         public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
+
+        /// <inheritdoc />
+        public bool IsDirectorySymlinkOrJunction(string path)
+        {
+            var reparsePointType = TryGetReparsePointType(path);
+            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink;
+        }
     }
 }

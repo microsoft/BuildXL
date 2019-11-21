@@ -3004,14 +3004,11 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public FileAttributes GetFileAttributes(string path, bool throwOnFailure = true)
+        public FileAttributes GetFileAttributes(string path)
         {
             if (!TryGetFileAttributes(path, out FileAttributes attributes, out int hr))
             {
-                if (throwOnFailure)
-                {
-                    ThrowForNativeFailure(hr, "FindFirstFileW", nameof(GetFileAttributes));
-                }
+                ThrowForNativeFailure(hr, "FindFirstFileW", nameof(GetFileAttributes));
             }
 
             return attributes;
@@ -4092,6 +4089,15 @@ namespace BuildXL.Native.IO.Windows
             nativeErrorCode = Marshal.GetLastWin32Error();
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public bool IsDirectorySymlinkOrJunction(string path)
+        {
+            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+            var success = TryGetFileAttributes(path, out FileAttributes attributes, out _);
+
+            return success && ((attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction);
         }
     }
 }

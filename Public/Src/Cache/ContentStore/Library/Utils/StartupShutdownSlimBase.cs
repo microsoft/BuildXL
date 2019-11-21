@@ -33,6 +33,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <inheritdoc />
         public virtual bool ShutdownCompleted { get; private set; }
 
+        /// <nodoc />
         protected virtual Func<BoolResult, string> ExtraStartupMessageFactory => null;
 
         /// <inheritdoc />

@@ -611,7 +611,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Gets an empty success result for Mate
+        /// Gets an empty success result for Materialization
         /// </summary>
         public static ExecutionResult GetEmptySuccessResult(LoggingContext loggingContext)
         {

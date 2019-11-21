@@ -1174,7 +1174,7 @@ namespace BuildXL.Native.IO.Unix
             return result;
         }
 
-        private int TryGetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
+        private static int TryGetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
         {
             var statBuffer = new StatBuffer();
 

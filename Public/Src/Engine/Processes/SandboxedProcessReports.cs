@@ -252,7 +252,7 @@ namespace BuildXL.Processes
                     m_detoursEventListener.HandleDebugMessage(PipSemiStableHash, PipDescription, data);
                 }
 
-                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, PipDescription, data);
+                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, data);
                 break;
                 case ReportType.WindowsCall:
                 throw new NotImplementedException(I($"{ReportType.WindowsCall.ToString()} report type is not supported."));

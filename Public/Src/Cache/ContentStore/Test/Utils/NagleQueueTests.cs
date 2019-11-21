@@ -102,11 +102,13 @@ namespace ContentStoreTest.Utils
         [Fact]
         public void ItemsInEagerBlocksAreProcessedEagerly()
         {
+            int dataLength = 0;
             var processBatchWasCalled = false;
             var processBatchEvent = new ManualResetEvent(false);
             using (var queue = NagleQueue<int>.Create(
                 processBatch: data =>
                               {
+                                  dataLength = data.Length;
                                   processBatchWasCalled = true;
                                   processBatchEvent.Set();
                                   return Task.FromResult(42);
@@ -119,6 +121,7 @@ namespace ContentStoreTest.Utils
                 queue.Enqueue(42);
                 processBatchEvent.WaitOne(5000);
                 Assert.True(processBatchWasCalled, "processBatch should be called eagerly.");
+                Assert.Equal(1, dataLength);
             }
         }
 

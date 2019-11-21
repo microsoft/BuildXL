@@ -49,6 +49,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
@@ -490,7 +491,7 @@ namespace BuildXL.Scheduler
         /// External API server.
         /// </summary>
         [CanBeNull]
-        private readonly ApiServer m_apiServer;
+        private ApiServer m_apiServer;
 
         /// <summary>
         /// Tracker for drop pips.
@@ -1153,25 +1154,7 @@ namespace BuildXL.Scheduler
             OperationTracker = new OperationTracker(loggingContext, this);
             SymlinkDefinitions = symlinkDefinitions;
             m_fileContentManager = new FileContentManager(this, OperationTracker, symlinkDefinitions);
-
-            if (PipGraph.ApiServerMoniker.IsValid)
-            {
-                m_apiServer = new ApiServer(
-                    m_ipcProvider,
-                    PipGraph.ApiServerMoniker.ToString(Context.StringTable),
-                    m_fileContentManager,
-                    Context,
-                    new ServerConfig
-                    {
-                        MaxConcurrentClients = 10, // not currently based on any science or experimentation
-                        StopOnFirstFailure = false,
-                        Logger = CreateLoggerForApiServer(loggingContext),
-                    });
-            }
-            else
-            {
-                m_apiServer = null;
-            }
+            m_apiServer = null;
 
             var sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
 
@@ -1306,7 +1289,25 @@ namespace BuildXL.Scheduler
 
             m_executePhaseLoggingContext = loggingContext;
             m_serviceManager.Start(loggingContext, OperationTracker);
-            m_apiServer?.Start(loggingContext);
+
+            if (PipGraph.ApiServerMoniker.IsValid)
+            {
+                // To reduce the time between rendering the server moniker and starting a server using that moniker,
+                // we create the server here and not in the Scheduler's ctor.                
+                m_apiServer = new ApiServer(
+                    m_ipcProvider,
+                    PipGraph.ApiServerMoniker.ToString(Context.StringTable),
+                    m_fileContentManager,
+                    Context,
+                    new ServerConfig
+                    {
+                        MaxConcurrentClients = 10, // not currently based on any science or experimentation
+                        StopOnFirstFailure = false,
+                        Logger = CreateLoggerForApiServer(loggingContext),
+                    });
+                m_apiServer.Start(loggingContext);
+            }
+
             m_chooseWorkerCpu = new ChooseWorkerCpu(
                 loggingContext,
                 m_configuration.Schedule.MaxChooseWorkerCpu,
@@ -1857,7 +1858,8 @@ namespace BuildXL.Scheduler
                     }
                 },
                 { "LimitingResource", data => data.LimitingResource },
-                { "External Processes", data => data.ExternalProcesses },
+                { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
+                { "Running Processes", data => data.RunningProcesses },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
                 { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
                 { "PipTable.WriteCount", data => m_pipTable.Writes },
@@ -1977,7 +1979,7 @@ namespace BuildXL.Scheduler
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
                 if (m_performanceAggregator != null)
                 {
-                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.CurrentlyExecutingPips.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
+                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
                 }
 
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);
@@ -2045,7 +2047,7 @@ namespace BuildXL.Scheduler
                     servicePipsRunning: m_serviceManager.RunningServicesCount,
                     perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                     pipsWaitingOnResources: pipsWaitingOnResources,
-                    procsExecuting: LocalWorker.CurrentlyExecutingPips.Count,
+                    procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
                     procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                     procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                     procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
@@ -2054,7 +2056,7 @@ namespace BuildXL.Scheduler
                     // is on or not. Pending is an intentionally invented state since it doesn't correspond to a real state
                     // in the scheduler. It is basically meant to be a bucket of things that could be run if more parallelism
                     // were available. This technically isn't true because cache lookups fall in there as well, but it's close enough.
-                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.CurrentlyExecutingPips.Count,
+                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.RunningPipExecutorProcesses.Count,
                     procsWaiting: m_processStateCountersSnapshot[PipState.Waiting],
                     procsCacheHit: m_numProcessPipsSatisfiedFromCache,
                     procsNotIgnored: m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot.IgnoredCount,
@@ -2094,7 +2096,8 @@ namespace BuildXL.Scheduler
                     IoRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.IO),
                     LookupWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
                     LookupRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CacheLookup),
-                    ExternalProcesses = LocalWorker.CurrentlyExecutingPips.Count,
+                    RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
+                    RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
@@ -3757,7 +3760,7 @@ namespace BuildXL.Scheduler
                         // This allows the scrubber to remove those files as well in the next run.
                         var start = DateTime.UtcNow;
                         var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Flagging shared opaque outputs", DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3811,7 +3814,7 @@ namespace BuildXL.Scheduler
                                 processRunnable.Process,
                                 out pipIsSafeToCache,
                                 out allowedSameContentDoubleWriteViolations);
-                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing file access violations", DateTime.UtcNow.Subtract(start));
+                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3852,7 +3855,7 @@ namespace BuildXL.Scheduler
                                    executionResult,
                                    processRunnable.Process,
                                    allowedSameContentDoubleWriteViolations);
-                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing double writes", DateTime.UtcNow.Subtract(start));
+                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3872,10 +3875,10 @@ namespace BuildXL.Scheduler
                         PipExecutor.ReportExecutionResultOutputContent(
                             operationContext,
                             environment,
-                            processRunnable.Description,
+                            processRunnable.Pip.SemiStableHash,
                             executionResult,
                             processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Reporting output content", DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
 
                         return processRunnable.SetPipResult(executionResult);
                     }
@@ -4261,7 +4264,7 @@ namespace BuildXL.Scheduler
                         PipExecutor.ReportExecutionResultOutputContent(
                             runnablePip.OperationContext,
                             runnablePip.Environment,
-                            runnablePip.Description,
+                            runnablePip.Pip.SemiStableHash,
                             runnablePip.ExecutionResult);
                     }
 
@@ -6334,7 +6337,7 @@ namespace BuildXL.Scheduler
             {
                 if (!m_isDisposed)
                 {
-                    foreach (var item in LocalWorker.CurrentlyExecutingPips)
+                    foreach (var item in LocalWorker.RunningPipExecutorProcesses)
                     {
                         yield return new PipReference(m_pipTable, item.Key, PipQueryContext.PipGraphRetrievePipsByStateOfType);
                     }

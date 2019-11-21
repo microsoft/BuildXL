@@ -36,6 +36,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler
@@ -244,7 +245,7 @@ namespace BuildXL.Scheduler
                     // Just pass through the hash
                     environment.State.FileContentManager.ReportOutputContent(
                         operationContext,
-                        pipDescription,
+                        pip.SemiStableHash,
                         pip.Destination,
                         // TODO: Should we maintain the case of the source file?
                         FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
@@ -265,7 +266,7 @@ namespace BuildXL.Scheduler
                                 // Report again to notify the FileContentManager that the file has been materialized.
                                 environment.State.FileContentManager.ReportOutputContent(
                                     operationContext,
-                                    pipDescription,
+                                    pip.SemiStableHash,
                                     pip.Destination,
                                     // TODO: Should we maintain the case of the source file?
                                     FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
@@ -825,7 +826,7 @@ namespace BuildXL.Scheduler
                         // (i.e. they only run on the master). Given that, they report directly to the file content manager.
                         fileContentManager.ReportOutputContent(
                             operationContext,
-                            pipDescription,
+                            pipInfo.SemiStableHash,
                             destinationFile,
                             fileContentInfo,
                             outputOrigin);
@@ -907,7 +908,7 @@ namespace BuildXL.Scheduler
         internal static void ReportExecutionResultOutputContent(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
-            string pipDescription,
+            long pipSemiStableHash,
             ExecutionResult processExecutionResult,
             bool doubleWriteErrorsAreWarnings = false)
         {
@@ -929,7 +930,7 @@ namespace BuildXL.Scheduler
             {
                 environment.State.FileContentManager.ReportOutputContent(
                     operationContext,
-                    pipDescription,
+                    pipSemiStableHash,
                     output.fileArtifact,
                     output.fileInfo,
                     overrideOutputOrigin ?? output.Item3,
@@ -1070,7 +1071,7 @@ namespace BuildXL.Scheduler
                 ReportExecutionResultOutputContent(
                     operationContext,
                     environment,
-                    processDescription,
+                    pip.SemiStableHash,
                     executionResult,
                     pip.PipType == PipType.Process ? ((Process)pip).DoubleWritePolicy.ImpliesDoubleWriteIsWarning() : false);
 
@@ -1134,7 +1135,7 @@ namespace BuildXL.Scheduler
         /// <param name="state">the pip scoped execution state</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
-        /// <param name="processIdListener">Callback to call when the process is actually started</param>
+        /// <param name="processIdListener">Callback to call when the process is actually started (PID is passed to it) and when the process exited (negative PID is passed to it)</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
@@ -1406,7 +1407,7 @@ namespace BuildXL.Scheduler
                                 {
                                     start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
-                                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Running pip", DateTime.UtcNow.Subtract(start));
+                                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                                 }
 
                                 ++retryCount;
@@ -1592,7 +1593,7 @@ namespace BuildXL.Scheduler
 
             start = DateTime.UtcNow;
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
-            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "reporting sandboxed execution result", DateTime.UtcNow.Subtract(start));
+            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseReportingExeResult, DateTime.UtcNow.Subtract(start));
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(
@@ -1682,7 +1683,7 @@ namespace BuildXL.Scheduler
                             executionResult.ObservedFileAccesses,
                             trackFileChanges: succeeded);
                     Processes.Tracing.Logger.Log.LogSubPhaseDuration(
-                        operationContext, pip.GetDescription(context), "ValidateObservedFileAccesses", DateTime.UtcNow.Subtract(start),
+                        operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseValidateObservedFileAccesses, DateTime.UtcNow.Subtract(start),
                         $"(AbsPrb: {observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count}, DynFiles: {observedInputValidationResult.DynamicallyObservedFiles.Length})");
                 }
 
@@ -1712,7 +1713,7 @@ namespace BuildXL.Scheduler
                             break;
                         }
                     }
-                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing isDirty", DateTime.UtcNow.Subtract(start));
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingIsDirty, DateTime.UtcNow.Subtract(start));
                     processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                 }
 
@@ -1800,7 +1801,7 @@ namespace BuildXL.Scheduler
                             enableCaching: !skipCaching,
                             fingerprintComputation: fingerprintComputation,
                             executionResult.ContainerConfiguration);
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing cache content", DateTime.UtcNow.Subtract(start));
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringCacheContent, DateTime.UtcNow.Subtract(start));
                     }
 
                     if (outputHashSuccess)
@@ -1843,13 +1844,13 @@ namespace BuildXL.Scheduler
                             observedInputValidationResult.ObservedInputs,
                             strongFingerprint),
                     };
-                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing strong fingerprint", DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingStrongFingerprint, DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
                 }
 
                 // Log the fingerprint computation
                 start = DateTime.UtcNow;
                 environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
-                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing fingerprint computation to XLG", DateTime.UtcNow.Subtract(start));
+                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
 
                 if (!outputHashSuccess)
                 {

@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     /// <typeparam name="TKey">Identifier for a given resource.</typeparam>
     /// <typeparam name="TObject">Type of the pooled object.</typeparam>
-    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IShutdownSlim<BoolResult>
+    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IStartupShutdownSlim
     {
         private readonly int _maxResourceCount;
         private readonly int _maximumAgeInMinutes;
@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                     returnWrapper = _resourceDict.GetOrAdd(
                         key,
-                        (k, resourceFactory) => { return new ResourceWrapper<TObject>(() => resourceFactory(k)); },
+                        (k, resourceFactory) => new ResourceWrapper<TObject>(() => resourceFactory(k), _context),
                         _resourceFactory);
 
                     if (_resourceDict.Count > _maxResourceCount)

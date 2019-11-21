@@ -940,7 +940,7 @@ namespace BuildXL.Engine.Distribution
                 {
                     environment.State.FileContentManager.ReportOutputContent(
                         operationContext,
-                        description,
+                        pip.SemiStableHash,
                         artifact: fileArtifact,
                         info: fileInfo,
                         origin: pipOutputOrigin);

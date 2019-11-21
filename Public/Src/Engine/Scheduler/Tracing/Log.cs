@@ -1537,7 +1537,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.ProcessStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1555,7 +1555,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.ProcessEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -1571,7 +1571,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.CopyFileStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1587,7 +1587,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.CopyFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -1597,7 +1597,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.WriteFileStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1613,7 +1613,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.WriteFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,

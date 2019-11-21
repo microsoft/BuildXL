@@ -149,11 +149,6 @@ namespace BuildXL.Processes
                 line => FeedStdErr(m_error, line),
                 info.Provenance,
                 msg => LogProcessState(msg));
-
-            if (info.ProcessIdListener != null)
-            {
-                ProcessStarted += (pid) => info.ProcessIdListener(pid);
-            }
         }
 
         /// <summary>
@@ -393,7 +388,7 @@ namespace BuildXL.Processes
             if (LoggingContext != null)
             {
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
-                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, PipDescription, fullMessage);
+                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, fullMessage);
             }
         }
 

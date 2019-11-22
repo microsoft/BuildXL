@@ -11,6 +11,12 @@ using BuildXL.Utilities;
 
 namespace BuildXL.Processes
 {
+    /// <summary>
+    /// Handler for stdout and stderr incremental output from a sandboxed process.
+    /// Calls a stream observer if configured, and stores the first maxMemoryLength characters
+    /// in a memory buffer (StringBuilder). If stream redirection is configured and the memory
+    /// buffer overflows, writes the stream to a backing file.
+    /// </summary>
     internal sealed class SandboxedProcessOutputBuilder : IDisposable
     {
         private readonly SandboxedProcessFile m_file;
@@ -36,7 +42,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(encoding != null);
             Contract.Requires(maxMemoryLength >= 0);
-            Contract.Requires(fileStorage != null);
 
             m_stringBuilderWrapper = Pools.GetStringBuilder();
             m_stringBuilder = m_stringBuilderWrapper.Instance;
@@ -102,11 +107,16 @@ namespace BuildXL.Processes
                 {
                     HandleRecoverableIOException(() => m_textWriter.WriteLine(data));
                 }
+                else if (m_fileStorage == null && m_stringBuilder.Length >= m_maxMemoryLength)
+                {
+                    // The caller should have configured an observer, called above. If not and no backing file configured,
+                    // we stop collecting the output stream at the in-memory buffer length, dropping any remainder.
+                }
                 else
                 {
                     m_stringBuilder.AppendLine(data);
                     Contract.Assert(m_stringBuilder.Length == m_length);
-                    if (m_length > m_maxMemoryLength)
+                    if (m_length > m_maxMemoryLength && m_fileStorage != null)
                     {
                         m_fileName = m_fileStorage.GetFileName(m_file);
                         HandleRecoverableIOException(

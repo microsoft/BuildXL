@@ -43,6 +43,7 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(A("C", "Source", "source.txt"), FileAccessPolicy.AllowReadAlways);
             vac.AddPath(A("C", "Out", "out.txt"), FileAccessPolicy.AllowAll);
 
+            SandboxedProcessStandardFiles standardFiles = null;
             ISandboxedProcessFileStorage fileStorage;
             if (useNullFileStorage)
             {
@@ -50,7 +51,7 @@ namespace Test.BuildXL.Processes.Detours
             }
             else
             {
-                var standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"));
+                standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"));
                 fileStorage = new StandardFileStorage(standardFiles);
             }
 

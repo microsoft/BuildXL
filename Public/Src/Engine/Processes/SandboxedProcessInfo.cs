@@ -13,6 +13,7 @@ using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using CanBeNullAttribute = JetBrains.Annotations.CanBeNullAttribute;
 using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes

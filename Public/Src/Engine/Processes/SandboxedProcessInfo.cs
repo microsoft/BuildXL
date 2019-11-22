@@ -82,7 +82,7 @@ namespace BuildXL.Processes
         /// compile against this assembly and already depend on this constructor.
         /// </remarks>
         public SandboxedProcessInfo(
-             ISandboxedProcessFileStorage fileStorage,
+             [CanBeNull] ISandboxedProcessFileStorage fileStorage,
              string fileName,
              bool disableConHostSharing,
              bool testRetries = false,
@@ -98,7 +98,7 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            ISandboxedProcessFileStorage fileStorage,
+            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
             string fileName,
             FileAccessManifest fileAccessManifest,
             bool disableConHostSharing,
@@ -134,7 +134,7 @@ namespace BuildXL.Processes
         /// </summary>
         public SandboxedProcessInfo(
             PathTable pathTable,
-            ISandboxedProcessFileStorage fileStorage,
+            [CanBeNull] ISandboxedProcessFileStorage fileStorage,
             string fileName,
             bool disableConHostSharing,
             bool testRetries = false,

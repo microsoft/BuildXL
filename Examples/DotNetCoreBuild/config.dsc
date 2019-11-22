@@ -5,7 +5,7 @@ config({
     modules: [
         d`sdk`,
         d`src`,
-        d`test`,
+        d`test`
     ].mapMany(dir => [...globR(dir, "module.config.dsc"), ...globR(dir, "package.config.dsc")]),
 
     mounts: Context.getCurrentHost().os === "macOS" ? [

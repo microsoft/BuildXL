@@ -38,6 +38,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = template.MinimumWorkers;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
+            FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
         }
 
         /// <inhertidoc />
@@ -73,5 +74,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double EarlyWorkerReleaseMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public bool FireForgetMaterializeOutput { get; set; }
     }
 }

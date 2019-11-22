@@ -298,8 +298,10 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
-        private PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
-        private PipPropertyInfo m_pipPropertyInfo = new PipPropertyInfo();
+        private readonly PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
+        private readonly PipPropertyInfo m_pipPropertyInfo = new PipPropertyInfo();
+
+        private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
 
         /// <summary>
         /// Enables distribution for the master node
@@ -336,7 +338,7 @@ namespace BuildXL.Scheduler
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
                 worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.Initialize(PipGraph, workerExecutionLogTarget);
+                worker.Initialize(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
                 worker.AdjustTotalCacheLookupSlots(m_scheduleConfiguration.MaxCacheLookup * (worker.IsLocal ? 1 : 5)); // Oversubscribe the cachelookup step for remote workers
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
@@ -345,6 +347,30 @@ namespace BuildXL.Scheduler
             m_allWorker = new AllWorker(m_workers.ToArray());
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
+        }
+
+        private bool AnyPendingPipsExceptMaterializeOutputs()
+        {
+            // We check here whether the scheduler is busy only with materializeOutputs.
+            // Because retrieving pip states is expensive, we first calculate how many pips there are in non-materialize queues.
+            // If it is 0, then we get the pip states. If there is no ready, waiting, and running pips; it means that the scheduler is done with all work
+            // or it is only busy with materializeOutput step. As we mark the pips as completed if materializeOutputsInBackground is enabled, they have "Done" state.
+
+            long numRunningOrQueued = m_pipQueue.NumRunningOrQueued;
+            long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - m_pipQueue.GetNumRunningByKind(DispatcherKind.Materialize) - m_pipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
+
+            if (numRunningOrQueuedExceptMaterialize == 0)
+            {
+                RetrievePipStateCounts(out long totalPips, out long readyPips, out long waitingPips, out long runningPips, out long donePips, out long failedPips, out long skippedPips, out long ignoredPips);
+
+                if (readyPips + waitingPips + runningPips == 0)
+                {
+                    // It means that there are only pips materializing outputs in the background.
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private readonly object m_workerStatusLock = new object();
@@ -3387,6 +3413,12 @@ namespace BuildXL.Scheduler
 
                 case PipExecutionStep.MaterializeOutputs:
                     {
+                        if (m_configuration.Distribution.FireForgetMaterializeOutput && !AnyPendingPipsExceptMaterializeOutputs())
+                        {
+                            // There is no pips running anything except materializeOutputs. 
+                            m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
+                        }
+
                         PipResultStatus materializationResult = await worker.MaterializeOutputsAsync(runnablePip);
 
                         var nextStep = processRunnable?.ExecutionResult != null

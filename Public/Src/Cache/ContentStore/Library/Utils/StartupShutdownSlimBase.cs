@@ -33,6 +33,9 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <inheritdoc />
         public virtual bool ShutdownCompleted { get; private set; }
 
+        /// <nodoc />
+        protected virtual Func<BoolResult, string> ExtraStartupMessageFactory => null;
+
         /// <inheritdoc />
         public bool ShutdownStarted => _shutdownStartedCancellationTokenSource.Token.IsCancellationRequested;
 
@@ -65,7 +68,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             var operationContext = OperationContext(context);
             var result = await operationContext.PerformInitializationAsync(
                 Tracer,
-                () => StartupCoreAsync(operationContext));
+                () => StartupCoreAsync(operationContext),
+                endMessageFactory: ExtraStartupMessageFactory);
             StartupCompleted = true;
 
             return result;

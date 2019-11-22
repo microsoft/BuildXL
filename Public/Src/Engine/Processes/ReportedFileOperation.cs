@@ -232,7 +232,10 @@ namespace BuildXL.Processes
         KAuthVNodeExecute,
         KAuthVNodeWrite,
         KAuthVNodeRead,
-        KAuthVNodeProbe
+        KAuthVNodeProbe,
+        MacVNodeWrite,
+        MacVNodeCloneSource,
+        MacVNodeCloneDest,
 #pragma warning restore CS1591
         #endregion
     }

@@ -42,6 +42,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             Contract.Requires(header != null);
             Contract.Requires(writeBody != null);
 
+            header = "*** " + header + " ***";
             writer.WriteLine(header);
             writer.WriteLine(new string('=', header.Length));
             writeBody(writer);

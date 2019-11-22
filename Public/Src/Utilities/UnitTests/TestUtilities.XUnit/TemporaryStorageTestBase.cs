@@ -205,40 +205,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// </remarks>
         protected bool TryGetSubstSourceAndTarget(out string substSource, out string substTarget)
         {
-            substSource = null;
-            substTarget = null;
-
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                // There is currently no subst in non-Windows OS.
-                return false;
-            }
-
-            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
-                TemporaryDirectory,
-                FileShare.Read | FileShare.Write | FileShare.Delete,
-                out SafeFileHandle directoryHandle);
-            XAssert.IsTrue(directoryOpenResult.Succeeded);
-
-            string directoryHandlePath = FileUtilities.GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
-
-            if (!string.Equals(TemporaryDirectory, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
-            {
-                string commonPath = TemporaryDirectory.Substring(2); // Include '\' of '<Drive>:\'  for searching.
-                substTarget = TemporaryDirectory.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
-                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
-
-                if (commonIndex == -1)
-                {
-                    substTarget = null;
-                }
-                else
-                {
-                    substSource = directoryHandlePath.Substring(0, commonIndex + 1);
-                }
-            }
-
-            return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
+            return FileUtilities.TryGetSubstSourceAndTarget(TemporaryDirectory, out substSource, out substTarget);
         }
     }
 }

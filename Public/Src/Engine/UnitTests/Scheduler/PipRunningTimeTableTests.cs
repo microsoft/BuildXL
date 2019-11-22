@@ -27,7 +27,9 @@ namespace Test.BuildXL.Scheduler
                         };
             var spans = new[] { TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.MaxValue };
             var ints = new[] {0, int.MaxValue};
-            var ulongs = new ulong[] {0, 1, ulong.MaxValue};
+
+            // Let's say that the highest possible memory usage is currently 1TB.
+            var ulongs = new ulong[] {0, 1, (ulong)1024 * 1024 * 1024 * 1024}; 
             var uints = new uint[] {0, 1, uint.MaxValue};
 
             foreach (var executionStart in times)
@@ -77,7 +79,7 @@ namespace Test.BuildXL.Scheduler
                                                         ioCounters,
                                                         userTime,
                                                         kernelTime,
-                                                        peakMemoryUsage,
+                                                        ProcessMemoryCounters.CreateFromBytes(peakMemoryUsage, peakMemoryUsage, peakMemoryUsage),
                                                         numberOfProcesses,
                                                         workerId);
                                                     var data = new PipHistoricPerfData(performance);
@@ -126,7 +128,7 @@ namespace Test.BuildXL.Scheduler
                         default(IOCounters),
                         TimeSpan.FromMilliseconds(execTime),
                         TimeSpan.FromMilliseconds(execTime / 2),
-                        1024 * 1024,
+                        ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024),
                         1,
                         workerId: 0);
 
@@ -166,7 +168,7 @@ namespace Test.BuildXL.Scheduler
                 default(IOCounters),
                 TimeSpan.FromMilliseconds(execTime),
                 TimeSpan.FromMilliseconds(execTime / 2),
-                1024 * 1024,
+                ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024),
                 1,
                 workerId: 0);
 

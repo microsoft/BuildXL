@@ -33,6 +33,7 @@ using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
+using System.Runtime.CompilerServices;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -194,14 +195,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public bool AreBlobsSupported => GlobalStore.AreBlobsSupported;
 
-        private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration)
+        private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
             return ContentLocationEventStore.Create(
                 configuration.EventStore,
                 new ContentLocationDatabaseAdapter(Database, ClusterState),
                 GlobalStore.LocalMachineLocation.ToString(),
                 CentralStorage,
-                configuration.Checkpoint.WorkingDirectory / "reconciles"
+                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder
                 );
         }
 
@@ -279,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _checkpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
 
-            EventStore = CreateEventStore(_configuration);
+            EventStore = CreateEventStore(_configuration, "main");
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
@@ -302,13 +303,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.FromResult(await ProcessStateAsync(context, inline: true));
+                _postInitializationTask = Task.FromResult(await HeartbeatAsync(context, inline: true));
             }
             else
             {
                 // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
+                _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true));
             }
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
@@ -366,24 +367,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        /// <nodoc />
-        internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
-        {
-            using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
-            {
-                // This makes sure that the heartbeat is only run once for each call to this function. It is a
-                // non-blocking check.
-                if (!acquired)
-                {
-                    return BoolResult.Success;
-                }
-
-                return await context.PerformOperationAsync(
-                    Tracer,
-                    () => ProcessStateAsync(context, inline: false));
-            }
-        }
-
         /// <summary>
         /// Releases current master role (other workers now can pick it up) and changes the current role to a newly acquired one.
         /// </summary>
@@ -395,12 +378,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restore checkpoint.
         /// </summary>
-        internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
         {
             return await RunOutOfBandAsync(
                 inline,
                 ref _pendingProcessCheckpointTask,
-                async () =>
+                context.CreateOperation(Tracer, async () =>
                 {
                     BoolResult result = BoolResult.Success;
 
@@ -480,10 +463,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     CurrentRole = newRole;
 
                     return result;
-                });
+                }));
         }
 
-        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
         {
             var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
@@ -504,15 +487,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 try
                 {
-                    var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
-
-                    if (!checkpointState)
+                    using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
                     {
-                        // The error is already logged.
-                        return checkpointState;
-                    }
+                        // This makes sure that the heartbeat is only run once for each call to this function. It is a
+                        // non-blocking check.
+                        if (!acquired)
+                        {
+                            return BoolResult.Success;
+                        }
 
-                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline, forceRestore);
+                        var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+
+                        if (!checkpointState)
+                        {
+                            // The error is already logged.
+                            return checkpointState;
+                        }
+
+                        return await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
+                    }
                 }
                 finally
                 {
@@ -524,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
         }
-        
+
 
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {
@@ -562,11 +555,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return (_clock.UtcNow - lastTime) >= interval;
         }
 
-        private Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, Func<Task<BoolResult>> runAsync)
+        private Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, PerformAsyncOperationBuilder<BoolResult> operation, [CallerMemberName] string caller = null)
         {
             if (_configuration.InlinePostInitialization || inline)
             {
-                return runAsync();
+                operation.AppendStartMessage(extraStartMessage: "inlined=true");
+                return operation.RunAsync(caller);
             }
 
             if (pendingTask != null)
@@ -581,7 +575,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.SuccessTask;
             }
 
-            pendingTask = Task.Run(() => runAsync());
+            pendingTask = Task.Run(() => operation.RunAsync(caller));
             return BoolResult.SuccessTask;
         }
 
@@ -600,13 +594,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
         {
-            var token = context.Token;
+            var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+            var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+
+            // Only skip if this is the first restore and it is sufficiently recent
+            // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
+            var shouldSkipRestore = _lastRestoreTime == default
+                && latestCheckpoint != null
+                && _configuration.Checkpoint.RestoreCheckpointAgeThreshold != default
+                && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold);
+
+            if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+            {
+                Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+            }
+
+            if (shouldSkipRestore)
+            {
+                Tracer.Debug(context, $"First checkpoint {latestCheckpoint.Value.checkpointId} will be skipped. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                return BoolResult.Success;
+            }
+
             if (checkpointState.CheckpointAvailable)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
-                    Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState.CheckpointId);
+                    Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState}'.");
+                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;
@@ -616,7 +630,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 else
                 {
-                    Tracer.Debug(context, $"Checkpoint '{checkpointState.CheckpointId}' already restored.");
+                    Tracer.Debug(context, $"Checkpoint '{checkpointState}' already restored.");
                 }
 
                 if (_localContentStore != null && !_reconciled && _configuration.EnableReconciliation)
@@ -630,7 +644,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else
                     {
-                        Task.Run(() => ReconcileAsync(context), token).FireAndForget(context);
+                        Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
                     }
                 }
             }
@@ -919,7 +933,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes)
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
         {
             Contract.Requires(contentHashes != null);
 
@@ -978,7 +992,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes).ThrowIfFailure();
+                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes, touch).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -1187,66 +1201,107 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     token.ThrowIfCancellationRequested();
 
-                    // Pause events in main event store while sending reconciliation events via temporary event store
-                    // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
-                    // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
-                    // It is possible that remove event could be sent before reconciliation event and the final state
-                    // in the database would still have missing content [A].
-                    using (EventStore.PauseSendingEvents())
+                    var totalAddedContent = 0;
+                    var totalRemovedContent = 0;
+                    var allLocalStoreContentCount = 0;
+                    ShortHash? lastProcessedHash = null;
+                    var isFinished = false;
+
+                    while (!isFinished)
                     {
-                        var allLocalStoreContentInfos = await _localContentStore.GetContentInfoAsync(token);
-                        token.ThrowIfCancellationRequested();
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
 
-                        var allLocalStoreContent = allLocalStoreContentInfos.Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size)).OrderBy(c => c.hash).ToList();
+                        await context.PerformOperationAsync(
+                            Tracer,
+                            operation: performReconciliationCycleAsync,
+                            caller: "PerformReconciliationCycleAsync",
+                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles]).ThrowIfFailure();
 
-                        var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId);
-                        token.ThrowIfCancellationRequested();
-
-                        // Diff the two views of the local machines content (left = local store, right = content location db)
-                        // Then send changes as events
-                        var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
-
-                        var addedContent = new List<ShortHashWithSize>();
-                        var removedContent = new List<ShortHash>();
-
-                        foreach (var diffItem in diffedContent)
+                        if (!isFinished)
                         {
-                            if (diffItem.mode == MergeMode.LeftOnly)
-                            {
-                                // Content is not in DB but is in the local store need to send add event
-                                addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
-                            }
-                            else
-                            {
-                                // Content is in DB but is not local store need to send remove event
-                                removedContent.Add(diffItem.item.hash);
-                            }
+                            await delayTask;
                         }
+                    }
 
-                        Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
-                        Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
+                    MarkReconciled();
+                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
 
-                        // Only call reconcile if content needs to be updated for machine
-                        if (addedContent.Count != 0 || removedContent.Count != 0)
+                    async Task<BoolResult> performReconciliationCycleAsync()
+                    {
+                        // Pause events in main event store while sending reconciliation events via temporary event store
+                        // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
+                        // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
+                        // It is possible that remove event could be sent before reconciliation event and the final state
+                        // in the database would still have missing content [A].
+                        using (EventStore.PauseSendingEvents())
                         {
-                            // Create separate event store for reconciliation events so they are dispatched first before
-                            // events in normal event store which may be queued during reconciliation operation.
-                            var reconciliationEventStore = CreateEventStore(_configuration);
+                            var allLocalStoreContentInfos = await _localContentStore.GetContentInfoAsync(token);
+                            token.ThrowIfCancellationRequested();
 
-                            try
-                            {
-                                await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
+                            var allLocalStoreContent = allLocalStoreContentInfos
+                                .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
+                                .OrderBy(c => c.hash)
+                                .SkipWhile(hashWithSize => lastProcessedHash.HasValue && hashWithSize.hash < lastProcessedHash.Value)
+                                .ToList();
 
-                                await reconciliationEventStore.ReconcileAsync(context, LocalMachineId, addedContent, removedContent).ThrowIfFailure();
-                            }
-                            finally
+                            allLocalStoreContentCount = allLocalStoreContent.Count;
+
+                            var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId, startingPoint: lastProcessedHash);
+                            token.ThrowIfCancellationRequested();
+
+                            // Diff the two views of the local machines content (left = local store, right = content location db)
+                            // Then send changes as events
+                            var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
+                            diffedContent = diffedContent.Take(_configuration.ReconciliationMaxCycleSize);
+
+                            var addedContent = new List<ShortHashWithSize>();
+                            var removedContent = new List<ShortHash>();
+
+                            foreach (var diffItem in diffedContent)
                             {
-                                await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
+                                lastProcessedHash = diffItem.item.hash;
+
+                                if (diffItem.mode == MergeMode.LeftOnly)
+                                {
+                                    // Content is not in DB but is in the local store need to send add event
+                                    addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
+                                }
+                                else
+                                {
+                                    // Content is in DB but is not local store need to send remove event
+                                    removedContent.Add(diffItem.item.hash);
+                                }
                             }
+
+                            Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
+                            Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
+                            totalAddedContent += addedContent.Count;
+                            totalRemovedContent += removedContent.Count;
+
+                            // Only call reconcile if content needs to be updated for machine
+                            if (addedContent.Count != 0 || removedContent.Count != 0)
+                            {
+                                // Create separate event store for reconciliation events so they are dispatched first before
+                                // events in normal event store which may be queued during reconciliation operation.
+                                var reconciliationEventStore = CreateEventStore(_configuration, "reconcile");
+
+                                try
+                                {
+                                    await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
+
+                                    await reconciliationEventStore.ReconcileAsync(context, LocalMachineId, addedContent, removedContent).ThrowIfFailure();
+                                }
+                                finally
+                                {
+                                    await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
+                                }
+                            }
+
+                            // Corner case where they are equal and we have finished should be very unlikely.
+                            isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
+
+                            return BoolResult.Success;
                         }
-
-                        MarkReconciled();
-                        return new ReconciliationResult(addedCount: addedContent.Count, removedCount: removedContent.Count, totalLocalContentCount: allLocalStoreContent.Count);
                     }
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
@@ -1294,7 +1349,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
                 // We can safely ignore errors, because there is nothing more we can do here.
-                await HeartbeatAsync(context).IgnoreErrors();
+                await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();
             }
         }
 
@@ -1342,20 +1397,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.ContentTouched(context, hash, accessTime);
                 }
             }
 
             /// <inheritdoc />
-            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling)
+            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hashWithSize in hashes)
+                foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
-                    _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling);
+                    _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling, updateLastAccessTime);
                 }
             }
 
@@ -1363,7 +1418,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 _clusterState.MarkMachineActive(sender);
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }

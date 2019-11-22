@@ -18,8 +18,7 @@ namespace Script {
         assemblyName: "Test.BuildXL.FrontEnd.Script",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-            parallelGroups: categoriesToRunInParallel,
-            weight: 2, //increase weight for frequent timeout pip
+            parallelGroups: categoriesToRunInParallel
         },
         references: [
             Script.TestBase.dll,

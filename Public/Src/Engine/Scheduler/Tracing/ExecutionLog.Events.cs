@@ -1143,7 +1143,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
-        public int MachineRamUtilizationMB;
+        public int RamUsedMb;
+
+        /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int RamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
@@ -1155,7 +1160,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The machine's total commit in MB
         /// </summary>
-        public int CommitTotalMB;
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
 
         /// <summary>
         /// CPU utilization of the current process
@@ -1203,9 +1213,14 @@ namespace BuildXL.Scheduler.Tracing
         public int LookupRunning;
 
         /// <summary>
-        /// Number of externally running processes
+        /// Number of processes running under PipExecutor
         /// </summary>
-        public int ExternalProcesses;
+        public int RunningPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
+        /// </summary>
+        public int RunningProcesses;
 
         /// <summary>
         /// Number of pips succeeded for each type
@@ -1269,13 +1284,20 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(LookupWaiting);
             writer.Write(LookupRunning);
 
-            writer.Write(ExternalProcesses);
+            writer.Write(RunningPipExecutorProcesses);
+            writer.Write(RunningProcesses);
 
             writer.Write(PipsSucceededAllTypes.Length);
             foreach (var pipsSucceeded in PipsSucceededAllTypes)
             {
                 writer.Write(pipsSucceeded);
             }
+
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
+            writer.Write(CommitPercent);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
         }
 
         /// <inheritdoc />
@@ -1313,7 +1335,8 @@ namespace BuildXL.Scheduler.Tracing
             LookupWaiting = reader.ReadInt32();
             LookupRunning = reader.ReadInt32();
 
-            ExternalProcesses = reader.ReadInt32();
+            RunningPipExecutorProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
 
             var pipTypeLength = reader.ReadInt32();
             PipsSucceededAllTypes = new long[pipTypeLength];
@@ -1321,6 +1344,12 @@ namespace BuildXL.Scheduler.Tracing
             {
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
+
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
         }
     }
 
@@ -1348,12 +1377,16 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public SandboxConfigurationData Sandbox;
+
+            /// <nodoc />
             public IReadOnlyList<string> CommandLineArguments;
 
             /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                Sandbox = new SandboxConfigurationData(configuration.Sandbox);
                 CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
@@ -1361,6 +1394,7 @@ namespace BuildXL.Scheduler.Tracing
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                Sandbox.Serialize(writer);
                 writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
@@ -1368,6 +1402,7 @@ namespace BuildXL.Scheduler.Tracing
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                Sandbox.DeserializeAndUpdate(reader);
                 CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
@@ -1405,6 +1440,37 @@ namespace BuildXL.Scheduler.Tracing
             {
                 SubstSource = reader.ReadAbsolutePath();
                 SubstTarget = reader.ReadAbsolutePath();
+            }
+        }
+
+        /// <nodoc />
+        public struct SandboxConfigurationData
+        {
+            /// <nodoc />
+            public IReadOnlyList<AbsolutePath> GlobalUntrackedScopes;
+
+            /// <nodoc />
+            public IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables;
+
+            /// <nodoc />
+            public SandboxConfigurationData(ISandboxConfiguration configuration)
+            {
+                GlobalUntrackedScopes = configuration.GlobalUnsafeUntrackedScopes;
+                GlobalUnsafePassthroughEnvironmentVariables = configuration.GlobalUnsafePassthroughEnvironmentVariables;
+            }
+
+            /// <nodoc />
+            public void Serialize(BinaryLogger.EventWriter writer)
+            {
+                writer.WriteReadOnlyList(GlobalUntrackedScopes, (w, v) => w.Write(v));
+                writer.WriteReadOnlyList(GlobalUnsafePassthroughEnvironmentVariables, (w, v) => w.Write(v));
+            }
+
+            /// <nodoc />
+            public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+            {
+                GlobalUntrackedScopes = reader.ReadReadOnlyList((r) => r.ReadAbsolutePath());
+                GlobalUnsafePassthroughEnvironmentVariables = reader.ReadReadOnlyList((r) => r.ReadString());
             }
         }
 

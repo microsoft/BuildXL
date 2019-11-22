@@ -101,7 +101,7 @@ namespace BuildXL.Native.IO
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/> handleEntry,
             bool isEnumerationForDirectoryDeletion = false,
             bool followSymlinksToDirectories = false);
-        
+
         /// <summary>
         /// Enumerates the files in the given directory using a search pattern.
         /// </summary>
@@ -262,6 +262,13 @@ namespace BuildXL.Native.IO
         /// Supports paths greater than MAX_PATH.
         /// </remarks>
         void SetFileAttributes(string path, FileAttributes attributes);
+
+        /// <summary>
+        /// Synchronously writes the specified content to the given handle, representing a file or IO device
+        /// </summary>
+        /// <remarks>The handle must have been created with write access</remarks>
+        /// <result>Whether the write succeeds. If the write fails, the native error code contains the root cause</result>
+        bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode);
 
         #endregion
 
@@ -616,6 +623,11 @@ namespace BuildXL.Native.IO
         /// Flag indicating if the enlistment volume supports copy on write.
         /// </summary>
         bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
+
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        bool IsDirectorySymlinkOrJunction(string path);
 
         #endregion
     }

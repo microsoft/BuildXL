@@ -18,11 +18,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool CheckFiles { get; set; } = true;
 
         /// <summary>
-        /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-        /// </summary>
-        public bool UseEmptyFileHashShortcut { get; set; } = true;
-
-        /// <summary>
         /// Whether the shortcuts for redundant put files are used.
         /// </summary>
         public bool UseRedundantPutFileShortcut { get; set; } = true;
@@ -41,6 +36,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Whether to trace diagnostic-level messages emitted by <see cref="FileSystemContentStore"/> and <see cref="FileSystemContentStoreInternal"/> like hashing or placing files.
         /// </summary>
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
+        /// <summary>
+        /// Whether to skip touching the content and acquiring a hash lock when PinAsync is called by hibernated session.
+        /// </summary>
+        public bool SkipTouchAndLockAcquisitionWhenPinningFromHibernation { get; set; } = false;
 
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();

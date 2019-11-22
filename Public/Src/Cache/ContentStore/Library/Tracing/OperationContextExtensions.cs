@@ -75,6 +75,17 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <summary>
+        /// Appends the start message to the current start message
+        /// </summary>
+        public TBuilder AppendStartMessage(string extraStartMessage)
+        {
+            _extraStartMessage = _extraStartMessage != null
+                ? string.Join(" ", _extraStartMessage, extraStartMessage)
+                : extraStartMessage;
+            return (TBuilder)this;
+        }
+
+        /// <summary>
         /// Set tracing options for the operation the builder is responsible for construction.
         /// </summary>
         public TBuilder WithOptions(

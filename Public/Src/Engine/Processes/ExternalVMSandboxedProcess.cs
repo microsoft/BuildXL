@@ -67,7 +67,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
+        public override ulong? GetActivePeakWorkingSet() => m_processExecutor?.GetActivePeakWorkingSet();
 
         /// <inheritdoc />
         [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]

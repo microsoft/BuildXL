@@ -57,7 +57,7 @@ namespace Test.ProjectGraphBuilder
             Assert.True(projectGraphWithPredictionsResult.Succeeded);
             // The locations for MSBuild.exe and its assemblies should be properly set
             Assert.Contains(TestDeploymentDir, projectGraphWithPredictionsResult.PathToMsBuild);
-            Assert.All(projectGraphWithPredictionsResult.MsBuildAssemblyPaths.Values, assemblyPath => assemblyPath.Contains(TestDeploymentDir));
+            XAssert.All(projectGraphWithPredictionsResult.MsBuildAssemblyPaths.Values, assemblyPath => assemblyPath.Contains(TestDeploymentDir));
         }
 
         private ProjectGraphWithPredictionsResult<string> BuildGraphAndDeserialize(string projectEntryPointContent = null)

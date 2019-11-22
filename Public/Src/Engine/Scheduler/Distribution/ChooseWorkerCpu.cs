@@ -57,8 +57,11 @@ namespace BuildXL.Scheduler.Distribution
         public RunnablePip LastBlockedPip { get; private set; }
 
         /// <summary>
-        /// The last resource limiting acquisition of a worker
+        /// The last resource limiting acquisition of a worker. 
         /// </summary>
+        /// <remarks>
+        /// If it is null, there is no resource limiting the worker.
+        /// </remarks>
         public WorkerResource? LastLimitingResource { get; set; }
 
         /// <summary>
@@ -147,7 +150,6 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         m_lastIterationBlockedPip = runnablePip;
                         LastBlockedPip = runnablePip;
-                        LastLimitingResource = limitingResource;
                         var limitingResourceCount = m_limitingResourceCounts.GetOrAdd(limitingResource.Value, k => new BoxRef<int>());
                         limitingResourceCount.Value++;
                     }
@@ -155,6 +157,9 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         m_lastIterationBlockedPip = null;
                     }
+                    
+                    // If a worker is successfully chosen, then the limiting resouce would be null.
+                    LastLimitingResource = limitingResource;
 
                     m_chooseTime += TimestampUtilities.Timestamp - startTime;
                     return chosenWorker;

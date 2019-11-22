@@ -57,7 +57,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakMemoryUsage() => m_processExecutor?.GetActivePeakMemoryUsage();
+        public override ulong? GetActivePeakWorkingSet() => m_processExecutor?.GetActivePeakWorkingSet();
 
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()

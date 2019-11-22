@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -118,11 +119,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// The result can be null.
         /// </remarks>
-        public AbsolutePath Parent
+        public AbsolutePath? Parent
         {
             get
             {
-                string parent;
+                string? parent;
                 try
                 {
                     parent = System.IO.Path.GetDirectoryName(Path);
@@ -156,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static string RemoveLongPathPrefixIfNeeded(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (!OperatingSystemHelper.IsWindowsOS)
             {
@@ -226,7 +227,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Throws <see cref="PathTooLongException"/> if the current path is longer (or equals) then max short path and the target platform does not support long paths.
         /// </summary>
-        public void ThrowIfPathTooLong([CallerMemberName] string caller = null)
+        public void ThrowIfPathTooLong([CallerMemberName] string? caller = null)
         {
             if (OperatingSystemHelper.IsWindowsOS && IsLongPath && !AbsolutePath.LongPathsSupported)
             {
@@ -249,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static string ToLongPathIfNeeded(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (path.Length < FileSystemConstants.MaxDirectoryPath)
             {
@@ -279,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <inheritdoc />
-        protected override PathBase GetParentPathBase()
+        protected override PathBase? GetParentPathBase()
         {
             return Parent;
         }
@@ -289,8 +290,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath operator /(AbsolutePath left, RelativePath right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
 
             return left / right.Path;
         }
@@ -300,8 +301,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath operator /(AbsolutePath left, string right)
         {
-            Contract.Requires(left != null);
-            Contract.Requires(right != null);
+            Contract.RequiresNotNull(left);
+            Contract.RequiresNotNull(right);
             try
             {
                 return new AbsolutePath(System.IO.Path.Combine(left.Path, right));

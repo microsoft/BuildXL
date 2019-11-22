@@ -242,24 +242,15 @@ void RegisterSignalHandlers()
         SIGSEGV
     };
 
-    void *handler_defaults[] = {
-        SIG_IGN,  // SIGBUS
-        SIG_HOLD, // SIGILL: Can't be ignored, hence we add it to the calling process signal mask
-        SIG_IGN,  // SIGHUP
-        SIG_IGN,  // SIGABRT
-        SIG_IGN   // SIGSEGV
-    };
-
     int signalsLength = sizeof(signals) / sizeof(signals[0]);
-    int defaultsLength = sizeof(handler_defaults) / sizeof(handler_defaults[0]);
-
-    // Make sure we provide default handler behavior for every signal we hijack
-    assert(signalsLength == defaultsLength);
 
     for (int i = 0; i < signalsLength; i++)
     {
         struct sigaction action = { 0 };
-        action.sa_handler = handler_defaults[i];
+
+        // Also forward all intercepted signal masks to potential children,
+        // so they can do their own signal handling if required
+        action.sa_handler = SIG_HOLD;
 
         int sig = signals[i];
         sigaction(sig, &action, NULL);

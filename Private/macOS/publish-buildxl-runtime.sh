@@ -390,6 +390,13 @@ rm -rf $nugetDestDir
 if [[ -n $(which mono) && -f "$nugetExe" ]]; then
     echo "Publishing ${nupkgFile} to ${nugetFeed}"
     mono "${nugetExe}" push "${nupkgFile}" -Source "${nugetFeed}" -ApiKey "AzureDevOps"
+    if [[ $? != 0 ]]; then
+        echo "publishing nuget failed"
+        exit 1
+    fi
+
+    echo "Building with /phase:Schedule to confirm that the new nuget can be downloaded and to regenerate cg/nuget/cgmanifest.json"
+    ${buildxlDir}/bxl.sh --internal --minimal /phase:Schedule
 else
     echo " !!! Must publish $nupkgFile manually to feed: '${nugetFeed}'"
 fi

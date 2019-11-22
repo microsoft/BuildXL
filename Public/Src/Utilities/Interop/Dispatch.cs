@@ -88,7 +88,7 @@ namespace BuildXL.Interop
         /// </summary>
         /// <param name="handle">When calling from Windows the SafeProcessHandle is required</param>
         /// <param name="pid">On non-windows systems a process id has to be provided</param>
-        public static ulong? GetActivePeakMemoryUsage(IntPtr handle, int pid)
+        public static ulong? GetActivePeakWorkingSet(IntPtr handle, int pid)
         {
             switch (s_currentOS)
             {
@@ -104,15 +104,33 @@ namespace BuildXL.Interop
                     }
                 default:
                     {
-                        Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
-
-                        if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
-                        {
-                            return processMemoryCounters.PeakWorkingSetSize;
-                        }
-
-                        return null;
+                        return GetMemoryUsageCounters(handle)?.PeakWorkingSetSize;
                     }
+            }
+        }
+
+        /// <summary>
+        /// Get memory usage with all counters for Windows
+        /// </summary>
+        public static Process.PROCESSMEMORYCOUNTERSEX GetMemoryUsageCounters(IntPtr handle)
+        {
+            switch (s_currentOS)
+            {
+                case OperatingSystem.MacOS:
+                {
+                    return null;
+                }
+                default:
+                {
+                    Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
+
+                    if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
+                    {
+                        return processMemoryCounters;
+                    }
+
+                    return null;
+                }
             }
         }
     }

@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc />
         public override string ToString()
         {
-            return CheckpointAvailable ? CheckpointId : "Unavailable";
+            return CheckpointAvailable ? $"Id={CheckpointId}, Time={CheckpointTime}, StartSeqPt={StartSequencePoint}" : "Unavailable";
 
         }
     }

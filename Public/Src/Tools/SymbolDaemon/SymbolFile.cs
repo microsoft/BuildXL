@@ -40,7 +40,7 @@ namespace Tool.SymbolDaemon
         /// and set <see cref="IDebugEntryData.BlobIdentifier"/> to a proper value, but this would mean
         /// that we are hashing the same file twice.            
         /// </remarks>
-        private List<DebugEntryData> m_debugEntries;
+        private List<IDebugEntryData> m_debugEntries;
 
         /// <summary>
         /// File content hash
@@ -59,7 +59,7 @@ namespace Tool.SymbolDaemon
         /// no entries => file has no symbol data
         /// null => file has not been indexed yet
         /// </remarks>
-        public IReadOnlyList<DebugEntryData> DebugEntries => m_debugEntries;
+        public IReadOnlyList<IDebugEntryData> DebugEntries => m_debugEntries;
 
         /// <summary>
         /// Whether the file has been indexed
@@ -78,31 +78,27 @@ namespace Tool.SymbolDaemon
             string filePath,
             string fileId,
             ContentHash hash,
-            IEnumerable<DebugEntryData> debugEntries)
+            IEnumerable<IDebugEntryData> debugEntries)
         {
             Contract.Requires(symlinkTester != null);
             Contract.Requires(bxlClient != null);
             Contract.Requires(!string.IsNullOrEmpty(filePath));
             Contract.Requires(!string.IsNullOrEmpty(fileId));
-            Contract.Requires(debugEntries == null || debugEntries.All(de => de.BlobIdentifier == null));
-
             // It's not clear whether the symbol endpoint can play nicely with dedup hashes, so locking it down to VSO0 for now.
             Contract.Requires(hash.HashType == HashType.Vso0, "support only VSO0 hashes (for now)");
+
+            if (debugEntries != null)
+            {
+                var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(hash.ToHashByteArray());
+                Contract.Assert(debugEntries.All(e => e.BlobIdentifier == blobIdentifier));
+                m_debugEntries = new List<IDebugEntryData>(debugEntries);
+            }
 
             m_symlinkTester = symlinkTester;
             m_bxlClient = bxlClient;
             FullFilePath = Path.GetFullPath(filePath);
             m_file = FileId.Parse(fileId);
             Hash = hash;
-
-            if (debugEntries != null)
-            {
-                var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(Hash.ToHashByteArray());
-
-                var entries = new List<DebugEntryData>(debugEntries);
-                entries.ForEach(entry => entry.BlobIdentifier = blobIdentifier);
-                m_debugEntries = entries;
-            }
         }
 
         /// <nodoc/>    
@@ -117,7 +113,7 @@ namespace Tool.SymbolDaemon
             // ensure that BlobIdentifier is not null
             // here we 'trust' that the debug entries are from the current symbol file
             entries.ForEach(entry => entry.BlobIdentifier = blobIdentifier);
-            m_debugEntries = entries;
+            m_debugEntries = new List<IDebugEntryData>(entries);
         }
 
         /// <summary>
@@ -156,7 +152,7 @@ namespace Tool.SymbolDaemon
         public override string ToString()
         {
             return $"Path: {FullFilePath}{Environment.NewLine}" +
-                $"   {string.Join(Environment.NewLine, DebugEntries.Select(a=> $"BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}";
+                $"   {string.Join(Environment.NewLine, DebugEntries.Select(a => $"BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}";
         }
     }
 }

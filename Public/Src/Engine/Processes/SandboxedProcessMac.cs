@@ -14,10 +14,10 @@ using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -49,17 +49,14 @@ namespace BuildXL.Processes
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
-        private readonly Timer m_perfTimer;
+        private readonly CancellableTimedAction m_perfCollector;
         private readonly PerfAggregator m_perfAggregator;
 
         private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
 
-        private long m_processKilledFlag = 0;
+        private PipKextStats? m_pipKextStats = null;
 
-        /// <summary>
-        /// Returns the associated PipId
-        /// </summary>
-        private long PipId => ProcessInfo.FileAccessManifest.PipId;
+        private long m_processKilledFlag = 0;
 
         private ulong m_processExitTimeNs = ulong.MaxValue;
 
@@ -67,9 +64,13 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private ISandboxConnection SandboxConnection => ProcessInfo.SandboxConnection;
+        private long PipId { get; }
 
-        private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
+        private ISandboxConnection SandboxConnection { get; }
+
+        private TimeSpan ChildProcessTimeout { get; }
+
+        private TimeSpan? ReportQueueProcessTimeoutForTests { get; }
 
         /// <summary>
         /// Accumulates the time (in microseconds) access reports spend in the report queue
@@ -84,8 +85,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode 
-            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100) 
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode
+            ? ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
             : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
@@ -93,7 +94,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Allowed surviving child process names.
         /// </summary>
-        private string[] AllowedSurvivingChildProcessNames => ProcessInfo.AllowedSurvivingChildProcessNames;
+        private string[] AllowedSurvivingChildProcessNames { get; }
 
         private bool IgnoreReportedAccesses { get; }
 
@@ -112,6 +113,11 @@ namespace BuildXL.Processes
             Contract.Requires(info.FileAccessManifest != null);
             Contract.Requires(info.SandboxConnection != null);
 
+            PipId = info.FileAccessManifest.PipId;
+            SandboxConnection = info.SandboxConnection;
+            ChildProcessTimeout = info.NestedProcessTerminationTimeout;
+            AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
+            ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
 
             MeasureCpuTime = overrideMeasureTime.HasValue
@@ -120,11 +126,9 @@ namespace BuildXL.Processes
 
             m_perfAggregator = new PerfAggregator();
 
-            m_perfTimer = new Timer(
+            m_perfCollector = new CancellableTimedAction(
                 callback: UpdatePerfCounters,
-                state: this,
-                dueTime: Timeout.InfiniteTimeSpan, // don't automatically start the timer
-                period: Timeout.InfiniteTimeSpan);
+                intervalMs: (int)PerfProbeInternal.TotalMilliseconds);
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -132,7 +136,8 @@ namespace BuildXL.Processes
                 info.PipSemiStableHash,
                 info.PipDescription,
                 info.LoggingContext,
-                info.DetoursEventListener);
+                info.DetoursEventListener,
+                info.SidebandWriter);
 
             m_pendingReports = new ActionBlock<AccessReport>(
                 HandleAccessReport,
@@ -144,55 +149,48 @@ namespace BuildXL.Processes
                 });
 
             // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
-            ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
+            ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 
-        private static void UpdatePerfCounters(object state)
+        private void UpdatePerfCounters()
         {
-            var proc = (SandboxedProcessMac) state;
+            if (Process.HasExited)
+            {
+                return;
+            }
+
             var buffer = new Process.ProcessResourceUsage();
 
             // get processor times for the root process itself
-            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: false);
+            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: false);
             if (errCode == 0)
             {
-                proc.m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                proc.m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
             }
 
             // get processor times for the process tree
-            errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: true);
+            errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: true);
             if (errCode == 0)
             {
-                proc.m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                proc.m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+                m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
             }
 
             // get memory usage for the process tree
-            proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
-
-            proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
-            proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
-
-            // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            if (!proc.Process.HasExited)
-            {
-                proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
-            }
+            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakWorkingSet(default, ProcessId));
         }
 
         /// <inheritdoc />
-        protected override System.Diagnostics.Process CreateProcess()
+        protected override System.Diagnostics.Process CreateProcess(SandboxedProcessInfo info)
         {
-            var process = base.CreateProcess();
+            var process = base.CreateProcess(info);
 
             process.StartInfo.FileName = "/bin/sh";
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
-
-            // Stop the perf timer when the process exits
-            // NOTE: even if the timer fires after the process has exited, nothing bad should happen
-            process.Exited += (o, e) => m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             return process;
         }
@@ -205,7 +203,7 @@ namespace BuildXL.Processes
         /// piped to its standard input.  Therefore, in this handler we first notify the sandbox of the new process (so that
         /// it starts tracking it) and then just send the actual process command line to /bin/sh via its standard input.
         /// </summary>
-        private async Task OnProcessStartedAsync()
+        private async Task OnProcessStartedAsync(SandboxedProcessInfo info)
         {
             // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
             //
@@ -215,33 +213,42 @@ namespace BuildXL.Processes
             ReportProcessCreated();
 
             // Allow read access for /bin/sh
-            ProcessInfo.FileAccessManifest.AddPath(
+            info.FileAccessManifest.AddPath(
                 AbsolutePath.Create(PathTable, Process.StartInfo.FileName),
                 mask: FileAccessPolicy.MaskNothing,
                 values: FileAccessPolicy.AllowReadAlways);
 
             if (MeasureCpuTime)
             {
-                // start the timer now
-                m_perfTimer.Change(dueTime: TimeSpan.FromSeconds(0), period: Timeout.InfiniteTimeSpan);
+                m_perfCollector.Start();
             }
 
-            if (!SandboxConnection.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
+            string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
+
+            if (!SandboxConnection.NotifyPipStarted(info.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to notify kernel extension about process start, make sure the extension is loaded");
             }
 
             try
             {
-                await FeedStdInAsync();
+                await FeedStdInAsync(info, processStdinFileName);
                 m_processTreeTimeoutTask = ProcessTreeTimeoutTask();
             }
             catch (IOException e)
             {
                 // IOException can happen if the process is forcefully killed while we're feeding its std in.
                 // When that happens, instead of crashing, just make sure the process is killed.
-                LogProcessState($"IOException caught while feeding the standard input: {e.Message}");
+                LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
+            }
+            finally
+            {
+                // release the FileAccessManifest memory
+                // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object 
+                //       unreachable and thus available for garbage collection.  We call Release() here explicitly 
+                //       just to emphasize the importance of reclaiming this memory.
+                info.FileAccessManifest.Release();
             }
         }
 
@@ -303,16 +310,9 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
-            m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-
-            // Any scheduled callback may occur even after Dispose has been called; here we explicitly wait until they all complete
-            // NOTE: we unregister callbacks as soon as the process exits, and since this method is never called before the process 
-            //       exits, in practice this dance is probably not necessary.
-            var allCallbacksCompleted = new EventWaitHandle(initialState: false, mode: EventResetMode.ManualReset);
-            m_perfTimer.Dispose(allCallbacksCompleted);
-            allCallbacksCompleted.WaitOne();
-
-            m_perfTimer.Dispose();
+            m_perfCollector.Cancel();
+            m_perfCollector.Join();
+            m_perfCollector.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 
             var reportCount = Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
@@ -327,6 +327,12 @@ namespace BuildXL.Processes
                 // Try to kill all processes once the parent gets disposed, so we clean up all used
                 // system resources appropriately
                 KillAllChildProcesses();
+            }
+
+            if (m_pipKextStats != null)
+            {
+                var statsJson = Newtonsoft.Json.JsonConvert.SerializeObject(m_pipKextStats.Value);
+                LogProcessState($"Process Kext Stats: {statsJson}");
             }
 
             base.Dispose();
@@ -383,15 +389,14 @@ namespace BuildXL.Processes
             }
         }
 
-        private async Task FeedStdInAsync()
+        private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
-            string processStdinFileName = await FlushStandardInputToFileIfNeededAsync();
             string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
-            string escapedArguments     = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string escapedArguments     = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
 
-            string line = I($"exec {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
+            string line = I($"exec {info.FileName} {escapedArguments} {redirectedStdin}");
 
-            LogProcessState("Feeding stdin: " + line);
+            LogProcessState("Feeding stdin");
             await Process.StandardInput.WriteLineAsync(line);
             Process.StandardInput.Close();
         }
@@ -415,32 +420,61 @@ namespace BuildXL.Processes
         // <inheritdoc />
         internal override JobObject.AccountingInformation GetJobAccountingInfo()
         {
-            return !MeasureCpuTime
-                ? base.GetJobAccountingInfo()
-                : new JobObject.AccountingInformation
+            if (!MeasureCpuTime)
+            {
+                return base.GetJobAccountingInfo();
+            }
+            else
+            {
+                IOCounters ioCounters;
+                ProcessMemoryCounters memoryCounters;
+
+                try
                 {
-                    IO = new IOCounters(new IO_COUNTERS()
+                    ioCounters = new IOCounters(new IO_COUNTERS()
                     {
                         ReadOperationCount = 1,
                         WriteOperationCount = 1,
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
-                    }),
-                    PeakMemoryUsage = Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum),
+                    });
+
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
+                }
+                catch(OverflowException ex)
+                {
+                    LogProcessState($"Overflow exception caught while calculating AccountingInformation:{Environment.NewLine}{ex.ToString()}");
+
+                    ioCounters = new IOCounters(new IO_COUNTERS()
+                    {
+                        ReadOperationCount = 0,
+                        WriteOperationCount = 0,
+                        ReadTransferCount = 0,
+                        WriteTransferCount = 0
+                    });
+
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, 0, 0);
+                }
+
+                return new JobObject.AccountingInformation
+                {
+                    IO = ioCounters,
+                    MemoryCounters = memoryCounters,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };
+            }
         }
 
         private void ReportProcessCreated()
         {
             var report = new Sandbox.AccessReport
             {
-                Operation     = FileOperation.OpProcessStart,
-                Pid           = Process.Id,
-                PipId         = PipId,
-                Path          = Process.StartInfo.FileName,
-                Status        = (uint)FileAccessStatus.Allowed
+                Operation      = FileOperation.OpProcessStart,
+                Pid            = Process.Id,
+                PipId          = PipId,
+                PathOrPipStats = Sandbox.AccessReport.EncodePath(Process.StartInfo.FileName),
+                Status         = (uint)FileAccessStatus.Allowed
             };
 
             ReportFileAccess(ref report);
@@ -514,7 +548,7 @@ namespace BuildXL.Processes
                         }
                     }
 
-                    await Task.Delay(250);
+                    await Task.Delay(SandboxConnection.IsInTestMode ? 5 : 250);
                 }
             }, m_timeoutTaskCancelationSource.Token).IgnoreErrors();
 
@@ -529,7 +563,7 @@ namespace BuildXL.Processes
 
         private void HandleAccessReport(AccessReport report)
         {
-            if (ProcessInfo.FileAccessManifest.ReportFileAccesses)
+            if (ShouldReportFileAccesses)
             {
                 LogProcessState("Access report received: " + AccessReportToString(report));
             }
@@ -541,7 +575,7 @@ namespace BuildXL.Processes
 
                 // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
                 // TODO: check if the tests are overspecified because in practice BuildXL doesn't really rely much on the outcome of this check
-                var reportPath = report.Path;
+                var reportPath = report.DecodePath();
 
                 // Set the process exit time once we receive it from the sandbox kernel extension report queue
                 if (report.Operation == FileOperation.OpProcessExit && report.Pid == Process.Id)
@@ -585,7 +619,7 @@ namespace BuildXL.Processes
                         {
                             AccessReport reportClone = report;
                             reportClone.Operation = FileOperation.OpKAuthWriteFile;
-                            reportClone.Path = Path.Combine(dir, fileName);
+                            reportClone.PathOrPipStats = AccessReport.EncodePath(Path.Combine(dir, fileName));
                             ReportFileAccess(ref reportClone);
                         });
                 }
@@ -598,6 +632,7 @@ namespace BuildXL.Processes
 
                 if (report.Operation == FileOperation.OpProcessTreeCompleted)
                 {
+                    m_pipKextStats = report.DecodePipKextStats();
                     m_pendingReports.Complete();
                 }
                 else
@@ -628,16 +663,16 @@ namespace BuildXL.Processes
         /// If <see cref="SandboxedProcessInfo.StandardInputReader"/> is set, it flushes the content of that reader
         /// to a file in the process's working directory and returns the absolute path of that file; otherwise returns null.
         /// </summary>
-        private async Task<string> FlushStandardInputToFileIfNeededAsync()
+        private async Task<string> FlushStandardInputToFileIfNeededAsync(SandboxedProcessInfo info)
         {
-            if (ProcessInfo.StandardInputReader == null)
+            if (info.StandardInputReader == null)
             {
                 return null;
             }
 
-            string stdinFileName = Path.Combine(Process.StartInfo.WorkingDirectory, ProcessInfo.PipSemiStableHash + ".stdin");
-            string stdinText = await ProcessInfo.StandardInputReader.ReadToEndAsync();
-            Encoding encoding = ProcessInfo.StandardInputEncoding ?? Console.InputEncoding;
+            string stdinFileName = Path.Combine(Process.StartInfo.WorkingDirectory, info.PipSemiStableHash + ".stdin");
+            string stdinText = await info.StandardInputReader.ReadToEndAsync();
+            Encoding encoding = info.StandardInputEncoding ?? Console.InputEncoding;
             byte[] stdinBytes = encoding.GetBytes(stdinText);
             bool stdinFileWritten = await FileUtilities.WriteAllBytesAsync(stdinFileName, stdinBytes);
             if (!stdinFileWritten)
@@ -646,7 +681,7 @@ namespace BuildXL.Processes
             }
 
             // Allow read from the created stdin file
-            ProcessInfo.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
+            info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
 
             return stdinFileName;
         }
@@ -664,7 +699,7 @@ namespace BuildXL.Processes
             {
                 processId = (uint)report.Pid;
 
-                if (!SandboxedProcessReports.FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
+                if (!FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
                 {
                     errorMessages.Add($"Unknown operation '{report.DecodeOperation()}'");
                 }
@@ -690,7 +725,7 @@ namespace BuildXL.Processes
                 shareMode           = ShareMode.FILE_SHARE_READ;
                 creationDisposition = CreationDisposition.OPEN_ALWAYS;
                 flagsAndAttributes  = 0;
-                path                = report.Path;
+                path                = report.DecodePath();
                 enumeratePattern    = string.Empty;
                 processArgs         = string.Empty;
 
@@ -712,7 +747,7 @@ namespace BuildXL.Processes
             var status          = report.Status;
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
             var error           = report.Error;
-            var path            = report.Path;
+            var path            = report.DecodePath();
             var processTime     = (long)(report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
             var queueTime       = (long)(report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 

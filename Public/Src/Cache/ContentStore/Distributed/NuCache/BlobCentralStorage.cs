@@ -346,14 +346,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private class AttemptResult : BoolResult
         {
             /// <inheritdoc />
-            private AttemptResult()
-                : base(succeeded: true)
+            public AttemptResult(ResultBase other, string message = null)
+                : base(other, message)
             {
             }
 
             /// <inheritdoc />
-            private AttemptResult(ResultBase other, string message = null)
-                : base(other, message)
+            private AttemptResult()
+                : base(succeeded: true)
             {
             }
 

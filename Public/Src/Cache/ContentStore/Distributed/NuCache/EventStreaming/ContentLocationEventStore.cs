@@ -69,22 +69,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             CentralStorage centralStorage,
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
-            Contract.Requires(configuration != null);
-            Contract.Requires(name != null);
-            Contract.Requires(eventHandler != null);
-            Contract.Requires(centralStorage != null);
-            Contract.Requires(workingDirectory != null);
+            Contract.RequiresNotNull(configuration);
+            Contract.RequiresNotNull(name);
+            Contract.RequiresNotNull(eventHandler);
+            Contract.RequiresNotNull(centralStorage);
+            Contract.RequiresNotNull(workingDirectory);
 
-            _configuration = configuration!;
+            _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
-            _storage = centralStorage!;
+            _storage = centralStorage;
             _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
-            _workingDirectory = workingDirectory!;
-            EventHandler = eventHandler!;
+            _workingDirectory = workingDirectory;
+            EventHandler = eventHandler;
             var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
-            ValidationMode validationMode = configuration!.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
+            ValidationMode validationMode = configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
             EventDataSerializer = new ContentLocationEventDataSerializer(validationMode);
         }
 
@@ -98,8 +98,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             CentralStorage centralStorage,
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
-            Contract.Requires(configuration != null);
-            return new EventHubContentLocationEventStore(configuration!, eventHandler, localMachineName, centralStorage, workingDirectory);
+            Contract.RequiresNotNull(configuration);
+            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory);
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected async Task DispatchAsync(OperationContext context, ContentLocationEventData eventData, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
-            Contract.Requires(eventData != null);
+            Contract.RequiresNotNull(eventData);
 
             switch (eventData)
             {
@@ -124,8 +124,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         EventHandler.LocationAdded(
                             context,
                             addContent.Sender,
-                            addContent.ContentHashes.Select((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])).ToList(),
-                            eventData.Reconciling);
+                            addContent.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])),
+                            eventData.Reconciling,
+                            updateLastAccessTime: addContent.Touch);
                     }
 
                     break;
@@ -151,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
                     break;
                 default:
-                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData!.GetType()}'.");
+                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData.GetType()}'.");
             }
         }
 
@@ -198,18 +199,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                 await _storage.TryGetFileAsync(context, blobName, reconcileFilePath).ThrowIfFailure();
 
-                using (var stream = await _fileSystem.OpenAsync(
+                using var stream = await _fileSystem.OpenSafeAsync(
                     reconcileFilePath,
                     FileAccess.Read,
                     FileMode.Open,
                     FileShare.Read | FileShare.Delete,
                     FileOptions.DeleteOnClose,
-                    AbsFileSystemExtension.DefaultFileStreamBufferSize))
-                using (var reader = BuildXLReader.Create(stream, leaveOpen: true))
-                {
-                    // Calling ToList to force materialization of IEnumerable to avoid access of disposed stream.
-                    return EventDataSerializer.DeserializeReconcileData(reader).ToList();
-                }
+                    AbsFileSystemExtension.DefaultFileStreamBufferSize);
+                using var reader = BuildXLReader.Create(stream, leaveOpen: true);
+                // Calling ToList to force materialization of IEnumerable to avoid access of disposed stream.
+                return EventDataSerializer.DeserializeReconcileData(reader).ToList();
             }
         }
 
@@ -225,12 +224,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             context = context.CreateNested();
 
             Tracer.Info(context, $"{Tracer.Name}: Sending {events.Length} event(s) to event hub.");
-            List<(ShortHash hash, EntryOperation operation, OperationReason reason, int modificationCount)> operations = events.SelectMany(
+            var operations = events.SelectMany(
                 e =>
                 {
                     var operation = GetOperation(e);
                     var reason = e.Reconciling ? OperationReason.Reconcile : OperationReason.Unknown;
-                    return e.ContentHashes.Select(hash => (hash, operation, reason, 1));
+                    return e.ContentHashes.Select(hash => (hash, operation, reason));
                 }).ToList();
             LogContentLocationOperations(context, Tracer.Name, operations);
 
@@ -355,7 +354,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     try
                     {
                         using (var stream = await _fileSystem.OpenSafeAsync(reconcileFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
-                    using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
+                        using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
                         {
                             EventDataSerializer.SerializeReconcileData(context, writer, machine, addedContent, removedContent);
                         }
@@ -373,13 +372,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         _fileSystem.DeleteFile(reconcileFilePath);
                     }
                 },
-                Counters[PublishReconcile]);
+                Counters[PublishReconcile],
+                extraEndMessage: _ => $"AddedContent={addedContent.Count}, RemovedContent={removedContent.Count}, TotalContent={addedContent.Count + removedContent.Count}");
         }
 
         /// <summary>
         /// Notify that the content specified by the <paramref name="hashesWithSize"/> was added to the machine <paramref name="machine"/>.
         /// </summary>
-        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashesWithSize, bool reconciling = false)
+        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashesWithSize, bool reconciling = false, bool touch = true)
         {
             if (hashesWithSize.Count == 0)
             {
@@ -393,24 +393,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var hashes = hashesWithSize.SelectList(h => h.Hash);
                     var sizes = hashesWithSize.SelectList(h => h.Size);
 
-                    Publish(context, new AddContentLocationEventData(machine, hashes, sizes) { Reconciling = reconciling });
+                    var eventData = new AddContentLocationEventData(machine, hashes, sizes, touch) { Reconciling = reconciling };
+
+                    Publish(context, eventData);
 
                     return BoolResult.Success;
                 },
-                Counters[PublishAddLocations]);
+                Counters[PublishAddLocations],
+                traceErrorsOnly: true);
         }
 
         /// <summary>
         /// Notify that the content specified by the <paramref name="hashesWithSize"/> was added to the machine <paramref name="machine"/>.
         /// </summary>
-        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ContentHashWithSize> hashesWithSize)
+        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ContentHashWithSize> hashesWithSize, bool touch = true)
         {
             if (hashesWithSize.Count == 0)
             {
                 return BoolResult.Success;
             }
 
-            return AddLocations(context, machine, hashesWithSize.SelectList(h => new ShortHashWithSize(h.Hash, h.Size)));
+            return AddLocations(context, machine, hashesWithSize.SelectList(h => new ShortHashWithSize(h.Hash, h.Size)), touch: touch);
         }
 
         /// <summary>
@@ -443,7 +446,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     Publish(context, new RemoveContentLocationEventData(machine, hashes) { Reconciling = reconciling });
                     return BoolResult.Success;
                 },
-                Counters[PublishRemoveLocations]);
+                Counters[PublishRemoveLocations],
+                traceErrorsOnly: true);
         }
 
         /// <summary>

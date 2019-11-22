@@ -49,6 +49,7 @@ namespace LanguageService.Server {
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
+            importFrom("BuildXL.Tools").BxlPipGraphFragmentGenerator.exe,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

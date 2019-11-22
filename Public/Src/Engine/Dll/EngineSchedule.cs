@@ -18,6 +18,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -29,6 +30,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -771,21 +773,43 @@ namespace BuildXL.Engine
                 outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
             }
 
+            var scrubber = new DirectoryScrubber(
+                cancellationToken: scheduler.Context.CancellationToken,
+                loggingContext: loggingContext,
+                loggingConfiguration: configuration.Logging,
+                maxDegreeParallelism: Environment.ProcessorCount,
+                tempDirectoryCleaner: tempCleaner);
+
+            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+            var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+            var distinctRecordedWrites = sharedOpaqueSidebandFiles
+                .AsParallel()
+                .WithDegreeOfParallelism(Environment.ProcessorCount)
+                .WithCancellation(scheduler.Context.CancellationToken)
+                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
+                .ToArray();
+
+            if (distinctRecordedWrites.Any())
+            {
+                Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
+                scrubber.DeleteFiles(distinctRecordedWrites);
+            }
+
+            if (sharedOpaqueSidebandFiles.Any())
+            {
+                Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
+                scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
+            }
+
             if (pathsToScrub.Count > 0)
             {
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     isPathInBuild: path => scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)),
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: mountPathExpander,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
-
-                Logger.Log.ScrubbingStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+                    mountPathExpander: mountPathExpander);
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
@@ -801,9 +825,8 @@ namespace BuildXL.Engine
             {
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     // Everything that is not an output under a shared opaque is considered part of the build.
                     isPathInBuild: path =>
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
@@ -812,12 +835,25 @@ namespace BuildXL.Engine
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
-                    mountPathExpander: null,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
+                    mountPathExpander: null);
+            }
+        }
 
-                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
+        {
+            using (var sidebandReader = new SidebandReader(sidebandFile))
+            {
+                try
+                {
+                    sidebandReader.ReadHeader(ignoreChecksum: true);
+                    sidebandReader.ReadMetadata();
+                    return sidebandReader.ReadRecordedPaths().ToArray();
+                }
+                catch (IOException e)
+                {
+                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
+                    return CollectionUtilities.EmptyArray<string>();
+                }
             }
         }
 
@@ -927,6 +963,15 @@ namespace BuildXL.Engine
                 return false;
             }
 
+            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
+            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
+            {
+                return false;
+            }
+
+            LogPipFilter(loggingContext, filter);
+            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
+
             // Do scrub before init (Scheduler.Init() and Scheduler.InitForWorker()) because init captures and tracks
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
             // incorrect if they were to be interleaved.
@@ -938,15 +983,6 @@ namespace BuildXL.Engine
             {
                 return Scheduler.InitForWorker(loggingContext);
             }
-
-            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
-            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
-            {
-                return false;
-            }
-
-            LogPipFilter(loggingContext, filter);
-            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool initResult = Scheduler.InitForMaster(loggingContext, filter, schedulerState);

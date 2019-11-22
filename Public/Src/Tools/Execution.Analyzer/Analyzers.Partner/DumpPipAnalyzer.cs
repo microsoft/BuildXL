@@ -493,7 +493,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("ProducesPathIndependentOutputs", pip.ProducesPathIndependentOutputs),
                     m_html.CreateRow("OutputsMustRemainWritable", pip.OutputsMustRemainWritable),
                     m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs),
-                    m_html.CreateRow("PresrveOutputTrustLevel", pip.PreserveOutputsTrustLevel)),
+                    m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel)),
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",
@@ -504,6 +504,13 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Directory Outputs", GetDirectoryOutputsWithContent(pip), sortEntries: false),
                     m_html.CreateRow("Untracked Paths", pip.UntrackedPaths),
                     m_html.CreateRow("Untracked Scopes", pip.UntrackedScopes)),
+
+                m_html.CreateBlock(
+                    "Global Dependencies",
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables != null ? 
+                        m_html.CreateRow("Passthrough Environment Variables", m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables) : null),
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes != null ?
+                        m_html.CreateRow("Untracked Scopes", m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes) : null)),
 
                 m_html.CreateBlock(
                     "Service details",

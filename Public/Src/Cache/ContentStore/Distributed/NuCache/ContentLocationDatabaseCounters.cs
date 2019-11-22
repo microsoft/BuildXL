@@ -86,10 +86,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         NumberOfCacheFlushesTriggeredByTimer,
 
         /// <nodoc />
-        NumberOfCacheFlushesTriggeredByGarbageCollection,
+        NumberOfCacheFlushesTriggeredByReconciliation,
 
         /// <nodoc />
         NumberOfCacheFlushesTriggeredByCheckpoint,
+
+        /// <nodoc />
+        NumberOfCacheFlushesTriggeredByContentEnumeration,
 
         /// <nodoc />
         NumberOfPersistedEntries,
@@ -116,5 +119,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         GarbageCollectContent,
+
+        /// <summary>
+        /// Amount of unique content added in bytes
+        /// </summary>
+        UniqueContentAddedSize,
+
+        /// <summary>
+        /// Amount of content added in bytes
+        /// </summary>
+        TotalContentAddedSize,
+
+        /// <summary>
+        /// Count of content added
+        /// </summary>
+        TotalContentAddedCount,
+
+        /// <summary>
+        /// Amount of unique content removed in bytes
+        /// </summary>
+        UniqueContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed in bytes
+        /// </summary>
+        TotalContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed
+        /// </summary>
+        TotalContentRemovedCount,
     }
 }

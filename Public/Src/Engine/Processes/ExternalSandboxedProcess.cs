@@ -52,7 +52,7 @@ namespace BuildXL.Processes
         public virtual string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public abstract ulong? GetActivePeakMemoryUsage();
+        public abstract ulong? GetActivePeakWorkingSet();
 
         /// <inheritdoc />
         public virtual long GetDetoursMaxHeapSize() => 0;

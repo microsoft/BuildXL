@@ -273,7 +273,7 @@ namespace BuildXL.Execution.Analyzer
                             provenance != null ? provenance.OutputValueSymbol.ToString(SymbolTable) : string.Empty);
 
                         var pipPerformance = m_pipPerformance[pip.PipId.Value];
-                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.PeakMemoryUsageMb.ToString());
+                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.MemoryCounters.PeakWorkingSetMb.ToString());
                         WritePropertyAndValue(writer, "NumberOfProcesses", pipPerformance.NumberOfProcesses.ToString());
                         WritePropertyAndValue(
                             writer,

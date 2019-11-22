@@ -69,5 +69,8 @@ enum ReportedFileOperation{
     KAuthVNodeExecute = 57;
     KAuthVNodeWrite = 58;
     KAuthVNodeRead = 59;
-    KAuthVNodeProb = 60;
+    KAuthVNodeProbe = 60;
+    MacVNodeWrite = 61;
+    MacVNodeCloneSource = 62;
+    MacVNodeCloneDest = 63;
 }

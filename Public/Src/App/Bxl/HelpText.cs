@@ -430,11 +430,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/cacheMemoryUsage[+|-]",
-                Strings.HelpText_DisplayHelp_CacheMemoryUsage,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/compressGraphFiles[+|-]",
                 Strings.HelpText_DisplayHelp_CompressGraphFiles,
                 HelpLevel.Verbose);
@@ -916,6 +911,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
 #if PLATFORM_OSX
+
             hw.WriteOption(
                 "/kextNumberOfKextConnections:<number>",
                 Strings.HelpText_DisplayHelp_KextNumberOfKextConnections,
@@ -940,6 +936,12 @@ namespace BuildXL
                "/KextThrottleMinAvailableRamMB:<number>",
                Strings.HelpText_DisplayHelp_KextThrottleMinAvailableRamMB,
                HelpLevel.Verbose);
+
+            hw.WriteOption(
+               "/maxMemoryPressureLevel:<option>",
+               Strings.HelpText_DisplayHelp_MaxMemoryPressureLevel,
+               HelpLevel.Verbose);
+
 #endif
 
             hw.WriteOption(
@@ -1019,7 +1021,7 @@ namespace BuildXL
 
             #endregion
 
-            #region Component Governance Manifest 
+            #region Component Governance Manifest
             hw.WriteBanner(Strings.HelpText_DisplayHelp_CgManifestBanner);
 
             hw.WriteOption("/generateCgManifestForNugets:<file>",
@@ -1083,9 +1085,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_SnapshotMode,
                 HelpLevel.Verbose);
 
+            /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
             hw.WriteOption(
                 "/viewer:<mode>",
-                Strings.HelpText_DisplayHelp_ViewerOptions);
+                Strings.HelpText_DisplayHelp_ViewerOptions);*/
 
             hw.WriteOption(
                 "/relatedActivityId:<guid>",

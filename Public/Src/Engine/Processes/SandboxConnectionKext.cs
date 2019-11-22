@@ -67,7 +67,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
         /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
         /// </summary>
-        public const string RequiredKextVersionNumber = "2.0.99";
+        public const string RequiredKextVersionNumber = "2.9.99";
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem
@@ -166,16 +166,16 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             m_workerThread.IsBackground = true;
             m_workerThread.Priority = ThreadPriority.Highest;
             m_workerThread.Start();
+        }
 
-            unsafe bool SetFailureNotificationHandler()
-            {
-                return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        private unsafe bool SetFailureNotificationHandler()
+        {
+            return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        }
 
-                void KextFailureCallback(void* refCon, int status)
-                {
-                    m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
-                }
-            }
+        private unsafe void KextFailureCallback(void* refCon, int status)
+        {
+            m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
         }
 
         /// <summary>

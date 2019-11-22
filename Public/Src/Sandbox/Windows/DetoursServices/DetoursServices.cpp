@@ -195,6 +195,7 @@ that none of the appends will be lost.
 
 using std::string;
 using std::vector;
+using std::unordered_set;
 using std::unique_ptr;
 using std::make_unique;
 
@@ -218,6 +219,8 @@ uint64_t g_FileAccessManifestPipId;
 
 PCManifestRecord g_manifestTreeRoot;
 
+PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
+unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob = nullptr;
 PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples = nullptr;
 
@@ -478,6 +481,16 @@ InternalCreateDetouredProcess(
     if ((needInjection || hJob != 0) && !disabledDetours)
     {
         creationFlags |= CREATE_SUSPENDED;
+    }
+
+    // If there are configured processes that need to break away from
+    // the current job object, that means the job object was configured with
+    // the JOB_OBJECT_LIMIT_BREAKAWAY_OK limit. But if we reached this point
+    // the process being created is not allowed to break away. So make
+    // sure we don't pass CREATE_BREAKAWAY_FROM_JOB
+    if (!g_processNamesToBreakAwayFromJob->empty())
+    {
+        creationFlags &= !CREATE_BREAKAWAY_FROM_JOB;
     }
 
     if (LogProcessDetouringStatus())
@@ -1056,6 +1069,7 @@ static bool DllProcessAttach()
         return false;
     }
 
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 
@@ -1077,6 +1091,19 @@ static bool DllProcessAttach()
     InitProcessKind();
     InitializeHandleOverlay();
     InitializeFilesCheckedForWriteAccesses();
+
+    // If there are configured processes that will break away from the sandbox, expose
+    // an environment variable with the handle pointer to the detour manifest.
+    // This is the way the AugmentedManifestReporter (the API to directly talk to detours
+    // internal tools can use) can actually interact with the manifest
+    // Keep in sync with C# side
+    if (!g_processNamesToBreakAwayFromJob->empty())
+    {
+        // CODESYNC: Keep variable name in sync with the C# side
+        SetEnvironmentVariable(
+            L"BUILDXL_AUGMENTED_MANIFEST_HANDLE", 
+            std::to_wstring(DetouredProcessInjector::HandleToUint64(g_reportFileHandle)).c_str());
+    }
 
 #define ATTACH(Name) \
     Real_##Name = ::Name; \
@@ -1281,6 +1308,7 @@ static bool DllProcessAttach()
         return false;
     }
 
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 

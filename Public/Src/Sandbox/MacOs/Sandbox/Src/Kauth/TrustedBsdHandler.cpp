@@ -19,24 +19,24 @@ int TrustedBsdHandler::HandleLookup(const char *path)
     return KERN_SUCCESS;
 }
 
-int TrustedBsdHandler::HandleReadlink(vnode_t symlinkVNode)
+int TrustedBsdHandler::HandleReadVnode(vnode_t vnode, FileOperation operationToReport, bool isVnodeDir)
 {
     // get symlink path
     char path[MAXPATHLEN];
     int len = MAXPATHLEN;
-    int err = vn_getpath(symlinkVNode, path, &len);
+    int err = vn_getpath(vnode, path, &len);
     if (err)
     {
-        log_error("Could not get VNnode path for readlink operation; error code: %#X", err);
+        log_error("Could not get VNnode path for %d operation; error code: %#X", operationToReport, err);
         return KERN_SUCCESS; // don't deny access because of our own error
     }
 
     // check read access
-    AccessCheckResult checkResult = CheckAndReport(kOpMacReadlink, path, Checkers::CheckRead, /*isDir*/ false);
+    AccessCheckResult checkResult = CheckAndReport(operationToReport, path, Checkers::CheckRead, isVnodeDir);
     
     if (checkResult.ShouldDenyAccess())
     {
-        LogAccessDenied(path, 0, "Operation: Readlink");
+        LogAccessDenied(path, operationToReport, "Operation: Read Vnode");
         return EPERM;
     }
     else
@@ -68,7 +68,7 @@ int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath,
     }
 }
 
-int TrustedBsdHandler::HandleVnodeWrite(vnode_t vnode)
+int TrustedBsdHandler::HandleVnodeWrite(vnode_t vnode, FileOperation operation)
 {
     char path[MAXPATHLEN];
     int len = MAXPATHLEN;
@@ -79,8 +79,13 @@ int TrustedBsdHandler::HandleVnodeWrite(vnode_t vnode)
         return KERN_SUCCESS; // don't deny access because of our own error
     }
 
+    return HandleWritePath(path, operation);
+}
+
+int TrustedBsdHandler::HandleWritePath(const char *path, FileOperation operation)
+{
     // check write access
-    AccessCheckResult checkResult = CheckAndReport(kOpKAuthVNodeWrite, path, Checkers::CheckWrite, /*isDir*/ false);
+    AccessCheckResult checkResult = CheckAndReport(operation, path, Checkers::CheckWrite, /*isDir*/ false);
     if (checkResult.ShouldDenyAccess())
     {
         LogAccessDenied(path, 0, "Operation: Write");

@@ -19,7 +19,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 WorkerId = message.WorkerId,
 
-                AvailableRamMb = message.AvailableRamMb ?? 100000,
+                AvailableRamMb = message.AvailableRamMb ?? 0,
+                AvailableCommitMb = message.AvailableCommitMb ?? 0,
                 MaxConcurrency = message.MaxConcurrency,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.Data.ToByteString(),
             };
@@ -32,6 +33,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 WorkerId = message.WorkerId,
                 
                 AvailableRamMb = message.AvailableRamMb,
+                AvailableCommitMb = message.AvailableCommitMb,
                 MaxConcurrency = message.MaxConcurrency,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
             };
@@ -212,6 +214,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointType = (FileArtifactKeyedHash.Types.GrpcReparsePointType)i.ReparsePointType,
                     RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 };
 
                 if (i.ReparsePointTarget != null)
@@ -241,6 +244,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     ActivityId = i.ActivityId,
                     ExpectedRamUsageMb = i.ExpectedRamUsageMb ?? 0,
+                    ExpectedCommitUsageMb = i.ExpectedCommitUsageMb ?? 0,
                     Fingerprint = i.Fingerprint.Data.ToByteString(),
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,
@@ -280,7 +284,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointTarget = i.ReparsePointTarget,
                     ReparsePointType = (BondReparsePointType)((int)i.ReparsePointType),
-                    RewriteCount = i.RewriteCount
+                    RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 });
             }
 
@@ -291,6 +296,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     ActivityId = i.ActivityId,
                     ExpectedRamUsageMb = i.ExpectedRamUsageMb,
+                    ExpectedCommitUsageMb = i.ExpectedCommitUsageMb,
                     Fingerprint = new BondFingerprint() { Data = i.Fingerprint.ToArraySegmentByte() },
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,

@@ -91,6 +91,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 BlobSize = blobSize;
             }
 
+            /// <nodoc />
+            public PutBlobResult(ResultBase other, string message)
+                : base(other, message)
+            {
+            }
+
             /// <inheritdoc />
             public override string ToString()
             {

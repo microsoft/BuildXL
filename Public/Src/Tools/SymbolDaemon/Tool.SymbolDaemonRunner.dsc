@@ -215,6 +215,7 @@ function indexSymbolFiles(files: File[]) : DerivedFile {
         workingDirectory: outDir,
         arguments: [
             Cmd.argument("indexFiles"),
+            Cmd.startUsingResponseFile(false),
             Cmd.options("--file ", files.map(f => Artifact.input(f))),
             Cmd.options("--hash ", files.map(f => Artifact.vsoHash(f))),
             Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),

@@ -110,7 +110,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         "MD5:8C4856EA13F6AD59B65D8F6781D2A2F9||DCS||incrementalCheckpoints/24382354.10a0ca0f-d63f-4992-a088-f67bd00abd8a.checkpointInfo.txt|Incremental",
                         DateTime.Now);
                     // Next heartbeat workers to restore checkpoint
-                    await worker.LocalLocationStore.RestoreCheckpointAsync(new OperationContext(context), checkpointState, inline: true, forceRestore: true).ShouldBeSuccess();
+                    await worker.LocalLocationStore.ProcessStateAsync(new OperationContext(context), checkpointState, inline: true, forceRestore: true).ShouldBeSuccess();
                     var reconcileResult = await worker.LocalLocationStore.ReconcileAsync(context).ShouldBeSuccess();
                     Output.WriteLine($"Reconcile result: {reconcileResult}");
                 });

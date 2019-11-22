@@ -55,7 +55,6 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled,
             object additionalArgs);
 
         protected class TestContext
@@ -80,6 +79,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
                     fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    fileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                 }
             }
 
@@ -890,8 +890,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         Assert.Equal(0, openStreamResult.Stream.Length);
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -910,8 +909,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -938,8 +936,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         Assert.Equal(0, placeFileResult.FileSize);
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         protected virtual object PrepareAdditionalCreateStoreArgs(int storeCount) => null;
@@ -952,14 +949,16 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction = false,
             int? replicaCreditInMinutes = null,
             bool enableRepairHandling = false,
-            bool emptyFileHashShortcutEnabled = false,
             int iterations = 1)
         {
             var additionalArgs = PrepareAdditionalCreateStoreArgs(storeCount);
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
                 .ToList();
-            var testFileCopier = new TestFileCopier();
+            var testFileCopier = new TestFileCopier()
+            {
+                WorkingDirectory = indexedDirectories[0].Directory.Path
+            };
             for (int iteration = 0; iteration < iterations; iteration++)
             {
                 var stores = indexedDirectories.Select(
@@ -972,7 +971,6 @@ namespace ContentStoreTest.Distributed.Sessions
                             enableDistributedEviction,
                             replicaCreditInMinutes,
                             enableRepairHandling,
-                            emptyFileHashShortcutEnabled,
                             additionalArgs)).ToList();
 
                 var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));

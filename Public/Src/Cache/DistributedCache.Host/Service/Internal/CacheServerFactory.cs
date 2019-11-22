@@ -36,6 +36,9 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             _arguments = arguments;
             _logger = arguments.Logger;
+
+            // Enable POSIX delete to ensure that files are removed even when there are open handles
+            PassThroughFileSystem.EnablePosixDelete();
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 

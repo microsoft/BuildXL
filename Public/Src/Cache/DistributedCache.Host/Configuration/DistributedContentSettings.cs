@@ -130,6 +130,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int RedisBatchPageSize { get; set; } = 500;
 
+        [DataMember]
+        public int? RedisConnectionErrorLimit { get; set; }
+
         // TODO: file a work item to remove the flag!
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;
@@ -216,6 +219,18 @@ namespace BuildXL.Cache.Host.Configuration
         public int EvictionPoolSize { get; set; } = 5000;
 
         /// <summary>
+        /// A candidate must have an age older than this amount, or else it won't be evicted.
+        /// </summary>
+        [DataMember]
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
+        /// Default to always wait for both instances to complete.
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
+
+        /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         [DataMember]
@@ -251,6 +266,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies => RetryIntervalForCopiesMs.Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
 
+        /// <summary>
+        /// Controls the maximum total number of copy retry attempts
+        /// </summary>
+        public int MaxRetryCount { get; set; } = 32;
         #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.
@@ -388,6 +407,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
+        public int ReconciliationCycleFrequencyMinutes { get; set; } = 30;
+
+        [DataMember]
+        public int ReconciliationMaxCycleSize { get; set; } = 100000;
+
+        [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]
@@ -413,6 +438,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseFlushTransactionSize { get; set; }
 
         [DataMember]
         public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
@@ -509,7 +537,7 @@ namespace BuildXL.Cache.Host.Configuration
         public int? LocationEntryExpiryMinutes { get; set; }
 
         [DataMember]
-        public int? MachineExpiryMinutes { get; set; }
+        public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
 
         [DataMember]
         public int? TouchFrequencyMinutes { get; set; }
@@ -518,7 +546,10 @@ namespace BuildXL.Cache.Host.Configuration
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         [DataMember]
-        public bool UseTrustedHash { get; set; } = true;
+        public int? MachineExpiryMinutes { get; set; }
+
+        [DataMember]
+        public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         // Files smaller than this will use the untrusted hash
         [DataMember]
@@ -533,8 +564,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
-        [DataMember]
-        public bool EmptyFileHashShortcutEnabled { get; set; } = true;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;
@@ -554,11 +583,20 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
+        [DataMember]
+        public bool UseFastHibernationPin { get; set; } = false;
+
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
         /// </summary>
         [DataMember]
         public string ProactiveCopyMode { get; set; } = "Disabled";
+
+        [DataMember]
+        public bool PushProactiveCopies { get; set; } = false;
+
+        [DataMember]
+        public bool ProactiveCopyOnPin { get; set; } = false;
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;

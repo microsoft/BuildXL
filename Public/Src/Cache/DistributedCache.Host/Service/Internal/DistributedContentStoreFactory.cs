@@ -69,7 +69,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
+                EvictionMinAge = _distributedSettings.EvictionMinAge,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
+                RetryWindow = _distributedSettings.RetryWindow,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 
@@ -95,6 +97,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheEnabled, v => dbConfig.ContentCacheEnabled = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism, v => dbConfig.FlushDegreeOfParallelism = v);
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushTransactionSize, v => dbConfig.FlushTransactionSize = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushSingleTransaction, v => dbConfig.FlushSingleTransaction = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushPreservePercentInMemory, v => dbConfig.FlushPreservePercentInMemory = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
@@ -215,16 +218,17 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.RedisBatchPageSize,
                     new DistributedContentStoreSettings()
                     {
-                        UseTrustedHash = _distributedSettings.UseTrustedHash,
                         CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
                         TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
                         ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
                         MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
                         PinConfiguration = pinConfiguration,
-                        EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
+                        MaxRetryCount = _distributedSettings.MaxRetryCount,
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
                         ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
+                        PushProactiveCopies = _distributedSettings.PushProactiveCopies,
+                        ProactiveCopyOnPin = _distributedSettings.ProactiveCopyOnPin,
                         MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
@@ -248,13 +252,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             return new ContentStoreSettings()
                    {
-                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                        CheckFiles = settings.CheckLocalFiles,
                        UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
                        SelfCheckSettings = CreateSelfCheckSettings(settings),
                        OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                        UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
                        TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                       SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
                    };
         }
 
@@ -315,6 +319,9 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             configuration.EnableReconciliation = !_distributedSettings.Unsafe_DisableReconciliation;
 
+            configuration.ReconciliationCycleFrequency = TimeSpan.FromMinutes(_distributedSettings.ReconciliationCycleFrequencyMinutes);
+            configuration.ReconciliationMaxCycleSize = _distributedSettings.ReconciliationMaxCycleSize;
+
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
@@ -334,6 +341,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.ContentLocationWriteMode,
                 value => configuration.WriteMode = (ContentLocationMode)Enum.Parse(typeof(ContentLocationMode), value));
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
+            ApplyIfNotNull(_distributedSettings.RestoreCheckpointAgeThresholdMinutes, v => configuration.Checkpoint.RestoreCheckpointAgeThreshold = TimeSpan.FromMinutes(v));
 
             var errorBuilder = new StringBuilder();
             var storageCredentials = GetStorageCredentials(secrets, errorBuilder);

@@ -158,6 +158,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool InlinePostInitialization { get; set; }
 
         /// <summary>
+        /// The frequency by which reconciliation cycles should be done.
+        /// </summary>
+        public TimeSpan ReconciliationCycleFrequency { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
+        /// The amount of events that should be sent per reconciliation cycle.
+        /// </summary>
+        public int ReconciliationMaxCycleSize { get; set; } = 100000;
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
@@ -391,6 +401,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The interval by which the checkpoint manager applies checkpoints to the local database.
         /// </summary>
         public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Age threshold after which we should eagerly restore checkpoint blocking the caller.
+        /// </summary>
+        public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
 
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;

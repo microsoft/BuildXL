@@ -21,7 +21,7 @@ namespace NugetPackages {
         : r`${qualifier.configuration}/public/pkgs`;
 
     const reducedDeploymentOptions: Managed.Deployment.FlattenOptions = {
-        skipPdb: true,
+        skipPdb: false,
         skipXml: true,
     };
 
@@ -91,6 +91,8 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Cache.Interfaces`,
         deployment: Cache.NugetPackages.interfaces,
         dependencies: [
+            { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion},
+
             importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
             importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
         ]
@@ -137,7 +139,7 @@ namespace NugetPackages {
     const xldblibrary = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Xldb`,
         deployment: {
-            contents: [ 
+            contents: [
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.withQualifier(xldbnetcorequalifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.Proto.withQualifier(xldbnetcorequalifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(xldbnetcorequalifier).dll),
@@ -153,7 +155,7 @@ namespace NugetPackages {
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Collections.withQualifier(xldbnet472qualifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Native.withQualifier(xldbnet472qualifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Storage.withQualifier(xldbnet472qualifier).dll),
-            
+
                 {
                     subfolder: r`content`,
                     contents: [
@@ -197,10 +199,10 @@ namespace NugetPackages {
     });
 
     export function pack(args: {
-        id: string, 
-        deployment: Deployment.Definition, 
+        id: string,
+        deployment: Deployment.Definition,
         deploymentOptions?: Managed.Deployment.FlattenOptions,
-        copyContentFiles?: boolean, 
+        copyContentFiles?: boolean,
         dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]
     }) : File {
 
@@ -212,7 +214,7 @@ namespace NugetPackages {
                     return dep;
                 }
             });
-        
+
         return Nuget.pack({
             metadata:  {
                 id: args.id,

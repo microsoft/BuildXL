@@ -85,6 +85,18 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "Framework40";
         case QTestDotNetFramework.framework45:
             return "Framework45";
+        case QTestDotNetFramework.framework46:
+            return "Framework46";
+        case QTestDotNetFramework.frameworkCore10:
+            return "FrameworkCore10";
+        case QTestDotNetFramework.frameworkCore20:
+            return "FrameworkCore20";
+        case QTestDotNetFramework.frameworkCore21:
+            return "FrameworkCore21";
+        case QTestDotNetFramework.frameworkCore22:
+            return "FrameworkCore22";
+        case QTestDotNetFramework.frameworkCore30:
+            return "FrameworkCore30";
         case QTestDotNetFramework.unspecified:
         default:
             return "Unspecified";
@@ -154,8 +166,8 @@ export function runQTest(args: QTestArguments): Result {
 
     let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
 
-    // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;        
+    // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
 
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -192,7 +204,9 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
             "--vstestSettingsFile ", 
-            Artifact.input(args.vstestSettingsFile)
+            qCodeCoverageEnumType === dynamicCodeCovString && args.vstestSettingsFileForCoverage !== undefined
+                ? Artifact.input(args.vstestSettingsFileForCoverage) 
+                : Artifact.input(args.vstestSettingsFile)
         ),
         Cmd.option(
             "--qTestRawArgFile ",
@@ -326,6 +340,18 @@ export const enum QTestDotNetFramework {
     framework40,
     @@Tool.option("--qtestDotNetFramework framework45")
     framework45,
+    @@Tool.option("--qtestDotNetFramework framework46")
+    framework46,
+    @@Tool.option("--qtestDotNetFramework frameworkCore10")
+    frameworkCore10,
+    @@Tool.option("--qtestDotNetFramework frameworkCore20")
+    frameworkCore20,
+    @@Tool.option("--qtestDotNetFramework frameworkCore21")
+    frameworkCore21,
+    @@Tool.option("--qtestDotNetFramework frameworkCore22")
+    frameworkCore22,
+    @@Tool.option("--qtestDotNetFramework frameworkCore30")
+    frameworkCore30,
 }
 /**
  * Arguments of DBS.QTest.exe
@@ -370,6 +396,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAdditionalOptions?: string;
     /** Path to runsettings file that will be passed on to vstest.console.exe. */
     vstestSettingsFile?: File;
+    /** vstestSettingsFileForCoverage instead of vstestSettingsFile will be passed on to vstest.console.exe when code coverage is enabled.*/
+    vstestSettingsFileForCoverage?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Privilege level required by this process to execute. */

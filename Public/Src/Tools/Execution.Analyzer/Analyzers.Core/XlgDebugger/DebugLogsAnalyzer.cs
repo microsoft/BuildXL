@@ -26,7 +26,8 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeDebugLogsAnalyzer()
         {
             int port = XlgDebuggerPort;
-            bool enableCaching = true;
+            bool enableCaching = false;
+            bool ensureOrdering = true;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("port", StringComparison.OrdinalIgnoreCase) ||
@@ -36,9 +37,17 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else if (
                     opt.Name.Equals("evalCache-", StringComparison.OrdinalIgnoreCase) ||
-                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase))
+                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("evalCache", StringComparison.OrdinalIgnoreCase))
                 {
                     enableCaching = ParseBooleanOption(opt);
+                }
+                else if (
+                    opt.Name.Equals("ordered-", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("ordered+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("ordered", StringComparison.OrdinalIgnoreCase))
+                {
+                    ensureOrdering = ParseBooleanOption(opt);
                 }
                 else
                 {
@@ -46,7 +55,7 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching);
+            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching, ensureOrdering);
         }
 
         private static void WriteDebugLogsAnalyzerHelp(HelpWriter writer)
@@ -88,11 +97,15 @@ namespace BuildXL.Execution.Analyzer
         public bool EnableEvalCaching { get; }
 
         /// <nodoc />
-        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching)
+        public bool EnsureOrdering { get; }
+
+        /// <nodoc />
+        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching, bool ensureOrdering)
             : base(input)
         {
             m_port = port;
             EnableEvalCaching = enableCaching;
+            EnsureOrdering = ensureOrdering;
             XlgState = new XlgDebuggerState(this);
             m_dirData = new MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData>();
             m_criticalPathAnalyzer = new CriticalPathAnalyzer(input, outputFilePath: null);

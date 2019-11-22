@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
@@ -336,6 +337,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            _keyValueStore.Use(store =>
+            {
+                if (value == null)
+                {
+                    store.Remove(key, nameof(Columns.ClusterState));
+                }
+                else
+                {
+                    store.Put(key, value, nameof(Columns.ClusterState));
+                }
+            }).ThrowOnError();
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            value = _keyValueStore.Use(store =>
+            {
+                if (store.TryGetValue(key, out var value, nameof(Columns.ClusterState)))
+                {
+                    return value;
+                }
+                else
+                {
+                    return null;
+                }
+            }).ThrowOnError();
+            return value != null;
+        }
+
+        /// <inheritdoc />
         protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
         {
             _keyValueStore.Use(
@@ -467,7 +501,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
             const int KeysChunkSize = 100000;
-            byte[] startValue = null;
+            var startValue = filter?.StartingPoint?.ToByteArray();
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
@@ -495,7 +529,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                     startValue = null;
                                     byte[] value = null;
-                                    if (filter != null && filter(value = iterator.Value()))
+                                    if (filter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
                                     {
                                         keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), DeserializeContentLocationEntry(value)));
                                     }
@@ -858,6 +892,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return Unit.Void;
             }).ToBoolResult();
+        }
+
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
+        {
+            return _keyValueStore.Use(store =>
+            {
+                return long.Parse(store.GetProperty("rocksdb.live-sst-files-size"));
+            }).ToResult();
         }
 
         private class KeyValueStoreGuard : IDisposable

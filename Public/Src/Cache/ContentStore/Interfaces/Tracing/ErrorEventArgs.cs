@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
@@ -25,10 +26,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <inheritdoc />
         public CriticalErrorEventArgs(ResultBase result)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
+            Contract.RequiresNotNull(result.Exception);
             Contract.Requires(result.IsCriticalFailure);
 
-            CriticalException = result.Exception;
+            CriticalException = result.Exception!;
             Result = result;
         }
     }
@@ -51,11 +53,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <inheritdoc />
         public RecoverableErrorEventArgs(ResultBase result)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
             Contract.Requires(!result.IsCriticalFailure);
-            Contract.Requires(result.HasException);
+            Contract.RequiresNotNull(result.Exception);
 
-            Exception = result.Exception;
+            Exception = result.Exception!;
             Result = result;
         }
     }

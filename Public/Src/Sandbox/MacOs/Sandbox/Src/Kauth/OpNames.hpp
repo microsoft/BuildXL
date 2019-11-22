@@ -15,7 +15,10 @@
   macro_to_apply(OpProcessTreeCompleted,      "ProcessTreeCompletedAck") \
   macro_to_apply(OpMacLookup,                 "MAC_LOOKUP")              \
   macro_to_apply(OpMacReadlink,               "MAC_READLINK")            \
+  macro_to_apply(OpMacVNodeCloneSource,       "MAC_VNODE_CLONE_SOURCE")  \
+  macro_to_apply(OpMacVNodeCloneDest,         "MAC_VNODE_CLONE_DEST")    \
   macro_to_apply(OpMacVNodeCreate,            "MAC_VNODE_CREATE")        \
+  macro_to_apply(OpMacVNodeWrite,             "MAC_VNODE_WRITE")        \
   macro_to_apply(OpKAuthMoveSource,           "FILEOP_RENAME_SOURCE")    \
   macro_to_apply(OpKAuthMoveDest,             "FILEOP_RENAME_DEST")      \
   macro_to_apply(OpKAuthCreateHardlinkSource, "FILEOP_LINK_SOURCE")      \

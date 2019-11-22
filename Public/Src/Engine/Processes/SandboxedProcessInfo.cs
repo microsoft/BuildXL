@@ -5,14 +5,15 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BuildXL.Native.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
-using System.Linq;
 
 namespace BuildXL.Processes
 {
@@ -67,22 +68,28 @@ namespace BuildXL.Processes
         public ISandboxConnection SandboxConnection;
 
         /// <summary>
+        /// An optional shared opaque output logger to use to record file writes under shared opaque directories as soon as they happen.
+        /// </summary>
+        public SidebandWriter SidebandWriter { get; }
+
+        /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
 
-        /// <summary>
-        /// Creates instance
-        /// </summary>
+        /// <remarks>
+        /// This constructor is never used in this project, but there exist external projects that
+        /// compile against this assembly and already depend on this constructor.
+        /// </remarks>
         public SandboxedProcessInfo(
-            ISandboxedProcessFileStorage fileStorage,
-            string fileName,
-            bool disableConHostSharing,
-            bool testRetries = false,
-            LoggingContext loggingContext = null,
-            IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
+             ISandboxedProcessFileStorage fileStorage,
+             string fileName,
+             bool disableConHostSharing,
+             bool testRetries = false,
+             LoggingContext loggingContext = null,
+             IDetoursEventListener detoursEventListener = null,
+             ISandboxConnection sandboxConnection = null)
+             : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
         {
         }
 
@@ -99,7 +106,8 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null)
+            ISandboxConnection sandboxConnection = null,
+            SidebandWriter sidebandWriter = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
@@ -119,6 +127,7 @@ namespace BuildXL.Processes
             DetoursEventListener = detoursEventListener;
             SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
+            SidebandWriter = sidebandWriter;
         }
 
         /// <summary>
@@ -367,11 +376,6 @@ namespace BuildXL.Processes
         public string PipDescription { get; set; }
 
         /// <summary>
-        /// Notify this delegate once process id becomes available.
-        /// </summary>
-        public Action<int> ProcessIdListener { get; set; }
-
-        /// <summary>
         /// Standard output and error for sandboxed process.
         /// </summary>
         /// <remarks>
@@ -455,7 +459,9 @@ namespace BuildXL.Processes
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
-                // File access manifest should be serialize the last.
+                writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
+
+                // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
         }
@@ -493,7 +499,8 @@ namespace BuildXL.Processes
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
-                FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
+                var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
+                var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
                     new PathTable(),
@@ -504,6 +511,7 @@ namespace BuildXL.Processes
                     // TODO: serialize/deserialize container configuration.
                     containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
+                    sidebandWriter: sidebandWritter,
                     detoursEventListener: detoursEventListener)
                 {
                     m_arguments = arguments,

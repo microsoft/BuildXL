@@ -34,7 +34,7 @@ namespace BuildXL.Processes.Containers
         /// <exception cref="BuildXLException">If the container is not setup properly</exception>
         /// <remarks>
         /// This operation is detached from the actual construction of the Container since the container has to be started
-        /// after calling <see cref="JobObject.SetLimitInformation(bool?, System.Diagnostics.ProcessPriorityClass?, bool)"/>
+        /// after calling <see cref="JobObject.SetLimitInformation"/>
         /// </remarks>
         public override void StartContainerIfPresent()
         {

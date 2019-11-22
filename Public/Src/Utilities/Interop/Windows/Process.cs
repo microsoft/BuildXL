@@ -185,7 +185,7 @@ namespace BuildXL.Interop.Windows
         }
 
         /// <nodoc />
-        [DllImport(BuildXL.Interop.Libraries.WindowsKernel32, EntryPoint = "GetProcessMemoryInfo", SetLastError = true)]
+        [DllImport(BuildXL.Interop.Libraries.WindowsPsApi, EntryPoint = "GetProcessMemoryInfo", SetLastError = true)]
         public static extern bool GetProcessMemoryInfo(IntPtr handle, [In, Out] PROCESSMEMORYCOUNTERSEX ppsmemCounters, uint cb);
     }
 }

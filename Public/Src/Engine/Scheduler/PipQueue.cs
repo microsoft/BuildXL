@@ -44,6 +44,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         private long m_numRunningOrQueued;
 
+        /// <inheritdoc/>
+        public long NumRunningOrQueued => Volatile.Read(ref m_numRunningOrQueued);
+
         /// <summary>
         /// Whether the queue can accept new external work items.
         /// </summary>

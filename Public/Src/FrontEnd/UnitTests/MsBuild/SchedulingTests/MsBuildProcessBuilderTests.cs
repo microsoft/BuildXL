@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Native.Processes;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -147,6 +148,25 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // File outputs (which includes log files) should be the same, even though the qualifier was built with a different order
             Assert.True(key1Key2Project.FileOutputs.SequenceEqual(key2Key1Project.FileOutputs));
+        }
+
+        [Fact]
+        public void QualifierDoesNotAffectLogDirectory()
+        {
+            var project1 = CreateProjectWithPredictions("Test.proj", 
+                globalProperties: new GlobalProperties(new Dictionary<string, string> { ["TargetFramework"] = "net472" }));
+            var project2 = CreateProjectWithPredictions("Test.proj");
+
+            var targetFrameworkQualifier = FrontEndContext.QualifierTable.CreateQualifier(
+                new Tuple<StringId, StringId>(StringId.Create(StringTable, "TargetFramework"), StringId.Create(StringTable, "net472")));
+
+            // If the qualifier was affecting the log directory, the path to the log file for both projects would be the same, and therefore
+            // they should fail at scheduling.
+            Start(currentQualifier: targetFrameworkQualifier)
+                .Add(project1)
+                .Add(project2)
+                .ScheduleAll()
+                .AssertSuccess();
         }
 
         [Theory]
@@ -333,6 +353,37 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // The auto-response option should be always off
             Assert.Contains(argument, arguments);
+        }
+
+        [Fact]
+        public void SharedCompilationIsTurnedOnWhenAvailable()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            // We need to explicitly turn on shared compilation because for tests it is off by default
+            var testProj = Start(new MsBuildResolverSettings { UseLegacyProjectIsolation = true, UseManagedSharedCompilation = true })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // When supported, we should:
+            // - not turn off shared compilation, 
+            // - let VBCSCompiler escape the sandbox
+            // - attach the VBCSCompiler logger to compensate for missing accesses
+            if (ProcessUtilities.SandboxSupportsProcessBreakaway())
+            {
+                Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
+                Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
+                Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
+            }
+            else
+            {
+                Assert.Contains("/p:UseSharedCompilation=false", arguments);
+                Assert.Empty(testProj.ChildProcessesToBreakawayFromSandbox);
+            }
         }
     }
 }

@@ -58,7 +58,14 @@ namespace BuildXL.Execution.Analyzer
 
         protected virtual bool ReadEvents()
         {
-            return Input.ReadExecutionLog(this);
+            try
+            {
+                return Input.ReadExecutionLog(this);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("Cannot read execution log; the version of the log has possibly changed.", e);
+            }
         }
 
         #region Utility Methods

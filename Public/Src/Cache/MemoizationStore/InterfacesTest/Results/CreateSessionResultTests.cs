@@ -109,6 +109,14 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         }
 
         [Fact]
+        public void EqualsTrueForInvalidSessions()
+        {
+            var v1 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
+            var v2 = new CreateSessionResult<IReadOnlyCacheSession>("error1");
+            Assert.True(v1.Equals(v2));
+        }
+
+        [Fact]
         public void EqualsTrueNotReferenceEqualSession()
         {
             using (var session1 = new ThrowingCacheSession())

@@ -278,12 +278,15 @@ namespace BuildXL.Scheduler
                     CPU = GetPercentage(m_blockedOnCpuMs),
                     Disk = GetPercentage(m_blockedOnDiskMs),
                     Memory = GetPercentage(m_blockedOnMemoryMs),
+                    ProjectedMemory = GetPercentage(m_blockedOnProjectedMemoryMs),
+                    Semaphore = GetPercentage(m_blockedOnSemaphoreMs),
                     ConcurrencyLimit = GetPercentage(m_blockedOnPipSynchronization),
                 };
 
                 // It's possible these percentages don't add up to 100%. So we'll round everything down
                 // and use "Other" as our fudge factor to make sure we add up to 100.
-                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ConcurrencyLimit;
+                result.Other = 100 - result.GraphShape - result.CPU - result.Disk - result.Memory - result.ProjectedMemory - result.Semaphore - result.ConcurrencyLimit;
+
                 return result;
             }
         }

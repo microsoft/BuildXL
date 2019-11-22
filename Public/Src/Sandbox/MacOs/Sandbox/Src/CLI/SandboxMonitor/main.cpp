@@ -69,6 +69,23 @@ string renderCounter(DurationCounter cnt)
     return str.str();
 }
 
+static const uint BytesInAMegabyte = 1 << 20;
+
+string renderBytesAsMebabytes(double bytes)
+{
+    stringstream str;
+    str << renderDouble(bytes/BytesInAMegabyte) << " MB";
+    return str.str();
+}
+
+string renderCountAndSize(CountAndSize cnt)
+{
+    stringstream str;
+    str << to_string(cnt.count)
+        << " (" << renderBytesAsMebabytes(cnt.size * cnt.count) << ")";
+    return str.str();
+}
+
 string to_string(Counter cnt)         { return to_string(cnt.count()); }
 string to_string(DurationCounter cnt) { return renderCounterMicros(cnt); }
 string to_string(string str)          { return str; }
@@ -344,10 +361,14 @@ int main(int argc, const char * argv[])
                    << ", #HardLink retries: " << to_string(response.counters.numHardLinkRetries)
                    << ", #CoalescedReports: " << to_string(response.counters.reportCounters.numCoalescedReports)
                    << " (" << renderDouble(PERCENT(response.counters.reportCounters.numCoalescedReports.count(), response.counters.reportCounters.totalNumSent.count())) << "%)"
-                   << ", #UintTrieNodes: " << to_string(response.counters.numUintTrieNodes) << " (" << renderDouble(response.counters.uintTrieSizeMB) << " MB)"
-                   << ", #PathTrieNodes: " << to_string(response.counters.numPathTrieNodes) << " (" << renderDouble(response.counters.pathTrieSizeMB) << " MB)"
-                   << ", #FreeListNodes: " << to_string(response.counters.reportCounters.freeListNodeCount)
+                   << endl;
+            output << "Memory     :: "
+                   << "FastTrieNodes: " << renderCountAndSize(response.memory.fastNodes)
+                   << ", LightTrieNodes: " << renderCountAndSize(response.memory.lightNodes)
+                   << ", CacheRecords: " << renderCountAndSize(response.memory.cacheRecords)
+                   << ", FreeListNodes: " << to_string(response.counters.reportCounters.freeListNodeCount)
                    << " (" << renderDouble(response.counters.reportCounters.freeListSizeMB) << " MB)"
+                   << ", IONew allocations: " << renderBytesAsMebabytes(response.memory.totalAllocatedBytes)
                    << endl;
             output << "Processes  :: #Client: " << response.numAttachedClients
                    << ", #Pips: " << response.numReportedPips

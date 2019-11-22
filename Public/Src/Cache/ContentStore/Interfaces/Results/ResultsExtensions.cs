@@ -5,6 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>
-        public static async Task<ObjectResult<TResult>> TraceIfFailure<TResult>(this Task<ObjectResult<TResult>> task, Context context, [CallerMemberName]string operationName = null) where TResult : class
+        public static async Task<ObjectResult<TResult>> TraceIfFailure<TResult>(this Task<ObjectResult<TResult>> task, Context context, [CallerMemberName]string? operationName = null) where TResult : class
         {
             var result = await task;
             if (!result)
@@ -41,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Awaits for the <paramref name="task"/> to finish and logs the error if the result is not successful.
         /// </summary>
-        public static async Task<TResult> TraceIfFailure<TResult>(this Task<TResult> task, Context context, [CallerMemberName]string operationName = null) where TResult : ResultBase
+        public static async Task<TResult> TraceIfFailure<TResult>(this Task<TResult> task, Context context, [CallerMemberName]string? operationName = null) where TResult : ResultBase
         {
             var result = await task;
             if (!result.Succeeded)
@@ -58,6 +59,29 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static void IgnoreTaskResult(this Task<BoolResult> task)
         {
             
+        }
+
+        /// <summary>
+        /// Helper for transforming Task{T} to Task{Result{T}}
+        /// </summary>
+        public static async Task<Result<T>> AsSuccessAsync<T>(this Task<T> task)
+        {
+            var result = await task;
+            return Result.Success(result);
+        }
+
+        /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
+        public static TResult Then<T, TResult>(this Result<T> result, Func<T, TResult> selector)
+            where TResult : ResultBase
+        {
+            if (result.Succeeded)
+            {
+                return selector(result.Value);
+            }
+
+            return new ErrorResult(result).AsResult<TResult>();
         }
 
         /// <summary>
@@ -133,6 +157,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
+        /// </summary>
+        public static T GetValueOrDefault<T>(this Result<T> result, T defaultValue = default)
+        {
+            return result.Succeeded ? result.Value : defaultValue;
+        }
+
+        /// <summary>
         /// Gets the value from <paramref name="result"/> if operation succeeded or throws <see cref="ResultPropagationException"/> otherwise.
         /// </summary>
         /// <remarks>
@@ -170,7 +202,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <remarks>
         /// Unlike <see cref="ObjectResult{T}.Data"/>, this method will not throw contract violation if the result is not successful.
         /// </remarks>
-        public static T GetValueOrThrow<T>(this ObjectResult<T> result) where T : class
+        public static T? GetValueOrThrow<T>(this ObjectResult<T> result) where T : class
         {
             if (!result)
             {

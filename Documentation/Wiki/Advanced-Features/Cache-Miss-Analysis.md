@@ -26,6 +26,15 @@ To use this analyzer, set the mode to **/m:CacheMissLegacy**, set the **/xl:** p
 
 The "analysis.txt" file in the output directory shows the first pip in each dependency chain that was a cache miss as well as the reasons for the miss. Full fingerprint computation inputs for each analyzed pip are kept in the "old" and "new" subdirectories. There will be a file for each Pip's `SemiStableHash`.
 
+### Diff Format
+
+Both cache miss analyzers use *JsonDiffPatch* to diff *WeakFingerprint* and *StrongFingerprint* json files. If you are not familiar with json diff syntax, you can find the reference in the following links: 
+
+[General diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md)
+
+[Array diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/arrays.md)
+
+
 #### Known Limitations
 The cache miss analyzer works correctly under the assumption that the two builds being compared shared the same graph scope and processed all of the same pips through the full scheduling algorithm. When this assumption is false, the analyzer may produce the following messages:
 

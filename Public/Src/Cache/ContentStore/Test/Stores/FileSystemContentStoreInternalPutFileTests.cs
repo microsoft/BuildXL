@@ -147,12 +147,20 @@ namespace ContentStoreTest.Stores
                             return (pathToContent, iterations);
                         }).ToArray();
 
+                        int nonDuplicatedPuts = 0;
+
                         await ParallelAlgorithms.WhenDoneAsync(24, CancellationToken.None, async (scheduleItem, item) =>
                         {
                             // Put the content into the store w/ hard link
                             var r = await store.PutFileAsync(
                                     context, item.pathToContent, FileRealizationMode.Any, ContentHashType, new PinRequest(pinContext));
                             hashFromPut = r.ContentHash;
+
+                            if (!r.ContentAlreadyExistsInCache)
+                            {
+                                Interlocked.Increment(ref nonDuplicatedPuts);
+                            }
+
                             Clock.Increment();
                             Assert.True(pinContext.Contains(hashFromPut));
 
@@ -162,6 +170,8 @@ namespace ContentStoreTest.Stores
                             }
                         },
                         items);
+
+                        Assert.Equal(1, nonDuplicatedPuts);
                     }
                 }
             });
@@ -223,6 +233,7 @@ namespace ContentStoreTest.Stores
 
                     // Put the content into the store w/ hard link
                     var r = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, null);
+                    Assert.False(r.ContentAlreadyExistsInCache);
                     ContentHash hashFromPut = r.ContentHash;
 
                     byte[] newBytes = ThreadSafeRandom.GetBytes(10);

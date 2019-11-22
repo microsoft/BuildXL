@@ -97,8 +97,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         {
             try
             {
-                BlobContentHashListWithCacheMetadata blobCacheMetadata;
-                if (!BlobContentHashListCache.Instance.TryGetValue(cacheNamespace, strongFingerprint, out blobCacheMetadata))
+                if (!BlobContentHashListCache.Instance.TryGetValue(cacheNamespace, strongFingerprint, out var blobCacheMetadata))
                 {
                     BlobContentHashListResponse blobResponse = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                             context,
@@ -197,8 +196,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         new ObjectResult<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                new ContentHashListWithDeterminism(null, blobContentHashListWithCacheMetadata.Determinism),
-                               blobContentHashListWithCacheMetadata.GetEffectiveExpirationTimeUtc(),
-                              blobContentHashListWithCacheMetadata.ContentGuarantee));
+                               blobContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
+                               blobContentHashListWithCacheMetadata.ContentGuarantee));
                 }
                 else
                 {
@@ -228,7 +227,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             {
                 return new ObjectResult<ContentHashListWithCacheMetadata>(
                     new ContentHashListWithCacheMetadata(
-                        new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism), blobCacheMetadata.GetEffectiveExpirationTimeUtc(), blobCacheMetadata.ContentGuarantee, blobCacheMetadata.HashOfExistingContentHashList));
+                        new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism),
+                        blobCacheMetadata.GetRawExpirationTimeUtc(),
+                        blobCacheMetadata.ContentGuarantee,
+                        blobCacheMetadata.HashOfExistingContentHashList));
             }
 
             BlobIdentifier blobId = blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier;
@@ -243,6 +245,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
 
                 return new ObjectResult<Stream>(openStreamResult);
             };
+
             StructResult<ContentHashListWithDeterminism> contentHashListResult =
                 await BlobContentHashListExtensions.UnpackFromBlob(
                     openStreamFunc,

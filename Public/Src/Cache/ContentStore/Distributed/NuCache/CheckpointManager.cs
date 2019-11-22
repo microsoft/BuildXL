@@ -32,6 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string CheckpointSizeMetricName = "CheckpointSizeBytes";
         private const string IncrementalCheckpointIdSuffix = "|Incremental";
+        private const string CheckpointInfoKey = "CheckpointManager.CheckpointState";
 
         private const string IncrementalCheckpointInfoEntrySeparator = "\n";
 
@@ -79,6 +80,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             context = context.CreateNested();
+
+            string checkpointId = "Unknown";
+            long checkpointSize = 0;
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -89,17 +93,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Creating a working temporary directory
                         using (new DisposableDirectory(_fileSystem, _checkpointStagingDirectory))
                         {
+                            // NOTE(jubayard): this needs to be done previous to checkpointing, because we always
+                            // fetch the latest version's size in this way. This implies there may be some difference
+                            // between the reported value and the actual size on disk: updates will get in in-between.
+                            // The better alternative is to actually open the checkpoint and ask, but it seems like too
+                            // much.
+                            checkpointSize = _database.GetContentDatabaseSizeBytes().GetValueOrDefault(-1);
+
+
                             // Saving checkpoint for the database into the temporary folder
                             _database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
 
                             if (_configuration.UseIncrementalCheckpointing)
                             {
-                                 await CreateCheckpointIncrementalAsync(context, sequencePoint);
+                                 checkpointId = await CreateCheckpointIncrementalAsync(context, sequencePoint);
                                  successfullyUpdatedIncrementalState = true;
                             }
                             else
                             {
-                                await CreateFullCheckpointAsync(context, sequencePoint);
+                                checkpointId = await CreateFullCheckpointAsync(context, sequencePoint);
                             }
 
                             return BoolResult.Success;
@@ -111,10 +123,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 extraStartMessage: $"SequencePoint=[{sequencePoint}]",
-                extraEndMessage: _ => $"SequencePoint=[{sequencePoint}]");
+                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] Id=[{checkpointId}] SizeMb=[{(checkpointSize < 0 ? checkpointSize:checkpointSize*1e-6)}]");
         }
 
-        private async Task CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
+        private async Task<string> CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             // Zipping the checkpoint
             var targetZipFile = _checkpointStagingDirectory + ".zip";
@@ -130,9 +142,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Uploading the checkpoint
             await _checkpointRegistry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailure();
+
+            return checkpointId;
         }
 
-        private async Task CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint)
+        private async Task<string> CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             InitializeIncrementalCheckpointIfNeeded(restoring: false);
 
@@ -156,6 +170,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Have to create a dictionary in .NET 4.5.1 because ConcurrentDictionary does not implement IReadOnlyDictionary there.
             UpdateIncrementalCheckpointInfo(new Dictionary<string, string>(newCheckpointInfo));
+
+            return checkpointId;
         }
 
         private async Task UploadFilesAsync(OperationContext context, List<AbsolutePath> files, ConcurrentDictionary<string, string> newCheckpointInfo, string incrementalCheckpointsPrefix)
@@ -266,6 +282,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _tracer.Debug(context, $"Incremental checkpoint state is invalid or corrupted. Deleting '{_incrementalCheckpointInfoFile}'.");
                 _incrementalCheckpointInfo = CollectionUtilities.EmptyDictionary<string, string>();
                 _fileSystem.DeleteFile(_incrementalCheckpointInfoFile);
+
+                // Clear the latest checkpoint state from the db
+                WriteLatestCheckpoint(context, checkpointState: null);
             }
         }
 
@@ -300,9 +319,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restores the checkpoint for a given checkpoint id.
         /// </summary>
-        public Task<BoolResult> RestoreCheckpointAsync(OperationContext context, string checkpointId)
+        public Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
             context = context.CreateNested();
+            var checkpointId = checkpointState.CheckpointId;
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -335,16 +355,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             if (isIncrementalCheckpoint)
                             {
                                 var incrementalRestoreResult = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
-                                successfullyUpdatedIncrementalState = incrementalRestoreResult.Succeeded;
                                 incrementalRestoreResult.ThrowIfFailure();
                             }
                             else
                             {
-                                RestoreFullCheckpointAsync(checkpointFile, extractedCheckpointDirectory);
+                                RestoreFullCheckpoint(checkpointFile, extractedCheckpointDirectory);
                             }
 
                             // Restoring the checkpoint
-                            return _database.RestoreCheckpoint(context, extractedCheckpointDirectory);
+                            _database.RestoreCheckpoint(context, extractedCheckpointDirectory).ThrowIfFailure();
+
+                            // Save latest checkpoint info to file in case we get restarded and want to know about the previous checkpoint.
+                            WriteLatestCheckpoint(context, checkpointState);
+
+                            successfullyUpdatedIncrementalState = true;
+                            return BoolResult.Success;
                         }
                     }
                     finally
@@ -356,7 +381,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 extraEndMessage: _ => $"CheckpointId=[{checkpointId}]");
         }
 
-        private static void RestoreFullCheckpointAsync(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)
+        private void WriteLatestCheckpoint(OperationContext context, CheckpointState? checkpointState)
+        {
+            try
+            {
+                _database.SetGlobalEntry(CheckpointInfoKey, checkpointState == null ? null : $"{checkpointState.Value.CheckpointId},{checkpointState.Value.CheckpointTime}");
+            }
+            catch (Exception e)
+            {
+                _tracer.Warning(context, $"Failed to write latest checkpoint state '{checkpointState?.ToString()}' to database: {e}");
+            }
+        }
+
+        public (string checkpointId, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
+        {
+            try
+            {
+                if (_database.TryGetGlobalEntry(CheckpointInfoKey, out var checkpointText))
+                {
+                    var segments = checkpointText.Split(',');
+                    var id = segments[0];
+                    var date = DateTime.Parse(segments[1]);
+                    return (id, date);
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
+            catch (Exception e)
+            {
+                _tracer.Debug(context, $"Failed to read latest checkpoint state from disk: {e}");
+                return null;
+            }
+        }
+
+        private static void RestoreFullCheckpoint(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)
         {
             // Extracting the checkpoint archive
             ZipFile.ExtractToDirectory(checkpointFile.ToString(), extractedCheckpointDirectory.ToString());

@@ -89,8 +89,7 @@ namespace Test.BuildXL.Scheduler
             bool scheduleMetaPips = false,
             int maxProcesses = 1,
             bool enableJournal = false,
-            bool enableIncrementalScheduling = false,
-            bool enableGraphAgnosticIncrementalScheduling = true)
+            bool enableIncrementalScheduling = false)
         {
             m_fileContentTable = FileContentTable.CreateNew();
 
@@ -115,11 +114,6 @@ namespace Test.BuildXL.Scheduler
             {
                 m_configuration.Schedule.IncrementalScheduling = true;
                 m_configuration.Schedule.ComputePipStaticFingerprints = true;
-
-                if (!enableGraphAgnosticIncrementalScheduling)
-                {
-                    m_configuration.Schedule.GraphAgnosticIncrementalScheduling = false;
-                }
             }
 
             if (m_configuration.Schedule.IncrementalScheduling)
@@ -1296,6 +1290,15 @@ namespace Test.BuildXL.Scheduler
 
             m_scheduler?.Dispose();
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             m_scheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: m_testQueue,
@@ -1310,6 +1313,7 @@ namespace Test.BuildXL.Scheduler
                 ipcProvider: ipcProvider,
                 journalState: m_journalState,
                 tempCleaner: MoveDeleteCleaner,
+                directoryTranslator: directoryTranslator,
                 testHooks: testHooks);
 
             bool success = m_scheduler.InitForMaster(LoggingContext, filter);
@@ -1395,7 +1399,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     if (dependencies.Any())
                     {
-                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/ls" : "dir");
+                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/cat" : "type");
                         foreach (var dependency in dependencies)
                         {
                             pipDataBuilder.Add(dependency);
@@ -2476,7 +2480,6 @@ namespace Test.BuildXL.Scheduler
         public async Task ReuseCachedGraphWithSealedDirectory()
         {
             Setup(
-
                 // We assert on Succeeded status rather than one of the lazy-materialization ones.
                 disableLazyOutputMaterialization: true);
             IgnoreWarnings();
@@ -2752,6 +2755,15 @@ namespace Test.BuildXL.Scheduler
                 context,
                 Task.FromResult<SemanticPathExpander>(Expander));
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             var newScheduler = new TestScheduler(
                 graph,
                 pipQueue: testQueue,
@@ -2761,8 +2773,9 @@ namespace Test.BuildXL.Scheduler
                 fileAccessWhitelist: new FileAccessWhitelist(Context),
                 configuration: configuration,
                 cache: cache,
-                testHooks: new SchedulerTestHooks(),
-                tempCleaner: MoveDeleteCleaner);
+                directoryTranslator: directoryTranslator,
+                tempCleaner: MoveDeleteCleaner,
+                testHooks: new SchedulerTestHooks());
 
             newScheduler.InitForMaster(LoggingContext, filter);
 

@@ -162,12 +162,10 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 description: "Copy Directory",
             },
             workingDirectory: targetDir,
-            successExitCodes: [
-                0,
-                1,
-                2,
-                4,
-            ],
+
+            // source: https://support.microsoft.com/en-us/help/954404/return-codes-that-are-used-by-the-robocopy-utility-in-windows-server-2
+            successExitCodes: [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+
             arguments: [
                 Cmd.argument(Artifact.none(sourceDir)),
                 Cmd.argument(Artifact.none(targetDir)),

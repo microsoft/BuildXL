@@ -43,9 +43,14 @@ namespace BuildXL.Scheduler
         public bool Executed { get; set; }
 
         /// <summary>
-        /// The expected RAM utilization of the pip
+        /// The expected memory usage for the pip
         /// </summary>
-        public int? ExpectedRamUsageMb;
+        public ProcessMemoryCounters? ExpectedMemoryCounters;
+
+        /// <summary>
+        /// The expected historical duration of the pip
+        /// </summary>
+        public ulong? ExpectedDurationMs;
 
         /// <summary>
         /// SemaphoreResources

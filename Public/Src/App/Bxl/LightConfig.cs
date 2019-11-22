@@ -69,9 +69,7 @@ namespace BuildXL
                         lightConfig.DisablePathTranslation = true;
                         break;
                     case "HELP":
-                        var help = Args.ParseHelpOption(option);
-                        lightConfig.Help = help.Key;
-                        lightConfig.HelpCode = help.Value;
+                        lightConfig.Help = Args.ParseHelpOption(option);
                         break;
                     case "NOLOGO":
                     case "NOLOGO+":

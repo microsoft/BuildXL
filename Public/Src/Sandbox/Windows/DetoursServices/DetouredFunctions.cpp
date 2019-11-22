@@ -17,9 +17,11 @@
 #include "MetadataOverrides.h"
 #include "HandleOverlay.h"
 #include "SubstituteProcessExecution.h"
+#include <unordered_set>
 
 using std::wstring;
 using std::unique_ptr;
+using std::unordered_set;
 using std::vector;
 
 // ----------------------------------------------------------------------------
@@ -1850,6 +1852,41 @@ BOOL WINAPI Detoured_CreateProcessW(
             lpProcessInformation);
     }
 
+    // If the process to be created is configured to breakaway from the current
+    // job object, we use the regular process creation, and set the breakaway flag
+    if (!g_processNamesToBreakAwayFromJob->empty())
+    {
+        std::wstring imageName = GetImageName(lpApplicationName, lpCommandLine);
+
+        // An empty string means we couldn't find a candidate, or the path was malformed.
+        // In this case we just let the regular detoured create process take control
+        if (imageName != L"")
+        {
+            std::unordered_set<wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>::iterator result;
+            result = g_processNamesToBreakAwayFromJob->find(imageName);
+            
+            if (result != g_processNamesToBreakAwayFromJob->end())
+            {
+#if SUPER_VERBOSE
+                Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
+#endif
+                return Real_CreateProcessW(
+                    lpApplicationName,
+                    lpCommandLine,
+                    lpProcessAttributes,
+                    lpThreadAttributes,
+                    // Since this process will be detached from the job, and could survive the parent, we don't 
+                    // want any handle inheritance to happen
+                    /*bInheritHandles*/ FALSE,
+                    dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
+                    lpEnvironment,
+                    lpCurrentDirectory,
+                    lpStartupInfo,
+                    lpProcessInformation);
+            }
+        }
+    }
+
     bool retryCreateProcess = true;
     unsigned retryCount = 0;
 
@@ -2605,9 +2642,10 @@ BOOL WINAPI Detoured_CopyFileExW(
         return FALSE;
     }
 
+    bool copySymlink = (dwCopyFlags & COPY_FILE_COPY_SYMLINK) != 0;
+
     // When COPY_FILE_COPY_SYMLINK is specified, then no need to enforce chain of symlink accesses.
-    if ((dwCopyFlags & COPY_FILE_COPY_SYMLINK) == 0 &&
-        !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
+    if (!copySymlink && !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
     {
         return FALSE;
     }
@@ -2621,6 +2659,19 @@ BOOL WINAPI Detoured_CopyFileExW(
         ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, denyError);
         destAccessCheck.SetLastErrorToDenialError();
         return FALSE;
+    }
+
+    if ((!copySymlink || !IsReparsePoint(lpExistingFileName))
+        && IsReparsePoint(lpNewFileName))
+    {
+        // If not copying symlink or the source of copy is not a symlink
+        // but the destination of the copy is a symlink, then enforce chain of reparse point.
+        // For example, if we copy a concrete file f to an existing symlink s pointing to g, then
+        // if g exists, then g will be modified, but if g doesn't exist, then g will be created.
+        if (!EnforceChainOfReparsePointAccessesForNonCreateFile(destinationOpContext))
+        {
+            return false;
+        }
     }
 
     // Now we can safely try to copy, but note that the corresponding read of the source file may end up disallowed

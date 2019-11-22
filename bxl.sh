@@ -10,7 +10,8 @@ source "$MY_DIR/Public/Src/Sandbox/MacOs/scripts/env.sh"
 
 declare arg_Positional=()
 declare arg_DeployDev=""
-declare arg_UseDev=()
+declare arg_DeployDevRelease=""
+declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
 
@@ -49,7 +50,8 @@ function setMinimal() {
 
 function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
-    
+    arg_Positional+=("/remoteTelemetry+")
+
     for arg in "$@" 
     do
         to_lower=`printf '%s\n' "$arg" | awk '{ print tolower($0) }'`
@@ -96,6 +98,10 @@ function parseArgs() {
             arg_DeployDev="1"
             shift
             ;;
+        --deploy-dev-release)
+            arg_DeployDevRelease="1"
+            shift
+            ;;
         --use-dev)
             arg_UseDev="1"
             shift
@@ -122,7 +128,7 @@ function deployBxl { # (fromDir, toDir)
 
     mkdir -p "$toDir"
     /usr/bin/rsync -arhq "$fromDir/" "$toDir" --delete
-    print_info "Successfully deployed developer build to: $toDir; use it with the '--use-dev' flag now."
+    print_info "Successfully deployed developer build from $fromDir to: $toDir; use it with the '--use-dev' flag now."
 }
 
 parseArgs "$@"
@@ -131,6 +137,10 @@ findMono
 
 if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
     setMinimal
+fi
+
+if [[ -n "$arg_DeployDevRelease" ]]; then
+    arg_Positional+=(/q:ReleaseDotNetCoreMac "/f:output='$MY_DIR/Out/bin/release/osx-x64/*'")
 fi
 
 if [[ -n "$arg_Internal" ]]; then
@@ -152,6 +162,10 @@ compileWithBxl ${arg_Positional[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
     deployBxl "$MY_DIR/Out/Bin/debug/osx-x64" "$MY_DIR/Out/Selfhost/Dev"
+fi
+
+if [[ -n "$arg_DeployDevRelease" ]]; then
+    deployBxl "$MY_DIR/Out/Bin/release/osx-x64" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 popd

@@ -36,6 +36,8 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private const string RamSemaphoreName = "BuildXL.Scheduler.Worker.TotalMemory";
 
+        private const string CommitSemaphoreName = "BuildXL.Scheduler.Worker.TotalCommit";
+
         /// <summary>
         /// Defines event handler for changes in worker resources
         /// </summary>
@@ -61,6 +63,11 @@ namespace BuildXL.Scheduler.Distribution
         /// Lock needed to cover 'acquireslots' and 'earlyrelease' logics
         /// </summary>
         protected readonly ReadWriteLock EarlyReleaseLock = ReadWriteLock.Create();
+
+        /// <summary>
+        /// Whether scheduler decided to release this worker early.
+        /// </summary>
+        public bool IsEarlyReleaseInitiated { get; protected set; }
 
         /// <summary>
         /// If the worker is released early, we record the datetime.
@@ -153,9 +160,9 @@ namespace BuildXL.Scheduler.Distribution
         private int m_ramSemaphoreIndex = -1;
 
         /// <summary>
-        /// The total amount of available memory on the worker
+        /// The total amount of available ram on the worker at the beginning of the build.
         /// </summary>
-        public int? TotalMemoryMb
+        public int? TotalRamMb
         {
             get
             {
@@ -173,22 +180,87 @@ namespace BuildXL.Scheduler.Distribution
         private int? m_totalMemoryMb;
 
         /// <summary>
-        /// Gets the estimate RAM usage on the machine
+        /// The total amount of available memory on the worker during the build.
         /// </summary>
-        public int EstimatedAvailableRamMb
+        public int? ActualFreeMemoryMb;
+
+        /// <summary>
+        /// Name of the RAM semaphore
+        /// </summary>
+        private StringId m_commitSemaphoreNameId;
+
+        private int m_commitSemaphoreIndex = -1;
+
+        /// <summary>
+        /// The total amount of available commit on the worker at the beginning of the build.
+        /// </summary>
+        public int? TotalCommitMb
         {
             get
             {
-                if (TotalMemoryMb == null || m_ramSemaphoreIndex < 0)
+                return m_totalCommitMb;
+            }
+
+            set
+            {
+                var oldValue = m_totalCommitMb;
+                m_totalCommitMb = value;
+                OnWorkerResourcesChanged(WorkerResource.AvailableCommitMb, increased: value > oldValue);
+            }
+        }
+
+        private int? m_totalCommitMb;
+
+        /// <summary>
+        /// The total amount of available commit on the worker during the build.
+        /// </summary>
+        public int? ActualFreeCommitMb;
+
+        /// <summary>
+        /// Gets the estimate RAM usage on the machine
+        /// </summary>
+        public int EstimatedFreeRamMb
+        {
+            get
+            {
+                if (TotalRamMb == null || m_ramSemaphoreIndex < 0)
                 {
                     return 0;
                 }
 
                 var availablePercentFactor = ProcessExtensions.PercentageResourceLimit - m_workerSemaphores.GetUsage(m_ramSemaphoreIndex);
 
-                return (int)(((long)availablePercentFactor * TotalMemoryMb.Value) / ProcessExtensions.PercentageResourceLimit);
+                return (int)(((long)availablePercentFactor * TotalRamMb.Value) / ProcessExtensions.PercentageResourceLimit);
             }
         }
+
+        /// <summary>
+        /// Gets the estimate RAM usage on the machine
+        /// </summary>
+        public int EstimatedFreeCommitMb
+        {
+            get
+            {
+                if (TotalCommitMb == null || m_ramSemaphoreIndex < 0)
+                {
+                    return 0;
+                }
+
+                var availablePercentFactor = ProcessExtensions.PercentageResourceLimit - m_workerSemaphores.GetUsage(m_ramSemaphoreIndex);
+
+                return (int)(((long)availablePercentFactor * TotalRamMb.Value) / ProcessExtensions.PercentageResourceLimit);
+            }
+        }
+
+        /// <summary>
+        /// Default memory usage for process pips in case of no historical ram usage info 
+        /// </summary>
+        /// <remarks>
+        /// If there is no historical ram usage for the process pips, we assume that 80% of memory is used if all process slots are occupied.
+        /// </remarks>
+        internal int DefaultMemoryUsageMbPerProcess => (int)((TotalRamMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
+
+        internal int DefaultCommitUsageMbPerProcess => (int)(DefaultMemoryUsageMbPerProcess * 1.5);
 
         /// <summary>
         /// Listen for status change events on the worker
@@ -495,13 +567,11 @@ namespace BuildXL.Scheduler.Distribution
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
         {
-            if (TotalMemoryMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
+            if (TotalRamMb == null || TotalCommitMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
             {
-                // Not tracking total memory
+                // Not tracking working set or commit memory
                 return null;
             }
-
-            int expectedUsage = GetExpectedRamUsageMb(runnableProcess);
 
             if (!m_ramSemaphoreNameId.IsValid)
             {
@@ -509,30 +579,52 @@ namespace BuildXL.Scheduler.Distribution
                 m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
             }
 
+            if (!m_commitSemaphoreNameId.IsValid)
+            {
+                m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
+                m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+            }
+
+            var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
+
             return new ProcessSemaphoreInfo[]
             {
                 ProcessExtensions.GetNormalizedPercentageResource(
                     m_ramSemaphoreNameId,
-                    usage: expectedUsage,
-                    total: TotalMemoryMb.Value),
+                    usage: expectedMemoryCounters.PeakWorkingSetMb,
+                    total: TotalRamMb.Value),
+                ProcessExtensions.GetNormalizedPercentageResource(
+                    m_commitSemaphoreNameId,
+                    usage: expectedMemoryCounters.PeakCommitUsageMb,
+                    total: TotalCommitMb.Value),
             };
         }
 
         /// <summary>
-        /// Gets the estimated RAM usage for the process
+        /// Gets the estimated memory counters for the process
         /// </summary>
-        public int GetExpectedRamUsageMb(ProcessRunnablePip runnableProcess)
+        public ProcessMemoryCounters GetExpectedMemoryCounters(ProcessRunnablePip runnableProcess)
         {
-            if (TotalMemoryMb == null)
+            if (TotalRamMb == null || TotalCommitMb == null)
             {
-                return 0;
+                return ProcessMemoryCounters.CreateFromMb(0, 0, 0);
             }
 
-            var defaultExpectedRamUsage = TotalMemoryMb.Value / Math.Max(TotalProcessSlots, Environment.ProcessorCount);
-            var expectedUsage = runnableProcess.ExpectedRamUsageMb != null
-                ? (int) (runnableProcess.ExpectedRamUsageMb * 1.25) // Multiply by 1.25 to give some slack
-                : defaultExpectedRamUsage;
-            return expectedUsage;
+            if (runnableProcess.ExpectedMemoryCounters == null)
+            {
+                return ProcessMemoryCounters.CreateFromMb(
+                    peakVirtualMemoryUsageMb: DefaultMemoryUsageMbPerProcess,
+                    peakWorkingSetMb: DefaultMemoryUsageMbPerProcess,
+                    peakCommitUsageMb: DefaultCommitUsageMbPerProcess);
+            }
+
+            var expectedMemoryCounters = runnableProcess.ExpectedMemoryCounters.Value;
+
+            // 5% more to give some slack
+            return ProcessMemoryCounters.CreateFromMb(
+                peakVirtualMemoryUsageMb: (int) (expectedMemoryCounters.PeakVirtualMemoryUsageMb * 1.05),
+                peakWorkingSetMb: (int)(expectedMemoryCounters.PeakWorkingSetMb * 1.05),
+                peakCommitUsageMb: (int)(expectedMemoryCounters.PeakCommitUsageMb * 1.05));
         }
 
         /// <summary>
@@ -663,9 +755,9 @@ namespace BuildXL.Scheduler.Distribution
         #region Content Tracking
 
         /// <summary>
-        /// Initializes the worker after attach
+        /// Initializes the worker
         /// </summary>
-        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
+        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);

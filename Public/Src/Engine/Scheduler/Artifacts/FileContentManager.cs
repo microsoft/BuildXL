@@ -240,7 +240,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Holds change affected artifacts of the build
         /// </summary>
-        public SourceChangeAffectedContents SourceChangeAffectedContents { get; }
+        public SourceChangeAffectedInputs SourceChangeAffectedInputs { get; }
 
         #endregion
 
@@ -266,7 +266,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
 
-            SourceChangeAffectedContents = new SourceChangeAffectedContents(this);
+            SourceChangeAffectedInputs = new SourceChangeAffectedInputs(this);
         }
 
         /// <summary>
@@ -330,7 +330,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void ReportOutputContent(
             OperationContext operationContext,
-            string pipDescription,
+            long pipSemiStableHash,
             FileArtifact artifact,
             in FileMaterializationInfo info,
             PipOutputOrigin origin,
@@ -342,7 +342,7 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 if (origin != PipOutputOrigin.NotMaterialized && artifact.IsOutputFile)
                 {
-                    LogOutputOrigin(operationContext, pipDescription, artifact.Path.ToString(Context.PathTable), info, origin);
+                    LogOutputOrigin(operationContext, pipSemiStableHash, artifact.Path.ToString(Context.PathTable), info, origin);
                 }
             }
         }
@@ -3362,9 +3362,10 @@ namespace BuildXL.Scheduler.Artifacts
             return FileArtifact.Invalid;
         }
 
-        private void LogOutputOrigin(OperationContext operationContext, string pipDescription, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
+        private void LogOutputOrigin(OperationContext operationContext, long pipSemiStableHash, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
         {
             string hashHex = info.Hash.ToHex();
+            string pipDescription = Pip.FormatSemiStableHash(pipSemiStableHash);
             string reparsePointInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;
 
             switch (origin)
@@ -3802,13 +3803,13 @@ namespace BuildXL.Scheduler.Artifacts
                         var producer = IsDeclaredProducer ? PipInfo.UnderlyingPip : m_manager.GetDeclaredProducer(file);
 
                         result = GetPipOutputOrigin(origin, producer);
-                        var producerDescription = IsDeclaredProducer
-                            ? PipInfo.Description
-                            : producer.GetDescription(m_manager.Context);
+                        var producerSemiStableHash = IsDeclaredProducer
+                            ? PipInfo.SemiStableHash
+                            : producer.SemiStableHash;
 
                         m_manager.LogOutputOrigin(
                             operationContext,
-                            producerDescription,
+                            producerSemiStableHash,
                             file.Path.ToString(m_manager.Context.PathTable),
                             materializationFile.MaterializationInfo,
                             result);

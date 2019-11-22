@@ -1,1 +1,6 @@
-You can run BuildXL by running bxl.exe on the folder you want to run. You can get a list of all the standard options you can use with BuildXL using the command ```bxl.exe /help``` from your BuildXL folder. If you want to know about all the commands including advanced options, run the  ```bxl.exe /help:verbose``` command. Please be careful when you use advanced options since your team might already have defaults for them to prevent you from hurting yourself. 
+# BuildXL Command Line
+You can run BuildXL by running bxl.exe on the folder you want to run. You can get a list of all the standard options you can use with BuildXL using the command ```bxl.exe /help``` from your BuildXL folder. If you want to know about all the commands including advanced options, run the  ```bxl.exe /help:verbose``` command. Please be careful when you use advanced options since your team might already have defaults for them to prevent you from hurting yourself.
+
+Command line options may be specified more than once. Depending on the option they will either be additive or last wins. For example the `/traceinfo` option allows annotating BuildXL's telemetry stream with additional data. You may want to make multiple annotations so the option can be specified multiple times with each adding more data. The `/CacheGraph` option controls whether the feature is on or off. So its final configuration will be based on the last time it is specified on the command line.
+
+Response files are supported for long command lines: `bxl.exe @ResponseFilePath`

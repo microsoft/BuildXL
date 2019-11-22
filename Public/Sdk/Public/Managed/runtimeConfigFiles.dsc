@@ -211,11 +211,12 @@ namespace RuntimeConfigFiles {
             }
         } : {};
 
-        // when not using Server GC, in large builds the front end is likely to get completely bogged
+        // when not using Server GC, in large builds the front end is likely to get completely bogged, on Unix we want GC passes
+        // happening more often to reduce the overall process memory footprint
         const gcRuntimeOptions = {
             configProperties: {
-                "System.GC.Server": true,
-                "System.GC.RetainVM": true
+                "System.GC.Server": Context.getCurrentHost().os === "win",
+                "System.GC.RetainVM": Context.getCurrentHost().os === "win"
             },
         };
 

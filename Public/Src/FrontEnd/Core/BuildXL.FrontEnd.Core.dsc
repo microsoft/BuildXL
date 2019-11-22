@@ -38,6 +38,7 @@ namespace Core {
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",
+            "BxlPipGraphFragmentGenerator",
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Download",
             "Test.BuildXL.FrontEnd.Core",

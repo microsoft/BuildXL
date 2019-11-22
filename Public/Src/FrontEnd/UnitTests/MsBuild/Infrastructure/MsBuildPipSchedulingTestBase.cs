@@ -140,7 +140,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 
             using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
-                resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars);
+                resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars, out _);
 
                 var pipConstructor = new PipConstructor(
                     FrontEndContext,

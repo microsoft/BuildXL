@@ -13,6 +13,7 @@ private:
 
     PCManifestDebugFlag debugFlag_;
     PCManifestInjectionTimeout injectionTimeoutFlag_;
+    PManifestChildProcessesToBreakAwayFromJob manifestChildProcessesToBreakAwayFromJob_;
     PManifestTranslatePathsStrings manifestTranslatePathsStrings_;
     PCManifestFlags flags_;
     PCManifestExtraFlags extraFlags_;

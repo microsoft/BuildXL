@@ -83,7 +83,10 @@ param(
 
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Consume",
+    [string]$SharedCacheMode = "Disable",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$DevCache = $false,
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -112,9 +115,7 @@ param(
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
-    [switch]$UseL3Cache = $true,
-	
-	[Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
 	
     [string]$VsoAccount = "mseng",
@@ -126,6 +127,15 @@ param(
 
     [Parameter(Mandatory=$false)]
     [switch]$VsNew = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$VsNewNetCore = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$VsNewNet472 = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$VsNewAll = $false,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
@@ -185,7 +195,14 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
-$disableSharedCache = ($SharedCacheMode -eq "Disable" -or (-not $isMicrosoftInternal));
+if ($DevCache) {
+    if ($SharedCacheMode -eq "Disable") {
+        $SharedCacheMode = "Consume";
+    }
+}
+
+$useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
+$useL3Cache = $useSharedCache;
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
@@ -247,12 +264,21 @@ if ($Vs) {
     $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
 }
 
-if ($VsNew) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs /vsnew /solutionName:BuildXLNew";
+if ($VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
+    if ($VsNewNetCore) {
+        $AdditionalBuildXLArguments += "/q:DebugDotNetCore /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netstandard2.0";
+    } elseif ($VsNewNet472) {
+        $AdditionalBuildXLArguments += "/q:DebugNet472 /vsTargetFramework:net472";
+    } elseif ($VsNewAll) {
+        $AdditionalBuildXLArguments += "/q:DebugNet472 /q:DebugDotNetCore";
+    } else {
+        $AdditionalBuildXLArguments += "/q:DebugNet472"; # same as before, for compat reasons
+    }
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
-$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/scrubDirectory:${enlistmentRoot}\out\objects", "/storeFingerprints", "/cacheMiss");
+$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/scrubDirectory:${enlistmentRoot}\out\objects", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
 $AdditionalBuildXLArguments += @("/p:[Sdk.BuildXL]useQTest=true");
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {
@@ -466,7 +492,7 @@ $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifest
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache (!$disableSharedCache) -PublishToSharedCache $publishToSharedCache -UseL3Cache $UseL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -UseL3Cache $useL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }
@@ -552,7 +578,7 @@ if (!$skipFilter){
 
     if ($Minimal) {
         # filtering by core deployment.
-        $AdditionalBuildXLArguments +=  "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'oroutput='cg\*'"
+        $AdditionalBuildXLArguments +=  "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'"
     }
 
     if ($Cache) {

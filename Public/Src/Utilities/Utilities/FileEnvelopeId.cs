@@ -178,12 +178,41 @@ namespace BuildXL.Utilities
         public FileEnvelopeId ReadHeader(Stream stream)
         {
             Contract.Requires(stream != null);
+            Contract.Requires(stream.Position == 0);
             Contract.Ensures(Contract.Result<FileEnvelopeId>().IsValid);
 
-            if (stream.Position != 0)
+            var result = TryReadHeader(stream, ignoreChecksum: false);
+            if (!result.Succeeded)
             {
-                throw new BuildXLException("File beginning mismatch");
+                result.Failure.Throw();
             }
+
+            return result.Result;
+        }
+
+        /// <summary>
+        /// Reads the file header from the stream.
+        /// </summary>
+        /// <param name="stream">stream from which to read</param>
+        /// <param name="ignoreChecksum">when set, ignores errors and keeps reading all fields written by FileEnvelope's serialization</param>
+        /// <returns></returns>
+        public Possible<FileEnvelopeId> TryReadHeader(Stream stream, bool ignoreChecksum)
+        {
+            Contract.Requires(stream != null);
+            Contract.Requires(stream.Position == 0);
+
+            string firstError = null;
+
+            void setError(string err)
+            {
+                if (firstError == null)
+                {
+                    firstError = err;
+                }
+            }
+
+            Possible<FileEnvelopeId> getErrorResult() => new Failure<string>(firstError);
+            Possible<FileEnvelopeId> error(string err) => new Failure<string>(err);
 
             try
             {
@@ -192,13 +221,13 @@ namespace BuildXL.Utilities
                     string persistedName = SafeReadRawString(reader, m_name.Length);
                     if (persistedName != m_name)
                     {
-                        throw new BuildXLException($"Wrong name Persisted:'{persistedName}', Expected:'{m_name}'");
+                        return error($"Wrong name Persisted:'{persistedName}', Expected:'{m_name}'");
                     }
 
                     string persistedEol = SafeReadRawString(reader, Eol.Length);
                     if (persistedEol != Eol)
                     {
-                        throw new BuildXLException("Wrong end of line marker");
+                        return error("Wrong end of line marker");
                     }
 
                     var buffer = new char[MaxIdentifierLength];
@@ -216,7 +245,7 @@ namespace BuildXL.Utilities
 
                         if (bufferLength == MaxIdentifierLength)
                         {
-                            throw new BuildXLException("Name too long");
+                            return error("Name too long");
                         }
 
                         buffer[bufferLength++] = c;
@@ -225,53 +254,78 @@ namespace BuildXL.Utilities
                     var persistedIdString = new string(buffer, 0, bufferLength);
                     if (!IsValidIdentifier(persistedIdString))
                     {
-                        throw new BuildXLException("Illegal name");
+                        return error("Illegal name");
                     }
 
                     var persistedId = new FileEnvelopeId(persistedIdString);
 
                     if (persistedEof == DirtyEof)
                     {
-                        throw new BuildXLException("Dirty file!");
+                        setError("Dirty file!");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
                     if (persistedEof != CleanEof)
                     {
-                        throw new BuildXLException("Wrong end of file marker");
+                        setError("Wrong end of file marker");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
                     var persistedClassVersion = reader.ReadInt32();
                     if (persistedClassVersion != Version)
                     {
-                        throw new BuildXLException("Wrong class version");
+                        setError("Wrong class version");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
                     var persistedInstanceVersion = reader.ReadInt32();
                     if (persistedInstanceVersion != m_version)
                     {
-                        throw new BuildXLException("Wrong instance version");
+                        setError("Wrong instance version");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
                     var persistedLength = reader.ReadInt64();
                     var length = reader.BaseStream.Length;
                     if (persistedLength != length)
                     {
-                        throw new BuildXLException("Wrong length");
+                        setError("Wrong length");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
                     var persistedMagic = reader.ReadInt64();
-                    var actualMagic = ComputeMagic(length, persistedId);
-                    if (persistedMagic != actualMagic)
+                    if (persistedMagic != ComputeMagic(length, persistedId))
                     {
-                        throw new BuildXLException("Wrong magic number");
+                        setError("Wrong magic number");
+                        if (!ignoreChecksum)
+                        {
+                            return getErrorResult();
+                        }
                     }
 
-                    return persistedId;
+                    return firstError != null
+                        ? getErrorResult()
+                        : persistedId;
                 }
             }
             catch (IOException ex)
             {
-                throw new BuildXLException("Error reading file header", ex);
+                return new Failure<string>("Error reading file header", new Failure<Exception>(ex));
             }
         }
 

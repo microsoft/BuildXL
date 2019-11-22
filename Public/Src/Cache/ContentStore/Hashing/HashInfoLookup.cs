@@ -48,5 +48,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             return HashInfoByType.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.CreateContentHasher());
         }
+
+        /// <summary>
+        ///     The maximum number of unused idle ContentHashers to be kept in reserve for future use.
+        /// </summary>
+        /// <remarks>
+        ///     -1 (default) means the maximum number of idle hashers is unbounded.
+        ///     Note: This does not limit the maximum number of ContentHashers that can be pooled.
+        /// </remarks>
+        public static int ContentHasherIdlePoolSize = -1;
     }
 }

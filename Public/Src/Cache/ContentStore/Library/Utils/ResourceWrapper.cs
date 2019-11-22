@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils
 {
@@ -12,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// Wrapper for a resource within a <see cref="ResourcePool{TKey, TObject}"/>.
     /// </summary>
     /// <typeparam name="TObject">The wrapped type.</typeparam>
-    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IShutdownSlim<BoolResult>
+    public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IStartupShutdownSlim
     {
         internal DateTime _lastUseTime;
         private int _uses;
@@ -36,10 +37,14 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ResourceWrapper(Func<TObject> resourceFactory)
+        public ResourceWrapper(Func<TObject> resourceFactory, Context context)
         {
             _lastUseTime = DateTime.MinValue;
-            _resource = new Lazy<TObject>(resourceFactory);
+            _resource = new Lazy<TObject>(() => {
+                var resource = resourceFactory();
+                var result = resource.StartupAsync(context).ThrowIfFailure().GetAwaiter().GetResult();
+                return resource;
+            });
         }
 
         /// <summary>

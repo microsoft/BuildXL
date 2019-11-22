@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public DisposableDirectory(IAbsFileSystem fileSystem, AbsolutePath directoryPath)
         {
-            Contract.Requires(fileSystem != null);
+            Contract.RequiresNotNull(fileSystem);
             _fileSystem = fileSystem;
             Path = directoryPath;
             fileSystem.CreateDirectory(directoryPath);

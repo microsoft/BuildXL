@@ -346,7 +346,7 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
-            public Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+            public Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions options)
             {
                 throw new NotImplementedException();
             }

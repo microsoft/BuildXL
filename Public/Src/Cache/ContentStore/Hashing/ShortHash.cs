@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -65,6 +66,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static bool operator !=(ShortHash left, ShortHash right) => !left.Equals(right);
 
         /// <nodoc />
+        public static bool operator <(ShortHash left, ShortHash right) => left.CompareTo(right) < 0;
+
+        /// <nodoc />
+        public static bool operator >(ShortHash left, ShortHash right) => left.CompareTo(right) > 0;
+
+        /// <nodoc />
         public static implicit operator ShortHash(ContentHash hash) => new ShortHash(hash);
 
         /// <nodoc />
@@ -95,6 +102,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public override string ToString()
         {
             return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, HashLength)}";
+        }
+
+        /// <nodoc />
+        public void ToString(StringBuilder sb)
+        {
+            sb.Append(HashType.Serialize())
+                .Append(ContentHash.SerializedDelimiter.ToString());
+            Value.ToHex(sb, 1, HashLength);
         }
 
         /// <inheritdoc />

@@ -30,7 +30,7 @@ using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 namespace BuildXL.Processes.Internal
 {
     /// <summary>
-    /// This class implements an managed abstraction of a detoured process creation
+    /// This class implements a managed abstraction of a detoured process creation
     /// </summary>
     /// <remarks>
     /// All public methods of this class are thread safe.
@@ -73,7 +73,7 @@ namespace BuildXL.Processes.Internal
         [SuppressMessage("Microsoft.Reliability", "CA2006:UseSafeHandleToEncapsulateNativeResources")]
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
-
+        private readonly bool m_setJobBreakawayOk;
         private readonly LoggingContext m_loggingContext;
 
 #region public getters
@@ -309,7 +309,8 @@ namespace BuildXL.Processes.Internal
             bool disableConHostSharing,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            bool setJobBreakawayOk)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -332,7 +333,7 @@ namespace BuildXL.Processes.Internal
             m_timeout = timeout;
             m_disableConHostSharing = disableConHostSharing;
             m_containerConfiguration = containerConfiguration;
-
+            m_setJobBreakawayOk = setJobBreakawayOk;
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
             {
                 m_workingDirectory = Directory.GetCurrentDirectory();
@@ -445,7 +446,7 @@ namespace BuildXL.Processes.Internal
 
                         // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
                         // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
-                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false);
+                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false, allowProcessesToBreakAway: m_setJobBreakawayOk);
 
                         m_processInjector.Listen();
 

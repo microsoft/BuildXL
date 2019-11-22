@@ -19,6 +19,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -27,6 +28,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
 {
@@ -48,12 +50,6 @@ namespace BuildXL.Processes
         /// returned by Azure Watson dump after catching the process crash.
         /// </remarks>
         private const uint AzureWatsonExitCode = 0xDEAD;
-
-        /// <summary>
-        /// Group name in <see cref="Process.ErrorRegex"/> to use to extract error message.
-        /// When no such group exists, the entire match is used.
-        /// </summary>
-        private const string ErrorMessageGroupName = "ErrorMessage";
 
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
@@ -252,7 +248,10 @@ namespace BuildXL.Processes
             m_rootMappings = rootMappings;
             m_workingDirectory = pip.WorkingDirectory.ToString(m_pathTable);
             m_fileAccessManifest =
-                new FileAccessManifest(m_pathTable, directoryTranslator)
+                new FileAccessManifest(
+                    m_pathTable, 
+                    directoryTranslator, 
+                    m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => process.ToString(context.StringTable)).ToReadOnlyArray())
                 {
                     MonitorNtCreateFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
@@ -399,11 +398,11 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// <see cref="SandboxedProcess.GetActivePeakMemoryUsage"/>
+        /// <see cref="SandboxedProcess.GetActivePeakWorkingSet"/>
         /// </summary>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
-            return m_activeProcess?.GetActivePeakMemoryUsage();
+            return m_activeProcess?.GetActivePeakWorkingSet();
         }
 
         private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)
@@ -535,96 +534,6 @@ namespace BuildXL.Processes
             return m_warningRegex.IsMatch(line);
         }
 
-        private readonly struct OutputFilter
-        {
-            internal readonly Predicate<string> LinePredicate;
-            internal readonly Regex Regex;
-
-            internal OutputFilter(Predicate<string> linePredicate)
-                : this(linePredicate, null)
-            {
-                Contract.Requires(linePredicate != null);
-            }
-
-            internal OutputFilter(Regex regex)
-                : this(null, regex)
-            {
-                Contract.Requires(regex != null);
-            }
-
-            private OutputFilter(Predicate<string> linePredicate, Regex regex)
-            {
-                Contract.Requires(linePredicate != null || regex != null);
-                LinePredicate = linePredicate;
-                Regex = regex;
-            }
-
-            /// <summary>
-            /// When <see cref="LinePredicate" /> is specified: it is invoked against <paramref name="source" /> and if
-            /// it returns true <paramref name="source" /> is returned.
-            ///
-            /// When <see cref="Regex" /> is specified: it is invoked against <paramref name="source" /> to find all
-            /// matches; the matches are joined by <paramref name="outputSeparator"/> (or <see cref="Environment.NewLine" />
-            /// if null) and returned.
-            /// </summary>
-            internal string ExtractMatches(string source, string outputSeparator = null)
-            {
-                if (LinePredicate != null)
-                {
-                    return LinePredicate(source) ? source : string.Empty;
-                }
-                else
-                {
-                    return string.Join(
-                        outputSeparator ?? Environment.NewLine,
-                        Regex
-                            .Matches(source)
-                            .Cast<Match>()
-                            .Select(ExtractTextFromMatch));
-                }
-            }
-
-            private static string ExtractTextFromMatch(Match match)
-            {
-                var errorMessageGroup = match.Groups[ErrorMessageGroupName];
-                return errorMessageGroup.Success
-                    ? errorMessageGroup.Value
-                    : match.Value;
-            }
-        }
-
-        /// <summary>
-        /// If <see cref="m_errorRegex"/> is set and its options include <see cref="RegexOptions.Singleline"/> (which means that
-        /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the
-        /// regex itself (to be used later to find all the matches in the input string); otherwise, returns a line filter
-        /// (to be used later to match individual lines from the input string).
-        /// </summary>
-        /// <remarks>
-        /// Must not be called before <see cref="TryInitializeErrorRegexAsync"/> is called.
-        /// </remarks>
-        private OutputFilter GetErrorFilter()
-        {
-            if (m_errorRegex != null && m_pip.EnableMultiLineErrorScanning)
-            {
-                return new OutputFilter(m_errorRegex);
-            }
-            else
-            {
-                return new OutputFilter(line =>
-                {
-                    Contract.Requires(line != null, "line must not be null.");
-
-                    // in absence of regex, treating everything as error.
-                    if (m_errorRegex == null)
-                    {
-                        return true;
-                    }
-
-                    return m_errorRegex.IsMatch(line);
-                });
-            }
-        }
-
         private void Observe(string line)
         {
             if (IsWarning(line))
@@ -718,7 +627,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(
+            CancellationToken cancellationToken = default, 
+            ISandboxConnection sandboxConnection = null,
+            SidebandWriter sidebandWriter = null)
         {
             try
             {
@@ -777,7 +689,7 @@ namespace BuildXL.Processes
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
-                    SandboxedProcessInfo info = new SandboxedProcessInfo(
+                    var info = new SandboxedProcessInfo(
                         m_pathTable,
                         this,
                         executable,
@@ -786,7 +698,8 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxConnection: sandboxConnection)
+                        sandboxConnection: sandboxConnection,
+                        sidebandWriter: sidebandWriter)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -795,16 +708,20 @@ namespace BuildXL.Processes
                         Timeout = m_timeout,
                         PipSemiStableHash = m_pip.SemiStableHash,
                         PipDescription = m_pip.GetDescription(m_context),
-                        ProcessIdListener = m_processIdListener,
                         TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                     };
 
-                    return ShouldSandboxedProcessExecuteExternal
+                    var result = ShouldSandboxedProcessExecuteExternal
                         ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                    if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+                    {
+                        m_processIdListener?.Invoke(0);
+                    }
+                    return result;
                 }
             }
             finally
@@ -823,8 +740,6 @@ namespace BuildXL.Processes
 
         private bool ShouldSandboxedProcessExecuteExternal
             => SandboxedProcessNeedsExecuteExternal
-               // Process does not talk to BuildXL server.
-               && m_processIdListener == null
                // Container is disabled.
                && !m_containerConfiguration.IsIsolationEnabled
                // Windows only.
@@ -1095,7 +1010,15 @@ namespace BuildXL.Processes
                 try
                 {
                     m_activeProcess = process;
-                    result = await process.GetResultAsync();
+                    try
+                    {
+                        m_processIdListener?.Invoke(process.ProcessId);
+                        result = await process.GetResultAsync();
+                    }
+                    finally
+                    {
+                        m_processIdListener?.Invoke(-process.ProcessId);
+                    }
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
@@ -1137,6 +1060,7 @@ namespace BuildXL.Processes
                     process.Dispose();
                 }
 
+                var start = DateTime.UtcNow;
                 SandboxedProcessPipExecutionResult executionResult =
                     await
                         ProcessSandboxedProcessResultAsync(
@@ -1146,6 +1070,7 @@ namespace BuildXL.Processes
                             cancellationTokenSource.Token,
                             process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
                             allInputPathsUnderSharedOpaques);
+                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
                 return ValidateDetoursCommunication(
                     executionResult,
@@ -1336,6 +1261,8 @@ namespace BuildXL.Processes
             bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
             bool exitedButCanBeRetried = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
 
+            Dictionary<string, int> pipProperties = null;
+
             bool allOutputsPresent = false;
 
             ProcessTimes primaryProcessTimes = result.PrimaryProcessTimes;
@@ -1385,8 +1312,9 @@ namespace BuildXL.Processes
                     if (!canceled)
                     {
                         LogFinishedFailed(result);
+                        pipProperties = await SetPipPropertiesAsync(result);
 
-                        if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
+                        if (exitedButCanBeRetried)
                         {
                             Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                             Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
@@ -1411,7 +1339,8 @@ namespace BuildXL.Processes
                                 maxDetoursHeapSize,
                                 m_containerConfiguration,
                                 encodedStandardError,
-                                encodedStandardOutput);
+                                encodedStandardOutput,
+                                pipProperties);
                         }
                         else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                         {
@@ -1434,7 +1363,8 @@ namespace BuildXL.Processes
                                 sw.ElapsedMilliseconds,
                                 result.ProcessStartTime,
                                 maxDetoursHeapSize,
-                                m_containerConfiguration);
+                                m_containerConfiguration,
+                                pipProperties);
                         }
                     }
                 }
@@ -1446,6 +1376,8 @@ namespace BuildXL.Processes
             {
                 numSurvivingChildErrors = ReportSurvivingChildProcesses(result);
             }
+
+            var start = DateTime.UtcNow;
 
             var fileAccessReportingContext = new FileAccessReportingContext(
                 loggingContext,
@@ -1512,7 +1444,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            bool shouldPersistStandardError = errorOrWarnings || m_pip.StandardError.IsValid;
+            bool shouldPersistStandardError = !canceled && (errorOrWarnings || m_pip.StandardError.IsValid);
             if (shouldPersistStandardError)
             {
                 if (!await TrySaveStandardErrorAsync(result))
@@ -1521,12 +1453,18 @@ namespace BuildXL.Processes
                 }
             }
 
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, DateTime.UtcNow.Subtract(start));
+
+            start = DateTime.UtcNow;
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
                 GetObservedFileAccesses(
                     result,
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
                     out var sharedDynamicDirectoryWriteAccesses);
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
+
+            start = DateTime.UtcNow;
 
             // After standard output and error may been saved, and shared dynamic write accesses were identified, we can merge
             // outputs back to their original locations
@@ -1548,7 +1486,7 @@ namespace BuildXL.Processes
                 loggingSuccess = logErrorResult.Success;
             }
 
-            if (m_numWarnings > 0 && loggingSuccess)
+            if (m_numWarnings > 0 && loggingSuccess && !canceled)
             {
                 if (!await TryLogWarningAsync(result.StandardOutput, result.StandardError))
                 {
@@ -1558,7 +1496,7 @@ namespace BuildXL.Processes
 
             // The full output may be requested based on the result of the pip. If the pip failed, the output may have been reported
             // in TryLogErrorAsync above. Only replicate the output if the error was truncated due to an error regex
-            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess)
+            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess && !canceled)
             {
                 // If the pip succeeded, we must check if one of the non-error output modes have been chosen
                 if ((m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputAlways) ||
@@ -1571,6 +1509,8 @@ namespace BuildXL.Processes
                     }
                 }
             }
+
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseLoggingOutputs, DateTime.UtcNow.Subtract(start));
 
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
@@ -1689,7 +1629,25 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: allFileAccesses,
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: m_containerConfiguration);
+                containerConfiguration: m_containerConfiguration,
+                pipProperties: pipProperties);
+        }
+
+        private async Task<Dictionary<string, int>> SetPipPropertiesAsync(SandboxedProcessResult result)
+        {
+            OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(m_pip.EnableMultiLineErrorScanning);
+
+            string errorMatches = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);
+            string outputMatches = await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true);
+            string allMatches = errorMatches + Environment.NewLine + outputMatches;
+
+            if (!string.IsNullOrWhiteSpace(allMatches))
+            {
+                string[] matchedProperties = allMatches.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+                return matchedProperties.ToDictionary(val => val, val => 1);
+            }
+
+            return null;
         }
 
         private Tuple<AbsolutePath, Encoding> GetEncodedStandardConsoleStream(SandboxedProcessOutput output)
@@ -2613,12 +2571,26 @@ namespace BuildXL.Processes
                                         }
                                     });
 
+                                string filePathNotPrivate = null;
+
                                 foreach (var path in filePaths)
                                 {
                                     if (!await m_makeOutputPrivate(path))
                                     {
-                                        throw new BuildXLException("Failed to create a private, writeable copy of an output file from a previous invocation.");
+                                        filePathNotPrivate = path;
+                                        break;
                                     }
+                                }
+
+                                if (filePathNotPrivate != null)
+                                {
+                                    Tracing.Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+                                        m_loggingContext, 
+                                        m_pip.SemiStableHash, 
+                                        m_pip.GetDescription(m_context), 
+                                        directoryOutput.Path.ToString(m_pathTable), filePathNotPrivate);
+
+                                    PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                                 }
                             }
                         }
@@ -2647,7 +2619,7 @@ namespace BuildXL.Processes
                 () =>
                 {
                     Contract.Assume(m_pip.ResponseFileData.IsValid, "ResponseFile path requires having ResponseFile data");
-                    return m_pip.ResponseFileData.ToString(m_context.PathTable);
+                    return m_pip.ResponseFileData.ToString(m_pipDataRenderer);
                 },
                 Tracing.Logger.Log.PipProcessResponseFileCreationFailed);
 
@@ -2658,10 +2630,10 @@ namespace BuildXL.Processes
             changeAffectedInputs == null
                 ? Task.FromResult(true)
                 : WritePipAuxiliaryFileAsync(
-                    m_pip.ChangeAffectedInputListWrittenFilePath,
+                    m_pip.ChangeAffectedInputListWrittenFile,
                     () => string.Join(
                         Environment.NewLine,
-                        changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).Distinct().OrderBy(n => n)),
+                        changeAffectedInputs.Select(i => i.ToString(m_pathTable))),
                     Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed);
 
         private async Task<bool> WritePipAuxiliaryFileAsync(
@@ -3744,7 +3716,7 @@ namespace BuildXL.Processes
                 return new LogErrorResult(success: false, errorWasTruncated: false);
             }
 
-            var errorFilter = GetErrorFilter();
+            var errorFilter = OutputFilter.GetErrorFilter(m_errorRegex, m_pip.EnableMultiLineErrorScanning);
 
             bool errorWasTruncated = false;
             var exceedsLimit = OutputExceedsLimit(result.StandardOutput) || OutputExceedsLimit(result.StandardError);

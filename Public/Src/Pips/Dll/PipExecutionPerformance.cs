@@ -188,14 +188,9 @@ namespace BuildXL.Pips
         public TimeSpan KernelTime { get; }
 
         /// <summary>
-        /// Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
+        /// Memory counters
         /// </summary>
-        public ulong PeakMemoryUsage { get; }
-
-        /// <summary>
-        /// <see cref="PeakMemoryUsage"/> in megabytes
-        /// </summary>
-        public int PeakMemoryUsageMb => (int)(PeakMemoryUsage / (1024 * 1024));
+        public ProcessMemoryCounters MemoryCounters { get; }
 
         /// <summary>
         /// Number of processes that executed as part of the pip (the entry-point process may start children).
@@ -217,6 +212,11 @@ namespace BuildXL.Pips
         /// </summary>
         public ulong? CacheDescriptorId { get; }
 
+        /// <summary>
+        /// Processor used in % (150 means one processor fully used and the other half used)
+        /// </summary>
+        public ushort ProcessorsInPercents { get; }
+
         /// <nodoc />
         public ProcessPipExecutionPerformance(
             PipExecutionLevel level,
@@ -228,7 +228,7 @@ namespace BuildXL.Pips
             IOCounters ioCounters,
             TimeSpan userTime,
             TimeSpan kernelTime,
-            ulong peakMemoryUsage,
+            ProcessMemoryCounters memoryCounters,
             uint numberOfProcesses,
             uint workerId)
             : base(level, executionStart, executionStop, workerId)
@@ -245,8 +245,13 @@ namespace BuildXL.Pips
             IO = ioCounters;
             UserTime = userTime;
             KernelTime = kernelTime;
-            PeakMemoryUsage = peakMemoryUsage;
+            MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
+
+            var durationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, ProcessExecutionTime.TotalMilliseconds));
+            double cpuTime = KernelTime.TotalMilliseconds + UserTime.TotalMilliseconds;
+            double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
+            ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
         }
 
         /// <summary>
@@ -281,7 +286,7 @@ namespace BuildXL.Pips
             IO.Serialize(writer);
             writer.Write(UserTime);
             writer.Write(KernelTime);
-            writer.Write(PeakMemoryUsage);
+            MemoryCounters.Serialize(writer);
             writer.WriteCompact(NumberOfProcesses);
         }
 
@@ -294,7 +299,8 @@ namespace BuildXL.Pips
             IOCounters ioCounters = IOCounters.Deserialize(reader);
             TimeSpan userTime = reader.ReadTimeSpan();
             TimeSpan kernelTime = reader.ReadTimeSpan();
-            ulong peakMemoryUsage = reader.ReadUInt64();
+            ProcessMemoryCounters memoryCounters = ProcessMemoryCounters.Deserialize(reader);
+
             uint numberOfProcesses = reader.ReadUInt32Compact();
 
             return new ProcessPipExecutionPerformance(
@@ -307,7 +313,7 @@ namespace BuildXL.Pips
                 ioCounters: ioCounters,
                 userTime: userTime,
                 kernelTime: kernelTime,
-                peakMemoryUsage: peakMemoryUsage,
+                memoryCounters: memoryCounters,
                 numberOfProcesses: numberOfProcesses,
                 workerId: workerId);
         }

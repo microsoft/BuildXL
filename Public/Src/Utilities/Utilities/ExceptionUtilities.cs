@@ -251,6 +251,11 @@ namespace BuildXL.Utilities
                 return ExceptionRootCause.DeviceAccessError;
             }
 
+            if (ex is IOException && ex.Message.Contains("No space left on device"))
+            {
+                return ExceptionRootCause.OutOfDiskSpace;
+            }
+
             Win32Exception win32Ex = ex as Win32Exception;
             if (exHResult == OutOfDiskSpaceHResult ||
                 (win32Ex != null && win32Ex.ErrorCode == NotEnoughStorage))

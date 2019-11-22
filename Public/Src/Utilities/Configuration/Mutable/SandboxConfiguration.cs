@@ -59,7 +59,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration(template.UnsafeSandboxConfiguration);
 
-            DebugInstantPipOutputs = template.DebugInstantPipOutputs;
             BreakOnUnexpectedFileAccess = template.BreakOnUnexpectedFileAccess;
             FileAccessIgnoreCodeCoverage = template.FileAccessIgnoreCodeCoverage;
             FailUnexpectedFileAccesses = template.FailUnexpectedFileAccesses;
@@ -128,9 +127,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 m_unsafeSandboxConfig = value;
             }
         }
-
-        /// <inheritdoc />
-        public bool DebugInstantPipOutputs { get; set; }
 
         /// <inheritdoc />
         public bool BreakOnUnexpectedFileAccess { get; set; }

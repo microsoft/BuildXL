@@ -160,7 +160,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests /q:DebugNet472 %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /viewer:disable /TraceInfo:RunCheckinTests=CleanOnly
+        call :RunBxl -Use RunCheckinTests /q:DebugNet472 %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -235,7 +235,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /viewer:disable /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!

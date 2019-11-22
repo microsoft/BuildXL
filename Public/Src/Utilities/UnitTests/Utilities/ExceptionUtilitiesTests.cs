@@ -18,5 +18,11 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(ExceptionRootCause.MissingRuntimeDependency, ExceptionUtilities.AnalyzeExceptionRootCause(new DllNotFoundException()));
             Assert.Equal(ExceptionRootCause.MissingRuntimeDependency, ExceptionUtilities.AnalyzeExceptionRootCause(new TypeLoadException()));
         }
+
+        [Fact]
+        public void ClassifyOutOfDiskSpace()
+        {
+            Assert.Equal(ExceptionRootCause.OutOfDiskSpace, ExceptionUtilities.AnalyzeExceptionRootCause(new IOException("No space left on device")));
+        }
     }
 }

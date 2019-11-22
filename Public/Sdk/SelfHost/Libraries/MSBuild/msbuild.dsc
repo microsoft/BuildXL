@@ -21,16 +21,15 @@ export const msbuildRuntimeContent = [
     importFrom("SystemMemoryForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
     importFrom("SystemNumericsVectorsForMSBuild").pkg,
     importFrom("SystemRuntimeCompilerServicesUnsafeForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("System.Threading.Tasks.Dataflow").pkg,
     
     ...BuildXLSdk.isDotNetCoreBuild ? [
         importFrom("System.Text.Encoding.CodePages").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-        importFrom("System.Threading.Tasks.Dataflow").pkg ,
         importFrom("Microsoft.Build.Tasks.Core").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/netcoreapp2.1/MSBuild.dll`),
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/netcoreapp2.1/MSBuild.runtimeconfig.json`),
     ]
     : [
-        importFrom("DataflowForMSBuild").pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe`),
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe.config`),
     ],

@@ -149,7 +149,7 @@ int Listeners::mpo_vnode_check_readlink(kauth_cred_t cred, struct vnode *vp, str
         return KERN_SUCCESS;
     }
 
-    return handler.HandleReadlink(vp);
+    return handler.HandleReadVnode(vp, kOpMacReadlink, /*isVnodDir*/ false);
 }
 
 /*!
@@ -246,7 +246,6 @@ int Listeners::mpo_vnode_check_create(kauth_cred_t cred,
         // compute full path by getting the absolute path of 'dvp' and appending the component name provided by 'cnp'
         char path[MAXPATHLEN] = {0};
         ComputeAbsolutePath(dvp, cnp->cn_nameptr, cnp->cn_namelen, path, sizeof(path));
-
         bool isDir = vap->va_type == VDIR;
         bool isSymlink = vap->va_type == VLNK;
         return handler.HandleVNodeCreateEvent(path, isDir, isSymlink);
@@ -266,5 +265,45 @@ int Listeners::mpo_vnode_check_write(kauth_cred_t active_cred,
         return KERN_SUCCESS;
     }
 
-    return handler.HandleVnodeWrite(vp);
+    return handler.HandleVnodeWrite(vp, kOpMacVNodeWrite);
+}
+
+
+int Listeners::mpo_vnode_check_clone(kauth_cred_t cred,
+                                     struct vnode *dvp,
+                                     struct label *dlabel,
+                                     struct vnode *vp,
+                                     struct label *label,
+                                     struct componentname *cnp)
+{
+    TrustedBsdHandler handler = TrustedBsdHandler((BuildXLSandbox*)g_dispatcher);
+    if (!handler.TryInitializeWithTrackedProcess(proc_selfpid()))
+    {
+        return KERN_SUCCESS;
+    }
+
+    int len = MAXPATHLEN;
+    char sourcePath[MAXPATHLEN];
+    int err = vn_getpath(vp, sourcePath, &len);
+    if (err != 0)
+    {
+        log_error("Could not obtain vnode path inside vnode_check_clone; error: %d", err);
+        return KERN_SUCCESS;
+    }
+
+    int result = handler.HandleReadVnode(vp, kOpMacVNodeCloneSource, /*isVnodeDir*/ false);
+    if (result != KERN_SUCCESS)
+    {
+        return result;
+    }
+
+    char destPath[MAXPATHLEN];
+    err = ComputeAbsolutePath(dvp, cnp->cn_nameptr, cnp->cn_namelen, destPath, MAXPATHLEN);
+    if (err != 0)
+    {
+        log_error("Could not compute absolute path inside vnode_check_clone; error: %d", err);
+        return KERN_SUCCESS;
+    }
+
+    return handler.HandleWritePath(destPath, kOpMacVNodeCloneDest);
 }

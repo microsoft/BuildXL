@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -164,8 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 eventDatas = SerializeEventData(context, events);
             }
 
-            var operationId = Guid.NewGuid();
-            context = context.CreateNested(operationId);
+            var operationId = context.TracingContext.Id;
 
             for (var eventNumber = 0; eventNumber < eventDatas.Count; eventNumber++)
             {
@@ -174,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 eventData.Properties[SenderMachineKey] = _localMachineName;
                 counters[SentEventBatchCount].Increment();
 
-                Tracer.Debug(
+                Tracer.Info(
                     context,
                     $"{Tracer.Name}: Sending {eventNumber}/{events.Length} event. OpId={operationId}, Epoch='{_configuration.Epoch}', Size={eventData.Body.Count}.");
                 counters[SentMessagesTotalSize].Add(eventData.Body.Count);
@@ -223,8 +223,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             // Creating nested context for all the processing operations.
             context = context.CreateNested();
-            string asyncProcessing = _eventProcessingBlocks != null ? "on" : "off";
-            Tracer.Info(context, $"{Tracer.Name}: Received {messages.Count} events from Event Hub. Async processing is '{asyncProcessing}'.");
 
             if (messages.Count == 0)
             {
@@ -326,7 +324,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             // Creating nested context with operationId as a guid. This helps to correlate operations on a worker and a master machines.
                             context = CreateNestedContext(context, operationId?.ToString());
 
-                            Tracer.Debug(context, $"{Tracer.Name}.ReceivedEvent: ProcessingDelay={eventProcessingDelay}, Sender={sender}, OpId={operationId}, SeqNo={message.SystemProperties.SequenceNumber}, EQT={eventTimeUtc}, Filter={eventFilter}, Size={message.Body.Count}.");
+                            Tracer.Info(context, $"{Tracer.Name}.ReceivedEvent: ProcessingDelay={eventProcessingDelay}, Sender={sender}, OpId={operationId}, SeqNo={message.SystemProperties.SequenceNumber}, EQT={eventTimeUtc}, Filter={eventFilter}, Size={message.Body.Count}.");
 
                             Tracer.TrackMetric(context, EventProcessingDelayInSecondsMetricName, (long)eventProcessingDelay.TotalSeconds);
 
@@ -374,14 +372,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private static OperationContext CreateNestedContext(OperationContext context, string? operationId)
+        private static OperationContext CreateNestedContext(OperationContext context, string? operationId, [CallerMemberName]string? caller = null)
         {
             if (!Guid.TryParse(operationId, out var guid))
             {
                 guid = Guid.NewGuid();
             }
 
-            return context.CreateNested(guid);
+            return context.CreateNested(guid, caller);
         }
 
         /// <inheritdoc />

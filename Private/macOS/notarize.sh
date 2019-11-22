@@ -61,8 +61,8 @@ if [[ -z $arg_AppleId ]]; then
 fi
 
 if [[ -z $arg_Password ]]; then
-    echo "[ERROR] Must supply valid / non-empty password!"
-    exit 1
+    echo "[INFO] Password not set; using the AC_PASSWORD entry from the keychain"
+    arg_Password="@keychain:AC_PASSWORD"
 fi
 
 if [[ ! -d "$arg_KextPath" ]]; then

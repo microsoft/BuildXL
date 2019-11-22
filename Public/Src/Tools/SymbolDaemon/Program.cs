@@ -16,6 +16,8 @@ namespace Tool.SymbolDaemon
     /// </summary>
     public static class Program
     {
+        private const string ResponseFilePrefix = "@";
+
         /// <nodoc/>        
         public static int Main(string[] args)
         {
@@ -26,7 +28,7 @@ namespace Tool.SymbolDaemon
             {
                 Console.WriteLine(nameof(SymbolDaemon) + " started at " + DateTime.UtcNow);
                 Console.WriteLine(SymbolDaemon.SymbolDLogPrefix + "Command line arguments: ");
-                Console.WriteLine(string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, args));
+                Console.WriteLine(SymbolDaemon.SymbolDLogPrefix + string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, args));
                 Console.WriteLine();
 
                 SymbolDaemon.EnsureCommandsInitialized();

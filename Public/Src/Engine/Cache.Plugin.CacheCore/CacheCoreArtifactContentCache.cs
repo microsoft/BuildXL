@@ -369,9 +369,20 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             Possible<CasHash, Failure> maybeStored = await maybeOpen.ThenAsync(
                 async cache =>
                 {
+                    Contract.Assert(content.CanSeek);
+                    long initialPos = content.Position;
+                    bool attempted = false;
+
                     var result = await Helpers.RetryOnFailureAsync(
                         async lastAttempt =>
                         {
+                            if (attempted)
+                            {
+                                // Reset stream to initial position.
+                                content.Seek(initialPos, SeekOrigin.Begin);
+                            }
+
+                            attempted = true;
                             return await cache.AddToCasAsync(content, new CasHash(contentHash));
                         });
                     return result;

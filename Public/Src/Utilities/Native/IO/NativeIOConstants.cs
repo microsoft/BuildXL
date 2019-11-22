@@ -180,6 +180,11 @@ namespace BuildXL.Native.IO
         /// </summary>
         public const int ErrorTimeout = 0x5B4;
 
+        /// <summary> 
+        /// ERROR_PIPE_BUSY. 
+        /// </summary> 
+        public const int ErrorPipeBusy = 0xE7;
+
         /// <summary>
         /// Infinite timeout.
         /// </summary>

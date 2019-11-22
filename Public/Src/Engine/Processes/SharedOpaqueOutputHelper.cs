@@ -91,10 +91,10 @@ namespace BuildXL.Processes
 
         private static unsafe class Unix
         {
-            private const string MY_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
+            private const string BXL_SHARED_OPAQUE_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
 
             // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
-            private const long MY_XATTR_VALUE = 42; 
+            private const long BXL_SHARED_OPAQUE_XATTR_VALUE = 42;
 
             // from xattr.h:
             // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
@@ -122,7 +122,7 @@ namespace BuildXL.Processes
 
             /// <summary>
             /// Flags the given path as being an output under a shared opaque by setting
-            /// <see cref="MY_XATTR_NAME"/> xattr to a <see cref="MY_XATTR_VALUE"/>.
+            /// <see cref="BXL_SHARED_OPAQUE_XATTR_NAME"/> xattr to a <see cref="BXL_SHARED_OPAQUE_XATTR_VALUE"/>.
             /// </summary>
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
@@ -137,8 +137,8 @@ namespace BuildXL.Processes
                 }
 
                 // set xattr
-                long value = MY_XATTR_VALUE;
-                var err = SetXattr(expandedPath, MY_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
+                long value = BXL_SHARED_OPAQUE_XATTR_VALUE;
+                var err = SetXattr(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
                 var xattrErrorCode = err != 0 ? Marshal.GetLastWin32Error() : 0;
 
                 // reset permissions if we changed them
@@ -147,40 +147,94 @@ namespace BuildXL.Processes
                     Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
                 }
 
-                // check if setxattr succeeded and throw if it didn't
-                if (xattrErrorCode != 0)
+                // throw if neither SetXattr succeeded nor the path is properly marked
+                if (xattrErrorCode != 0 && !IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: false))
                 {
-                    var attrs = FileUtilities.GetFileAttributes(expandedPath);
-                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}. Attrs: {attrs}"));
+                    throw new BuildXLException(I($"Failed to set '{BXL_SHARED_OPAQUE_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}."));
                 }
             }
 
             /// <summary>
             /// Checks if the given path is an output under a shared opaque by checking if
-            /// it contains extended attribute by <see cref="MY_XATTR_NAME"/> name.
+            /// it contains extended attribute by <see cref="BXL_SHARED_OPAQUE_XATTR_NAME"/> name.
             /// </summary>
-            public static bool IsSharedOpaqueOutput(string expandedPath)
+            public static bool IsSharedOpaqueOutput(string expandedPath) => IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: true);
+
+            // TODO: delete the fallback logic after a successful transition from old to new logic
+            private static bool IsSharedOpaqueOutputWithFallback(string expandedPath, bool checkFallback)
             {
                 long value = 0;
                 uint valueSize = sizeof(long);
-                var resultSize = GetXattr(expandedPath, MY_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
-                return resultSize == valueSize && value == MY_XATTR_VALUE;
+                var resultSize = GetXattr(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
+                if (resultSize == valueSize && value == BXL_SHARED_OPAQUE_XATTR_VALUE)
+                {
+                    return true;
+                }
+
+                if (checkFallback && FileUtilities.GetFileTimestamps(expandedPath).CreationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp)
+                {
+                    return true;
+                }
+
+                return false;
             }
+        }
+
+        private const int MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs = 3;
+        private static readonly TimeSpan SleepDurationBetweenMarkingAttempts = TimeSpan.FromMilliseconds(10);
+
+        private static TimeSpan Multiply(TimeSpan timeSpan, int multiplier)
+        {
+            return TimeSpan.FromMilliseconds(multiplier * timeSpan.TotalMilliseconds);
         }
 
         /// <summary>
         /// Marks a given path as "shared opaque output"
         /// </summary>
+        /// <remarks>
+        /// Retries are needed because: (Win|Unix).SetPathAsSharedOpaqueOutput does something like
+        ///   - check if file has write access rights
+        ///   - if it doesn't, give it those rights
+        ///   - mark the file as shared opaque output
+        ///   - ...
+        /// There is a race between checking and setting access rights, so it is possible that
+        /// here we check its rights, we see that it has the correct rights, then someone else 
+        /// (e.g., the cache) revokes those rights, and so we fail to mark the file as shared opaque output.
+        /// </remarks>
         /// <exception cref="BuildXLException">When unsuccessful</exception>
         public static void SetPathAsSharedOpaqueOutput(string expandedPath)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            int attempt = 0;
+            while (true)
             {
-                Unix.SetPathAsSharedOpaqueOutput(expandedPath);
-            }
-            else
-            {
-                Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                attempt += 1;
+
+                // wait a bit between attempts
+                if (attempt > 1)
+                {
+                    System.Threading.Thread.Sleep(Multiply(SleepDurationBetweenMarkingAttempts, attempt - 1));
+                }
+
+                try
+                {
+                    if (OperatingSystemHelper.IsUnixOS)
+                    {
+                        Unix.SetPathAsSharedOpaqueOutput(expandedPath);
+                    }
+                    else
+                    {
+                        Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                    }
+
+                    return;
+                } 
+                catch (BuildXLException e)
+                {
+                    if (attempt >= MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs)
+                    {
+                        throw new BuildXLException($"Exceeded max number of attempts ({MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs}) to mark '{expandedPath}' as shared opaque output", e);
+                    }
+                }
             }
         }
 

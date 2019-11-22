@@ -614,10 +614,10 @@ namespace BuildXL.Native.IO.Windows
         [return: MarshalAs(UnmanagedType.Bool)]
         [SuppressMessage("Microsoft.Interoperability", "CA1415:DeclarePInvokesCorrectly", Justification = "Overlapped intentionally redefined.")]
         public static extern unsafe bool WriteFile(
-            SafeFileHandle handle, 
-            byte[] buffer, 
-            int numBytesToWrite, 
-            out int numBytesWritten, 
+            SafeFileHandle handle,
+            byte[] buffer,
+            int numBytesToWrite,
+            out int numBytesWritten,
             NativeOverlapped* lpOverlapped);
 
         [SuppressMessage("Microsoft.Globalization", "CA2101:SpecifyMarshalingForPInvokeStringArguments", MessageId = "OsVersionInfoEx.CSDVersion",
@@ -764,7 +764,7 @@ namespace BuildXL.Native.IO.Windows
             Directory = 0x1,
 
             /// <summary>
-            /// Specify this flag to allow creation of symbolic links when the process is not elevated. 
+            /// Specify this flag to allow creation of symbolic links when the process is not elevated.
             /// </summary>
             AllowUnprivilegedCreate = 0x2
         }
@@ -1047,7 +1047,7 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         /// <remarks>
         /// Not all Win 10 versions support this flag. Checking OS version for this feature is currently not advised
-        /// because the OS may have had new features added in a redistributable DLL. 
+        /// because the OS may have had new features added in a redistributable DLL.
         /// See: https://docs.microsoft.com/en-us/windows/desktop/SysInfo/operating-system-version
         /// </remarks>
         private bool CheckSupportUnprivilegedCreateSymbolicLinkFlag()
@@ -2368,7 +2368,7 @@ namespace BuildXL.Native.IO.Windows
 
             // The return value of CreateSymbolicLinkW is underspecified in its documentation.
             // In non-admin mode where Developer mode is not enabled, the return value can be greater than zero, but the last error
-            // is ERROR_PRIVILEGE_NOT_HELD, and consequently the symlink is not created. We strenghten the return value by 
+            // is ERROR_PRIVILEGE_NOT_HELD, and consequently the symlink is not created. We strenghten the return value by
             // also checking that the last error is ERROR_SUCCESS.
             int lastError = Marshal.GetLastWin32Error();
             if (res > 0 && lastError == NativeIOConstants.ErrorSuccess)
@@ -2567,7 +2567,7 @@ namespace BuildXL.Native.IO.Windows
                 Logger.Log.StorageTryOpenFileByIdFailure(Events.StaticContext, fileId.High, fileId.Low, GetVolumeSerialNumberByHandle(existingHandleOnVolume), hr);
                 handle = null;
                 Contract.Assume(hr != 0);
-                
+
                 var result = OpenFileResult.CreateForOpeningById(hr, FileMode.Open, handleIsValid: false);
                 Contract.Assume(!result.Succeeded);
                 return result;
@@ -2926,9 +2926,9 @@ namespace BuildXL.Native.IO.Windows
                 else
                 {
                     // Fall back using more expensive FindFirstFile.
-                    // Getting file attributes for probing file existence with GetFileAttributesW sometimes results in "access denied". 
-                    // This causes problem especially during file materialization. Because such a probe is interpreted as probing non-existent path, 
-                    // the materialization target is not deleted. However, cache, using .NET File.Exist, is able to determine that the file exists. 
+                    // Getting file attributes for probing file existence with GetFileAttributesW sometimes results in "access denied".
+                    // This causes problem especially during file materialization. Because such a probe is interpreted as probing non-existent path,
+                    // the materialization target is not deleted. However, cache, using .NET File.Exist, is able to determine that the file exists.
                     // Thus, cache refuses to materialize the file
                     if (!TryGetFileAttributesViaFindFirstFile(path, out fileAttributes, out hr))
                     {
@@ -3948,15 +3948,15 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <summary>
-        /// Resolves the reparse points with relative target. 
+        /// Resolves the reparse points with relative target.
         /// </summary>
         /// <remarks>
         /// This method resolves reparse points that occur in the path prefix. This method should only be called when path itself
-        /// is an actionable reparse point whose target is a relative path. 
-        /// This method traverses each prefix starting from the shortest one. Every time it encounters a directory symlink, it uses GetFinalPathNameByHandle to get the final path. 
+        /// is an actionable reparse point whose target is a relative path.
+        /// This method traverses each prefix starting from the shortest one. Every time it encounters a directory symlink, it uses GetFinalPathNameByHandle to get the final path.
         /// However, if the prefix itself is a junction, then it leaves the current resolved path intact. We cannot call GetFinalPathNameByHandle on the whole path because
         /// that function resolves junctions to their target paths.
-        /// The following example show the needs for this method as a prerequisite in getting 
+        /// The following example show the needs for this method as a prerequisite in getting
         /// the immediate target of a reparse point. Suppose that we have the following file system layout:
         ///
         ///    repo
@@ -3972,7 +3972,7 @@ namespace BuildXL.Native.IO.Windows
         ///          file1.txt
         ///          file2.txt
         ///
-        /// **CASE 1**: source ==> intermediate\current is a directory symlink. 
+        /// **CASE 1**: source ==> intermediate\current is a directory symlink.
         ///
         /// If a tool accesses repo\source\symlink1.link (say 'type repo\source\symlink1.link'), then the tool should get the content of repo\target\file1.txt.
         /// If the tool accesses repo\source\symlink2.link, then the tool should get path-not-found error because the resolved path will be repo\intermediate\target\file2.txt.
@@ -3980,7 +3980,7 @@ namespace BuildXL.Native.IO.Windows
         /// which is a non-existent path. To resolve repo\source\symlink1, we need to resolve the reparse points of its prefix, i.e., repo\source. For directory symlinks,
         /// we need to resolve the prefix to its target. I.e., repo\source is resolved to repo\intermediate\current, and so, given repo\source\symlink1.link, this method returns
         /// repo\intermediate\current\symlink1.link. Combining repo\intermediate\current\symlink1.link with ..\..\target\file1.txt will give the correct path, i.e., repo\target\file1.txt.
-        /// 
+        ///
         /// Similarly, given repo\source\symlink2.link, the method returns repo\intermediate\current\symlink2.link, and combining it with ..\target\file2.txt, will give us
         /// repo\intermediate\target\file2.txt, which is a non-existent path. This corresponds to the behavior of symlink accesses above.
         ///
@@ -4079,7 +4079,7 @@ namespace BuildXL.Native.IO.Windows
         public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
         {
             bool result;
-            
+
             unsafe
             {
                 // By passing null to the overlapped argument we are indicating a synchronous write
@@ -4089,6 +4089,15 @@ namespace BuildXL.Native.IO.Windows
             nativeErrorCode = Marshal.GetLastWin32Error();
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public bool IsDirectorySymlinkOrJunction(string path)
+        {
+            FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
+            var success = TryGetFileAttributes(path, out FileAttributes attributes, out _);
+
+            return success && ((attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction);
         }
     }
 }

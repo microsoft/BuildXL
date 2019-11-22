@@ -582,8 +582,14 @@ namespace BuildXL.Native.IO.Unix
 
         private static bool IsSymlink(string path)
         {
-            var maybeReparsePointType = GetReparsePointType(path);
-            return maybeReparsePointType.Succeeded && maybeReparsePointType.Result == ReparsePointType.SymLink;
+            var mode = TryGetFilePermission(path, followSymlink: false, throwOnFailure: false);
+            if (mode < 0)
+            {
+                return false;
+            }
+
+            FilePermissions permissions = checked((FilePermissions)mode);
+            return permissions.HasFlag(FilePermissions.S_IFLNK);
         }
 
         /// <inheritdoc />
@@ -800,7 +806,6 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            Contract.Requires(reparsePointType != ReparsePointType.MountPoint, "Currently, ReparsePointType.MountPoint is not a valid reparse point type on macOS/Unix");
             return reparsePointType == ReparsePointType.SymLink;
         }
 
@@ -812,25 +817,7 @@ namespace BuildXL.Native.IO.Unix
 
         private static Possible<ReparsePointType> GetReparsePointType(string path)
         {
-            try
-            {
-                FileAttributes attributes = File.GetAttributes(path);
-
-                if ((attributes & FileAttributes.ReparsePoint) == 0)
-                {
-                    return ReparsePointType.None;
-                }
-
-                // The only reparse type supported by CoreFX is a symlink currently, we can revisit this once the implementation changes.
-                // See: https://github.com/dotnet/corefx/blob/f25eb288a449010574a6e95fe298f3ad880ada1e/src/System.IO.FileSystem/src/System/IO/FileStatus.Unix.cs
-                return ReparsePointType.SymLink;
-            }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch
-            {
-                return ReparsePointType.None;
-            }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            return IsSymlink(path) ? ReparsePointType.SymLink : ReparsePointType.None;
         }
 
         /// <inheritdoc />
@@ -1187,10 +1174,7 @@ namespace BuildXL.Native.IO.Unix
             return result;
         }
 
-        /// <summary>
-        /// Gets file permission.
-        /// </summary>
-        public int GetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
+        private static int TryGetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
         {
             var statBuffer = new StatBuffer();
 
@@ -1210,6 +1194,14 @@ namespace BuildXL.Native.IO.Unix
 
                return unchecked((int)statBuffer.Mode);
             }
+        }
+
+        /// <summary>
+        /// Gets file permission.
+        /// </summary>
+        public int GetFilePermission(string path, bool followSymlink = false, bool throwOnFailure = true)
+        {
+            return TryGetFilePermission(path, followSymlink, throwOnFailure);
         }
 
         /// <summary>
@@ -1246,6 +1238,12 @@ namespace BuildXL.Native.IO.Unix
 
         /// <inheritdoc />
         public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
-      
+
+        /// <inheritdoc />
+        public bool IsDirectorySymlinkOrJunction(string path)
+        {
+            var reparsePointType = TryGetReparsePointType(path);
+            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink && Directory.Exists(path);
+        }
     }
 }

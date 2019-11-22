@@ -44,6 +44,25 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public async Task ObservedOutputWithNullStorage()
+        {
+            var content = new string('S', 100);
+            string observedOutput = string.Empty;
+            var outputBuilder =
+                new SandboxedProcessOutputBuilder(
+                    Encoding.UTF8,
+                    0,
+                    null,
+                    SandboxedProcessFile.StandardOutput,
+                    writtenOutput => observedOutput += writtenOutput);
+            outputBuilder.AppendLine(content);
+            SandboxedProcessOutput output = outputBuilder.Freeze();
+            XAssert.IsFalse(output.IsSaved);
+            XAssert.AreEqual(await output.ReadValueAsync(), content + Environment.NewLine);
+            XAssert.AreEqual(observedOutput, content + Environment.NewLine);
+        }
+
+        [Fact]
         public async Task OutputOnDisk()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))

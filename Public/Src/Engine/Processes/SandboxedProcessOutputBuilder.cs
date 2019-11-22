@@ -42,6 +42,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(encoding != null);
             Contract.Requires(maxMemoryLength >= 0);
+            Contract.Requires(fileStorage != null || observer != null);
 
             m_stringBuilderWrapper = Pools.GetStringBuilder();
             m_stringBuilder = m_stringBuilderWrapper.Instance;
@@ -110,7 +111,7 @@ namespace BuildXL.Processes
                 else if (m_fileStorage == null && m_stringBuilder.Length >= m_maxMemoryLength)
                 {
                     // The caller should have configured an observer, called above. If not and no backing file configured,
-                    // we stop collecting the output stream at the in-memory buffer length, dropping any remainder.
+                    // we start silently dropping the output stream at the in-memory buffer length.
                 }
                 else
                 {

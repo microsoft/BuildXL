@@ -51,8 +51,8 @@ namespace BuildXL.Processes
         {
             Contract.Requires(writer != null);
 
-            writer.Write(string.Empty);
-            writer.Write(string.Empty);
+            writer.Write(string.Empty);  // StandardOutput
+            writer.Write(string.Empty);  // StandardError
         }
 
         /// <summary>

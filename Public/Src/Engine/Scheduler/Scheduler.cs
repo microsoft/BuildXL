@@ -3416,7 +3416,7 @@ namespace BuildXL.Scheduler
                         if (m_configuration.Distribution.FireForgetMaterializeOutput && !AnyPendingPipsExceptMaterializeOutputs())
                         {
                             // There is no pips running anything except materializeOutputs. 
-                            m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(false);
+                            m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(true);
                         }
 
                         PipResultStatus materializationResult = await worker.MaterializeOutputsAsync(runnablePip);

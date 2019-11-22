@@ -381,7 +381,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "[{0:X16}] Detours Debug Message: {message}")]
+            Message = "[Pip{pipSemiStableHash:X16}] Detours Debug Message: {message}")]
         public abstract void LogDetoursDebugMessage(
             LoggingContext context,
             long pipSemiStableHash,

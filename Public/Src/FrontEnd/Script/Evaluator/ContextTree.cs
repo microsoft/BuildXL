@@ -176,7 +176,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                 Statistics = null;
                 Decorator = null;
                 ToolDefinitionCache = null;
-                ValueCache = null;
             }
         }
     }

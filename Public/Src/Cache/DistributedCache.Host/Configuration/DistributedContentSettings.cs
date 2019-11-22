@@ -543,9 +543,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int? TouchFrequencyMinutes { get; set; }
 
         [DataMember]
-        public bool CleanRandomFilesAtRoot { get; set; } = false;
-
-        [DataMember]
         public int? MachineExpiryMinutes { get; set; }
 
         [DataMember]

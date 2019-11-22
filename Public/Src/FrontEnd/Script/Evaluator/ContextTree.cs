@@ -85,8 +85,8 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// office for mac about.
         /// Storing the cache here will also make it only availalbe to DScript and not the other frontends.
         /// </remarks>
-        private IDictionary<Fingerprint, EvaluationResult> ValueCache { get; set; }
-        private readonly object m_valueCacheLock = new object();
+        private static readonly IDictionary<Fingerprint, EvaluationResult> s_valueCache = new Dictionary<Fingerprint, EvaluationResult>();
+        private static readonly object s_valueCacheLock = new object();
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
@@ -121,7 +121,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             EvaluationScheduler = evaluationScheduler;
             QualifierValueCache = qualifierValueCache;
             ToolDefinitionCache = new ConcurrentDictionary<ObjectLiteral, CachedToolDefinition>();
-            ValueCache = new Dictionary<Fingerprint, EvaluationResult>();
             CommonConstants = new CommonConstants(frontEndContext.StringTable);
 
             RootContext =
@@ -146,17 +145,17 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// Similar to <see cref="ConcurrentDictionary{TKey, TValue}.GetOrAdd(TKey, Func{TKey, TValue})"/>
         /// except that it guarantees that <paramref name="factory"/> is called at most once for any given key.
         /// </summary>
-        public EvaluationResult ValueCacheGetOrAdd(Fingerprint key, Func<EvaluationResult> factory)
+        public static EvaluationResult ValueCacheGetOrAdd(Fingerprint key, Func<EvaluationResult> factory)
         {
             EvaluationResult result;
-            if (!ValueCache.TryGetValue(key, out result))
+            if (!s_valueCache.TryGetValue(key, out result))
             {
-                lock (m_valueCacheLock)
+                lock (s_valueCacheLock)
                 {
-                    if (!ValueCache.TryGetValue(key, out result))
+                    if (!s_valueCache.TryGetValue(key, out result))
                     {
                         result = factory();
-                        ValueCache.Add(key, result);
+                        s_valueCache.Add(key, result);
                     }
                 }
             }

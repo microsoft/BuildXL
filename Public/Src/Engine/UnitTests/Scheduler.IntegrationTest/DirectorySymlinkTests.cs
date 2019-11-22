@@ -524,7 +524,7 @@ Versions/sym-sym-A -> sym-A/
                 File.WriteAllText(path, "text");
             }
 
-            // assert that all lookup paths that were absent are not present
+            // assert that all lookup paths that were absent are now present
             XAssert.All(AbsentProbeSpecs, spec => File.Exists(X($"{sealDir}/{spec.Lookup}")));
 
             // run again and assert that all absent probe consumers were invalidated

@@ -45,6 +45,7 @@ namespace PrivatePackages {
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).KeyValueStore.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Native.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Storage.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").withQualifier(net472Qualifier).VBCSCompilerLogger.exe),
 
                 ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netstandard2.0" }).pkg.runtime,
 
@@ -86,6 +87,7 @@ namespace PrivatePackages {
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).KeyValueStore.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Storage.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").withQualifier(winx64Qualifier).VBCSCompilerLogger.exe),
 
                 ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netcoreapp3.0" }).pkg.runtime
             ]

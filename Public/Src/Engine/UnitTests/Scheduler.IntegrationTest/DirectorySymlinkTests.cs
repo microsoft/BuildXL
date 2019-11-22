@@ -32,13 +32,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             /// <summary>Lookup path</summary>
             internal string Lookup { get; }
 
+            /// <summary>Target expanded path</summary>
+            internal string Target { get; }
+
             /// <remarks>Expected format of <paramref name="expectedObservations"/> is "[+-] path-relative-to-roodDir"</remarks>
             internal string[] Observations { get; }
 
-            internal LookupSpec(string desc, string lookup, string[] observations)
+            internal LookupSpec(string desc, string lookup, string target, string[] observations)
             {
                 Desc = desc;
                 Lookup = lookup;
+                Target = target;
                 Observations = observations;
             }
 
@@ -110,7 +114,6 @@ Versions/sym-A -> A/
 Versions/sym-sym-A -> sym-A/
 ";
 
-
         /// <summary>
         /// Different lookups (via different symlinks) and specifications for expected observed accesses.
         /// </summary>
@@ -128,6 +131,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readDirectly",
                 lookup: "Versions/A/file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ Versions/A/file",
@@ -142,6 +146,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readViaDirSymlink",
                 lookup: "Versions/sym-A/file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ Versions/sym-A",
@@ -156,6 +161,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readViaDirDirSymlink",
                 lookup: "Versions/sym-sym-A/file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ Versions/sym-sym-A",
@@ -170,6 +176,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readViaFileSymlink",
                 lookup: "sym-Versions_A_file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ sym-Versions_A_file",
@@ -185,6 +192,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readViaFileDirSymlink",
                 lookup: "sym-Versions_sym-A_file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ sym-Versions_sym-A_file",
@@ -200,6 +208,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "readViaSymLoop",
                 lookup: "Versions/A/sym-loop/file",
+                target: "Versions/A/file",
                 observations: new[]
                 {
                     "+ Versions/A/sym-loop",
@@ -218,6 +227,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "absentProbeViaDirSymlink",
                 lookup: "Versions/sym-A/absent1",
+                target: "Versions/A/absent1",
                 observations: new[]
                 {
                     "+ Versions/sym-A",
@@ -229,6 +239,7 @@ Versions/sym-sym-A -> sym-A/
             new LookupSpec(
                 "absentProbeViaDirDirSymlink",
                 lookup: "Versions/sym-sym-A/absent2",
+                target: "Versions/A/absent2",
                 observations: new[]
                 {
                     "+ Versions/sym-sym-A",
@@ -460,7 +471,14 @@ Versions/sym-sym-A -> sym-A/
 
             // schedule consumer pips
             var readConsumers = GetConsumers(sealDirArtifact, LookupSpecs);
-            var absentProbeConsumers = GetConsumers(sealDirArtifact, AbsentProbeSpecs);
+            var absentProbeConsumers = AbsentProbeSpecs
+                .Select(spec => {
+                    var pipBuilder = CreateConsumer(sealDirArtifact, spec.Desc, spec.Lookup);
+                    pipBuilder.AddInputFile(InFile(Path.Combine(sealDir, spec.Target)));
+                    return (pip: SchedulePipBuilder(pipBuilder).Process, spec: spec);
+                })
+                .ToArray();
+
             var allConsumers = readConsumers.Concat(absentProbeConsumers).ToArray();
 
             var allPipIds = allConsumers.Select(p => p.pip.PipId).ToArray();
@@ -474,7 +492,7 @@ Versions/sym-sym-A -> sym-A/
             // run again, expect all cache hits
             RunScheduler().AssertSuccess().AssertCacheHit(allPipIds);
 
-            // invalidate each read consumer pip (by rewriting the file it read), rerun, expect only that pip to be cache miss
+            // invalidate each consumer pip (by rewriting the file it read), rerun, expect only that pip to be cache miss
             foreach (var consumer in allConsumers)
             {
                 InvalidatePip(consumer.pip);
@@ -495,6 +513,25 @@ Versions/sym-sym-A -> sym-A/
             RunScheduler()
                 .AssertCacheHit(expectedCacheHits.Select(s => s.pip.PipId).ToArray())
                 .AssertCacheMiss(expectedCacheMisses.Select(s => s.pip.PipId).ToArray());
+
+            // assert that all absent lookup paths are still absent
+            XAssert.All(AbsentProbeSpecs, spec => !File.Exists(X($"{sealDir}/{spec.Lookup}")));
+
+            // create all absent lookup paths
+            foreach (var spec in AbsentProbeSpecs)
+            {
+                var path = X($"{sealDir}/{spec.Lookup}");
+                File.WriteAllText(path, "text");
+            }
+
+            // assert that all lookup paths that were absent are not present
+            XAssert.All(AbsentProbeSpecs, spec => File.Exists(X($"{sealDir}/{spec.Lookup}")));
+
+            // run again and assert that all absent probe consumers were invalidated
+            var result = RunScheduler()
+                .AssertSuccess()
+                .AssertCacheHit(readConsumers.Select(t => t.pip.PipId).ToArray())
+                .AssertCacheMiss(absentProbeConsumers.Select(t => t.pip.PipId).ToArray());
         }
 
         private (Process pip, LookupSpec spec)[] GetConsumers(DirectoryArtifact dir, LookupSpec[] specs)
@@ -722,18 +759,23 @@ Versions/sym-sym-A -> sym-A/
                 .ToList();
         }
 
-        private Process CreateAndScheduleConsumer(DirectoryArtifact inputDir, string description, string pathRelativeToOpaqueDir)
+        private ProcessBuilder CreateConsumer(DirectoryArtifact inputDir, string description, string pathRelativeToOpaqueDir)
         {
             var filePath = X($"{ArtifactToString(inputDir)}/{pathRelativeToOpaqueDir}");
             var pipBuilder = CreatePipBuilder(new Operation[]
             {
-                    OpReadDummySourceFile(description), // dummy source file dependency that can be easily invalidated
-                    Operation.WriteFile(CreateOutputFileArtifact(prefix: OutPrefix + description)), // dummy output file
-                    Operation.ReadFile(InFile(filePath), doNotInfer: true) // must not infer dependencies for paths from opaque dirs
+                OpReadDummySourceFile(description), // dummy source file dependency that can be easily invalidated
+                Operation.WriteFile(CreateOutputFileArtifact(prefix: OutPrefix + description)), // dummy output file
+                Operation.ReadFile(InFile(filePath), doNotInfer: true) // filePath may contain symlinks
             });
             pipBuilder.AddInputDirectory(inputDir);
             pipBuilder.ToolDescription = StringId.Create(Context.StringTable, description);
-            return SchedulePipBuilder(pipBuilder).Process;
+            return pipBuilder;
+        }
+
+        private Process CreateAndScheduleConsumer(DirectoryArtifact inputDir, string description, string pathRelativeToOpaqueDir)
+        {
+            return SchedulePipBuilder(CreateConsumer(inputDir, description, pathRelativeToOpaqueDir)).Process;
         }
 
         private void ValidateObservations(ScheduleRunResult result, string rootDir, (Process pip, LookupSpec spec)[] allConsumers)

@@ -8,7 +8,7 @@ namespace VBCSCompilerLogger {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const exe = BuildXLSdk.library({
+    export const dll = BuildXLSdk.library({
         assemblyName: "VBCSCompilerLogger",
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,

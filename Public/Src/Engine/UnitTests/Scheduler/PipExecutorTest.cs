@@ -865,7 +865,7 @@ namespace Test.BuildXL.Scheduler
 
         [Fact]
         public async Task ProcessWarningWithCacheAndWarnAsError()
-        {
+        { 
             const string BadContents = "Anti-Matches!";
             string Expected = "WARNING" + Environment.NewLine;
 
@@ -1032,6 +1032,100 @@ namespace Test.BuildXL.Scheduler
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.FullOutputOnError));
         }
+
+        [Theory]
+        // For all cases except the commented one, if the regex matches every thing, the user gets all the information from the log message,
+        // the path to original stdout/err log file shouldn't be presented.
+        // Otherwise, it should be presented.
+        [InlineData(true, EventId.PipProcessError, false)]
+        [InlineData(false, EventId.PipProcessError, true)]
+        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        // When the error length exceed limit and outputReportingMode is set to TruncatedOutputOnError,
+        // even though the regex matches every thing the error message still get truncated, so present the path to original stdout/err log file
+        [InlineData(true, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
+        [InlineData(true, EventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
+        [InlineData(true, EventId.PipProcessWarning, false)]
+        [InlineData(false, EventId.PipProcessWarning, true)]
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
+        {
+            await WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                async env =>
+                { 
+                    string workingDirectory = GetFullPath("work");
+                    AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
+
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+
+                    if (eventId == EventId.PipProcessError)
+                    {
+                        Process pip = CreateErrorProcess(
+                            env.Context,
+                            workingDirectoryAbsolutePath,
+                            destinationAbsolutePath,
+                            errorPattern: regexMatchesEverything ? ".*" : "ERROR",
+                            errorMessageLength: errorMessageLength);
+                        var testRunChecker = new TestRunChecker();
+                        await testRunChecker.VerifyFailed(env, pip);
+                        AssertErrorEventLogged(eventId, errorMessageLength > 0 && outputReportingMode == OutputReportingMode.FullOutputAlways ? 3 : 1);
+                    }
+                    else
+                    {
+                        Process pip = CreateWarningProcess(
+                            env.Context, 
+                            workingDirectoryAbsolutePath, 
+                            destinationAbsolutePath,
+                            regexMatchesEverything ? false : true);
+                        var testRunChecker = new TestRunChecker();
+                        testRunChecker.ExpectWarning();
+                        await testRunChecker.VerifySucceeded(env, pip); 
+                        AssertWarningEventLogged(eventId);
+                    }
+
+                    string log = EventListener.GetLog();
+                    string relatedLog = GetRelatedLog(log, eventId);
+
+                    if (shouldContainLogPath)
+                    {
+                        XAssert.IsTrue(relatedLog.Contains(destination));
+                    }
+                    else
+                    {
+                        XAssert.IsFalse(relatedLog.Contains(destination));
+                    }
+                },
+                null,
+                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
+        }
+
+        private string GetRelatedLog (string log, EventId eventId)
+        {
+            string start = "DX00"+ ((int)eventId).ToString();
+            string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
+            string upperCaseLog = log.ToUpper();
+
+            int startIndex = upperCaseLog.LastIndexOf(start);
+            if (startIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            int endIndex = log.Length;
+
+            foreach (string end in ends)
+            {
+                int theEndIndex = upperCaseLog.IndexOf(end, startIndex);
+                if (theEndIndex > 0 && theEndIndex < endIndex)
+                {
+                    endIndex = theEndIndex;
+                }
+            }
+
+            return log.Substring(startIndex, endIndex - startIndex);
+        }
+
 
         [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -3002,10 +3096,30 @@ EXIT /b 3
         /// <summary>
         /// The returned process will produce a warning.
         /// </summary>
-        private static Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output)
+        private Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output, bool extraWarningMessage = false)
         {
             var pathTable = context.PathTable;
+            var command = new StringBuilder();
 
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                command.AppendLine("@echo off");
+            }
+
+            command.AppendLine("echo WARNING");
+            if (extraWarningMessage)
+            {
+                command.AppendLine("echo EXTRA");
+            }
+
+            string cmdScript = OperatingSystemHelper.IsUnixOS ? GetFullPath("script.sh") : GetFullPath("script.cmd");
+            File.WriteAllText(cmdScript, command.ToString());
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                chmod(cmdScript, 0x1ff);
+            }
+
+            FileArtifact cmdScriptFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, cmdScript));
             FileArtifact stdout = FileArtifact.CreateSourceFile(output).CreateNextWrittenVersion();
             FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, CmdHelper.OsShellExe));
             return AssignFakePipId(new Process(
@@ -3015,10 +3129,7 @@ EXIT /b 3
                     pathTable.StringTable,
                     " ",
                     PipDataFragmentEscaping.NoEscaping,
-                    OperatingSystemHelper.IsUnixOS
-                        ? "-c 'echo WARNING'"
-                        : "/d /c echo WARNING"
-                    ),
+                    OperatingSystemHelper.IsUnixOS ? I($"-c \"{cmdScript}\"") : I($"/d /c {cmdScript}")),
                 responseFile: FileArtifact.Invalid,
                 responseFileData: PipData.Invalid,
                 environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
@@ -3028,7 +3139,7 @@ EXIT /b 3
                 standardDirectory: output.GetParent(pathTable),
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe),
+                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe, cmdScriptFile),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdout.WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -3101,7 +3212,11 @@ EXIT /b 3
                 string[] errorMessages = GenerateTestErrorMessages(errorMessageLength);
                 StringBuilder command = new StringBuilder();
 
-                command.AppendLine("@echo off");
+                if (!OperatingSystemHelper.IsUnixOS)
+                {
+                    command.AppendLine("@echo off");
+                }
+
                 command.AppendLine(I($"echo ERROR "));
                 foreach (var errorMessage in errorMessages)
                 {

@@ -49,8 +49,7 @@ namespace BuildXL.Processes
             requires((fileName == null && length >= 0) || (fileName != null && length >= NoLength) || exception != null);
             requires(exception != null ^ (value != null ^ fileName != null));
             requires(exception != null || encoding != null);
-            requires(exception != null || (fileName != null && fileStorage != null) || (fileName == null && fileStorage == null));
-            requires(encoding != null); 
+            requires(encoding != null);
 
             m_length = length;
             m_value = value;

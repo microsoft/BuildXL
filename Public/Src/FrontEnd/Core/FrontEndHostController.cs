@@ -10,6 +10,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core.Incrementality;
 using BuildXL.FrontEnd.Core.Tracing;
@@ -112,7 +113,7 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly PerformanceCollector m_collector;
 
-        private static readonly TimeSpan EvaluationProgressReportingPeriod = TimeSpan.FromMilliseconds(500);
+        private TimeSpan EvaluationProgressReportingPeriod => TimeSpan.FromMilliseconds(BuildXLEngine.GetTimerUpdatePeriodInMs(Configuration.Logging));
 
         /// <summary>
         /// Constructor.

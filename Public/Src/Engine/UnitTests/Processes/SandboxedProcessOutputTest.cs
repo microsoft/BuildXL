@@ -39,8 +39,27 @@ namespace Test.BuildXL.Processes
                 var output = outputBuilder.Freeze();
                 XAssert.IsFalse(output.IsSaved);
                 XAssert.IsFalse(File.Exists(fileName));
-                XAssert.AreEqual(await output.ReadValueAsync(), content + Environment.NewLine);
+                XAssert.AreEqual(content + Environment.NewLine, await output.ReadValueAsync());
             }
+        }
+
+        [Fact]
+        public async Task ObservedOutputWithNullStorage()
+        {
+            var content = new string('S', 100);
+            string observedOutput = string.Empty;
+            var outputBuilder =
+                new SandboxedProcessOutputBuilder(
+                    Encoding.UTF8,
+                    0,
+                    null,
+                    SandboxedProcessFile.StandardOutput,
+                    writtenOutput => observedOutput += writtenOutput);
+            outputBuilder.AppendLine(content);
+            SandboxedProcessOutput output = outputBuilder.Freeze();
+            XAssert.IsFalse(output.IsSaved);
+            XAssert.AreEqual(string.Empty, await output.ReadValueAsync());
+            XAssert.AreEqual(content, observedOutput);
         }
 
         [Fact]
@@ -63,7 +82,7 @@ namespace Test.BuildXL.Processes
                 XAssert.IsTrue(output.IsSaved);
                 XAssert.AreEqual(fileName, output.FileName);
                 XAssert.IsTrue(File.Exists(fileName));
-                XAssert.AreEqual(await output.ReadValueAsync(), content + Environment.NewLine);
+                XAssert.AreEqual(content + Environment.NewLine, await output.ReadValueAsync());
             }
         }
 

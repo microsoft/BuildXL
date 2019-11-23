@@ -58,7 +58,7 @@ namespace Test.BuildXL.Processes
             outputBuilder.AppendLine(content);
             SandboxedProcessOutput output = outputBuilder.Freeze();
             XAssert.IsFalse(output.IsSaved);
-            XAssert.AreEqual(await output.ReadValueAsync(), content + Environment.NewLine);
+            XAssert.AreEqual(await output.ReadValueAsync(), string.Empty);
             XAssert.AreEqual(observedOutput, content + Environment.NewLine);
         }
 

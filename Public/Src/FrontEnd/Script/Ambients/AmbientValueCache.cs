@@ -40,7 +40,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         }
 
         /// <summary>
-        /// DScript exposes a value cache. The backing store is kept inside of <see cref="IEvaluationScheduler"/>.
+        /// DScript exposes a value cache. The backing store is kept inside of 'IEvaluationScheduler'.
         /// Values from this cache should never be returned directly; instead, the should be cloned first 
         /// (to avoid exposing an observable side effect).
         /// </summary>

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,5 +27,13 @@ namespace BuildXL.FrontEnd.Sdk
         /// Used by the interpreter to request early cancellation.
         /// </summary>
         void Cancel();
+
+        /// <summary>
+        /// Similar to <see cref="ConcurrentDictionary{TKey, TValue}.GetOrAdd(TKey, Func{TKey, TValue})"/>
+        /// except that it guarantees that <paramref name="factory"/> is called at most once for any given key.
+        ///
+        /// Value cache is global per DScript evaluation.
+        /// </summary>
+        T ValueCacheGetOrAdd<T>(string key, Func<T> factory);
     }
 }

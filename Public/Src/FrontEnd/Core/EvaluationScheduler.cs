@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -30,6 +32,8 @@ namespace BuildXL.FrontEnd.Core
         private readonly CancellationTokenSource m_cancellationSource;
 
         private readonly ActionBlock<QueueItem> m_queue;
+
+        private static readonly ConcurrentDictionary<string, Lazy<object>> m_valueCache = new ConcurrentDictionary<string, Lazy<object>>();
 
         private class QueueItem
         {
@@ -118,6 +122,16 @@ namespace BuildXL.FrontEnd.Core
             return m_degreeOfParallelism > 1
                 ? await Task.Run(evaluateValueFunction)
                 : evaluateValueFunction();
+        }
+
+        /// <inheritdoc />
+        public T ValueCacheGetOrAdd<T>(string key, Func<T> factory)
+        {
+            return (T) m_valueCache
+                // class ConcurrentDictionary ensures that all concurrent calls to 'GetOrAdd()' get back the same value (i.e., in this case, the same Lazy object)
+                .GetOrAdd(key, _ => new Lazy<object>(() => (object)factory()))
+                // class Lazy ensures that even in presence of concurrent calls to 'Value', the factory function is executed at most once
+                .Value;
         }
 
         /// <inheritdoc/>

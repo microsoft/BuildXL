@@ -39,6 +39,11 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 });
         }
 
+        /// <summary>
+        /// DScript exposes a value cache. The backing store is kept inside of 'IEvaluationScheduler'.
+        /// Values from this cache should never be returned directly; instead, the should be cloned first 
+        /// (to avoid exposing an observable side effect).
+        /// </summary>
         private EvaluationResult GetOrAdd(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             Args.CheckArgumentIndex(args, 0);
@@ -58,9 +63,9 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             var keyFingerprint = helper.GenerateHash();
 
-            var resultToClone = context.ContextTree.ValueCache.GetOrAdd(
-                keyFingerprint,
-                _ =>
+            var resultToClone = context.EvaluationScheduler.ValueCacheGetOrAdd(
+                keyFingerprint.ToHex(),
+                () =>
                 {
                     int paramsCount = closure.Function.Params;
                     var newValue = context.InvokeClosure(closure, closure.Frame);

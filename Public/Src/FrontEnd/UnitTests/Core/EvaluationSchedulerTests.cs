@@ -32,5 +32,19 @@ namespace Test.BuildXL.FrontEnd.Core
             var expectedResult = Enumerable.Range(1, count).Select(i => counter).ToArray();
             XAssert.ArrayEqual(expectedResult, result);
         }
+
+        [Fact]
+        public void ValueCacheIsNotStatic()
+        {
+            var es1 = new EvaluationScheduler(degreeOfParallelism: 1);
+            var es2 = new EvaluationScheduler(degreeOfParallelism: 1);
+            var key = "key";
+            var counter = 0;
+            var res1 = es1.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter));
+            var res2 = es1.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter));
+            XAssert.AreEqual(2, counter);
+            XAssert.AreEqual(1, res1);
+            XAssert.AreEqual(2, res2);
+        }
     }
 }

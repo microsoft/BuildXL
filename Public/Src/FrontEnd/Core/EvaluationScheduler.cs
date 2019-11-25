@@ -33,7 +33,7 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly ActionBlock<QueueItem> m_queue;
 
-        private static readonly ConcurrentDictionary<string, Lazy<object>> m_valueCache = new ConcurrentDictionary<string, Lazy<object>>();
+        private readonly ConcurrentDictionary<string, Lazy<object>> m_valueCache = new ConcurrentDictionary<string, Lazy<object>>();
 
         private class QueueItem
         {

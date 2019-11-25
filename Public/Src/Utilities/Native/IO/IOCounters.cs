@@ -157,9 +157,21 @@ namespace BuildXL.Native.IO
         [Pure]
         public IOTypeCounters GetAggregateIO()
         {
+            ulong operationsCount;
+            ulong transferCount;
+            try
+            {
+                operationsCount = ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount;
+                transferCount = ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount;
+            }
+            catch (OverflowException)
+            {
+                operationsCount = transferCount = 0;
+            }
+            
             return new IOTypeCounters(
-                operationCount: ReadCounters.OperationCount + WriteCounters.OperationCount + OtherCounters.OperationCount,
-                transferCount: ReadCounters.TransferCount + WriteCounters.TransferCount + OtherCounters.TransferCount);
+                operationCount: operationsCount,
+                transferCount: transferCount);
         }
 
         /// <nodoc />

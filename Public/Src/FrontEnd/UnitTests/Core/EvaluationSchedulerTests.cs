@@ -41,12 +41,11 @@ namespace Test.BuildXL.FrontEnd.Core
         {
             var evalScheduler = new EvaluationScheduler(degreeOfParallelism: 1);
             var counter = 0;
-            var key = "some-key";
             var result = Enumerable
                 .Range(1, count)
                 .ToArray()
                 .AsParallel()
-                .Select(i => evalScheduler.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter)))
+                .Select(i => evalScheduler.ValueCacheGetOrAdd("some-key", () => Interlocked.Increment(ref counter)))
                 .ToArray();
             XAssert.AreEqual(1, counter);
             var expectedResult = Enumerable.Range(1, count).Select(i => counter).ToArray();

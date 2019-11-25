@@ -41,7 +41,7 @@ namespace Test.BuildXL.FrontEnd.Core
             var key = "key";
             var counter = 0;
             var res1 = es1.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter));
-            var res2 = es1.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter));
+            var res2 = es2.ValueCacheGetOrAdd(key, () => Interlocked.Increment(ref counter));
             XAssert.AreEqual(2, counter);
             XAssert.AreEqual(1, res1);
             XAssert.AreEqual(2, res2);

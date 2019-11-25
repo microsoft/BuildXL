@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
@@ -76,18 +75,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// </summary>
         public ConcurrentDictionary<ObjectLiteral, CachedToolDefinition> ToolDefinitionCache { get; private set; }
 
-        /// <summary>
-        /// DScript exposes a value cache. This is the backing store. Values from this cache should never directly be returned
-        /// They should always be cloned to or else there is an observable side effect which affects all forms of DScript caching and incrementality.
-        /// </summary>
-        /// <remarks>
-        /// This will hopefully be a temporary solution untill we get a proper design. It is only exposed from Sdk.ValueCache modulde that we've educated
-        /// office for mac about.
-        /// Storing the cache here will also make it only availalbe to DScript and not the other frontends.
-        /// </remarks>
-        private static readonly IDictionary<Fingerprint, EvaluationResult> s_valueCache = new Dictionary<Fingerprint, EvaluationResult>();
-        private static readonly object s_valueCacheLock = new object();
-
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public ContextTree(
@@ -140,27 +127,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// Whether this instance is valid, i.e., not disposed.
         /// </summary>
         public bool IsValid => FrontEndHost != null;
-
-        /// <summary>
-        /// Similar to <see cref="ConcurrentDictionary{TKey, TValue}.GetOrAdd(TKey, Func{TKey, TValue})"/>
-        /// except that it guarantees that <paramref name="factory"/> is called at most once for any given key.
-        /// </summary>
-        public static EvaluationResult ValueCacheGetOrAdd(Fingerprint key, Func<EvaluationResult> factory)
-        {
-            EvaluationResult result;
-            if (!s_valueCache.TryGetValue(key, out result))
-            {
-                lock (s_valueCacheLock)
-                {
-                    if (!s_valueCache.TryGetValue(key, out result))
-                    {
-                        result = factory();
-                        s_valueCache.Add(key, result);
-                    }
-                }
-            }
-            return result;
-        }
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "<RootContext>k__BackingField", Justification = "MeasuredDispose")]

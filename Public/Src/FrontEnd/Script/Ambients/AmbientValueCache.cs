@@ -58,8 +58,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             var keyFingerprint = helper.GenerateHash();
 
-            var resultToClone = ContextTree.ValueCacheGetOrAdd(
-                keyFingerprint,
+            var resultToClone = context.EvaluationScheduler.ValueCacheGetOrAdd(
+                keyFingerprint.ToHex(),
                 () =>
                 {
                     int paramsCount = closure.Function.Params;

@@ -16,11 +16,11 @@
  * incremental evaluations in DScript.
  * 
  * Note: The motivation for not allowing functions is that they are hard to clone and hash.
- * It is technically feasable it was a tradeoff of implementation time. 
+ * It is technically feasible it was a tradeoff of implementation time. 
  * 
- * Note: This function might be removed in the futurue. A better way would be support duduplication
- * in the pipgrahp. There are some concerns there today with getNewOutputPath which currenlty would
- * make unique pips. If we extended that to allow relative paths as output files and then the pipgraph
+ * Note: This function might be removed in the future. A better way would be support duduplication
+ * in the pip graph. There are some concerns there today with getNewOutputPath which currently would
+ * make unique pips. If we extended that to allow relative paths as output files and then the pip graph
  * can decide to create a unique output folder based ont the things it really depends on and be properly
  * deduplicated. THis way we will also automatically deduplicate code with qualifiers that don't have
  * any effect.

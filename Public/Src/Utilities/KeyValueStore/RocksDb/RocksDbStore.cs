@@ -15,7 +15,90 @@ namespace BuildXL.Engine.Cache.KeyValueStores
     public partial class KeyValueStoreAccessor : IDisposable
     {
         /// <summary>
-        /// Persistent key-value store built on <see cref="RocksDbSharp.RocksDb"/>.
+        /// Wrapper for instance's options
+        /// </summary>
+        public struct RocksDbStoreArguments
+        {
+            /// <summary>
+            /// The directory containing the key-value store.
+            /// </summary>
+            public string StoreDirectory { get; set; }
+
+            /// <summary>
+            /// Whether the default column should be key-tracked.
+            /// This will create two columns for the same data,
+            /// one with just keys and the other with key and value.
+            /// </summary>
+            public bool DefaultColumnKeyTracked { get; set; }
+
+            /// <summary>
+            /// The names of any additional column families in the key-value store.
+            /// If no additional column families are provided, all entries will be stored
+            /// in the default column.
+            /// Column families are analogous to tables in relational databases.
+            /// </summary>
+            public IEnumerable<string> AdditionalColumns { get; set; }
+
+            /// <summary>
+            /// The names of any additional column families in the key-value store that
+            /// should also be key-tracked. This will create two columns for the same data,
+            /// one with just keys and the other with key and value.
+            /// Column families are analogous to tables in relational databases.
+            /// </summary>
+            public IEnumerable<string> AdditionalKeyTrackedColumns { get; set; }
+
+            /// <summary>
+            /// Whether the database should be opened read-only. This prevents modifications and
+            /// creating unnecessary metadata files related to write sessions.
+            /// </summary>
+            public bool ReadOnly { get; set; }
+
+            /// <summary>
+            /// If a store already exists at the given directory, whether any columns that mismatch the the columns that were passed into the constructor
+            /// should be dropped. This will cause data loss and can only be applied in read-write mode.
+            /// </summary>
+            public bool DropMismatchingColumns { get; set; }
+
+            /// <summary>
+            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours,
+            /// up to a maximum of 60 logs (i.e. 30 days). When the maximum amount of logs is reached, the oldest logs
+            /// are overwritten in a circular fashion.
+            ///
+            /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
+            /// open the DB more than once in a 12 hour period, you will only have partial information.
+            /// </summary>
+            public bool RotateLogs { get; set; }
+
+            /// <summary>
+            /// Opens RocksDb for bulk data loading.
+            /// </summary>
+            /// <remarks>
+            /// This does the following (see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ):
+            /// 
+            ///  1) Uses vector memtable
+            ///  2) Sets options.max_background_flushes to at least 4
+            ///  3) Disables automatic compaction, sets options.level0_file_num_compaction_trigger, 
+            ///     options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large numbers
+            ///     
+            /// Note that a manual compaction <see cref="RocksDbStore.CompactRange(byte[], byte[], string)"/> needs to 
+            /// be triggered afterwards. If not, reads will be extremely slow. Keep in mind that the manual compaction
+            /// that should follow will likely take a long time, so this may not be useful for some applications.
+            /// </remarks>
+            public bool OpenBulkLoad { get; set; }
+
+            /// <summary>
+            /// Applies the options mentioned in https://github.com/facebook/rocksdb/wiki/Speed-Up-DB-Open.
+            /// </summary>
+            public bool FastOpen { get; set; }
+
+            /// <summary>
+            /// Enables RocksDb statistics getting dumped to the LOG. Useful only for performance debugging.
+            /// </summary>
+            public bool EnableStatistics { get; set; }
+        }
+
+        /// <summary>
+        /// Persistent key-value store built on <see cref="RocksDb"/>.
         /// Only accessible through <see cref="KeyValueStoreAccessor"/> to enforce exception handling and safe disposal.
         /// </summary>
         private class RocksDbStore : IBuildXLKeyValueStore, IDisposable
@@ -114,57 +197,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <summary>
             /// Provides access to and/or creates a RocksDb persistent key-value store.
             /// </summary>
-            /// <param name="storeDirectory">
-            /// The directory containing the key-value store.
-            /// </param>
-            /// <param name="defaultColumnKeyTracked">
-            /// Whether the default column should be key-tracked.
-            /// This will create two columns for the same data,
-            /// one with just keys and the other with key and value.
-            /// </param>
-            /// <param name="additionalColumns">
-            /// The names of any additional column families in the key-value store.
-            /// If no additional column families are provided, all entries will be stored
-            /// in the default column.
-            /// Column families are analogous to tables in relational databases.
-            /// </param>
-            /// <param name="additionalKeyTrackedColumns">
-            /// The names of any additional column families in the key-value store that
-            /// should also be key-tracked. This will create two columns for the same data,
-            /// one with just keys and the other with key and value.
-            /// Column families are analogous to tables in relational databases.
-            /// </param>
-            /// <param name="readOnly">
-            /// Whether the database should be opened read-only. This prevents modifications and
-            /// creating unnecessary metadata files related to write sessions.
-            /// </param>
-            /// <param name="dropMismatchingColumns">
-            /// If a store already exists at the given directory, whether any columns that mismatch the the columns that were passed into the constructor
-            /// should be dropped. This will cause data loss and can only be applied in read-write mode.
-            /// </param>
-            /// <param name="rotateLogs">
-            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours,
-            /// up to a maximum of 60 logs (i.e. 30 days). When the maximum amount of logs is reached, the oldest logs
-            /// are overwritten in a circular fashion.
-            ///
-            /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
-            /// open the DB more than once in a 12 hour period, you will only have partial information.
-            /// </param>
-            /// <param name="openBulkLoad">
-            /// Have RocksDb open for bulk loading.
-            /// </param>
-            public RocksDbStore(
-                string storeDirectory,
-                bool defaultColumnKeyTracked = false,
-                IEnumerable<string> additionalColumns = null,
-                IEnumerable<string> additionalKeyTrackedColumns = null,
-                bool readOnly = false,
-                bool dropMismatchingColumns = false,
-                bool rotateLogs = false,
-                bool openBulkLoad = false)
+            public RocksDbStore(RocksDbStoreArguments arguments)
             {
-                m_storeDirectory = storeDirectory;
-                m_openBulkLoad = openBulkLoad;
+                m_storeDirectory = arguments.StoreDirectory;
+                m_openBulkLoad = arguments.OpenBulkLoad;
 
                 m_defaults.DbOptions = new DbOptions()
                     .SetCreateIfMissing(true)
@@ -172,6 +208,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // The background compaction threads run in low priority, so they should not hamper the rest of
                     // the system. The number of cores in the system is what we want here according to official docs,
                     // and we are setting this to the number of logical processors, which may be higher.
+                    // See: https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide#parallelism-options
 #if !PLATFORM_OSX
                     .SetMaxBackgroundCompactions(Environment.ProcessorCount)
                     .SetMaxBackgroundFlushes(1)
@@ -183,19 +220,34 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetMaxBackgroundFlushes(Environment.ProcessorCount / 4)
                     .SetDbWriteBufferSize(128 << 20)
 #endif
-                    .IncreaseParallelism(Environment.ProcessorCount / 2)
-                    // Ensure we have performance statistics for profiling
-                    .EnableStatistics();
+                    .IncreaseParallelism(Environment.ProcessorCount / 2);
 
-                if (openBulkLoad)
+                if (arguments.EnableStatistics)
                 {
-                    // Prepares the instance for bulk loads which does the following (see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ for more info):
-                    // 1) uses vector memtable
-                    // 2) make sure options.max_background_flushes is at least 4
-                    // 3) before inserting the data, disable automatic compaction, set options.level0_file_num_compaction_trigger,
-                    // options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large. After
-                    // inserting all the data, issues a manual compaction.
+                    m_defaults.DbOptions.EnableStatistics();
+                }
+
+                if (arguments.OpenBulkLoad)
+                {
                     m_defaults.DbOptions.PrepareForBulkLoad();
+                }
+
+                if (arguments.RotateLogs)
+                {
+                    // Maximum number of information log files
+                    m_defaults.DbOptions.SetKeepLogFileNum(60);
+
+                    // Do not rotate information logs based on file size
+                    m_defaults.DbOptions.SetMaxLogFileSize(0);
+
+                    // How long before we rotate the current information log file
+                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)TimeSpan.FromHours(12).Seconds);
+                }
+
+                if (arguments.FastOpen)
+                {
+                    // max_file_opening_threads is defaulted to 16, so no need to update here.
+                    RocksDbSharp.Native.Instance.rocksdb_options_set_skip_stats_update_on_db_open(m_defaults.DbOptions.Handle, false);
                 }
 
                 // A small comment on things tested that did not work:
@@ -238,22 +290,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());
 
-                if (rotateLogs)
-                {
-                    // Maximum number of information log files
-                    m_defaults.DbOptions.SetKeepLogFileNum(60);
-
-                    // Do not rotate information logs based on file size
-                    m_defaults.DbOptions.SetMaxLogFileSize(0);
-
-                    // How long before we rotate the current information log file
-                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)TimeSpan.FromHours(12).Seconds);
-                }
-
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
-
-                additionalColumns = additionalColumns ?? CollectionUtilities.EmptyArray<string>();
-                additionalKeyTrackedColumns = additionalKeyTrackedColumns ?? CollectionUtilities.EmptyArray<string>();
 
                 // The columns that exist in the store on disk may not be in sync with the columns being passed into the constructor
                 HashSet<string> existingColumns;
@@ -268,7 +305,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 // In read-only mode, open all existing columns in the store without attempting to validate it against the expected column families
-                if (readOnly)
+                if (arguments.ReadOnly)
                 {
                     var columnFamilies = new ColumnFamilies();
                     foreach (var name in existingColumns)
@@ -281,6 +318,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 else
                 {
                     // For read-write mode, column families may be added, so set up column families schema
+                    var additionalColumns = arguments.AdditionalColumns ?? CollectionUtilities.EmptyArray<string>();
                     var columnsSchema = new HashSet<string>(additionalColumns);
 
                     // Default column
@@ -289,13 +327,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // For key-tracked column familiies, create two columns:
                     // 1: Normal column of { key : value }
                     // 2: Key-tracking column of { key : empty-value }
-                    if (defaultColumnKeyTracked)
+                    if (arguments.DefaultColumnKeyTracked)
                     {
                         // To be robust to the RocksDB-selected default column name changing,
                         // just name the default column's key-tracking column KeyColumnSuffix
                         columnsSchema.Add(KeyColumnSuffix);
                     }
 
+                    var additionalKeyTrackedColumns = arguments.AdditionalKeyTrackedColumns ?? CollectionUtilities.EmptyArray<string>();
                     foreach (var name in additionalKeyTrackedColumns)
                     {
                         columnsSchema.Add(name);
@@ -318,7 +357,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     m_store = RocksDb.Open(m_defaults.DbOptions, m_storeDirectory, columnFamilies);
 
                     // Provide an opportunity to update the store to the new column family schema
-                    if (dropMismatchingColumns)
+                    if (arguments.DropMismatchingColumns)
                     {
                         foreach (var name in outsideSchemaColumns)
                         {

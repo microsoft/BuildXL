@@ -142,7 +142,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         new ObjectResult<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                 new ContentHashListWithDeterminism(null, valueToAdd.ContentHashListWithDeterminism.Determinism),
-                                valueToAdd.GetEffectiveExpirationTimeUtc(),
+                                valueToAdd.GetRawExpirationTimeUtc(),
                                 valueToAdd.ContentGuarantee,
                                 valueToAdd.HashOfExistingContentHashList));
                 }
@@ -152,7 +152,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                     return new ObjectResult<ContentHashListWithCacheMetadata>(
                         new ContentHashListWithCacheMetadata(
                             addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism,
-                            addResult.ContentHashListWithCacheMetadata.GetEffectiveExpirationTimeUtc(),
+                            addResult.ContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
                             addResult.ContentHashListWithCacheMetadata.ContentGuarantee,
                             addResult.ContentHashListWithCacheMetadata.ContentHashListWithDeterminism.ContentHashList.GetHashOfHashes()));
                 }

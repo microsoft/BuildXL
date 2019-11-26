@@ -93,6 +93,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int EvictionPoolSize { get; set; } = 5000;
 
         /// <summary>
+        /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
+        /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
+        /// with such a younge age.
+        /// <remarks>
+        /// Default to zero time to allow all candidates to pass, when we want to test for eviction min age we can configure for it.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         /// <remarks>
@@ -102,9 +112,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         /// <summary>
+        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
+        /// <remarks>
+        /// Default value will be set to null, and both redis instances need to be completed before moving forward.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
+
+        /// <summary>
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
         public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;
+
+        /// <summary>
+        /// The number of consecutive redis connection errors that will trigger reconnection.
+        /// </summary>
+        /// <remarks>
+        /// Due to a bug in StackExchange.Redis, the client may fail to reconnect to Redis Azure Cache in some cases.
+        /// This configuration allows us to recreate a connection if there is no successful calls to redis and all the calls are failing with connectivity issues.
+        /// </remarks>
+        public int RedisConnectionErrorLimit { get; set; } = int.MaxValue;
 
         /// <summary>
         /// Indicates the mode used when writing content locations

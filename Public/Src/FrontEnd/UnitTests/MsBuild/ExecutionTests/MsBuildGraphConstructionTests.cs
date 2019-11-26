@@ -211,7 +211,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.Equal(AbsolutePath.Create(PathTable, TestRoot), process.DirectoryOutputs.Single().Path);
         }
 
-        [Fact]
+        [Fact(Skip = "Suspected of causing the temp deletion logic to fail at removing files under the user profile (via a junction). Temporarily skipping the test.")]
         public void RedirectedUserProfileIsHonored()
         {
             // Create a project directly under the user profile

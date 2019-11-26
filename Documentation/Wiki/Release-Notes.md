@@ -11,6 +11,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
+# 0.1.0-20191117.0 (Release [47500](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=47500&_a=release-pipeline-progress)). Released 11/20/2019
+- Add vstestSettingsFileForCoverage in QTest SDK for code coverage setting file
+- Support existing file probe in incremental scheduling
+- Keep track of commit memory as a resource 
+- Add support for shared compilation for MSBuild scheduled pips
+- Improved handling of weak fingerprint augmentation
+
+
 # 0.1.0-20191107.6 (Release [46433](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=46433&_a=release-pipeline-progress)). Released 11/13/2019
 - Proper handling of exceptions when reading sideband files.
 - Support for dotnetcore 3.0 for QTest.

@@ -28,6 +28,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly Task m_monitorConnectionTask;
         public event EventHandler OnConnectionTimeOutAsync;
         private volatile bool m_isShutdownInitiated;
+        private volatile bool m_isExitCalledForServer;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -67,7 +68,9 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 state = Channel.State;
 
-                if (state == ChannelState.Idle)
+                // If we requested 'exit' for the server, the channel can go to 'Idle' state.
+                // We should not reconnect the channel again in that case.
+                if (state == ChannelState.Idle && !m_isExitCalledForServer)
                 {
                     bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
@@ -77,6 +80,16 @@ namespace BuildXL.Engine.Distribution.Grpc
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Ready for exit.
+        /// </summary>
+        public void ReadyForExit()
+        {
+            // If this is an exit operation, it will make the server to exit on the other machine.
+            // We need to be aware of this case as we do not want to reconnect to server. 
+            m_isExitCalledForServer = true;
         }
 
         private async Task<bool> TryReconnectAsync()

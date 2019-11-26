@@ -27,7 +27,7 @@ function extract_attr_value { # (attrName, line)
     attrName=$1
     line="$2"
 
-    function _grep_line { 
+    function _grep_line {
         echo $line | grep -o " ${attrName}=\"[^\"]*\"" | sed -e 's/^[^"]*"//g' -e 's/"$//g'
     }
 
@@ -111,7 +111,7 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     shift
 
     extraXunitArgs=()
-    while [[ $# -gt 0 ]]; do 
+    while [[ $# -gt 0 ]]; do
         extraXunitArgs+=("$1")
         shift
     done
@@ -133,6 +133,11 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
 
     # run XUnit
     echo "${tputBold}[Running]${tputReset} $dllName ..."
+
+    # Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
+    # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
+    export COMPlus_DefaultStackSize=200000
+
     dotnet xunit.console.dll $dllName -nocolor -parallel none -xml $xunitResultFname -noappdomain -noTrait "Category=WindowsOSOnly" -noTrait "Category=WindowsOSSkip" -noTrait "Category=Performance" -noTrait "Category=QTestSkip" -noTrait "Category=DominoTestSkip" -noTrait "Category=SkipDotNetCore" ${extraXunitArgs[@]} >$xunitStdoutFname 2>$xunitStderrFname
     exitCode=$?
 

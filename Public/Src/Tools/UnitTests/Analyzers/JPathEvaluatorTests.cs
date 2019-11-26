@@ -1,11 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using BuildXL.Execution.Analyzer.JPath;
 using BuildXL.FrontEnd.Script.Debugger;
@@ -22,7 +19,7 @@ namespace Test.Tool.Analyzers
         private class Val
         {
             public string S;
-            public long N;
+            public long N { get; set; }
             public Val V;
             public long[] AN;
             public Val[] AV;
@@ -127,7 +124,7 @@ namespace Test.Tool.Analyzers
         public void TestEval(string exprStr, string envStr, string expectedResultJson)
         {
             var env = Convert(JsonDeserialize<Env>(envStr));
-            var evaluator = new Evaluator(env, enableCaching: false);
+            var evaluator = new Evaluator(env, enableCaching: false, ensureOrdering: true);
             EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
         }
 
@@ -164,18 +161,20 @@ namespace Test.Tool.Analyzers
         [InlineData("(('a' ++ 'b' ++ 'a') | $uniq -c | $sort -n -r -k 'Count').($str(Count, ': ', Key))", "['2: a', '1: b']")]
         public void TestLibraryFunc(string exprStr, string expectedResultJson)
         {
-            var evaluator = new Evaluator(RootEnv, enableCaching: false);
+            var evaluator = new Evaluator(RootEnv, enableCaching: false, ensureOrdering: true);
             EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
         }
 
         private void EvaluateAndAssertResult(Evaluator evaluator, string exprStr, string expectedResultJson)
         {
             var maybeResult = JPath.TryParse(exprStr).Then(expr => JPath.TryEval(evaluator, expr));
-            XAssert.IsTrue(maybeResult.Succeeded);
-            var result = maybeResult.Result;
+            if (!maybeResult.Succeeded)
+            {
+                XAssert.Fail(maybeResult.Failure.DescribeIncludingInnerFailures());
+            }
 
             var j1 = JArray.Parse(expectedResultJson);
-            var j2 = JArray.Parse(JsonSerialize(result.ToArray()));
+            var j2 = JArray.Parse(JsonSerialize(maybeResult.Result.ToArray()));
             XAssert.IsTrue(JToken.DeepEquals(j1, j2), "Expected: {0}, Actual: {1}", j1, j2);
         }
 
@@ -191,7 +190,7 @@ namespace Test.Tool.Analyzers
                 int i              => new ObjectInfo(preview: i.ToString(), original: i),
                 string str         => new ObjectInfo(preview: str, original: str),
                 ObjectInfo      oi => oi,
-                _                  => Renderer.GenericObjectInfo(obj)
+                _                  => Renderer.GenericObjectInfo(obj).Build()
             };
         }
 

@@ -43,13 +43,12 @@ using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Scheduler.FileSystem;
 using Test.BuildXL.Scheduler.Utils;
-using SandboxConnectionKext = BuildXL.Processes.SandboxConnectionKext;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities.VmCommandProxy;
 
 namespace Test.BuildXL.Scheduler
 {
-    public sealed class PipQueueTest : XunitBuildXLTest
+    public sealed class PipQueueTest : TemporaryStorageTestBase
     {
         public PipQueueTest(ITestOutputHelper output)
             : base(output)
@@ -97,7 +96,13 @@ namespace Test.BuildXL.Scheduler
                     maxDegreeOfParallelism: (Environment.ProcessorCount + 2) / 3,
                     debug: false))
                 {
-                    var executionEnvironment = new PipQueueTestExecutionEnvironment(context, config, pipTable, Path.Combine(TestOutputDirectory, "temp"), GetSandboxConnection());
+                    var executionEnvironment = new PipQueueTestExecutionEnvironment(
+                        context,
+                        config,
+                        pipTable,
+                        Path.Combine(TestOutputDirectory, "temp"),
+                        TryGetSubstSourceAndTarget(out string substSource, out string substTarget) ? (substSource, substTarget) : default((string, string)?),
+                        GetSandboxConnection());
 
                     Func<RunnablePip, Task<PipResult>> taskFactory = async (runnablePip) =>
                         {
@@ -282,17 +287,18 @@ namespace Test.BuildXL.Scheduler
         {
             // Some pip implementations may query for the hashes of their input files.
             private readonly ConcurrentDictionary<FileArtifact, ContentHash> m_expectedWrittenContent;
-            private readonly ConcurrentDictionary<FileArtifact, ContentHash> m_wellKnownFiles;
             private readonly ConcurrentDictionary<FileArtifact, Pip> m_producers;
             private readonly ConcurrentDictionary<Pip, Unit> m_executed = new ConcurrentDictionary<Pip, Unit>();
 
             private readonly TestPipGraphFilesystemView m_filesystemView;
-            private readonly ConcurrentBigMap<DirectoryArtifact, int[]> m_sealContentsById;
-            private readonly ISandboxConnection m_sandboxConnectionKext;
 
-            private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
-            
-            public PipQueueTestExecutionEnvironment(BuildXLContext context, IConfiguration configuration, PipTable pipTable, string tempDirectory, ISandboxConnection SandboxConnection = null)
+            public PipQueueTestExecutionEnvironment(
+                BuildXLContext context,
+                IConfiguration configuration,
+                PipTable pipTable,
+                string tempDirectory,
+                (string substSource, string substTarget)? subst = default,
+                ISandboxConnection sandboxConnection = null)
             {
                 Contract.Requires(context != null);
                 Contract.Requires(configuration != null);
@@ -313,9 +319,8 @@ namespace Test.BuildXL.Scheduler
                 Cache = InMemoryCacheFactory.Create();
                 LocalDiskContentStore = new LocalDiskContentStore(LoggingContext, context.PathTable, FileContentTable, tracker);
 
-                m_sandboxConnectionKext = SandboxConnection;
+                SandboxConnection = sandboxConnection;
                 m_expectedWrittenContent = new ConcurrentDictionary<FileArtifact, ContentHash>();
-                m_wellKnownFiles = new ConcurrentDictionary<FileArtifact, ContentHash>();
                 m_producers = new ConcurrentDictionary<FileArtifact, Pip>();
                 m_filesystemView = new TestPipGraphFilesystemView(Context.PathTable);
                 var fileSystemView = new FileSystemView(Context.PathTable, m_filesystemView, LocalDiskContentStore);
@@ -334,9 +339,20 @@ namespace Test.BuildXL.Scheduler
                     fileContentManager: new FileContentManager(this, new NullOperationTracker()),
                     directoryMembershipFinterprinterRuleSet: null);
 
-                m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
-
                 ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
+
+                DirectoryTranslator = new DirectoryTranslator();
+                foreach (var directoryToTranslate in configuration.Engine.DirectoriesToTranslate)
+                {
+                    DirectoryTranslator.AddTranslation(directoryToTranslate.FromPath.ToString(context.PathTable), directoryToTranslate.ToPath.ToString(context.PathTable));
+                }
+
+                if (subst.HasValue)
+                {
+                    DirectoryTranslator.AddTranslation(subst.Value.substSource, subst.Value.substTarget);
+                }
+
+                DirectoryTranslator.Seal();
             }
 
             public void AddExpectedWrite(Pip producer, FileArtifact file, ContentHash expectedContent)
@@ -387,7 +403,7 @@ namespace Test.BuildXL.Scheduler
 
             public SemanticPathExpander PathExpander => SemanticPathExpander.Default;
 
-            public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer => m_disabledFileMonitoringViolationAnalyzer;
+            public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer { get; } = new DisabledFileMonitoringViolationAnalyzer();
 
             public DirectoryFingerprint? TryComputeDirectoryFingerprint(
                 AbsolutePath directoryPath, 
@@ -511,7 +527,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             /// <inheritdoc/>
-            public DirectoryTranslator DirectoryTranslator => null;
+            public DirectoryTranslator DirectoryTranslator { get; }
 
             /// <inheritdoc/>
             public LoggingContext LoggingContext { get; }
@@ -601,7 +617,7 @@ namespace Test.BuildXL.Scheduler
 
             SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
-            public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
+            public ISandboxConnection SandboxConnection { get; }
 
             public ProcessInContainerManager ProcessInContainerManager { get; }
 
@@ -674,7 +690,7 @@ namespace Test.BuildXL.Scheduler
                                 out _);
 
                             executionResult = await PipExecutor.PostProcessExecutionAsync(operationContext, environment, pipScope, cacheableProcess, executionResult);
-                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);
+                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.UnderlyingPip.SemiStableHash, executionResult);
                         }
 
                         result = RunnablePip.CreatePipResultFromExecutionResult(start, executionResult, withPerformanceInfo: true);
@@ -685,7 +701,7 @@ namespace Test.BuildXL.Scheduler
                     PipExecutor.ReportExecutionResultOutputContent(
                         operationContext, 
                         environment, 
-                        pip.GetDescription(environment.Context), 
+                        pip.SemiStableHash,
                         ipcResult);
                     result = RunnablePip.CreatePipResultFromExecutionResult(start, ipcResult);
                     break;

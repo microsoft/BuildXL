@@ -12,8 +12,11 @@ using Test.BuildXL.EngineTestUtilities;
 using Xunit;
 using Xunit.Abstractions;
 using System;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using Test.BuildXL.TestUtilities.Xunit;
+using System.Reflection;
+using BuildXL.Utilities.Tracing;
+using JetBrains.Annotations;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -229,6 +232,110 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // Even though there will be an access to a file that is not there anymore, we should run to success
             var result = RunEngineWithConfig(config);
             Assert.True(result.IsSuccess);
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData("Program.cs", null, "Out.exe")]
+        [InlineData("Program.cs", null, "Out.dll")]
+        [InlineData("Program.cs", "library", null)]
+        // This case should not finish successfully if csc was called directly, but the csc task implementation always 
+        // makes sure the output file is specified (and picks the first source file on absence)
+        [InlineData("Program.cs", "exe", null)]
+        public void ValidateSharedCompilation(string sourceFilename, [CanBeNull]string targetType, [CanBeNull] string outputAssembly)
+        {
+            var managedProject = GetCscProject(sourceFilename, targetType, outputAssembly);
+            var program = GetHellowWorldProgram();
+
+            var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
+                .AddSpec(R("ManagedProject.csproj"), managedProject)
+                .AddFile(R("Program.cs"), program)
+                .PersistSpecsAndGetConfiguration();
+
+            config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+            config.Sandbox.LogObservedFileAccesses = true;
+            
+            var result = RunEngineWithConfig(config);
+            Assert.True(result.IsSuccess);
+
+            // Let's verify now that accesses were properly compensated. We should see the (single) source
+            // file and the output + pdb as outputs
+            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant());
+            Assert.True(allInputAssertions.Any(input => input.Contains(sourceFilename.ToUpperInvariant())));
+
+            var allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Select(log => log.ToUpperInvariant());
+
+            // If the output assembly is not specified, there should be an output reported anyway, with a 
+            // filename (modulo extension) equal to the source
+            if (outputAssembly == null)
+            {
+                outputAssembly = Path.ChangeExtension(sourceFilename, null);
+            }
+
+            Assert.True(allProducedOutputs.Any(output => output.Contains(outputAssembly.ToUpperInvariant())));
+            Assert.True(allProducedOutputs.Any(output => output.Contains(Path.ChangeExtension(outputAssembly, ".pdb").ToUpperInvariant())));
+        }
+
+        [Fact]
+        public void ValidateSharedCompilationWithRelativePaths()
+        { 
+            // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
+            var thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+            // We just use the assembly name, but add the assembly directory to the collection of additional paths
+            var managedProject = GetCscProject("Program.cs", "exe", "Out.exe", $"References='{Path.GetFileName(thisAssemblyLocation)}' AdditionalLibPaths='{Path.GetDirectoryName(thisAssemblyLocation)}'");
+            var program = GetHellowWorldProgram();
+
+            var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
+                .AddSpec(R("ManagedProject.csproj"), managedProject)
+                .AddFile(R("Program.cs"), program)
+                .PersistSpecsAndGetConfiguration();
+
+            config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+            config.Sandbox.LogObservedFileAccesses = true;
+
+            var result = RunEngineWithConfig(config);
+            Assert.True(result.IsSuccess);
+
+            // Let's verify now that library reference got properly resolved
+            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant()); ;
+            Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
+        }
+
+        private string GetCscProject(string sourceFilename, string targetType, string outputAssembly, string extraArgs = null)
+        {
+            // In order to avoid depending on MSBuild SDKs, which are hard to deploy in a self-contained way,
+            // we use the real Csc task implementation, but through a custom (incomplete) Csc task that we define here
+            return $@"<Project DefaultTargets='Build'>
+    <UsingTask TaskName='Csc'
+        AssemblyFile = '{PathToCscTaskDll(shouldRunDotNetCoreMSBuild: false)}'/>
+
+  <Target Name='Build'>
+    <Csc
+        OutputAssembly='{outputAssembly ?? string.Empty}'
+        {(targetType != null ? $"TargetType='{targetType}'" : "")}
+        EmitDebugInformation='true'
+        Sources='{sourceFilename}'
+        UseSharedCompilation='true'
+        {extraArgs ?? string.Empty}
+    />
+  </Target>
+</Project>";
+        }
+
+        private static string GetHellowWorldProgram()
+        {
+            // A simple hello world program
+            return @"
+using System;
+namespace CscCompilation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine(""Hello World!"");
+        }
+    }
+}";
         }
     }
 }

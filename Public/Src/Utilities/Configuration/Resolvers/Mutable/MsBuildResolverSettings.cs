@@ -47,6 +47,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AllowProjectsToNotSpecifyTargetProtocol = resolverSettings.AllowProjectsToNotSpecifyTargetProtocol;
             MsBuildRuntime = resolverSettings.MsBuildRuntime;
             DotNetSearchLocations = resolverSettings.DotNetSearchLocations;
+            UseManagedSharedCompilation = resolverSettings.UseManagedSharedCompilation;
         }
 
         /// <inheritdoc/>
@@ -117,5 +118,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DirectoryArtifact> DotNetSearchLocations { get; set; }
+
+        /// <inheritdoc/>
+        public bool? UseManagedSharedCompilation { get; set; }
     }
 }

@@ -119,6 +119,7 @@ namespace BuildXL.Engine.Distribution
         private IPipExecutionEnvironment m_environment;
         private ForwardingEventListener m_forwardingEventListener;
         private WorkerServicePipStateManager m_workerPipStateManager;
+        private IDistributionConfiguration m_config;
         private readonly ushort m_port;
         private readonly int m_maxProcesses;
         private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
@@ -143,6 +144,7 @@ namespace BuildXL.Engine.Distribution
         {
             m_appLoggingContext = appLoggingContext;
             m_maxProcesses = maxProcesses;
+            m_config = config;
             m_port = config.BuildServicePort;
             m_services = new DistributionServices(buildId);
             m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
@@ -302,12 +304,6 @@ namespace BuildXL.Engine.Distribution
         {
             m_isMasterExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
-
-            // Dispose the notify master execution log target to ensure all message are sent to master.
-            m_notifyMasterExecutionLogTarget?.Dispose();
-
-            // Dispose the event listener to ensure all events are sent to master.
-            m_forwardingEventListener?.Dispose();
         }
 
 
@@ -332,11 +328,15 @@ namespace BuildXL.Engine.Distribution
             // The execution log target can be null if the worker failed to attach to master
             if (m_notifyMasterExecutionLogTarget != null)
             {
-                // Remove the notify master target to ensure no further events are sent to it
+                // Remove the notify master target to ensure no further events are sent to it.
+                // Otherwise, the events that are sent to a disposed target would cause crashes.
                 m_scheduler.RemoveExecutionLogTarget(m_notifyMasterExecutionLogTarget);
                 // Dispose the execution log target to ensure all events are flushed and sent to master
                 m_notifyMasterExecutionLogTarget.Dispose();
             }
+
+            // Dispose the event listener to ensure all events are sent to master.
+            m_forwardingEventListener?.Dispose();
 
             m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 
@@ -707,7 +707,17 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(found, "Could not find corresponding build completion data for executed pip on worker");
 
             pipCompletion.ExecutionResult = executionResult;
-            m_buildResults.Add(pipCompletion);
+
+            if (step == PipExecutionStep.MaterializeOutputs && m_config.FireForgetMaterializeOutput)
+            {
+                // We do not report 'MaterializeOutput' step results back to master.
+                Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
+            }
+            else
+            {
+                m_buildResults.Add(pipCompletion);
+            }
+
         }
 
         private Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes)

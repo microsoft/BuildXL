@@ -1213,9 +1213,14 @@ namespace BuildXL.Scheduler.Tracing
         public int LookupRunning;
 
         /// <summary>
-        /// Number of externally running processes
+        /// Number of processes running under PipExecutor
         /// </summary>
-        public int ExternalProcesses;
+        public int RunningPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
+        /// </summary>
+        public int RunningProcesses;
 
         /// <summary>
         /// Number of pips succeeded for each type
@@ -1279,7 +1284,8 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(LookupWaiting);
             writer.Write(LookupRunning);
 
-            writer.Write(ExternalProcesses);
+            writer.Write(RunningPipExecutorProcesses);
+            writer.Write(RunningProcesses);
 
             writer.Write(PipsSucceededAllTypes.Length);
             foreach (var pipsSucceeded in PipsSucceededAllTypes)
@@ -1329,7 +1335,8 @@ namespace BuildXL.Scheduler.Tracing
             LookupWaiting = reader.ReadInt32();
             LookupRunning = reader.ReadInt32();
 
-            ExternalProcesses = reader.ReadInt32();
+            RunningPipExecutorProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
 
             var pipTypeLength = reader.ReadInt32();
             PipsSucceededAllTypes = new long[pipTypeLength];

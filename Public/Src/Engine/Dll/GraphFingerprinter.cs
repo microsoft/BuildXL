@@ -170,7 +170,7 @@ namespace BuildXL.Engine
                         config,
                         PipFingerprintingVersion.TwoPhaseV2,
                         config.Cache.CacheSalt ?? string.Empty,
-                         new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
+                        new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
 
                     AddFingerprint(hasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
                 }

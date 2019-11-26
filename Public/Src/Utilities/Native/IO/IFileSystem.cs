@@ -101,7 +101,7 @@ namespace BuildXL.Native.IO
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/> handleEntry,
             bool isEnumerationForDirectoryDeletion = false,
             bool followSymlinksToDirectories = false);
-        
+
         /// <summary>
         /// Enumerates the files in the given directory using a search pattern.
         /// </summary>
@@ -623,6 +623,11 @@ namespace BuildXL.Native.IO
         /// Flag indicating if the enlistment volume supports copy on write.
         /// </summary>
         bool IsCopyOnWriteSupportedByEnlistmentVolume { get; set; }
+
+        /// <summary>
+        /// Checks if a path is a directory symlink or a junction.
+        /// </summary>
+        bool IsDirectorySymlinkOrJunction(string path);
 
         #endregion
     }

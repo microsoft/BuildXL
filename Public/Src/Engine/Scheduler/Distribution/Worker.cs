@@ -65,6 +65,11 @@ namespace BuildXL.Scheduler.Distribution
         protected readonly ReadWriteLock EarlyReleaseLock = ReadWriteLock.Create();
 
         /// <summary>
+        /// Whether scheduler decided to release this worker early.
+        /// </summary>
+        public bool IsEarlyReleaseInitiated { get; protected set; }
+
+        /// <summary>
         /// If the worker is released early, we record the datetime.
         /// </summary>
         public DateTime? WorkerEarlyReleasedTime;
@@ -750,9 +755,9 @@ namespace BuildXL.Scheduler.Distribution
         #region Content Tracking
 
         /// <summary>
-        /// Initializes the worker after attach
+        /// Initializes the worker
         /// </summary>
-        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
+        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);

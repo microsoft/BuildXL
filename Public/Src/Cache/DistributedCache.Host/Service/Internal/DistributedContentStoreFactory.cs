@@ -69,7 +69,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
+                EvictionMinAge = _distributedSettings.EvictionMinAge,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
+                RetryWindow = _distributedSettings.RetryWindow,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 
@@ -77,6 +79,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisContentLocationStoreConfiguration.MachineRisk = v);
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => redisContentLocationStoreConfiguration.LocationEntryExpiry = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineExpiryMinutes, v => redisContentLocationStoreConfiguration.MachineExpiry = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => redisContentLocationStoreConfiguration.TouchFrequency = TimeSpan.FromMinutes(v));
 
             redisContentLocationStoreConfiguration.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
 
@@ -255,6 +258,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                        OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                        UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
                        TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                       SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
                    };
         }
 

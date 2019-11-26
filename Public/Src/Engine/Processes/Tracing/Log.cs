@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -14,7 +16,7 @@ namespace BuildXL.Processes.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
-    internal abstract partial class Logger
+    public abstract partial class Logger
     {
         /// <summary>
         /// Returns the logger instance
@@ -379,11 +381,10 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Detours Debug Message: {2}")]
+            Message = "[Pip{pipSemiStableHash:X16}] Detours Debug Message: {message}")]
         public abstract void LogDetoursDebugMessage(
             LoggingContext context,
             long pipSemiStableHash,
-            string pipDescription,
             string message);
 
         [GeneratedEvent(
@@ -1014,5 +1015,20 @@ namespace BuildXL.Processes.Tracing
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.LogPhaseDuration,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipSemiStableHash}] Done with phase '{phaseName}' in {duration}.  {extraInfo}")]
+        public abstract void LogPhaseDuration(LoggingContext context, string pipSemiStableHash, string phaseName, string duration, string extraInfo);
+
+        public void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessFactory.SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
+        {
+            SandboxedProcessFactory.Counters.AddToCounter(counter, duration);
+            LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
+        }
     }
 }

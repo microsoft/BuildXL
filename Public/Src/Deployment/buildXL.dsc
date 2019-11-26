@@ -40,16 +40,17 @@ namespace BuildXL {
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
                 subfolder: r`tools`,
                 contents: [
-                    ...addIf(!BuildXLSdk.Flags.genVSSolution && !BuildXLSdk.Flags.excludeBuildXLExplorer,
-                        {
-                            subfolder: r`bxp-server`,
-                            contents: [
-                                importFrom("BuildXL.Explorer").Server.withQualifier(
-                                    Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})
-                                ).exe
-                            ]
-                        }
-                    ),
+                    // Temporarily excluding the viewer since we are reaching the nuget limit size
+                    // ...addIf(!BuildXLSdk.Flags.genVSSolution && !BuildXLSdk.Flags.excludeBuildXLExplorer,
+                    //     {
+                    //         subfolder: r`bxp-server`,
+                    //         contents: [
+                    //             importFrom("BuildXL.Explorer").Server.withQualifier(
+                    //                 Object.merge<BuildXLSdk.NetCoreAppQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})
+                    //             ).exe
+                    //         ]
+                    //     }
+                    // ),
                     importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment,
                     {
                         subfolder: r`bvfs`,

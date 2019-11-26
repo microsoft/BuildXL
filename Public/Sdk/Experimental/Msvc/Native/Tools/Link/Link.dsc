@@ -42,6 +42,10 @@ export const defaultLinkArguments = <Arguments>{
     enableTypeProp: true,
     enableSpecDevirt: true,
     enableVectorization: true,
+
+    // Control Flow Guard required by SDL. It needs /DYNAMICBASE (randomizedBaseAddress).
+    cfGuard: true,
+    randomizedBaseAddress: true,
 };
 
 /**

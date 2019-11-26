@@ -37,6 +37,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
+        /// <summary>
+        /// Whether to skip touching the content and acquiring a hash lock when PinAsync is called by hibernated session.
+        /// </summary>
+        public bool SkipTouchAndLockAcquisitionWhenPinningFromHibernation { get; set; } = false;
+
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
 

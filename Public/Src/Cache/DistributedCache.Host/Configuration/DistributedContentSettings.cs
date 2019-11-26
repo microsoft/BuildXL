@@ -540,6 +540,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
 
         [DataMember]
+        public int? TouchFrequencyMinutes { get; set; }
+
+        [DataMember]
         public int? MachineExpiryMinutes { get; set; }
 
         [DataMember]

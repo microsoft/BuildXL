@@ -292,7 +292,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 onFailureDeleteExistingStoreAndRetry,
                 rotateLogs,
                 openBulkLoad,
-                invalidationHandler);
+                invalidationHandler,
+                onStoreReset);
         }
 
         /// <summary>
@@ -363,59 +364,120 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Action<Failure<Exception>> invalidationHandler = null,
             Action<Failure> onStoreReset = null)
         {
+            return OpenWithVersioning(
+                new RocksDbStoreArguments()
+                {
+                    StoreDirectory = storeDirectory,
+                    DefaultColumnKeyTracked = defaultColumnKeyTracked,
+                    AdditionalColumns = additionalColumns,
+                    AdditionalKeyTrackedColumns = additionalKeyTrackedColumns,
+                    ReadOnly = openReadOnly,
+                    DropMismatchingColumns = dropMismatchingColumns,
+                    RotateLogs = rotateLogs,
+                    OpenBulkLoad = openBulkLoad,
+                },
+                storeVersion,
+                failureHandler,
+                onFailureDeleteExistingStoreAndRetry,
+                invalidationHandler,
+                onStoreReset);
+        }
+
+        /// <summary>
+        /// Opens or creates a unversioned key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
+        /// </summary>
+        /// <param name="storeArguments">
+        /// Arguments for the underlying key value store.
+        /// </param>
+        /// <param name="failureHandler">
+        /// Allows for custom exception handling such as context-specific logging.
+        /// </param>
+        /// <param name="onFailureDeleteExistingStoreAndRetry">
+        /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
+        /// to create a new one in its place. This will cause data loss of the old store.
+        /// </param>
+        /// <param name="invalidationHandler">
+        /// <see cref="m_invalidationHandler"/>
+        /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
+        /// </param>
+        public static Possible<KeyValueStoreAccessor> Open(
+            RocksDbStoreArguments storeArguments,
+            Action<RocksDbFailureEvent> failureHandler = null,
+            bool onFailureDeleteExistingStoreAndRetry = false,
+            Action<Failure<Exception>> invalidationHandler = null,
+            Action<Failure> onStoreReset = null)
+        {
+            return OpenWithVersioning(
+                storeArguments,
+                VersionConstants.UnversionedStore,
+                failureHandler,
+                onFailureDeleteExistingStoreAndRetry,
+                invalidationHandler,
+                onStoreReset);
+        }
+
+        /// <summary>
+        /// Opens or creates a versioned key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
+        /// </summary>
+        /// <param name="storeArguments">
+        /// Arguments for the underlying key value store.
+        /// </param>
+        /// <param name="storeVersion">
+        /// The version of the caller's store.
+        /// </param>
+        /// <param name="failureHandler">
+        /// Allows for custom exception handling such as context-specific logging.
+        /// </param>
+        /// <param name="onFailureDeleteExistingStoreAndRetry">
+        /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
+        /// to create a new one in its place. This will cause data loss of the old store.
+        /// </param>
+        /// <param name="invalidationHandler">
+        /// <see cref="m_invalidationHandler"/>
+        /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
+        /// </param>
+        public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
+            RocksDbStoreArguments storeArguments,
+            int storeVersion,
+            Action<RocksDbFailureEvent> failureHandler = null,
+            bool onFailureDeleteExistingStoreAndRetry = false,
+            Action<Failure<Exception>> invalidationHandler = null,
+            Action<Failure> onStoreReset = null)
+        {
             // First attempt
             var possibleAccessor = OpenInternal(
-                    storeDirectory,
+                    storeArguments,
                     storeVersion,
-                    defaultColumnKeyTracked,
-                    additionalColumns,
-                    additionalKeyTrackedColumns,
                     failureHandler,
-                    openReadOnly,
-                    dropMismatchingColumns,
-                    createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory),
-                    rotateLogs: rotateLogs,
-                    openBulkLoad: openBulkLoad,
-                    invalidationHandler: invalidationHandler
-                    );
+                    createNewStore: !FileUtilities.DirectoryExistsNoFollow(storeArguments.StoreDirectory),
+                    invalidationHandler);
 
             if (!possibleAccessor.Succeeded
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
-                && !openReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
+                && !storeArguments.ReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
             {
                 onStoreReset?.Invoke(possibleAccessor.Failure);
 
                 possibleAccessor = OpenInternal(
-                    storeDirectory,
+                    storeArguments,
                     storeVersion,
-                    defaultColumnKeyTracked,
-                    additionalColumns,
-                    additionalKeyTrackedColumns,
                     failureHandler,
-                    openReadOnly,
-                    dropMismatchingColumns,
-                    createNew: true,
-                    rotateLogs: rotateLogs,
-                    openBulkLoad: openBulkLoad,
-                    invalidationHandler: invalidationHandler
-                    );
+                    createNewStore: true,
+                    invalidationHandler);
             }
 
             return possibleAccessor;
         }
 
         private static Possible<KeyValueStoreAccessor> OpenInternal(
-            string storeDirectory,
+            RocksDbStoreArguments storeArguments,
             int storeVersion,
-            bool defaultColumnKeyTracked,
-            IEnumerable<string> additionalColumns,
-            IEnumerable<string> additionalKeyTrackedColumns,
             Action<RocksDbFailureEvent> failureHandler,
-            bool openReadOnly,
-            bool dropMismatchingColumns,
-            bool createNew,
-            bool rotateLogs,
-            bool openBulkLoad,
+            bool createNewStore,
             Action<Failure<Exception>> invalidationHandler)
         {
             KeyValueStoreAccessor accessor = null;
@@ -424,31 +486,31 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             try
             {
                 var persistedStoreVersion = -1;
-                if (createNew)
+                if (createNewStore)
                 {
                     accessor?.Dispose();
 
-                    if (FileUtilities.FileExistsNoFollow(storeDirectory))
+                    if (FileUtilities.FileExistsNoFollow(storeArguments.StoreDirectory))
                     {
-                        FileUtilities.DeleteFile(storeDirectory);
+                        FileUtilities.DeleteFile(storeArguments.StoreDirectory);
                     }
-                    else if (FileUtilities.DirectoryExistsNoFollow(storeDirectory))
+                    else if (FileUtilities.DirectoryExistsNoFollow(storeArguments.StoreDirectory))
                     {
-                        FileUtilities.DeleteDirectoryContents(storeDirectory);
+                        FileUtilities.DeleteDirectoryContents(storeArguments.StoreDirectory);
                     }
 
-                    FileUtilities.CreateDirectory(storeDirectory);
+                    FileUtilities.CreateDirectory(storeArguments.StoreDirectory);
 
                     if (useVersioning)
                     {
-                        WriteVersionFile(storeDirectory, storeVersion);
+                        WriteVersionFile(storeArguments.StoreDirectory, storeVersion);
                     }
 
                     persistedStoreVersion = storeVersion;
                 }
                 else
                 {
-                    var possibleStoreVersion = ReadStoreVersion(storeDirectory);
+                    var possibleStoreVersion = ReadStoreVersion(storeArguments.StoreDirectory);
                     if (possibleStoreVersion.Succeeded)
                     {
                         persistedStoreVersion = possibleStoreVersion.Result;
@@ -471,17 +533,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
 
                 accessor = new KeyValueStoreAccessor(
-                    storeDirectory,
+                    storeArguments,
                     persistedStoreVersion,
-                    defaultColumnKeyTracked,
-                    additionalColumns,
-                    additionalKeyTrackedColumns,
                     failureHandler,
-                    openReadOnly,
-                    dropMismatchingColumns,
-                    createNew,
-                    rotateLogs,
-                    openBulkLoad,
+                    createNewStore,
                     invalidationHandler);
             }
             catch (Exception ex)
@@ -599,34 +654,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         }
 
         private KeyValueStoreAccessor(
-            string storeDirectory,
+            RocksDbStoreArguments storeArguments,
             int storeVersion,
-            bool defaultColumnKeyTracked,
-            IEnumerable<string> additionalColumns,
-            IEnumerable<string> additionalKeyTrackedColumns,
             Action<RocksDbFailureEvent> failureHandler,
-            bool openReadOnly,
-            bool dropColumns,
             bool createdNewStore,
-            bool rotateLogs,
-            bool openBulkLoad,
             Action<Failure<Exception>> invalidationHandler)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
-            StoreDirectory = storeDirectory;
-            ReadOnly = openReadOnly;
+            StoreDirectory = storeArguments.StoreDirectory;
+            ReadOnly = storeArguments.ReadOnly;
             StoreVersion = storeVersion;
             CreatedNewStore = createdNewStore;
 
-            m_store = new RocksDbStore(
-                StoreDirectory,
-                defaultColumnKeyTracked,
-                additionalColumns,
-                additionalKeyTrackedColumns,
-                openReadOnly,
-                dropColumns,
-                rotateLogs,
-                openBulkLoad);
+            m_store = new RocksDbStore(storeArguments);
 
             m_failureHandler = failureHandler;
             m_invalidationHandler = invalidationHandler;

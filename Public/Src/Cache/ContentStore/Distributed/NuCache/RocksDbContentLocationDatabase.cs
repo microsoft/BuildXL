@@ -194,16 +194,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
-                var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
-                    rotateLogs: true,
+                var possibleStore = KeyValueStoreAccessor.Open(
+                    new KeyValueStoreAccessor.RocksDbStoreArguments()
+                    {
+                        StoreDirectory = storeLocation,
+                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                        RotateLogs = true,
+                        EnableStatistics = true,
+                        FastOpen = true,
+                    },
+                    // When an exception is caught from within methods using the database, this handler is called to
+                    // decide whether the exception should be rethrown in user code, and the database invalidated. Our
+                    // policy is to only invalidate if it is an exception coming from RocksDb, but not from our code.
                     failureHandler: failureEvent =>
                     {
                         // By default, rethrow is true iff it is a user error. We invalidate only if it isn't
                         failureEvent.Invalidate = !failureEvent.Rethrow;
                     },
+                    // The database may be invalidated for a number of reasons, all related to latent bugs in our code.
+                    // For example, exceptions thrown from methods that are operating on the DB. If that happens, we
+                    // call a user-defined handler. This is because the instance is invalid after this happens.
                     invalidationHandler: failure => OnDatabaseInvalidated(context, failure),
+                    // It is possible we may fail to open an already existing database. This can happen (most commonly)
+                    // due to corruption, among others. If this happens, then we want to recreate it from empty. This
+                    // only helps for the memoization store.
                     onFailureDeleteExistingStoreAndRetry: _configuration.OnFailureDeleteExistingStoreAndRetry,
+                    // If the previous flag is true, and it does happen that we invalidate the database, we want to log
+                    // it explicitly.
                     onStoreReset: failure => {
                         Tracer.Error(context, $"RocksDb critical error caused store to reset: {failure.DescribeIncludingInnerFailures()}");
                     });

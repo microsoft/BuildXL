@@ -66,9 +66,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _binManager = configuration == null
                 ? null
                 : new BinManager(
-                    machinesPerBin: configuration.ProactiveCopyLocationsThreshold,
-                    entriesPerMachine: configuration.ProactiveCopyEntriesPerDesignatedLocation,
-                    amountOfBins: configuration.ProactiveCopyDesignatedLocationBins);
+                    locationsPerBin: configuration.ProactiveCopyLocationsThreshold,
+                    entriesPerLocation: configuration.ProactiveCopyEntriesPerDesignatedLocation,
+                    numberOfBins: configuration.ProactiveCopyDesignatedLocationBins);
         }
 
         /// <summary>

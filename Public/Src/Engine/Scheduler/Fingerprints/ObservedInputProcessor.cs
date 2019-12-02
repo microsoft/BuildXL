@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -892,10 +891,10 @@ namespace BuildXL.Scheduler.Fingerprints
             where TTarget : struct, IObservedInputProcessingTarget<TObservation>
         {
             using (var pooledPathSet = Pools.GetAbsolutePathSet())
-            using (var pooledStringIdSet = Pools.GetStringIdSet())
             {
-                HashSet<StringId> accessedFileNames = pooledStringIdSet.Instance;
                 HashSet<AbsolutePath> visitedPaths = pooledPathSet.Instance;
+
+                HashSet<StringId> accessedFileNames = new HashSet<StringId>(pathTable.StringTable.CaseInsensitiveEqualityComparer);
 
                 bool addFileNamesFromObservations = false;
                 if (!observedAccessedFileNames.IsValid)
@@ -942,7 +941,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     observedAccessedFileNames = SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.SortUnsafe(
                                                 accessedFileNames.ToArray(),
-                                                new CaseInsensitiveStringIdComparer(pathTable.StringTable));
+                                                pathTable.StringTable.CaseInsensitiveComparer);
                 }
 
                 if (searchPaths.Count == 0)

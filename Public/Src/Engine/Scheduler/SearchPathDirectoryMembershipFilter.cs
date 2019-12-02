@@ -18,15 +18,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates a search path membership filter based on the given accessed file names without extensions
         /// </summary>
-        public SearchPathDirectoryMembershipFilter(PathTable pathTable, IEnumerable<StringId> accessedFileNamesWithoutExtension)
+        /// <remarks>
+        /// <paramref name="accessedFileNamesWithoutExtension"/> must use case-insensitive StringId comparer.
+        /// </remarks>
+        public SearchPathDirectoryMembershipFilter(PathTable pathTable, HashSet<StringId> accessedFileNamesWithoutExtension)
         {
             m_pathTable = pathTable;
-            AccessedFileNamesWithoutExtension = new HashSet<StringId>(pathTable.StringTable.CaseInsensitiveEqualityComparer);
-
-            foreach (var fileNameWithoutExtension in accessedFileNamesWithoutExtension)
-            {
-                AccessedFileNamesWithoutExtension.Add(fileNameWithoutExtension);
-            }
+            AccessedFileNamesWithoutExtension = accessedFileNamesWithoutExtension;
         }
 
         /// <summary>

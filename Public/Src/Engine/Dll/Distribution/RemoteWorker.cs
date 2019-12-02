@@ -249,7 +249,7 @@ namespace BuildXL.Engine.Distribution
 
                 WorkerNotificationArgs executionBlobNotification = null;
                 Contract.Assert(m_executionBlobQueue.TryTake(out executionBlobNotification), "The executionBlob queue cannot be empty");
-                
+
                 int blobSequenceNumber = executionBlobNotification.ExecutionLogBlobSequenceNumber;
                 ArraySegment<byte> executionLogBlob = executionBlobNotification.ExecutionLogData;
 
@@ -316,11 +316,11 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 Logger.Log.RemoteWorkerProcessedExecutionBlob(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", $"{blobSequenceNumber} - {executionLogBlob.Count}");
-            }
 
-            if (m_executionBlobQueue.IsCompleted)
-            {
-                m_executionBlobCompletion.TrySetResult(true);
+                if (m_executionBlobQueue.IsCompleted)
+                {
+                    m_executionBlobCompletion.TrySetResult(true);
+                }
             }
         }
 
@@ -532,7 +532,22 @@ namespace BuildXL.Engine.Distribution
 
             using (m_masterService.Environment.Counters.StartStopwatch(PipExecutorCounter.RemoteWorker_AwaitExecutionBlobCompletionDuration))
             {
-                if (!m_executionBlobQueue.IsCompleted)
+                bool isQueueCompleted = false;
+                using (await m_logBlobMutex.AcquireAsync())
+                {
+                    // If there are no execution log events, there will be no calls to LogExecutionBlobAsync; as a result,
+                    // the completion task will never be set, i.e., await will never return. To avoid this, we are checking
+                    // the status of the queue before deciding to wait for the completion task.
+                    //
+                    // BlockingCollection is completed when it is empty and CompleteAdding is called. We call CompleteAdding just above;
+                    // another thread can take the last element from the queue(TryTake in LogExecutionBlobAsync), so the blocking collection
+                    // will become completed. However, we need to wait for that thread to process that event; otherwise, we will dispose
+                    // the execution log related objects if we continue stopping the worker and the exception will happen during processing
+                    // the event in that thread. We wait for that thread to process the event by acquiring the m_logBlobMutex.
+                    isQueueCompleted = m_executionBlobQueue.IsCompleted;
+                }
+
+                if (!isQueueCompleted)
                 {
                     // Wait for execution blobs to be processed.
                     await m_executionBlobCompletion.Task;

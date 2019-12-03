@@ -89,7 +89,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     async batch =>
                     {
                         var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
-                        var result = await addOperations(batch, _key);
+                        var addOperationsTask = addOperations(batch, _key);
+                        await Task.WhenAll(versionTask, addOperationsTask);
+
+                        var result = await addOperationsTask;
                         var version = await versionTask;
                         return (result, version);
                     },
@@ -105,6 +108,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (!_redis.HasSecondary || !secondaryVersionedResult.Succeeded)
             {
                 // No secondary or error in secondary, just use primary result
+                if (!primaryVersionedResult.Succeeded)
+                {
+                    // Both: the primary and the secondary failed.
+                    return new Result<T>(primaryVersionedResult);
+                }
+
                 return new Result<T>(primaryVersionedResult.Value.result, isNullAllowed: true);
             }
 

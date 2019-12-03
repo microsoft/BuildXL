@@ -259,7 +259,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (result.IsCriticalFailure)
             {
-                message = $"Critical error occurred: {message}. Diagnostics: {result.Diagnostics}";
+                message = $"Critical error occurred: {message}.";
                 RaiseCriticalError(result);
             }
             else if (result.HasException)

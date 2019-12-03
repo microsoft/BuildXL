@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
@@ -166,15 +167,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (result && recorder != null)
                 {
-                    if (Settings.ShouldInlinePutBlob)
-                    {
-                        var putBlobResult = await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
-                    }
-                    else
-                    {
-                        // Fire and forget since this step is optional.
-                        ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).FireAndForget(context);
-                    }
+                    await PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
                 }
             }
             else
@@ -212,7 +205,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    proactiveCopyTask.FireAndForget(context);
+                    // Tracing task-related errors because normal failures already traced by the operation provider
+                    proactiveCopyTask.TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "ProactiveCopyIfNeeded");
                 }
             }
 

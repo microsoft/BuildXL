@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
-                    _ => GarbageCollect(context),
+                    _ => GarbageCollect(context.CreateNested("GarbageCollect")),
                     null,
                     IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
@@ -239,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
-                        ForceCacheFlush(context,
+                        ForceCacheFlush(context.CreateNested(caller: "ForceCacheFlush"),
                             counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer,
                             blocking: false);
                     },
@@ -251,7 +251,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _nagleOperationTracer = NagleQueue<(ShortHash, EntryOperation, OperationReason)>.Create(
                 ops =>
                 {
-                    LogContentLocationOperations(context, Tracer.Name, ops);
+                    LogContentLocationOperations(context.CreateNested(caller: "LogContentLocationOperations"), Tracer.Name, ops);
                     return Unit.VoidTask;
                 },
                 maxDegreeOfParallelism: 1,

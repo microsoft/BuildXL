@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -325,6 +326,13 @@ return { requestedIncrement, currentValue }";
             var redisOperation = new RedisOperationAndResult<T>(batch => operation(batch));
             _redisOperations.Add(redisOperation);
             return redisOperation.FinalTaskResult.Task;
+        }
+
+        /// <nodoc />
+        public void AddOperationAndTraceIfFailure<T>(Context context, string key, Func<IBatch, Task<T>> operation, [CallerMemberName]string operationName = null)
+        {
+            // Trace failure using 'Debug' severity to avoid pollution of warning traces.
+            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Interfaces.Logging.Severity.Debug);
         }
 
         /// <inheritdoc />

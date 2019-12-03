@@ -139,7 +139,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
-                    ShouldInlinePutBlob = true,
+                    InlinePutBlobs = true,
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,

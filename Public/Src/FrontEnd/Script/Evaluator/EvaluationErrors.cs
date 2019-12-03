@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
+using System.Text;
 using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Expressions;
@@ -563,13 +565,27 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc />
-        public void ReportCycle(ModuleLiteral env, LineInfo lineInfo)
+        public void ReportCycle(ModuleLiteral env, LineInfo lineInfo, FullSymbol? pending = null)
         {
             Contract.Requires(env != null);
 
+            var chain = Context.GetTopLevelValueChain()
+               .Select(fs => fs.ToString(Context.SymbolTable))
+               .ToList();
+            if (pending.HasValue)
+            {
+                chain.Insert(0, pending.Value.ToString(Context.SymbolTable) + " (pending)");
+            }
+
+            var formatted = chain
+               .Select(sym => Environment.NewLine + "  " + sym)
+               .Aggregate(new StringBuilder(), (acc, elem) => acc.Append(elem))
+               .ToString();
+
             var location = lineInfo.AsUniversalLocation(env, Context);
             Logger.ReportCycle(LoggingContext, location.AsLoggingLocation(),
-                Context.GetStackTraceAsErrorMessage(location));
+                Context.GetStackTraceAsErrorMessage(location),
+                $"{Environment.NewLine}Top-level value chain:{formatted}");
         }
 
         /// <nodoc />

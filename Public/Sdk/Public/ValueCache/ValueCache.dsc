@@ -30,3 +30,14 @@ export function getOrAdd<TKey, TValue>(key: TKey, createValue: () => TValue): TV
 {
     return _PreludeAmbientHack_ValueCache.getOrAdd(key, createValue);
 }
+
+/**
+ * Same as 'getOrAdd' except that it allows arbitrary state to be passed in which is then propagated to the 'createValue' function.
+ * 
+ * Prefer using this to 'getOrAdd' to avoid cycles originating from inside the 'createValue' function.
+ */
+@@public
+export function getOrAddWithState<TKey, TState, TValue>(key: TKey, state: TState, createValue: (s: TState) => TValue): TValue
+{
+    return _PreludeAmbientHack_ValueCache.getOrAddWithState(key, state, createValue);
+}

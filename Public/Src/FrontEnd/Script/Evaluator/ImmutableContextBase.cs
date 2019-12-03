@@ -84,6 +84,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public PathTable PathTable => FrontEndContext.PathTable;
 
         /// <summary>
+        /// Get the current symbol table.
+        /// </summary>
+        public SymbolTable SymbolTable => FrontEndContext.SymbolTable;
+
+        /// <summary>
         /// Gets the logger instance.
         /// </summary>
         public virtual Logger Logger => ContextTree.Logger;
@@ -120,7 +125,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Last active use module.
         /// </summary>
-        protected readonly ModuleLiteral LastActiveUsedModule;
+        public readonly ModuleLiteral LastActiveUsedModule;
 
         /// <summary>
         /// Last active use path.
@@ -394,10 +399,25 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
             if (!string.IsNullOrWhiteSpace(stackTrace))
             {
-                return FormattableStringEx.I($"{Environment.NewLine}Stack trace: {stackTrace}.");
+                return FormattableStringEx.I($"{Environment.NewLine}Stack trace:{Environment.NewLine}{stackTrace}.");
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Returns the chain of top-level values being evaluated
+        /// </summary>
+        public List<FullSymbol> GetTopLevelValueChain()
+        {
+            var result = new List<FullSymbol>();
+            var context = this;
+            while (context?.TopLevelValueInfo != null && context.TopLevelValueInfo.ValueName.IsValid)
+            {
+                result.Add(context.TopLevelValueInfo.ValueName);
+                context = context.ParentContext;
+            }
+            return result;
         }
 
         private EvaluationErrors m_errors;

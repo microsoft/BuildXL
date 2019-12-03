@@ -108,8 +108,7 @@ namespace BuildXL.FrontEnd.Script.Values
                     return EvaluationResult.Error;
                 }
 
-                var factory = MutableContextFactory.Create(this, contextName, module, templateValue.Value, location);
-
+                var factory = new MutableContextFactory(this, contextName, module, templateValue.Value, location);
                 return EvaluateWithNewNamedContextAndTemplate(context, ref factory);
             }
         }
@@ -120,10 +119,10 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// V1-specific. Still used to evaluate configuration-related files in V2 (and for the whole V1 legacy evaluation).
         /// </remarks>
-        public EvaluationResult LegacyEvaluateWithNewNamedContext(ImmutableContextBase context, ModuleLiteral module, FullSymbol contextName, LineInfo location)
+        public EvaluationResult LegacyEvaluateWithNewNamedContext(ImmutableContextBase context, ModuleLiteral module, FullSymbol contextName, LineInfo location, bool forceWaitForResult = false)
         {
             // There is no captured template value in V1
-            var factory = MutableContextFactory.Create(this, contextName, module, templateValue: null, location: location);
+            var factory = new MutableContextFactory(this, contextName, module, templateValue: null, location: location, forceWaitForResult: forceWaitForResult);
             return EvaluateWithNewNamedContextAndTemplate(context, ref factory);
         }
 
@@ -146,11 +145,11 @@ namespace BuildXL.FrontEnd.Script.Values
         {
             context.EvaluationScheduler.CancellationToken.ThrowIfCancellationRequested();
 
-            QualifierValue qualifier = env.GetFileQualifier();
+            QualifierValue qualifier = env.GetFileQualifier() ?? env.Qualifier;
 
             // Looking in the optimized map if the qualifier id is small enough.
             QualifiedValue qualifiedEntry;
-            if (qualifier.QualifierId.Id < TableSize)
+            if (qualifier.QualifierId.IsValid && qualifier.QualifierId.Id < TableSize)
             {
                 qualifiedEntry = GetQualifiedValue(qualifier.QualifierId.Id);
             }
@@ -232,7 +231,7 @@ namespace BuildXL.FrontEnd.Script.Values
             }
 
             // no real value yet, let's try to create a new evaluation
-            if (currentEvaluation == null)
+            if (currentEvaluation == null && !factory.ForceWaitForResult)
             {
                 var newEvaluation = new Evaluation(
                     context.EvaluatorConfiguration.CycleDetectorStartupDelay,
@@ -254,6 +253,15 @@ namespace BuildXL.FrontEnd.Script.Values
                         try
                         {
                             var newValue = Expression.Eval(newLocalMutableContext, env, args);
+
+                            // Evaluation got canceled --- we hit a cycle (or deadlock)!
+                            if ((newEvaluation.Result & EvaluationStatus.Cycle) != 0)
+                            {
+                                newLocalMutableContext.Errors.ReportCycle(env, Expression.Location);
+                                newEvaluation.SetValue(ref value, EvaluationResult.Error);
+                                return EvaluationResult.Error;
+                            }
+
                             newEvaluation.SetValue(ref value, newValue);
                             return newValue;
                         }
@@ -276,10 +284,19 @@ namespace BuildXL.FrontEnd.Script.Values
                 // there's already an ongoing evaluation! (and the CompareExchange must have failed) we fall through...
             }
 
-            return QualifiedEvaluateWithCycleDetection(ref value, context, env, currentEvaluation);
+            if (factory.ForceWaitForResult)
+            {
+                while (currentEvaluation == null)
+                {
+                    Thread.Sleep(TimeSpan.FromMilliseconds(10));
+                    currentEvaluation = Volatile.Read(ref value) as Evaluation;
+                }
+            }
+
+            return QualifiedEvaluateWithCycleDetection(ref value, context, env, currentEvaluation, ref factory);
         }
 
-        private EvaluationResult QualifiedEvaluateWithCycleDetection(ref object value, ImmutableContextBase context, ModuleLiteral env, Evaluation currentEvaluation)
+        private EvaluationResult QualifiedEvaluateWithCycleDetection(ref object value, ImmutableContextBase context, ModuleLiteral env, Evaluation currentEvaluation, ref MutableContextFactory factory)
         {
             // Someone else is already busy evaluating this thunk. Let's wait...
             EvaluationStatus result;
@@ -316,7 +333,7 @@ namespace BuildXL.FrontEnd.Script.Values
             // Evaluation got canceled --- we hit a cycle (or deadlock)!
             if ((result & EvaluationStatus.Cycle) != 0)
             {
-                context.Errors.ReportCycle(env, Expression.Location);
+                context.Errors.ReportCycle(env, Expression.Location, factory.ContextName);
                 currentEvaluation.SetValue(ref value, EvaluationResult.Error);
                 return EvaluationResult.Error;
             }
@@ -546,24 +563,17 @@ namespace BuildXL.FrontEnd.Script.Values
             public LineInfo Location { get; }
 
             /// <nodoc />
-            private MutableContextFactory(Thunk activeThunk, FullSymbol contextName, ModuleLiteral module, object templateValue, LineInfo location)
+            public bool ForceWaitForResult { get; }
+
+            /// <nodoc />
+            public MutableContextFactory(Thunk activeThunk, FullSymbol contextName, ModuleLiteral module, object templateValue, LineInfo location, bool forceWaitForResult = false)
             {
                 ActiveThunk = activeThunk;
                 ContextName = contextName;
                 Module = module;
                 TemplateValue = templateValue;
                 Location = location;
-            }
-
-            /// <nodoc />
-            public static MutableContextFactory Create(
-                Thunk activeThunk,
-                FullSymbol contextName,
-                ModuleLiteral module,
-                object templateValue,
-                LineInfo location)
-            {
-                return new MutableContextFactory(activeThunk, contextName, module, templateValue, location);
+                ForceWaitForResult = forceWaitForResult;
             }
 
             /// <nodoc />

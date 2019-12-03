@@ -610,10 +610,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
-            Message =
-                EventConstants.LabeledProvenancePrefix + "A cyclic evaluation dependency was detected between exported values.{stackTrace}",
+            Message = EventConstants.LabeledProvenancePrefix + "A cyclic evaluation dependency was detected between exported values.{stackTrace}{topLevelValues}",
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
-        public abstract void ReportCycle(LoggingContext context, Location location, string stackTrace);
+        public abstract void ReportCycle(LoggingContext context, Location location, string stackTrace, string topLevelValues);
 
         [GeneratedEvent(
             (ushort)LogEventId.ArrayEvaluationStatistics,

@@ -119,6 +119,15 @@ namespace BuildXL.FrontEnd.Script
                 return Empty();
             }
 
+            return Create(frameSize, lambda.Params, lambda.Captures, capturedValues);
+        }
+
+        /// <summary>
+        /// Allocates a stack frame for DScript evaluation.  
+        /// <seealso cref="Create(FunctionLikeExpression, EvaluationResult[])"/>.
+        /// </summary>
+        public static EvaluationStackFrame Create(int frameSize, int paramsCount, int paramsOffset, EvaluationResult[] capturedValues = null)
+        {
             var wrapper = default(PooledObjectWrapper<EvaluationStackFrame>);
             EvaluationStackFrame frame;
             if (frameSize < s_framePools.Length)
@@ -131,7 +140,7 @@ namespace BuildXL.FrontEnd.Script
                 frame = new EvaluationStackFrame(frameSize, fromPool: false);
             }
 
-            frame.Initialize(wrapper, lambda.Params, lambda.Captures, capturedValues);
+            frame.Initialize(wrapper, paramsCount, paramsOffset, capturedValues);
             frame.ReturnStatementWasEvaluated = false;
             return frame;
         }

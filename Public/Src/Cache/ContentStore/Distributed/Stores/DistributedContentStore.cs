@@ -146,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             TrimBulkAsync trimBulkAsync = null;
             InnerContentStore = innerContentStoreFunc(_evictionNagleQueue, distributedEvictionSettings, contentStoreSettings, trimBulkAsync);
 
-            if (settings.PinConfiguration?.UsePinCache == true)
+            if (settings.PinConfiguration?.IsPinCachingEnabled == true)
             {
                 _pinCache = new PinCache(clock: clock);
             }

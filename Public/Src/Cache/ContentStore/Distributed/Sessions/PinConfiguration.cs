@@ -31,19 +31,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         /// <summary>
         /// Gets or sets the starting retention time for content hash entries in the pin cache.
+        ///
+        /// This number is equivalent to the amount of time we are willing to hold a pin with a single replica, and how
+        /// much "credit" we get per each additional replica.
         /// </summary>
-        public int PinCacheReplicaCreditRetentionMinutes { get; set; } = 30;
+        public int PinCachePerReplicaRetentionCreditMinutes { get; set; } = 30;
 
         /// <summary>
-        /// Gets or sets the decay applied for replicas to <see cref="PinCacheReplicaCreditRetentionMinutes"/>. Must be between 0 and 0.9.
-        /// For each replica 1...n, with decay d, the additional retention is depreciated by d^n (i.e. only  <see cref="PinCacheReplicaCreditRetentionMinutes"/> * d^n is added to the total retention
+        /// Gets or sets the decay applied for replicas to <see cref="PinCachePerReplicaRetentionCreditMinutes"/>. Must be between 0 and 0.9.
+        /// For each replica 1...n, with decay d, the additional retention is depreciated by d^n (i.e. only  <see cref="PinCachePerReplicaRetentionCreditMinutes"/> * d^n is added to the total retention
         /// based on the replica).
         /// </summary>
-        public double PinCacheReplicaCreditRetentionDecay { get; set; } = 0.75;
+        public double PinCacheReplicaCreditRetentionFactor { get; set; } = 0.75;
 
         /// <summary>
         /// Gets or sets a value indicating whether pin caching should be used
         /// </summary>
-        public bool UsePinCache { get; set; }
+        public bool IsPinCachingEnabled { get; set; }
     }
 }

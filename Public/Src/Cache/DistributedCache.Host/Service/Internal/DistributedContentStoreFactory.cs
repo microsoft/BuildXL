@@ -170,15 +170,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.IsPinBetterEnabled)
             {
                 pinConfiguration = new PinConfiguration();
-                if (_distributedSettings.PinRisk.HasValue) { pinConfiguration.PinRisk = _distributedSettings.PinRisk.Value; }
-                if (_distributedSettings.MachineRisk.HasValue) { pinConfiguration.MachineRisk = _distributedSettings.MachineRisk.Value; }
-                if (_distributedSettings.FileRisk.HasValue) { pinConfiguration.FileRisk = _distributedSettings.FileRisk.Value; }
-                if (_distributedSettings.MaxIOOperations.HasValue) { pinConfiguration.MaxIOOperations = _distributedSettings.MaxIOOperations.Value; }
+                ApplyIfNotNull(_distributedSettings.PinRisk, v => pinConfiguration.PinRisk = v);
+                ApplyIfNotNull(_distributedSettings.MachineRisk, v => pinConfiguration.MachineRisk = v);
+                ApplyIfNotNull(_distributedSettings.FileRisk, v => pinConfiguration.FileRisk = v);
+                ApplyIfNotNull(_distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
 
-                pinConfiguration.UsePinCache = _distributedSettings.IsPinCachingEnabled;
+                pinConfiguration.IsPinCachingEnabled = _distributedSettings.IsPinCachingEnabled;
 
-                if (_distributedSettings.PinCacheReplicaCreditRetentionMinutes.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionMinutes = _distributedSettings.PinCacheReplicaCreditRetentionMinutes.Value; }
-                if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value; }
+                ApplyIfNotNull(_distributedSettings.PinCacheReplicaCreditRetentionMinutes, v => pinConfiguration.PinCachePerReplicaRetentionCreditMinutes = v);
+                ApplyIfNotNull(_distributedSettings.PinCacheReplicaCreditRetentionDecay, v => pinConfiguration.PinCacheReplicaCreditRetentionFactor = v);
             }
 
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);

@@ -273,6 +273,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Next try the pin cache
             if (_pinCache?.TryPinFromCachedResult(contentHash).Succeeded == true)
             {
+                Tracer.Info(operationContext, $"Pin succeeded for {contentHash.ToShortString()}: satisfied from cache.");
+
                 return PinResult.Success;
             }
 
@@ -1100,7 +1102,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             minVerifiedCount = (int)Math.Ceiling(lnRisk / lnVerifiedRisk);
             minUnverifiedCount = (int)Math.Ceiling(lnRisk / lnUnverifiedRisk);
 
-            if (_pinCache == null || Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes <= 0)
+            if (_pinCache == null || Settings.PinConfiguration.PinCachePerReplicaRetentionCreditMinutes <= 0)
             {
                 pinCacheTimeToLive = TimeSpan.Zero;
             }
@@ -1109,11 +1111,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Pin cache time to live is:
                 // r * (1 + d + d^2 + ... + d^n-1) = r * (1 - d^n) / (1 - d)
                 // where
-                // r = PinCacheReplicaCreditRetentionMinutes
-                // d = PinCacheReplicaCreditRetentionDecay
+                // r = PinCachePerReplicaRetentionCreditMinutes
+                // d = PinCacheReplicaCreditRetentionFactor
                 // n = replica count
-                var decay = Settings.PinConfiguration.PinCacheReplicaCreditRetentionDecay;
-                var pinCacheTimeToLiveMinutes = Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
+                var decay = Settings.PinConfiguration.PinCacheReplicaCreditRetentionFactor;
+                var pinCacheTimeToLiveMinutes = Settings.PinConfiguration.PinCachePerReplicaRetentionCreditMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
                 pinCacheTimeToLive = TimeSpan.FromMinutes(pinCacheTimeToLiveMinutes);
             }
         }

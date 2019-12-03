@@ -166,8 +166,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 MachineRisk = 0.0000001,
                 FileRisk = 0.0000001,
                 PinRisk = 0.9999,
-                PinCacheReplicaCreditRetentionMinutes = (int)pinCacheTimeToLive.TotalMinutes,
-                UsePinCache = true
+                PinCachePerReplicaRetentionCreditMinutes = (int)pinCacheTimeToLive.TotalMinutes,
+                IsPinCachingEnabled = true
             };
 
             ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;

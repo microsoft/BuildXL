@@ -211,8 +211,7 @@ namespace BuildXL.FrontEnd.Ninja
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IResolverSettings resolverSettings,
-            QualifierId[] requestedQualifiers)
+            IResolverSettings resolverSettings)
         {
             m_host = host;
             m_context = context;

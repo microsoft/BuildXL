@@ -51,7 +51,6 @@ namespace BuildXL.FrontEnd.CMake
 
         private AbsolutePath ProjectRoot => m_resolverSettings.ProjectRoot;
         private AbsolutePath m_buildDirectory;
-        private QualifierId[] m_requestedQualifiers;
         private const string DefaultBuildTarget = "all";
 
         // AsyncLazy graph
@@ -162,8 +161,7 @@ namespace BuildXL.FrontEnd.CMake
                 m_host,
                 m_context,
                 m_configuration,
-                m_embeddedResolverSettings.Value,
-                m_requestedQualifiers));
+                m_embeddedResolverSettings.Value));
         }
 
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
@@ -353,7 +351,7 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
         {
             m_host = host;
             m_context = context;
@@ -366,7 +364,6 @@ namespace BuildXL.FrontEnd.CMake
             m_pathToTool = configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, relativePathToCMakeRunner);
 
             m_buildDirectory = m_configuration.Layout.OutputDirectory.Combine(m_context.PathTable, m_resolverSettings.BuildDirectory);
-            m_requestedQualifiers = requestedQualifiers;
 
             return true;
         }

@@ -81,8 +81,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 "SystemRoot",
                 "SYSTEMTYPE"
             };
-        private QualifierId[] m_requestedQualifiers;
-
+        
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool
         /// </summary>
@@ -163,11 +162,8 @@ namespace BuildXL.FrontEnd.MsBuild
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,
-            IResolverSettings resolverSettings,
-            QualifierId[] requestedQualifiers)
+            IResolverSettings resolverSettings)
         {
-            Contract.Requires(requestedQualifiers?.Length > 0);
-
             m_host = host;
             m_context = context;
             m_configuration = configuration;
@@ -176,8 +172,6 @@ namespace BuildXL.FrontEnd.MsBuild
             m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
 
             Contract.Assert(m_resolverSettings != null);
-
-            m_requestedQualifiers = requestedQualifiers;
 
             return true;
         }
@@ -653,7 +647,7 @@ namespace BuildXL.FrontEnd.MsBuild
             string outputFileString = outputFile.ToString(m_context.PathTable);
             IReadOnlyCollection<string> entryPointTargets = m_resolverSettings.InitialTargets ?? CollectionUtilities.EmptyArray<string>();
 
-            var requestedQualifiers = m_requestedQualifiers.Select(qualifierId => MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, m_context)).ToList();
+            var requestedQualifiers = m_host.QualifiersToEvaluate.Select(qualifierId => MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, m_context)).ToList();
 
             var arguments = new MSBuildGraphBuilderArguments(
                 projectEntryPoints.Select(entryPoint => entryPoint.ToString(m_context.PathTable)).ToList(),

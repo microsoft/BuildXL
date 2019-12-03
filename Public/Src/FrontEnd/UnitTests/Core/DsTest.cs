@@ -1030,9 +1030,9 @@ namespace Test.BuildXL.FrontEnd.Core
 
             var requestedQualifiersOrDefault = requestedQualifiers ?? new QualifierId[] { engine.Context.QualifierTable.EmptyQualifierId };
 
-            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiersOrDefault);
+            workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter);
 
-            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault).GetAwaiter().GetResult();
+            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration).GetAwaiter().GetResult();
             if (!initFrontEnds)
             {
                 return null;
@@ -1044,10 +1044,10 @@ namespace Test.BuildXL.FrontEnd.Core
 
         protected virtual bool FilterWorkspaceForConversion => false;
 
-        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter, QualifierId[] requestedQualifiers)
+        private Workspace BuildAndAnalyzeWorkspace(FrontEndHostController controller, IConfiguration configuration, BasicFrontEndEngineAbstraction frontEndEngineAbstraction, EvaluationFilter evaluationFilter)
         {
             BeforeBuildWorkspaceHook();
-            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiers: requestedQualifiers);
+            var workspace = controller.DoPhaseBuildWorkspace(configuration, frontEndEngineAbstraction, evaluationFilter);
 
             if (workspace.Succeeded)
             {
@@ -1233,7 +1233,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 resolverSettings = sourceResolverSettings;
             }
 
-            workspaceFactory.Initialize(context, frontEndHost, frontEndHost.Configuration, requestedQualifiers: new QualifierId[] { context.QualifierTable.EmptyQualifierId });
+            workspaceFactory.Initialize(context, frontEndHost, frontEndHost.Configuration);
             var workspaceResolver = workspaceFactory.TryGetResolver(resolverSettings).Result;
 
             var resolver = frontEnd.CreateResolver(resolverSettings.Kind);

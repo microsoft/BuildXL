@@ -20,7 +20,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private FrontEndContext m_frontEndContext;
         private FrontEndHost m_frontEndHost;
         private IConfiguration m_configuration;
-        private QualifierId[] m_requestedQualifiers;
         private readonly Dictionary<string, Func<IWorkspaceModuleResolver>> m_registeredKinds;
         private readonly Dictionary<IResolverSettings, IWorkspaceModuleResolver> m_instantiatedResolvers;
 
@@ -60,11 +59,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// This is exposed as a separate methods since the set context is usually available after resolvers are registered.
         /// </remarks>
-        public void Initialize(FrontEndContext context, FrontEndHost host, IConfiguration configuration, QualifierId[] requestedQualifiers)
+        public void Initialize(FrontEndContext context, FrontEndHost host, IConfiguration configuration)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
             Contract.Requires(!IsInitialized);
             Contract.Ensures(IsInitialized);
 
@@ -72,7 +70,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             m_frontEndContext = context;
             m_frontEndHost = host;
             m_configuration = configuration;
-            m_requestedQualifiers = requestedQualifiers;
         }
 
         /// <summary>
@@ -101,7 +98,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             // There is not, so we need to create and instantiate one.
             resolver = m_registeredKinds[resolverSettings.Kind]();
-            if (!resolver.TryInitialize(m_frontEndHost, m_frontEndContext, m_configuration, resolverSettings, m_requestedQualifiers))
+            if (!resolver.TryInitialize(m_frontEndHost, m_frontEndContext, m_configuration, resolverSettings))
             {
                 return new WorkspaceModuleResolverGenericInitializationFailure(resolverSettings.Kind);
             }

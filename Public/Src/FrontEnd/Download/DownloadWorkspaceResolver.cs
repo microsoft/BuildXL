@@ -53,13 +53,12 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
             var settings = resolverSettings as IDownloadResolverSettings;
             Contract.Assert(settings != null);

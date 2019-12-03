@@ -52,8 +52,7 @@ namespace Test.DScript.Workspaces.Utilities
             [NotNull] FrontEndHost host,
             [NotNull] FrontEndContext context,
             [NotNull] IConfiguration configuration,
-            [NotNull] IResolverSettings resolverSettings,
-            [NotNull] QualifierId[] requestedQualifiers)
+            [NotNull] IResolverSettings resolverSettings)
         {
             return true;
         }

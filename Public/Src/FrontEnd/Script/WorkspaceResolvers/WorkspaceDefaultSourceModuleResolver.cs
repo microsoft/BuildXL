@@ -56,15 +56,14 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <inheritdoc/>
-        public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings, QualifierId[] requestedQualifiers)
+        public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);
             Contract.Requires(configuration != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(requestedQualifiers?.Length > 0);
 
-            if (!base.TryInitialize(host, context, configuration, resolverSettings, requestedQualifiers))
+            if (!base.TryInitialize(host, context, configuration, resolverSettings))
             {
                 return false;
             }

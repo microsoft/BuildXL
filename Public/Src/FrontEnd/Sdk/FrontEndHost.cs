@@ -129,6 +129,14 @@ namespace BuildXL.FrontEnd.Sdk
         public AbsolutePath PrimaryConfigFile { get; protected set; }
 
         /// <summary>
+        /// The qualifier id's that are requested to be initially evaluated.
+        /// </summary>
+        /// <remarks>
+        /// This is mostly to satisfy the msbuild resolver
+        /// </remarks>
+        public QualifierId[] QualifiersToEvaluate { get; protected set; }
+
+        /// <summary>
         /// Computed workspace
         /// </summary>
         public IWorkspace Workspace

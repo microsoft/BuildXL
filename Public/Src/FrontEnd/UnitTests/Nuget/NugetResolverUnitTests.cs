@@ -298,7 +298,7 @@ $@"module({{
             var host = CreateFrontEndHostControllerForTesting();
 
             var nugetResolver = new WorkspaceNugetModuleResolver(m_testContext.StringTable, new FrontEndStatistics());
-            nugetResolver.TryInitialize(host, m_testContext, new ConfigurationImpl(), new NugetResolverSettings(), new QualifierId[] { m_testContext.QualifierTable.EmptyQualifierId });
+            nugetResolver.TryInitialize(host, m_testContext, new ConfigurationImpl(), new NugetResolverSettings());
 
             return nugetResolver;
         }

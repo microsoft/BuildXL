@@ -25,8 +25,7 @@ namespace BuildXL.FrontEnd.Workspaces
             [NotNull]FrontEndHost host,
             [NotNull]FrontEndContext context,
             [NotNull]IConfiguration configuration,
-            [NotNull]IResolverSettings resolverSettings,
-            [NotNull]QualifierId[] requestedQualifiers);
+            [NotNull]IResolverSettings resolverSettings);
 
         /// <summary>
         /// If <param name="moduleDescriptor"/> is owned by this resolver, returns the ModuleDefinition with that name.

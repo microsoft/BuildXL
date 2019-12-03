@@ -86,7 +86,7 @@ param(
     [string]$SharedCacheMode = "Disable",
 
     [Parameter(Mandatory=$false)]
-    [switch]$DevCache = $false,
+    [switch]$DevCache = $true,
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -194,6 +194,14 @@ if ($DominoArguments -eq $null) {
 
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
+
+# Dev cache adds 5-10s to TTFP due to cache initialization. Since we want tight inner loop (code-test-debug) 
+# to be crisp, we disable dev cache when TestMethod or TestClass is specified, i.e., when testing
+# a single unit test method or a single unit test class. 
+# This behavior can still be overriden by specifying explicitly the SharedCacheMode.
+if ($TestMethod -ne "" -or $TestClass -ne "") {
+    $DevCache = $false;
+}
 
 if ($DevCache) {
     if ($SharedCacheMode -eq "Disable") {

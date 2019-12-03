@@ -163,11 +163,12 @@ export function runQTest(args: QTestArguments): Result {
         });
     } 
 
-    // If Flaky Suppression file exists in the source code, provide the file path to QTest.
-    let flakyFile = findFlakyFile();
-
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
+
+    // If QTestArguments does not provide the Flaky Suppression File,
+    // attempt to find the file at the source root.
+    let flakyFile = args.qTestFlakySuppressionFile ? args.qTestFlakySuppressionFile : findFlakyFile();
 
     // Microsoft internal cloud service use only
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
@@ -432,6 +433,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     testSourceDir?: RelativePath;
     /** Path to a file which contains a list of target file names excluded for code coverage processing*/
     qTestExcludeCcTargetsFile?: Path;
+    /** File where Flaky Test Management stores suppression data*/
+    qTestFlakySuppressionFile? : File;
 }
 /**
  * Test results from a vstest.console.exe run

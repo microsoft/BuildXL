@@ -38,27 +38,27 @@ namespace BuildXL.Utilities.Tracing
         private static readonly char[] s_prefixCharacters = { ':', '\'', '"', '[', ']' };
         private static readonly string[] s_prefixPatterns = { @"\\?\", @"\??\" };
 
-        public static bool CreateIfEnabled(AbsolutePath target, AbsolutePath source, PathTable pathTable, out PathTranslator translator)
+        public static bool CreateIfEnabled(AbsolutePath from, AbsolutePath to, PathTable pathTable, out PathTranslator translator)
         {
             translator = null;
-            if (!target.IsValid || !source.IsValid)
+            if (!from.IsValid || !to.IsValid)
             {
                 return false;
             }
 
-            translator = new PathTranslator(target.ToString(pathTable), source.ToString(pathTable));
+            translator = new PathTranslator(from.ToString(pathTable), to.ToString(pathTable));
             return true;
         }
 
-        public static bool CreateIfEnabled(string target, string source, out PathTranslator translator)
+        public static bool CreateIfEnabled(string from, string to, out PathTranslator translator)
         {
             translator = null;
-            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(source))
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
             {
                 return false;
             }
 
-            translator = new PathTranslator(target, source);
+            translator = new PathTranslator(from, to);
             return true;
         }
 

@@ -711,9 +711,6 @@ namespace BuildXL
 
         private static string GetStableAppServerName(LightConfig lightConfig, Fingerprint serverBinaryHash, out List<KeyValuePair<string, string>> variablesToPassThrough)
         {
-            PathTranslator translator;
-            PathTranslator.CreateIfEnabled(lightConfig.SubstTarget, lightConfig.SubstSource, out translator);
-
             using (var wrapper = Pools.StringBuilderPool.GetInstance())
             {
                 const char Delimiter = '!';
@@ -721,11 +718,12 @@ namespace BuildXL
                 sb.Append(Environment.UserName);
 
                 sb.Append(Delimiter);
-                string baseDirectoryPath = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
-                sb.Append(translator?.Translate(baseDirectoryPath) ?? baseDirectoryPath);
+                sb.Append(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
 
+                // Because app server carries some state in memmory, we need to get the full path of the config 
+                // so that different repos do not share the same app server.
                 sb.Append(Delimiter);
-                sb.Append(lightConfig.Config);
+                sb.Append(Path.GetFullPath(lightConfig.Config));
 
                 // Stable app server depends on the hash of the content of BuildXL binaries
                 sb.Append(Delimiter);
@@ -738,6 +736,13 @@ namespace BuildXL
                 // Include HashType because client may switch between VSO or Dedup hashes
                 sb.Append(Delimiter);
                 sb.Append("EnableDedup:" + lightConfig.EnableDedup);
+
+                // Subst collapses different paths into the same path. For example, different config locations can have
+                // the same subst'd path, and thus the above full path of config is not sufficient.
+                sb.Append(Delimiter);
+                sb.Append("SubstSource:" + (lightConfig.SubstSource ?? string.Empty));
+                sb.Append(Delimiter);
+                sb.Append("SubstTarget:" + (lightConfig.SubstTarget ?? string.Empty));
 
                 // Need to include environment variables in the app server identity in case they change between runs.
                 //

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Processes;
@@ -497,8 +498,8 @@ namespace BuildXL.Scheduler
                 DynamicallyObservedEnumerations,
                 AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories,
-                TwoPhaseCachingInfo,
-                PipCacheDescriptorV2Metadata,
+                convergedCacheResult.TwoPhaseCachingInfo,
+                convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
                 pathSet: convergedCacheResult.PathSet,
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
@@ -536,6 +537,31 @@ namespace BuildXL.Scheduler
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries);
+        }
+
+        /// <summary>
+        /// Populates high level cache info from the given cache result.
+        /// Specifically <see cref="PathSet"/>, <see cref="WeakFingerprint"/>, <see cref="PipCacheDescriptorV2Metadata"/>, and <see cref="TwoPhaseCachingInfo"/> 
+        /// are populated.
+        /// </summary>
+        public void PopulateCacheInfoFromCacheResult(RunnableFromCacheResult cacheResult)
+        {
+            EnsureUnsealed();
+
+            WeakFingerprint = cacheResult.WeakFingerprint;
+            if (cacheResult.CanRunFromCache)
+            {
+                var cacheHitData = cacheResult.GetCacheHitData();
+                PathSet = cacheHitData.PathSet;
+                PipCacheDescriptorV2Metadata = cacheHitData.Metadata;
+                TwoPhaseCachingInfo = new TwoPhaseCachingInfo(
+                    weakFingerprint: cacheResult.WeakFingerprint,
+                    pathSetHash: cacheHitData.PathSetHash,
+                    strongFingerprint: cacheHitData.StrongFingerprint,
+
+                    // NOTE: This should not be used so we set it to default values except the metadata hash (it is used for HistoricMetadataCache).
+                    cacheEntry: new CacheEntry(cacheHitData.MetadataHash, "<Unspecified>", ArrayView<ContentHash>.Empty));
+            }
         }
 
         /// <summary>

@@ -3025,8 +3025,6 @@ namespace BuildXL.Scheduler
 
             var executionResult = new ExecutionResult
             {
-                WeakFingerprint = runnableFromCacheCheckResult.WeakFingerprint,
-
                 // This is the cache-hit path, so there were no uncacheable file accesses.
                 MustBeConsideredPerpetuallyDirty = false,
                 DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
@@ -3035,6 +3033,8 @@ namespace BuildXL.Scheduler
                 AllowedUndeclaredReads = runnableFromCacheCheckResult.AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories = runnableFromCacheCheckResult.AbsentPathProbesUnderNonDependenceOutputDirectories,
             };
+
+            executionResult.PopulateCacheInfoFromCacheResult(runnableFromCacheCheckResult);
 
             CheckCachedMetadataIntegrity(operationContext, environment, pip, runnableFromCacheCheckResult);
 

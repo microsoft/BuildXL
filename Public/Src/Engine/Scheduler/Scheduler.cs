@@ -3731,15 +3731,6 @@ namespace BuildXL.Scheduler
                         if (runnablePip.Worker?.IsRemote == true)
                         {
                             PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessesExecutedRemotely);
-
-                            m_pipTwoPhaseCache.ReportRemoteMetadataAndPathSet(
-                                executionResult.PipCacheDescriptorV2Metadata,
-                                executionResult.TwoPhaseCachingInfo?.CacheEntry.MetadataHash,
-                                executionResult.PathSet,
-                                executionResult.TwoPhaseCachingInfo?.PathSetHash,
-                                executionResult.TwoPhaseCachingInfo?.WeakFingerprint,
-                                executionResult.TwoPhaseCachingInfo?.StrongFingerprint,
-                                isExecution: true);
                         }
 
                         if (m_configuration.Cache.DeterminismProbe && processRunnable.CacheResult.CanRunFromCache)
@@ -3857,7 +3848,7 @@ namespace BuildXL.Scheduler
                                    allowedSameContentDoubleWriteViolations);
                                 Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
 
-                            processRunnable.SetExecutionResult(executionResult);
+                                processRunnable.SetExecutionResult(executionResult);
 
                                 if (executionResult.Result.IndicatesFailure())
                                 {
@@ -3867,6 +3858,18 @@ namespace BuildXL.Scheduler
                                     return processRunnable.SetPipResult(executionResult);
                                 }
                             }
+                        }
+
+                        if (runnablePip.Worker?.IsRemote == true)
+                        {
+                            m_pipTwoPhaseCache.ReportRemoteMetadataAndPathSet(
+                                executionResult.PipCacheDescriptorV2Metadata,
+                                executionResult.TwoPhaseCachingInfo?.CacheEntry.MetadataHash,
+                                executionResult.PathSet,
+                                executionResult.TwoPhaseCachingInfo?.PathSetHash,
+                                executionResult.TwoPhaseCachingInfo?.WeakFingerprint,
+                                executionResult.TwoPhaseCachingInfo?.StrongFingerprint,
+                                isExecution: !executionResult.Converged);
                         }
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
@@ -5061,15 +5064,15 @@ namespace BuildXL.Scheduler
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
                             case SandboxKind.MacOsEndpointSecurity:
-                            {
-                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
-                                break;
-                            }
+                                {
+                                    sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
+                                    break;
+                                }
                             default:
-                            {
-                                sandboxConnection = (ISandboxConnection) new SandboxConnectionKext(config);
-                                break;
-                            }
+                                {
+                                    sandboxConnection = (ISandboxConnection) new SandboxConnectionKext(config);
+                                    break;
+                                }
                         }
 
                         if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
@@ -5177,7 +5180,7 @@ namespace BuildXL.Scheduler
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 
-                    m_fileContentManager.SourceChangeAffectedInputs.InitialAffectedOutputList(inputChangeList, Context.PathTable);
+                m_fileContentManager.SourceChangeAffectedInputs.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

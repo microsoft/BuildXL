@@ -646,25 +646,7 @@ namespace BuildXL.Engine.Distribution
 
                     if (cacheResult != null)
                     {
-                        executionResult.WeakFingerprint = cacheResult.WeakFingerprint;
-
-                        if (cacheResult.CanRunFromCache)
-                        {
-                            var cacheHitData = cacheResult.GetCacheHitData();
-                            if (m_environment.State.Cache.IsNewlyAdded(cacheHitData.PathSetHash))
-                            {
-                                executionResult.PathSet = cacheHitData.PathSet;
-                            }
-
-                            executionResult.PipCacheDescriptorV2Metadata = cacheHitData.Metadata;
-                            executionResult.TwoPhaseCachingInfo = new TwoPhaseCachingInfo(
-                                weakFingerprint: cacheResult.WeakFingerprint,
-                                pathSetHash: cacheHitData.PathSetHash,
-                                strongFingerprint: cacheHitData.StrongFingerprint,
-
-                                // NOTE: This should not be used so we set it to default values except the metadata hash (it is used for HistoricMetadataCache).
-                                cacheEntry: new CacheEntry(cacheHitData.MetadataHash, "unused", ArrayView<ContentHash>.Empty));
-                        }
+                        executionResult.PopulateCacheInfoFromCacheResult(cacheResult);
                     }
 
                     executionResult.CacheLookupPerfInfo = runnableProcess.CacheLookupPerfInfo;

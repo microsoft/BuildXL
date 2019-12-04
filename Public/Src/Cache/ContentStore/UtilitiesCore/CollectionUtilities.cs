@@ -28,10 +28,18 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
             public static readonly T[] EmptyArray = new T[] { };
         }
 
-        public static bool IsCompareEquals<T>(T x1, T x2, out int compareResult)
+        /// <summary>
+        /// Compare two operands and returns true if two instances are equivalent.
+        /// </summary>
+        public static bool IsCompareEquals<T>(T x1, T x2, out int compareResult, bool greatestFirst = false)
             where T : IComparable<T>
         {
             compareResult = x1.CompareTo(x2);
+            if (greatestFirst)
+            {
+                compareResult = -compareResult;
+            }
+
             return compareResult == 0;
         }
     }

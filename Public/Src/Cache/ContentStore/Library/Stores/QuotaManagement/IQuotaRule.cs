@@ -39,11 +39,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         BoolResult IsInsideTargetLimit(long reserveSize = 0);
 
         /// <summary>
-        ///     Purge content in LRU-ed order according to limits.
-        /// </summary>
-        Task<PurgeResult> PurgeAsync(Context context, long reserveSize, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo, CancellationToken token);
-
-        /// <summary>
         ///     Gets a value indicating whether quota can be calibrated.
         /// </summary>
         bool CanBeCalibrated { get; }

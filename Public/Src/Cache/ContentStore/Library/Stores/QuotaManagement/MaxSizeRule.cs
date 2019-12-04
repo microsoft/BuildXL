@@ -25,11 +25,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="MaxSizeRule"/> class.
         /// </summary>
-        public MaxSizeRule(MaxSizeQuota quota, EvictAsync evictAsync, Func<long> getCurrentSizeFunc, DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(evictAsync, OnlyUnlinkedValue, distributedEvictionSettings)
+        public MaxSizeRule(MaxSizeQuota quota, Func<long> getCurrentSizeFunc)
+            : base(OnlyUnlinkedValue)
         {
             Contract.Requires(quota != null);
-            Contract.Requires(evictAsync != null);
             Contract.Requires(getCurrentSizeFunc != null);
 
             _quota = quota;

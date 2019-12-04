@@ -29,8 +29,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
@@ -1113,7 +1111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Effective last access time is computed based on entries last access time considering content's size and replica count.
         /// This method is used in distributed eviction.
         /// </remarks>
-        public Result<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetEffectiveLastAccessTimes(
+        public Result<IReadOnlyList<ContentEvictionInfo>> GetEffectiveLastAccessTimes(
             OperationContext context,
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
         {
@@ -1123,7 +1121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var postInitializationResult = EnsureInitializedAsync().GetAwaiter().GetResult();
             if (!postInitializationResult)
             {
-                return new Result<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(postInitializationResult);
+                return new Result<IReadOnlyList<ContentEvictionInfo>>(postInitializationResult);
             }
 
             // This is required because the code inside could throw.
@@ -1131,14 +1129,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 () =>
                 {
-                    var effectiveLastAccessTimes = new List<ContentHashWithLastAccessTimeAndReplicaCount>();
+                    var effectiveLastAccessTimes = new List<ContentEvictionInfo>();
                     double logInverseMachineRisk = -Math.Log(_configuration.MachineRisk);
 
                     foreach (var contentHash in contentHashes)
                     {
                         DateTime lastAccessTime = contentHash.LastAccessTime;
                         int replicaCount = 1;
-                        DateTime? effectiveLastAccessTime = null;
                         long size = 0;
                         bool isImportantReplica = true;
 
@@ -1153,7 +1150,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
                             lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                            isImportantReplica = IsImportantReplica(contentHash.Hash, entry, _configuration.DesiredReplicaRetention);
+                            isImportantReplica = IsImportantReplica(contentHash.Hash, entry, LocalMachineId, _configuration.DesiredReplicaRetention);
                             replicaCount = entry.Locations.Count;
 
                             if (size == 0)
@@ -1168,19 +1165,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
-                        effectiveLastAccessTime = GetEffectiveLastAccessTime(lastAccessTime, replicaCount, size, isImportantReplica);
+                        var age = _clock.UtcNow - lastAccessTime;
+                        var effectiveAge = GetEffectiveLastAccessTime(age, replicaCount, size, isImportantReplica, logInverseMachineRisk);
 
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
+                        var info = new ContentEvictionInfo(contentHash.Hash, age, effectiveAge, replicaCount, size, isImportantReplica);
+                        effectiveLastAccessTimes.Add(info);
                     }
 
-                    return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);
+                    return Result.Success<IReadOnlyList<ContentEvictionInfo>>(effectiveLastAccessTimes);
                 }, Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
                 traceOperationStarted: false);
         }
 
-        private DateTime GetEffectiveLastAccessTime(DateTime lastAccessTime, int replicaCount, long size, bool isImportantReplica)
+        private TimeSpan GetEffectiveLastAccessTime(TimeSpan age, int replicaCount, long size, bool isImportantReplica, double logInverseMachineRisk)
         {
             if (_configuration.UseTieredDistributedEviction)
+            {
+                var ageBucketIndex = FindAgeBucketIndex(age);
+                if (isImportantReplica)
+                {
+                    ageBucketIndex = Math.Max(0, ageBucketIndex - _configuration.ImportantReplicaBucketOffset);
+                }
+
+                return _configuration.AgeBuckets[ageBucketIndex];
+            }
+            else
             {
                 // Incorporate both replica count and size into an evictability metric.
                 // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
@@ -1188,42 +1197,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
                 //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
                 // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
-                // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
+                // Since this metric is just the age plus a computed quantity, it can be interpreted as an "effective age".
                 TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, size))));
-                return lastAccessTime - totalReplicaPenalty;
-            }
-            else
-            {
-                if (isImportantReplica)
-                {
-
-                }
-                else
-                {
-
-                }
+                return age + totalReplicaPenalty;
             }
         }
 
-        private bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, long desiredReplicaCount)
+        private int FindAgeBucketIndex(TimeSpan age)
         {
-            // TODO: Should we mark the entry as an important replica if LLS is sufficiently old
+            Contract.Requires(_configuration.AgeBuckets.Count > 0);
+
+            for (int i = 0; i < _configuration.AgeBuckets.Count; i++)
+            {
+                var bucket = _configuration.AgeBuckets[i];
+                if (age < bucket)
+                {
+                    return i;
+                }
+            }
+
+            return _configuration.AgeBuckets.Count - 1;
+        }
+
+        internal static bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, MachineId localMachineId, long desiredReplicaCount)
+        {
             if (entry.Locations.Count <= desiredReplicaCount)
             {
                 return true;
             }
             else
             {
-                long replicaHash = unchecked((uint)HashCodeHelper.Combine(hash[0] | hash[1] << 8, LocalMachineId.Index));
-                long importantReplicaRange = (desiredReplicaCount * uint.MaxValue) / entry.Locations.Count;
-                if (replicaHash <= importantReplicaRange)
+                long replicaHash = unchecked((uint)HashCodeHelper.Combine(hash[0] | hash[1] << 8, localMachineId.Index));
+                var offset = replicaHash % entry.Locations.Count;
+
+                var max = offset + desiredReplicaCount - entry.Locations.Count;
+
+                int index = 0;
+                foreach (var location in entry.Locations)
                 {
-                    return true;
+                    if (location == localMachineId)
+                    {
+                        // Get whether this machine is in the important replica range
+                        return index < max || index >= offset;
+                    }
+
+                    index++;
                 }
-                else
-                {
-                    return false;
-                }
+
+                return false;
             }
         }
 

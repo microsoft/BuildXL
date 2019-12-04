@@ -236,14 +236,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// If <paramref name="poolSize"/> = <paramref name="pageSize"/>, the algorithm fills up the entire pool and
         /// evicts a fraction of it in every iteration.
         /// </remarks>
-        public static IEnumerable<T> ApproximateSort<T>(this IEnumerable<T> original, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, int poolSize, int pageSize, float removalFraction)
+        public static IEnumerable<TResult> ApproximateSort<T, TResult>(this IEnumerable<T> original, IComparer<TResult> comparer, Func<List<T>, IEnumerable<TResult>> query, int poolSize, int pageSize, float removalFraction)
         {
             Contract.Requires(poolSize > 0);
             Contract.Requires(pageSize > 0 && pageSize <= poolSize);
             Contract.Requires(removalFraction > 0 && removalFraction <= 1);
 
             // The pool holds up to `poolSize` candidates sorted by the comparer
-            var pool = new PriorityQueue<T>(poolSize, comparer);
+            var pool = new PriorityQueue<TResult>(poolSize, comparer);
 
             var source = original.GetEnumerator();
             var sourceHasItems = true;

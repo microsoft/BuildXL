@@ -116,7 +116,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     break;
                 }
 
-                var evictionResult = await _quotaKeeper.EvictContentAsync(_context, contentHashInfo, rule.GetOnlyUnlinked());
+                var contentHashWithLastAccessTimeAndReplicaCount = ToContentHashListWithLastAccessTimeAndReplicaCount(contentHashInfo);
+                var evictionResult = await _quotaKeeper.EvictContentAsync(_context, contentHashWithLastAccessTimeAndReplicaCount, rule.GetOnlyUnlinked());
                 if (!evictionResult)
                 {
                     return evictionResult;
@@ -138,6 +139,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             return BoolResult.Success;
         }
+
+        private static ContentHashWithLastAccessTimeAndReplicaCount ToContentHashListWithLastAccessTimeAndReplicaCount(ContentEvictionInfo contentHashInfo) => new ContentHashWithLastAccessTimeAndReplicaCount(contentHashInfo.ContentHash, DateTime.UtcNow - contentHashInfo.Age, contentHashInfo.ReplicaCount, safeToEvict: true, effectiveLastAccessTime: DateTime.UtcNow - contentHashInfo.EffectiveAge);
 
         /// <summary>
         /// Evict hashes in LRU-ed order determined by remote last-access times.

@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Computes content hashes with effective last access time sorted in LRU manner.
         /// </summary>
-        IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
+        IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(
             Context context,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo);
     }

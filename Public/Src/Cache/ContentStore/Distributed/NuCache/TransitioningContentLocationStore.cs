@@ -277,7 +277,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(
             Context context,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
@@ -301,19 +301,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
 
             // Assume that EffectiveLastAccessTime will always have a value.
-            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
-
-            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
-                page => _localLocationStore.GetEffectiveLastAccessTimes(
-                            operationContext,
-                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+            var comparer = ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance;
 
             // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
-            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, getEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, getEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer);
+
+            IReadOnlyList<ContentEvictionInfo> getEffectiveLastAccessTimes(List<ContentHashWithLastAccessTimeAndReplicaCount> page)
+            {
+                return _localLocationStore.GetEffectiveLastAccessTimes(
+                        operationContext,
+                        page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)))
+                    .ThrowIfFailure();
+            }
         }
 
         /// <inheritdoc />

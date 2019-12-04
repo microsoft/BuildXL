@@ -186,12 +186,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseAdapter"/> class.
         /// </summary>
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, int redisConnectionErrorLimit = int.MaxValue)
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, int redisConnectionErrorLimit = int.MaxValue, int? retryCount = null)
         {
             _databaseFactory = databaseFactory;
             KeySpace = keySpace;
             _redisConnectionErrorLimit = redisConnectionErrorLimit;
-            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(OnRedisException), RetryStrategy.DefaultExponential);
+            if (retryCount != null)
+            {
+                _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(OnRedisException), retryCount.Value);
+            }
+            else
+            {
+                _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(OnRedisException), RetryStrategy.DefaultExponential);
+            }
         }
 
         /// <summary>

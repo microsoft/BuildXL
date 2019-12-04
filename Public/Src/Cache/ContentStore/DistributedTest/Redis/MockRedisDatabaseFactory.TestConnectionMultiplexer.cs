@@ -3,7 +3,10 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using StackExchange.Redis;
 
@@ -12,10 +15,12 @@ namespace ContentStoreTest.Distributed.Redis
     public class TestConnectionMultiplexer : IConnectionMultiplexer
     {
         private readonly IDatabase _testDatabaseAsync;
+        private readonly bool _throwConnectionExceptionOnGet;
 
-        public TestConnectionMultiplexer(IDatabase testDatabaseAsync)
+        public TestConnectionMultiplexer(IDatabase testDatabaseAsync, bool throwConnectionExceptionOnGet = false)
         {
             _testDatabaseAsync = testDatabaseAsync;
+            _throwConnectionExceptionOnGet = throwConnectionExceptionOnGet;
         }
 
         public string ClientName => throw new NotImplementedException();
@@ -83,6 +88,22 @@ namespace ContentStoreTest.Distributed.Redis
 
         public IDatabase GetDatabase(int db = -1, object asyncState = null)
         {
+            if (_throwConnectionExceptionOnGet)
+            {
+                // The required constructors are internal, using reflection to mock the connectivity issue.
+                Type exceptionType = typeof(RedisConnectionException);
+
+                var constructor = ((TypeInfo)exceptionType).DeclaredConstructors.First(
+                    c =>
+                    {
+                        var parameters = c.GetParameters();
+                        return parameters.Length == 2 && parameters[0].ParameterType == typeof(ConnectionFailureType) &&
+                               parameters[1].ParameterType == typeof(string);
+                    });
+                var result = (Exception)constructor.Invoke(new object[] {ConnectionFailureType.UnableToResolvePhysicalConnection, "UnableToResolvePhysicalConnection" });
+                throw result;
+            }
+
             return (IDatabase)_testDatabaseAsync;
         }
 

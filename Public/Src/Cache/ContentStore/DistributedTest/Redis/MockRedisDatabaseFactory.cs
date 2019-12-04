@@ -7,11 +7,11 @@ namespace ContentStoreTest.Distributed.Redis
 {
     public static class MockRedisDatabaseFactory
     {
-        public static IConnectionMultiplexer CreateConnection<T>(T testDb, T testBatch = null)
+        public static TestConnectionMultiplexer CreateConnection<T>(T testDb, T testBatch = null, bool throwConnectionExceptionOnGet = false)
             where T : class, ITestRedisDatabase
         {
             var mockDb = CreateRedisDatabase(testDb, testBatch);
-            var mockConn = new TestConnectionMultiplexer(mockDb);
+            var mockConn = new TestConnectionMultiplexer(mockDb, throwConnectionExceptionOnGet);
 
             return mockConn;
         }

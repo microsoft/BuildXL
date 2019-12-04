@@ -63,8 +63,6 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         private AbsolutePath m_frontEndCacheDirectory;
 
-        private readonly DScriptWorkspaceResolverFactory m_workspaceResolverFactory;
-
         private readonly bool m_collectMemoryAsSoonAsPossible;
 
         private LoggingContext LoggingContext => FrontEndContext.LoggingContext;
@@ -89,7 +87,7 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// Builds and filters the worksapce.
+        /// Builds and filters the workspace.
         /// </summary>
         [System.Diagnostics.ContractsLight.Pure]
         internal Workspace DoPhaseBuildWorkspace(IConfiguration configuration, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter)

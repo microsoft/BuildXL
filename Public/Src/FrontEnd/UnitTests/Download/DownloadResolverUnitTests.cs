@@ -391,7 +391,6 @@ namespace Test.BuildXL.FrontEnd.Download
 
             var statistics = new Statistics();
             var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
             var configuration = ConfigurationHelpers.GetDefaultForTesting(FrontEndContext.PathTable, AbsolutePath.Create(FrontEndContext.PathTable, dummyConfigFile));
             var resolverSettings = new ResolverSettings();
 
@@ -401,7 +400,6 @@ namespace Test.BuildXL.FrontEnd.Download
 
             using (var host = new FrontEndHostController(
                 frontEndFactory,
-                workspaceFactory,
                 new EvaluationScheduler(degreeOfParallelism: 1),
                 moduleRegistry,
                 new FrontEndStatistics(),

@@ -53,7 +53,8 @@ namespace BuildXL.FrontEnd.Script
         ///<nodoc/>
         protected IFileSystem m_fileSystem => Context.FileSystem;
 
-        private IConfiguration m_configuration;
+        ///<nodoc/>
+        protected IConfiguration m_configuration;
        
         /// <summary>
         /// Gets the configuration used for evaluating configs:

@@ -32,7 +32,7 @@ namespace BuildXL
     /// "Yet another factory" (c) that is responsible for entire front-end construction.
     /// </summary>
     /// <remarks>
-    /// This class glues together different lower level factories like <see cref="FrontEndFactory"/> and <see cref="DScriptWorkspaceResolverFactory"/>
+    /// This class glues together different lower level factories like <see cref="FrontEndFactory"/>
     /// in order to hide all this complexity.
     /// </remarks>
     public sealed class FrontEndControllerFactory : IFrontEndControllerFactory
@@ -213,8 +213,6 @@ namespace BuildXL
         {
             Contract.Requires(frontEndFactory != null && !frontEndFactory.IsSealed);
 
-            var workspaceResolverFactory = new DScriptWorkspaceResolverFactory();
-
             // Statistic should be global for all front-ends, not per an instance.
             var frontEndStatistics = statistics ?? new FrontEndStatistics();
 
@@ -229,14 +227,6 @@ namespace BuildXL
                 new ConfigurationProcessor(
                     new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
                     logger: null));
-
-            // TODO: Workspace resolvers and frontends are registered in separate factories. Consider
-            // adding a main coordinator/registry
-            RegisterKnownWorkspaceResolvers(
-                symbolTable.StringTable,
-                workspaceResolverFactory,
-                frontEndStatistics);
-
 
             frontEndFactory.AddFrontEnd(new DScriptFrontEnd(
                 frontEndStatistics,
@@ -261,46 +251,12 @@ namespace BuildXL
 
             return new FrontEndHostController(
                 frontEndFactory,
-                workspaceResolverFactory,
                 evaluationScheduler: EvaluationScheduler.Default,
                 moduleRegistry: sharedModuleRegistry,
                 frontEndStatistics: frontEndStatistics,
                 logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
                 collector: collector,
                 collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
-        }
-
-        private static void RegisterKnownWorkspaceResolvers(
-            StringTable stringTable,
-            DScriptWorkspaceResolverFactory workspaceFactory,
-            IFrontEndStatistics statistics)
-        {
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(stringTable, statistics, logger: null));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(stringTable, statistics, logger: null));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.NugetResolverKind,
-                () => new WorkspaceNugetModuleResolver(stringTable, statistics));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DownloadResolverKind,
-                () => new DownloadWorkspaceResolver());
-#if !PLATFORM_OSX
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.MsBuildResolverKind,
-                () => new MsBuildWorkspaceResolver());
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.NinjaResolverKind,
-                () => new NinjaWorkspaceResolver());
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.CMakeResolverKind,
-                () => new CMakeWorkspaceResolver());
-#endif
         }
     }
 }

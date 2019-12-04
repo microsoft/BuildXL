@@ -217,5 +217,16 @@ namespace BuildXL.FrontEnd.Sdk
                 ? hook
                 : () => { };
         }
+
+        /// <summary>
+        /// Initializes the frontends
+        /// </summary>
+        public void InitializeFrontEnds(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
+        {
+            foreach (var frontEnd in RegisteredFrontEnds)
+            {
+                frontEnd.InitializeFrontEnd(host, context, configuration);
+            }
+        }
     }
 }

@@ -23,14 +23,12 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.FrontEnd.Script.Constants;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Testing.Helper.Ambients;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using Test.BuildXL.TestUtilities;
 using Xunit.Sdk;
@@ -128,7 +126,6 @@ export function test(args: TestArguments): TestResult {{
                 frontEndStatistics, 
                 configuration, 
                 out var ambientTesting, 
-                out var workspaceFactory, 
                 out var moduleRegistry, 
                 out var frontEndFactory))
             {
@@ -139,7 +136,6 @@ export function test(args: TestArguments): TestResult {{
             using (var performanceCollector = new PerformanceCollector(TimeSpan.FromHours(1)))
             using (var frontEndHostController = new FrontEndHostController(
                     frontEndFactory,
-                    workspaceFactory,
                     new EvaluationScheduler(1),
                     moduleRegistry,
                     frontEndStatistics,
@@ -227,7 +223,6 @@ export function test(args: TestArguments): TestResult {{
             FrontEndStatistics frontEndStatistics,
             ICommandLineConfiguration configuration,
             out AmbientTesting ambientTesting,
-            out DScriptWorkspaceResolverFactory workspaceFactory,
             out ModuleRegistry moduleRegistry,
             out FrontEndFactory frontEndFactory)
         {
@@ -237,17 +232,6 @@ export function test(args: TestArguments): TestResult {{
 
             var ambientAssert = new AmbientAssert(moduleRegistry.PrimitiveTypes);
             ambientAssert.Initialize(moduleRegistry.GlobalLiteral);
-
-            workspaceFactory = new DScriptWorkspaceResolverFactory();
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DScriptResolverKind,
-                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.SourceResolverKind,
-                () => new WorkspaceSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
-            workspaceFactory.RegisterResolver(
-                KnownResolverKind.DefaultSourceResolverKind,
-                () => new WorkspaceDefaultSourceModuleResolver(frontEndContext.StringTable, frontEndStatistics));
 
             // Create the controller
             frontEndFactory = new FrontEndFactory();

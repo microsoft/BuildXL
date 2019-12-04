@@ -10,11 +10,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Utilities;
+using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.Utilities.Instrumentation.Common;
+using Test.BuildXL.FrontEnd.Workspaces.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Workspaces.Utilities;
 using TypeScript.Net.DScript;
@@ -137,13 +141,14 @@ namespace Test.DScript.Workspaces
                 includePreludeWithName: PreludeName,
                 cancellationToken: m_cancellationToken);
 
-            var factory = new WorkspaceResolverFactory<IWorkspaceModuleResolver>();
-            factory.RegisterResolver(KnownResolverKind.DScriptResolverKind, conf => new SimpleWorkspaceSourceModuleResolver(conf));
+            var frontEndFactory = new FrontEndFactory();
+            frontEndFactory.AddFrontEnd(new SimpleDScriptFrontEnd());
+            frontEndFactory.TrySeal(new LoggingContext("test", "Test"));
 
             var result = WorkspaceProvider.TryCreate(
                 mainConfigurationWorkspace: null,
                 workspaceStatistics: new WorkspaceStatistics(),
-                workspaceResolverFactory: factory,
+                frontEndFactory,
                 configuration: workspaceConfiguration,
                 pathTable: PathTable,
                 symbolTable: new SymbolTable(),

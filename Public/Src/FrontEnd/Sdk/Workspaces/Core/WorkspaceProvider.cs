@@ -6,6 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -146,13 +148,13 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        public static bool TryCreate<T>(
+        public static bool TryCreate(
             [CanBeNull]Workspace mainConfigurationWorkspace,
             IWorkspaceStatistics workspaceStatistics,
-            IWorkspaceResolverFactory<T> workspaceResolverFactory,
-            WorkspaceConfiguration configuration,
+            FrontEndFactory frontEndFactory,
             PathTable pathTable,
             SymbolTable symbolTable,
+            WorkspaceConfiguration configuration,
             bool useDecorator,
             bool addBuiltInPreludeResolver,
             out IWorkspaceProvider workspaceProvider,
@@ -164,10 +166,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 AbsolutePath.Invalid;
 
             if (!TryCreateResolvers(
-                workspaceResolverFactory, 
+                frontEndFactory,
                 configuration,
+                pathTable,
                 mainFile, 
-                pathTable, 
                 addBuiltInPreludeResolver,
                 out var resolvers, 
                 out failures))
@@ -508,11 +510,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 pathTable: PathTable);
         }
 
-        private static bool TryCreateResolvers<T>(
-            IWorkspaceResolverFactory<T> workspaceResolverFactory, 
+        private static bool TryCreateResolvers(
+            [NotNull] FrontEndFactory frontEndFactory,
             WorkspaceConfiguration configuration,
-            AbsolutePath mainConfigurationFile,
             PathTable pathTable,
+            AbsolutePath mainConfigurationFile,
             bool addBuiltInPreludeResolver,
             out List<IWorkspaceModuleResolver> resolvers,
             out IEnumerable<Failure> failures)
@@ -537,14 +539,19 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             foreach (var resolverConfiguration in resolverSettings)
             {
-                var maybeResolver = workspaceResolverFactory.TryGetResolver(resolverConfiguration);
-                if (!maybeResolver.Succeeded)
+                var kind = resolverConfiguration.Kind;
+                if (!frontEndFactory.TryGetFrontEnd(kind, out var frontEnd))
                 {
-                    resolverFailures.Add(maybeResolver.Failure);
+                    resolverFailures.Add(new WorkspaceModuleResolverGenericInitializationFailure(kind));
+                    continue;
+                }
+
+                if (!frontEnd.TryCreateWorkspaceResolver(resolverConfiguration, out var resolver))
+                {
+                    resolverFailures.Add(new WorkspaceModuleResolverGenericInitializationFailure(resolverConfiguration.Kind));
                 }
                 else
                 {
-                    var resolver = (IWorkspaceModuleResolver)maybeResolver.Result;
                     resolvers.Add(resolver);
                 }
             }

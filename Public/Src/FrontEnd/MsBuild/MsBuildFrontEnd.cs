@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 
@@ -13,11 +14,8 @@ namespace BuildXL.FrontEnd.MsBuild
     /// <summary>
     /// Resolver frontend that can schedule MsBuild projects using the static graph API from MsBuild.
     /// </summary>
-    public sealed class MsBuildFrontEnd : IFrontEnd
+    public sealed class MsBuildFrontEnd : FrontEnd<MsBuildWorkspaceResolver>
     {
-        private FrontEndContext m_context;
-        private FrontEndHost m_host;
-
         /// <summary>
         /// Used to make sure all MsBuild resolvers are configured to load the MsBuild assemblies
         /// from the same locations
@@ -30,27 +28,15 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <nodoc />
         public const string Name = MsBuildWorkspaceResolver.MsBuildResolverName;
 
-        /// <nodoc/>
-        public MsBuildFrontEnd()
-        {
-        }
+        /// <inheritdoc/>
+        public override IReadOnlyCollection<string> SupportedResolvers => new[] { MsBuildWorkspaceResolver.MsBuildResolverName };
 
         /// <inheritdoc/>
-        public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration configuration)
+        public override IResolver CreateResolver(string kind)
         {
-            m_host = host;
-            m_context = context;
+            return new MsBuildResolver(Host, Context, Name);
         }
-
-        /// <inheritdoc/>
-        public IReadOnlyCollection<string> SupportedResolvers => new[] { MsBuildWorkspaceResolver.MsBuildResolverName };
-
-        /// <inheritdoc/>
-        public IResolver CreateResolver(string kind)
-        {
-            return new MsBuildResolver(m_host, m_context, Name);
-        }
-
+        
         /// <summary>
         /// Validates that all resolvers are configured such that they all load the required MsBuild assemblies from the same
         /// locations
@@ -72,11 +58,6 @@ namespace BuildXL.FrontEnd.MsBuild
                 // Order matters, since a different order may result in different dlls found
                 return m_loadedMsBuildAssemblyLocations.SequenceEqual(assemblyPathsToLoad);
             }
-        }
-
-        /// <inheritdoc />
-        public void LogStatistics(Dictionary<string, long> statistics)
-        {
         }
     }
 }

@@ -26,26 +26,15 @@ namespace Test.DScript.Workspaces.Utilities
     /// </summary>
     public sealed class SimpleWorkspaceSourceModuleResolver : IWorkspaceModuleResolver
     {
-        private readonly Dictionary<ModuleDescriptor, ModuleDefinition> m_moduleDefinitions;
+        private Dictionary<ModuleDescriptor, ModuleDefinition> m_moduleDefinitions;
 
-        private readonly IFileSystem m_fileSystem;
+        private IFileSystem m_fileSystem;
 
         /// <inheritdoc />
         public string Kind => KnownResolverKind.DScriptResolverKind;
 
         /// <inheritdoc />
         public string Name { get; private set; }
-
-        /// <nodoc/>
-        public SimpleWorkspaceSourceModuleResolver(IResolverSettings resolverSettings)
-        {
-            var sourceResolverSettings = resolverSettings as SimpleSourceResolverSettings;
-
-            Contract.Assert(sourceResolverSettings != null);
-            Name = resolverSettings.Name;
-            m_moduleDefinitions = sourceResolverSettings.ModuleDefinitions;
-            m_fileSystem = sourceResolverSettings.FileSystem;
-        }
 
         /// <inheritdoc />
         public bool TryInitialize(
@@ -54,6 +43,13 @@ namespace Test.DScript.Workspaces.Utilities
             [NotNull] IConfiguration configuration,
             [NotNull] IResolverSettings resolverSettings)
         {
+            var sourceResolverSettings = resolverSettings as SimpleSourceResolverSettings;
+
+            Contract.Assert(sourceResolverSettings != null);
+            Name = resolverSettings.Name;
+            m_moduleDefinitions = sourceResolverSettings.ModuleDefinitions;
+            m_fileSystem = sourceResolverSettings.FileSystem;
+
             return true;
         }
 

@@ -120,7 +120,6 @@ namespace BuildXL.FrontEnd.Core
         /// </summary>
         public FrontEndHostController(
             FrontEndFactory frontEndFactory,
-            DScriptWorkspaceResolverFactory workspaceResolverFactory,
             EvaluationScheduler evaluationScheduler,
             IModuleRegistry moduleRegistry,
             IFrontEndStatistics frontEndStatistics,
@@ -138,7 +137,6 @@ namespace BuildXL.FrontEnd.Core
 
             // Temporary initialization
             m_frontEndFactory = frontEndFactory;
-            m_workspaceResolverFactory = workspaceResolverFactory;
             m_evaluationScheduler = evaluationScheduler;
             ModuleRegistry = moduleRegistry;
             m_frontEndStatistics = frontEndStatistics;
@@ -1080,7 +1078,6 @@ namespace BuildXL.FrontEnd.Core
 
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
-                new DScriptWorkspaceResolverFactory(),
                 new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
@@ -1123,17 +1120,7 @@ namespace BuildXL.FrontEnd.Core
                 return false;
             }
 
-            // Most resolvers will ensure the workspaceresolverfactory is initialized, so do that here.
-            // The factory context may be not set if the controller is not using the workspace, so we set that here
-            if (!m_workspaceResolverFactory.IsInitialized)
-            {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration);
-            }
-
-            foreach (IFrontEnd frontEnd in m_frontEndFactory.RegisteredFrontEnds)
-            {
-                frontEnd.InitializeFrontEnd(this, FrontEndContext, configuration);
-            }
+            m_frontEndFactory.InitializeFrontEnds(this, FrontEndContext, configuration);
 
             // For each resolver settings, tries to find a front end for it.
             var resolvers = new List<IResolver>(resolverConfigurations.Count);
@@ -1148,18 +1135,17 @@ namespace BuildXL.FrontEnd.Core
                     return false;
                 }
 
-                // We ask the front end we found to create a resolver to handle the settings
                 var resolver = frontEndInstance.CreateResolver(resolverConfiguration.Kind);
 
-                var maybeWorkspaceResolver = m_workspaceResolverFactory.TryGetResolver(resolverConfiguration);
-                if (!maybeWorkspaceResolver.Succeeded)
+                // We ask the frontend we found to create a workspace resolver and a resolver to handle the settings
+                if (!frontEndInstance.TryCreateWorkspaceResolver(resolverConfiguration, out var workspaceResolver))
                 {
                     // Error should have been reported.
                     return false;
                 }
 
                 resolvers.Add(resolver);
-                initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result);
+                initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, workspaceResolver);
             }
 
             var results = await TaskUtilities.SafeWhenAll(initResolverTasks);
@@ -1191,24 +1177,21 @@ namespace BuildXL.FrontEnd.Core
         {
             var workspaceConfiguration = GetWorkspaceConfiguration(configuration);
 
-            // This is the point where we have all the objects we need to complete setting up the workspace factory
-            if (!m_workspaceResolverFactory.IsInitialized)
-            {
-                m_workspaceResolverFactory.Initialize(FrontEndContext, this, configuration);
-            }
-
             return TryGetWorkspaceProvider(workspaceConfiguration, out workspaceProvider, out failures);
         }
 
-        private bool TryGetWorkspaceProvider(WorkspaceConfiguration workspaceConfiguration, out IWorkspaceProvider workspaceProvider, out IEnumerable<Failure> failures)
+        private bool TryGetWorkspaceProvider(
+            WorkspaceConfiguration workspaceConfiguration, 
+            out IWorkspaceProvider workspaceProvider, 
+            out IEnumerable<Failure> failures)
         {
             return WorkspaceProvider.TryCreate(
                 GetMainConfigWorkspace(),
                 m_frontEndStatistics,
-                m_workspaceResolverFactory,
-                workspaceConfiguration,
+                m_frontEndFactory,
                 FrontEndContext.PathTable,
                 FrontEndContext.SymbolTable,
+                workspaceConfiguration,
                 useDecorator: true,
                 addBuiltInPreludeResolver: true,
                 workspaceProvider: out workspaceProvider,

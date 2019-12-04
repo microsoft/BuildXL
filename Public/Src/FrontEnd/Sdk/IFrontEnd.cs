@@ -3,8 +3,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.FrontEnd.Workspaces;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using JetBrains.Annotations;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Sdk
@@ -33,6 +34,12 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         [NotNull]
         IResolver CreateResolver([NotNull]string kind);
+
+        /// <summary>
+        /// Creates a resolver for a given kind. The resolver must be part of the front end
+        /// supported resolvers.
+        /// </summary>
+        bool TryCreateWorkspaceResolver([NotNull] IResolverSettings resolverSettings, [NotNull] out IWorkspaceModuleResolver workspaceResolver);
 
         /// <summary>
         /// Allows a frontend to log its statistics after evaluation

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -9,6 +10,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Nuget
@@ -20,6 +22,8 @@ namespace BuildXL.FrontEnd.Nuget
     {
         private readonly IDecorator<EvaluationResult> m_evaluationDecorator;
         private SourceFileProcessingQueue<bool> m_sourceFileProcessingQueue;
+
+        private ConcurrentDictionary<IResolverSettings, WorkspaceNugetModuleResolver> m_workspaceResolverCache = new ConcurrentDictionary<IResolverSettings, WorkspaceNugetModuleResolver>();
 
         /// <nodoc/>
         public NugetFrontEnd(
@@ -68,6 +72,25 @@ namespace BuildXL.FrontEnd.Nuget
                 m_sourceFileProcessingQueue,
                 Logger,
                 m_evaluationDecorator);
+        }
+
+        /// <inheritdoc/>
+        public bool TryCreateWorkspaceResolver(IResolverSettings resolverSettings, out IWorkspaceModuleResolver workspaceResolver)
+        {
+            workspaceResolver = m_workspaceResolverCache.GetOrAdd(
+                resolverSettings,
+                (settings) =>
+                {
+                    var resolver = new WorkspaceNugetModuleResolver(Context.StringTable, FrontEndStatistics);
+                    if (resolver.TryInitialize(FrontEndHost, Context, Configuration, settings))
+                    {
+                        return resolver;
+                    }
+
+                    return null;
+                });
+
+            return workspaceResolver != null;
         }
 
         /// <inheritdoc />

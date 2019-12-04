@@ -27,7 +27,7 @@ using LineInfo = TypeScript.Net.Utilities.LineInfo;
 namespace BuildXL.FrontEnd.Script
 {
     /// <summary>
-    /// Resolver for DScript source kinds. It heavily relies on a <see cref="DScriptWorkspaceResolverFactory"/>
+    /// Resolver for DScript source kinds. It heavily relies on a <see cref="WorkspaceSourceModuleResolver"/>
     /// to handle package configuration interpretation and determining package ownership. The factory passed at construction time must
     /// contain a registered workspace resolver that can handle source and default source kinds. This is a temporary stage while:
     /// - IResolver contains package-related logic.

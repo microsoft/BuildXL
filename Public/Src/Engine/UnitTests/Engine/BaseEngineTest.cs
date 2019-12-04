@@ -246,14 +246,6 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 var frontEndStatistics = new FrontEndStatistics();
                 var moduleRegistry = new ModuleRegistry(symbolTable);
 
-                var workspaceFactory = new DScriptWorkspaceResolverFactory();
-                workspaceFactory.RegisterResolver(KnownResolverKind.SourceResolverKind,
-                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-                workspaceFactory.RegisterResolver(KnownResolverKind.DScriptResolverKind,
-                    () => new WorkspaceSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-                workspaceFactory.RegisterResolver(KnownResolverKind.DefaultSourceResolverKind,
-                    () => new WorkspaceDefaultSourceModuleResolver(pathTable.StringTable, frontEndStatistics, ParseAndEvaluateLogger));
-
                 var frontEndFactory = FrontEndFactory.CreateInstanceForTesting(
                     () => new ConfigurationProcessor(new FrontEndStatistics(), ParseAndEvaluateLogger),
                     new DScriptFrontEnd(frontEndStatistics, ParseAndEvaluateLogger));
@@ -261,7 +253,6 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 var evaluationScheduler = new EvaluationScheduler(degreeOfParallelism: 1);
                 return new FrontEndHostController(
                     frontEndFactory,
-                    workspaceFactory,
                     evaluationScheduler,
                     moduleRegistry,
                     new FrontEndStatistics(),

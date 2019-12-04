@@ -135,10 +135,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         internal MsBuildSchedulingResult ScheduleAll(MsBuildResolverSettings resolverSettings, IEnumerable<ProjectWithPredictions> projectsWithPredictions, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
         {
             var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
-            var workspaceFactory = CreateWorkspaceFactoryForTesting(FrontEndContext, ParseAndEvaluateLogger);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(workspaceFactory, ParseAndEvaluateLogger);
+            var frontEndFactory = CreateFrontEndFactoryForEvaluation(ParseAndEvaluateLogger);
 
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, workspaceFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
                 resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars, out _);
 

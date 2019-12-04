@@ -40,6 +40,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessChildrenSurvivedTooMany = 43,
         PipProcessMissingExpectedOutputOnCleanExit = 44,
         PipProcessOutputPreparationFailed = 46,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
 
 
         PipProcessError = 64,
@@ -62,6 +63,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessChangeAffectedInputsWrittenFileCreationFailed = 90,
 
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
+        LogPhaseDuration = 93,
 
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
         PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,
@@ -108,6 +110,7 @@ namespace BuildXL.Processes.Tracing
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         LogMismatchedDetoursVerboseCount = 2927,
         LogDetoursMaxHeapSize = 2928,
+        MoreBytesWrittenThanBufferSize = 2930,
 
         //DominoProcessesStart = 4400,
         PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds = 4401,
@@ -130,7 +133,7 @@ namespace BuildXL.Processes.Tracing
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
-        
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

@@ -1143,12 +1143,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
-        public int MachineRamUtilizationMB;
+        public int RamUsedMb;
 
         /// <summary>
         /// Available Ram in MB
         /// </summary>
-        public int MachineAvailableRamMB;
+        public int RamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
@@ -1160,7 +1160,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The machine's total commit in MB
         /// </summary>
-        public int CommitTotalMB;
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
 
         /// <summary>
         /// CPU utilization of the current process
@@ -1208,9 +1213,14 @@ namespace BuildXL.Scheduler.Tracing
         public int LookupRunning;
 
         /// <summary>
-        /// Number of externally running processes
+        /// Number of processes running under PipExecutor
         /// </summary>
-        public int ExternalProcesses;
+        public int RunningPipExecutorProcesses;
+
+        /// <summary>
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
+        /// </summary>
+        public int RunningProcesses;
 
         /// <summary>
         /// Number of pips succeeded for each type
@@ -1274,7 +1284,8 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(LookupWaiting);
             writer.Write(LookupRunning);
 
-            writer.Write(ExternalProcesses);
+            writer.Write(RunningPipExecutorProcesses);
+            writer.Write(RunningProcesses);
 
             writer.Write(PipsSucceededAllTypes.Length);
             foreach (var pipsSucceeded in PipsSucceededAllTypes)
@@ -1282,10 +1293,11 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(pipsSucceeded);
             }
 
-            writer.Write(MachineRamUtilizationMB);
-            writer.Write(MachineAvailableRamMB);
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
             writer.Write(CommitPercent);
-            writer.Write(CommitTotalMB);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
         }
 
         /// <inheritdoc />
@@ -1323,7 +1335,8 @@ namespace BuildXL.Scheduler.Tracing
             LookupWaiting = reader.ReadInt32();
             LookupRunning = reader.ReadInt32();
 
-            ExternalProcesses = reader.ReadInt32();
+            RunningPipExecutorProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
 
             var pipTypeLength = reader.ReadInt32();
             PipsSucceededAllTypes = new long[pipTypeLength];
@@ -1332,10 +1345,11 @@ namespace BuildXL.Scheduler.Tracing
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
 
-            MachineRamUtilizationMB = reader.ReadInt32();
-            MachineAvailableRamMB = reader.ReadInt32();
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
             CommitPercent = reader.ReadInt32();
-            CommitTotalMB = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
         }
     }
 

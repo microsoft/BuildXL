@@ -40,6 +40,8 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 ## Build Execution
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md)
 * [Cache Algorithm]() TODO: author
+* [Graph Reuse](Wiki/Advanced-Features/Graph-Reuse.md)
+* [User Profile Redirection](Wiki/Advanced-Features/User-Profile-Redirection.md) TODO: groom
 * [Content and Metadata Cache](../Public/Src/Cache/README.md) TODO: groom
 * [Paged Hashes](Specs/PagedHash.md) TODO: groom
 * [Filesystem modes and enumerations](Wiki/Advanced-Features/Filesystem-modes-and-Enumerations.md) TODO: groom
@@ -54,6 +56,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Service Pips](Wiki/Service-Pips.md)
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
 * [Determinism Probe](Wiki/Advanced-Features/Determinism-Probe.md)
+* [Source Change Affected Inputs](Wiki/Advanced-Features/Source-Change-Affected-Inputs.md)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)
@@ -62,8 +65,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md)
 * [Logging Options](Wiki/How-To-Run-BuildXL/Logging-Options.md)
 * [Execution Log](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md)
-* [Execution Analyzer](wiki/Advanced-Features/Execution-Analyzer.md) 
-* [Cache Miss Analysis](wiki/Advanced-Features/Cache-Miss-Analysis.md)
+* [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) 
+* [XLG Debugger](Wiki/Advanced-Features/XLG-Debugger/INDEX.md) 
+* [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
 
 ## Troubleshooting
 * [DX Error Codes](Wiki/Error-Codes)

@@ -67,6 +67,7 @@ function runSingleXunitInstance(args: Arguments): DerivedFile[] {
             consoleOutput: p`${outDir}/${args.testAssembly.name.concat('.xunit-out.txt')}`,
             description: `[XUnit] ${args.testAssembly.name} (${traitHint})`,
             environmentVariables: [
+                {name: "COMPlus_DefaultStackSize", value: "200000"},
                 {name: "TestOutputDir", value: outDir},
                 // TODO:
                 // In windows we have a whitelist of default variables that get passed through and a default set of untracked

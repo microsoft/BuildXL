@@ -288,7 +288,7 @@ namespace BuildXL.App.Tracing
 
                 if (perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.HitLowMemorySmell)
                 {
-                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.LowMemory(context, perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.MachineMinimumAvailablePhysicalMB));
+                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.HitLowMemorySmell(context));
                 }
 
                 if (config.Sandbox.LogProcesses)
@@ -600,15 +600,6 @@ namespace BuildXL.App.Tracing
             EventTask = (int)Tasks.HostApplication,
             Message = "One or more event-write failures occurred. ETW trace sessions (including produced trace files) may be incomplete.")]
         public abstract void EventWriteFailuresOccurred(LoggingContext context);
-
-        [GeneratedEvent(
-            (int)EventId.DisplayHelpLink,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.HostApplication,
-            Message = "{helpLinkPrefix} {helpLink}")]
-        public abstract void DisplayHelpLink(LoggingContext context, string helpLinkPrefix, string helpLink);
 
         [GeneratedEvent(
             (int)EventId.CoreDumpNoPermissions,

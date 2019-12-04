@@ -520,6 +520,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
 
         [GeneratedEvent(
+           (ushort)EventId.CacheDescriptorMissForAugmentedContentFingerprint,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.Diagnostics,
+           EventTask = (ushort)Tasks.PipExecutor,
+           Message = "[{pipDescription}] Augmented weak fingerprint miss: A pip cache descriptor was not found for content fingerprint '{contentFingerprint}'.")]
+        internal abstract void TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
+
+        [GeneratedEvent(
             (ushort)EventId.InvalidCacheDescriptorForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -1249,8 +1258,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Cancelled process execution due to exceeding resource threshold. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Cancel time (ms): {cancelMilliseconds}")]
-        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int cancelMilliseconds);
+            Message = "[{pipDescription}] Cancelled process execution due to exceeding resource threshold. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Peak commit memory: {peakCommitMb} MB. Expected commit memory: {expectedCommitMb} MB. Cancel time (ms): {cancelMilliseconds}")]
+        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int peakCommitMb, int expectedCommitMb, int cancelMilliseconds);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion,
@@ -1320,7 +1329,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.ProcessStatus,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "Processes: {pipsSucceeded} succeeded, {pipsFailed} failed, {pipsSkippedDueToFailedDependencies} skipped, {pipsRunning} running, {pipsReady} ready, {pipsWaiting} waiting ({pipsWaitingOnSemaphore} on semaphore)")]
@@ -1528,7 +1537,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.ProcessStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1546,7 +1555,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.ProcessEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -1562,7 +1571,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.CopyFileStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1578,7 +1587,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.CopyFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -1588,7 +1597,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.WriteFileStart,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Start,
@@ -1604,7 +1613,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)EventId.WriteFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
             EventTask = (ushort)Tasks.PipExecutor,
             EventOpcode = (byte)EventOpcode.Stop,
@@ -2860,6 +2869,25 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipValueId);
 
         [GeneratedEvent(
+            (int)EventId.InvalidInputSinceInputIsOutputWithNoProducer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot be added because its input '{inputFile}' is specified as an output file, but there is no pip producing the output file")]
+        public abstract void ScheduleFailAddPipInvalidInputSinceInputIsOutputWithNoProducer(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string inputFile);
+
+        [GeneratedEvent(
             (int)EventId.InvalidTempDirectoryInvalidPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -3547,6 +3575,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void JournalProcessingStatisticsForSchedulerTelemetry(LoggingContext context, string scanningJournalStatus, IDictionary<string, long> stats);
 
         [GeneratedEvent(
+            (int)EventId.ProcessRetries,
+            EventGenerators = EventGenerators.TelemetryOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessRetries PipsSucceedingAfterUserRetry: {pipsSucceedingAfterUserRetry} and PipsFailingAfterUserRetry: {pipsFailingAfterLastUserRetry}")]
+        public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
+
+        [GeneratedEvent(
+            (int)EventId.ProcessPattern,
+            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessPattern {pipPropertyImpactedPips}")]
+        public abstract void ProcessPattern(LoggingContext context, string pipPropertyImpactedPips, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
             (int)EventId.IncrementalSchedulingNewlyPresentFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -3606,8 +3652,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = "Artifact changes inferred by journal scanning: Newly added files: {0} | Newly added directories: {1} | Changed static files: {2} | Changed dynamically observed files (possibly path probes): {3} | Changed dynamically observed enumeration memberships: {4} | Perpetually dirty pips: {5}")]
-        public abstract void IncrementalSchedulingArtifactChangesCounters(LoggingContext context, long newlyAddedFiles, long newlyAddedDirectories, long changedStaticFiles, long changedDynamicallyObservedFiles, long changedDynamicallyObservedEnumerationMembership, long perpetuallyDirtyPips);
+            Message = "Artifact changes inferred by journal scanning: Newly added files: {newlyAddedFiles} | Newly added directories: {newlyAddedDirectories} | Changed static files: {changedStaticFiles} | Changed dynamically read files: {changedDynamicallyObservedFiles} | Changed dynamically probed files: {changedDynamicallyProbedFiles} | Changed dynamically observed enumeration memberships: {changedDynamicallyObservedEnumerationMembership} | Perpetually dirty pips: {perpetuallyDirtyPips}")]
+        public abstract void IncrementalSchedulingArtifactChangesCounters(LoggingContext context, long newlyAddedFiles, long newlyAddedDirectories, long changedStaticFiles, long changedDynamicallyObservedFiles, long changedDynamicallyProbedFiles, long changedDynamicallyObservedEnumerationMembership, long perpetuallyDirtyPips);
 
         [GeneratedEvent(
             (int)EventId.IncrementalSchedulingArtifactChangeSample,
@@ -3777,8 +3823,8 @@ namespace BuildXL.Scheduler.Tracing
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
            Keywords = (int)Keywords.UserMessage,
-           Message = "Dirty pips due to changes in dynamic observation after journal scan: Dynamic paths: {dynamicPathCount} | Dynamic path enumerations: {dynamicPathEnumerationCount} | Elapsed time: {elapsedMs}ms")]
-        public abstract void IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(LoggingContext context, int dynamicPathCount, int dynamicPathEnumerationCount, long elapsedMs);
+           Message = "Dirty pips due to changes in dynamic observation after journal scan: Dynamic read paths: {dynamicPathCount} | Dynamic probed paths: {dynamicProbeCount} | Dynamic path enumerations: {dynamicPathEnumerationCount} | Elapsed time: {elapsedMs}ms")]
+        public abstract void IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(LoggingContext context, int dynamicPathCount, int dynamicProbeCount, int dynamicPathEnumerationCount, long elapsedMs);
 
         [GeneratedEvent(
            (int)EventId.IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan,
@@ -3788,6 +3834,33 @@ namespace BuildXL.Scheduler.Tracing
            Keywords = (int)Keywords.UserMessage,
            Message = "Dirty pips belonging to other pip graphs after journal scan: Pips: {pipCount} | Elapsed time: {elapsedMs}ms")]
         public abstract void IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan(LoggingContext context, int pipCount, long elapsedMs);
+
+        [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsAfterLoad,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsAfterLoad(LoggingContext context, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsAfterScan,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsAfterScan(LoggingContext context, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsEnd,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsEnd(LoggingContext context, IDictionary<string, long> stats);
 
         [GeneratedEvent(
             (ushort)EventId.ServicePipStarting,
@@ -4317,13 +4390,31 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
         [GeneratedEvent(
-            (ushort)EventId.LowMemory,
+            (ushort)EventId.LowRamMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = "Machine ran out of physical ram and had to fall back to the page file: {machineAvailablePhysicalMb} MB - {machineRamUsagePercentage}%.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LowRamMemory(LoggingContext context, int machineAvailablePhysicalMb, int machineRamUsagePercentage);
+
+        [GeneratedEvent(
+            (ushort)EventId.LowCommitMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = "Machine ran out of commit memory: {machineAvailableCommitMb} MB - {machineCommitUsagePercentage}%.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LowCommitMemory(LoggingContext context, int machineAvailableCommitMb, int machineCommitUsagePercentage);
+
+        [GeneratedEvent(
+            (ushort)EventId.HitLowMemorySmell,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
             Message = "Machine ran out of physical ram and had to fall back to the page file. This can dramatically impact build performance. Either too much concurrency was used during the build or the memory throttling options were not effective. Try adjusting the following options: /maxproc, /maxRamUtilizationPercentage, /minAvailableRamMb. See verbose help text for details: {MainExecutableName} /help:verbose",
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void LowMemory(LoggingContext context, long machineMinimumAvailablePhysicalMB);
+        public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
             (int)EventId.InvalidSharedOpaqueDirectoryDueToOverlap,
@@ -4462,7 +4553,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.FailedToAddFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Engine,
             Message = "[{pipDescription}] Unable to add the pip from fragment '{fragmentName}'.")]
         public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);
@@ -4527,8 +4618,17 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
-        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, int numProcesses, int expectedDurationSec, int actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, ExpectedCommitUsageMb: {expectedCommitUsageMb}, PeakCommitUsageMb: {peakCommitUsageMb}")]
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int expectedCommitUsageMb, int peakCommitUsageMb);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Caught OverflowException in ExecutePipStep: {exception}")]
+        internal abstract void ExecutePipStepOverflowFailure(LoggingContext loggingContext, string exception);
     }
 }
 #pragma warning restore CA1823 // Unused field

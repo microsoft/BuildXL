@@ -109,7 +109,7 @@ namespace BuildXL.Execution.Analyzer
 
                 processPipExecPerformance.UserTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.UserTime);
                 processPipExecPerformance.KernelTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.KernelTime);
-                processPipExecPerformance.PeakMemoryUsage = performance.MemoryCounters.PeakWorkingSet;
+                processPipExecPerformance.PeakMemoryUsageMb = performance.MemoryCounters.PeakWorkingSetMb;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
                 processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()
@@ -334,9 +334,9 @@ namespace BuildXL.Execution.Analyzer
                 Time = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.Time),
                 CpuPercent = data.CpuPercent,
                 RamPercent = data.RamPercent,
-                MachineRamUtilizationMB = data.MachineRamUtilizationMB,
+                MachineRamUtilizationMB = data.RamUsedMb,
                 CommitPercent = data.CommitPercent,
-                CommitTotalMB = data.CommitTotalMB,
+                CommitTotalMB = data.CommitUsedMb,
                 ProcessCpuPercent = data.ProcessCpuPercent,
                 ProcessWorkingSetMB = data.ProcessWorkingSetMB,
                 CpuWaiting = data.CpuWaiting,
@@ -346,7 +346,8 @@ namespace BuildXL.Execution.Analyzer
                 IoRunning = data.IoRunning,
                 LookupWaiting = data.LookupWaiting,
                 LookupRunning = data.LookupRunning,
-                ExternalProcesses = data.ExternalProcesses,
+                RunningPipExecutorProcesses = data.RunningPipExecutorProcesses,
+                RunningProcesses = data.RunningProcesses,
                 LimitingResource = (ExecutionSampler_LimitingResource)(data.LimitingResource + 1),
                 UnresponsivenessFactor = data.UnresponsivenessFactor,
                 ProcessPipsPending = data.ProcessPipsPending,

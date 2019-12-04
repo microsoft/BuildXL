@@ -41,6 +41,9 @@ message AttachCompletionInfo
 
     // The available RAM on the worker
     int32 AvailableRamMb = 4;
+
+    // The available commit on the worker
+    int32 AvailableCommitMb = 5;
 }
 
 // Defines information about a completed pip and its outputs
@@ -164,11 +167,14 @@ message SinglePipBuildRequest
     // The execution step requested
     int32 Step = 5;
 
-    /// The expected RAM usage of the pip
+    // The expected RAM usage of the pip
     int32 ExpectedRamUsageMb = 6;
+    
+    // The expected commit usage of the pip
+    int32 ExpectedCommitUsageMb = 7;
 
     // Sequence number for deduplicating worker calls
-    int32 SequenceNumber = 7;
+    int32 SequenceNumber = 8;
 }
 
 message FileArtifactKeyedHash
@@ -206,6 +212,9 @@ message FileArtifactKeyedHash
 
     // The directory artifacts which contain the file
     repeated GrpcDirectoryArtifact AssociatedDirectories = 9;
+
+    // Whether the File is affected by the source code changes
+    bool IsSourceAffected = 10;
 }
 
 message GrpcDirectoryArtifact

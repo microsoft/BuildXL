@@ -32,7 +32,16 @@ namespace BuildXL.Pips
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
 
         /// <nodoc />
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
+
+        /// <nodoc />
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedEnumerations;
+
+        /// <nodoc />
+        public bool HasDynamicObservations =>
+            DynamicallyObservedFiles.Length > 0
+            || DynamicallyProbedFiles.Length > 0
+            || DynamicallyObservedEnumerations.Length > 0;
 
         /// <nodoc />
         public PipResult(
@@ -40,16 +49,19 @@ namespace BuildXL.Pips
             PipExecutionPerformance performanceInfo,
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations)
         {
             Contract.Requires(!status.IndicatesExecution() == (performanceInfo == null));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
 
             Status = status;
             PerformanceInfo = performanceInfo;
             MustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty;
             DynamicallyObservedFiles = dynamicallyObservedFiles;
+            DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
         }
 
@@ -64,6 +76,7 @@ namespace BuildXL.Pips
                 status,
                 PipExecutionPerformance.CreatePoint(status),
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }
@@ -81,6 +94,7 @@ namespace BuildXL.Pips
                 PipExecutionPerformance.Create(status, executionStart),
                 mustBeConsideredPerpetuallyDirty,
                 ReadOnlyArray<AbsolutePath>.Empty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }
 
@@ -94,6 +108,7 @@ namespace BuildXL.Pips
                 status,
                 null,
                 mustBeConsideredPerpetuallyDirty,
+                ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty,
                 ReadOnlyArray<AbsolutePath>.Empty);
         }

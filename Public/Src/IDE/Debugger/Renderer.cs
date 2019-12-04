@@ -17,9 +17,9 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
-using static BuildXL.FrontEnd.Script.Debugger.Matcher;
 
 namespace BuildXL.FrontEnd.Script.Debugger
 {
@@ -144,49 +144,48 @@ namespace BuildXL.FrontEnd.Script.Debugger
                 return customResult;
             }
 
-            return Match(obj, new CaseMatcher<ObjectInfo>[]
-                {
-                    Case<ScopeLocals>(scope => new ObjectInfo(LocalsScopeName, null, Lazy.Create(() => GetLocalsForStackEntry(scope.EvalState, scope.FrameIndex)))),
-                    Case<ScopePipGraph>(scope => PipGraphInfo(scope.Graph).WithPreview(PipGraphScopeName)),
-                    Case<ScopeAllModules>(scope => ArrayObjInfo(scope.EvaluatedModules.ToArray()).WithPreview(EvaluatedModulesScopeName)),
-                    Case<IModuleAndContext>(mc => GetObjectInfo(mc.Tree.RootContext, mc.Module)),
-                    Case<ObjectInfo>(objInf => objInf),
-                    Case<IPipGraph>(graph => PipGraphInfo(graph)),
-                    Case<Pip>(pip => GenericObjectInfo(pip, $"<{pip.PipType}>")),
-                    Case<PipProvenance>(prov => ProvenanceInfo(prov)),
-                    Case<EnvironmentVariable>(envVar => EnvironmentVariableInfo(envVar)),
-                    Case<PipFragment>(pipFrag => PipFragmentInfo(context, pipFrag)),
-                    Case<Thunk>(thunk => thunk.Value != null ? GetObjectInfo(context, thunk.Value) : new ObjectInfo("<not evaluated>")),
-                    Case<FunctionLikeExpression>(lambda => LambdaInfo(lambda)),
-                    Case<Closure>(cls => LambdaInfo(cls.Function)),
-                    Case<SymbolAtom>(sym => new ObjectInfo(sym.ToString(StringTable))),
-                    Case<StringId>(id => new ObjectInfo(id.ToString(StringTable))),
-                    Case<PipId>(id => new ObjectInfo($"{id.Value}")),
-                    Case<UndefinedLiteral>(_ => new ObjectInfo("undefined", UndefinedLiteral.Instance)),
-                    Case<UndefinedValue>(_ => new ObjectInfo("undefined", UndefinedValue.Instance)),
-                    Case<AbsolutePath>(path => new ObjectInfo($"p`{path.ToString(PathTable)}`", path)),
-                    Case<RelativePath>(path => new ObjectInfo($"r`{path.ToString(StringTable)}`", path)),
-                    Case<PathAtom>(atom => new ObjectInfo($"a`{atom.ToString(StringTable)}`", atom)),
-                    Case<FileArtifact>(file => new ObjectInfo($"f`{file.Path.ToString(PathTable)}`", file)),
-                    Case<DirectoryArtifact>(dir => new ObjectInfo($"d`{dir.Path.ToString(PathTable)}`", dir)),
-                    Case<int>(num => new ObjectInfo($"{num}")),
-                    Case<uint>(num => new ObjectInfo($"{num}")),
-                    Case<short>(num => new ObjectInfo($"{num}", (int)num)),
-                    Case<long>(num => new ObjectInfo($"{num}")),
-                    Case<char>(ch => new ObjectInfo($"'{ch}'", ch.ToString())),
-                    Case<string>(str => new ObjectInfo($"\"{str}\"", str)),
-                    Case<Enum>(e => new ObjectInfo($"{e.GetType().Name}.{e}", e)),
-                    Case<NumberLiteral>(numLit => new ObjectInfo(numLit.UnboxedValue.ToString(), numLit)),
-                    Case<Func<object>>(func => FuncObjInfo(func)),
-                    Case<ArraySegment<object>>(arrSeg => ArrayObjInfo(arrSeg)),
-                    Case<IEnumerable>(enu => 
-                    new ObjectInfo("IEnumerable", Lazy.Create(() => new[] { new Property("Result", enu.Cast<object>().ToArray()) }))),
-                    Case<ArrayLiteral>(arrLit => ArrayObjInfo(arrLit.Values.Select(v => v.Value).ToArray()).WithOriginal(arrLit)),
-                    Case<ModuleBinding>(binding => GetObjectInfo(context, binding.Body)),
-                    Case<ErrorValue>(error => ErrorValueInfo()),
-                    Case<object>(o => GenericObjectInfo(o))
-                },
-                defaultResult: s_nullObj);
+            return obj switch
+            {
+                ScopeLocals scope => new ObjectInfo(LocalsScopeName, null, Lazy.Create(() => GetLocalsForStackEntry(scope.EvalState, scope.FrameIndex))),
+                ScopePipGraph scope => PipGraphInfo(scope.Graph).WithPreview(PipGraphScopeName),
+                ScopeAllModules scope => ArrayObjInfo(scope.EvaluatedModules.ToArray()).WithPreview(EvaluatedModulesScopeName),
+                IModuleAndContext mc => GetObjectInfo(mc.Tree.RootContext, mc.Module),
+                ObjectInfo objInf => objInf,
+                IPipGraph graph => PipGraphInfo(graph),
+                Pip pip => GenericObjectInfo(pip, $"<{pip.PipType}>").Build(),
+                PipProvenance prov => ProvenanceInfo(prov),
+                EnvironmentVariable envVar => EnvironmentVariableInfo(envVar),
+                PipFragment pipFrag => PipFragmentInfo(context, pipFrag),
+                Thunk thunk => thunk.Value != null ? GetObjectInfo(context, thunk.Value) : new ObjectInfo("<not evaluated>"),
+                FunctionLikeExpression lambda => LambdaInfo(lambda),
+                Closure cls => LambdaInfo(cls.Function),
+                SymbolAtom sym => new ObjectInfo(sym.ToString(StringTable)),
+                StringId id => new ObjectInfo(id.ToString(StringTable)),
+                PipId id => new ObjectInfo($"{id.Value}"),
+                UndefinedLiteral _ => new ObjectInfo("undefined", UndefinedLiteral.Instance),
+                UndefinedValue _ => new ObjectInfo("undefined", UndefinedValue.Instance),
+                AbsolutePath path => new ObjectInfo($"p`{path.ToString(PathTable)}`", path),
+                RelativePath path => new ObjectInfo($"r`{path.ToString(StringTable)}`", path),
+                PathAtom atom => new ObjectInfo($"a`{atom.ToString(StringTable)}`", atom),
+                FileArtifact file => new ObjectInfo($"f`{file.Path.ToString(PathTable)}`", file),
+                DirectoryArtifact dir => new ObjectInfo($"d`{dir.Path.ToString(PathTable)}`", dir),
+                int num => new ObjectInfo($"{num}"),
+                uint num => new ObjectInfo($"{num}"),
+                short num => new ObjectInfo($"{num}", (int)num),
+                long num => new ObjectInfo($"{num}"),
+                char ch => new ObjectInfo($"'{ch}'", ch.ToString()),
+                string str => new ObjectInfo($"\"{str}\"", str),
+                Enum e => new ObjectInfo($"{e.GetType().Name}.{e}", e),
+                NumberLiteral numLit => new ObjectInfo(numLit.UnboxedValue.ToString(), numLit),
+                Func<object> func => FuncObjInfo(func),
+                ArraySegment<object> arrSeg => ArrayObjInfo(arrSeg),
+                IEnumerable enu => new ObjectInfoBuilder().Preview("IEnumerable").Prop("Result", Lazy.Create<object>(() => enu.Cast<object>().ToArray())).Build(),
+                ArrayLiteral arrLit => ArrayObjInfo(arrLit.Values.Select(v => v.Value).ToArray()).WithOriginal(arrLit),
+                ModuleBinding binding => GetObjectInfo(context, binding.Body),
+                ErrorValue error => ErrorValueInfo(),
+                object o => GenericObjectInfo(o).Build(),
+                _ => s_nullObj
+            };
         }
 
         private static string TryToString(object obj)
@@ -229,29 +228,14 @@ namespace BuildXL.FrontEnd.Script.Debugger
         }
 
         /// <summary>
-        /// Extracts values of all public properties.
+        /// Extracts values of all public fields and properties.
         /// </summary>
-        public static ObjectInfo GenericObjectInfo(
-            object obj, 
-            string preview = null, 
-            IEnumerable<string> includeProperties = null,
-            IEnumerable<string> excludeProperties = null)
-        {
-            return new ObjectInfo(
-                preview ?? TryToString(obj),
-                Lazy.Create(() =>
-                {
-                    var props = ExtractObjectProperties(obj).Concat(ExtractObjectFields(obj));
-                    if (includeProperties != null)
-                    {
-                        props = props.Where(p => includeProperties.Contains(p.Name));
-                    }
-                    if (excludeProperties != null)
-                    {
-                        props = props.Where(p => !excludeProperties.Contains(p.Name));
-                    }
-                    return props;
-                }));
+        public static ObjectInfoBuilder GenericObjectInfo(object obj, string preview = null)
+        { 
+            var builder = new ObjectInfoBuilder().Preview(preview ?? TryToString(obj));
+            builder = GetPublicProperties(obj?.GetType()).Aggregate(builder, (acc, pi) => acc.Prop(pi.Name, () => pi.GetValue(obj)));
+            builder = GetPublicFields(obj?.GetType()).Aggregate(builder, (acc, fi) => acc.Prop(fi.Name, () => fi.GetValue(obj)));
+            return builder;
         }
 
         private static ObjectInfo PipGraphInfo(IPipGraph graph)
@@ -296,43 +280,26 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public static bool IsInvalid(object obj, PropertyInfo[] propertiesToInclude = null)
         {
             return obj != null &&
-                (propertiesToInclude ?? GetPublicProperties(obj))
+                (propertiesToInclude ?? GetPublicProperties(obj?.GetType()))
                 .Any(p => p.Name == "IsValid" &&
                           p.PropertyType == typeof(bool) &&
                           (bool)p.GetValue(obj) == false);
         }
 
         /// <summary>
-        ///     Extracts values of public properties of a given object
+        ///     Returns public properties of a type.
         /// </summary>
-        public static IEnumerable<Property> ExtractObjectProperties(object obj, PropertyInfo[] propertiesToInclude = null)
+        public static PropertyInfo[] GetPublicProperties([CanBeNull]Type objType)
         {
-            propertiesToInclude = propertiesToInclude ?? GetPublicProperties(obj);
-            return IsInvalid(obj, propertiesToInclude)
-                ? Property.Empty
-                : propertiesToInclude
-                    .Where(p => p.GetIndexParameters().Length == 0)
-                    .Select(p => new Property(p.Name, p.GetValue(obj)));
+            return objType?.GetProperties(BindingFlags.Instance | BindingFlags.Public) ?? new PropertyInfo[0];
         }
 
         /// <summary>
-        ///     Extracts values of public properties of a given object
+        ///     Returns public fields of a type.
         /// </summary>
-        public static IEnumerable<Property> ExtractObjectFields(object obj, FieldInfo[] fieldsToInclude = null)
+        public static FieldInfo[] GetPublicFields([CanBeNull]Type objType)
         {
-            fieldsToInclude = fieldsToInclude ?? GetPublicFields(obj);
-            return fieldsToInclude
-                .Select(f => new Property(f.Name, f.GetValue(obj)));
-        }
-
-        private static PropertyInfo[] GetPublicProperties(object obj)
-        {
-            return obj?.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public) ?? new PropertyInfo[0];
-        }
-
-        private static FieldInfo[] GetPublicFields(object obj)
-        {
-            return obj?.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public) ?? new FieldInfo[0];
+            return objType?.GetFields(BindingFlags.Instance | BindingFlags.Public) ?? new FieldInfo[0];
         }
 
         private const int MaxArrayLength = 1000;
@@ -347,40 +314,36 @@ namespace BuildXL.FrontEnd.Script.Debugger
             var bucketSize = MaxArrayLength;
             var arrLen = arr.Count;
 
-            IEnumerable<Property> properties;
+            var builder = new ObjectInfoBuilder();
             if (arrLen <= bucketSize)
             {
-                properties = arr.Select((elem, i) => new Property($"{i + arr.Offset}", elem));
+                for (int i = 0; i < arrLen; i++)
+                {
+                    builder = builder.Prop($"{i + arr.Offset}", arr.Array[i + arr.Offset]);
+                }
             }
             else
             {
                 var bucketCount = (arrLen - 1)/bucketSize + 1;
-                properties = Enumerable
-                    .Range(0, bucketCount)
-                    .Select(bucketIdx =>
-                    {
-                        var startIdx = bucketIdx * bucketSize;
-                        var endIdx = Math.Min(arrLen - 1, (bucketIdx + 1)*bucketSize - 1);
-                        return new Property(
-                            name: $"[{startIdx}..{endIdx}]", 
-                            value: new ArraySegment<object>(arr.Array, arr.Offset + startIdx, count: endIdx - startIdx + 1));
-                    });
+                for (int bucketIdx = 0; bucketIdx < bucketCount; bucketIdx++)
+                {
+                    var startIdx = bucketIdx * bucketSize;
+                    var endIdx = Math.Min(arrLen - 1, (bucketIdx + 1)*bucketSize - 1);
+                    builder = builder.Prop(
+                        name: $"[{startIdx}..{endIdx}]", 
+                        value: new ArraySegment<object>(arr.Array, arr.Offset + startIdx, count: endIdx - startIdx + 1));
+                }
             }
 
-            return new ObjectInfo($"array[{arrLen}]", properties.ToArray());
+            return builder.Preview($"array[{arrLen}]").Build();
         }
 
-        private static IReadOnlyList<Property> GetLocalsForStackEntry(EvaluationState evalState, int frameIndex)
+        private static IDictionary<string, Property> GetLocalsForStackEntry(EvaluationState evalState, int frameIndex)
         {
             var stackEntry = evalState.GetStackEntryForFrame(frameIndex);
             return DebugInfo.ComputeCurrentLocals(stackEntry)
                 .Select(lvar => new Property(lvar.Name.ToDisplayString(evalState.Context), lvar.Value))
-                .ToArray();
-        }
-
-        private static CaseMatcher<T, ObjectInfo> Case<T>(Func<T, ObjectInfo> func)
-        {
-            return Case<T, ObjectInfo>(func);
+                .ToDictionary(p => p.Name, p => p);
         }
 
         private static string Invariant(string format, params object[] args)

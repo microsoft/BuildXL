@@ -82,6 +82,12 @@ std::wstring GetImageName(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lp
             }
             // Start with the first quoted string
             imageNameCandidate.assign(lpCommandLine, count);
+            
+            // If we found and ending quote, advance the cursor past it
+            if (*cursor == (WCHAR)'\"')
+            {
+                cursor++;
+            }
         }
         else
         {
@@ -115,7 +121,7 @@ std::wstring GetImageName(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lp
                 cursor++;
             }
             // Move through the next space separated block
-            while ((*cursor != (WCHAR)' ') && (*cursor != (WCHAR)'\t'))
+            while ((*cursor) && (*cursor != (WCHAR)' ') && (*cursor != (WCHAR)'\t'))
             {
                 count++;
                 cursor++;

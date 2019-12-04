@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -25,6 +27,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SolutionName = pathRemapper.Remap(template.SolutionName);
             SolutionRoot = pathRemapper.Remap(template.SolutionRoot);
             DotSettingsFile = pathRemapper.Remap(template.DotSettingsFile);
+            TargetFrameworks = new List<string>(template.TargetFrameworks);
         }
 
         /// <inheritdoc />
@@ -45,12 +48,19 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         // Temporary redirect for back compat
         [Obsolete]
-        public AbsolutePath VsDominoRoot { 
-            get { return SolutionRoot;} 
+        public AbsolutePath VsDominoRoot {
+            get { return SolutionRoot; }
             set { SolutionRoot = value; }
         }
 
         /// <inheritdoc />
         public AbsolutePath DotSettingsFile { get; set; }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<string> TargetFrameworks { get; set; } = new List<string>();
+
+        /// <inheritdoc />
+        IReadOnlyList<string> IIdeConfiguration.TargetFrameworks => TargetFrameworks;
     }
 }

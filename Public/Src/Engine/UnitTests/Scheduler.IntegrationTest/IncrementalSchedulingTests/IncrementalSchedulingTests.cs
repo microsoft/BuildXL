@@ -431,11 +431,129 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 .AssertCacheHit(process.PipId); // no changes to the source file, thus pip gets cache hit.
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DynamicObservationChangeShouldNotCauseOverSchedule(bool triggerFileInsideDirectory)
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var inputF = CreateSourceFile(directoryPath);
+            var inputG = CreateSourceFile(directoryPath);
+            var inputH = triggerFileInsideDirectory ? CreateSourceFile(directoryPath) : CreateSourceFile();
+            
+            // file h points to path to f.
+            ModifyFile(inputH, ArtifactToString(inputF));
+
+            var outputX = CreateOutputFileArtifact();
+            var pipBuilderA = CreatePipBuilder(new[] { 
+                Operation.ReadFileFromOtherFile(inputH, doNotInfer: triggerFileInsideDirectory), 
+                Operation.WriteFile(outputX) });
+            pipBuilderA.AddInputDirectory(sealedDirectory.Directory);
+            var processA = SchedulePipBuilder(pipBuilderA).Process;
+
+            RunScheduler().AssertCacheMiss(processA.PipId);
+
+            // Modifying f should make A scheduled.
+            ModifyFile(inputF);
+
+            RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
+
+            // Modifying g should not make A scheduled.
+            ModifyFile(inputG);
+
+            RunScheduler().AssertNotScheduled(processA.PipId);
+
+            // file h points to path to g.
+            ModifyFile(inputH, ArtifactToString(inputG));
+
+            RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
+
+            // Modifying f should not make A scheduled.
+            ModifyFile(inputF);
+
+            RunScheduler().AssertNotScheduled(processA.PipId);
+        }
+
+        [Fact]
+        public void ModifyingProbedStaticInputCausesRescheduledAndRebuild()
+        {
+            var probedInput = CreateSourceFile();
+
+            var process = CreateAndSchedulePipBuilder(new[] 
+            {
+                Operation.Probe(probedInput),
+                Operation.ReadFile(CreateSourceFile()), 
+                Operation.WriteFile(CreateOutputFileArtifact()) 
+            }).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            ModifyFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+        }
+
+        [Fact]
+        public void ModifyingProbedDynamicInputDoesNotCauseRescheduled()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var probedInput = CreateSourceFile(directoryPath);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedInput, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            ModifyFile(probedInput);
+
+            RunScheduler().AssertNotScheduled(process.PipId);
+        }
+
+        [Fact]
+        public void RemovingProbedDynamicInputCauseRescheduledAndRebuild()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var probedInput = CreateSourceFile(directoryPath);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedInput, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            DeleteFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+
+            // Re-introducing the file should reschedule the pip, but it should get a cache hit.
+            ModifyFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
+        }
+
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
-        protected void ModifyFile(FileArtifact file, string content = null)
-        {
-            File.WriteAllText(ArtifactToString(file), content ?? System.Guid.NewGuid().ToString());
-        }
+        protected void ModifyFile(FileArtifact file, string content = null) => File.WriteAllText(ArtifactToString(file), content ?? Guid.NewGuid().ToString());
+
+        protected void DeleteFile(FileArtifact file) => File.Delete(ArtifactToString(file));
     }
 }

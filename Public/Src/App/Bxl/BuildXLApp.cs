@@ -291,7 +291,8 @@ namespace BuildXL
                         (int)EventId.DominoCompletion,
                         (int)EventId.DominoPerformanceSummary,
                         (int)EventId.DominoCatastrophicFailure,
-                        (int)EventId.UnexpectedCondition,
+                        (int)EventId.UnexpectedConditionLocal,
+                        (int)EventId.UnexpectedConditionTelemetry,
                         (int)SchedulerEventId.CriticalPathPipRecord,
                         (int)SchedulerEventId.CriticalPathChain,
                         (int)EventId.HistoricMetadataCacheLoaded,
@@ -339,7 +340,11 @@ namespace BuildXL
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings
+                        (int)Engine.Tracing.LogEventId.GrpcSettings,
+                        (int)Engine.Tracing.LogEventId.ChosenABTesting,
+                        (int)EventId.SynchronouslyWaitedForCache,
+                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                        (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
                     },
                     // all errors should be included in a dev log
                     EventLevel.Error));
@@ -668,7 +673,7 @@ namespace BuildXL
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
-                        
+
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
 
                         LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
@@ -883,11 +888,6 @@ namespace BuildXL
 
                 logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
             }
-
-            if (trackingListener.HasFailuresOrWarnings)
-            {
-                Logger.Log.DisplayHelpLink(loggingContext, Strings.DX_Help_Link_Prefix, Strings.DX_Help_Link);
-            }
         }
 
         private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext> configureLogging = null)
@@ -981,7 +981,7 @@ namespace BuildXL
                     {
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
-                        
+
                         var shutdownResult = AriaV2StaticState.TryShutDown(TelemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
@@ -1006,9 +1006,9 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// Computes session identifier which allows easier searching in Kusto for 
+        /// Computes session identifier which allows easier searching in Kusto for
         /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
-        /// 
+        ///
         /// Search for masters: '| where sessionId has "0001-FFFF"'
         /// Search for workers: '| where sessionId has "0002-FFFF"'
         /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
@@ -1174,9 +1174,11 @@ namespace BuildXL
                     global::BuildXL.FrontEnd.Script.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Script.Debugger.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Nuget.ETWLogger.Log,
+#if !PLATFORM_OSX
                     global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,
                     global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
                     global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
+#endif
                };
 
         internal static PathTranslator GetPathTranslator(ILoggingConfiguration conf, PathTable pathTable)
@@ -1276,9 +1278,9 @@ namespace BuildXL
                     ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
 
-                if (notWorker 
-                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps 
-                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps 
+                if (notWorker
+                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps
+                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps
                     || m_configuration.OptimizeProgressUpdatingForAzureDevOps))
                 {
                     ConfigureAzureDevOpsLogging(buildViewModel);
@@ -2057,30 +2059,35 @@ namespace BuildXL
             }
 
             // Overall Duration information
-            var engineInfo = appInfo.EnginePerformanceInfo;
             var tree = new PerfTree("Build Duration", appInfo.EngineRunDurationMs)
                        {
-                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs),
-                           new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
+                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs)
+                       };
+
+            var engineInfo = appInfo.EnginePerformanceInfo;
+
+            if (engineInfo != null)
+            {
+                tree.Add(new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
                            {
                                new PerfTree("Checking for pip graph reuse", engineInfo.GraphCacheCheckDurationMs),
                                new PerfTree("Reloading pip graph", engineInfo.GraphReloadDurationMs),
                                new PerfTree("Create graph", engineInfo.GraphConstructionDurationMs)
-                           },
-                           new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs),
-                           new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs),
-                           new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs),
-                       };
-            summary.DurationTree = tree;
+                           });
+                tree.Add(new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs));
+                tree.Add(new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs));
+                tree.Add(new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs));
 
-
-            // Cache stats
-            var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
-            if (schedulerInfo != null)
-            {
-                summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
-                summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                // Cache stats
+                var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
+                if (schedulerInfo != null)
+                {
+                    summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                    summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                }
             }
+
+            summary.DurationTree = tree;
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]

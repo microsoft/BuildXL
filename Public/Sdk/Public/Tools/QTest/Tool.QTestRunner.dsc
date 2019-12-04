@@ -85,6 +85,18 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "Framework40";
         case QTestDotNetFramework.framework45:
             return "Framework45";
+        case QTestDotNetFramework.framework46:
+            return "Framework46";
+        case QTestDotNetFramework.frameworkCore10:
+            return "FrameworkCore10";
+        case QTestDotNetFramework.frameworkCore20:
+            return "FrameworkCore20";
+        case QTestDotNetFramework.frameworkCore21:
+            return "FrameworkCore21";
+        case QTestDotNetFramework.frameworkCore22:
+            return "FrameworkCore22";
+        case QTestDotNetFramework.frameworkCore30:
+            return "FrameworkCore30";
         case QTestDotNetFramework.unspecified:
         default:
             return "Unspecified";
@@ -94,6 +106,24 @@ function validateArguments(args: QTestArguments): void {
     if (args.qTestDirToDeploy && args.qTestInputs) {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");
     }
+}
+
+/**
+ * Find Flaky Supression file from the .config directory of source code
+ */
+function findFlakyFile(): File {
+    let configDir = d`${Context.getMount("SourceRoot").path}/.config`;
+    let flakyDir = d`${configDir}/flakytests`;
+    let flakyFileName = a`CloudBuild.FlakyTests.json`;
+
+    if (File.exists(f`${flakyDir}/${flakyFileName}`)) {
+        return f`${flakyDir}/${flakyFileName}`;
+    }
+
+    if (File.exists(f`${configDir}/${flakyFileName}`)) {
+        return f`${configDir}/${flakyFileName}`;
+    }
+    return undefined;
 }
 
 /**
@@ -133,6 +163,9 @@ export function runQTest(args: QTestArguments): Result {
         });
     } 
 
+    // If Flaky Suppression file exists in the source code, provide the file path to QTest.
+    let flakyFile = findFlakyFile();
+
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
@@ -154,8 +187,8 @@ export function runQTest(args: QTestArguments): Result {
 
     let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
 
-    // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;        
+    // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
 
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -192,7 +225,9 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
             "--vstestSettingsFile ", 
-            Artifact.input(args.vstestSettingsFile)
+            qCodeCoverageEnumType === dynamicCodeCovString && args.vstestSettingsFileForCoverage !== undefined
+                ? Artifact.input(args.vstestSettingsFileForCoverage) 
+                : Artifact.input(args.vstestSettingsFile)
         ),
         Cmd.option(
             "--qTestRawArgFile ",
@@ -202,13 +237,14 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
-        Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
+        Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions),
         Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
-        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile)
+        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
+        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.input(flakyFile)),
     ];          
 
     let unsafeOptions = {
@@ -326,6 +362,18 @@ export const enum QTestDotNetFramework {
     framework40,
     @@Tool.option("--qtestDotNetFramework framework45")
     framework45,
+    @@Tool.option("--qtestDotNetFramework framework46")
+    framework46,
+    @@Tool.option("--qtestDotNetFramework frameworkCore10")
+    frameworkCore10,
+    @@Tool.option("--qtestDotNetFramework frameworkCore20")
+    frameworkCore20,
+    @@Tool.option("--qtestDotNetFramework frameworkCore21")
+    frameworkCore21,
+    @@Tool.option("--qtestDotNetFramework frameworkCore22")
+    frameworkCore22,
+    @@Tool.option("--qtestDotNetFramework frameworkCore30")
+    frameworkCore30,
 }
 /**
  * Arguments of DBS.QTest.exe
@@ -370,6 +418,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAdditionalOptions?: string;
     /** Path to runsettings file that will be passed on to vstest.console.exe. */
     vstestSettingsFile?: File;
+    /** vstestSettingsFileForCoverage instead of vstestSettingsFile will be passed on to vstest.console.exe when code coverage is enabled.*/
+    vstestSettingsFileForCoverage?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Privilege level required by this process to execute. */

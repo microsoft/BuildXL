@@ -180,6 +180,9 @@ namespace BuildXL.Engine.Tracing
         DistributionBondCall = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
+        WorkerTotalRamMb = 7044,
+
+        RemoteWorkerProcessedExecutionBlob = 7045,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,
@@ -190,11 +193,11 @@ namespace BuildXL.Engine.Tracing
         EngineContextHeuristicOutcomeSkip = 7054,
         GetPipGraphDescriptorFromCache = 7055,
         StorePipGraphCacheDescriptorToCache = 7056,
-        MismatchPathInGraphInputDescriptor = 7057,
-        MismatchEnvironmentInGraphInputDescriptor = 7058,
+        MismatchInputInGraphInputDescriptor = 7057,
+        // was MismatchEnvironmentInGraphInputDescriptor = 7058,
         FailedHashingGraphFileInput = 7059,
         FailedComputingFingerprintGraphDirectoryInput = 7060,
-        MismatchMountInGraphInputDescriptor = 7061,
+        // was MismatchMountInGraphInputDescriptor = 7061,
 
         FallingBackOnGraphFileCopy = 7080,
         FailedLoadIncrementalSchedulingState = 7081,

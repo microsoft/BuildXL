@@ -427,6 +427,15 @@ namespace BuildXL.Engine.Tracing
         #region Distribution
 
         [GeneratedEvent(
+            (ushort)LogEventId.WorkerTotalRamMb,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "{worker} could not send available ram to master. Master used the default limit in MB: {defaultRamMb}. Available Commit in MB: {commitMb}")]
+        public abstract void WorkerTotalRamMb(LoggingContext context, string worker, int defaultRamMb, int commitMb);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionHostLog,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -438,7 +447,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionConnectedToWorker,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Connected to worker {ipAddress}:{port}")]
@@ -447,7 +456,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerChangedState,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Worker {ipAddress}:{port} changed status from {fromState} to {toState} by {caller}")]
@@ -560,6 +569,18 @@ namespace BuildXL.Engine.Tracing
             string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.RemoteWorkerProcessedExecutionBlob,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "'{workerName}' processed execution blob '{message}'.")]
+        public abstract void RemoteWorkerProcessedExecutionBlob(
+            LoggingContext context,
+            string workerName,
+            string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionFailedToStoreValidationContentToWorkerCacheWithException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -652,7 +673,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWaitingForMasterAttached,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Waiting for master to attach")]
@@ -697,7 +718,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionAttachReceived,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "Received attach request from the master. New session identifier: {sessionId}. Master Name: {masterName}.")]
@@ -749,7 +770,7 @@ namespace BuildXL.Engine.Tracing
             (ushort)LogEventId.DistributionTryMaterializeInputsSuccessfulRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Successfully materialize inputs for pip on retry. Number of failed attempts: {numberOfFailedAttempts}.",
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
@@ -866,7 +887,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerStatus,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "{pipsReported} reported, {pipsReporting} reporting, {pipsRecording} recording, {pipsPrepped} prepped, {pipsPrepping} prepping, {pipsQueued} queued")]
@@ -882,7 +903,7 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionMasterStatus,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "{pipsCompleted} completed, {pipsReported} reported, {pipsSent} sent, {pipsLocal} local, {pipsSending} sending,\n\t" +
@@ -1545,23 +1566,25 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message =
-                "Fetching pip graph descriptor from cache:\r\n\tCompatible fingerprint: [Status: {compatibleStatus} | Hop count: {compatibleHopCount} | Reason: {compatibleReason} | Elapsed time: {compatibleElapsed}ms (Hashing graph inputs: {compatibleHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {compatibleFingerprintRetrievalElapsedMs}ms)]\r\n{compatibleFingerprintChain}\r\n\tExact fingerprint: [Status: {exactStatus} | Hop count: {exactHopCount} | Reason: {exactReason} | Elapsed time: {exactElapsed}ms (Hashing graph inputs: {exactHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {exactFingerprintRetrievalElapsedMs}ms)]{exactFingerprintChain}")]
+                "Fetching pip graph descriptor from cache:\r\n\tCompatible fingerprint: [Status: {compatibleStatus} | Hop count: {compatibleHopCount} | Failed reason: {compatibleFailedReason} | Elapsed time: {compatibleElapsed}ms (Hashing graph inputs: {compatibleHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {compatibleFingerprintRetrievalElapsedMs}ms) | Fingerprint look-up chain: [{compatibleFingerprintChain}]]{compatibleMissReason}\r\n\tExact fingerprint: [Status: {exactStatus} | Hop count: {exactHopCount} | Failed reason: {exactFailedReason} | Elapsed time: {exactElapsed}ms (Hashing graph inputs: {exactHashingGraphInputsElapsedMs}ms, Fingerprint retrieval: {exactFingerprintRetrievalElapsedMs}ms) | Fingerprint look-up chain: [{exactFingerprintChain}]]{exactMissReason}")]
         public abstract void GetPipGraphDescriptorFromCache(
             LoggingContext context,
             string compatibleStatus,
             int compatibleHopCount,
-            string compatibleReason,
+            string compatibleFailedReason,
             int compatibleElapsed,
             int compatibleHashingGraphInputsElapsedMs,
             int compatibleFingerprintRetrievalElapsedMs,
             string compatibleFingerprintChain,
+            string compatibleMissReason,
             string exactStatus,
             int exactHopCount,
-            string exactReason,
+            string exactFailedReason,
             int exactElapsed,
             int exactHashingGraphInputsElapsedMs,
             int exactFingerprintRetrievalElapsedMs,
-            string exactFingerprintChain);
+            string exactFingerprintChain,
+            string exactMissReason);
 
         [GeneratedEvent(
             (int) LogEventId.StorePipGraphCacheDescriptorToCache,
@@ -1569,7 +1592,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms)\r\n{fingerprintChains}")]
+            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms) | Fingerprint loop-up chain: [{fingerprintChains}]")]
         public abstract void StorePipGraphCacheDescriptorToCache(
             LoggingContext context,
             string status,
@@ -1582,13 +1605,13 @@ If you can't update and need this feature after July 2018 please reach out to th
             string fingerprintChains);
 
         [GeneratedEvent(
-            (int)LogEventId.MismatchPathInGraphInputDescriptor,
+            (int)LogEventId.MismatchInputInGraphInputDescriptor,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input path '{path}' ({kind}) in graph input descriptor: Given: '{givenHash}' | Actual: '{actualHash}'")]
-        public abstract void MismatchPathInGraphInputDescriptor(LoggingContext context, int hop, string path, string kind, string givenHash, string actualHash);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] {mismatch}")]
+        public abstract void MismatchInputInGraphInputDescriptor(LoggingContext context, string providerContext, int hop, string mismatch);
 
         [GeneratedEvent(
             (int)LogEventId.FailedHashingGraphFileInput,
@@ -1596,8 +1619,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Failed to hash '{path}' for graph input: {reason}")]
-        public abstract void FailedHashingGraphFileInput(LoggingContext context, int hop, string path, string reason);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] Failed to hash '{path}' for graph input: {reason}")]
+        public abstract void FailedHashingGraphFileInput(LoggingContext context, string providerContext, int hop, string path, string reason);
 
         [GeneratedEvent(
             (int)LogEventId.FailedComputingFingerprintGraphDirectoryInput,
@@ -1605,26 +1628,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Failed to compute directory membership fingerprint of '{path}' for graph input: {reason}")]
-        public abstract void FailedComputingFingerprintGraphDirectoryInput(LoggingContext context, int hop, string path, string reason);
-
-        [GeneratedEvent(
-            (int)LogEventId.MismatchEnvironmentInGraphInputDescriptor,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input environment variable '{name}' in graph input descriptor: Given: '{givenValue}' | Actual: '{actualValue}'")]
-        public abstract void MismatchEnvironmentInGraphInputDescriptor(LoggingContext context, int hop, string name, string givenValue, string actualValue);
-
-        [GeneratedEvent(
-            (int)LogEventId.MismatchMountInGraphInputDescriptor,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "[Hop {hop}] Mismatch input mount '{name}' in graph input descriptor: Given: '{givenValue}' | Actual: '{actualValue}'")]
-        public abstract void MismatchMountInGraphInputDescriptor(LoggingContext context, int hop, string name, string givenValue, string actualValue);
+            Message = "[Cache graph provider context: {providerContext}, Hop: {hop}] Failed to compute directory membership fingerprint of '{path}' for graph input: {reason}")]
+        public abstract void FailedComputingFingerprintGraphDirectoryInput(LoggingContext context, string providerContext, int hop, string path, string reason);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToFetchSerializedGraphFromCache,
@@ -1867,6 +1872,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_DisableSharedOpaqueEmptyDirectoryScrubbing: removal of empty directories within shared opaques has been disabled. This is an unsafe configuration since it may work in detriment of build correctness.")]
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)EventId.CannotReadSidebandFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Cannot read sideband file '{fileName}': {error}")]
+        public abstract void CannotReadSidebandFile(LoggingContext context, string fileName, string error);
 
         [GeneratedEvent(
             (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
@@ -2405,8 +2419,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
-            Message = "The volume, '{drive}' does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
-        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string command);
+            Message = "The volume, '{drive}' (checked path: '{checkedPath}', final path: '{finalPath}') does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
+        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string checkedPath, string finalPath, string command);
 
         [GeneratedEvent(
             (int)EventId.StartEngineRun,

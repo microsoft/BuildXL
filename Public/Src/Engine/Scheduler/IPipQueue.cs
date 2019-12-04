@@ -51,6 +51,11 @@ namespace BuildXL.Scheduler
         int TotalNumSemaphoreQueued { get; }
 
         /// <summary>
+        /// How many work items there are in the dispatcher as pending or actively running.
+        /// </summary>
+        long NumRunningOrQueued { get; }
+
+        /// <summary>
         /// Gets the number of running pips in the given queue
         /// </summary>
         int GetNumRunningByKind(DispatcherKind queueKind);

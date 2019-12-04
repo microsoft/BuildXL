@@ -112,20 +112,20 @@ function parseArgs {
                 arg_noReload=1
                 shift
                 ;;
-            --enable-counters)
-                arg_enableCounters="1"
+            --enable-counters|--disable-counters)
+                arg_enableCounters=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
                 shift
                 ;;
-            --verbose-logging)
-                arg_verboseLogging="1"
+            --verbose-logging|--no-verbose-logging)
+                arg_verboseLogging=$([[ $cmd == --no-* ]] && echo "0" || echo "1")
                 shift
                 ;;
-            --disable-cache)
-                arg_enableCache="0"
+            --enable-cache|--disable-cache)
+                arg_enableCache=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
                 shift
                 ;;
-            --disable-light-trie|--enable-fast-trie)
-                arg_enableLightTrie="0"
+            --enable-light-trie|--disable-light-trie)
+                arg_enableLightTrie=$([[ $cmd == --enable-* ]] && echo "1" || echo "0")
                 shift
                 ;;
             *)

@@ -80,6 +80,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             context = context.CreateNested();
+
+            string checkpointId = "Unknown";
+            long checkpointSize = 0;
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -90,17 +93,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Creating a working temporary directory
                         using (new DisposableDirectory(_fileSystem, _checkpointStagingDirectory))
                         {
+                            // NOTE(jubayard): this needs to be done previous to checkpointing, because we always
+                            // fetch the latest version's size in this way. This implies there may be some difference
+                            // between the reported value and the actual size on disk: updates will get in in-between.
+                            // The better alternative is to actually open the checkpoint and ask, but it seems like too
+                            // much.
+                            checkpointSize = _database.GetContentDatabaseSizeBytes().GetValueOrDefault(-1);
+
+
                             // Saving checkpoint for the database into the temporary folder
                             _database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
 
                             if (_configuration.UseIncrementalCheckpointing)
                             {
-                                 await CreateCheckpointIncrementalAsync(context, sequencePoint);
+                                 checkpointId = await CreateCheckpointIncrementalAsync(context, sequencePoint);
                                  successfullyUpdatedIncrementalState = true;
                             }
                             else
                             {
-                                await CreateFullCheckpointAsync(context, sequencePoint);
+                                checkpointId = await CreateFullCheckpointAsync(context, sequencePoint);
                             }
 
                             return BoolResult.Success;
@@ -112,10 +123,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 extraStartMessage: $"SequencePoint=[{sequencePoint}]",
-                extraEndMessage: _ => $"SequencePoint=[{sequencePoint}]");
+                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] Id=[{checkpointId}] SizeMb=[{(checkpointSize < 0 ? checkpointSize:checkpointSize*1e-6)}]");
         }
 
-        private async Task CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
+        private async Task<string> CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             // Zipping the checkpoint
             var targetZipFile = _checkpointStagingDirectory + ".zip";
@@ -131,9 +142,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Uploading the checkpoint
             await _checkpointRegistry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailure();
+
+            return checkpointId;
         }
 
-        private async Task CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint)
+        private async Task<string> CreateCheckpointIncrementalAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             InitializeIncrementalCheckpointIfNeeded(restoring: false);
 
@@ -157,6 +170,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Have to create a dictionary in .NET 4.5.1 because ConcurrentDictionary does not implement IReadOnlyDictionary there.
             UpdateIncrementalCheckpointInfo(new Dictionary<string, string>(newCheckpointInfo));
+
+            return checkpointId;
         }
 
         private async Task UploadFilesAsync(OperationContext context, List<AbsolutePath> files, ConcurrentDictionary<string, string> newCheckpointInfo, string incrementalCheckpointsPrefix)

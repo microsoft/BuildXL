@@ -246,6 +246,14 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * When true, default targets will be used as heuristics. Defaults to false.
      */
     allowProjectsToNotSpecifyTargetProtocol?: boolean;
+
+    /**
+     * Whether VBCSCompiler is allowed to be launched as a service to serve managed compilation requests.
+     * Defaults to on.
+     * This option will only be honored when process breakaway is supported by the underlying sandbox. Otherwise,
+     * it defaults to false.
+     */
+    useManagedSharedCompilation?: boolean;
 }
 
 

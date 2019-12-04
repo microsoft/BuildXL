@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -21,8 +22,10 @@ namespace Test.BuildXL.Processes.Detours
         {
         }
 
-        [Fact]
-        public void SerializeSandboxedProcessInfo()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void SerializeSandboxedProcessInfo(bool useNullFileStorage)
         {
             var pt = new PathTable();
             var fam =
@@ -40,7 +43,18 @@ namespace Test.BuildXL.Processes.Detours
             vac.AddPath(A("C", "Source", "source.txt"), FileAccessPolicy.AllowReadAlways);
             vac.AddPath(A("C", "Out", "out.txt"), FileAccessPolicy.AllowAll);
 
-            var standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"));
+            SandboxedProcessStandardFiles standardFiles = null;
+            ISandboxedProcessFileStorage fileStorage;
+            if (useNullFileStorage)
+            {
+                fileStorage = null;
+            }
+            else
+            {
+                standardFiles = new SandboxedProcessStandardFiles(A("C", "pip", "pip.out"), A("C", "pip", "pip.err"));
+                fileStorage = new StandardFileStorage(standardFiles);
+            }
+
             var envVars = new Dictionary<string, string>()
             {
                 ["Var1"] = "Val1",
@@ -50,16 +64,17 @@ namespace Test.BuildXL.Processes.Detours
 
             var sidebandLogFile = A("C", "engine-cache", "sideband-logs", "log-1");
             var loggerRootDirs = new[] { A("C", "out", "dir1"), A("C", "out", "dir2") };
-            var sharedOpaqueOutputLogger = new SharedOpaqueOutputLogger(sidebandLogFile, loggerRootDirs);
+
+            var sharedOpaqueOutputLogger = new SidebandWriter(DefaultSidebandMetadata, sidebandLogFile, loggerRootDirs);
 
             SandboxedProcessInfo info = new SandboxedProcessInfo(
                 pt,
-                new StandardFileStorage(standardFiles),
+                fileStorage,
                 A("C", "tool", "tool.exe"),
                 fam,
                 true,
                 null,
-                sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
+                sidebandWriter: sharedOpaqueOutputLogger)
             {
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
@@ -67,7 +82,6 @@ namespace Test.BuildXL.Processes.Detours
                 Timeout = TimeSpan.FromMinutes(15),
                 PipSemiStableHash = 0x12345678,
                 PipDescription = nameof(SerializeSandboxedProcessInfo),
-                ProcessIdListener = null,
                 TimeoutDumpDirectory = A("C", "Timeout"),
                 SandboxKind = global::BuildXL.Utilities.Configuration.SandboxKind.Default,
                 AllowedSurvivingChildProcessNames = new[] { "conhost.exe", "mspdbsrv.exe" },
@@ -92,7 +106,7 @@ namespace Test.BuildXL.Processes.Detours
                     null);
             }
 
-            using (readInfo.SharedOpaqueOutputLogger)
+            using (readInfo.SidebandWriter)
             {
                 // Verify.
                 XAssert.AreEqual(info.FileName, readInfo.FileName);
@@ -108,7 +122,6 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(info.Timeout, readInfo.Timeout);
                 XAssert.AreEqual(info.PipSemiStableHash, readInfo.PipSemiStableHash);
                 XAssert.AreEqual(info.PipDescription, readInfo.PipDescription);
-                XAssert.AreEqual(info.ProcessIdListener, readInfo.ProcessIdListener);
                 XAssert.AreEqual(info.TimeoutDumpDirectory, readInfo.TimeoutDumpDirectory);
                 XAssert.AreEqual(info.SandboxKind, readInfo.SandboxKind);
 
@@ -120,15 +133,25 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(info.NestedProcessTerminationTimeout, readInfo.NestedProcessTerminationTimeout);
                 XAssert.AreEqual(info.StandardInputSourceInfo, readInfo.StandardInputSourceInfo);
-                XAssert.IsNotNull(readInfo.SandboxedProcessStandardFiles);
-                XAssert.AreEqual(standardFiles.StandardOutput, readInfo.SandboxedProcessStandardFiles.StandardOutput);
-                XAssert.AreEqual(standardFiles.StandardError, readInfo.SandboxedProcessStandardFiles.StandardError);
-                XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
-                XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
+
+                if (useNullFileStorage)
+                {
+                    XAssert.IsNull(readInfo.SandboxedProcessStandardFiles);
+                    XAssert.IsNull(readInfo.FileStorage);
+                }
+                else
+                {
+                    XAssert.IsNotNull(readInfo.SandboxedProcessStandardFiles);
+                    XAssert.AreEqual(standardFiles.StandardOutput, readInfo.SandboxedProcessStandardFiles.StandardOutput);
+                    XAssert.AreEqual(standardFiles.StandardError, readInfo.SandboxedProcessStandardFiles.StandardError);
+                    XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
+                    XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
+                }
+
                 XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
 
-                XAssert.AreEqual(sidebandLogFile, readInfo.SharedOpaqueOutputLogger.SidebandLogFile);
-                XAssert.ArrayEqual(loggerRootDirs, readInfo.SharedOpaqueOutputLogger.RootDirectories.ToArray());
+                XAssert.AreEqual(sidebandLogFile, readInfo.SidebandWriter.SidebandLogFile);
+                XAssert.ArrayEqual(loggerRootDirs, readInfo.SidebandWriter.RootDirectories.ToArray());
 
                 ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
             }

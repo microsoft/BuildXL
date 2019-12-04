@@ -10,6 +10,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core.Incrementality;
 using BuildXL.FrontEnd.Core.Tracing;
@@ -112,7 +113,7 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly PerformanceCollector m_collector;
 
-        private static readonly TimeSpan EvaluationProgressReportingPeriod = TimeSpan.FromMilliseconds(500);
+        private TimeSpan EvaluationProgressReportingPeriod => TimeSpan.FromMilliseconds(BuildXLEngine.GetTimerUpdatePeriodInMs(Configuration.Logging));
 
         /// <summary>
         /// Constructor.
@@ -373,7 +374,7 @@ namespace BuildXL.FrontEnd.Core
                 delegate(LoggingContext nestedLoggingContext, ref InitializeResolversStatistics statistics)
                 {
                     // TODO: Use nestedLoggingContext for resolver errors
-                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate);
+                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate).GetAwaiter().GetResult();
 
                     statistics.ResolverCount = success ? m_resolvers.Length : 0;
 
@@ -1108,7 +1109,7 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Initializes front-ends.
         /// </summary>
-        public bool TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
+        public async Task<bool> TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(HostState == State.ConfigInterpreted);
@@ -1133,12 +1134,13 @@ namespace BuildXL.FrontEnd.Core
             }
 
             // For each resolver settings, tries to find a front end for it.
-            var resolvers = new List<IResolver>();
-            foreach (var resolverConfiguration in resolverConfigurations)
+            var resolvers = new List<IResolver>(resolverConfigurations.Count);
+            var initResolverTasks = new Task<bool>[resolverConfigurations.Count];
+            for (int i = 0; i < resolverConfigurations.Count; i++)
             {
-                IFrontEnd frontEndInstance;
+                var resolverConfiguration = resolverConfigurations[i];
 
-                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out frontEndInstance))
+                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out var frontEndInstance))
                 {
                     m_logger.UnregisteredResolverKind(FrontEndContext.LoggingContext, resolverConfiguration.Kind, string.Join(", ", m_frontEndFactory.RegisteredFrontEndKinds));
                     return false;
@@ -1154,14 +1156,15 @@ namespace BuildXL.FrontEnd.Core
                     return false;
                 }
 
-                // TODO: Make initialization async.
-                if (!resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result).GetAwaiter().GetResult())
-                {
-                    // Error has been reported by the corresponding front-end.
-                    return false;
-                }
-
                 resolvers.Add(resolver);
+                initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result);
+            }
+
+            var results = await TaskUtilities.SafeWhenAll(initResolverTasks);
+            if (results.Any(r => !r))
+            {
+                // Error should have been reported.
+                return false;
             }
 
             m_resolvers = resolvers.ToArray();

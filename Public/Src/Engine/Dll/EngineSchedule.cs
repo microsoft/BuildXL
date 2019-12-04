@@ -18,6 +18,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -780,12 +781,12 @@ namespace BuildXL.Engine
                 tempDirectoryCleaner: tempCleaner);
 
             var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
-            var sharedOpaqueSidebandFiles = SharedOpaqueOutputLogger.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+            var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
             var distinctRecordedWrites = sharedOpaqueSidebandFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile)
+                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
                 .ToArray();
 
             if (distinctRecordedWrites.Any())
@@ -797,7 +798,7 @@ namespace BuildXL.Engine
             if (sharedOpaqueSidebandFiles.Any())
             {
                 Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(sharedOpaqueSidebandFiles);
+                scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
             }
 
             if (pathsToScrub.Count > 0)
@@ -835,6 +836,24 @@ namespace BuildXL.Engine
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null);
+            }
+        }
+
+        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
+        {
+            using (var sidebandReader = new SidebandReader(sidebandFile))
+            {
+                try
+                {
+                    sidebandReader.ReadHeader(ignoreChecksum: true);
+                    sidebandReader.ReadMetadata();
+                    return sidebandReader.ReadRecordedPaths().ToArray();
+                }
+                catch (IOException e)
+                {
+                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
+                    return CollectionUtilities.EmptyArray<string>();
+                }
             }
         }
 
@@ -944,6 +963,15 @@ namespace BuildXL.Engine
                 return false;
             }
 
+            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
+            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
+            {
+                return false;
+            }
+
+            LogPipFilter(loggingContext, filter);
+            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
+
             // Do scrub before init (Scheduler.Init() and Scheduler.InitForWorker()) because init captures and tracks
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
             // incorrect if they were to be interleaved.
@@ -955,15 +983,6 @@ namespace BuildXL.Engine
             {
                 return Scheduler.InitForWorker(loggingContext);
             }
-
-            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
-            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
-            {
-                return false;
-            }
-
-            LogPipFilter(loggingContext, filter);
-            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool initResult = Scheduler.InitForMaster(loggingContext, filter, schedulerState);

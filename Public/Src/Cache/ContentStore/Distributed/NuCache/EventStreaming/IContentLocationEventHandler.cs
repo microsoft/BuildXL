@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// The specified <paramref name="hashes"/> were added to the <paramref name="sender"/>.
         /// </summary>
-        void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling);
+        void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime);
 
         /// <summary>
         /// The specified <paramref name="hashes"/> were removed from the <paramref name="sender"/>.

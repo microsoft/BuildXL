@@ -108,8 +108,8 @@ message ProcessPipExecutionPerformance{
     // Kernel-mode execution time. Note that this counter increases as threads in the process tree execute (it is not equivalent to wall clock time)
     google.protobuf.Duration KernelTime = 6;
 
-    // Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree)
-    uint64 PeakMemoryUsage = 7;
+    // Peak memory usage (in MB) considering all processes (highest point-in-time sum of the memory usage of the process tree)
+    int32 PeakMemoryUsageMb = 7;
     
     // Number of processes that executed as part of the pip (the entry-point process may start children)
     uint32 NumberOfProcesses = 8;

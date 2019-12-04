@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -30,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler
         where T : PathBase
     {
         /// <summary>
@@ -88,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
-            ICopyRequester copyRequester,
+            IProactiveCopier copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -604,6 +605,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 },
                 traceOperationStarted: false,
                 extraEndMessage: _ => $"Hash=[{hash.ToShortString()}]");
+        }
+
+        /// <inheritdoc />
+        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        {
+            if (InnerContentStore is IPushFileHandler inner)
+            {
+                var result = await inner.HandlePushFileAsync(context, hash, sourcePath, token);
+                if (!result)
+                {
+                    return result;
+                }
+
+                var registerResult = await _contentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, result.ContentSize) }, token, UrgencyHint.Nominal, touch: false);
+                if (!registerResult)
+                {
+                    return new PutResult(registerResult);
+                }
+
+                return result;
+            }
+
+            return new PutResult(new InvalidOperationException($"{nameof(InnerContentStore)} does not implement {nameof(IPushFileHandler)}"), hash);
+        }
+
+        /// <inheritdoc />
+        public bool HasContentLocally(Context context, ContentHash hash)
+        {
+            if (InnerContentStore is IPushFileHandler inner)
+            {
+                return inner.HasContentLocally(context, hash);
+            }
+
+            return false;
         }
     }
 }

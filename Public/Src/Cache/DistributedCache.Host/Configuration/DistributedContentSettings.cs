@@ -130,6 +130,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int RedisBatchPageSize { get; set; } = 500;
 
+        [DataMember]
+        public int? RedisConnectionErrorLimit { get; set; }
+
         // TODO: file a work item to remove the flag!
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;
@@ -214,6 +217,18 @@ namespace BuildXL.Cache.Host.Configuration
         /// </remarks>
         [DataMember]
         public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// A candidate must have an age older than this amount, or else it won't be evicted.
+        /// </summary>
+        [DataMember]
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
+        /// Default to always wait for both instances to complete.
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
 
         /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
@@ -525,6 +540,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
 
         [DataMember]
+        public int? TouchFrequencyMinutes { get; set; }
+
+        [DataMember]
         public int? MachineExpiryMinutes { get; set; }
 
         [DataMember]
@@ -562,11 +580,20 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
+        [DataMember]
+        public bool UseFastHibernationPin { get; set; } = false;
+
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
         /// </summary>
         [DataMember]
         public string ProactiveCopyMode { get; set; } = "Disabled";
+
+        [DataMember]
+        public bool PushProactiveCopies { get; set; } = false;
+
+        [DataMember]
+        public bool ProactiveCopyOnPin { get; set; } = false;
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;

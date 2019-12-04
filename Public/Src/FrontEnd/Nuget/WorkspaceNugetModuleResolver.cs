@@ -1349,6 +1349,10 @@ namespace BuildXL.FrontEnd.Nuget
                             "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
                             "__Q_DPAPI_Secrets_Dir",
 
+                            // Nuget Credential Provider env variables
+                            "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
+                            "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
+
                             // Auth material needed for low-privilege build.
                             "QAUTHMATERIALROOT"
                     })

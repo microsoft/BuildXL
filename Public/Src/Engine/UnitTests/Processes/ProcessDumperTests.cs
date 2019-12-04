@@ -174,9 +174,9 @@ namespace Test.BuildXL.Processes
         [DllImport("libc", SetLastError = true, EntryPoint = "kill")]
         private static extern unsafe int SendSignal(int pid, int signal);
 
-        private const int SIG_ABRT = 6;
+        private const int SIG_ILL = 4;
 
-        // TODO: Expand this test to also require super user privilages and and make sure the core dump utilities wrote both,
+        // TODO: Expand this test to also require super user privileges and and make sure the core dump utilities wrote both,
         //       the thread tid mappings and the core dump file to the system location specified
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public void CoreDumpTest()
@@ -205,7 +205,7 @@ namespace Test.BuildXL.Processes
                     var p = (Process)sendingProcess;
                     p.CancelOutputRead();
 
-                    SendSignal(process.Id, SIG_ABRT);
+                    SendSignal(process.Id, SIG_ILL);
                 });
 
                 process.BeginOutputReadLine();

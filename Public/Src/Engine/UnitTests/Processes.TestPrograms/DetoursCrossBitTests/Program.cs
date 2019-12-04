@@ -25,6 +25,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities;
+using BuildXL.Native.IO;
 
 namespace DetoursCrossBitTests
 {
@@ -211,7 +212,14 @@ namespace DetoursCrossBitTests
                 }
 
                 Contract.Assume(pip != null);
-                PipResult executeResult = await Execute(context, fileContentTable, config, pip);
+                PipResult executeResult = await Execute(
+                    context, 
+                    fileContentTable, 
+                    config, 
+                    pip, 
+                    FileUtilities.TryGetSubstSourceAndTarget(tempDirectory, out var substSource, out var substTarget) 
+                    ? (substSource, substTarget) 
+                    : default((string, string)?));
 
                 bool valid = false;
 
@@ -233,7 +241,7 @@ namespace DetoursCrossBitTests
             }
         }
 
-        private static async Task<PipResult> Execute(BuildXLContext context, FileContentTable fileContentTable, IConfiguration config, Pip pip)
+        private static async Task<PipResult> Execute(BuildXLContext context, FileContentTable fileContentTable, IConfiguration config, Pip pip, (string substSource, string substTarget)? subst)
         {
             Contract.Requires(context != null);
             Contract.Requires(fileContentTable != null);
@@ -243,7 +251,7 @@ namespace DetoursCrossBitTests
             var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
             var operationTracker = new OperationTracker(loggingContext);
 
-            using (var env = new Test.BuildXL.Scheduler.Utils.DummyPipExecutionEnvironment(loggingContext, context, config, fileContentTable))
+            using (var env = new Test.BuildXL.Scheduler.Utils.DummyPipExecutionEnvironment(loggingContext, context, config, fileContentTable, subst: subst))
             using (var operationContext = operationTracker.StartOperation(PipExecutorCounter.PipRunningStateDuration, pip.PipId, pip.PipType, env.LoggingContext))
             {
                 return await Test.BuildXL.Scheduler.TestPipExecutor.ExecuteAsync(operationContext, env, pip);

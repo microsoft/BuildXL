@@ -30,7 +30,7 @@ namespace Tool.ServicePipDaemon
     /// the command line, it is to be marshaled and sent over to a running daemon server via an RPC.
     /// In such a case, the client action simply invokes <see cref="IClient.Send"/>. 
     /// 
-    /// When an RPC is received by a daemon server (<see cref="ServicePipDaemon.ParseAndExecuteCommand"/>),
+    /// When an RPC is received by a daemon server (<see cref="ServicePipDaemon.ParseAndExecuteCommandAsync"/>),
     /// a <see cref="Command"/> is unmarshaled from the payload of the RPC operation and 
     /// is interpreted on the server by executing its <see cref="ServerAction"/>.
     /// </summary>

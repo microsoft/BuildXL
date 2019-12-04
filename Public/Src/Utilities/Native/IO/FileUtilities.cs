@@ -131,9 +131,9 @@ namespace BuildXL.Native.IO
 
         /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, CancellationToken?)"/>
         public static void DeleteDirectoryContents(
-            string path, 
-            bool deleteRootDirectory = false, 
-            Func<string, bool> shouldDelete = null, 
+            string path,
+            bool deleteRootDirectory = false,
+            Func<string, bool> shouldDelete = null,
             ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default) =>
             s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
@@ -156,7 +156,7 @@ namespace BuildXL.Native.IO
         {
             return s_fileSystem.EnumerateDirectoryEntries(directoryPath, recursive, pattern, handleEntry, followSymlinksToDirectories: true);
         }
-        
+
         /// <see cref="IFileSystem.EnumerateFiles(string, bool, string, Action{string, string, FileAttributes, long})"/>
         public static EnumerateDirectoryResult EnumerateFiles(
             string directoryPath,
@@ -218,7 +218,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => s_fileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.MoveFileAsync(string, string, bool)"/>
-        public static Task<bool> MoveFileAsync(
+        public static Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false) => s_fileUtilities.MoveFileAsync(source, destination, replaceExisting);
@@ -384,7 +384,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle> onCompletion = null) => s_fileUtilities.WriteAllBytesAsync(filePath, bytes, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.TryFindOpenHandlesToFile"/>
-        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true) 
+        public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true)
             => s_fileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
         /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
@@ -575,6 +575,12 @@ namespace BuildXL.Native.IO
             s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow);
         }
 
+        /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
+        public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
+        {
+            return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
+        }
+
         #endregion
 
         #region General file and directory utilities
@@ -716,29 +722,8 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
         }
 
-        /// <summary>
-        /// Checks if a path is a directory symlink or a junction.
-        /// </summary>
-        public static bool IsDirectorySymlinkOrJunction(string path)
-        {
-            try
-            {
-                FileAttributes dirSymlinkOrJunction = FileAttributes.ReparsePoint | FileAttributes.Directory;
-                FileAttributes attributes = FileUtilities.GetFileAttributes(path);
-
-                return (attributes & dirSymlinkOrJunction) == dirSymlinkOrJunction;
-            }
-            catch (NativeWin32Exception)
-            {
-                // FileSystem.Win.
-                return false;
-            }
-            catch (BuildXLException)
-            {
-                // FileSystem.Unix.
-                return false;
-            }
-        }
+        /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>
+        public static bool IsDirectorySymlinkOrJunction(string path) => s_fileSystem.IsDirectorySymlinkOrJunction(path);
 
 #endregion
 
@@ -981,9 +966,9 @@ namespace BuildXL.Native.IO
         /// this method simply combines A\B with D\E\F and normalizes the result, i.e., removes '.' and '..'.
         /// </remarks>
         public static Possible<string> TryResolveRelativeTarget(
-            string path, 
+            string path,
             string relativeTarget,
-            Stack<string> processed = null, 
+            Stack<string> processed = null,
             Stack<string> needToBeProcessed = null)
         {
             int rootLength = s_fileSystem.GetRootLength(path);
@@ -1020,8 +1005,8 @@ namespace BuildXL.Native.IO
         /// Tries to combine an absolute path with a relative path by resolving all the "." and ".." prefixes of the relative paths.
         /// </summary>
         private static bool TryCombinePaths(
-            string absolutePath, 
-            string relativePath, 
+            string absolutePath,
+            string relativePath,
             out string result,
             Stack<string> processed = null,
             Stack<string> needToBeProcessed = null)
@@ -1051,7 +1036,7 @@ namespace BuildXL.Native.IO
                 if (ch == '.' && index == start)
                 {
                     // Component starts with a .
-                    if ((index == relativePath.Length - 1) 
+                    if ((index == relativePath.Length - 1)
                         || s_fileSystem.IsDirectorySeparator(relativePath[index + 1]))
                     {
                         // Component is a sole . so skip it
@@ -1189,12 +1174,63 @@ namespace BuildXL.Native.IO
                 SetFileTimestamps(temporaryPath, timestamps);
             }
 
-            if (!await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true))
-            {
-                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed"));
-            }
+            await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true);
 
             return Unit.Void;
+        }
+
+        /// <summary>
+        /// Infers subst source and subst target from a given reference path.
+        /// </summary>
+        /// <param name="referenceFullPath">Rooted reference path.</param>
+        /// <param name="substSource">Output subst source.</param>
+        /// <param name="substTarget">Output subst target.</param>
+        /// <returns>True if subst is used.</returns>
+        /// <remarks>
+        /// This method calls <code>GetFinalPathByHandle</code> which is only applicable on Windows.
+        /// </remarks>
+        public static bool TryGetSubstSourceAndTarget(string referenceFullPath, out string substSource, out string substTarget)
+        {
+            Contract.Requires(Path.IsPathRooted(referenceFullPath));
+
+            substSource = null;
+            substTarget = null;
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // There is currently no subst in non-Windows OS.
+                return false;
+            }
+
+            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
+                referenceFullPath,
+                FileShare.Read | FileShare.Write | FileShare.Delete,
+                out SafeFileHandle directoryHandle);
+
+            if (!directoryOpenResult.Succeeded)
+            {
+                throw directoryOpenResult.ThrowForError();
+            }
+
+            string directoryHandlePath = GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
+
+            if (!string.Equals(referenceFullPath, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
+            {
+                string commonPath = referenceFullPath.Substring(2); // Include '\' of '<Drive>:\'  for searching.
+                substTarget = referenceFullPath.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
+                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
+
+                if (commonIndex == -1)
+                {
+                    substTarget = null;
+                }
+                else
+                {
+                    substSource = directoryHandlePath.Substring(0, commonIndex + 1);
+                }
+            }
+
+            return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
         }
 
         #endregion

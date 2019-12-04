@@ -16,7 +16,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace IntegrationTest.Domino.Scheduler
+namespace IntegrationTest.BuildXL.Scheduler
 {
     /// <summary>
     /// Tests that validate file access policies and caching behavior
@@ -126,15 +126,14 @@ namespace IntegrationTest.Domino.Scheduler
         /// </summary>
         /// <param name="tempArtifactType"></param>
         [Theory]
-        [InlineData(TempArtifactType.AdditionalTempDirectory)]
-        [InlineData(TempArtifactType.TempDirectory)]
-        [InlineData(TempArtifactType.TempFile)]
-        public void FailOnTempInput(int tempArtifactType)
+        [InlineData(TempArtifactType.AdditionalTempDirectory, EventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempDirectory, EventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempFile, EventId.InvalidInputSinceCorrespondingOutputIsTemporary)]
+        public void FailOnTempInput(int tempArtifactType, EventId errorEvent)
         {
             // First pip writes a file to its temp directory
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut);
-
-            try
+            Assert.Throws<BuildXLTestException>(() =>
             {
                 // Second pip consumes a file from pipA's temp directory
                 CreateAndSchedulePipBuilder(new Operation[]
@@ -142,20 +141,9 @@ namespace IntegrationTest.Domino.Scheduler
                     Operation.ReadFile(tempOut),
                     Operation.WriteFile(CreateOutputFileArtifact())
                 });
-            }
-            catch (System.Exception contractException)
-            {
-#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
-                // input files in temp directories throw this contract exception
-                contractException.Message.StartsWith("Assumption failed: Output artifact has no producer.");
-#pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+            });
 
-                // temp files error
-                if (tempArtifactType == TempArtifactType.TempFile)
-                {
-                    AssertErrorEventLogged(EventId.InvalidInputSinceCorrespondingOutputIsTemporary);
-                }
-            }
+            AssertErrorEventLogged(errorEvent);
         }
 
         [Theory]
@@ -486,14 +474,15 @@ namespace IntegrationTest.Domino.Scheduler
             var tempRootPath = tempRoot ?? TempRootPath;
 
             tempFileWritten = CreateOutputFileArtifact(tempRootPath);
-            var pip = CreateAndScheduleTempDirProcess(new Operation[]
-            {
-                Operation.WriteFile(tempFileWritten, doNotInfer: true),
-                Operation.WriteFile(CreateOutputFileArtifact())
-            },
-            tempArtifactType,
-            tempRootPath,
-            tempFileWritten.Path);
+            var pip = CreateAndScheduleTempDirProcess(
+                new Operation[]
+                {
+                    Operation.WriteFile(tempFileWritten, doNotInfer: true),
+                    Operation.WriteFile(CreateOutputFileArtifact())
+                },
+                tempArtifactType,
+                tempRootPath,
+                tempFileWritten.Path);
 
             return pip;
         }

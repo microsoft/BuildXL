@@ -31,7 +31,7 @@ namespace BuildXL.Processes
     public static class SandboxedProcessFileExtenstions
     {
         /// <summary>
-        /// The default file name
+        /// Gets the default file name for stdout or stderr redirection.
         /// </summary>
         /// <param name="file">The output stream</param>
         /// <returns>The resulting default file name</returns>

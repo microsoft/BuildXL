@@ -353,6 +353,11 @@ namespace BuildXL.Scheduler
         CacheMissesForDescriptorsDueToWeakFingerprints,
 
         /// <summary>
+        /// Number of times a process pip cache entry was not found using augmented weak fingerprint (no prior execution information).
+        /// </summary>
+        CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
+
+        /// <summary>
         /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artifial cache miss injection.
         /// </summary>
         CacheMissesForDescriptorsDueToArtificialMissOptions,
@@ -622,9 +627,36 @@ namespace BuildXL.Scheduler
         AzureWatsonExitCodeRetriesCount,
 
         /// <summary>
+        /// The total pip execution time that was later retried for internal reasons.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedInternalExecutionDuration,
+
+        /// <summary>
         /// Counts the number of retries for pips because users allow them to be retried, e.g., based on their exit codes.
         /// </summary>
         ProcessUserRetries,
+
+        /// <summary>
+        /// The total count of unique pips impacted by user allowed retries.
+        /// </summary>
+        ProcessUserRetriesImpactedPipsCount,
+
+        /// <summary>
+        /// The count of pips that eventually succeeded for user allowed retries
+        /// </summary>
+        ProcessUserRetriesSucceededPipsCount,
+
+        /// <summary>
+        /// The count of pips that still failed after exhausting all user allowed tretries
+        /// </summary>
+        ProcessUserRetriesFailedPipsCount,
+
+        /// <summary>
+        /// The total pip execution time that was later retried for because users allowed them to be retried.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedUserExecutionDuration,
 
         /// <summary>
         /// Counts the number of process pips executed on remote workers

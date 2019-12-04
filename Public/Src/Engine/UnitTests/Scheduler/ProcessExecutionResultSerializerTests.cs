@@ -17,6 +17,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Native.IO;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -49,7 +50,7 @@ namespace Test.BuildXL.Scheduler
                     default(IOCounters),
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
-                    new ProcessMemoryCounters(12324, 12325, 12326),
+                    ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326),
                     33,
                     7),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
@@ -64,6 +65,11 @@ namespace Test.BuildXL.Scheduler
                 whitelistedFileAccessViolations: new ReportedFileAccess[0],
                 mustBeConsideredPerpetuallyDirty: true,
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
+                    CreateSourceFile().Path
+                ),
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
                     CreateSourceFile().Path,
                     CreateSourceFile().Path
                 ),
@@ -86,7 +92,9 @@ namespace Test.BuildXL.Scheduler
                 pipCacheDescriptorV2Metadata: null,
                 converged: true,
                 pathSet: null,
-                cacheLookupStepDurations: null);
+                cacheLookupStepDurations: null,
+                pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
+                hasUserRetries: true);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -123,15 +131,16 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
-                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsage,
-                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSet,
-                r => r.PerformanceInformation.MemoryCounters.PeakPagefileUsage,
+                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakCommitUsageMb,
 
                 r => r.PerformanceInformation.NumberOfProcesses,
 
                 r => r.FileAccessViolationsNotWhitelisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicallyObservedFiles.Length,
+                r => r.DynamicallyProbedFiles.Length,
                 r => r.DynamicallyObservedEnumerations.Length,
                 r => r.AllowedUndeclaredReads.Count,
 
@@ -140,7 +149,10 @@ namespace Test.BuildXL.Scheduler
                 r => r.TwoPhaseCachingInfo.PathSetHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.MetadataHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.OriginatingCache,
-                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length
+                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length,
+
+                r => r.PipProperties.Count,
+                r => r.HasUserRetries
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)
@@ -184,6 +196,11 @@ namespace Test.BuildXL.Scheduler
                 AssertEqual(processExecutionResult.DynamicallyObservedFiles[i], deserializedProcessExecutionResult.DynamicallyObservedFiles[i]);
             }
 
+            for (int i = 0; i < processExecutionResult.DynamicallyProbedFiles.Length; i++)
+            {
+                AssertEqual(processExecutionResult.DynamicallyProbedFiles[i], deserializedProcessExecutionResult.DynamicallyProbedFiles[i]);
+            }
+
             for (int i = 0; i < processExecutionResult.DynamicallyObservedEnumerations.Length; i++)
             {
                 AssertEqual(processExecutionResult.DynamicallyObservedEnumerations[i], deserializedProcessExecutionResult.DynamicallyObservedEnumerations[i]);
@@ -198,6 +215,8 @@ namespace Test.BuildXL.Scheduler
                     processExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i],
                     deserializedProcessExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i]);
             }
+
+            XAssert.AreEqual(9, deserializedProcessExecutionResult.PipProperties["Bar"]);
         }
 
         private (FileArtifact, FileMaterializationInfo, PipOutputOrigin) CreateRandomOutputContent()

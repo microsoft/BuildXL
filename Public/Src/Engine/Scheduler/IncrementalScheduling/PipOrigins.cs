@@ -19,6 +19,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     internal sealed class PipOrigins
     {
         /// <summary>
+        /// Number of tracked pip origins.
+        /// </summary>
+        public int Count => m_pipOrigins.Count;
+
+        /// <summary>
         /// Mappings from pip fingerprints to their semi-stable hash, (index of) origin pip graph, and pip id.
         /// </summary>
         private readonly ConcurrentBigMap<ContentFingerprint, (long semiStableHash, int pipGraphIndex)> m_pipOrigins;

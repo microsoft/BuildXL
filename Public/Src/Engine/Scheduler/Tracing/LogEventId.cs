@@ -152,6 +152,7 @@ namespace BuildXL.Scheduler.Tracing
 
         ProblematicWorkerExit = 5070,
         ProcessPipExecutionInfo = 5071,
+        ProcessPipExecutionInfoOverflowFailure = 5072,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

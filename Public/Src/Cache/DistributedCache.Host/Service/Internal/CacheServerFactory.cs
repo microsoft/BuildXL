@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
@@ -42,7 +43,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 
-        public (LocalContentServer contentServer, LocalCacheServer cacheServer) Create()
+        public StartupShutdownBase Create()
         {
             var cacheConfig = _arguments.Configuration;
             cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
@@ -66,7 +67,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
+        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
@@ -82,21 +83,21 @@ namespace BuildXL.Cache.Host.Service.Internal
                         passContentToMemoization: true);
                 };
 
-                return (null, new LocalCacheServer(
+                return new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration));
+                    localServerConfiguration);
             }
             else
             {
-                return (new LocalContentServer(
+                return new LocalContentServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration), null);
+                    localServerConfiguration);
             }
         }
 
@@ -115,7 +116,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 secretRetriever);
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
+        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
 
@@ -157,21 +158,21 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // the distributed case. This means that the factories will be called exactly once, so we will have
                 // a single MultiplexedContentStore and MemoizationStore. The latter will be located in the last cache
                 // root listed as per production configuration, which currently (8/27/2019) points to the SSD drives.
-                return (null, new LocalCacheServer(
+                return new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration));
+                    localServerConfiguration);
             }
             else
             {
-                return (new LocalContentServer(
+                return new LocalContentServer(
                     _fileSystem,
                     _logger,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration), null);
+                    localServerConfiguration);
             }
         }
 

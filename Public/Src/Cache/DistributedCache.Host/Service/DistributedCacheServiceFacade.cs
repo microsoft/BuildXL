@@ -34,8 +34,7 @@ namespace BuildXL.Cache.Host.Service
 
             await host.OnStartingServiceAsync();
 
-            var eitherServer = factory.Create();
-            using (var server = ((StartupShutdownBase)eitherServer.cacheServer) ?? eitherServer.contentServer)
+            using (var server = factory.Create())
             {
                 var context = new Context(logger);
 

@@ -182,7 +182,7 @@ namespace BuildXL.Execution.Analyzer
 
             static string csvEscape(string str)
             {
-                return '"' + str?.Replace("\"", "\"\"") ?? string.Empty + '"';
+                return '"' + (str?.Replace("\"", "\"\"") ?? string.Empty) + '"';
             }
         }
 

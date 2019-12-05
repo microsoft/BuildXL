@@ -232,6 +232,7 @@ namespace BuildXL.Execution.Analyzer
             obi = s_pipProperties.Aggregate(obi, (acc, pi) => acc.Prop(pi.Name, () => pi.GetValue(pip)));
             obi = s_pipFields.Aggregate(obi, (acc, fi) => acc.Prop(fi.Name, () => fi.GetValue(pip)));
             return obi
+                .Prop("Description", () => pip.GetDescription(PipGraph.Context))
                 .Prop("DownstreamPips", CachedGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
                 .Prop("UpstreamPips", CachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
                 .Preview(PipPreview(pip));
@@ -292,6 +293,7 @@ namespace BuildXL.Execution.Analyzer
                 .Prop("ExecutionPerformance", () => Analyzer.TryGetPipExePerf(proc.PipId))
                 .Prop("ExecutionLevel", () => GetPipExecutionLevel(Analyzer.TryGetPipExePerf(proc.PipId)))
                 .Prop("MonitoringData", () => Analyzer.TryGetProcessMonitoringData(proc.PipId))
+                .Prop("FingerprintData", () => Analyzer.TryGetProcessFingerprintData(proc.PipId))
                 .Prop("GenericInfo", () => GenericObjectInfo(proc, preview: "").Build())
                 .Build();
         }
@@ -316,7 +318,7 @@ namespace BuildXL.Execution.Analyzer
                 .Prop("Kind", f.IsSourceFile ? "source" : "output")
                 .Prop("RewriteCount", f.RewriteCount)
                 .Prop("FileContentInfo", () => Analyzer.TryGetFileContentInfo(f))
-                .Prop("Producer", () => f.IsOutputFile ? Analyzer.GetPip(PipGraph.GetProducer(f)) : null)
+                .Prop("Producer", () => f.IsOutputFile ? Analyzer.GetPip(PipGraph.TryGetProducer(f)) : null)
                 .Prop("Consumers", () => PipGraph.GetConsumingPips(f.Path))
                 .Build();
         }
@@ -336,10 +338,10 @@ namespace BuildXL.Execution.Analyzer
                 .Prop("Path", d.Path.ToString(PathTable))
                 .Prop("PartialSealId", d.PartialSealId)
                 .Prop("Kind", kind)
-                .Prop("Producer", () => d.IsOutputDirectory() ? Analyzer.GetPip(PipGraph.GetProducer(d)) : null)
+                .Prop("Producer", () => d.IsOutputDirectory() ? Analyzer.GetPip(PipGraph.TryGetProducer(d)) : null)
                 .Prop("Consumers", PipGraph.GetConsumingPips(d))
                 .Prop("Members", () => d.IsOutputDirectory()
-                    ? Analyzer.GetDirMembers(d, PipGraph.GetProducer(d))
+                    ? (object)Analyzer.GetDirMembers(d)
                     : d.PartialSealId > 0
                         ? PipGraph.ListSealedDirectoryContents(d).Select(f => f.Path)
                         : CollectionUtilities.EmptyArray<AbsolutePath>())

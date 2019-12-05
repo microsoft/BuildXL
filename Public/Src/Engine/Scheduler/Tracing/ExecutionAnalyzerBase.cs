@@ -84,7 +84,9 @@ namespace BuildXL.Scheduler.Tracing
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public Pip GetPip(PipId pipId)
         {
-            return PipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer);
+            return pipId.IsValid
+                ? PipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer)
+                : null;
         }
 
         /// <summary>
@@ -93,7 +95,9 @@ namespace BuildXL.Scheduler.Tracing
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public Pip GetPip(NodeId nodeId)
         {
-            return PipTable.HydratePip(nodeId.ToPipId(), PipQueryContext.ViewerAnalyzer);
+            return nodeId.IsValid
+                ? PipTable.HydratePip(nodeId.ToPipId(), PipQueryContext.ViewerAnalyzer)
+                : null;
         }
 
         /// <summary>

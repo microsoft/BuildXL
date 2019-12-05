@@ -155,6 +155,12 @@ namespace BuildXL.Scheduler.Tracing
         FingerprintStoreLoggingTime,
 
         /// <summary>
+        /// The number of ms spent serializing and storing to the fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FingerprintStoreAwaitingEventProcessorTime,
+
+        /// <summary>
         /// The number of ms spent serializing fingerprint store entries to JSON.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

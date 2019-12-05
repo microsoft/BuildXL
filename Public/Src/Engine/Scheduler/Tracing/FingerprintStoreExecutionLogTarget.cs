@@ -19,6 +19,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
@@ -99,6 +100,8 @@ namespace BuildXL.Scheduler.Tracing
         private bool CacheMissAnalysisEnabled => RuntimeCacheMissAnalyzer != null;
 
         private bool CacheLookupStoreEnabled => CacheLookupFingerprintStore != null && !CacheLookupFingerprintStore.Disabled;
+
+        private readonly FingerprintStoreEventProcessor m_fingerprintStoreEventProcessor;
 
         /// <summary>
         /// Creates a <see cref="FingerprintStoreExecutionLogTarget"/>.
@@ -231,6 +234,8 @@ namespace BuildXL.Scheduler.Tracing
                 cache,
                 graph,
                 runnablePipPerformance);
+
+            m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
 
             Contract.Assume(FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
         }
@@ -510,6 +515,27 @@ namespace BuildXL.Scheduler.Tracing
                 return;
             }
 
+            m_fingerprintStoreEventProcessor.Enqueue(data.PipId, () => ProcessFingerprintComputationData(data));
+        }
+
+        /// <summary>
+        /// Aggregate a list of the pip cache misses to write to the store at the end of the build.
+        /// </summary>
+        public override void PipCacheMiss(PipCacheMissEventData data)
+        {
+            if (ExecutionFingerprintStore.Disabled)
+            {
+                return;
+            }
+
+            // Unlike ProcessFingerprintComputationEventData, processing PipCacheMissEventData is cheap and synchronous
+            // and thus we still maintain the proper order needed by runtime cache miss analysis, i.e.,
+            // we know that fingerprints will be processed afterwards.
+            ProcessCacheMissData(data);
+        }
+
+        private void ProcessFingerprintComputationData(ProcessFingerprintComputationEventData data)
+        {
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
             {
                 Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationEvents);
@@ -525,16 +551,8 @@ namespace BuildXL.Scheduler.Tracing
             }
         }
 
-        /// <summary>
-        /// Aggregate a list of the pip cache misses to write to the store at the end of the build.
-        /// </summary>
-        public override void PipCacheMiss(PipCacheMissEventData data)
+        private void ProcessCacheMissData(PipCacheMissEventData data)
         {
-            if (ExecutionFingerprintStore.Disabled)
-            {
-                return;
-            }
-
             GetProcess(data.PipId).TryComputePipUniqueOutputHash(m_context.PathTable, out var pipUniqueOutputHash, PipContentFingerprinter.PathExpander);
 
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
@@ -665,6 +683,11 @@ namespace BuildXL.Scheduler.Tracing
                 // Store the ordered pip cache miss list as one blob
                 ExecutionFingerprintStore.PutCacheMissList(m_pipCacheMissesQueue.ToList());
 
+                using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreAwaitingEventProcessorTime))
+                {
+                    m_fingerprintStoreEventProcessor.Complete();
+                }
+
                 // We should first dispose the fingerprintStore in the RunCacheMissAnalyzer
                 // because that might be the snapshot version of FingerprintStore
                 // in case cache miss analysis is in the local-mode.
@@ -681,6 +704,45 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             base.Dispose();
+        }
+
+        private class FingerprintStoreEventProcessor
+        {
+            private readonly ActionBlockSlim<Action>[] m_actionBlocks;
+
+            public FingerprintStoreEventProcessor(int degreeOfParallelism)
+            {
+                Contract.Requires(degreeOfParallelism > 0);
+
+                // To ensure that events coming from the same pips are processed according to the order when they came,
+                // we use N action blocks, all with degree of parallelism 1. Thus, we potentially get parallelism across
+                // different pips, but maintain sequential processing within a single pip.
+                // This is necessary in particular when the runtime cache miss analyzer is enabled because 
+                // we use cachelookup fingerprints to perform cache miss analyzer for strongfingerprint misses.
+                m_actionBlocks = new ActionBlockSlim<Action>[degreeOfParallelism];
+                for (int i = 0; i < degreeOfParallelism; ++i)
+                {
+                    m_actionBlocks[i] = new ActionBlockSlim<Action>(1, a => a());
+                }
+            }
+
+            public void Enqueue(PipId pipId, Action action)
+            {
+                m_actionBlocks[Math.Abs(pipId.Value % m_actionBlocks.Length)].Post(action);
+            }
+
+            public void Complete()
+            {
+                for (int i = 0; i < m_actionBlocks.Length; ++i)
+                {
+                    m_actionBlocks[i].Complete();
+                }
+
+                for (int i = 0; i < m_actionBlocks.Length; ++i)
+                {
+                    m_actionBlocks[i].CompletionAsync().Wait();
+                }
+            }
         }
     }
 }

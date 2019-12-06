@@ -404,6 +404,27 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteOnExistingFile);
         }
 
+        /// <summary>
+        /// TODO: blocking writes on existing undeclared inputs is not implemented on Mac yet
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void WritingUntrackedUndeclaredInputsUnderSharedOpaquesAreAllowed()
+        {
+            // Create an undeclared source file under the cone of a shared opaque
+            var source = CreateSourceFile(SharedOpaqueDirectoryRoot);
+
+            // Run a pip that writes into the source file
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(source, doNotInfer: true) });
+            pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
+            // Make sure the source file is untracked
+            pipBuilder.AddUntrackedFile(source);
+            pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
+        }
+
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]

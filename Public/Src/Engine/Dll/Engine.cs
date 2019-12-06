@@ -1230,6 +1230,22 @@ namespace BuildXL.Engine
             // get the current user AppData directory path before we make any changes
             currentUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+            if (string.IsNullOrWhiteSpace(currentUserProfile))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Environment.SpecialFolder.UserProfile returns empty value."));
+                currentUserProfile = null;
+                redirectedProfile = null;
+                return false;
+            }
+
+            if (!FileUtilities.DirectoryExistsNoFollow(currentUserProfile))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"currentUserProfile '{currentUserProfile}' does not exist."));
+                currentUserProfile = null;
+                redirectedProfile = null;
+                return false;
+            }
+
             // <root>\RedirectedUserName
             redirectedProfile = Path.Combine(rootPath, RedirectedUserName);
 

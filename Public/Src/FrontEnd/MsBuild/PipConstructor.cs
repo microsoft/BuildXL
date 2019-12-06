@@ -23,6 +23,7 @@ using BuildXL.Utilities.Qualifier;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
+using BuildXL.FrontEnd.MsBuild.Serialization;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -225,13 +226,18 @@ namespace BuildXL.FrontEnd.MsBuild
             out string failureDetail,
             out Process scheduledProcess)
         {
+            // Let's compute the project properties that are different from the globally specified ones. This is to avoid unnecesarily long names when computing
+            // the project pip symbol and log directory: we distinguish projects that only differ on global properties by their difference wrt the globally specified ones, and
+            // not by all its properties (which can result in a very long string if many properties are used)
+            var deltaGlobalProperties = ComputeDeltaForGlobalProperties(project.GlobalProperties, m_resolverSettings.GlobalProperties);
+            
             // We create a pip construction helper for each project
-            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
+            var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId, deltaGlobalProperties);
 
             using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, out AbsolutePath outputResultCacheFile, out failureDetail))
+                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, deltaGlobalProperties, out AbsolutePath outputResultCacheFile, out failureDetail))
                 {
                     scheduledProcess = null;
                     return false;
@@ -304,6 +310,16 @@ namespace BuildXL.FrontEnd.MsBuild
                 failureDetail = string.Empty;
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Returns all the project global properties that are either not defined in the initial global properties or its value is different
+        /// </summary>
+        private GlobalProperties ComputeDeltaForGlobalProperties(GlobalProperties projectGlobalProperties, IReadOnlyDictionary<string, string> globalProperties)
+        {
+            var initialGlobalProperties = globalProperties == null ? GlobalProperties.Empty : new GlobalProperties(m_resolverSettings.GlobalProperties);
+
+            return new GlobalProperties(projectGlobalProperties.Where(kvp => !initialGlobalProperties.TryGetValue(kvp.Key, out string value) || value != kvp.Value));
         }
 
         /// <summary>
@@ -509,6 +525,7 @@ namespace BuildXL.FrontEnd.MsBuild
             ProcessBuilder processBuilder,
             PipConstructionHelper pipConstructionHelper,
             ProjectWithPredictions project,
+            GlobalProperties deltaGlobalProperties,
             out AbsolutePath outputResultCacheFile,
             out string failureDetail)
         {
@@ -542,7 +559,7 @@ namespace BuildXL.FrontEnd.MsBuild
             SetUntrackedFilesAndDirectories(processBuilder);
 
             // Add the log directory and its corresponding files
-            AbsolutePath logDirectory = GetLogDirectory(project);
+            AbsolutePath logDirectory = GetLogDirectory(project, deltaGlobalProperties);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.log"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.wrn"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
@@ -791,7 +808,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
         }
 
-        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile)
+        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile, GlobalProperties deltaGlobalProperties)
         {
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
@@ -806,7 +823,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // Build a string with global property values (e.g. 'debug-x86'). That should be unique enough.
             // Projects can be evaluated multiple times with different global properties
-            List<string> values = projectFile.GlobalProperties
+            List<string> values = deltaGlobalProperties
                 .Where(kvp => kvp.Key != s_isGraphBuildProperty)
                 .Select(kvp => PipConstructionUtilities.SanitizeStringForSymbol(kvp.Value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
@@ -854,7 +871,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return true;
         }
 
-        private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId)
+        private PipConstructionHelper GetPipConstructionHelperForProject(ProjectWithPredictions project, QualifierId qualifierId, GlobalProperties deltaGlobalProperties)
         {
             var pathToProject = project.FullPath;
 
@@ -873,7 +890,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             // Get a symbol that is unique for this particular project instance
-            var fullSymbol = GetFullSymbolFromProject(project);
+            var fullSymbol = GetFullSymbolFromProject(project, deltaGlobalProperties);
 
             var pipConstructionHelper = PipConstructionHelper.Create(
                 m_context,
@@ -891,7 +908,7 @@ namespace BuildXL.FrontEnd.MsBuild
             return pipConstructionHelper;
         }
 
-        private FullSymbol GetFullSymbolFromProject(ProjectWithPredictions project)
+        private FullSymbol GetFullSymbolFromProject(ProjectWithPredictions project, GlobalProperties deltaGlobalProperties)
         {
             // We construct the name of the value using the project name and its global properties
             // Observe this symbol has to be unique wrt another symbol coming from the same physical project (i.e. same project full
@@ -901,14 +918,14 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // If global properties are present, we append to the value name a flatten representation of them
             // There should always be a 'IsGraphBuild' property, so we count > 1
-            Contract.Assert(project.GlobalProperties.ContainsKey(s_isGraphBuildProperty));
-            if (project.GlobalProperties.Count > 1)
+            Contract.Assert(deltaGlobalProperties.ContainsKey(s_isGraphBuildProperty));
+            if (deltaGlobalProperties.Count > 1)
             {
                 valueName += ".";
             }
             valueName += string.Join(
                 ".",
-                project.GlobalProperties
+                deltaGlobalProperties
                     // let's sort global properties keys to make sure the same string is generated consistently
                     // case-sensitivity is already handled (and ignored) by GlobalProperties class
                     .Where(kvp => kvp.Key != s_isGraphBuildProperty)

@@ -86,13 +86,31 @@ namespace Tools {
                         importFrom("BuildXL.Explorer").App.app.appFolder
                     ]
                 }])
-            ]            
+            ]
         };
-            
+
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
             targetLocation: r`${qualifier.configuration}/tools`
         });
+    }
 
+    namespace DistributedBuildRunner {
+        export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
+        export const deployment : Deployment.Definition = {
+            contents: [
+                importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
+            ],
+        };
+
+        const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
+            ? qualifier.targetRuntime
+            : qualifier.targetFramework;
+
+        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment,
+            targetLocation: r`${qualifier.configuration}/tools/DistributedBuildRunner/${frameworkSpecificPart}`
+        });
     }
 }

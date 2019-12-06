@@ -8,7 +8,7 @@ using System.Threading;
 namespace BuildXL.Utilities.Threading
 {
     /// <summary>
-    /// A simple and slim reader-writer lock which only occupies the space for an object and an integer.
+    /// A simple and slim reader-writer lock which only occupies the space for an object and a long.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     public readonly struct ReadWriteLock
@@ -162,16 +162,21 @@ namespace BuildXL.Utilities.Threading
         /// </summary>
         private sealed class Locker
         {
-            private const int WRITE_FLAG = 1 << 31;
+            private const long WRITE_FLAG = 1L << 48;
+            private const long FIRST_OVERFLOW_BIT = 1L << 31;
 
-            private int m_readerCountAndWriteFlag;
+            // 63...........48  47...........31  30..............0
+            // write lock flag  overflow buffer  read lock counter
+            private long m_readerCountAndWriteFlag;
+
+            public bool HasExclusiveAccess => Monitor.IsEntered(this) && Volatile.Read(ref m_readerCountAndWriteFlag) == WRITE_FLAG;
 
             public void EnterReadLock()
             {
                 while (true)
                 {
-                    int readerCountAndWriteFlag = Interlocked.Increment(ref m_readerCountAndWriteFlag);
-                    if (readerCountAndWriteFlag < 0)
+                    long readerCountAndWriteFlag = Interlocked.Increment(ref m_readerCountAndWriteFlag);
+                    if (readerCountAndWriteFlag >= WRITE_FLAG)
                     {
                         // Write flag is set
                         // 1. Decrement the reader count so the write can proceed
@@ -179,12 +184,16 @@ namespace BuildXL.Utilities.Threading
                         Interlocked.Decrement(ref m_readerCountAndWriteFlag);
 
                         SpinWait spinWait = default(SpinWait);
-                        while (Volatile.Read(ref m_readerCountAndWriteFlag) < 0)
+                        while (Volatile.Read(ref m_readerCountAndWriteFlag) >= WRITE_FLAG)
                         {
                             // Write flag is set.
                             // Spin wait for it to be unset so the read can proceed
                             spinWait.SpinOnce();
                         }
+                    }
+                    else if (readerCountAndWriteFlag >= FIRST_OVERFLOW_BIT)
+                    {
+                        throw new OverflowException($"readerCountAndWriteFlag={readerCountAndWriteFlag}");
                     }
                     else
                     {
@@ -220,20 +229,19 @@ namespace BuildXL.Utilities.Threading
                 return enteredWriteLock;
             }
 
-            public bool HasExclusiveAccess => Monitor.IsEntered(this) && Volatile.Read(ref m_readerCountAndWriteFlag) == WRITE_FLAG;
-
             public void ExcludeReads()
             {
-                int readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
-                if (readerCountAndWriteFlag < 0)
+                long readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
+                if (readerCountAndWriteFlag >= WRITE_FLAG)
                 {
                     // Write flag is set so must have entered lock recursively
-                    throw new LockRecursionException();
+                    throw new LockRecursionException($"m_readerCountAndWriteFlag={readerCountAndWriteFlag}");
                 }
 
-                // Set the top bit
+                // Set the write flag
                 Interlocked.Add(ref m_readerCountAndWriteFlag, WRITE_FLAG);
 
+                // Wait until all previously acquired read locks are released.
                 SpinWait spinWait = default(SpinWait);
                 while (Volatile.Read(ref m_readerCountAndWriteFlag) != WRITE_FLAG)
                 {
@@ -243,11 +251,13 @@ namespace BuildXL.Utilities.Threading
 
             public void ExitWriteLock()
             {
-                int readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
-                if (readerCountAndWriteFlag < 0)
+                long readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
+                // Check if the flag is set; and unset it if necessary.
+                // The flag is set in ExcludeReads method, and we only step into that method if allowReads is false,
+                // i.e., it is possible to acquire a write lock without setting the flag.
+                if (readerCountAndWriteFlag >= WRITE_FLAG)
                 {
-                    // The top bit is set, so this will unset the top bit
-                    Interlocked.Add(ref m_readerCountAndWriteFlag, WRITE_FLAG);
+                    Interlocked.Add(ref m_readerCountAndWriteFlag, -WRITE_FLAG);
                 }
 
                 Monitor.Exit(this);

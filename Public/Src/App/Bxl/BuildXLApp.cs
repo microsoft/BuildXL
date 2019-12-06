@@ -1442,7 +1442,8 @@ namespace BuildXL
                     m_console,
                     m_baseTime,
                     buildViewModel,
-                    m_configuration.UseCustomPipDescriptionOnConsole
+                    m_configuration.UseCustomPipDescriptionOnConsole,
+                    m_warningManager.GetState
                 );
 
                 AddListener(listener);

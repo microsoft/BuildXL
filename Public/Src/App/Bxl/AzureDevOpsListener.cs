@@ -12,6 +12,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
+using JetBrains.Annotations;
 
 namespace BuildXL
 {
@@ -45,8 +46,9 @@ namespace BuildXL
             IConsole console,
             DateTime baseTime,
             BuildViewModel buildViewModel,
-            bool useCustomPipDescription)
-            : base(eventSource, baseTime, warningMapper: null, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
+            bool useCustomPipDescription,
+            [CanBeNull] WarningMapper warningMapper)
+            : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.Requires(console != null);
             Contract.Requires(buildViewModel != null);

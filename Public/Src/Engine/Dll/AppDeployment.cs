@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -192,7 +193,6 @@ namespace BuildXL.Engine
 
                 if (!skipManifestCheckTestHook)
                 {
-                    ContentHashingUtilities.SetDefaultHashType();
                     AddHashForManifestFile(sb);
                 }
 
@@ -223,7 +223,14 @@ namespace BuildXL.Engine
 
                 try
                 {
-                    sb.Append(ContentHashingUtilities.HashString(File.ReadAllText(Path.Combine(BaseDirectory, path))).ToHex());
+                    using (MD5 md5Hash = MD5.Create())
+                    {
+                        byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
+                        foreach (var b in data)
+                        {
+                            sb.Append(b.ToString("x2"));
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {

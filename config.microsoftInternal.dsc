@@ -44,7 +44,7 @@ export const pkgs = isMicrosoftInternal ? [
 
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
-    // { id: "NodeJs", version: "9.9.0-noTest" }, // paths in this package are longer than 256 chars so nuget.exe goes crazy
+    { id: "NodeJs", version: "8.12.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0" },
 
     // Combined runtimes
@@ -65,7 +65,7 @@ export const resolver = {
         f`private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
             f`private/InternalSdk/PowerShell.Core/module.config.dsc`,
-            // f`private/InternalSdk/NodeJs/module.config.dsc`,
+            f`private/InternalSdk/NodeJs/module.config.dsc`,
             f`private/InternalSdk/DotNet-Runtime/module.config.dsc`,
             f`private/InternalSdk/Windows.Sdk/module.config.dsc`
         ),

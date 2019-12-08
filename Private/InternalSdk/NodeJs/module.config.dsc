@@ -12,3 +12,9 @@ module({
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`NodeJs.osx-x64.dsc`]
 });
+
+module({
+    name: "NodeJs.linux-x64", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`NodeJs.linux-x64.dsc`]
+});

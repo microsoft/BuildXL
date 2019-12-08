@@ -2453,15 +2453,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "NodeJs",
-          "Version": "8.12.0-noTest"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "NuGet.Commandline",
           "Version": "4.7.1"
         }

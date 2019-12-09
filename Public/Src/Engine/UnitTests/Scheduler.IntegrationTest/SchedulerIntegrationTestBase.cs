@@ -427,9 +427,11 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(m_journalState.IsEnabled, "Incremental scheduling requires that journal is enabled");
             }
 
+            (string drive, string path)? subst = null;
             if (!DirectoryTranslator.Sealed && TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
             {
                 DirectoryTranslator.AddTranslation(substSource, substTarget);
+                subst = FileUtilities.GetSubstDriveAndPath(substSource, substTarget);
             }
 
             // Seal the translator if not sealed
@@ -471,7 +473,7 @@ namespace Test.BuildXL.Scheduler
                 failedPips: null,
                 ipcProvider: null,
                 directoryTranslator: DirectoryTranslator,
-                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)), // VM command proxy for unit tests comes from engine.
+                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable), subst: subst), // VM command proxy for unit tests comes from engine.
                 testHooks: testHooks))
             {
                 MountPathExpander mountPathExpander = null;

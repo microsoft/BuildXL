@@ -1233,6 +1233,20 @@ namespace BuildXL.Native.IO
             return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
         }
 
+        /// <summary>
+        /// Gets subst drive and path from subst source and target.
+        /// </summary>
+        public static (string drive, string path) GetSubstDriveAndPath(string substSource, string substTarget)
+        {
+            Contract.Requires(Path.IsPathRooted(substSource));
+            Contract.Requires(Path.IsPathRooted(substTarget));
+
+            string substDrive = Path.GetPathRoot(substTarget).TrimEnd(Path.DirectorySeparatorChar);
+            string substPath = substSource.TrimEnd(Path.DirectorySeparatorChar);
+
+            return (substDrive, substPath);
+        }
+
         #endregion
     }
 }

@@ -97,19 +97,27 @@ namespace BuildXL.Processes
                 return CreateResultForVmCommandProxyFailure();
             }
 
-            // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
-            RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
-                () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
-                e => m_error.AppendLine(e.Message));
-
-            if (runVmResult == null)
+            try
             {
-                return CreateResultForVmCommandProxyFailure();
+                // (3) Validate the result of sandboxed process executor run by VmCommandProxy.
+                RunResult runVmResult = ExceptionUtilities.HandleRecoverableIOException(
+                    () => VmSerializer.DeserializeFromFile<RunResult>(RunOutputPath),
+                    e => m_error.AppendLine(e.Message));
+
+                if (runVmResult == null)
+                {
+                    return CreateResultForVmCommandProxyFailure();
+                }
+
+                if (runVmResult.ProcessStateInfo.ExitCode != 0)
+                {
+                    return CreateResultForSandboxExecutorFailure(runVmResult);
+                }
             }
-
-            if (runVmResult.ProcessStateInfo.ExitCode != 0)
+            catch (Exception e)
             {
-                return CreateResultForSandboxExecutorFailure(runVmResult);
+                m_error.AppendLine(e.ToString());
+                return CreateResultForVmCommandProxyFailure();
             }
 
             return DeserializeSandboxedProcessResultFromFile();

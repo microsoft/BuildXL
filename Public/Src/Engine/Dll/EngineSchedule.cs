@@ -283,6 +283,11 @@ namespace BuildXL.Engine
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
                         vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
+                        subst: configuration.Logging.SubstSource.IsValid && configuration.Logging.SubstTarget.IsValid
+                            ? FileUtilities.GetSubstDriveAndPath(
+                                configuration.Logging.SubstSource.ToString(context.PathTable),
+                                configuration.Logging.SubstTarget.ToString(context.PathTable))
+                            : default,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -1690,6 +1695,11 @@ namespace BuildXL.Engine
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
                             vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
+                            newConfiguration.Logging.SubstSource.IsValid && newConfiguration.Logging.SubstTarget.IsValid
+                                ? FileUtilities.GetSubstDriveAndPath(
+                                    newConfiguration.Logging.SubstSource.ToString(newContext.PathTable),
+                                    newConfiguration.Logging.SubstTarget.ToString(newContext.PathTable))
+                                : default,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));

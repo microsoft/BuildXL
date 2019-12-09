@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -41,12 +40,15 @@ namespace BuildXL.Utilities.VmCommandProxy
         private readonly Action<string> m_logEndInit;
         private readonly Action<string> m_logInitExecution;
 
+        private readonly (string drive, string path)? m_subst;
+
         /// <summary>
         /// Creates an instance of <see cref="VmInitializer"/> from build engine.
         /// </summary>
         public static VmInitializer CreateFromEngine(
             string buildEngineDirectory,
             string vmCommandProxyAlternate = null,
+            (string drive, string path)? subst = null,
             Action<string> logStartInit = null,
             Action<string> logEndInit = null,
             Action<string> logInitExecution = null)
@@ -65,16 +67,22 @@ namespace BuildXL.Utilities.VmCommandProxy
                 vmCommandProxy = vmCommandProxyAlternate;
             }
 
-            return new VmInitializer(vmCommandProxy, logStartInit, logEndInit, logInitExecution);
+            return new VmInitializer(vmCommandProxy, subst, logStartInit, logEndInit, logInitExecution);
         }
 
         /// <summary>
         /// Creates an instance of <see cref="VmInitializer"/>.
         /// </summary>
-        private VmInitializer(string vmCommandProxy, Action<string> logStartInit = null, Action<string> logEndInit = null, Action<string> logInitExecution = null)
+        private VmInitializer(
+            string vmCommandProxy,
+            (string drive, string path)? subst = null,
+            Action<string> logStartInit = null,
+            Action<string> logEndInit = null,
+            Action<string> logInitExecution = null)
         {
             VmCommandProxy = vmCommandProxy;
             LazyInitVmAsync = new Lazy<Task>(() => InitVmAsync(), true);
+            m_subst = subst;
             m_logStartInit = logStartInit;
             m_logEndInit = logEndInit;
             m_logInitExecution = logInitExecution;
@@ -82,8 +90,21 @@ namespace BuildXL.Utilities.VmCommandProxy
 
         private async Task InitVmAsync()
         {
-            // (1) Create a process to execute VmCommandProxy.
-            string arguments = $"{VmCommands.InitializeVm}";
+            // (1) Create and serialize input for InitializeVM command.
+            var inputPath = Path.GetTempFileName();
+            var input = new InitializeVmRequest();
+            if (m_subst.HasValue
+                && !string.IsNullOrEmpty(m_subst.Value.drive)
+                && !string.IsNullOrEmpty(m_subst.Value.path))
+            {
+                input.SubstDrive = m_subst.Value.drive;
+                input.SubstPath = m_subst.Value.path;
+            }
+
+            VmSerializer.SerializeToFile(inputPath, input);
+
+            // (2) Create a process to execute VmCommandProxy.
+            string arguments = $"{VmCommands.InitializeVm} /{VmCommands.Params.InputJsonFile}:\"{inputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments, Path.GetDirectoryName(Path.GetTempFileName()));
 
             m_logStartInit?.Invoke($"{VmCommandProxy} {arguments}");
@@ -93,7 +114,7 @@ namespace BuildXL.Utilities.VmCommandProxy
 
             string provenance = $"[{nameof(VmInitializer)}]";
 
-            // (2) Run VmCommandProxy to start build.
+            // (3) Run VmCommandProxy to start build.
             using (var executor = new AsyncProcessExecutor(
                 process,
                 TimeSpan.FromMinutes(InitVmTimeoutInMinute),

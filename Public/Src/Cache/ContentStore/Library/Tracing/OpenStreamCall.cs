@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             using (var call = new OpenStreamCall<TTracer>(tracer, context, contentHash))
             {
-                return await call.RunAsync(funcAsync);
+                return await call.RunSafeAsync(funcAsync);
             }
         }
 

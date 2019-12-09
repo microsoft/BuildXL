@@ -338,6 +338,7 @@ function Get-CacheConfig {
          CacheRootPath = $cacheDirectory;
          CacheLogPath = "[BuildXLSelectedLogPath]";
          UseStreamCAS = $true;
+         UseRocksDbMemoizationStore = $true;
          <# TODO: Enable elasticity when new lkg is published. #>
          <# EnableElasticity = $true; #>
     };

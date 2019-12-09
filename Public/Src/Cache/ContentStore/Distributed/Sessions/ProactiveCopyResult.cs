@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(ResultBase other, string message)
+        public ProactiveCopyResult(ResultBase other, string message = null)
             : base(other, message)
         {
         }

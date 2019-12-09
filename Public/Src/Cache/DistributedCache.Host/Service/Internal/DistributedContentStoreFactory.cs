@@ -72,7 +72,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionMinAge = _distributedSettings.EvictionMinAge,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 RetryWindow = _distributedSettings.RetryWindow,
-                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
+                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
+                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                DelayForProactiveReplication = TimeSpan.FromSeconds(_distributedSettings.ProactiveReplicationDelaySeconds),
+                ProactiveReplicationCopyLimit = _distributedSettings.ProactiveReplicationCopyLimit,
+                EnableProactiveReplication = _distributedSettings.EnableProactiveReplication,
             };
 
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);

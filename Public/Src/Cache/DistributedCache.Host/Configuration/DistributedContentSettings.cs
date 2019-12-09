@@ -19,7 +19,7 @@ namespace BuildXL.Cache.Host.Configuration
     {
         private const int DefaultMaxConcurrentCopyOperations = 512;
 
-        internal static readonly int[] DefaultRetryIntervalForCopiesMs = 
+        internal static readonly int[] DefaultRetryIntervalForCopiesMs =
             new int[]
             {
                 // retry the first 2 times quickly.
@@ -568,9 +568,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
-        [DataMember]
-        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
-
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
@@ -582,6 +579,25 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool UseFastHibernationPin { get; set; } = false;
+
+        [DataMember]
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
+
+        [DataMember]
+        public bool UseRedisMetadataStore { get; set; } = false;
+
+        #endregion
+
+        #region Proactive Copy / Replication
+
+        [DataMember]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
@@ -596,19 +612,16 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ProactiveCopyOnPin { get; set; } = false;
 
         [DataMember]
-        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+        public int ProactiveCopyLocationsThreshold { get; set; } = 3;
 
         [DataMember]
-        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+        public int ProactiveReplicationCopyLimit { get; set; } = 5;
 
         [DataMember]
-        public bool EnableMetadataStore { get; set; } = false;
+        public bool EnableProactiveReplication { get; set; } = false;
 
         [DataMember]
-        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
-
-        [DataMember]
-        public bool UseRedisMetadataStore{ get; set; } = false;
+        public int ProactiveReplicationDelaySeconds { get; set; } = 30;
 
         [DataMember]
         public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;

@@ -83,6 +83,7 @@ namespace ContentStoreTest.Distributed.Sessions
         /// <nodoc />
         protected bool EnableProactiveCopy { get; set; } = false;
         protected bool PushProactiveCopies { get; set; } = false;
+        protected bool EnableProactiveReplication { get; set; } = false;
 
         protected override IContentStore CreateStore(
             Context context,
@@ -130,6 +131,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 configuration.RedisGlobalStoreSecondaryConnectionString = _secondaryGlobalStoreDatabase.ConnectionString;
             }
 
+            configuration.EnableProactiveReplication = EnableProactiveReplication;
+            configuration.InlineProactiveReplication = true;
+
             configuration.DistributedCentralStore = new DistributedCentralStoreConfiguration(rootPath);
 
             _configurations[index] = configuration;
@@ -171,9 +175,9 @@ namespace ContentStoreTest.Distributed.Sessions
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
                     InlinePutBlobs = true,
-                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.Both : ProactiveCopyMode.Disabled,
+                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.OutsideRing : ProactiveCopyMode.Disabled,
                     InlineProactiveCopies = true,
-                    PushProactiveCopies = PushProactiveCopies
+                    PushProactiveCopies = PushProactiveCopies,
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
@@ -264,6 +268,63 @@ namespace ContentStoreTest.Distributed.Sessions
                     getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
                 },
                 implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
+        public async Task ProactiveReplicationTest()
+        {
+            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+
+            EnableProactiveReplication = true;
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
+
+            ConfigureRocksDbContentLocationBasedTest(
+                configureInMemoryEventStore: true,
+                (index, testRootDirectory, config) =>
+                {
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        Role = index == 0 ? Role.Master : Role.Worker,
+                        UseIncrementalCheckpointing = true,
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
+                    };
+                    config.CentralStore = centralStoreConfiguration;
+                    config.EventStore.Epoch = $"Epoch";
+                });
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 3,
+                testFunc: async context =>
+                {
+                    var sessions = context.Sessions;
+                    var master = context.GetMasterIndex();
+
+                    var ls = Enumerable.Range(0, 3).Select(n => context.GetLocationStore(n)).ToArray();
+                    var lls = Enumerable.Range(0, 3).Select(n => context.GetLocalLocationStore(n)).ToArray();
+
+                    var putResult = await sessions[1].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    // Content should be available in two sessions, because of proactive put.
+                    var masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                    masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                    TestClock.UtcNow += TimeSpan.FromMinutes(2);
+
+                    // Save checkpoint by heartbeating master
+                    await lls[master].HeartbeatAsync(context).ShouldBeSuccess();
+
+                    // Restore checkpoint by heartbeating worker. This should trigger proactive replication
+                    await lls[1].HeartbeatAsync(context).ShouldBeSuccess();
+
+                    // Content should be available in all sessions, because of proactive replication.
+                    masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                    masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(3);
+                });
         }
 
         private LocalRedisProcessDatabase GetDatabase(Context context, ref int index)

@@ -1061,7 +1061,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var proactiveCopyTask = WithOperationContext(
                             operationContext,
                             CancellationToken.None,
-                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash));
+                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash, tryBuildRing: true));
 
                         if (Settings.InlineProactiveCopies)
                         {
@@ -1197,7 +1197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return UpdateContentTrackerWithNewReplicaAsync(context, hashesToEagerUpdate, cts, urgencyHint);
         }
 
-        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
+        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, bool tryBuildRing, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -1211,7 +1211,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var hashArray = _buildIdHash != null
+                        var hashArray = _buildIdHash != null && tryBuildRing
                             ? new[] { hash, _buildIdHash.Value }
                             : new[] { hash };
 
@@ -1237,7 +1237,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
-                        if ((Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
+                        if (tryBuildRing && (Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
                         {
                             if (_buildIdHash != null)
                             {
@@ -1272,6 +1272,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
                         {
                             Result<MachineLocation> getLocationResult = null;
+
+                            // Try to select machine from prediction store.
                             if (_predictionStore != null && path != null)
                             {
                                 var machines = _predictionStore.GetTargetMachines(context, path);
@@ -1282,9 +1284,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 }
                             }
 
-                            if (getLocationResult == null)
+                            // Try to select one machine at random.
+                            if (getLocationResult?.Succeeded != true)
                             {
-                                getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+                                // Make sure that the machine is not in the build ring and does not already have the content.
+                                var machinesToSkip = getLocationsResult.ContentHashesInfo[0].Locations.Concat(buildRingMachines).ToArray();
+                                getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: machinesToSkip);
                             }
 
                             if (getLocationResult.Succeeded)

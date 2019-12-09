@@ -157,5 +157,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         ReconciliationCycles,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        ProactiveReplication,
+
+        /// <nodoc />
+        ProactiveReplication_Succeeded,
+
+        /// <nodoc />
+        ProactiveReplication_Failed,
     }
 }

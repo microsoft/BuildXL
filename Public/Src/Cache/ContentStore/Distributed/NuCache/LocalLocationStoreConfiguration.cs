@@ -168,6 +168,74 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ReconciliationMaxCycleSize { get; set; } = 100000;
 
         /// <summary>
+        /// Threshold under which proactive replication will be activated.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 3;
+
+        /// <summary>
+        /// Whether to enable proactive replication
+        /// </summary>
+        public bool EnableProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// Whether to inline proactive replication
+        /// </summary>
+        public bool InlineProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// Minimum delay between individual content proactive replications.
+        /// </summary>
+        public TimeSpan DelayForProactiveReplication { get; set; } = TimeSpan.FromMinutes(0.5);
+
+        /// <summary>
+        /// The maximum amount of copies allowed per proactive replication invocation.
+        /// </summary>
+        public int ProactiveReplicationCopyLimit { get; set; } = 5;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
+        /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
+        /// to produce candidates.
+        /// </summary>
+        public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// Two pools are kept in memory at the same time, so we effectively keep double the amount of data in memory.
+        /// </remarks>
+        public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// Fraction of the pool considered trusted to be in the accurate order.
+        /// </summary>
+        /// <remarks>
+        /// Estimated by looking into the percentage of files we remove of the total content store. Means we remove
+        /// at most 76 entries per iteration when we stabilize.
+        /// </remarks>
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
+
+        /// <summary>
+        /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
+        /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
+        /// with such a younge age.
+        /// <remarks>
+        /// Default to zero time to allow all candidates to pass, when we want to test for eviction min age we can configure for it.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
+        /// <remarks>
+        /// Default value will be set to null, and both redis instances need to be completed before moving forward.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>

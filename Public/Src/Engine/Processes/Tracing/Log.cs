@@ -678,7 +678,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + " - failed with exit code {7}{8}\r\n{5}\r\n{6}")]
+            Message = EventConstants.PipSpecPrefix + " - failed with exit code {8}{9}\r\n{5}\r\n{6}\r\n{7}")]
         public abstract void PipProcessError(
             LoggingContext context,
 
@@ -691,6 +691,7 @@ namespace BuildXL.Processes.Tracing
             string pipWorkingDirectory,
             string pipExe,
             string outputToLog,
+            string extraOutputMessage,
             string pathsToLog,
             int exitCode,
             string optionalMessage);
@@ -701,7 +702,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + " - warnings\r\n{5}\r\n{6}")]
+            Message = EventConstants.PipSpecPrefix + " - warnings\r\n{5}\r\n{6}\r\n{7}")]
         public abstract void PipProcessWarning(
             LoggingContext context,
 
@@ -714,6 +715,7 @@ namespace BuildXL.Processes.Tracing
             string pipWorkingDirectory,
             string pipExe,
             string outputToLog,
+            string extraOutputMessage,
             string pathsToLog);
 
         [GeneratedEvent(

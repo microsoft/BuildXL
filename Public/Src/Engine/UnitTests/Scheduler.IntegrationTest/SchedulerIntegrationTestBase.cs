@@ -60,6 +60,8 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public bool ShouldLogSchedulerStats { get; set; } = false;
 
+        public bool ShouldCreateLogDir { get; set; } = false;
+
         /// <summary>
         /// Class for storing pip graph setup.
         /// </summary>
@@ -488,6 +490,12 @@ namespace Test.BuildXL.Scheduler
 
                 XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
+                if (ShouldCreateLogDir || ShouldLogSchedulerStats)
+                {
+                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
+                    Directory.CreateDirectory(logsDir);
+                }
+
                 testScheduler.Start(localLoggingContext);
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
@@ -502,8 +510,6 @@ namespace Test.BuildXL.Scheduler
                 {
                     // Logs are not written out normally during these tests, but LogStats depends on the existence of the logs directory
                     // to write out the stats perf JSON file
-                    var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
-                    Directory.CreateDirectory(logsDir);
                     testScheduler.LogStats(localLoggingContext, null);
                 }
 

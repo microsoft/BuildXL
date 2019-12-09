@@ -199,6 +199,11 @@ namespace BuildXL.Processes
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
         /// <summary>
+        /// Name of the diretory in Log directory for std output files
+        /// </summary>
+        public static readonly string StdOutputsDirNameInLog = "StdOutputs";
+
+        /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
         public SandboxedProcessPipExecutor(
@@ -551,13 +556,20 @@ namespace BuildXL.Processes
         /// <param name="output">Output stream (from sandboxed process) to read from.</param>
         /// <param name="filterPredicate"> Predicate, used to filter lines of interest.</param>
         /// <param name="appendNewLine">Whether to append newLine on non-empty content. Defaults to false.</param>
-        private Task<string> TryFilterLineByLineAsync(SandboxedProcessOutput output, Predicate<string> filterPredicate, bool appendNewLine = false)
+        private Task<FilterResult> TryFilterLineByLineAsync(SandboxedProcessOutput output, Predicate<string> filterPredicate, bool appendNewLine = false)
             => TryFilterAsync(output, new OutputFilter(filterPredicate), appendNewLine);
 
-        private async Task<string> TryFilterAsync(SandboxedProcessOutput output, OutputFilter filter, bool appendNewLine)
+        private class FilterResult
+        {
+            public string FilteredOutput;
+            public bool IsFiltered;
+        }
+
+        private async Task<FilterResult> TryFilterAsync(SandboxedProcessOutput output, OutputFilter filter, bool appendNewLine)
         {
             Contract.Assert(filter.LinePredicate != null || filter.Regex != null);
-
+            FilterResult filterResult = new FilterResult();
+            filterResult.IsFiltered = false;
             bool isLineByLine = filter.LinePredicate != null;
             try
             {
@@ -579,6 +591,11 @@ namespace BuildXL.Processes
                             }
 
                             string outputText = filter.ExtractMatches(inputChunk);
+
+                            if (inputChunk.Replace(Environment.NewLine, string.Empty).Trim().Length > outputText.Replace(Environment.NewLine, string.Empty).Trim().Length)
+                            {
+                                filterResult.IsFiltered = true;
+                            }
 
                             if (!string.IsNullOrEmpty(outputText))
                             {
@@ -602,8 +619,8 @@ namespace BuildXL.Processes
                             }
                         }
                     }
-
-                    return sb.ToString();
+                    filterResult.FilteredOutput = sb.ToString();
+                    return filterResult;
                 }
             }
             catch (IOException ex)
@@ -1640,8 +1657,8 @@ namespace BuildXL.Processes
         {
             OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(m_pip.EnableMultiLineErrorScanning);
 
-            string errorMatches = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);
-            string outputMatches = await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true);
+            string errorMatches = (await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true)).FilteredOutput;
+            string outputMatches = (await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true)).FilteredOutput;
             string allMatches = errorMatches + Environment.NewLine + outputMatches;
 
             if (!string.IsNullOrWhiteSpace(allMatches))
@@ -3675,22 +3692,89 @@ namespace BuildXL.Processes
 
         private void FormatOutputAndPaths(string standardOut, string standardError,
             string standardOutPath, string standardErrorPath,
-            out string outputToLog, out string pathsToLog,
-            bool errorWasTruncated)
+            out string outputToLog, out string pathsToLog, out string extraMessage,
+            bool errorWasTruncated,
+            bool errorWasFiltered)
         {
             // Only display error/out if it is non-empty. This avoids adding duplicated newlines in the message.
             // Also use the emptiness as a hit for whether to show the path to the file on disk
             bool standardOutEmpty = string.IsNullOrWhiteSpace(standardOut);
             bool standardErrorEmpty = string.IsNullOrWhiteSpace(standardError);
 
+            extraMessage = string.Empty;
+
+            if (errorWasFiltered)
+            {
+                extraMessage = "This error has been filtered by a regex. ";
+            }
+
+            var stdInLogDir = false;
+            string standardOutPathInLog = string.Empty;
+            string standardErrorPathInLog = string.Empty;
+            if (errorWasTruncated)
+            {
+                if (m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
+                {
+                    if (!standardOutEmpty && CopyFileToLogDirectory(standardOutPath, m_pip.FormattedSemiStableHash, out standardOutPathInLog))
+                    {
+                        stdInLogDir = true;
+                    }
+
+                    if (!standardErrorEmpty && CopyFileToLogDirectory(standardErrorPath, m_pip.FormattedSemiStableHash, out standardErrorPathInLog))
+                    {
+                        stdInLogDir = true;
+                    }
+
+                    if (stdInLogDir)
+                    {
+                        extraMessage += $"Please find the complete stdout/stderr in the following file(s) in the log directory.";
+                    }
+                }
+                else
+                {
+                    extraMessage += "Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
+                }
+            }
+
+
             outputToLog = (standardOutEmpty ? string.Empty : standardOut) +
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardError);
-            pathsToLog = !errorWasTruncated
-                ? string.Empty 
-                : (standardOutEmpty ? string.Empty : standardOutPath) + 
+
+
+            var originalStdPaths = (standardOutEmpty ? string.Empty : standardOutPath) +
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardErrorPath);
+
+            var stdPathsInLogDir = (standardOutEmpty ? string.Empty : standardOutPathInLog) +
+                (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
+                (standardErrorEmpty ? string.Empty : standardErrorPathInLog);
+
+            pathsToLog = !errorWasTruncated
+                ? string.Empty
+                : stdInLogDir
+                ? stdPathsInLogDir
+                : originalStdPaths;
+        }
+
+        private bool CopyFileToLogDirectory(string path, string formattedSemiStableHash, out string relativeFilePath)
+        {
+            if (File.Exists(path) && Directory.Exists(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)))
+            {
+                // Make sure the file has a unique path
+                var relativeDirectoryPath = Path.Combine(StdOutputsDirNameInLog, formattedSemiStableHash);
+                relativeFilePath = Path.Combine(relativeDirectoryPath, Path.GetFileName(path));
+                var directoryWithPipHash = Path.Combine(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable), relativeDirectoryPath);
+                var destFilePathWithPipHash = Path.Combine(directoryWithPipHash, Path.GetFileName(path));
+
+                Directory.CreateDirectory(directoryWithPipHash);
+                File.Copy(path, destFilePathWithPipHash);
+
+                return true;
+            }
+
+            relativeFilePath = string.Empty;
+            return false;
         }
 
         private class LogErrorResult
@@ -3728,8 +3812,10 @@ namespace BuildXL.Processes
             var exceedsLimit = OutputExceedsLimit(result.StandardOutput) || OutputExceedsLimit(result.StandardError);
             if (!exceedsLimit || m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
             {
-                string standardError = await TryFilterAsync(result.StandardError, errorFilter, appendNewLine: true);
-                string standardOutput = await TryFilterAsync(result.StandardOutput, errorFilter, appendNewLine: true);
+                var standardErrorFilterResult = await TryFilterAsync(result.StandardError, errorFilter, appendNewLine: true);
+                var standardOutputFilterResult = await TryFilterAsync(result.StandardOutput, errorFilter, appendNewLine: true);
+                string standardError = standardErrorFilterResult.FilteredOutput;
+                string standardOutput = standardOutputFilterResult.FilteredOutput;
 
                 if (standardError == null || standardOutput == null)
                 {
@@ -3741,8 +3827,10 @@ namespace BuildXL.Processes
                     // Standard error and standard output are empty.
                     // This could be because the filter is too aggressive and the entire output was filtered out.
                     // Rolling back to a non-filtered approach because some output is better than nothing.
-                    standardError = await TryFilterLineByLineAsync(result.StandardError, s => true, appendNewLine: true);
-                    standardOutput = await TryFilterLineByLineAsync(result.StandardOutput, s => true, appendNewLine: true);
+                    standardErrorFilterResult = await TryFilterLineByLineAsync(result.StandardError, s => true, appendNewLine: true);
+                    standardOutputFilterResult = await TryFilterLineByLineAsync(result.StandardOutput, s => true, appendNewLine: true);
+                    standardError = standardErrorFilterResult.FilteredOutput;
+                    standardOutput = standardOutputFilterResult.FilteredOutput;
                 }
 
                 // Ignore empty lines
@@ -3757,7 +3845,7 @@ namespace BuildXL.Processes
                 HandleErrorsFromTool(standardError);
                 HandleErrorsFromTool(standardOutput);
 
-                LogPipProcessError(result, exitedWithSuccessExitCode, standardError, standardOutput, errorWasTruncated);
+                LogPipProcessError(result, exitedWithSuccessExitCode, standardError, standardOutput, errorWasTruncated, standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered);
 
                 return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
             }
@@ -3832,7 +3920,7 @@ namespace BuildXL.Processes
                                 }
                             }
 
-                            LogPipProcessError(result, exitedWithSuccessExitCode, stdError, stdOut, errorWasTruncated);
+                            LogPipProcessError(result, exitedWithSuccessExitCode, stdError, stdOut, errorWasTruncated, false);
                         }
 
                         return true;
@@ -3841,10 +3929,11 @@ namespace BuildXL.Processes
             }
         }
 
-        private void LogPipProcessError(SandboxedProcessResult result, bool exitedWithSuccessExitCode, string stdError, string stdOut, bool errorWasTruncated)
+        private void LogPipProcessError(SandboxedProcessResult result, bool exitedWithSuccessExitCode, string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
         {
             string outputTolog;
             string outputPathsToLog;
+            string extraOutputMessage;
             FormatOutputAndPaths(
                 stdOut,
                 stdError,
@@ -3852,7 +3941,9 @@ namespace BuildXL.Processes
                 result.StandardError.FileName,
                 out outputTolog,
                 out outputPathsToLog,
-                errorWasTruncated);
+                out extraOutputMessage,
+                errorWasTruncated,
+                errorWasFiltered);
 
             Tracing.Logger.Log.PipProcessError(
                 m_loggingContext,
@@ -3862,6 +3953,7 @@ namespace BuildXL.Processes
                 m_workingDirectory,
                 GetToolName(),
                 EnsureToolOutputIsNotEmpty(outputTolog),
+                extraOutputMessage,
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
@@ -4027,8 +4119,11 @@ namespace BuildXL.Processes
         /// </summary>
         public async Task<bool> TryLogWarningAsync(SandboxedProcessOutput standardError, SandboxedProcessOutput standardOutput)
         {
-            string warningsError = standardError == null ? string.Empty : await TryFilterLineByLineAsync(standardError, IsWarning, appendNewLine: true);
-            string warningsOutput = standardOutput == null ? string.Empty : await TryFilterLineByLineAsync(standardOutput, IsWarning, appendNewLine: true);
+            var errorFilterResult = await TryFilterLineByLineAsync(standardError, IsWarning, appendNewLine: true);
+            var outputFilterResult = await TryFilterLineByLineAsync(standardOutput, IsWarning, appendNewLine: true);
+
+            string warningsError = standardError == null ? string.Empty : errorFilterResult.FilteredOutput;
+            string warningsOutput = standardOutput == null ? string.Empty : outputFilterResult.FilteredOutput;
 
             if (warningsError == null ||
                 warningsOutput == null)
@@ -4053,7 +4148,9 @@ namespace BuildXL.Processes
                 standardError.FileName,
                 out string outputTolog,
                 out string outputPathsToLog,
-                warningWasTruncated);
+                out string extraOutputMessage,
+                warningWasTruncated,
+                errorFilterResult.IsFiltered || outputFilterResult.IsFiltered);
 
             Tracing.Logger.Log.PipProcessWarning(
                 m_loggingContext,
@@ -4063,6 +4160,7 @@ namespace BuildXL.Processes
                 m_workingDirectory,
                 GetToolName(),
                 EnsureToolOutputIsNotEmpty(outputTolog),
+                extraOutputMessage,
                 AddTrailingNewLineIfNeeded(outputPathsToLog));
             return true;
         }

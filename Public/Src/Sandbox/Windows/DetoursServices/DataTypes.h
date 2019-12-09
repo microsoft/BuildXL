@@ -366,7 +366,7 @@ typedef const ManifestTranslatePathsStrings_t * PManifestTranslatePathsStrings;
 // ==========================================================================
 typedef struct ManifestChildProcessesToBreakAwayFromJob_t
 {
-    GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF03)
+    GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF05)
 
     inline size_t GetSize() const
     {

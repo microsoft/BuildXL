@@ -490,7 +490,7 @@ InternalCreateDetouredProcess(
     // sure we don't pass CREATE_BREAKAWAY_FROM_JOB
     if (!g_processNamesToBreakAwayFromJob->empty())
     {
-        creationFlags &= !CREATE_BREAKAWAY_FROM_JOB;
+        creationFlags &= ~CREATE_BREAKAWAY_FROM_JOB;
     }
 
     if (LogProcessDetouringStatus())
@@ -993,6 +993,11 @@ static bool DllProcessDetach()
 #elif defined(BUILDXL_NATIVES_LIBRARY) 
 static bool DllProcessDetach()
 {
+    if (g_manifestChildProcessesToBreakAwayFromJob != nullptr)
+    {
+        delete g_manifestChildProcessesToBreakAwayFromJob;
+    }
+
     if (g_pManifestTranslatePathTuples != nullptr)
     {
         delete g_pManifestTranslatePathTuples;

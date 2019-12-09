@@ -586,7 +586,7 @@ namespace BuildXL.Processes
 
         private const uint ErrorDumpLocationCheckedCode = 0xABCDEF03;
         private const uint TranslationPathStringCheckedCode = 0xABCDEF02;
-        private const uint ChildProcessesBreakAwayStringCheckedCode = 0xABCDEF03;
+        private const uint ChildProcessesBreakAwayStringCheckedCode = 0xABCDEF05;
         private const uint FlagsCheckedCode = 0xF1A6B10C; // Flag block
         private const uint PipIdCheckedCode = 0xF1A6B10E;
 

@@ -550,20 +550,14 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/download/release/v8.12.0/node-v8.12.0-win-x64.zip",
-                    hash: "VSO0:95276E5CC1A0F5095181114C16734E8E0416B222F232E257E31FEBF73324BC2300",
+                    url: "https://nodejs.org/dist/v12.13.1/node-v12.13.1-win-x64.zip",
+                    hash: "VSO0:4ECBF62F472082F755C3A08891E3C8E78E960F727F89D726811C1C45E55B3CE000",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/download/release/v8.12.0/node-v8.12.0-darwin-x64.tar.gz",
-                    hash: "VSO0:2D9315899B651CA8489F47580378C5C8EAE5E0DEB4F50AF5A149BEC7B387228000",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/download/release/v8.12.0/node-v8.12.0-linux-arm64.tar.gz",
-                    hash: "VSO0:9DE138F52CCCE4B89747BFDEC5D3A0DDBB23BF80BB2A45AE0218D852845AB13C00",
+                    url: "https://nodejs.org/dist/v12.13.1/node-v12.13.1-darwin-x64.tar.gz",
+                    hash: "VSO0:5D94BC683E974005C38B86B31A5A73B6299502103EE5A7B590019F43005D268E00",
                     archiveType: "tgz",
                 },
 

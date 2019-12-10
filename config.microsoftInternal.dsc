@@ -44,7 +44,7 @@ export const pkgs = isMicrosoftInternal ? [
 
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
-    { id: "NodeJs", version: "8.12.0-noTest" },
+    { id: "NodeJs", version: "12.13.1-noTest" },
     { id: "PowerShell.Core", version: "6.1.0" },
 
     // Combined runtimes

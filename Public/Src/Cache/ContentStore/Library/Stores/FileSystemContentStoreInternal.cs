@@ -1192,14 +1192,21 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (StartupCompleted)
                 {
-                    counters.Add($"{CurrentByteCountName}", QuotaKeeper.CurrentSize);
-                    counters.Add($"{CurrentFileCountName}", await ContentDirectory.GetCountAsync());
-                    counters.Merge(ContentDirectory.GetCounters(), "ContentDirectory.");
-
-                    var quotaKeeperCounter = QuotaKeeper.Counters;
-                    if (quotaKeeperCounter != null)
+                    if (QuotaKeeper != null)
                     {
-                        counters.Merge(quotaKeeperCounter.ToCounterSet());
+                        counters.Add($"{CurrentByteCountName}", QuotaKeeper.CurrentSize);
+
+                        var quotaKeeperCounter = QuotaKeeper.Counters;
+                        if (quotaKeeperCounter != null)
+                        {
+                            counters.Merge(quotaKeeperCounter.ToCounterSet());
+                        }
+                    }
+
+                    if (ContentDirectory != null)
+                    {
+                        counters.Add($"{CurrentFileCountName}", await ContentDirectory.GetCountAsync());
+                        counters.Merge(ContentDirectory.GetCounters(), "ContentDirectory.");
                     }
                 }
                 return new GetStatsResult(counters);

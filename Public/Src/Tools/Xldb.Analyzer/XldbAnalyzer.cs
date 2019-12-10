@@ -184,23 +184,12 @@ namespace Xldb.Analyzer
         {
             if (m_commandLineOptions.ContainsKey("/h"))
             {
-                Console.WriteLine("\nDump Pip Xldb Analyzer");
-                Console.WriteLine("Creates a file containing information about the requested pip, using the RocksDB database as the source");
+                Console.WriteLine("\nXldb Analyzer");
+                Console.WriteLine("Creates a file containing details about one or more pips, using the RocksDB database as the source");
                 Console.WriteLine("/i: \t Required \t The directory to read the RocksDB database from");
                 Console.WriteLine("/o: \t Required \t The file where to write the results");
-                Console.WriteLine("/p: \t Required \t The formatted semistable hash of a pip to dump (must start with 'Pip', e.g., 'PipC623BCE303738C69')");
-                return 1;
-            }
-
-            if (!m_commandLineOptions.TryGetValue("/p", out var pipHash))
-            {
-                Console.WriteLine("Pip Semistable Hash is required. Exiting analyzer ...");
-                return 1;
-            }
-
-            if (!ParseSemistableHash(pipHash, out var parsedSemiStableHash))
-            {
-                Console.WriteLine($"Invalid PipId: {pipHash}. PipId must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
+                Console.WriteLine("/p: \t Optional \t The formatted semistable hash of a pip to dump (must start with 'Pip', e.g., 'PipC623BCE303738C69')");
+                Console.WriteLine("    \t          \t If omitted, basic information about each process pip is output instead.");
                 return 1;
             }
 
@@ -210,128 +199,170 @@ namespace Xldb.Analyzer
                 return 1;
             }
 
+            var haveSemiStableHash = false;
+            var parsedSemiStableHash = -1L;
+
+            if (m_commandLineOptions.TryGetValue("/p", out var pipHash))
+            {
+                if (ParseSemistableHash(pipHash, out parsedSemiStableHash))
+                {
+                    haveSemiStableHash = true;
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid PipId: {pipHash}. PipId must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
+                    return 1;
+                }
+            }
+            else
+            {
+                Console.WriteLine("No pip hash was provided via /p; Dumping all process pips instead.");
+            }
+
             m_commandLineOptions.TryGetValue("/i", out var inputRocksDbDir);
 
             using (var dataStore = new XldbDataStore(storeDirectory: inputRocksDbDir))
-            using (var outputStream = File.OpenWrite(outputFilePath))
-            using (var writer = new StreamWriter(outputStream))
+            using (var writer = new StreamWriter(outputFilePath, false))
             {
-                var pip = dataStore.GetPipBySemiStableHash(parsedSemiStableHash, out var pipType);
-
-                if (pip == null)
+                // dump the requested pip
+                if (haveSemiStableHash)
                 {
-                    Console.WriteLine($"Pip with the SemiStableHash {parsedSemiStableHash} was not found. Exiting Analyzer ...");
-                    return 1;
-                }
-                Console.WriteLine($"Pip with the SemiStableHash {parsedSemiStableHash} was found. Logging to output file ...");
-
-                dynamic castedPip = null;
-
-                switch (pipType)
-                {
-                    case PipType.CopyFile:
-                        castedPip = (CopyFile)pip;
-                        break;
-                    case PipType.SealDirectory:
-                        castedPip = (SealDirectory)pip;
-                        break;
-                    case PipType.WriteFile:
-                        castedPip = (WriteFile)pip;
-                        break;
-                    case PipType.Process:
-                        castedPip = (ProcessPip)pip;
-                        break;
-                    case PipType.Ipc:
-                        castedPip = (IpcPip)pip;
-                        break;
+                    Console.WriteLine($"Dumping PIP for semi-stable hash {parsedSemiStableHash} ...");
+                    DumpPip(dataStore, writer, parsedSemiStableHash);
+                    return 0;
                 }
 
-                writer.WriteLine($"PipType: {pipType.ToString()}");
-                writer.WriteLine("Pip Information: \n" + JsonConvert.SerializeObject(pip, Formatting.Indented));
-
-                uint pipId = castedPip.GraphInfo.PipId;
-
-                writer.WriteLine("Pip Execution Performance Information:\n");
-                foreach (var i in dataStore.GetPipExecutionPerformanceEventByKey(pipId))
+                // dump all pips
+                var message = "// Processes";
+                Console.WriteLine(message);
+                writer.WriteLine(message);
+                foreach(var pip in dataStore.GetAllProcessPips()) 
                 {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                    writer.WriteLine(pip.ToString());
+                    writer.WriteLine($"ExecutablePath: {pip.Executable.Path.Value.ToString()}");
+                    writer.WriteLine($"Arguments: {pip.Arguments.ToString()}");
+                    writer.WriteLine($"WorkingDirectory: {pip.WorkingDirectory.Value.ToString()}");
                 }
+            }
 
-                writer.WriteLine("Pip Execution Step Performance Information:\n");
-                foreach (var i in dataStore.GetPipExecutionStepPerformanceEventByKey(pipId))
+            return 0;
+        }
+
+        private void DumpPip(IXldbDataStore dataStore, StreamWriter writer, long parsedSemiStableHash)
+        {
+            var pip = dataStore.GetPipBySemiStableHash(parsedSemiStableHash, out var pipType);
+
+            if (pip == null)
+            {
+                throw new Exception($"Pip with the SemiStableHash {parsedSemiStableHash} was not found. Exiting Analyzer ...");
+            }
+
+            Console.WriteLine($"Pip with the SemiStableHash {parsedSemiStableHash} was found. Logging to output file ...");
+
+            dynamic castedPip = null;
+
+            switch (pipType)
+            {
+                case PipType.CopyFile:
+                    castedPip = (CopyFile)pip;
+                    break;
+                case PipType.SealDirectory:
+                    castedPip = (SealDirectory)pip;
+                    break;
+                case PipType.WriteFile:
+                    castedPip = (WriteFile)pip;
+                    break;
+                case PipType.Process:
+                    castedPip = (ProcessPip)pip;
+                    break;
+                case PipType.Ipc:
+                    castedPip = (IpcPip)pip;
+                    break;
+            }
+
+            writer.WriteLine($"PipType: {pipType.ToString()}");
+            writer.WriteLine("Pip Information: \n" + JsonConvert.SerializeObject(pip, Formatting.Indented));
+
+            uint pipId = castedPip.GraphInfo.PipId;
+
+            writer.WriteLine("Pip Execution Performance Information:\n");
+            foreach (var i in dataStore.GetPipExecutionPerformanceEventByKey(pipId))
+            {
+                writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+            }
+
+            writer.WriteLine("Pip Execution Step Performance Information:\n");
+            foreach (var i in dataStore.GetPipExecutionStepPerformanceEventByKey(pipId))
+            {
+                writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+            }
+
+            writer.WriteLine("Process Execution Monitoring Information:\n");
+            foreach (var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
+            {
+                writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+            }
+
+            writer.WriteLine("Directory Membership Hashed Information:\n");
+            foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
+            {
+                writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+            }
+
+            writer.WriteLine("Dependency Violation Reported Event:\n");
+            var depViolationEvents = dataStore.GetDependencyViolationEventByKey(pipId);
+
+            foreach (var ev in depViolationEvents)
+            {
+                writer.WriteLine(JsonConvert.SerializeObject(ev, Formatting.Indented));
+            }
+
+            if (pipType == PipType.Process)
+            {
+                writer.WriteLine("Getting directory output information for Process Pip\n");
+
+                foreach (var output in dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId))
                 {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
-                }
-
-                writer.WriteLine("Process Execution Monitoring Information:\n");
-                foreach (var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
-                {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
-                }
-
-                writer.WriteLine("Directory Membership Hashed Information:\n");
-                foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
-                {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
-                }
-
-                writer.WriteLine("Dependency Violation Reported Event:\n");
-                var depViolationEvents = dataStore.GetDependencyViolationEventByKey(pipId);
-
-                foreach (var ev in depViolationEvents)
-                {
-                    writer.WriteLine(JsonConvert.SerializeObject(ev, Formatting.Indented));
-                }
-
-                if (pipType == PipType.Process)
-                {
-                    writer.WriteLine("Getting directory output information for Process Pip\n");
-
-                    foreach (var output in dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId))
+                    foreach (var file in output.FileArtifactArray)
                     {
-                        foreach (var file in output.FileArtifactArray)
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented));
-                        }
+                        writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented));
                     }
+                }
 
-                    writer.WriteLine("Geting directory dependency information for Process Pip\n");
+                writer.WriteLine("Geting directory dependency information for Process Pip\n");
 
-                    var pipGraph = dataStore.GetPipGraphMetaData();
-                    var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();
+                var pipGraph = dataStore.GetPipGraphMetaData();
+                var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();
 
-                    foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                {
+                    sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId);
+                }
+
+                var directories = new Stack<(DirectoryArtifact artifact, string path)>(
+                    ((ProcessPip)castedPip).DirectoryDependencies
+                        .Select(d => (artifact: d, path: d.Path.Value))
+                        .OrderByDescending(tupple => tupple.path));
+
+                while (directories.Count > 0)
+                {
+                    var directory = directories.Pop();
+                    writer.WriteLine(JsonConvert.SerializeObject(directory, Formatting.Indented));
+
+                    if (sealDirectoryAndProducersDict.TryGetValue(directory.artifact, out var currentPipId))
                     {
-                        sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId);
-                    }
+                        var currPip = dataStore.GetPipByPipId(currentPipId, out var currPipType);
 
-                    var directories = new Stack<(DirectoryArtifact artifact, string path)>(
-                        ((ProcessPip)castedPip).DirectoryDependencies
-                            .Select(d => (artifact: d, path: d.Path.Value))
-                            .OrderByDescending(tupple => tupple.path));
-
-                    while (directories.Count > 0)
-                    {
-                        var directory = directories.Pop();
-                        writer.WriteLine(JsonConvert.SerializeObject(directory, Formatting.Indented));
-
-                        if (sealDirectoryAndProducersDict.TryGetValue(directory.artifact, out var currentPipId))
+                        if (currPipType == PipType.SealDirectory)
                         {
-                            var currPip = dataStore.GetPipByPipId(currentPipId, out var currPipType);
-
-                            if (currPipType == PipType.SealDirectory)
+                            foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tuple => tuple.path))
                             {
-                                foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tuple => tuple.path))
-                                {
-                                    directories.Push((nestedDirectory.artifact, nestedDirectory.path));
-                                }
+                                directories.Push((nestedDirectory.artifact, nestedDirectory.path));
                             }
                         }
                     }
                 }
             }
-
-            return 0;
         }
     }
 }

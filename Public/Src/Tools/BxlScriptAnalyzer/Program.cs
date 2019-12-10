@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using System.IO;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -19,7 +18,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
     /// </summary>
     internal sealed class Program : ToolProgram<Args>
     {
-        private PathTable m_pathTable = new PathTable();
+        private readonly PathTable m_pathTable = new PathTable();
 
         private Program()
             : base("Dsa")
@@ -100,7 +99,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     logger,
                     m_pathTable,
                     arguments.CommandLineConfig,
-                    arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,
@@ -168,8 +166,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     return new DocumentationGenerator();
                 case AnalyzerKind.Codex:
                     return new CodexAnalyzer();
-                case AnalyzerKind.GraphFragment:
-                    return new PipGraphFragmentGenerator();
                 default:
                     return null;
             }

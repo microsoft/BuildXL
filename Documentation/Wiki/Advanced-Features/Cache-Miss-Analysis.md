@@ -28,12 +28,15 @@ The "analysis.txt" file in the output directory shows the first pip in each depe
 
 ### Diff Format
 
-Both cache miss analyzers use *JsonDiffPatch* to diff *WeakFingerprint* and *StrongFingerprint* json files. If you are not familiar with json diff syntax, you can find the reference in the following links: 
+The new cache miss analyzer produces diff outputs in the form of Json. The new cache miss analyzer offers two different diff formats. The first format, called *CustomJsonDiff*, is a custom diff format resulting from our own diff algorithm that understands the semantics of weak and strong fingerprints. 
+
+The second diff format is *JsonDiffPatch*. This format shows the diff as a delta between two Json reprsentations. To output this format, BuildXL relies on an external diff algorithm. References about the algorithm and the diff syntaxk can be found in the following links: 
 
 [General diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md)
 
 [Array diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/arrays.md)
 
+The default diff format is CustomJsonDiff. One can specifying explicitly the diff format to use by using `/cacheMissDiffFormat:<CustomJsonDiff|JsonDiffPatch>`
 
 #### Known Limitations
 The cache miss analyzer works correctly under the assumption that the two builds being compared shared the same graph scope and processed all of the same pips through the full scheduling algorithm. When this assumption is false, the analyzer may produce the following messages:

@@ -24,6 +24,27 @@ namespace BuildXL.Scheduler.Fingerprints
     public readonly struct ObservedPathSet
     {
         /// <summary>
+        /// Constants used for labeling.
+        /// </summary>
+        public readonly struct Labels
+        {
+            /// <summary>
+            /// Label for <see cref="ObservedPathSet.UnsafeOptions"/>.
+            /// </summary>
+            public const string UnsafeOptions = nameof(ObservedPathSet.UnsafeOptions);
+
+            /// <summary>
+            /// Label for <see cref="ObservedPathSet.ObservedAccessedFileNames"/>.
+            /// </summary>
+            public const string ObservedAccessedFileNames = nameof(ObservedPathSet.ObservedAccessedFileNames);
+
+            /// <summary>
+            /// Label for <see cref="Paths"/>.
+            /// </summary>
+            public const string Paths = nameof(ObservedPathSet.Paths);
+        }
+
+        /// <summary>
         /// Failure describing why deserialization of a path set failed (<see cref="ObservedPathSet.TryDeserialize"/>).
         /// </summary>
         public class DeserializeFailure : Failure

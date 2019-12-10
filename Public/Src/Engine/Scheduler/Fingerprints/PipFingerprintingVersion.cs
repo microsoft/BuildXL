@@ -42,7 +42,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 68: Added ChildProcessesToBreakawayFromSandbox
         /// 69: Added dynamic existing probe.
         /// 70: Removed duplicates from ObservedAccessedFileNames.
+        /// 71: Rename fields in weak fingerprint.
         /// </remarks>
-        TwoPhaseV2 = 70,
+        TwoPhaseV2 = 71,
     }
 }

@@ -359,6 +359,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/cacheMissDiffFormat:[format]",
+                Strings.HelpText_DisplayHelp_CacheMissDiffFormat,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/scriptShowSlowest[+|-]",
                 Strings.HelpText_DisplayHelp_ScriptShowSlowest,
                 HelpLevel.Verbose);

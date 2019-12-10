@@ -310,6 +310,11 @@ namespace BuildXL.Utilities.Configuration
         CacheMissAnalysisOption CacheMissAnalysisOption { get; }
 
         /// <summary>
+        /// Diff format for cache miss analysis.
+        /// </summary>
+        CacheMissDiffFormat CacheMissDiffFormat { get; }
+
+        /// <summary>
         /// Whether console output should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeConsoleOutputForAzureDevOps { get; }

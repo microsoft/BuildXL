@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.RegularExpressions;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -252,11 +253,23 @@ namespace BuildXL.Pips.Operations
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public RegexDescriptor WarningRegex { get; }
 
+        /// <nodoc/>
+        public StringId WarningRegexPattern => WarningRegex.Pattern;
+
+        /// <nodoc/>
+        public RegexOptions WarningRegexOptions => WarningRegex.Options;
+
         /// <summary>
         /// Optional regular expression to detect errors in console error / output.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public RegexDescriptor ErrorRegex { get; }
+
+        /// <nodoc/>
+        public StringId ErrorRegexPattern => ErrorRegex.Pattern;
+
+        /// <nodoc/>
+        public RegexOptions ErrorRegexOptions => ErrorRegex.Options;
 
         /// <summary>
         /// When false (or not set): process output is scanned for error messages line by line;

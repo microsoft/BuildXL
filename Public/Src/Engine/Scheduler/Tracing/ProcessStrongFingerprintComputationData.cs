@@ -278,12 +278,12 @@ namespace BuildXL.Scheduler.Tracing
                     logStats: false))
                 {
                     UnsafeOptions.Serialize(buildXLWriter);
-                    writer.Add("SerializedUnsafeOptions", System.BitConverter.ToString(stream.ToArray()));
+                    writer.Add(ObservedPathSet.Labels.UnsafeOptions, System.BitConverter.ToString(stream.ToArray()));
                 }
             }
 
             var thisRef = this;
-            writer.AddNested(ObservedPathEntryConstants.PathSet, w =>
+            writer.AddNested(ObservedPathSet.Labels.Paths, w =>
             {
                 foreach (var p in thisRef.PathEntries)
                 {
@@ -300,7 +300,7 @@ namespace BuildXL.Scheduler.Tracing
             });
 
             writer.AddCollection<StringId, ReadOnlyArray<StringId>>(
-                "ObservedAccessedFileNames", 
+                ObservedPathSet.Labels.ObservedAccessedFileNames, 
                 ObservedAccessedFileNames, 
                 (w, v) => w.Add(v));
 

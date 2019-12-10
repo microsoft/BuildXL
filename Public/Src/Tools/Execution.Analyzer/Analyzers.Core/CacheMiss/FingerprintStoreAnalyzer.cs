@@ -24,6 +24,8 @@ namespace BuildXL.Execution.Analyzer
             bool allPips = false;
             bool noBanner = false;
             long sshValue = -1;
+            CacheMissDiffFormat cacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
+
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase) ||
@@ -43,6 +45,10 @@ namespace BuildXL.Execution.Analyzer
                 else if (opt.Name.Equals("nobanner", StringComparison.OrdinalIgnoreCase))
                 {
                     noBanner = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("cacheMissDiffFormat", StringComparison.OrdinalIgnoreCase))
+                {
+                    cacheMissDiffFormat = ParseEnumOption<CacheMissDiffFormat>(opt);
                 }
                 else
                 {
@@ -76,6 +82,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteOption("outputDirectory", "Required. The directory where to write the results", shortName: "o");
             writer.WriteOption("allPips", "Optional. Defaults to false.");
             writer.WriteOption("pipId", "Optional. Run for specific pip.", shortName: "p");
+            writer.WriteOption("diffFormat", "Optional. Diff format. Allowed values are JsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff");
         }
     }
 
@@ -105,6 +112,11 @@ namespace BuildXL.Execution.Analyzer
         /// Run cache miss for this pip
         /// </summary>
         public long SemiStableHashToRun;
+
+        /// <summary>
+        /// Diff format.
+        /// </summary>
+        public CacheMissDiffFormat CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
 
         /// <summary>
         /// Analysis model based on the new build.
@@ -320,7 +332,8 @@ namespace BuildXL.Execution.Analyzer
                     writer,
                     miss,
                     () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
-                    () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr));
+                    () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    CacheMissDiffFormat);
             }
             else
             {
@@ -328,7 +341,8 @@ namespace BuildXL.Execution.Analyzer
                     m_writer,
                     miss,
                     () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
-                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()));
+                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
+                    CacheMissDiffFormat);
             }
 
             if (analysisResult == CacheMissAnalysisResult.MissingFromOldBuild)

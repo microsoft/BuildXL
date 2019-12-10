@@ -96,7 +96,14 @@ namespace BuildXL.Scheduler.Tracing
                 if (possibleStore.Succeeded)
                 {
                     Logger.Log.SuccessLoadFingerprintStoreToCompare(loggingContext, option.Mode.ToString(), possibleStore.Result.StoreDirectory);
-                    return new RuntimeCacheMissAnalyzer(logTarget, loggingContext, context, possibleStore.Result, graph, runnablePipPerformance);
+                    return new RuntimeCacheMissAnalyzer(
+                        logTarget,
+                        loggingContext,
+                        context,
+                        possibleStore.Result,
+                        graph,
+                        runnablePipPerformance,
+                        configuration.Logging.CacheMissDiffFormat);
                 }
 
                 Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failed to read the fingerprint store to compare. Mode: {option.Mode.ToString()} Failure: {possibleStore.Failure.DescribeIncludingInnerFailures()}"));
@@ -126,13 +133,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public FingerprintStore PreviousFingerprintStore { get; }
 
+        private readonly CacheMissDiffFormat m_cacheMissDiffFormat;
+
         private RuntimeCacheMissAnalyzer(
             FingerprintStoreExecutionLogTarget logTarget,
             LoggingContext loggingContext,
             PipExecutionContext context,
             FingerprintStore previousFingerprintStore,
             IReadonlyDirectedGraph graph,
-            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance)
+            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            CacheMissDiffFormat cacheMissDiffFormat)
         {
             m_loggingContext = loggingContext;
             m_logTarget = logTarget;
@@ -142,6 +152,7 @@ namespace BuildXL.Scheduler.Tracing
             m_changedPips = new VisitationTracker(graph);
             m_pipCacheMissesDict = new ConcurrentDictionary<PipId, PipCacheMissInfo>();
             m_runnablePipPerformance = runnablePipPerformance;
+            m_cacheMissDiffFormat = cacheMissDiffFormat;
         }
 
         internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo)
@@ -199,7 +210,8 @@ namespace BuildXL.Scheduler.Tracing
                         writer,
                         missInfo,
                         () => new FingerprintStoreReader.PipRecordingSession(PreviousFingerprintStore, oldEntry),
-                        () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.ExecutionFingerprintStore, newEntry));
+                        () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.ExecutionFingerprintStore, newEntry),
+                        m_cacheMissDiffFormat);
 
                     // The diff sometimes contains several empty new lines at the end.
                     var reason = writer.ToString().TrimEnd(Environment.NewLine.ToCharArray());

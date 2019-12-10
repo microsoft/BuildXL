@@ -10,6 +10,7 @@ using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 
 namespace BuildXL.Scheduler.Tracing
@@ -151,6 +152,30 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             /// <summary>
+            /// Path set hash of the entry.
+            /// </summary>
+            public string PathSetHash
+            {
+                get
+                {
+                    Contract.Assert(EntryExists);
+                    return m_entry.StrongFingerprintEntry.PathSetHashToInputs.Key;
+                }
+            }
+
+            /// <summary>
+            /// Get path set value of the entry.
+            /// </summary>
+            public string PathSetValue
+            {
+                get
+                {
+                    Contract.Assert(EntryExists);
+                    return m_entry.StrongFingerprintEntry.PathSetHashToInputs.Value;
+                }
+            }
+
+            /// <summary>
             /// Constructor
             /// </summary>
             public PipRecordingSession(FingerprintStore store, FingerprintStoreEntry entry, TextWriter textWriter = null)
@@ -172,22 +197,57 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Get weak fingerprint tree for the entry
             /// </summary>
-            public JsonNode GetWeakFingerprintTree()
-            {
-                return JsonTree.Deserialize(m_entry.WeakFingerprintToInputs.Value);
-            }
+            public JsonNode GetWeakFingerprintTree() => JsonTree.Deserialize(m_entry.WeakFingerprintToInputs.Value);
 
             /// <summary>
             /// Get strong fingerprint tree for the entry
             /// </summary>
-            public JsonNode GetStrongFingerprintTree()
-            {
-                var strongEntry = m_entry.StrongFingerprintEntry;
-                var strongFingerprintTree = JsonTree.Deserialize(strongEntry.StrongFingerprintToInputs.Value);
-                var pathSetTree = JsonTree.Deserialize(strongEntry.PathSetHashToInputs.Value);
+            public JsonNode GetStrongFingerprintTree() => MergeStrongFingerprintAndPathSetTrees(GetStrongFingerpintInputTree(), GetPathSetTree());
 
-                return MergeStrongFingerprintAndPathSetTrees(strongFingerprintTree, pathSetTree);
-            }
+            /// <summary>
+            /// Get pathset tree.
+            /// </summary>
+            public JsonNode GetPathSetTree() => JsonTree.Deserialize(m_entry.StrongFingerprintEntry.PathSetHashToInputs.Value);
+
+            private JsonNode GetStrongFingerpintInputTree() => JsonTree.Deserialize(m_entry.StrongFingerprintEntry.StrongFingerprintToInputs.Value);
+
+            /// <summary>
+            /// Diff pathsets.
+            /// </summary>
+            public JObject DiffPathSet(PipRecordingSession otherSession) =>
+                JsonFingerprintDiff.DiffPathSets(
+                    PathSetHash,
+                    GetPathSetTree(),
+                    GetStrongFingerpintInputTree(),
+                    otherSession.PathSetHash,
+                    otherSession.GetPathSetTree(),
+                    otherSession.GetStrongFingerpintInputTree(),
+                    directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
+                    otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash));
+
+            /// <summary>
+            /// Diff strong fingerprints.
+            /// </summary>
+            public JObject DiffStrongFingerprint(PipRecordingSession otherSession) =>
+                JsonFingerprintDiff.DiffStrongFingerprints(
+                    StrongFingerprint,
+                    GetPathSetTree(),
+                    GetStrongFingerpintInputTree(),
+                    otherSession.StrongFingerprint,
+                    otherSession.GetPathSetTree(),
+                    otherSession.GetStrongFingerpintInputTree(),
+                    directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
+                    otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash));
+
+            /// <summary>
+            /// Diff weak fingerprints.
+            /// </summary>
+            public JObject DiffWeakFingerprint(PipRecordingSession otherSession) =>
+                JsonFingerprintDiff.DiffWeakFingerprints(
+                    WeakFingerprint,
+                    GetWeakFingerprintTree(),
+                    otherSession.WeakFingerprint,
+                    otherSession.GetWeakFingerprintTree());
 
             /// <summary>
             /// Path set hash inputs are stored separately from the strong fingerprint inputs.
@@ -210,11 +270,11 @@ namespace BuildXL.Scheduler.Tracing
             /// 
             /// From path set hash 
             /// 
-            /// [4] "PathSet":""
+            /// [4] "Paths":""
             ///     [5] "Path":"B:/out/objects/n/x/qbkexxlc8je93wycw7yrlw0a305n7k/xunit-out/CacheMissAnaAD836B23/3/obj/readonly/src_0"
             ///     [6] "Flags":"IsDirectoryPath, DirectoryEnumeration, DirectoryEnumerationWithAllPattern"
             ///     [7] "EnumeratePatternRegex":"^.*$"
-            ///     
+            ///
             /// And end with:
             /// 
             /// [1] "PathSet":"VSO0:7E2E49845EC0AE7413519E3EE605272078AF0B1C2911C021681D1D9197CC134A00"
@@ -238,10 +298,9 @@ namespace BuildXL.Scheduler.Tracing
 
                 // In preparation for merging with observed inputs nodes,
                 // remove the path set node's branch from the path set tree
-                // [4] "PathSet":""
-                var pathSetNode = JsonTree.FindNodeByName(pathSetTree, ObservedPathEntryConstants.PathSet);
+                // [4] "Paths":""
+                var pathSetNode = JsonTree.FindNodeByName(pathSetTree, ObservedPathSet.Labels.Paths);
                 JsonTree.EmancipateBranch(pathSetNode);
-
                 JsonNode currPathNode = null;
                 JsonNode currFlagNode = null;
                 JsonNode currRegexNode = null;
@@ -252,23 +311,17 @@ namespace BuildXL.Scheduler.Tracing
                     switch (child.Name)
                     {
                         case ObservedPathEntryConstants.Path:
+                            if (currPathNode != null)
+                            {
+                                mergePathSetNode(parentPathNode, currPathNode, currFlagNode, currRegexNode, observedInputIt.Value);
+                                observedInputIt = observedInputsNode.Children.First;
+                                currPathNode = null;
+                                currFlagNode = null;
+                                currRegexNode = null;
+                            }
+
                             currPathNode = child;
-                            // Switch from literal string "path" to actual file system path
-                            // [5'] "B:/out/objects/n/x/qbkexxlc8je93wycw7yrlw0a305n7k/xunit-out/CacheMissAnaAD836B23/3/obj/readonly/src_0":""
-                            currPathNode.Name = currPathNode.Values[0];
-                            // The name captures the node's value, so clear the values to avoid extraneous value comparison when diffing
-                            currPathNode.Values.Clear();
-                            JsonTree.ReparentBranch(currPathNode, parentPathNode);
-
-                            // [6'] "Flags":"IsDirectoryPath, DirectoryEnumeration, DirectoryEnumerationWithAllPattern"
-                            JsonTree.ReparentBranch(currFlagNode, currPathNode);
-                            // [7'] "EnumeratePatternRegex":"^.*$"
-                            JsonTree.ReparentBranch(currRegexNode, currPathNode);
-
-                            // [3'] "ObservedInput":"E:VSO0:E0C5007DC8CF2D331236F156F136C50CACE2A5D549CD132D9B44ABD1F13D50CC00"
-                            // [8] "Members":"[src_1, src_2]"
-                            ReparentObservedInput(observedInputIt.Value, currPathNode);
-                            observedInputIt = observedInputsNode.Children.First;
+                            JsonTree.EmancipateBranch(currPathNode);
                             break;
                         case ObservedPathEntryConstants.Flags:
                             // [6] "Flags":"IsDirectoryPath, DirectoryEnumeration, DirectoryEnumerationWithAllPattern"
@@ -285,6 +338,11 @@ namespace BuildXL.Scheduler.Tracing
                     }
                 }
 
+                if (currPathNode != null)
+                {
+                    mergePathSetNode(parentPathNode, currPathNode, currFlagNode, currRegexNode, observedInputIt.Value);
+                }
+
                 // Re-parent any other branches of the path set tree to the strong fingerprint tree
                 // so they are still in a full strong fingerprint tree comparison.
                 // We re-parent under parentPathNode because branches of pathSetTree are elements of PathSet
@@ -296,6 +354,26 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 return strongFingerprintTree;
+
+                void mergePathSetNode(JsonNode parentNode, JsonNode pathNode, JsonNode flagNode, JsonNode regexNode, JsonNode observedInputNode)
+                {
+                    // Switch from literal string "path" to actual file system path
+                    // [5'] "B:/out/objects/n/x/qbkexxlc8je93wycw7yrlw0a305n7k/xunit-out/CacheMissAnaAD836B23/3/obj/readonly/src_0":""
+                    pathNode.Name = pathNode.Values[0];
+
+                    // The name captures the node's value, so clear the values to avoid extraneous value comparison when diffing
+                    pathNode.Values.Clear();
+                    JsonTree.ReparentBranch(pathNode, parentNode);
+
+                    // [6'] "Flags":"IsDirectoryPath, DirectoryEnumeration, DirectoryEnumerationWithAllPattern"
+                    JsonTree.ReparentBranch(flagNode, pathNode);
+                    // [7'] "EnumeratePatternRegex":"^.*$"
+                    JsonTree.ReparentBranch(regexNode, pathNode);
+
+                    // [3'] "ObservedInput":"E:VSO0:E0C5007DC8CF2D331236F156F136C50CACE2A5D549CD132D9B44ABD1F13D50CC00"
+                    // [8] "Members":"[src_1, src_2]"
+                    ReparentObservedInput(observedInputNode, pathNode);
+                }
             }
 
             /// <summary>
@@ -390,6 +468,17 @@ namespace BuildXL.Scheduler.Tracing
                 }
             }
 
+            private static IReadOnlyList<string> GetDirectoryMembership(FingerprintStore store, string directoryFingerprint)
+            {
+                if(!store.TryGetContentHashValue(directoryFingerprint, out string storedValue))
+                {
+                    return null;
+                }
+
+                var directoryMembershipTree = JsonTree.Deserialize(storedValue);
+                return directoryMembershipTree.Children.First.Value.Values;
+            }
+            
             /// <summary>
             /// Writes a message to a specific pip's file.
             /// </summary>

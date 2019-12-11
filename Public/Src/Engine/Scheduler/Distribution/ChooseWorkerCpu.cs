@@ -194,6 +194,8 @@ namespace BuildXL.Scheduler.Distribution
                 }
             }
 
+            long setupCostForBestWorker = workerSetupCosts[0].SetupBytes;
+
             limitingResource = null;
             foreach (var loadFactor in m_workerBalancedLoadFactors)
             {
@@ -208,6 +210,7 @@ namespace BuildXL.Scheduler.Distribution
                     var worker = workerSetupCosts[i].Worker;
                     if (worker.TryAcquire(runnablePip, out limitingResource, loadFactor: loadFactor))
                     {
+                        runnablePip.Performance.SetInputMaterializationCost(ByteSizeFormatter.ToMegabytes((ulong)setupCostForBestWorker), ByteSizeFormatter.ToMegabytes((ulong)workerSetupCosts[i].SetupBytes));
                         return worker;
                     }
                 }

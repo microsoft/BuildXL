@@ -48,6 +48,10 @@ namespace BuildXL.Scheduler
 
         internal bool IsExecuted { get; private set; }
 
+        internal long InputMaterializationCostMbForBestWorker { get; private set; }
+
+        internal long InputMaterializationCostMbForChosenWorker { get; private set; }
+
         /// <remarks>
         /// MaterializeOutput is executed per each worker
         /// so the single index of the array might be concurrently mutated.
@@ -151,6 +155,12 @@ namespace BuildXL.Scheduler
         internal long CalculateQueueDurationMs()
         {
             return QueueDurations.Value.Sum(a => (long)a.TotalMilliseconds);
+        }
+
+        internal void SetInputMaterializationCost(long costMbForBestWorker, long costMbForChosenWorker)
+        {
+            InputMaterializationCostMbForBestWorker = costMbForBestWorker;
+            InputMaterializationCostMbForChosenWorker = costMbForChosenWorker;
         }
     }
 }

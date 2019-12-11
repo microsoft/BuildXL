@@ -4518,13 +4518,14 @@ namespace BuildXL.Scheduler
                 }
 
                 IList<long> totalMasterQueueDurations = new long[(int)DispatcherKind.Materialize + 1];
-                IList<long> totalRemoteQueueDurations = new long[(int)DispatcherKind.Materialize + 1];
+                IList<long> totalRemoteQueueDurations = new long[(int)PipExecutionStep.Done + 1];
 
                 IList<long> totalStepDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalQueueRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalSendRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalCacheLookupStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
                 long totalCacheMissAnalysisDuration = 0;
+                long totalInputMaterializationExtraCostMbDueToUnavailability = 0;
 
                 var summaryTable = new StringBuilder();
                 var detailedLog = new StringBuilder();
@@ -4592,128 +4593,23 @@ namespace BuildXL.Scheduler
                     totalMasterQueueDurations = totalMasterQueueDurations.Zip(performance.QueueDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
                     totalRemoteQueueDurations = totalRemoteQueueDurations.Zip(performance.RemoteQueueDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
                     totalSendRequestDurations = totalSendRequestDurations.Zip(performance.SendRequestDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
+                    totalQueueRequestDurations = totalQueueRequestDurations.Zip(performance.QueueRequestDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
+
                     totalCacheLookupStepDurations = totalCacheLookupStepDurations
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
 
                     totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
+                    totalInputMaterializationExtraCostMbDueToUnavailability += (performance.InputMaterializationCostMbForChosenWorker - performance.InputMaterializationCostMbForBestWorker);
 
                     index++;
                 }
 
                 // Putting logs together - a summary table followed by a detailed log for each pip
+
                 var builder = new StringBuilder();
-                builder.AppendLine("Critical path:");
-                builder.AppendLine(I($"{"Pip Duration(ms)",-16} | {"Exe Duration(ms)",-15}| {"Queue Duration(ms)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
-
-                // Total critical path running time is a sum of all steps except ChooseWorker
-                long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime()).Sum();
-                long totalMasterQueueTime = totalMasterQueueDurations.Sum();
-                long totalRemoteQueueTime = totalRemoteQueueDurations.Sum();
-
-                long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
-
-                builder.AppendLine(I($"{totalCriticalPathRunningTime,16} | {exeDurationCriticalPathMs,15} | {totalMasterQueueTime,18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
-                builder.AppendLine(summaryTable.ToString());
-
-                if (buildSummary != null)
-                {
-                    buildSummary.CriticalPathSummary.TotalCriticalPathRuntime = TimeSpan.FromMilliseconds(totalCriticalPathRunningTime);
-                    buildSummary.CriticalPathSummary.ExeDurationCriticalPath = TimeSpan.FromMilliseconds(exeDurationCriticalPathMs);
-                    buildSummary.CriticalPathSummary.TotalMasterQueueTime = TimeSpan.FromMilliseconds(totalMasterQueueTime);
-                }
-
-                builder.AppendLine(detailedLog.ToString());
-
-                builder.AppendLine(I($"Total Master Queue Waiting Time (ms) on the Critical Path"));
-                for (int i = 0; i < totalMasterQueueDurations.Count; i++)
-                {
-                    if (totalMasterQueueDurations[i] != 0)
-                    {
-                        var queue = (DispatcherKind)i;
-                        builder.AppendLine(I($"\t{queue,-98}: {totalMasterQueueDurations[i],10}"));
-                        statistics.Add(I($"CriticalPath.{queue}MasterQueueDurationMs"), totalMasterQueueDurations[i]);
-                    }
-                }
-                statistics.Add("CriticalPath.TotalMasterQueueDurationMs", totalMasterQueueTime);
-
-                builder.AppendLine();
-                builder.AppendLine(I($"Total Remote Queue Waiting Time (ms) on the Critical Path"));
-                for (int i = 0; i < totalRemoteQueueDurations.Count; i++)
-                {
-                    if (totalRemoteQueueDurations[i] != 0)
-                    {
-                        var queue = (DispatcherKind)i;
-                        builder.AppendLine(I($"\t{queue,-98}: {totalRemoteQueueDurations[i],10}"));
-                        statistics.Add(I($"CriticalPath.{queue}RemoteQueueDurationMs"), totalRemoteQueueDurations[i]);
-                    }
-                }
-                statistics.Add("CriticalPath.TotalRemoteQueueDurationMs", totalRemoteQueueTime);
-
-                builder.AppendLine();
-                builder.AppendLine(I($"Total Pip Execution Step Duration (ms) on the Critical Path"));
-                for (int i = 0; i < totalStepDurations.Count; i++)
-                {
-                    if (totalStepDurations[i] != 0 && ((PipExecutionStep)i).IncludeInRunningTime())
-                    {
-                        var step = (PipExecutionStep)i;
-                        builder.AppendLine(I($"\t{step,-98}: {totalStepDurations[i],10}"));
-                        statistics.Add(I($"CriticalPath.{step}DurationMs"), totalStepDurations[i]);
-                    }
-                }
-
-                builder.AppendLine();
-                builder.AppendLine(I($"Total CacheLookup Step Duration (ms) on the Critical Path"));
-                for (int i = 0; i < totalCacheLookupStepDurations.Count; i++)
-                {
-                    var duration = totalCacheLookupStepDurations[i];
-                    var name = OperationKind.GetTrackedCacheOperationKind(i).ToString();
-                    if (duration != 0)
-                    {
-                        builder.AppendLine(I($"\t{name,-98}: {duration,10}"));
-                        statistics.Add(I($"CriticalPath.{name}DurationMs"), duration);
-                    }
-                }
-
-                builder.AppendLine();
-                builder.AppendLine(I($"Total Queue Request Duration (ms) on the Critical Path"));
-                for (int i = 0; i < totalQueueRequestDurations.Count; i++)
-                {
-                    if (totalQueueRequestDurations[i] != 0)
-                    {
-                        var step = (PipExecutionStep)i;
-                        builder.AppendLine(I($"\t{step,-98}: {totalQueueRequestDurations[i],10}"));
-                        statistics.Add(I($"CriticalPath.{step}_QueueRequestDurationMs"), totalQueueRequestDurations[i]);
-                    }
-                }
-
-                builder.AppendLine();
-                builder.AppendLine(I($"Total Send Request Duration (ms) on the Critical Path"));
-                for (int i = 0; i < totalSendRequestDurations.Count; i++)
-                {
-                    if (totalSendRequestDurations[i] != 0)
-                    {
-                        var step = (PipExecutionStep)i;
-                        builder.AppendLine(I($"\t{step,-98}: {totalSendRequestDurations[i],10}"));
-                        statistics.Add(I($"CriticalPath.{step}_SendRequestDurationMs"), totalSendRequestDurations[i]);
-                    }
-                }
-
-                builder.AppendLine();
-                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker,10}"));
-                statistics.Add("CriticalPath.ChooseWorkerDurationMs", totalChooseWorker);
-
-                builder.AppendLine();
-                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
-                statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
-
-                builder.AppendLine();
-                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));
-
-                statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
-                statistics.Add("CriticalPath.PipDurationMs", totalCriticalPathRunningTime);
 
                 string hr = I($"{Environment.NewLine}======================================================================{Environment.NewLine}");
-                builder.AppendLine(hr);
+
                 builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by Pip Duration (excluding ChooseWorker and Queue durations)"));
                 var topPipDurations =
                     (from a in m_runnablePipPerformance
@@ -4754,6 +4650,126 @@ namespace BuildXL.Scheduler
                 {
                     LogPipPerformanceInfo(builder, kvp.Key, kvp.Value);
                 }
+
+                builder.AppendLine(hr);
+
+                builder.AppendLine("Critical path:");
+                builder.AppendLine(I($"{"Pip Duration(ms)",-16} | {"Exe Duration(ms)",-15}| {"Queue Duration(ms)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
+
+                // Total critical path running time is a sum of all steps except ChooseWorker
+                long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime()).Sum();
+                long totalMasterQueueTime = totalMasterQueueDurations.Sum();
+                long totalRemoteQueueTime = totalRemoteQueueDurations.Sum();
+                long totalSendRequestTime = totalSendRequestDurations.Sum();
+                long totalQueueRequestTime = totalQueueRequestDurations.Sum();
+
+                long totalChooseWorker = totalStepDurations[(int)PipExecutionStep.ChooseWorkerCpu] + totalStepDurations[(int)PipExecutionStep.ChooseWorkerCacheLookup];
+
+                builder.AppendLine(I($"{totalCriticalPathRunningTime,16} | {exeDurationCriticalPathMs,15} | {totalMasterQueueTime,18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
+                builder.AppendLine(summaryTable.ToString());
+
+                if (buildSummary != null)
+                {
+                    buildSummary.CriticalPathSummary.TotalCriticalPathRuntime = TimeSpan.FromMilliseconds(totalCriticalPathRunningTime);
+                    buildSummary.CriticalPathSummary.ExeDurationCriticalPath = TimeSpan.FromMilliseconds(exeDurationCriticalPathMs);
+                    buildSummary.CriticalPathSummary.TotalMasterQueueTime = TimeSpan.FromMilliseconds(totalMasterQueueTime);
+                }
+
+                builder.AppendLine(detailedLog.ToString());
+
+                statistics.Add("CriticalPath.TotalMasterQueueDurationMs", totalMasterQueueTime);
+                builder.AppendLine(I($"Total Master Queue Waiting Time (ms) on the Critical Path"));
+                for (int i = 0; i < totalMasterQueueDurations.Count; i++)
+                {
+                    if (totalMasterQueueDurations[i] != 0)
+                    {
+                        var queue = (DispatcherKind)i;
+                        builder.AppendLine(I($"\t{queue,-98}: {totalMasterQueueDurations[i],10}"));
+                        statistics.Add(I($"CriticalPath.{queue}_MasterQueueDurationMs"), totalMasterQueueDurations[i]);
+                    }
+                }
+
+                builder.AppendLine();
+
+                statistics.Add("CriticalPath.TotalRemoteQueueDurationMs", totalRemoteQueueTime);
+                builder.AppendLine(I($"Total Remote Queue Waiting Time (ms) on the Critical Path"));
+                for (int i = 0; i < totalRemoteQueueDurations.Count; i++)
+                {
+                    if (totalRemoteQueueDurations[i] != 0)
+                    {
+                        var step = (PipExecutionStep)i;
+                        builder.AppendLine(I($"\t{step,-98}: {totalRemoteQueueDurations[i],10}"));
+                        statistics.Add(I($"CriticalPath.{step}_RemoteQueueDurationMs"), totalRemoteQueueDurations[i]);
+                    }
+                }
+
+                builder.AppendLine();
+                builder.AppendLine(I($"Total Pip Execution Step Duration (ms) on the Critical Path"));
+                for (int i = 0; i < totalStepDurations.Count; i++)
+                {
+                    if (totalStepDurations[i] != 0 && ((PipExecutionStep)i).IncludeInRunningTime())
+                    {
+                        var step = (PipExecutionStep)i;
+                        builder.AppendLine(I($"\t{step,-98}: {totalStepDurations[i],10}"));
+                        statistics.Add(I($"CriticalPath.{step}DurationMs"), totalStepDurations[i]);
+                    }
+                }
+
+                builder.AppendLine();
+                builder.AppendLine(I($"Total CacheLookup Step Duration (ms) on the Critical Path"));
+                for (int i = 0; i < totalCacheLookupStepDurations.Count; i++)
+                {
+                    var duration = totalCacheLookupStepDurations[i];
+                    var name = OperationKind.GetTrackedCacheOperationKind(i).ToString();
+                    if (duration != 0)
+                    {
+                        builder.AppendLine(I($"\t{name,-98}: {duration,10}"));
+                        statistics.Add(I($"CriticalPath.{name}DurationMs"), duration);
+                    }
+                }
+
+                builder.AppendLine();
+
+                statistics.Add("CriticalPath.TotalQueueRequestDurationMs", totalQueueRequestTime);
+                builder.AppendLine(I($"Total Queue Request Duration (ms) on the Critical Path"));
+                for (int i = 0; i < totalQueueRequestDurations.Count; i++)
+                {
+                    if (totalQueueRequestDurations[i] != 0)
+                    {
+                        var step = (PipExecutionStep)i;
+                        builder.AppendLine(I($"\t{step,-98}: {totalQueueRequestDurations[i],10}"));
+                        statistics.Add(I($"CriticalPath.{step}_QueueRequestDurationMs"), totalQueueRequestDurations[i]);
+                    }
+                }
+
+                builder.AppendLine();
+
+                statistics.Add("CriticalPath.TotalSendRequestDurationMs", totalSendRequestTime);
+                builder.AppendLine(I($"Total Send Request Duration (ms) on the Critical Path"));
+                for (int i = 0; i < totalSendRequestDurations.Count; i++)
+                {
+                    if (totalSendRequestDurations[i] != 0)
+                    {
+                        var step = (PipExecutionStep)i;
+                        builder.AppendLine(I($"\t{step,-98}: {totalSendRequestDurations[i],10}"));
+                        statistics.Add(I($"CriticalPath.{step}_SendRequestDurationMs"), totalSendRequestDurations[i]);
+                    }
+                }
+
+                builder.AppendLine();
+                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker,10}"));
+                statistics.Add("CriticalPath.ChooseWorkerDurationMs", totalChooseWorker);
+
+                builder.AppendLine();
+                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
+                statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
+                statistics.Add("CriticalPath.TotalInputMaterializationExtraCostMbDueToUnavailability", totalInputMaterializationExtraCostMbDueToUnavailability);
+
+                builder.AppendLine();
+                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));
+
+                statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
+                statistics.Add("CriticalPath.PipDurationMs", totalCriticalPathRunningTime);
 
                 Logger.Log.CriticalPathChain(m_executePhaseLoggingContext, builder.ToString());
             }
@@ -4817,7 +4833,6 @@ namespace BuildXL.Scheduler
                     stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesVisited",-88}: {performanceInfo.CacheLookupPerfInfo.NumCacheEntriesVisited,10}"));
                     stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {performanceInfo.CacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
 
-                    long totalCacheLookupDurationForPip = 0;
                     for (int j = 0; j < performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters.Length; j++)
                     {
                         var name = OperationKind.GetTrackedCacheOperationKind(j).ToString();
@@ -4828,14 +4843,19 @@ namespace BuildXL.Scheduler
                         {
                             stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences,10} times"));
                         }
-
-                        totalCacheLookupDurationForPip += duration;
                     }
                 }
 
-                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
+                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess)
                 {
-                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
+                    long inputMaterializationExtraCostMbDueToUnavailability = performanceInfo.InputMaterializationCostMbForChosenWorker - performanceInfo.InputMaterializationCostMbForBestWorker;
+                    stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationExtraCostMbDueToUnavailability",-88}: {inputMaterializationExtraCostMbDueToUnavailability,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationCostMbForChosenWorker",-88}: {performanceInfo.InputMaterializationCostMbForChosenWorker,10}"));
+
+                    if (performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
+                    }
                 }
             }
         }

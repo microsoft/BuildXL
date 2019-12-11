@@ -1243,7 +1243,8 @@ namespace BuildXL
                         new Random(loggingConfiguration.RelatedActivityId.GetHashCode());
 
                     int randomNum = randomGen.Next(numABTestingOptions);
-                    var randomOption = startupConfiguration.ABTestingArgs.ToList()[randomNum];
+                    // Sort ABTesting args.
+                    var randomOption = startupConfiguration.ABTestingArgs.OrderBy(a => a.Key).ToList()[randomNum];
                     string abTestingKey = randomOption.Key;
                     string abTestingArgs = randomOption.Value;
 

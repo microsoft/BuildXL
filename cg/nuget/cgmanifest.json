@@ -2454,7 +2454,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NodeJs",
-          "Version": "12.13.1-noTest"
+          "Version": "13.3.0-noTest"
         }
       }
     },

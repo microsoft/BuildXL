@@ -550,14 +550,14 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v12.13.1/node-v12.13.1-win-x64.zip",
-                    hash: "VSO0:4ECBF62F472082F755C3A08891E3C8E78E960F727F89D726811C1C45E55B3CE000",
+                    url: "https://nodejs.org/dist/v13.3.0/node-v13.3.0-win-x64.zip",
+                    hash: "VSO0:B390393D971687DC5486F5F443ABA914807B9F7DFFD5FD1512F7B6234F2BE2FC00",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v12.13.1/node-v12.13.1-darwin-x64.tar.gz",
-                    hash: "VSO0:5D94BC683E974005C38B86B31A5A73B6299502103EE5A7B590019F43005D268E00",
+                    url: "https://nodejs.org/dist/v13.3.0/node-v13.3.0-darwin-x64.tar.gz",
+                    hash: "VSO0:71B123A9120E24D3AB783D277A3649AFB56C97DDB7E79C9568625D51FF29D8CD00",
                     archiveType: "tgz",
                 },
 

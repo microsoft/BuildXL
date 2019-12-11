@@ -49,6 +49,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         DedupNodeOrChunk = 7,
 
         /// <summary>
+        ///     Murmur3 Well distributed hash
+        /// </summary>
+        Murmur = 8,
+
+        /// <summary>
         ///     Legacy VSO hash (33 bytes)
         /// </summary>
         DeprecatedVso0 = 'V' | ('S' << 8) | ('O' << 16) | ('0' << 24)

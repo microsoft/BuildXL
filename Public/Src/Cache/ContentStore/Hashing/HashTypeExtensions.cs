@@ -23,6 +23,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {"DEDUPCHUNK", HashType.DedupChunk},
                 {"DEDUPNODE", HashType.DedupNode},
                 {"DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk},
+                {"MURMUR", HashType.Murmur },
             };
 
         private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Utilities.Collections
 {

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;

@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Utilities
 {

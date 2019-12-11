@@ -21,7 +21,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.DedupChunk, DedupChunkHashInfo.Instance},
                 {HashType.DedupNode, DedupNodeHashInfo.Instance},
                 {HashType.DedupNodeOrChunk, DedupNodeOrChunkHashInfo.Instance},
-                {HashType.DeprecatedVso0, VsoHashInfo.Instance}
+                {HashType.DeprecatedVso0, VsoHashInfo.Instance},
+                {HashType.Murmur, MurmurHashInfo.Instance }
             };
 
         /// <summary>

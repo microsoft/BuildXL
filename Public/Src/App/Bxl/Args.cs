@@ -380,6 +380,17 @@ namespace BuildXL
                                     cacheConfiguration.UseDedupStore = true;
                                 }
                             }),
+                        OptionHandlerFactory.CreateOption(
+                            "hashType",
+                            option =>
+                            {
+                                var hashType = option.Value.FindHashTypeByName();
+                                ContentHashingUtilities.SetDefaultHashType(hashType);
+                                if (hashType == HashType.DedupNodeOrChunk)
+                                {
+                                    cacheConfiguration.UseDedupStore = true;
+                                }
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
                             sign =>

@@ -19,7 +19,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {HashType.DedupNode, NodeDedupIdentifier.NodeAlgorithmId},
 
                 // DedupNodeOrChunk will always end with DedupChunk or DedupNode algorithm IDs. Default to DedupChunk.
-                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId}
+                {HashType.DedupNodeOrChunk, ChunkDedupIdentifier.ChunkAlgorithmId},
+                {HashType.Murmur,  MurmurHashInfo.MurmurAlgorithmId}
             };
 
         /// <summary>
@@ -48,6 +49,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     break;
                 case HashType.DedupNodeOrChunk:
                     isValid = hashTag == AlgorithmIdLookup.Find(HashType.DedupNode) || hashTag == AlgorithmIdLookup.Find(HashType.DedupChunk);
+                    break;
+                case HashType.Murmur:
+                    isValid = hashTag == AlgorithmIdLookup.Find(HashType.Murmur);
                     break;
                 default:
                     throw new ArgumentException($"{contentHash.HashType} is not a tagged hash.");

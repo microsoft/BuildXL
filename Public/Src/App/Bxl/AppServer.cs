@@ -16,6 +16,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using BuildXL.App.Tracing;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Utilities;

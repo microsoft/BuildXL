@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
-namespace BuildXL.Utilities
+namespace BuildXL.Cache.ContentStore.Hashing
 {
+
     /// <summary>
     /// Represents a 128-bit *non-cryptographic* hash that is well-distributed in all bits.
     /// </summary>
@@ -21,7 +21,7 @@ namespace BuildXL.Utilities
     /// See <see cref="GetDerivedHash"/>.
     /// This implementation is based on the public-domain MurmurHash3 (the 128-bit variant).
     /// </remarks>
-    public readonly struct MurmurHash3 : IEquatable<MurmurHash3>
+    public struct MurmurHash3 : IEquatable<MurmurHash3>
     {
         /// <summary>
         /// Low component.
@@ -34,6 +34,7 @@ namespace BuildXL.Utilities
         public readonly ulong High;
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="MurmurHash3"/> struct.
         /// Creates a hash wrapper from the given high and low components.
         /// Ensure that the components satisfy the distribution properties of this type.
         /// </summary>
@@ -48,21 +49,6 @@ namespace BuildXL.Utilities
 
         /// <nodoc />
         public bool IsZero => Low == 0 & High == 0;
-
-        /// <summary>
-        /// Calculates the hash at <paramref name="index"/> in the sequence <c>h_i = high + i * low</c>
-        /// </summary>
-        /// <remarks>
-        /// This is a typical construction in 'double hashing' schemes. It also performs well in the context of a Bloom filter,
-        /// in which some variable number of distinct hashes are needed per item.
-        /// See
-        ///        Adam Kirsch and Michael Mitzenmacher. 2008. Less hashing, same performance: Building a better Bloom filter.
-        ///        Random Struct. Algorithms 33, 2 (September 2008), 187-218. DOI=10.1002/rsa.v33:2 http://dx.doi.org/10.1002/rsa.v33:2
-        /// </remarks>
-        public ulong GetDerivedHash(int index)
-        {
-            return unchecked(High + (Low * (ulong)index));
-        }
 
         /// <summary>
         /// Hashes the given byte array.
@@ -110,20 +96,20 @@ namespace BuildXL.Utilities
                     ulong k2 = blocks[(i * 2) + 1];
 
                     k1 *= C1;
-                    k1 = Bits.RotateLeft(k1, 31);
+                    k1 = RotateLeft(k1, 31);
                     k1 *= C2;
                     h1 ^= k1;
 
-                    h1 = Bits.RotateLeft(h1, 27);
+                    h1 = RotateLeft(h1, 27);
                     h1 += h2;
                     h1 = (h1 * 5) + 0x52dce729;
 
                     k2 *= C2;
-                    k2 = Bits.RotateLeft(k2, 33);
+                    k2 = RotateLeft(k2, 33);
                     k2 *= C1;
                     h2 ^= k2;
 
-                    h2 = Bits.RotateLeft(h2, 31);
+                    h2 = RotateLeft(h2, 31);
                     h2 += h1;
                     h2 = (h2 * 5) + 0x38495ab5;
                 }
@@ -136,7 +122,7 @@ namespace BuildXL.Utilities
 
                 switch (len & 15)
                 {
-                        // t2 cases
+                    // t2 cases
                     case 15:
                         t2 ^= ((ulong)tail[14]) << 48;
                         goto case 14;
@@ -158,12 +144,12 @@ namespace BuildXL.Utilities
                     case 9:
                         t2 ^= ((ulong)tail[8]) << 0;
                         t2 *= C2;
-                        t2 = Bits.RotateLeft(t2, 33);
+                        t2 = RotateLeft(t2, 33);
                         t2 *= C1;
                         h2 ^= t2;
                         goto case 8;
 
-                        // t1 cases
+                    // t1 cases
                     case 8:
                         t1 ^= ((ulong)tail[7]) << 56;
                         goto case 7;
@@ -188,7 +174,7 @@ namespace BuildXL.Utilities
                     case 1:
                         t1 ^= ((ulong)tail[0]) << 0;
                         t1 *= C1;
-                        t1 = Bits.RotateLeft(t1, 31);
+                        t1 = RotateLeft(t1, 31);
                         t1 *= C2;
                         h1 ^= t1;
                         break;
@@ -238,6 +224,71 @@ namespace BuildXL.Utilities
             return new MurmurHash3(high, low);
         }
 
+        /// <summary>
+        /// Shift-and-rotate (left shift, and the bits that fall off reappear on the right)
+        /// </summary>
+        private static ulong RotateLeft(ulong value, int shiftBy)
+        {
+#if DEBUG
+            Contract.Assert(shiftBy >= 0 && shiftBy < 64);
+#endif
+            checked
+            {
+                return value << shiftBy | (value >> (64 - shiftBy));
+            }
+        }
+
+        /// <summary>
+        /// Add the bytes of the hash to a buffer at the specified index.
+        /// </summary>
+        public void GetHashBytes(byte[] buffer, uint offset)
+        {
+            if (offset >= uint.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException("offset");
+            }
+
+            Contract.Assert(offset + 8 <= buffer.Length);
+            buffer[offset] = (byte)(High & 255);
+            buffer[offset + 1] = (byte)((High >> 8) & 255);
+            buffer[offset + 2] = (byte)((High >> 16) & 255);
+            buffer[offset + 3] = (byte)((High >> 24) & 255);
+            buffer[offset + 4] = (byte)(Low & 255);
+            buffer[offset + 5] = (byte)((Low >> 8) & 255);
+            buffer[offset + 6] = (byte)((Low >> 16) & 255);
+            buffer[offset + 7] = (byte)((Low >> 24) & 255);
+        }
+
+        /// <summary>
+        /// Gets the byte representation of the hash
+        /// </summary>
+        public unsafe byte[] ToByteArray()
+        {
+            byte[] buffer = new byte[16];
+            fixed (byte* b = buffer)
+            {
+                *((ulong*)b) = High;
+                *((ulong*)b + 1) = Low;
+            }
+
+            return buffer;
+        }
+
+        /// <summary>
+        /// Calculates the hash at <paramref name="index"/> in the sequence <c>h_i = high + i * low</c>
+        /// </summary>
+        /// <remarks>
+        /// This is a typical construction in 'double hashing' schemes. It also performs well in the context of a Bloom filter,
+        /// in which some variable number of distinct hashes are needed per item.
+        /// See
+        ///        Adam Kirsch and Michael Mitzenmacher. 2008. Less hashing, same performance: Building a better Bloom filter.
+        ///        Random Struct. Algorithms 33, 2 (September 2008), 187-218. DOI=10.1002/rsa.v33:2 http://dx.doi.org/10.1002/rsa.v33:2
+        /// </remarks>
+        public ulong GetDerivedHash(int index)
+        {
+            return unchecked(High + (Low * (ulong)index));
+        }
+
         /// <inheritdoc />
         public bool Equals(MurmurHash3 other)
         {
@@ -255,21 +306,6 @@ namespace BuildXL.Utilities
         {
             // We pick four arbitrary bytes out of the sixteen we have. That's fine given the distributedness properties of this hash.
             return unchecked((int)High);
-        }
-
-        /// <summary>
-        /// Gets the byte representation of the hash
-        /// </summary>
-        public unsafe byte[] ToByteArray()
-        {
-            byte[] buffer = new byte[16];
-            fixed (byte* b = buffer)
-            {
-                *((ulong*)b) = High;
-                *((ulong*)b + 1) = Low;
-            }
-
-            return buffer;
         }
 
         /// <summary>

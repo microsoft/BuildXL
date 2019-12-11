@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;

@@ -17,5 +17,6 @@ enum HashType{
     DedupChunk = 6;
     DedupNode = 7;
     DedupNodeOrChunk = 8;
+    Murmur = 9;
     DeprecatedVso0 = 810505046;
 }

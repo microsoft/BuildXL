@@ -290,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private ContentHash ComputeStartedCopyHash(ContentHash hash)
         {
-            var murmurHash = BuildXL.Utilities.MurmurHash3.Create(hash.ToByteArray(), _startedCopyHashSeed);
+            var murmurHash = MurmurHash3.Create(hash.ToByteArray(), _startedCopyHashSeed);
 
             var hashLength = HashInfoLookup.Find(_hashType).ByteLength;
             var buffer = murmurHash.ToByteArray();

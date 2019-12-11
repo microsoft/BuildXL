@@ -3,8 +3,7 @@
 
 export const pkgs = [
     // aspnet web api
-    { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.4" },
-    { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7", alias: "Microsoft.AspNet.WebApi.Client.NetCore" },
+    { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7" },
     { id: "Microsoft.AspNet.WebApi.Core", version: "5.2.3" },
     { id: "Microsoft.AspNet.WebApi.WebHost", version: "5.2.2" },
 

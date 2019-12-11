@@ -19,7 +19,7 @@ namespace Orchestrator {
         ],
         references: [
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("Microsoft.AspNet.WebApi.Client.NetCore").pkg,
+            importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.TeamFoundation.DistributedTask.WebApi").pkg,

@@ -299,6 +299,13 @@ export function executable(args: Arguments): Managed.Assembly {
                 culture: "neutral",
                 oldVersion: "0.0.0.0-15.1280.0.0",
                 newVersion: "1.0.0.0",
+            },
+            {
+                name: "System.Net.Http.Formatting",
+                publicKeyToken: "31bf3856ad364e35",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.2.7.0",
+                newVersion: "5.2.7.0",
             }
         ],
         tools: {

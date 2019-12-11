@@ -411,15 +411,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNet.WebApi.Client",
-          "Version": "5.2.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNet.WebApi.Client",
           "Version": "5.2.7"
         }
       }

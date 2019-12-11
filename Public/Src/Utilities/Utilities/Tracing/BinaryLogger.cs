@@ -47,7 +47,7 @@ namespace BuildXL.Utilities.Tracing
 
         // RW lock that allows for safe disposal of pending events queue.
         private readonly ReadWriteLock m_eventQueueLock = ReadWriteLock.Create();
-        private bool m_eventQueueDisposed = false;
+        private volatile bool m_eventQueueDisposed = false;
 
         /// <summary>
         /// The integral value of the last absolute path available in a statically loaded path table
@@ -85,12 +85,25 @@ namespace BuildXL.Utilities.Tracing
             m_pendingEventsDrainingThread = new Thread(
                 () =>
                 {
-                    foreach (PooledObjectWrapper<EventWriter> wrapper in m_pendingEvents.GetConsumingEnumerable())
+                    try
                     {
-                        var eventWriter = wrapper.Instance;
-                        WriteEventData(eventWriter);
-                        m_writerPool.PutInstance(wrapper);
-                        onEventWritten?.Invoke();
+                        foreach (PooledObjectWrapper<EventWriter> wrapper in m_pendingEvents.GetConsumingEnumerable())
+                        {
+                            var eventWriter = wrapper.Instance;
+                            WriteEventData(eventWriter);
+                            m_writerPool.PutInstance(wrapper);
+                            onEventWritten?.Invoke();
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // InvalidOperationException is thrown when calling Take() for a marked-as-completed blocking collection.
+                        // However, GetConsumingEnumerable throws an InvalidOperationException here, which is unusual. 
+                        // In further investigations, we discovered that it might throw one if the collection in BlockingCollection 
+                        // is passed in the constructor and we externally modify that collection outside of BlockingCollection. 
+                        // Even we do not do that, we rarely have InvalidOperationException here, which is a NetCore bug.
+                        // We reported the bug; but for now, we swallow that exception and we treat it as a signal for completion.
+                        return;
                     }
                 });
             m_pendingEventsDrainingThread.Start();

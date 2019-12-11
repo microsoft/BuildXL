@@ -135,9 +135,21 @@ namespace BuildXL.Tracing
         /// </summary>
         private void DrainLoggingQueue()
         {
-            foreach (var item in m_logActionQueue.GetConsumingEnumerable())
+            try
             {
-                MeasuredLog(item.Item1, item.Item2);
+                foreach (var item in m_logActionQueue.GetConsumingEnumerable())
+                {
+                    MeasuredLog(item.Item1, item.Item2);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // InvalidOperationException is thrown when calling Take() for a marked-as-completed blocking collection.
+                // However, GetConsumingEnumerable throws an InvalidOperationException here, which is unusual. 
+                // In further investigations, we discovered that it might throw one if the collection in BlockingCollection 
+                // is passed in the constructor and we externally modify that collection outside of BlockingCollection. 
+                // Even we do not do that, we rarely have InvalidOperationException here, which is a NetCore bug.
+                // We reported the bug; but for now, we swallow that exception and we treat it as a signal for completion.
             }
 
             // Compute statistics about async logging

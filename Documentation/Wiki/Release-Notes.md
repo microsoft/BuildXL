@@ -11,6 +11,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
+# 0.1.0-20191208.3 (Release [49574](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 12/11/2019
+-	ADO Listener respects /nowarn and other warning mappings.
+-	Use cheaper hash algorithm for server deployment.
+-	Add more parallelism in (and make async) Fingerprint store event processing.
+-	Expose fingerprint computation data and shared opaque outputs.
+-	Ensure that different repositories get different app servers.
+-	DScript: detect cycles in ValueCache factories.
+-	Fix a race condition when flushing execution log blobs at the end of a build.
+-	Remove duplicates from ObservedAccessedFileNames
+
 # 0.1.0-20191127.2 (Release [49076](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49076)).  Released 12/04/2019
 - Capture average phase working set in stats
 - Log duration of different phases during process execution

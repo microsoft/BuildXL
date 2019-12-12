@@ -74,6 +74,19 @@ namespace BuildXL.Processes
         public SidebandWriter SidebandWriter { get; }
 
         /// <summary>
+        /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object 
+        /// with limit <see cref="JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"/>
+        /// </summary>
+        /// <remarks>
+        /// Defaults to true. This is useful to ensure that any process started by the current process will
+        /// terminate when the current process terminates. This is always the case for BuildXL since we don't want
+        /// any process creation to 'leak' outside the lifespan of a build.
+        /// Setting this to false implies that processes allowed to breakaway may survive the main process. This setting is
+        /// used by external projects that use the sandbox as a library.
+        /// </remarks>
+        public bool CreateJobObjectForCurrentProcess { get; }
+
+        /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
@@ -108,7 +121,8 @@ namespace BuildXL.Processes
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
-            SidebandWriter sidebandWriter = null)
+            SidebandWriter sidebandWriter = null,
+            bool createJobObjectForCurrentProcess = true)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileName != null);
@@ -128,6 +142,7 @@ namespace BuildXL.Processes
             SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
             SidebandWriter = sidebandWriter;
+            CreateJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
         }
 
         /// <summary>
@@ -466,6 +481,7 @@ namespace BuildXL.Processes
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
                 writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
+                writer.Write(CreateJobObjectForCurrentProcess);
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -506,6 +522,7 @@ namespace BuildXL.Processes
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
+                var createJobObjectForCurrentProcess = reader.ReadBoolean();
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
@@ -518,7 +535,8 @@ namespace BuildXL.Processes
                     containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
                     sidebandWriter: sidebandWritter,
-                    detoursEventListener: detoursEventListener)
+                    detoursEventListener: detoursEventListener,
+                    createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

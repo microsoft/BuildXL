@@ -151,7 +151,8 @@ namespace BuildXL.Processes
                     info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
-                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway);
+                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway,
+                    info.CreateJobObjectForCurrentProcess);
         }
 
         /// <inheritdoc />

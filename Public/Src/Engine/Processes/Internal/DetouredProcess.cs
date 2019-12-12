@@ -74,6 +74,7 @@ namespace BuildXL.Processes.Internal
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
         private readonly bool m_setJobBreakawayOk;
+        private readonly bool m_createJobObjectForCurrentProcess;
         private readonly LoggingContext m_loggingContext;
 
 #region public getters
@@ -310,7 +311,8 @@ namespace BuildXL.Processes.Internal
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
             ContainerConfiguration containerConfiguration,
-            bool setJobBreakawayOk)
+            bool setJobBreakawayOk,
+            bool createJobObjectForCurrentProcess)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -334,6 +336,7 @@ namespace BuildXL.Processes.Internal
             m_disableConHostSharing = disableConHostSharing;
             m_containerConfiguration = containerConfiguration;
             m_setJobBreakawayOk = setJobBreakawayOk;
+            m_createJobObjectForCurrentProcess = createJobObjectForCurrentProcess;
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
             {
                 m_workingDirectory = Directory.GetCurrentDirectory();
@@ -422,7 +425,7 @@ namespace BuildXL.Processes.Internal
                             writeHandle: out hStdError);
 
                         // We want a per-process job primarily. If nested job support is not available, then we make sure to not have a BuildXL-level job.
-                        if (JobObject.OSSupportsNestedJobs)
+                        if (JobObject.OSSupportsNestedJobs && m_createJobObjectForCurrentProcess)
                         {
                             JobObject.SetTerminateOnCloseOnCurrentProcessJob();
                         }

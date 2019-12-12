@@ -114,7 +114,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
 
                 redisContentLocationStoreConfiguration.Database = dbConfig;
-                ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
+                ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot, dbConfig).GetAwaiter().GetResult();
             }
 
             if (_distributedSettings.IsRedisGarbageCollectionEnabled)
@@ -284,7 +284,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             return selfCheckSettings;
         }
 
-        private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
+        private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot, RocksDbContentLocationDatabaseConfiguration dbConfig)
         {
             (var secrets, var errors) = await _secretRetriever.TryRetrieveSecretsAsync();
             if (secrets == null)
@@ -347,7 +347,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 _distributedSettings.ContentLocationWriteMode,
                 value => configuration.WriteMode = (ContentLocationMode)Enum.Parse(typeof(ContentLocationMode), value));
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
+
             ApplyIfNotNull(_distributedSettings.RestoreCheckpointAgeThresholdMinutes, v => configuration.Checkpoint.RestoreCheckpointAgeThreshold = TimeSpan.FromMinutes(v));
+            // Need to disable cleaning database on initialization when restore checkpoint age is set.
+            ApplyIfNotNull(_distributedSettings.RestoreCheckpointAgeThresholdMinutes, v => dbConfig.CleanOnInitialize = false);
 
             var errorBuilder = new StringBuilder();
             var storageCredentials = GetStorageCredentials(secrets, errorBuilder);

@@ -615,10 +615,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
             }
 
+            var latestCheckpointId = latestCheckpoint?.checkpointId ?? "null";
             if (shouldSkipRestore)
             {
-                Tracer.Debug(context, $"First checkpoint {latestCheckpoint.Value.checkpointId} will be skipped. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                Tracer.Debug(context, $"First checkpoint {checkpointState} will be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Increment();
                 return BoolResult.Success;
+            }
+            else if (_lastRestoreTime == default)
+            {
+                Tracer.Debug(context, $"First checkpoint {checkpointState} will not be skipped. LatestCheckpointId={latestCheckpointId}, LatestCheckpointAge={latestCheckpointAge}, Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
             }
 
             if (checkpointState.CheckpointAvailable)

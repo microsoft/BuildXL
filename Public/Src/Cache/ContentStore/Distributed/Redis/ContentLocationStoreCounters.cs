@@ -167,5 +167,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         ProactiveReplication_Failed,
+
+        /// <nodoc />
+        RestoreCheckpointsSkipped,
     }
 }

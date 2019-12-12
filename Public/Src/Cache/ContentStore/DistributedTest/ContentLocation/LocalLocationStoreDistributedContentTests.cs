@@ -194,6 +194,69 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task SkipRestoreCheckpointTest()
+        {
+            // CleanOnInitialize must be false when skipping restore checkpoint. Otherwise, db directory will be deleted on startup
+            // so checkpoint is never skipped.
+            _cleanDbOnInitialize = false;
+            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
+
+            var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
+
+            ConfigureRocksDbContentLocationBasedTest(
+                configureInMemoryEventStore: true,
+                (index, testRootDirectory, config) =>
+                {
+                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
+                    {
+                        /* Set role to null to automatically choose role using master election */
+                        Role = null,
+                        UseIncrementalCheckpointing = true,
+                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
+                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
+                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
+                        MasterLeaseExpiryTime = masterLeaseExpiryTime,
+                        RestoreCheckpointAgeThreshold = TimeSpan.FromHours(1),
+                    };
+                    config.CentralStore = centralStoreConfiguration;
+                });
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                iterations: 3,
+                testFunc: async (TestContext context) =>
+                {
+                    var sessions = context.Sessions;
+
+                    var masterStore = context.GetLocalLocationStore(context.GetMasterIndex());
+                    var workerStore = context.GetLocalLocationStore(context.GetFirstWorkerIndex());
+
+                    var workerSession = sessions[context.GetFirstWorkerIndex()];
+
+                    // Insert random file in session 0
+                    var putResult0 = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                    await masterStore.CreateCheckpointAsync(context).ShouldBeSuccess();
+                    TestClock.UtcNow += TimeSpan.FromMinutes(10);
+
+                    // Iteration 0: No checkpoint to restore
+                    // Iteration 1: Restore checkpoint created during iteration 0
+                    // Iteration 2: Skip Restore checkpoint created during iteration 1
+                    if (context.Iteration == 2)
+                    {
+                        // Should skip the restore checkpoint for startup
+                        workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(1);
+                    }
+                    else
+                    {
+                        workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(0);
+                    }
+                });
+        }
+
+
+        [Fact]
         public async Task ProactiveCopyDistributedTest()
         {
             EnableProactiveCopy = true;
@@ -2318,6 +2381,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool _enableSecondaryRedis = false;
         protected AbsolutePath _testDatabasePath = null;
         protected bool _storeClusterStateInDatabase = true;
+        protected bool _cleanDbOnInitialize = true;
 
         private RedisContentLocationStoreConfiguration CreateRedisContentLocationStoreConfiguration(
             AbsolutePath storeLocationRoot,
@@ -2340,7 +2404,8 @@ namespace ContentStoreTest.Distributed.Sessions
                                // Don't GC
                                GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
                                TestInitialCheckpointPath = _testDatabasePath,
-                               StoreClusterState = _storeClusterStateInDatabase
+                               StoreClusterState = _storeClusterStateInDatabase,
+                               CleanOnInitialize = _cleanDbOnInitialize
                            },
                 CentralStore = new LocalDiskCentralStoreConfiguration(storeLocationRoot, "chkpoints"),
                 SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,

@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Timeout.InfiniteTimeSpan);
             }
 
-            var result = Load(context, GetActiveSlot(context.TracingContext), clean: _configuration.CleanOnInitialize);
+            var result = InitialLoad(context, GetActiveSlot(context.TracingContext));
             if (result && _configuration.TestInitialCheckpointPath != null)
             {
                 return RestoreCheckpoint(context, _configuration.TestInitialCheckpointPath);
@@ -179,7 +179,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean = false)
+        private BoolResult InitialLoad(OperationContext context, StoreSlot activeSlot)
+        {
+            var clean = _configuration.CleanOnInitialize;
+            var result = Load(context, activeSlot, clean);
+
+            if (!clean && !result.Succeeded)
+            {
+                context.TracingContext.Warning($"Failed to load database without cleaning. Retrying with clean=true. Failure: {result}");
+
+                // If failed when cleaning is disabled, try again with forcing a clean
+                return Load(context, activeSlot, clean: true);
+            }
+
+            return result;
+        }
+
+        private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean)
         {
             try
             {
@@ -221,7 +237,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     onFailureDeleteExistingStoreAndRetry: _configuration.OnFailureDeleteExistingStoreAndRetry,
                     // If the previous flag is true, and it does happen that we invalidate the database, we want to log
                     // it explicitly.
-                    onStoreReset: failure => {
+                    onStoreReset: failure =>
+                    {
                         Tracer.Error(context, $"RocksDb critical error caused store to reset: {failure.DescribeIncludingInnerFailures()}");
                     });
 
@@ -333,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 Directory.Move(checkpointDirectory.ToString(), newStoreLocation);
 
-                var possiblyLoaded = Load(context, nextActiveSlot);
+                var possiblyLoaded = Load(context, nextActiveSlot, clean: false);
                 if (possiblyLoaded.Succeeded)
                 {
                     SaveActiveSlot(context.TracingContext);
@@ -679,14 +696,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var metadata = DeserializeMetadataEntry(data);
                         result = metadata.ContentHashListWithDeterminism;
 
-                                // Update the time, only if no one else has changed it in the mean time. We don't
-                                // really care if this succeeds or not, because if it doesn't it only means someone
-                                // else changed the stored value before this operation but after it was read.
-                                Analysis.IgnoreResult(CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                        // Update the time, only if no one else has changed it in the mean time. We don't
+                        // really care if this succeeds or not, because if it doesn't it only means someone
+                        // else changed the stored value before this operation but after it was read.
+                        Analysis.IgnoreResult(CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
 
-                                // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
-                                // hashes exist. Moreover, we can prune content.
-                            }
+                        // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
+                        // hashes exist. Moreover, we can prune content.
+                    }
                 });
 
             if (!status.Succeeded)
@@ -729,7 +746,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 return false;
                             }
                         }
-                        
+
                         var replacementMetadata = new MetadataEntry(replacement, Clock.UtcNow.ToFileTimeUtc());
                         store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
                     }
@@ -763,7 +780,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return result;
         }
-        
+
         /// <inheritdoc />
         public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
@@ -807,7 +824,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
         }
-        
+
         private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
         {
             return SerializeStrongFingerprint(strongFingerprint);
@@ -831,7 +848,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
-            return _keyValueStore.Use(store => {
+            return _keyValueStore.Use(store =>
+            {
                 // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
                 // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
                 // iterator will go stale as time passes: since we iterate over a snapshot of the DB, we can't

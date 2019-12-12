@@ -479,7 +479,15 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 return null;
             }
 
-            return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
+            try
+            {
+                return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
+            }
+            catch(System.IO.FileNotFoundException)
+            {
+                // Even though we checked file existance before, it is possible that the file was deleted already.
+                return null;
+            }
         }
 
         /// <summary>
@@ -552,8 +560,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             options |= FileOptions.Asynchronous;
 
+            // Getting the file info instead of checking file existence and the size to avoid a race condition,
+            // when the file is deleted in between these two checks.
+            var fileInfo = GetFileInfo(path);
+
             // Avoid churning filesystem cache with large existing files.
-            if (FileExists(path) && GetFileSize(path) > _sequentialScanOnOpenThreshold)
+            if (fileInfo.Exists && fileInfo.Length > _sequentialScanOnOpenThreshold)
             {
                 options |= FileOptions.SequentialScan;
             }
@@ -655,15 +667,19 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <inheritdoc />
         public long GetFileSize(AbsolutePath path)
         {
+            return GetFileInfo(path).Length;
+        }
+
+        private System.IO.FileInfo GetFileInfo(AbsolutePath path)
+        {
             path.ThrowIfPathTooLong();
-            return new System.IO.FileInfo(path.Path).Length;
+            return new System.IO.FileInfo(path.Path);
         }
 
         /// <inheritdoc />
         public DateTime GetLastAccessTimeUtc(AbsolutePath path)
         {
-            path.ThrowIfPathTooLong();
-            return new System.IO.FileInfo(path.Path).LastAccessTimeUtc;
+            return GetFileInfo(path).LastAccessTimeUtc;
         }
 
         /// <inheritdoc />

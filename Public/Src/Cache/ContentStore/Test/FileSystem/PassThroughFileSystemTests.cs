@@ -24,6 +24,44 @@ namespace ContentStoreTest.FileSystem
         {
         }
 
+        [Fact]
+        public async Task DoNotFailWithFileNotFoundExceptionWhenTheFileIsDeletedDuringOpenAsyncCall()
+        {
+            // There was a race condition in PassThroughFileSystem.OpenAsync implementation
+            // that could have caused FileNotFoundException instead of returning null.
+            using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
+            {
+                var path = testDirectory.Path / Guid.NewGuid().ToString();
+
+                int iterations = 1000;
+
+                for(var i = 0; i < iterations; i++)
+                {
+                    FileSystem.WriteAllText(path, "test");
+                    var t1 = openAndClose(FileSystem, path);
+                    var t2 = openAndClose(FileSystem, path);
+                    var t3 = openAndClose(FileSystem, path);
+                    var t4 = openAndClose(FileSystem, path);
+                    FileSystem.DeleteFile(path);
+
+                    await Task.WhenAll(t1, t2, t3, t4);
+                }
+            }
+
+            static async Task openAndClose(IAbsFileSystem fileSystem, AbsolutePath path)
+            {
+                await Task.Yield();
+                try
+                {
+                    // This operation may fail with UnauthorizedAccessException because
+                    // the test tries to delete the file in the process.
+                    using var f = await fileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+                }
+                catch(UnauthorizedAccessException)
+                { }
+            }
+        }
+
         [Fact(Skip = "Test does not work on all versions of Windows where BuildXL tests run")]
         [Trait("Category", "WindowsOSOnly")] 
         public async Task TestDeleteWithOpenFileStream()

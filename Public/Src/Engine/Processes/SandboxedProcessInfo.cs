@@ -102,8 +102,18 @@ namespace BuildXL.Processes
              bool testRetries = false,
              LoggingContext loggingContext = null,
              IDetoursEventListener detoursEventListener = null,
-             ISandboxConnection sandboxConnection = null)
-             : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
+             ISandboxConnection sandboxConnection = null,
+             bool createJobObjectForCurrentProcess = true)
+             : this(
+                   new PathTable(), 
+                   fileStorage, 
+                   fileName, 
+                   disableConHostSharing, 
+                   testRetries, 
+                   loggingContext, 
+                   detoursEventListener, 
+                   sandboxConnection, 
+                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
         {
         }
 
@@ -158,7 +168,8 @@ namespace BuildXL.Processes
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
             ContainerConfiguration containerConfiguration = null,
-            FileAccessManifest fileAccessManifest = null)
+            FileAccessManifest fileAccessManifest = null,
+            bool createJobObjectForCurrentProcess = true)
             : this(
                   pathTable,
                   fileStorage,
@@ -169,7 +180,8 @@ namespace BuildXL.Processes
                   testRetries,
                   loggingContext,
                   detoursEventListener,
-                  sandboxConnection)
+                  sandboxConnection,
+                  createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileName != null);

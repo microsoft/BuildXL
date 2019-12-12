@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
@@ -105,6 +106,11 @@ namespace BuildXL.Scheduler
         public PipEnvironment PipEnvironment { get; }
 
         /// <summary>
+        /// Whether lazy deletion of shared opaque outputs is enabled;
+        /// </summary>
+        public bool LazyDeletionOfSharedOpaqueOutputsEnabled { get; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public PipExecutionState(
@@ -119,6 +125,7 @@ namespace BuildXL.Scheduler
             IUnsafeSandboxConfiguration unsafeConfiguration,
             ContentHash preserveOutputsSalt,
             FileSystemView fileSystemView,
+            bool lazyDeletionOfSharedOpaqueOutputsEnabled,
             ServiceManager serviceManager = null)
         {
             Contract.Requires(fileContentManager != null);
@@ -140,6 +147,7 @@ namespace BuildXL.Scheduler
             FileSystemView = fileSystemView;
             m_unsafeConfiguration = unsafeConfiguration;
             m_preserveOutputsSalt = preserveOutputsSalt;
+            LazyDeletionOfSharedOpaqueOutputsEnabled = lazyDeletionOfSharedOpaqueOutputsEnabled;
 
             if (fileSystemView != null)
             {

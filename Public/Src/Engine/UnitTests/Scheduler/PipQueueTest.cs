@@ -337,7 +337,8 @@ namespace Test.BuildXL.Scheduler
                     executionLog: null,
                     fileSystemView: fileSystemView,
                     fileContentManager: new FileContentManager(this, new NullOperationTracker()),
-                    directoryMembershipFinterprinterRuleSet: null);
+                    directoryMembershipFinterprinterRuleSet: null,
+                    lazyDeletionOfSharedOpaqueOutputsEnabled: false);
 
                 ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
 

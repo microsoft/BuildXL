@@ -156,7 +156,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     XAssert.AreEqual(pipAndExpectedStatus[i].status, actualStatus, "Pip at index " + i + " has an unexpected status");
                 }
-                else
+                else if (pipAndExpectedStatus[i].status != PipResultStatus.Skipped)
                 {
                     XAssert.Fail("Pip at index " + i + " is not scheduled");
                 }

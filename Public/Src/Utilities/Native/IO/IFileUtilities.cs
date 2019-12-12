@@ -193,7 +193,7 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Variant of <see cref="DeleteFile"/> returning a <see cref="Possible{TResult,TOtherwise}"/> rather than throwing.
         /// </summary>
-        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
+        Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Attempts to move file to a temporary directory that will be garbage collected in the future.

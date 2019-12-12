@@ -100,7 +100,12 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.FailedSandboxPreparation;
             }
 
-            (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+            (ExitCode exitCode, SandboxedProcessResult result) executeResult;
+            using (sandboxedProcessInfo.SidebandWriter)
+            {
+                executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+                sandboxedProcessInfo.SidebandWriter?.EnsureHeaderWritten();
+            }
 
             if (executeResult.result != null)
             {

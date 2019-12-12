@@ -357,14 +357,14 @@ namespace Test.BuildXL.Scheduler
                 LastGraph = PipGraphBuilder.Build();
                 XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
             }
-            
+
             m_graphWasModified = false;
-            
-            return RunSchedulerSpecific(LastGraph, 
+
+            return RunSchedulerSpecific(LastGraph,
                 (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
-                testHooks, schedulerState, filter , constraintExecutionOrder);
+                testHooks, schedulerState, filter, constraintExecutionOrder);
         }
-        
+
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
 
         /// <summary>
@@ -392,7 +392,7 @@ namespace Test.BuildXL.Scheduler
         public ScheduleRunResult RunSchedulerSpecific(
             PipGraph graph,
             ITempCleaner tempCleaner,
-            SchedulerTestHooks testHooks = null, 
+            SchedulerTestHooks testHooks = null,
             SchedulerState schedulerState = null,
             RootFilter filter = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
@@ -409,7 +409,7 @@ namespace Test.BuildXL.Scheduler
             // Populating the configuration may modify the configuration, so it should occur first.
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
             BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext);
-            
+
             FileAccessWhitelist whitelist = new FileAccessWhitelist(Context);
             whitelist.Initialize(config);
 
@@ -457,8 +457,8 @@ namespace Test.BuildXL.Scheduler
             using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,
-                pipQueue: constraintExecutionOrder == null ? 
-                            testQueue : 
+                pipQueue: constraintExecutionOrder == null ?
+                            testQueue :
                             constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
@@ -480,13 +480,14 @@ namespace Test.BuildXL.Scheduler
             {
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
-                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
-                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner);
 
                 if (filter == null)
                 {
                     EngineSchedule.TryGetPipFilter(localLoggingContext, Context, config, config, Expander.TryGetRootByMountName, out filter);
                 }
+
+                var nonScrubbablePaths = EngineSchedule.GetNonScrubbablePaths(Context.PathTable, config, frontEndNonScrubbablePaths, tempCleaner);
+                EngineSchedule.ScrubExtraneousFilesAndDirectories(mountPathExpander, testScheduler, localLoggingContext, config, nonScrubbablePaths, tempCleaner, filter);
 
                 XAssert.IsTrue(testScheduler.InitForMaster(localLoggingContext, filter, schedulerState), "Failed to initialized test scheduler");
 
@@ -540,20 +541,26 @@ namespace Test.BuildXL.Scheduler
                 : new Failure<string>("Invalid");
         }
 
-        public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null)
-        {
-            return file.Path.ToString(pathTable ?? Context.PathTable);
-        }
+        public string ArtifactToString(FileOrDirectoryArtifact file, PathTable pathTable = null) => ToString(file.Path, pathTable);
+        protected string ToString(AbsolutePath path, PathTable pathTable = null) => path.ToString(pathTable ?? Context.PathTable);
+        protected AbsolutePath ToPath(string path, PathTable pathTable = null) => AbsolutePath.Create(pathTable ?? Context.PathTable, path);
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
             string sharedOpaqueDir,
-            params FileArtifact[] filesToProduce)
+            params FileArtifact[] filesToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
-                sharedOpaqueDir, 
-                fileToProduceStatically: FileArtifact.Invalid, 
-                sourceFileToRead: FileArtifact.Invalid, 
-                filesToProduce.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, filesToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            params FileArtifact[] filesToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
+                sharedOpaqueDir,
+                fileToProduceStatically: FileArtifact.Invalid,
+                sourceFileToRead: FileArtifact.Invalid,
+                filesToProduceDynamically.Select(f => new KeyValuePair<FileArtifact, string>(f, null)).ToArray());
         }
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
@@ -562,7 +569,16 @@ namespace Test.BuildXL.Scheduler
             FileArtifact sourceFileToRead,
             params FileArtifact[] filesToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params FileArtifact[] filesToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
                 sharedOpaqueDir,
                 fileToProduceStatically,
                 sourceFileToRead,
@@ -575,7 +591,16 @@ namespace Test.BuildXL.Scheduler
             FileArtifact sourceFileToRead,
             params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
         {
-            return CreateAndScheduleSharedOpaqueProducer(
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, filesAndContentToProduceDynamically));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
+            string sharedOpaqueDir,
+            FileArtifact fileToProduceStatically,
+            FileArtifact sourceFileToRead,
+            params KeyValuePair<FileArtifact, string>[] filesAndContentToProduceDynamically)
+        {
+            return CreateSharedOpaqueProducer(
                 sharedOpaqueDir,
                 fileToProduceStatically,
                 sourceFileToRead,
@@ -591,6 +616,15 @@ namespace Test.BuildXL.Scheduler
         }
 
         protected ProcessWithOutputs CreateAndScheduleSharedOpaqueProducer(
+            string sharedOpaqueDir, 
+            FileArtifact fileToProduceStatically, 
+            FileArtifact sourceFileToRead, 
+            params Operation[] additionalOperations)
+        {
+            return SchedulePipBuilder(CreateSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically, sourceFileToRead, additionalOperations));
+        }
+
+        protected ProcessBuilder CreateSharedOpaqueProducer(
             string sharedOpaqueDir,
             FileArtifact fileToProduceStatically,
             FileArtifact sourceFileToRead,
@@ -615,7 +649,7 @@ namespace Test.BuildXL.Scheduler
 
             var builder = CreatePipBuilder(operations);
             builder.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
-            return SchedulePipBuilder(builder);
+            return builder;
         }
 
         protected ProcessWithOutputs CreateAndScheduleOpaqueProducer(string opaqueDir, FileArtifact sourceFile, params KeyValuePair<FileArtifact, string>[] filesAndContent)
@@ -649,9 +683,20 @@ namespace Test.BuildXL.Scheduler
             return SchedulePipBuilder(builder);
         }
 
+        protected void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
+        {
+            // Assert that shared opaque outputs were journaled and the explicitly declared ones were not
+            var journaledWrites = GetJournaledWritesForProcess(result, pip.Process);
+            XAssert.Contains(journaledWrites, outputInSharedOpaque);
+            XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
+        }
+
+        protected string GetSidebandFile(ScheduleRunResult result, Process process) 
+            => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+
         protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
-            var logFile = SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            var logFile = GetSidebandFile(result, process);
             XAssert.IsTrue(File.Exists(logFile));
             return SidebandWriter
                 .ReadRecordedPathsFromSidebandFile(logFile)

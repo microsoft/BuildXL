@@ -304,6 +304,13 @@ namespace BuildXL.Utilities.Configuration
         bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; }
 
         /// <summary>
+        /// Delay scrubbing of shared opaque outputs until right before the pip is executed.
+        /// 
+        /// It's currently unsafe because not all corner cases have been worked out.
+        /// </summary>
+        bool UnsafeLazySODeletion { get; }
+
+        /// <summary>
         /// Indicates whether historic cpu information should be used to decide the weight of process pips.
         /// </summary>
         bool UseHistoricalCpuUsageInfo { get; }

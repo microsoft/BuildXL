@@ -207,6 +207,7 @@ namespace Test.BuildXL.Processes
                             disableConHostSharing: false,
                             pipEnvironment: new PipEnvironment(),
                             validateDistribution: false,
+                            isLazySharedOpaqueOutputDeletionEnabled: false,
                             tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
                             directoryArtifactContext: TestDirectoryArtifactContext.Empty).RunAsync();
         }

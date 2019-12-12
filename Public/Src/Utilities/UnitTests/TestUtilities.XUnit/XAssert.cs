@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -263,6 +264,18 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 expected.Count != actual.Count ? "Set sizes are different" :
                 (missing = missingElems()).Any() ? "Missing elements: " + SetToString(missing) :
                 null;
+        }
+
+        /// <nodoc/>
+        public static void FileExists(string path, string message = "")
+        {
+            IsTrue(File.Exists(path), "File not found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
+        public static void FileDoesNotExist(string path, string message = "")
+        {
+            IsFalse(File.Exists(path), "File found at path {0}. {1}", path, message);
         }
 
         /// <nodoc/>

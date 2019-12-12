@@ -1201,7 +1201,8 @@ namespace Test.BuildXL.Scheduler
                 unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
                 preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
-                directoryMembershipFinterprinterRuleSet: parentRuleSet);
+                directoryMembershipFinterprinterRuleSet: parentRuleSet,
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);

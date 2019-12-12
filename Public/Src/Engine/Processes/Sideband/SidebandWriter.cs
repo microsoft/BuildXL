@@ -237,7 +237,7 @@ namespace BuildXL.Processes.Sideband
             // NOTE: it is essential not to call m_lazyBxlWriter.Value.Dispose() if bxlWriter hasn't been created.
             // 
             // reason: 
-            //   - when running a process in VM, a logger is created twice for that process: (1) first in the
+            //   - when running a process in VM, a sideband writer is created twice for that process: (1) first in the
             //     bxl process, and (2) second in the VM process
             //   - the VM process then runs, and writes stuff to its instance of this logger; once it finishes, 
             //     all shared opaque output writes are saved to the underlying sideband file

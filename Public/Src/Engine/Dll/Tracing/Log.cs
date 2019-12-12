@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
+using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -1874,13 +1875,41 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.CannotReadSidebandFile,
+            (ushort)EventId.SidebandFileIntegrityCheckThrewException,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Cannot read sideband file '{fileName}': {error}")]
-        public abstract void CannotReadSidebandFile(LoggingContext context, string fileName, string error);
+            Message = "Exception caught while validating integrity of sideband files: {ex}")]
+        public abstract void SidebandFileIntegrityCheckThrewException(LoggingContext context, string ex);
+
+        [GeneratedEvent(
+            (ushort)EventId.SidebandIntegrityCheckForProcessFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Sideband integrity check failed for {pipSemiStableHash} and file '{sidebandFile}'. Reason: {reason}. {details}")]
+        public abstract void SidebandIntegrityCheckForProcessFailed(LoggingContext context, string pipSemiStableHash, string sidebandFile, string reason, string details);
+
+        [GeneratedEvent(
+            (ushort)EventId.PostponingDeletionOfSharedOpaqueOutputs,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Postponing deletion of shared opaque outputs.")]
+        public abstract void PostponingDeletionOfSharedOpaqueOutputs(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)EventId.DeletingOutputsFromExtraneousSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in extraneous sideband files.")]
+        public abstract void DeletingOutputsFromExtraneousSidebandFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
             (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,

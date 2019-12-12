@@ -435,16 +435,16 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
+        public Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
                 DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
-                return Unit.Void;
+                return path;
             }
             catch (BuildXLException ex)
             {
-                return new RecoverableExceptionFailure(ex);
+                return new DeletionFailure(path, ex);
             }
         }
 

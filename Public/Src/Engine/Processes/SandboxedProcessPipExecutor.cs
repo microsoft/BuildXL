@@ -28,7 +28,6 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
 {
@@ -155,6 +154,8 @@ namespace BuildXL.Processes
 
         private readonly int m_remainingUserRetryCount;
 
+        private readonly bool m_isLazySharedOpaqueOutputDeletionEnabled;
+
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
         private readonly ReadOnlyHashSet<AbsolutePath> m_sharedOpaqueDirectoryRoots;
@@ -224,6 +225,7 @@ namespace BuildXL.Processes
             bool validateDistribution,
             IDirectoryArtifactContext directoryArtifactContext,
             ITempCleaner tempDirectoryCleaner,
+            bool isLazySharedOpaqueOutputDeletionEnabled,
             ISandboxedProcessLogger logger = null,
             Action<int> processIdListener = null,
             PipFragmentRenderer pipDataRenderer = null,
@@ -335,6 +337,7 @@ namespace BuildXL.Processes
             m_loggingConfiguration = loggingConfig;
             m_remainingUserRetryCount = remainingUserRetryCount;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
+            m_isLazySharedOpaqueOutputDeletionEnabled = isLazySharedOpaqueOutputDeletionEnabled;
 
             m_sharedOpaqueDirectoryRoots = m_pip.DirectoryOutputs
                 .Where(directory => directory.IsSharedOpaque)
@@ -741,6 +744,16 @@ namespace BuildXL.Processes
                     {
                         m_processIdListener?.Invoke(0);
                     }
+
+                    // If sideband writer is used and we are executing internally, make sure here that it is flushed to disk.
+                    // Without doing this explicitly, if no writes into its SODs were recorded for the pip,
+                    // the sideband file will not be automatically saved to disk.  When running externally, the external 
+                    // executor process will do this and if we do it here again we'll end up overwriting the sideband file.
+                    if (!ShouldSandboxedProcessExecuteExternal)
+                    {
+                        info.SidebandWriter?.EnsureHeaderWritten();
+                    }
+
                     return result;
                 }
             }
@@ -2529,9 +2542,69 @@ namespace BuildXL.Processes
                         return false;
                     }
                 }
+
+                if (m_isLazySharedOpaqueOutputDeletionEnabled && !DeleteSharedOpaqueOutputsRecordedInSidebandFile())
+                {
+                    return false;
+                }
             }
 
             return true;
+        }
+
+        private bool DeleteSharedOpaqueOutputsRecordedInSidebandFile()
+        {
+            var sidebandFile = SidebandWriter.GetSidebandFileForProcess(m_context.PathTable, m_layoutConfiguration.SharedOpaqueSidebandDirectory, m_pip);
+            try
+            {
+                var start = DateTime.UtcNow;
+                var sharedOpaqueOutputsToDelete = ReadSidebandFile(sidebandFile, ignoreChecksum: false);
+                var deletionResults = sharedOpaqueOutputsToDelete // TODO: possibly parallelize file deletion 
+                    .Where(FileUtilities.FileExistsNoFollow)
+                    .Select(path => FileUtilities.TryDeleteFile(path)) // TODO: what about deleting directories?
+                    .ToArray();
+                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start));
+
+                // select failures
+                var failures = deletionResults
+                    .Where(maybeDeleted => !maybeDeleted.Succeeded) // select failures only
+                    .Where(maybeDeleted => FileUtilities.FileExistsNoFollow(maybeDeleted.Failure.Path)) // double check that the files indeed exist
+                    .ToArray();
+
+                // log failures (if any)
+                if (failures.Length > 0)
+                {
+                    var files = string.Join(string.Empty, failures.Select(f => $"{Environment.NewLine}  {f.Failure.Path}"));
+                    var firstFailure = failures.First().Failure.DescribeIncludingInnerFailures();
+                    Tracing.Logger.Log.CannotDeleteSharedOpaqueOutputFile(m_loggingContext, m_pipDescription, sidebandFile, files, firstFailure);
+                    return false;
+                }
+
+                // log deleted files
+                var deletedFiles = string.Join(string.Empty, deletionResults.Where(r => r.Succeeded).Select(r => $"{Environment.NewLine}  {r.Result}"));
+                Tracing.Logger.Log.SharedOpaqueOutputsDeletedLazily(m_loggingContext, m_pip.FormattedSemiStableHash, sidebandFile, deletedFiles);
+
+                // delete the sideband file itself
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(sidebandFile));
+
+                return true;
+            }
+            catch (Exception e) when (e is IOException || e is BuildXLException)
+            {
+                Tracing.Logger.Log.CannotReadSidebandFileError(m_loggingContext, sidebandFile, e.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns all recorded paths inside the <paramref name="sidebandFile"/> sideband file.
+        /// </summary>
+        public static string[] ReadSidebandFile(string sidebandFile, bool ignoreChecksum)
+        {
+            using var sidebandReader = new SidebandReader(sidebandFile);
+            sidebandReader.ReadHeader(ignoreChecksum: ignoreChecksum);
+            sidebandReader.ReadMetadata();
+            return sidebandReader.ReadRecordedPaths().ToArray();
         }
 
         /// <summary>

@@ -702,10 +702,12 @@ namespace BuildXL.Scheduler
         /// Get the current state of a pip
         /// </summary>
         /// <returns>The pip state</returns>
-        public PipState GetPipState(PipId pipId)
-        {
-            return GetPipRuntimeInfo(pipId).State;
-        }
+        public PipState GetPipState(PipId pipId) => GetPipRuntimeInfo(pipId).State;
+
+        /// <summary>
+        /// Get the pip type from <see cref="PipId"/>
+        /// </summary>
+        public PipType GetPipType(PipId pipId) => m_pipTable.GetPipType(pipId);
 
         private bool IsPipCleanMaterialized(PipId pipId)
         {
@@ -946,6 +948,11 @@ namespace BuildXL.Scheduler
         /// What is the maximum critical path based on historical and suggested data, and what is the good-ness (origin) of critical path info.
         /// </summary>
         private CriticalPathStats m_criticalPathStats;
+
+        /// <summary>
+        /// <see cref="PipExecutionState.LazyDeletionOfSharedOpaqueOutputsEnabled"/>
+        /// </summary>
+        private bool m_lazyDeletionOfSharedOpaqueOutputsEnabled = false;
 
         /// <summary>
         /// Gets counters for the details of pip execution and cache interaction.
@@ -5184,6 +5191,7 @@ namespace BuildXL.Scheduler
                     fileContentManager: m_fileContentManager,
                     unsafeConfiguration: m_configuration.Sandbox.UnsafeSandboxConfiguration,
                     preserveOutputsSalt: m_previousInputsSalt,
+                    lazyDeletionOfSharedOpaqueOutputsEnabled: m_lazyDeletionOfSharedOpaqueOutputsEnabled,
                     serviceManager: m_serviceManager);
             }
         }
@@ -6809,6 +6817,14 @@ namespace BuildXL.Scheduler
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// <see cref="PipExecutionState.LazyDeletionOfSharedOpaqueOutputsEnabled"/>
+        /// </summary>
+        internal void SetLazyDeletionOfSharedOpaqueOutputsEnabled()
+        {
+            m_lazyDeletionOfSharedOpaqueOutputsEnabled = true;
         }
     }
 }

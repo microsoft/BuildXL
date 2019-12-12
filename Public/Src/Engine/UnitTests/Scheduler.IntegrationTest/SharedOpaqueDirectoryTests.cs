@@ -80,14 +80,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
         }
 
-        private void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
-        {
-            // Assert that shared opaque outputs were journaled and the explicitly declared ones were not
-            var journaledWrites = GetJournaledWritesForProcess(result, pip.Process);
-            XAssert.Contains(journaledWrites, outputInSharedOpaque);
-            XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
-        }
-
         [Theory]
         [InlineData(true, Operation.Type.Probe)]
         [InlineData(true, Operation.Type.ReadFile)]

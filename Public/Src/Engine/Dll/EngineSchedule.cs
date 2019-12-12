@@ -17,6 +17,7 @@ using BuildXL.Engine.Distribution;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
@@ -746,7 +747,8 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            ITempCleaner tempCleaner)
+            ITempCleaner tempCleaner,
+            RootFilter filter)
         {
             var pathsToScrub = new List<string>();
             if (configuration.Engine.Scrub && mountPathExpander != null)
@@ -785,25 +787,36 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
-            var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
-            var distinctRecordedWrites = sharedOpaqueSidebandFiles
-                .AsParallel()
-                .WithDegreeOfParallelism(Environment.ProcessorCount)
-                .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
-                .ToArray();
-
-            if (distinctRecordedWrites.Any())
+            var sidebandExaminer = new SidebandExaminer(loggingContext, scheduler, configuration, filter);
+            var computeExtraneousSidebandFiles = true; // TODO: no need to do it if we got graph cache hit
+            var sidebandExaminationResult = sidebandExaminer.Examine(computeExtraneousSidebandFiles);
+            if (sidebandExaminationResult.ShouldPostponeDeletion)
             {
-                Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(distinctRecordedWrites);
+                Logger.Log.PostponingDeletionOfSharedOpaqueOutputs(loggingContext);
+                scheduler.SetLazyDeletionOfSharedOpaqueOutputsEnabled();
+
+                // must still delete all files recorded in all extraneous sideband files though
+                if (sidebandExaminationResult.ExtraneousSidebandFiles.Length > 0)
+                {
+                    Logger.Log.DeletingOutputsFromExtraneousSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(sidebandExaminer.TryReadAllRecordedWrites(sidebandExaminationResult.ExtraneousSidebandFiles));
+                    scrubber.DeleteFiles(sidebandExaminationResult.ExtraneousSidebandFiles, logDeletedFiles: false);
+                }
             }
-
-            if (sharedOpaqueSidebandFiles.Any())
+            else
             {
-                Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
+                var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+                var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+                var distinctRecordedWrites = sidebandExaminer.TryReadAllRecordedWrites(sharedOpaqueSidebandFiles);
+
+                if (distinctRecordedWrites.Any())
+                {
+                    Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(distinctRecordedWrites);
+
+                    Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
+                    scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
+                }
             }
 
             if (pathsToScrub.Count > 0)
@@ -817,7 +830,12 @@ namespace BuildXL.Engine
                     mountPathExpander: mountPathExpander);
             }
 
-            // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
+            // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says.
+            //
+            // The shared opaque content is deleted either now (eagerly), or, when certain conditions are met 
+            // (see SidebandExaminationResult.ShouldPostponeDeletion), lazily right before the corresponding pips are executed
+            // (see SandboxedProcessPipExecutor.PrepareOutputsAsync).
+            //
             // We need to delete shared opaques because otherwise hardlinks can't be used (content will remain readonly, which will
             // block the next build from modifying them) and to increase consistency in tool behavior and make them more agnostic to
             // the state of the disk that past builds could have produced.
@@ -826,7 +844,7 @@ namespace BuildXL.Engine
             // TODO: we can consider conflating these two scrubbing passes (first one is optional) into one call to DirectoryScrubber to
             // avoid enumerating the disk twice. But this involves some refactoring of the scrubber, where each path to scrub needs its own
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
-            if (sharedOpaqueDirectories.Count() > 0)
+            if (!sidebandExaminationResult.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
             {
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
@@ -841,24 +859,6 @@ namespace BuildXL.Engine
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null);
-            }
-        }
-
-        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
-        {
-            using (var sidebandReader = new SidebandReader(sidebandFile))
-            {
-                try
-                {
-                    sidebandReader.ReadHeader(ignoreChecksum: true);
-                    sidebandReader.ReadMetadata();
-                    return sidebandReader.ReadRecordedPaths().ToArray();
-                }
-                catch (IOException e)
-                {
-                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
-                    return CollectionUtilities.EmptyArray<string>();
-                }
             }
         }
 
@@ -933,7 +933,8 @@ namespace BuildXL.Engine
         private void ScrubExtraneousFilesAndDirectories(
             LoggingContext loggingContext,
             IConfiguration configuration,
-            IEnumerable<string> nonScrubbablePaths)
+            IEnumerable<string> nonScrubbablePaths,
+            RootFilter filter)
         {
             ScrubExtraneousFilesAndDirectories(
                 MountPathExpander,
@@ -941,7 +942,8 @@ namespace BuildXL.Engine
                 loggingContext,
                 configuration,
                 nonScrubbablePaths,
-                m_tempCleaner);
+                m_tempCleaner,
+                filter);
         }
 
         /// <summary>
@@ -981,7 +983,7 @@ namespace BuildXL.Engine
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
             // incorrect if they were to be interleaved.
             var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths);
+            ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter);
             enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
 
             if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)

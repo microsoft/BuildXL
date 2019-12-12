@@ -154,18 +154,19 @@ namespace Test.BuildXL.Scheduler.Utils
             }
 
             State = new PipExecutionState(
-                    config,
-                    cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
-                    fileAccessWhitelist: FileAccessWhitelist,
-                    directoryMembershipFingerprinter: this,
-                    pathExpander: PathExpander,
-                    executionLog: ExecutionLogRecorder,
-                    fileSystemView: fileSystemView,
-                    fileContentManager: GetFileContentManager(),
-                    directoryMembershipFinterprinterRuleSet: null,
-                    unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
-                    preserveOutputsSalt: preserveOutputsSalt,
-                    serviceManager: new DummyServiceManager());
+                config,
+                cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
+                fileAccessWhitelist: FileAccessWhitelist,
+                directoryMembershipFingerprinter: this,
+                pathExpander: PathExpander,
+                executionLog: ExecutionLogRecorder,
+                fileSystemView: fileSystemView,
+                fileContentManager: GetFileContentManager(),
+                directoryMembershipFinterprinterRuleSet: null,
+                unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
+                preserveOutputsSalt: preserveOutputsSalt,
+                serviceManager: new DummyServiceManager(),
+                lazyDeletionOfSharedOpaqueOutputsEnabled: false);
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             

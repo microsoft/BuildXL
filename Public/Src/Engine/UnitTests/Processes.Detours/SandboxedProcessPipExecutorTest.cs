@@ -2191,6 +2191,7 @@ namespace Test.BuildXL.Processes.Detours
                 expander,
                 false,
                 new PipEnvironment(),
+                isLazySharedOpaqueOutputDeletionEnabled: false,
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
                 tempDirectoryCleaner: MoveDeleteCleaner,

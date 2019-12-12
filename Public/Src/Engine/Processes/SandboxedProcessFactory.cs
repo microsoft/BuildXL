@@ -94,6 +94,12 @@ namespace BuildXL.Processes
             DirectorySymlinkPathsDiscardedCount,
 
             /// <summary>
+            /// Duration of lazily deleting shared opaque outputs (when enabled)
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs,
+
+            /// <summary>
             /// Duration of <see cref="SandboxedProcessPipExecutor.ProcessSandboxedProcessResultAsync"/>.
             /// </summary>
             [CounterType(CounterType.Stopwatch)]

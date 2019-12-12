@@ -186,7 +186,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             // Create a pip that writes a file under a shared opaque
             var fileToWrite = CreateOutputFileArtifact(SharedOpaqueDirectoryRoot);
-            CreateAndScheduleSharedOpaqueProducer(SharedOpaqueDirectoryRoot, filesToProduce: fileToWrite);
+            CreateAndScheduleSharedOpaqueProducer(SharedOpaqueDirectoryRoot, filesToProduceDynamically: fileToWrite);
 
             // Create a source file (different from fileToWrite) under the shared opaque and read it
             FileArtifact source = CreateSourceFile(SharedOpaqueDirectoryRoot);
@@ -226,7 +226,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Create a pip that writes a file under a shared opaque
             var fileToWrite = CreateOutputFileArtifact(enumerationPath);
-            var sharedOpaqueProducer = CreateAndScheduleSharedOpaqueProducer(enumerationPath, filesToProduce: fileToWrite);
+            var sharedOpaqueProducer = CreateAndScheduleSharedOpaqueProducer(enumerationPath, filesToProduceDynamically: fileToWrite);
 
             // Create a pip which enumerates the shared opaque
             var enumeratingPipBuilder = CreatePipBuilder(new[]

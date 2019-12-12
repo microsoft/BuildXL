@@ -132,7 +132,7 @@ namespace BuildXL.Native.IO.Unix
         public string FindAllOpenHandlesInDirectory(string directoryPath, HashSet<string> pathsPossiblyPendingDelete = null) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(
+        public Possible<string, DeletionFailure> TryDeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
             ITempCleaner tempDirectoryCleaner = null)
@@ -140,11 +140,11 @@ namespace BuildXL.Native.IO.Unix
             try
             {
                 DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
-                return Unit.Void;
+                return path;
             }
             catch (BuildXLException ex)
             {
-                return new RecoverableExceptionFailure(ex);
+                return new DeletionFailure(path, ex);
             }
         }
 

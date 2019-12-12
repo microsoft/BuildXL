@@ -93,6 +93,11 @@ namespace BuildXL.Processes.Tracing
         PipProcessFailedToParsePathOfFileAccess = 802,
         Process = 803,
 
+        SharedOpaqueOutputsDeletedLazily = 874,
+        CannotReadSidebandFileError = 875,
+        CannotReadSidebandFileWarning = 876,
+        CannotDeleteSharedOpaqueOutputFile = 877,
+
         // Temp files/directory cleanup
         PipTempDirectoryCleanupError = 2201,
         PipTempDirectorySetupError = 2203,

@@ -33,8 +33,6 @@ namespace BuildXL.Processes.Sideband
         /// <nodoc />
         public SidebandReader(string sidebandFile)
         {
-            Contract.Requires(File.Exists(sidebandFile));
-
             m_bxlReader = new BuildXLReader(
                 stream: new FileStream(sidebandFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete),
                 debug: false,

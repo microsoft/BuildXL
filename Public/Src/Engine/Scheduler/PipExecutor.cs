@@ -1306,6 +1306,9 @@ namespace BuildXL.Scheduler
 
             DateTime start;
 
+            // Delete shared opaque outputs if enabled
+            var isLazySharedOpaqueOutputDeletionEnabled = environment.State.LazyDeletionOfSharedOpaqueOutputsEnabled && pip.HasSharedOpaqueDirectoryOutputs;
+
             // Execute the process when resources are available
             SandboxedProcessPipExecutionResult executionResult = await environment.State.ResourceManager
                 .ExecuteWithResources(
@@ -1370,6 +1373,7 @@ namespace BuildXL.Scheduler
                                     makeOutputPrivate,
                                     semanticPathExpander,
                                     configuration.Engine.DisableConHostSharing,
+                                    isLazySharedOpaqueOutputDeletionEnabled: isLazySharedOpaqueOutputDeletionEnabled,
                                     pipEnvironment: environment.State.PipEnvironment,
                                     validateDistribution: configuration.Distribution.ValidateDistribution,
                                     directoryArtifactContext: new DirectoryArtifactContext(environment),
@@ -1403,7 +1407,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                using (var sidebandWriter = CreateSidebandWriterIfConfigured(environment, pip))
+                                using (var sidebandWriter = CreateSidebandWriterIfNeeded(environment, pip))
                                 {
                                     start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
@@ -1861,23 +1865,37 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static SidebandWriter CreateSidebandWriterIfConfigured(IPipExecutionEnvironment env, Process pip)
+        /// <summary>
+        /// SidebandWritter is created and returned only when <see cref="ILayoutConfiguration.SharedOpaqueSidebandDirectory"/>
+        /// is configured, <paramref name="pip"/>'s semistable hash is not 0, and <paramref name="pip"/> has shared
+        /// opaquedirectory outputs.
+        /// </summary>
+        private static SidebandWriter CreateSidebandWriterIfNeeded(IPipExecutionEnvironment env, Process pip)
         {
             // don't use this writer if the root directory is not set up in the configuration layout or
             // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
             var conf = env.Configuration.Layout;
-            return conf?.SharedOpaqueSidebandDirectory.IsValid == true && pip.SemiStableHash != 0
+            return conf?.SharedOpaqueSidebandDirectory.IsValid == true && pip.SemiStableHash != 0 && pip.HasSharedOpaqueDirectoryOutputs
                 ? new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, conf.SharedOpaqueSidebandDirectory)
                 : null;
         }
 
-        private static SidebandMetadata CreateSidebandMetadata(IPipExecutionEnvironment env, Process pip)
+        /// <summary>
+        /// Uses <see cref="IPipExecutionEnvironment.ContentFingerprinter"/> of <paramref name="env"/> to look up the static
+        /// fingerprint for <paramref name="pip"/>, then creates <see cref="SidebandMetadata"/> from it and the pip's semistable hash.
+        /// </summary>
+        public static SidebandMetadata CreateSidebandMetadata(IPipExecutionEnvironment env, Process pip)
+            => CreateSidebandMetadata(env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId), pip);
+
+        /// <summary>
+        /// Creates a <see cref="SidebandMetadata"/> from the static fingerprint and the pip's semistable hash.
+        /// </summary>
+        public static SidebandMetadata CreateSidebandMetadata(BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint staticFingerprint, Process pip)
         {
-            var fp = env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId);
             return new SidebandMetadata(
-                pip.PipId.Value,
+                pip.SemiStableHash,
                 // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
-                fp.Length > 0 ? fp.ToByteArray() : new byte[0]);
+                staticFingerprint.Length > 0 ? staticFingerprint.ToByteArray() : new byte[0]);
         }
 
         private static void ReportFileAccesses(ExecutionResult processExecutionResult, FileAccessReportingContext fileAccessReportingContext)
@@ -3155,6 +3173,7 @@ namespace BuildXL.Scheduler
                 configuration.Logging,
                 environment.RootMappings,
                 environment.ProcessInContainerManager,
+                isLazySharedOpaqueOutputDeletionEnabled: false,
                 pipEnvironment: environment.State.PipEnvironment,
                 validateDistribution: configuration.Distribution.ValidateDistribution,
                 directoryArtifactContext: new DirectoryArtifactContext(environment),

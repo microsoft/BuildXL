@@ -11,4 +11,5 @@ source "${MY_DIR}/env.sh"
   /useHardLinks+                            \
   /sandboxKind:macOsKext                    \
   /disableProcessRetryOnResourceExhaustion+ \
+  /exp:LazySODeletion+                      \
   "$@"

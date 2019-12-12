@@ -1032,5 +1032,41 @@ namespace BuildXL.Processes.Tracing
             SandboxedProcessFactory.Counters.AddToCounter(counter, duration);
             LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
         }
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotDeleteSharedOpaqueOutputFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "[{pipDescription}] Failed to delete shared opaque output files recorded in '{sidebandFile}':{files}.  Reason: {failure}")]
+        public abstract void CannotDeleteSharedOpaqueOutputFile(LoggingContext context, string pipDescription, string sidebandFile, string files, string failure);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SharedOpaqueOutputsDeletedLazily,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "[{pipDescription}] Lazily deleted shared opaque output files recorded in '{sidebandFile}':{files}.")]
+        public abstract void SharedOpaqueOutputsDeletedLazily(LoggingContext context, string pipDescription, string sidebandFile, string files);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotReadSidebandFileError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Cannot read sideband file '{fileName}': {error}")]
+        public abstract void CannotReadSidebandFileError(LoggingContext context, string fileName, string error);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotReadSidebandFileWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Cannot read sideband file '{fileName}': {error}")]
+        public abstract void CannotReadSidebandFileWarning(LoggingContext context, string fileName, string error);
     }
 }

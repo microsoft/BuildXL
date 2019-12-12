@@ -327,7 +327,7 @@ namespace BuildXL.Utilities
     /// }
     /// ]]>
     /// </remarks>
-    public sealed class RecoverableExceptionFailure : Failure
+    public class RecoverableExceptionFailure : Failure
     {
         private readonly ExceptionDispatchInfo m_exceptionDispatchInfo;
 

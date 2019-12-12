@@ -290,7 +290,7 @@ namespace BuildXL.Native.IO
         }
 
         /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempCleaner)"/>
-        public static Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
+        public static Possible<string, DeletionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
             s_fileUtilities.TryDeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
 
         /// <summary>
@@ -298,11 +298,11 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="fileOrDirectoryPath">Path to file or directory to be deleted, if exists.</param>
         /// <param name="tempDirectoryCleaner">Temporary directory cleaner.</param>
-        public static Possible<Unit, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
+        public static Possible<string, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
         {
             if (FileExistsNoFollow(fileOrDirectoryPath))
             {
-                Possible<Unit, RecoverableExceptionFailure> possibleDeletion = TryDeleteFile(
+                var possibleDeletion = TryDeleteFile(
                     fileOrDirectoryPath,
                     waitUntilDeletionFinished: true,
                     tempDirectoryCleaner: tempDirectoryCleaner);
@@ -317,7 +317,7 @@ namespace BuildXL.Native.IO
                 DeleteDirectoryContents(fileOrDirectoryPath, deleteRootDirectory: true, tempDirectoryCleaner: tempDirectoryCleaner);
             }
 
-            return Unit.Void;
+            return fileOrDirectoryPath;
         }
 
         /// <summary>

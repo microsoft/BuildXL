@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -204,6 +205,15 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
+        /// Deletes <paramref name="file"/> and asserts that it doesn't exist.
+        /// </summary>
+        protected static void AssertDeleteFile(string file, string errorMessage = "")
+        {
+            File.Delete(file);
+            XAssert.FileDoesNotExist(file, errorMessage);
+        }
+
+        /// <summary>
         ///     1. creates a server
         ///     2. starts the server
         ///     3. invokes 'testAction'
@@ -247,7 +257,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// No particular meaning, just an arbitrary instance of <see cref="SidebandMetadata"/>.
         /// </summary>
         protected static SidebandMetadata DefaultSidebandMetadata { get; }
-            = new SidebandMetadata(pipId: 1, staticPipFingerprint: new byte[] { 1, 2, 3 });
+            = new SidebandMetadata(pipSemiStableHash: 1, staticPipFingerprint: new byte[] { 1, 2, 3 });
 
         /// <inheritdoc/>
         public void Dispose()

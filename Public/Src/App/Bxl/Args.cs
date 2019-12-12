@@ -1815,6 +1815,9 @@ namespace BuildXL
                     sandboxConfiguration.ContainerConfiguration.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
                     sandboxConfiguration.UnsafeSandboxConfigurationMutable.DoubleWritePolicy = DoubleWritePolicy.UnsafeFirstDoubleWriteWins;
                     break;
+                case "LAZYSODELETION":
+                    scheduleConfiguration.UnsafeLazySODeletion = experimentalOptionAndValue.Item2;
+                    break;
                 default:
                     throw CommandLineUtilities.Error(Strings.Args_Experimental_UnsupportedValue, experimentalOptionAndValue.Item1);
             }

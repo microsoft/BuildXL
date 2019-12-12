@@ -44,6 +44,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CanonicalizeFilterOutputs = true;
 
             UnsafeDisableGraphPostValidation = false;
+            UnsafeLazySODeletion = false;
 
             ProcessRetries = 0;
 
@@ -137,6 +138,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            UnsafeLazySODeletion = template.UnsafeLazySODeletion;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
         }
@@ -252,6 +254,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// TODO: Remove this!
         /// </remarks>
         public bool UnsafeDisableGraphPostValidation { get; set; }
+
+        /// <inheritdoc />
+        public bool UnsafeLazySODeletion { get; set; }
 
         /// <inheritdoc />
         public string EnvironmentFingerprint { get; set; }

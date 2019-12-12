@@ -245,12 +245,13 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
         Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
-        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.input(flakyFile)),
+        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.none(flakyFile)),
     ];          
 
     let unsafeOptions = {
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
+            ...addIf(flakyFile !== undefined, flakyFile),
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that

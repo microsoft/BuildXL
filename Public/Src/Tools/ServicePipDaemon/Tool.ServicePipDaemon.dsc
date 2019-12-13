@@ -32,7 +32,7 @@ namespace ServicePipDaemon {
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.Diagnostics.Tracing.TraceEvent").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

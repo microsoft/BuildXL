@@ -41,7 +41,7 @@ namespace BuildCacheAdapter {
             importFrom("BuildXL.Cache.MemoizationStore").Vsts.dll,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
 
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("WindowsAzure.Storage").pkg,
         ],

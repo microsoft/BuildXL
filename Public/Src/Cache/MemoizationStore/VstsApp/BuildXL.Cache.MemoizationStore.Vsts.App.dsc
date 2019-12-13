@@ -20,7 +20,7 @@ namespace VstsApp {
                 : importFrom("CLAP-DotNetCore").pkg,
 
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
         ],
         appConfig: f`App.config`,
         tools: {

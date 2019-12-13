@@ -46,7 +46,7 @@ namespace Test.BuildXL.Engine
             var path = Path.Combine(TemporaryDirectory, "path1");
             var logFile = Path.Combine(myDir, "Pip0");
             
-            CreateOutputLoggerAndRecordPaths(logFile, new[] { path, path, path });
+            CreateSidebandWriterAndRecordPaths(logFile, new[] { path, path, path });
 
             XAssert.ArrayEqual(
                 new[] { path },
@@ -79,7 +79,7 @@ namespace Test.BuildXL.Engine
                 .ToArray();
 
             var logFile = Path.Combine(myDir, "Pip0");
-            CreateOutputLoggerAndRecordPaths(logFile, paths);
+            CreateSidebandWriterAndRecordPaths(logFile, paths);
 
             var readPaths = ReadRecordedPathsFromSidebandFile(logFile).ToArray();
             XAssert.ArrayEqual(paths, readPaths);
@@ -108,7 +108,7 @@ namespace Test.BuildXL.Engine
                 .Range(0, numLogs)
                 .ToArray()
                 .AsParallel()
-                .ForAll(logIdx => CreateOutputLoggerAndRecordPaths(logFiles[logIdx], pathsPerLog[logIdx]));
+                .ForAll(logIdx => CreateSidebandWriterAndRecordPaths(logFiles[logIdx], pathsPerLog[logIdx]));
 
             for (int i = 0; i < numLogs; i++)
             {
@@ -131,7 +131,7 @@ namespace Test.BuildXL.Engine
             new object[] { true, false })]
         public void ReadingFromCorruptedSidebandFiles(
             int numValidRecordsToWriteFirst, 
-            bool closeLoggerCleanly, 
+            bool closeSidebandWriterCleanly, 
             bool appendBogusBytes)
         {
             var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromCorruptedSidebandFiles));
@@ -144,15 +144,15 @@ namespace Test.BuildXL.Engine
                 .Select(i => Path.Combine(TemporaryDirectory, $"path-{i}"))
                 .ToArray();
 
-            var logFile = Path.Combine(myDir, $"bogus-log-close_{closeLoggerCleanly}-append_{appendBogusBytes}");
-            var sidebandWriter = CreateWriter(logFile);
+            var sidebandFile = Path.Combine(myDir, $"bogus-log-close_{closeSidebandWriterCleanly}-append_{appendBogusBytes}");
+            var sidebandWriter = CreateWriter(sidebandFile);
             sidebandWriter.EnsureHeaderWritten();
             foreach (var path in validRecords)
             {
-                XAssert.IsTrue(sidebandWriter.RecordFileWrite(PathTable, path));
+                XAssert.IsTrue(RecordFileWrite(sidebandWriter, path));
             }
 
-            if (closeLoggerCleanly)
+            if (closeSidebandWriterCleanly)
             {
                 sidebandWriter.Dispose();
             }
@@ -164,7 +164,7 @@ namespace Test.BuildXL.Engine
             if (appendBogusBytes)
             {
                 // append some bogus stuff at the end
-                using (var s = new FileStream(logFile, FileMode.OpenOrCreate))
+                using (var s = new FileStream(sidebandFile, FileMode.OpenOrCreate))
                 using (var bw = new BinaryWriter(s))
                 {
                     bw.Seek(0, SeekOrigin.End);
@@ -174,7 +174,7 @@ namespace Test.BuildXL.Engine
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff
-            var read = SidebandWriter.ReadRecordedPathsFromSidebandFile(logFile).ToArray();
+            var read = SidebandWriter.ReadRecordedPathsFromSidebandFile(sidebandFile).ToArray();
             XAssert.ArrayEqual(validRecords, read);
         }
 
@@ -203,9 +203,9 @@ namespace Test.BuildXL.Engine
             pathToTest = X(pathToTest);
 
             var logPath = Path.Combine(myDir, "Pip0");
-            using (var logger = CreateWriter(logPath, rootDirs))
+            using (var writer = CreateWriter(logPath, rootDirs))
             {
-                bool recorded = logger.RecordFileWrite(PathTable, pathToTest);
+                bool recorded = RecordFileWrite(writer, pathToTest);
                 XAssert.AreEqual(expectedToBeRecorded, recorded);
             }
 
@@ -214,26 +214,28 @@ namespace Test.BuildXL.Engine
                 ReadRecordedPathsFromSidebandFile(logPath).ToArray());
         }
 
-        private void CreateOutputLoggerAndRecordPaths(string logPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
+        private bool RecordFileWrite(SidebandWriter writer, string path) => writer.RecordFileWrite(PathTable, path, flushImmediately: false);
+
+        private void CreateSidebandWriterAndRecordPaths(string logPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
         {
-            using (var logger = CreateWriter(logPath, rootDirs))
+            using (var writer = CreateWriter(logPath, rootDirs))
             {
-                XAssert.AreEqual(logPath, logger.SidebandLogFile);
+                XAssert.AreEqual(logPath, writer.SidebandLogFile);
 
                 foreach (var path in pathsToRecord)
                 {
-                    logger.RecordFileWrite(PathTable, path);
+                    RecordFileWrite(writer, path);
                 }
             }
         }
 
-        private SidebandWriter CreateWriter(string logPath = null, IReadOnlyList<string> rootDirs = null, SidebandMetadata metadata = null)
+        private SidebandWriter CreateWriter(string sidebandFile = null, IReadOnlyList<string> rootDirs = null, SidebandMetadata metadata = null)
         {
-            logPath = logPath ?? Path.Combine(TemporaryDirectory, $"{s_logDirectoryCounter++}", "log");
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+            sidebandFile = sidebandFile ?? Path.Combine(TemporaryDirectory, $"{s_logDirectoryCounter++}", "log");
+            Directory.CreateDirectory(Path.GetDirectoryName(sidebandFile));
             return new SidebandWriter(
                 metadata: metadata ?? DefaultSidebandMetadata,
-                sidebandLogFile: logPath,
+                sidebandLogFile: sidebandFile,
                 rootDirectories: rootDirs);
         }
 

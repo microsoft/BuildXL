@@ -729,7 +729,9 @@ namespace BuildXL.Processes
 
             if (pathAsAbsolutePath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
             {
-                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
+                // flushing immediately to ensure the write is recorded as soon as possible
+                // (and so that we are more likely to have a record of it if bxl crashes)
+                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath, flushImmediately: true);
             }
 
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));

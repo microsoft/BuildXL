@@ -17,9 +17,6 @@ namespace BuildXL.Processes.Sideband
     /// <summary>
     /// Responsible for keeping a log of all paths written to by a given process pip.
     /// 
-    /// Paths are flushed to an underlying file as soon as they're reported via 
-    /// <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.
-    /// 
     /// A number of root directories may be set in which case the log will record only 
     /// those paths that fall under one of those directories.  The typical use case is to
     /// use all shared opaque directory outputs of a process as root directories.
@@ -70,7 +67,9 @@ namespace BuildXL.Processes.Sideband
         public SidebandMetadata Metadata { get; }
 
         /// <summary>
-        /// Only paths under these root directories will be recorded by <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
+        /// Only paths under these root directories will be recorded by
+        /// <see cref="RecordFileWrite(PathTable, AbsolutePath, bool)"/>
+        /// and <see cref="RecordFileWrite(PathTable, string, bool)"/>.
         /// 
         /// When <code>null</code>, all paths are recorded.
         /// </summary>
@@ -104,7 +103,7 @@ namespace BuildXL.Processes.Sideband
         /// </summary>
         /// <param name="metadata">Metadata</param>
         /// <param name="sidebandLogFile">File to which to save the log.</param>
-        /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.</param>
+        /// <param name="rootDirectories">Only paths under one of these root directories will be recorded.</param>
         public SidebandWriter(SidebandMetadata metadata, string sidebandLogFile, [CanBeNull] IReadOnlyList<string> rootDirectories)
         {
             Metadata = metadata;
@@ -192,10 +191,10 @@ namespace BuildXL.Processes.Sideband
         }
 
         /// <summary>
-        /// <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
+        /// <see cref="RecordFileWrite(PathTable, AbsolutePath, bool)"/>
         /// </summary>
-        public bool RecordFileWrite(PathTable pathTable, string absolutePath)
-            => RecordFileWrite(pathTable, AbsolutePath.Create(pathTable, absolutePath));
+        public bool RecordFileWrite(PathTable pathTable, string absolutePath, bool flushImmediately)
+            => RecordFileWrite(pathTable, AbsolutePath.Create(pathTable, absolutePath), flushImmediately);
 
         /// <summary>
         /// Records that the file at location <paramref name="path"/> was written to.
@@ -208,14 +207,17 @@ namespace BuildXL.Processes.Sideband
         /// <remarks>
         /// NOT THREAD-SAFE.
         /// </remarks>
-        public bool RecordFileWrite(PathTable pathTable, AbsolutePath path)
+        public bool RecordFileWrite(PathTable pathTable, AbsolutePath path, bool flushImmediately)
         {
             if (RootDirectories == null || GetConvertedRootDirectories(pathTable).Any(dir => path.IsWithin(pathTable, dir)))
             {
                 if (m_recordedPathsCache.Add(path))
                 {
                     m_lazyBxlWriter.Value.Write(path.ToString(pathTable));
-                    m_lazyBxlWriter.Value.Flush();
+                    if (flushImmediately)
+                    {
+                        m_lazyBxlWriter.Value.Flush();
+                    }
                     return true;
                 }
             }

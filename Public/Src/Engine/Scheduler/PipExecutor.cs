@@ -1052,6 +1052,18 @@ namespace BuildXL.Scheduler
                 ExecutionResult executionResult = GetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult);
                 executionResult.Seal();
 
+                // Save all dynamic writes to a sideband file if the pip needs it
+                if (PipNeedsSidebandFile(environment, pip))
+                {
+                    using var sidebandWriter = CreateSidebandWriter(environment, pip);
+                    sidebandWriter.EnsureHeaderWritten();
+                    var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
+                    foreach (var dynamicWrite in dynamicWrites)
+                    {
+                        sidebandWriter.RecordFileWrite(environment.Context.PathTable, dynamicWrite, flushImmediately: false);
+                    }
+                }
+
                 // File access violation analysis must be run before reporting the execution result output content.
                 var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
@@ -1870,19 +1882,30 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// SidebandWritter is created and returned only when <see cref="ILayoutConfiguration.SharedOpaqueSidebandDirectory"/>
-        /// is configured, <paramref name="pip"/>'s semistable hash is not 0, and <paramref name="pip"/> has shared
-        /// opaquedirectory outputs.
+        /// A pip needs a sideband file if
+        ///   - the sideband root directory is set up in the configuration layout, and
+        ///   - the pip's semistable hash is not 0 (happens only in tests where multiple pips can have this hash)
+        ///   - the pip has shared opaque directory outputs
+        /// </summary>
+        private static bool PipNeedsSidebandFile(IPipExecutionEnvironment env, Process pip)
+        {
+            return 
+                env.Configuration.Layout.SharedOpaqueSidebandDirectory.IsValid
+                && pip.SemiStableHash != 0 
+                && pip.HasSharedOpaqueDirectoryOutputs;
+        }
+
+        /// <summary>
+        /// Creates and returns a <see cref="SidebandWriter"/> when the <see cref="PipNeedsSidebandFile"/> condition is met; returns <c>null</c> otherwise.
         /// </summary>
         private static SidebandWriter CreateSidebandWriterIfNeeded(IPipExecutionEnvironment env, Process pip)
-        {
-            // don't use this writer if the root directory is not set up in the configuration layout or
-            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
-            var conf = env.Configuration.Layout;
-            return conf?.SharedOpaqueSidebandDirectory.IsValid == true && pip.SemiStableHash != 0 && pip.HasSharedOpaqueDirectoryOutputs
-                ? new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, conf.SharedOpaqueSidebandDirectory)
-                : null;
-        }
+            => PipNeedsSidebandFile(env, pip) ? CreateSidebandWriter(env, pip) : null;
+
+        /// <summary>
+        /// Creates a <see cref="SidebandWriter"/> for <paramref name="pip"/>.
+        /// </summary>
+        private static SidebandWriter CreateSidebandWriter(IPipExecutionEnvironment env, Process pip)
+            => new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, env.Configuration.Layout.SharedOpaqueSidebandDirectory);
 
         /// <summary>
         /// Uses <see cref="IPipExecutionEnvironment.ContentFingerprinter"/> of <paramref name="env"/> to look up the static

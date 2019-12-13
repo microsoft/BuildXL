@@ -980,6 +980,12 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
             }
 
+            if (mutableConfig.Schedule.UnsafeLazySODeletion)
+            {
+                // must compute static fingerprints when using lazy shared opaque output deletion
+                mutableConfig.Schedule.ComputePipStaticFingerprints = true;
+            }
+
             // Turn off incremental scheduling when incompatible features are enabled.
             if (mutableConfig.Schedule.IncrementalScheduling)
             {

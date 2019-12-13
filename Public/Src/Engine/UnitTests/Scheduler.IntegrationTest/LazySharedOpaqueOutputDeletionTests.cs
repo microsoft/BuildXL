@@ -75,6 +75,38 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestSidebandFileProducedUponCacheHits()
+        {
+            // Setup: PipA => sharedOpaqueDir
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(TestSidebandFileProducedUponCacheHits)}");
+            var outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, filesToProduceDynamically: outputInSharedOpaque);
+
+            // first build: cache miss, deletions not postponed, writes are journaled
+            var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId);
+            AssertWritesJournaled(result, pipA, outputInSharedOpaque);
+            AssertSharedOpaqueOutputDeletionNotPostponed();
+            XAssert.FileExists(ToString(outputInSharedOpaque));
+
+            // second build: cache hit, deletions be postponed, writes journaled
+            result = RunScheduler().AssertCacheHit(pipA.Process.PipId);
+            AssertWritesJournaled(result, pipA, outputInSharedOpaque);
+            AssertSharedOpaqueOutputDeletionPostponed(numLazilyDeleted: 0);
+            XAssert.FileExists(ToString(outputInSharedOpaque));
+
+            // delete sideband file and build again: 
+            //   => cache hit
+            //   => deletions not postponed (because sideband is missing)
+            //   => writes are still journaled even on cache hits
+            AssertDeleteFile(GetSidebandFile(result, pipA.Process));
+            result = RunScheduler().AssertCacheHit(pipA.Process.PipId);
+            AssertWritesJournaled(result, pipA, outputInSharedOpaque);
+            AssertSharedOpaqueOutputDeletionNotPostponed();
+            XAssert.FileExists(ToString(outputInSharedOpaque));
+        }
+
+        [Fact]
         public void TestMultipleProducers()
         {
             // Setup: PipA, PipB => sharedOpaqueDir

@@ -7,12 +7,11 @@ using System.Linq;
 using BuildXL.Ide.LanguageServer.Utilities;
 using JetBrains.Annotations;
 using LanguageServer;
-using LanguageServer.Json;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
-using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
+using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -43,32 +42,21 @@ namespace BuildXL.Ide.LanguageServer.Providers
 
             // The documentation strings are sent to the client as regular strings, wheras
             // the symbolAsString is a code snippet that is sent with language specifier to enable syntax highlighting.
-            var codeSnippet = new List<StringOrObject<MarkedString>>
+            var codeSnippets = new List<MarkedString>
             {
-                new StringOrObject<MarkedString>
-                (
-                    new MarkedString
-                    {
-                        Language = "DScript",
-                        Value = snippet,
-                    }
-                ),
+                new MarkedString
+                {
+                    Language = "DScript",
+                    Value = snippet,
+                }
             };
 
-            codeSnippet.AddRange(documentation.Select(d =>
-            {
-                return new StringOrObject<MarkedString>
-                (
-                    new MarkedString
-                    {
-                        Value = d
-                    }
-                );
-            }));
+            codeSnippets.AddRange(documentation.Select(d => new MarkedString() { Value = d}));
 
             return Result<Hover, ResponseError>.Success(new Hover
             {
-                Contents = codeSnippet.ToArray(),
+                Contents = new SumType<SumType<string, MarkedString>,SumType<string,MarkedString>[], MarkupContent>(
+                    codeSnippets.Select(snip => new SumType<string, MarkedString>(snip)).ToArray()),
                 Range = node.ToRange(),
             });
         }

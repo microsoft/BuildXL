@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-#if PLATFORM_WIN
+#if NET_FRAMEWORK
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using System.Net;
@@ -71,7 +71,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             VssCredentialsFactory credentialsFactory;
 
-#if PLATFORM_WIN
+#if NET_FRAMEWORK
             // Obtain and explicitly specify AAD user name ONLY when
             //   (1) no credential provider is specified, and
             //   (2) running on .NET Core.

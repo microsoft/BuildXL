@@ -7,7 +7,7 @@ import * as Deployment from "Sdk.Deployment";
 export declare const qualifier: {targetFramework: "netcoreapp3.0" | "net472" | "net451" };
 
 const nativePackage = importFrom("RocksDbNative").pkg;
-const managedPackage = importFrom("RocksDbSharpSigned").withQualifier({targetFramework: "net451"}).pkg;
+const managedPackage = importFrom("RocksDbSharpSigned").pkg;
 
 @@public
 export const pkg = managedPackage.override<Managed.ManagedNugetPackage>({

@@ -74,7 +74,7 @@ export const framework : Shared.Framework = {
 };
 
 function createDefaultAssemblies() : Shared.Assembly[] {
-    const pkgContents = importFrom("Microsoft.NETCore.App.Ref").withQualifier({targetFramework: "netcoreapp3.0"}).Contents.all;
+    const pkgContents = importFrom("Microsoft.NETCore.App.Ref").Contents.all;
     const netcoreAppPackageContents = pkgContents.contents;
     const dlls = netcoreAppPackageContents.filter(file => file.hasExtension && file.extension === a`.dll`);
     return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp3.0", [], true));

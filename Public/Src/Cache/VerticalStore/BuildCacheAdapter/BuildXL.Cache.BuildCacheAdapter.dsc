@@ -41,13 +41,12 @@ namespace BuildCacheAdapter {
             importFrom("BuildXL.Cache.MemoizationStore").Vsts.dll,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
 
-            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("WindowsAzure.Storage").pkg,
         ],
         runtimeContentToSkip: [
-            importFrom("Newtonsoft.Json.v10").pkg, // CloudStore has to reply on NewtonSoft.Json version 10. BuildXL and asp.net core depend on 11.
-            importFrom("Newtonsoft.Json.v10").withQualifier({targetFramework: "net451"}).pkg, // CloudStore hardcodes net451 in certain builds so exclude that one too.
+            importFrom("Newtonsoft.Json.v10").pkg, // CloudStore has to rely on NewtonSoft.Json version 10. BuildXL and asp.net core depend on 11.
         ]
     });
 }

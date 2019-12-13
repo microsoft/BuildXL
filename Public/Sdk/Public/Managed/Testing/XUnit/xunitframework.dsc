@@ -17,20 +17,12 @@ export const framework : Managed.TestFramework = {
 };
 
 @@public
-export const xunitReferences : Managed.Reference[] = qualifier.targetFramework === "netcoreapp3.0"
-    ? [
+export const xunitReferences : Managed.Reference[] =
+    [
         importFrom("xunit.assert").pkg,
         importFrom("xunit.abstractions").pkg,
-        importFrom("xunit.runner.reporters").pkg,
         importFrom("xunit.extensibility.core").pkg,
         importFrom("xunit.extensibility.execution").pkg
-    ]
-    : [
-        Managed.Factory.createBinary(importFrom("xunit.assert").Contents.all, r`lib/netstandard1.1/xunit.assert.dll`),
-        Managed.Factory.createBinary(importFrom("xunit.abstractions").Contents.all, r`lib/netstandard2.0/xunit.abstractions.dll`),
-        Managed.Factory.createBinary(importFrom("xunit.extensibility.core").Contents.all, r`lib/netstandard1.1/xunit.core.dll`),
-        Managed.Factory.createBinary(importFrom("xunit.extensibility.execution").Contents.all, r`lib/net452/xunit.execution.desktop.dll`),
-        Managed.Factory.createBinary(importFrom("xunit.runner.utility").Contents.all, r`lib/net452/xunit.runner.utility.net452.dll`)
     ];
 
 function processArguments(args: Managed.TestArguments): Managed.TestArguments {

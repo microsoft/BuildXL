@@ -40,13 +40,14 @@ export function withRuntimeContracts(args: Managed.Arguments, contractsLevel?: C
     return args.merge<Managed.Arguments>({
         defineConstants: getContractsSymbols(contractsLevel || ContractLevel.full, isDebug),
         references: [
-            // Use .NETStandard as target framework, as its compatible with both .NET 4.7.2 and .NETCore
-            importFrom("RuntimeContracts").withQualifier({targetFramework: 'netstandard2.0'}).pkg
+            qualifier.targetFramework === "net451"
+                ? importFrom("RuntimeContracts").withQualifier({targetFramework: 'netstandard2.0'}).pkg // Use .NETStandard as target framework, as its compatible with both .NET 4.5.1 and .NETCore
+                : importFrom("RuntimeContracts").pkg
         ],
         tools: {
             csc: {
                 analyzers: [
-                    ...dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard2.0'}).pkg)
+                    ...dlls(importFrom("RuntimeContracts.Analyzer").Contents.all)
                 ]
             },
         }});
@@ -80,15 +81,12 @@ export function getContractsSymbols(level: ContractsLevel, enableContractsQuanti
 
 /** Returns analyzers dll for RuntimeContracts nuget package. */
 export function getAnalyzers() : Managed.Binary[] {
-    return dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard2.0'}).pkg);
+    return dlls(importFrom("RuntimeContracts.Analyzer").Contents.all);
 }
 
-function dlls(nugetPackage: NugetPackage): Managed.Binary[] {
+function dlls(contents: StaticDirectory): Managed.Binary[] {
     // Getting dlls from the 'cs' folder.
     // This is not 100% safe but good enough.
-
-    // BuildXL should suport an overload for getContent function that takes a root.
-    let contents = nugetPackage.contents;
 
     return contents
         .getContent()

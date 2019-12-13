@@ -1314,7 +1314,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             }
 
             var referenceEntries = new List<ReferenceEntry>();
-
+                
             foreach (var referencedSymbol in referencedSymbols)
             {
                 referenceEntries.AddRange(referencedSymbol.References);
@@ -1327,7 +1327,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                 locations.Add(new Location()
                 {
                     Range = referenceEntry.TextSpan.ToRange(referenceEntry.SourceFile),
-                    Uri = referenceEntry.SourceFile.ToUri().ToString(),
+                    Uri = referenceEntry.SourceFile.ToUri(),
                 });
             }
 

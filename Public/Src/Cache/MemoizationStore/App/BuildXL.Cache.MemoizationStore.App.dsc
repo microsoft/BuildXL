@@ -13,10 +13,9 @@ namespace App {
             ContentStore.Library.dll,
             Interfaces.dll,
             Library.dll,
-
-            // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
-            importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
-
+            BuildXLSdk.isFullFramework 
+                ? importFrom("CLAP").pkg
+                : importFrom("CLAP-DotNetCore").pkg,
             importFrom("System.Interactive.Async").pkg,
         ],
         tools: {

@@ -287,7 +287,7 @@ namespace BuildXL.Ide.LanguageServer
 
             if (initializeParams.RootUri != null)
             {
-                m_rootUri = new Uri(initializeParams.RootUri);
+                m_rootUri = initializeParams.RootUri;
             }
 
             // We can start loading the workspace as soon as a folder gets opened
@@ -415,7 +415,7 @@ namespace BuildXL.Ide.LanguageServer
                 {
                     // This is an unknown document. Force the full workspace reload.
                     // Temporary solution: the work item for a proper solution is - 1178366
-                    Logger.LanguageServerNewFileWasAdded(LoggingContext, document.Uri);
+                    Logger.LanguageServerNewFileWasAdded(LoggingContext, document.Uri.ToString());
                     if (ReloadWorkspaceAndWaitForCompletion(appState.DocumentManager, out appState, out providers))
                     {
                         // Workspace reconstruction recreates providers
@@ -465,7 +465,7 @@ namespace BuildXL.Ide.LanguageServer
                 {
                     // The file was removed. Force the full workspace reload.
                     // Temporary solution: the work item for a proper solution is - 1178366
-                    Logger.LanguageServerFileWasRemoved(LoggingContext, paramsObject.TextDocument.Uri);
+                    Logger.LanguageServerFileWasRemoved(LoggingContext, paramsObject.TextDocument.Uri.ToString());
                     ReloadWorkspaceAndWaitForCompletion(appState.DocumentManager, out _, out _);
                 }
             }

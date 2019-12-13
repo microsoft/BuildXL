@@ -54,7 +54,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                 }
 
                 listOfSymbolInformation.AddRange(
-                    GetSymbolInformationForNode(new Uri(documentSymbolParams.TextDocument.Uri), nameAndSymbol.Key, firstDeclaration));
+                    GetSymbolInformationForNode(documentSymbolParams.TextDocument.Uri, nameAndSymbol.Key, firstDeclaration));
             }
 
             return listOfSymbolInformation;
@@ -79,7 +79,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                             Kind = GetSymbolKind(declaration),
                             Location = new Location()
                             {
-                                Uri = uri.ToString(),
+                                Uri = uri,
                                 Range = declaration.ToRange(),
                             },
                         },
@@ -102,7 +102,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                     Kind = GetSymbolKind(childNode),
                     Location = new Location()
                     {
-                        Uri = uri.ToString(),
+                        Uri = uri,
                         Range = childNode.ToRange(),
                     },
                 });

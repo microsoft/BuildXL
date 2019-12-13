@@ -35,7 +35,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                                },
                     TextDocument = new TextDocumentIdentifier
                                    {
-                                       Uri = m_fixture.GetChildUri(@"project\completionForGenerics.bxt").ToString()
+                                       Uri = m_fixture.GetChildUri(@"project\completionForGenerics.bxt")
                                    }
                 }, CancellationToken.None);
 
@@ -57,7 +57,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                                },
                     TextDocument = new TextDocumentIdentifier
                                    {
-                                       Uri = m_fixture.GetChildUri(@"project\project.bxt").ToString()
+                                       Uri = m_fixture.GetChildUri(@"project\project.bxt")
                                    }
                 }, CancellationToken.None);
 
@@ -79,13 +79,13 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
             Assert.Equal(3, parameters.Length);
 
             parameters[0].Label = "a: string";
-            Assert.Null(parameters[0].Documentation);
+            Assert.Null(parameters[0].Documentation.Value);
 
             parameters[1].Label = "b: Definition";
-            Assert.Null(parameters[1].Documentation);
+            Assert.Null(parameters[1].Documentation.Value);
 
             parameters[2].Label = "c: string[]";
-            Assert.Null(parameters[2].Documentation);
+            Assert.Null(parameters[2].Documentation.Value);
         }
     }
 }

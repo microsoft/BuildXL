@@ -44,7 +44,6 @@ namespace DistributedTest {
             importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
 
             importFrom("StackExchange.Redis.StrongName").pkg,
-            importFrom("xunit.abstractions").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
             importFrom("WindowsAzure.Storage").pkg,

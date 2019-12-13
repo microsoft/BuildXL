@@ -72,19 +72,19 @@ package({{
                 // Main config
                 new TextDocumentItem
                 {
-                    Uri = s_pathToConfig,
+                    Uri = new Uri(s_pathToConfig),
                     Text = s_defaultConfig
                 },
                 // Module configuration for prelude
                 new TextDocumentItem
                 {
-                    Uri = s_pathToPreludeModuleConfig,
+                    Uri = new Uri(s_pathToPreludeModuleConfig),
                     Text = s_defaultPreludeModule
                 },
                 // Prelude
                 new TextDocumentItem
                 {
-                    Uri = s_pathToMainPrelude,
+                    Uri = new Uri(s_pathToMainPrelude),
                     Text = SpecEvaluationBuilder.FullPreludeContent
                 }
             };
@@ -146,7 +146,7 @@ package({{
 
             m_jsonRpc.StartListening();
 
-            var init = new InitializeParams { RootUri = s_rootPath };
+            var init = new InitializeParams { RootUri = new Uri(s_rootPath) };
 
             m_jsonRpc.InvokeWithParameterObjectAsync<object>("initialize", JToken.FromObject(init)).GetAwaiter().GetResult();
         }
@@ -160,7 +160,7 @@ package({{
         /// <nodoc/>
         public static TextDocumentItem CreateDocument(string relativeFileName, string content)
         {
-            return new TextDocumentItem { Text = content, Uri = Path.Combine(s_rootPath, relativeFileName) };
+            return new TextDocumentItem { Text = content, Uri = new Uri(Path.Combine(s_rootPath, relativeFileName)) };
         }
 
         /// <nodoc/>
@@ -170,7 +170,7 @@ package({{
             var documentName = I($"spec{m_documentCount++}.bp");
 
             var item =
-                new TextDocumentItem {Text = content, Uri = Path.Combine(pathToDocument, documentName)};
+                new TextDocumentItem {Text = content, Uri = new Uri(Path.Combine(pathToDocument, documentName))};
 
             return item;
         }

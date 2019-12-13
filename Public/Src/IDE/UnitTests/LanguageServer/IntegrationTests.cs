@@ -197,7 +197,7 @@ namespace StaticLibrary {
             var addSourceFileParams = new AddSourceFileToProjectParams
             {
                 RelativeSourceFilePath = "bar.cpp",
-                ProjectSpecFileName = addSourcesCode.Uri
+                ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
             app.NotifyDocumentOpened(addSourcesCode).
@@ -224,7 +224,7 @@ export const x = StaticLibrary.build({
             var addSourceFileParams = new AddSourceFileToProjectParams
             {
                 RelativeSourceFilePath = "foo.cpp",
-                ProjectSpecFileName = addSourcesCode.Uri
+                ProjectSpecFileName = addSourcesCode.Uri.ToString()
             };
 
             app.NotifyDocumentOpened(addSourcesCode).

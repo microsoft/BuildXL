@@ -12,7 +12,7 @@ import * as Xml from "Sdk.Xml";
  */
 @@public
 export function test(args: TestArguments) : TestResult {
-    let testFramework = args.testFramework;
+    const testFramework = args.testFramework;
     if (!testFramework) {
         Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
     }
@@ -21,18 +21,23 @@ export function test(args: TestArguments) : TestResult {
         args = testFramework.compileArguments(args);
     }
 
-    let assembly = library(args);
+    // If there is additional content to deploy, ensure it is on the argumetns
+    // to compile the test library so that the managed deduplication semantics will apply for runtime binatires
+    if (testFramework.additionalRuntimeContent)
+    {
+        args = args.merge({
+            runtimeContent: testFramework.additionalRuntimeContent(args)
+        });
+    }
+
+    const assembly = library(args);
 
     // Deploy assemblies (with all dependencies) to special folder.
-    let testDeployFolder = Context.getNewOutputDirectory("testRun");
-    let additionalRuntimeContent = testFramework.additionalRuntimeContent
-        ? testFramework.additionalRuntimeContent(args)
-        : [];
+    const testDeployFolder = Context.getNewOutputDirectory("testRun");
     const testDeployment = Deployment.deployToDisk({
         definition: {
             contents: [
                 assembly,
-                ...additionalRuntimeContent
             ],
         },
         targetDirectory: testDeployFolder,

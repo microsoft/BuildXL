@@ -38,7 +38,7 @@ namespace BuildXL.Ide.LanguageServer.Server.Utilities
             PathTable pathTable,
             out ISourceFile sourceFile)
         {
-            var uri = new Uri(position.TextDocument.Uri);
+            var uri = position.TextDocument.Uri;
             var pathToFile = uri.ToAbsolutePath(pathTable);
 
             return workspace.TryGetSourceFile(pathToFile, out sourceFile);

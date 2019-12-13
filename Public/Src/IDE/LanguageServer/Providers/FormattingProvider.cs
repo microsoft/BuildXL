@@ -3,8 +3,8 @@
 
 using System;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
-using LanguageServer;
 using BuildXL.FrontEnd.Sdk;
+using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
@@ -13,7 +13,7 @@ using CancellationToken = System.Threading.CancellationToken;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
-        /// <nodoc />
+    /// <nodoc />
     public sealed class FormattingProvider : IdeProviderBase
     {
         private readonly FrontEndEngineAbstraction m_engineAbstraction;
@@ -29,7 +29,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         public Result<TextEdit[], ResponseError> FormatDocument(DocumentFormattingParams @params, CancellationToken token)
         {
             // TODO: support cancellation
-            string uri = @params.TextDocument.Uri;
+            var uri = @params.TextDocument.Uri;
             if (!TryGetSourceFile(uri, out var spec, out var error))
             {
                 string errorMessage = $"Could not open the file '{uri}'.{Environment.NewLine}{error}";
@@ -47,7 +47,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return Result<TextEdit[], ResponseError>.Success(new[] { textEdit });
         }
 
-        private bool TryGetSourceFile(string uri, out ISourceFile sourceFile, out string error)
+        private bool TryGetSourceFile(Uri uri, out ISourceFile sourceFile, out string error)
         {
             // We first check if the requested file is already part of the workspace, so we don't have to parse it again
             // Things like configuration files are not part of the workspace, but could be part of the VSCode workspace

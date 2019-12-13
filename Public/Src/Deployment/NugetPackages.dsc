@@ -76,13 +76,7 @@ namespace NugetPackages {
             importFrom("Grpc.Core").withQualifier({ targetFramework: "net472" }).pkg,
             importFrom("Google.Protobuf").withQualifier({ targetFramework: "net472" }).pkg,
             importFrom("StackExchange.Redis.StrongName").withQualifier({ targetFramework: "net472" }).pkg,
-
-            ...BuildXLSdk.withQualifier({
-                targetFramework: "net472",
-                targetRuntime: "win-x64",
-                configuration: qualifier.configuration
-            }).visualStudioServicesArtifactServicesSharedPkg,
-
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({ targetFramework: "net472" }).pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier({ targetFramework: "net472" }).pkg,
         ]
     });

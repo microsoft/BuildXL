@@ -31,7 +31,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
             {
                 TextDocument = new TextDocumentIdentifier()
                 {
-                    Uri = m_fixture.GetChildUri(@"project\project.bxt").ToString()
+                    Uri = m_fixture.GetChildUri(@"project\project.bxt")
                 }                
             };
 

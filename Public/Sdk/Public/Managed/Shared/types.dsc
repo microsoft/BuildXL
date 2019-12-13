@@ -107,8 +107,13 @@ export interface ManagedNugetPackage extends NugetPackage, Deployment.Deployable
 
     /**
      * Roslyn analyzers that can validate the referencing project
+     * The generated extracts per: https://docs.microsoft.com/en-us/nuget/guides/analyzers-conventions#analyzers-path-format
      */
-    analyzers?: Binary[];
+    analyzers?: {
+        framework?: string,
+        language?: string,
+        analyzers: Binary[],
+    };
 
     /**
      * Extra content/files to be deployed with the assembly when running. i.e. native dlls that are PIvoked, config files etc.

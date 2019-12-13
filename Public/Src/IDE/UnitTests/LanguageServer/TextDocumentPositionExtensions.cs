@@ -43,7 +43,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                 },
                 TextDocument = new TextDocumentIdentifier()
                 {
-                    Uri = fixture.GetChildUri(file).ToString()
+                    Uri = fixture.GetChildUri(file)
                 }
             };
 

@@ -61,7 +61,7 @@ namespace LanguageService.Server {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("StreamJsonRpc").pkg,
             importFrom("System.ComponentModel.Composition").pkg,
-            importFrom("VisualStudio.LanguageServer.Protocol").pkg,
+            importFrom("Microsoft.VisualStudio.LanguageServer.Protocol").pkg,
         ],
     });
 

@@ -88,6 +88,5 @@ export const deploymentForBuildXL: Deployment.Definition = BuildXLSdk.isDotNetCo
             file: App.exe.runtime.pdb,
             targetFileName: "Microsoft.MemoizationStoreApp.pdb",
         },
-        importFrom("CLAP").Contents.all.getFile("lib/net35/CLAP.dll"),
     ]
 };

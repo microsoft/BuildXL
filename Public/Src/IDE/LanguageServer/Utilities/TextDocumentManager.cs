@@ -84,7 +84,7 @@ namespace BuildXL.Ide.LanguageServer
             }
 
             var version = documentIdentifier.Version;
-            if (document.Version >= version)
+            if (document.Version > version)
             {
                 return;
             }
@@ -94,7 +94,11 @@ namespace BuildXL.Ide.LanguageServer
                 Apply(document, ev);
             }
 
-            document.Version = version;
+            if (version.HasValue)
+            {
+                document.Version = version.Value;
+            }
+
             OnChanged(document);
         }
 
@@ -158,10 +162,15 @@ namespace BuildXL.Ide.LanguageServer
                     {
                         document = new TextDocumentItem()
                         {
-                            Version = documentIdentifier.Version,
+                            
                             Uri = documentIdentifier.Uri,
                             Text = changeEvents.Last().Text,
                         };
+                        
+                        if (documentIdentifier.Version.HasValue)
+                        {
+                            document.Version = documentIdentifier.Version.Value;
+                        }
 
                         document = m_documents.GetOrAdd(path, document);
                         return true;

@@ -140,6 +140,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "CLAP-DotNetCore",
+          "Version": "4.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Desktop.Analyzers",
           "Version": "1.1.0"
         }
@@ -1976,17 +1985,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.VisualStudio.LanguageServer.Client",
-          "Version": "1.0.62-pre"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.VisualStudio.LanguageServer.Protocol",
-          "Version": "1.0.62-pre"
+          "Version": "16.3.57"
         }
       }
     },
@@ -3543,6 +3543,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Runtime.Serialization.Xml",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.WindowsRuntime",
           "Version": "4.3.0"
         }
       }

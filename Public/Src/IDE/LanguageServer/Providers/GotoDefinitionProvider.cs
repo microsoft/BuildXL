@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using JetBrains.Annotations;
 using LanguageServer;
 using LanguageServer.Json;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
@@ -15,8 +14,8 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
-using ISymbol = TypeScript.Net.Types.ISymbol;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
+using ISymbol = TypeScript.Net.Types.ISymbol;
 using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
@@ -201,7 +200,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                         new Location()
                         {
                             Range = PositionExtensions.EmptyRange(),
-                            Uri = UriExtensions.GetUriFromPath(fullPath).ToString(),
+                            Uri = UriExtensions.GetUriFromPath(fullPath),
                         },
                     });
                 }
@@ -379,7 +378,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return new Location()
             {
                 Range = node.ToRange(),
-                Uri = node.GetSourceFile().ToUri().ToString(),
+                Uri = node.GetSourceFile().ToUri(),
             };
         }
     }

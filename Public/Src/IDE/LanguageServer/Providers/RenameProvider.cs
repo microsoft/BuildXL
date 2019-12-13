@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
-using LanguageServer;
 using BuildXL.Utilities.Collections;
+using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
-using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
+using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 using LanguageServerProtocolRange = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 
 namespace BuildXL.Ide.LanguageServer.Providers
@@ -75,7 +76,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
 
             // Next, we need to create a list per document URI (so a dictionary of Document URI to Ranges)
             // to create the workspace edits.
-            var rangesByUri = new MultiValueDictionary<string, LanguageServerProtocolRange>();
+            var rangesByUri = new MultiValueDictionary<Uri, LanguageServerProtocolRange>();
 
             foreach (var location in findReferencesResult.SuccessValue)
             {
@@ -116,7 +117,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
                     });
                 }
 
-                changes[uriToRangePair.Key] = edits.ToArray();
+                changes[uriToRangePair.Key.ToString()] = edits.ToArray();
             }
 
             var result = new WorkspaceEdit

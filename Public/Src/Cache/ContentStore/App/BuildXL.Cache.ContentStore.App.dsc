@@ -19,9 +19,11 @@ namespace App {
                 importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
                 importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
                 importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-                importFrom("Microsoft.Extensions.PlatformAbstractions").withQualifier({targetFramework: "net472"}).pkg,
+                importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
+                importFrom("CLAP-DotNetCore").pkg,
             ] : [
-                importFrom("Microsoft.Azure.Kusto.Ingest").withQualifier({targetFramework: "net472"}).pkg,
+                importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+                importFrom("CLAP").pkg,
             ]
             ),
             UtilitiesCore.dll,
@@ -33,9 +35,6 @@ namespace App {
             importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
-
-            // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
-            importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
 
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,

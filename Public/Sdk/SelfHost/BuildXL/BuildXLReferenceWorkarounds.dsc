@@ -4,16 +4,7 @@
 export const tplPackages = isDotNetCoreBuild ? [] : [importFrom("System.Threading.Tasks.Extensions").pkg];
 
 @@public
-export const fluentAssertionsWorkaround = isDotNetCoreBuild ? [
+export const fluentAssertionsWorkaround = [
     importFrom("FluentAssertions").pkg,
-    importFrom("System.Configuration.ConfigurationManager").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-] : [
-    importFrom("FluentAssertions").pkg,
-];
-
-@@public
-export const visualStudioServicesArtifactServicesSharedPkg = isTargetRuntimeOsx ? [
-    importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({targetFramework: "netstandard2.0"}).pkg
-] : [
-    importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({targetFramework: "net472"}).pkg
+    importFrom("System.Configuration.ConfigurationManager").pkg,
 ];

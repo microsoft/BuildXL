@@ -5,8 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace BuildXL.Ide.LanguageServer.Providers
@@ -41,7 +41,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         private static void DoReportDiagnostics(Workspace workspace, TextDocumentItem document, PathTable pathTable, ProviderContext providerContext)
         {
             // We report diagnostics for the document
-            var documentUri = new Uri(document.Uri);
+            var documentUri = document.Uri;
 
             var semanticModel = workspace.GetSemanticModel();
 
@@ -81,7 +81,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return new PublishDiagnosticParams
             {
                 Diagnostics = diagnostics.ToArray(),
-                Uri = documentUri.ToString(),
+                Uri = documentUri,
             };
         }
 

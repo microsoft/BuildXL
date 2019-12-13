@@ -11,7 +11,8 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 #endif
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
-#if PLATFORM_WIN
+
+#if NET_FRAMEWORK
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -25,12 +26,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
     public class VssCredentialsFactory
     {
         private readonly VssCredentials _credentials;
-
-#if PLATFORM_WIN
         private readonly string _userName;
+        
+#if NET_FRAMEWORK
         private readonly SecureString _pat;
         private readonly byte[] _credentialBytes;
+#endif
 
+#if NET_FRAMEWORK
         private readonly VsoCredentialHelper _helper;
 
         /// <summary>
@@ -83,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             _credentialBytes = value;
         }
-#endif
+#endif // NET_FRAMEWORK
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VssCredentialsFactory"/> class.
@@ -91,9 +94,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public VssCredentialsFactory(VssCredentials creds)
         {
             _credentials = creds;
+            _userName = null;
         }
 
-#if PLATFORM_WIN
 #if NET_CORE
         private const string VsoAadSettings_ProdAadAddress = "https://login.windows.net/";
         private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
@@ -114,8 +117,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             token.AcquireToken(); 
             return new VssAadCredential(token);
         }
-#endif //NET_CORE
+#endif
 
+#if NET_FRAMEWORK
         /// <summary>
         /// Creates a VssCredentials object and returns it.
         /// </summary>
@@ -138,7 +142,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 return CreateVssCredentialsForUserName(baseUri);
             }
-#endif // NET_CORE
+#endif
+
             return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
                 .ConfigureAwait(false);
         }

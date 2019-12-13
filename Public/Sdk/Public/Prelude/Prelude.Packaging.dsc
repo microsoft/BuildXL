@@ -47,6 +47,11 @@ declare function module(module: ModuleDescription): void;
 
 // We are placing nuget packages here for now because else we have a bootstrap problem.
 interface NugetPackage {
+    /** The name of the nuget package */
+    name?: string;
+
+    /** The verison of the nuget package */
+    version?: string;
 
     /** The contents of the nuget package */
     contents: StaticDirectory;

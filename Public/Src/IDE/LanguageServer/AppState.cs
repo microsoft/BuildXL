@@ -81,7 +81,7 @@ namespace BuildXL.Ide.LanguageServer
             {
                 foreach (var document in testContext.Value.PrePopulatedDocuments)
                 {
-                    documentManager.Add(AbsolutePath.Create(pathTable, document.Uri), document);
+                    documentManager.Add(AbsolutePath.Create(pathTable, document.Uri.ToAbsolutePath()), document);
                 }
             }
 

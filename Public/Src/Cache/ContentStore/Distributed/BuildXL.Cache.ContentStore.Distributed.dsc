@@ -7,11 +7,16 @@ namespace Distributed {
     export const eventHubPackagages = [
         // Event hub packages does not support 4.5.1 and for net472 we also have to reference the package with net461 qualifier
         // to keep all the transitive dependencies of the package.
-        (qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451') ? importFrom("Microsoft.Azure.EventHubs").withQualifier({targetFramework: 'net461'}).pkg : importFrom("Microsoft.Azure.EventHubs").pkg,
+        qualifier.targetFramework === 'net451'
+            ? importFrom("Microsoft.Azure.EventHubs").withQualifier({targetFramework: 'net461'}).pkg 
+            : importFrom("Microsoft.Azure.EventHubs").pkg,
         // Microsoft.Azure.EventHubs removes 'System.Diagnostics.DiagnosticSource' as the dependency to avoid deployment issue for .netstandard2.0, but this dependency
         // is required for non-.net core builds.
-        ...((qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451')
-            ? [ importFrom("System.Diagnostics.DiagnosticSource").pkg, importFrom("Microsoft.IdentityModel.Tokens").pkg,importFrom("Microsoft.IdentityModel.Logging").pkg ] 
+        ...(BuildXLSdk.isFullFramework 
+            ? [ importFrom("System.Diagnostics.DiagnosticSource").pkg, 
+                importFrom("Microsoft.IdentityModel.Tokens").pkg,
+                importFrom("Microsoft.IdentityModel.Logging").pkg 
+              ] 
             : []),
 
     ];

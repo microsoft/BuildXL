@@ -63,7 +63,7 @@ namespace LanguageService.Server {
             importFrom("Microsoft.VisualStudio.Validation").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Microsoft.VisualStudio.Threading").pkg,
-            importFrom("VisualStudio.LanguageServer.Protocol").pkg,
+            importFrom("Microsoft.VisualStudio.LanguageServer.Protocol").pkg,
             importFrom("Nerdbank.FullDuplexStream").pkg,
             importFrom("Validation").pkg,
         ],

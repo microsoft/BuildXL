@@ -50,7 +50,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
                                                                         },
                                                              TextDocument = new TextDocumentIdentifier
                                                                             {
-                                                                                Uri = m_fixture.GetChildUri(info.FilePath).ToString()
+                                                                                Uri = m_fixture.GetChildUri(info.FilePath)
                                                                             }
                                                          }, CancellationToken.None);
 

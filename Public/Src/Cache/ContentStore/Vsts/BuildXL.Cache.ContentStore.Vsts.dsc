@@ -14,7 +14,7 @@ namespace Vsts {
             Library.dll,
             Interfaces.dll,
             UtilitiesCore.dll,
-            ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("WindowsAzure.Storage").pkg,

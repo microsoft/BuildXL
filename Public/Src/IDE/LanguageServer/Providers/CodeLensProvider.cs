@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.Ide.LanguageServer.Server.Utilities;
-using LanguageServer;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
@@ -35,7 +34,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         public Result<CodeLens[], ResponseError> CodeLens(CodeLensParams @params, CancellationToken token)
         {
             // TODO: support cancellation
-            var fileUri = new Uri(@params.TextDocument.Uri);
+            var fileUri = @params.TextDocument.Uri;
 
             var pathToFile = fileUri.ToAbsolutePath(PathTable);
 

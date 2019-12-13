@@ -161,8 +161,8 @@ err3" };
 * </error> *
 * <error>err2</error> * <error>err3</error> *
 This error has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) in the log directory.";
-                
-                XAssert.IsTrue(File.Exists(stdFilePathInLogDir), $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+
+                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
             }
             else
             {
@@ -172,13 +172,31 @@ This error has been filtered by a regex. Please find the complete stdout/stderr 
 * <error>err2</error> * <error>err3</error> *
 This error has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
 
-                XAssert.IsFalse(File.Exists(stdFilePathInLogDir), $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
             }
 
             XAssert.ArrayEqual(
                 SplitLines(expectedPrintedError),
                 m_loggedPipFailures.SelectMany(SplitLines).ToArray());
 
+            // Rerun the pip and the std file will be copied to the log directory too
+            runResult = RunScheduler();
+            runResult.AssertFailure();
+
+            string extension = Path.GetExtension(stdFilePathInLogDir);
+            var basename = stdFilePathInLogDir.Substring(0, stdFilePathInLogDir.Length - extension.Length);
+            stdFilePathInLogDir = $"{basename}.1{extension}";
+
+            if (outputReportingMode == global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)
+            {
+                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+            else
+            {
+                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
+            }
+
+            AssertErrorEventLogged(LogEventId.PipProcessError);
         }
 
         private string[] SplitLines(string text)

@@ -3834,11 +3834,11 @@ namespace BuildXL.Processes
         {
             if (File.Exists(path) && Directory.Exists(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)))
             {
-                // Make sure the file has a unique path
                 var relativeDirectoryPath = Path.Combine(StdOutputsDirNameInLog, formattedSemiStableHash);
                 relativeFilePath = Path.Combine(relativeDirectoryPath, Path.GetFileName(path));
                 var directoryWithPipHash = Path.Combine(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable), relativeDirectoryPath);
-                var destFilePathWithPipHash = Path.Combine(directoryWithPipHash, Path.GetFileName(path));
+                // Make sure the file has a unique path
+                var destFilePathWithPipHash = GetNextFileName(Path.Combine(directoryWithPipHash, Path.GetFileName(path)));
 
                 Directory.CreateDirectory(directoryWithPipHash);
                 File.Copy(path, destFilePathWithPipHash);
@@ -3848,6 +3848,19 @@ namespace BuildXL.Processes
 
             relativeFilePath = string.Empty;
             return false;
+        }
+
+        private string GetNextFileName(string fileName)
+        {
+            var ext = Path.GetExtension(fileName);
+            var basename = fileName.Substring(0, fileName.Length - ext.Length);
+            int i = 0;
+            while (File.Exists(fileName))
+            {
+                fileName = $"{basename}.{++i}{ext}";
+            }
+
+            return fileName;
         }
 
         private class LogErrorResult

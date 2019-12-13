@@ -493,7 +493,9 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("ProducesPathIndependentOutputs", pip.ProducesPathIndependentOutputs),
                     m_html.CreateRow("OutputsMustRemainWritable", pip.OutputsMustRemainWritable),
                     m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs),
-                    m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel)),
+                    m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel),
+                    m_html.CreateRow("DisableCacheLookup", pip.DisableCacheLookup),
+                    m_html.CreateRow("RetryExitCodes", pip.RetryExitCodes != null ? string.Join(",", pip.RetryExitCodes) : null)),
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",

@@ -205,6 +205,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 using (var pool = Pools.StringBuilderPool.GetInstance())
                 using (var writer = new StringWriter(pool.Instance))
+                using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissAnalysisAnalyzeDuration))
                 {
                     CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                         writer,

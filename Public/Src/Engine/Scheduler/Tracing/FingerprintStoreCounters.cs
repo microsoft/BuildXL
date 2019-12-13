@@ -242,6 +242,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// How many pips cache miss analysis is performed on during cache-lookup.
         /// </summary>
-        CacheMissAnalysisCacheLookupAnalyzeCount
+        CacheMissAnalysisCacheLookupAnalyzeCount,
+
+        /// <summary>
+        /// The number of ms spent for analyzing (e.g., diff-ing fingerprints) cache misses.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CacheMissAnalysisAnalyzeDuration,
     }
 }

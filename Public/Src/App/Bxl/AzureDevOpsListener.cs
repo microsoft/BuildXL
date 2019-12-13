@@ -151,7 +151,7 @@ namespace BuildXL
                             PipDescription = (string)eventData.Payload[1],
                             SpecPath = (string)eventData.Payload[2],
                             ToolName = (string)eventData.Payload[4],
-                            ExitCode = (int)eventData.Payload[7],
+                            ExitCode = (int)eventData.Payload[8],
                             Output = (string)eventData.Payload[5],
                         }); 
                     }

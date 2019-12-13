@@ -1153,7 +1153,11 @@ namespace BuildXL.Scheduler
             var counters = environment.Counters;
             var configuration = environment.Configuration;
             var pathTable = context.PathTable;
-            var processExecutionResult = new ExecutionResult();
+            var processExecutionResult = new ExecutionResult
+            {
+                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip)
+            };
+
             if (fingerprint.HasValue)
             {
                 processExecutionResult.WeakFingerprint = new WeakContentFingerprint(fingerprint.Value.Hash);
@@ -3043,8 +3047,7 @@ namespace BuildXL.Scheduler
 
             var executionResult = new ExecutionResult
             {
-                // This is the cache-hit path, so there were no uncacheable file accesses.
-                MustBeConsideredPerpetuallyDirty = false,
+                MustBeConsideredPerpetuallyDirty = IsUnconditionallyPerpetuallyDirty(pip),
                 DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
                 DynamicallyProbedFiles = runnableFromCacheCheckResult.DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations = runnableFromCacheCheckResult.DynamicallyObservedEnumerations,
@@ -3990,6 +3993,16 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Returns true if a pip must be considered perpetually dirty irrespective of everything else.
+        /// </summary>
+        /// <remarks>
+        /// If a pip has shared opaque directory outputs it is always considered dirty since
+        /// it is not clear how to infer what to run based on the state of the file system.
+        /// </remarks>
+        public static bool IsUnconditionallyPerpetuallyDirty(Pip pip)
+            => pip.PipType == PipType.Process && (pip as Process).HasSharedOpaqueDirectoryOutputs;
+
+        /// <summary>
         /// Discovers the content hashes of a process pip's outputs, which must now be on disk.
         /// The pip's outputs will be stored into the <see cref="IArtifactContentCache"/> of <see cref="IPipExecutionEnvironment.Cache"/>,
         /// and (if caching is enabled) a cache entry (the types varies; either single-phase or two-phase depending on configuration) will be created.
@@ -4189,11 +4202,6 @@ namespace BuildXL.Scheduler
                                 PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
                             }
                         }
-
-                        // The result of a shared opaque directory is always considered dirty
-                        // since it is not clear how to infer what to run based on the state
-                        // of the file system.
-                        processExecutionResult.MustBeConsideredPerpetuallyDirty = true;
                     }
 
                     processExecutionResult.ReportDirectoryOutput(directoryArtifact, fileList);

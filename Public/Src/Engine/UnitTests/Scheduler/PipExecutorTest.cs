@@ -474,10 +474,10 @@ namespace Test.BuildXL.Scheduler
                     if (expectedToSucceed)
                     {
                         var testRunChecker = new TestRunChecker(expectedOutputFile);
-                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
+                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpetuallyDirty: true);
                         await testRunChecker.VerifyUpToDate(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
                         File.Delete(expectedOutputFile);
-                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpertuallyDirty: true);
+                        await testRunChecker.VerifySucceeded(env, ipcPip, expectedOutputFileContent, expectMarkedPerpetuallyDirty: true);
                     }
                     else
                     {
@@ -885,12 +885,12 @@ namespace Test.BuildXL.Scheduler
                     var testRunChecker = new TestRunChecker(destination);
 
                     testRunChecker.ExpectWarning();
-                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpetuallyDirty: true);
 
                     // This warning should not come from the cache since /warnaserror is enabled
                     testRunChecker.ExpectWarning();
 
-                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, Expected, expectMarkedPerpetuallyDirty: true);
                 },
                 null,
                 (pathTable) =>
@@ -1149,7 +1149,7 @@ namespace Test.BuildXL.Scheduler
                     var testRunChecker = new TestRunChecker(destination);
 
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
@@ -1157,7 +1157,7 @@ namespace Test.BuildXL.Scheduler
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
@@ -1188,14 +1188,14 @@ namespace Test.BuildXL.Scheduler
 
                     CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     // Pip with file monitoring errors succeeds in PipExecutor but fails in the post-process step.
-                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
                     
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                     // Uncacheable pip due to the file monitoring errors
-                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
@@ -1412,7 +1412,7 @@ namespace Test.BuildXL.Scheduler
 
                     for (int i = 1; i <= 2; i++)
                     {
-                        var perf = (ProcessPipExecutionPerformance)await VerifyPipResult(PipResultStatus.Succeeded, env, pip, expectMarkedPerpertuallyDirty: true);
+                        var perf = (ProcessPipExecutionPerformance)await VerifyPipResult(PipResultStatus.Succeeded, env, pip, expectMarkedPerpetuallyDirty: true);
                         XAssert.AreEqual(i, env.OutputFilesProduced, "produced count");
                         XAssert.AreEqual(0, env.OutputFilesUpToDate, "up to date count");
                         XAssert.AreEqual(0, env.OutputFilesDeployedFromCache, "deployed from cache count");
@@ -1468,7 +1468,7 @@ namespace Test.BuildXL.Scheduler
                     string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, sourceAbsolutePath, fileAContents: "A", fileBContents: "B2");
                     var testRunChecker = new TestRunChecker(destination);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
@@ -1478,7 +1478,7 @@ namespace Test.BuildXL.Scheduler
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
-                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
@@ -1953,6 +1953,33 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public async Task ProcessWithSharedOpaqueDirectoryOutputs()
+        {
+            await WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                async env =>
+                {
+                    var pathTable = env.Context.PathTable;
+
+                    string dir = GetFullPath("out");
+                    AbsolutePath dirAbsolutePath = AbsolutePath.Create(pathTable, dir);
+                    string destination = Path.Combine(dir, "c");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(pathTable, destination);
+
+                    DirectoryArtifact directoryArtifact = SealDirectoryWithProbeTargets(env, dirAbsolutePath);
+                    AbsolutePath sodOutputPath = AbsolutePath.Create(pathTable, Path.Combine(dir, "sod"));
+                    DirectoryArtifact sodOutput = new DirectoryArtifact(sodOutputPath, partialSealId: 1, isSharedOpaque: true);
+                    Process pip = CreateDirectoryProbingProcess(env.Context, directoryArtifact, destinationAbsolutePath, directoryOutput: sodOutput);
+                    XAssert.IsTrue(pip.HasSharedOpaqueDirectoryOutputs);
+
+                    var testRunChecker = new TestRunChecker(destination);
+                    string expected = CreateDirectoryWithProbeTargets(env.Context.PathTable, dirAbsolutePath, fileAContents: "A", fileBContents: "B");
+                    await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
+                    await testRunChecker.VerifyUpToDate(env, pip, expected, expectMarkedPerpertuallyDirty: true);
+                });
+        }
+
+        [Fact]
         public async Task ProcessWithMultipleDirectoryInputs()
         {
             await WithCachingExecutionEnvironment(
@@ -2319,7 +2346,7 @@ EXIT /b 3
             Pip pip,
             bool verifyFingerprint = true,
             bool checkNoProcessExecutionOnCacheHit = true,
-            bool expectMarkedPerpertuallyDirty = false,
+            bool expectMarkedPerpetuallyDirty = false,
             PipExecutionLevel? expectedExecutionLevel = null,
             Action<PipResult> customVerify = null)
         {
@@ -2341,7 +2368,7 @@ EXIT /b 3
 
             XAssert.AreEqual(expected, result.Status, "PipResult's status didn't match");
             XAssert.AreEqual(
-                expectMarkedPerpertuallyDirty,
+                expectMarkedPerpetuallyDirty,
                 result.MustBeConsideredPerpetuallyDirty,
                 "PipResult's MustBeConsideredPerpetuallyDirty didn't match");
 
@@ -2837,7 +2864,7 @@ EXIT /b 3
         /// <summary>
         /// The returned process will probe for 'a' in the given directory, and if not found will then probe for 'b'.
         /// </summary>
-        private static Process CreateDirectoryProbingProcess(PipExecutionContext context, DirectoryArtifact directory, AbsolutePath output, string script = null)
+        private static Process CreateDirectoryProbingProcess(PipExecutionContext context, DirectoryArtifact directory, AbsolutePath output, string script = null, DirectoryArtifact? directoryOutput = null)
         {
             if (script == null)
             {
@@ -2869,7 +2896,7 @@ EXIT /b 3
                 dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdout.WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(directory),
-                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                directoryOutputs: directoryOutput.HasValue ? ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new[] { directoryOutput.Value }) : ReadOnlyArray<DirectoryArtifact>.Empty,
                 orderDependencies: ReadOnlyArray<PipId>.Empty,
                 untrackedPaths: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(pathTable)),
                 untrackedScopes: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(pathTable)),
@@ -3357,12 +3384,12 @@ EXIT /b 3
                 m_expectedWarningFromCacheCount += nrOfWarnigns;
             }
 
-            public Task VerifySucceeded(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpertuallyDirty = false)
+            public Task VerifySucceeded(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpetuallyDirty = false)
             {
                 Contract.Assert((m_destination == null) == (expectedContents == null), "must specify expected contents if you set a destination file to check");
 
                 m_expectedRunCount++;
-                return Verify(PipResultStatus.Succeeded, env, pip, expectedContents, expectMarkedPerpertuallyDirty);
+                return Verify(PipResultStatus.Succeeded, env, pip, expectedContents, expectMarkedPerpetuallyDirty);
             }
 
             public Task VerifyUpToDate(DummyPipExecutionEnvironment env, Pip pip, string expectedContents = null, bool expectMarkedPerpertuallyDirty = false)
@@ -3388,7 +3415,7 @@ EXIT /b 3
             {
                 Contract.Assert((m_destination == null) == (expectedContents == null), "must specify expected contents if you set a destination file to check");
 
-                await VerifyPipResult(expectedStatus, env, pip, expectMarkedPerpertuallyDirty: expectMarkedPerpertuallyDirty);
+                await VerifyPipResult(expectedStatus, env, pip, expectMarkedPerpetuallyDirty: expectMarkedPerpertuallyDirty);
                 XAssert.AreEqual(m_expectedRunCount, env.OutputFilesProduced, "produced count");
                 XAssert.AreEqual(m_expectedUpToDateCount, env.OutputFilesUpToDate, "up to date count");
                 XAssert.AreEqual(m_expectedDeployedFromCache, env.OutputFilesDeployedFromCache, "deployed from cache count");

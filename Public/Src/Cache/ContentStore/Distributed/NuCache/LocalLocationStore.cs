@@ -1187,12 +1187,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             operationContext,
                             page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
-            // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
-            // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
-            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+            // We make sure that we select a set of the newer content, to ensure that we at least look at newer
+            // content to see if it should be evicted first due to having a high number of replicas. We do this by
+            // looking at the start as well as at middle of the list.
 
-            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
+            // NOTE(jubayard, 12/13/2019): observe that the comparer is the one that decides whether we sort in
+            // ascending or descending order by evictability. The oldest and newest elude to the content's actual age,
+            // not the evictability metric.
+            var oldestContentSortedByEvictability = contentHashesWithInfo
+                .Take(contentHashesWithInfo.Count / 2)
+                .ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+
+            var newestContentSortedByEvictability = contentHashesWithInfo
+                .SkipOptimized(contentHashesWithInfo.Count / 2)
+                .ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+
+            return NuCacheCollectionUtilities.MergeOrdered(oldestContentSortedByEvictability, newestContentSortedByEvictability, comparer)
                 .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
         }
 

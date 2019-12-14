@@ -283,8 +283,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
-            Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
-
+            Contract.Assert(
+                _configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore),
+                "GetLruPages can only be called when local location store is enabled");
             return _localLocationStore.GetHashesInEvictionOrder(context, contentHashesWithInfo, reverse: false);
         }
 

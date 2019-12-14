@@ -218,6 +218,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         /// <summary>
+        /// Fraction of the pool that can be trusted to be spurious at each iteration
+        /// </summary>
+        public float EvictionDiscardFraction { get; set; } = 0;
+
+        /// <summary>
         /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
         /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
         /// with such a younge age.

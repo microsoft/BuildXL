@@ -225,16 +225,22 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
 
         /// <summary>
-        /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
-        /// Default to always wait for both instances to complete.
-        /// </summary>
-        public TimeSpan? RetryWindow { get; set; } = null;
-
-        /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         [DataMember]
         public float EvictionRemovalFraction { get; set; } = 0.015355f;
+
+        /// <summary>
+        /// Fraction of the pool that can be trusted to be spurious at each iteration
+        /// </summary>
+        [DataMember]
+        public float EvictionDiscardFraction { get; set; } = 0;
+
+        /// <summary>
+        /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
+        /// Default to always wait for both instances to complete.
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
 
         private int[] _retryIntervalForCopiesMs =
             new int[]

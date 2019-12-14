@@ -189,6 +189,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public DateTime GetDirectoryCreationTimeUtc(AbsolutePath path)
+            {
+                throw new NotImplementedException();
+            }
+
             public FileAttributes GetFileAttributes(AbsolutePath path)
             {
                 throw new NotImplementedException();

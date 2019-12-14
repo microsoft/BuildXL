@@ -1109,5 +1109,12 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 }
             }
         }
+
+        /// <inheritdoc />
+        public DateTime GetDirectoryCreationTimeUtc(AbsolutePath path)
+        {
+            path.ThrowIfPathTooLong();
+            return new DirectoryInfo(path.Path).CreationTimeUtc;
+        }
     }
 }

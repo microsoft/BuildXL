@@ -113,6 +113,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.FullRangeCompactionIntervalMinutes,
                     v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
 
+                if (_distributedSettings.ContentLocationDatabaseLogsBackupEnabled)
+                {
+                    dbConfig.LogsBackupPath = localCacheRoot / "LocationDbLogs";
+                }
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => dbConfig.LogsRetention = TimeSpan.FromMinutes(v));
+
                 redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot, dbConfig).GetAwaiter().GetResult();
             }

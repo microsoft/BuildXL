@@ -145,5 +145,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// levels of the RocksDB LSM tree.
         /// </summary>
         public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
+
+        /// <summary>
+        /// Log retention path for the ContentLocationDatabase. When the database is loaded, logs from the old
+        /// instance are backed up into a separate folder.
+        ///
+        /// If null, then the back up is not performed.
+        /// </summary>
+        public AbsolutePath LogsBackupPath { get; set; } = null;
+
+        /// <summary>
+        /// When logs backup is enabled, the maximum time logs are kept since their creation date.
+        /// </summary>
+        public TimeSpan LogsRetention { get; set; } = TimeSpan.FromDays(7);
     }
 }

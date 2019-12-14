@@ -9,11 +9,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -42,6 +47,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private string _storeLocation;
         private readonly string _activeSlotFilePath;
         private Timer _compactionTimer;
+
+        private readonly RocksDbLogsManager _logManager;
 
         private enum StoreSlot
         {
@@ -89,6 +96,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
+
+            if (_configuration.LogsBackupPath != null)
+            {
+                _logManager = new RocksDbLogsManager(clock, new PassThroughFileSystem(), _configuration.LogsBackupPath, _configuration.LogsRetention);
+            }
         }
 
         /// <inheritdoc />
@@ -201,14 +213,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var storeLocation = GetStoreLocation(activeSlot);
 
-                if (clean && Directory.Exists(storeLocation))
+                if (Directory.Exists(storeLocation))
                 {
-                    BuildXL.Native.IO.FileUtilities.DeleteDirectoryContents(storeLocation, deleteRootDirectory: true);
+                    // We backup right before loading. This means we should never loose any logs, but it also means
+                    // the backup directory will only hold logs for DBs that have already been overwritten.
+                    if (_logManager != null)
+                    {
+                        _logManager.BackupAsync(context, new AbsolutePath(storeLocation), activeSlot.ToString()).Result.IgnoreFailure();
+                        Task.Run(() => _logManager.GarbageCollect(context)).FireAndForget(context, severityOnException: Severity.Error);
+                    }
+
+                    if (clean)
+                    {
+                        FileUtilities.DeleteDirectoryContents(storeLocation, deleteRootDirectory: true);
+                    }
                 }
 
                 Directory.CreateDirectory(storeLocation);
 
-                Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
+                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(
                     new KeyValueStoreAccessor.RocksDbStoreArguments()

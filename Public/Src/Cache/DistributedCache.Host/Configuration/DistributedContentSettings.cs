@@ -455,6 +455,12 @@ namespace BuildXL.Cache.Host.Configuration
         public TimeSpan? ContentLocationDatabaseCacheFlushingMaximumInterval { get; set; }
 
         [DataMember]
+        public bool ContentLocationDatabaseLogsBackupEnabled { get; set; }
+
+        [DataMember]
+        public int? ContentLocationDatabaseLogsBackupRetentionMinutes { get; set; }
+
+        [DataMember]
         public int? FullRangeCompactionIntervalMinutes { get; set; }
 
         // Key Vault Settings

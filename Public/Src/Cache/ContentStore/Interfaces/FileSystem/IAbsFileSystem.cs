@@ -169,5 +169,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Get information on the volume hosting the given path.
         /// </summary>
         VolumeInfo GetVolumeInfo(AbsolutePath path);
+
+        /// <summary>
+        ///     Gets the creation time of the directory, in UTC
+        /// </summary>
+        DateTime GetDirectoryCreationTimeUtc(AbsolutePath path);
     }
 }

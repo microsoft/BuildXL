@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Engine.Tracing;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
-using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
@@ -85,14 +84,26 @@ namespace BuildXL.Engine
             /// List of sideband files that are present on disk but whose corresponding pips are not found in the pip graph.
             /// This value is only set when <see cref="ShouldPostponeDeletion"/> is true.
             /// </summary>
-            public string[] ExtraneousSidebandFiles { get; }
+            public IReadOnlyList<string> ExtraneousSidebandFiles { get; }
 
             /// <nodoc />
-            internal Result(bool shouldPostponeDeletion, [CanBeNull] string[] extraneousSidebandFiles)
+            internal Result(bool shouldPostponeDeletion, [CanBeNull] IReadOnlyList<string> extraneousSidebandFiles)
             {
+                Contract.Requires(shouldPostponeDeletion == (extraneousSidebandFiles != null));
+                Contract.Ensures(ExtraneousSidebandFiles != null);
+                Contract.Ensures(ShouldPostponeDeletion || ExtraneousSidebandFiles.Count == 0);
+
                 ShouldPostponeDeletion = shouldPostponeDeletion;
                 ExtraneousSidebandFiles = extraneousSidebandFiles ?? CollectionUtilities.EmptyArray<string>();
             }
+
+            /// <nodoc />
+            internal static Result CreateForEagerDeletion() 
+                => new Result(shouldPostponeDeletion: false, extraneousSidebandFiles: null);
+
+            /// <nodoc />
+            internal static Result CreateForLazyDeletion(IReadOnlyList<string> extraneousSidebandFiles)
+                => new Result(shouldPostponeDeletion: true, extraneousSidebandFiles);
         }
 
         /// <summary>
@@ -104,7 +115,7 @@ namespace BuildXL.Engine
             {
                 if (!Configuration.Schedule.UnsafeLazySODeletion || !SidebandRootDir.IsValid)
                 {
-                    return ResultForEagerDeletion;
+                    return Result.CreateForEagerDeletion();
                 }
 
                 // find relevant process pips (i.e., those with SOD outputs and not filtered out by RootFilter
@@ -118,7 +129,7 @@ namespace BuildXL.Engine
                 // check validity of their sideband files
                 if (!processesWithSharedOpaqueDirectoryOutputs.All(process => ValidateSidebandFileForProcess(process)))
                 {
-                    return ResultForEagerDeletion;
+                    return Result.CreateForEagerDeletion();
                 }
 
                 // find extraneous sideband files and return
@@ -133,20 +144,14 @@ namespace BuildXL.Engine
                         .ToArray();
                 }
 
-                return ResultForLazyDeletion(extraneousSidebandFiles);
+                return Result.CreateForLazyDeletion(extraneousSidebandFiles);
             }
             catch (IOException ex)
             {
                 Logger.Log.SidebandFileIntegrityCheckThrewException(LoggingContext, ex.ToString());
-                return ResultForEagerDeletion;
+                return Result.CreateForEagerDeletion();
             }
         }
-
-        private Result ResultForEagerDeletion { get; }
-            = new Result(shouldPostponeDeletion: false, extraneousSidebandFiles: null);
-
-        private static Result ResultForLazyDeletion(string[] extraneousSidebandFiles)
-            => new Result(shouldPostponeDeletion: true, extraneousSidebandFiles);
 
         private string GetSidebandFile(Process process)
             => SidebandWriter.GetSidebandFileForProcess(Context.PathTable, SidebandRootDir, process);
@@ -164,6 +169,7 @@ namespace BuildXL.Engine
                     .RetrievePipReferencesOfType(PipType.Process)
                     .Select(pipRef => pipRef.PipId.ToNodeId());
             }
+            // TODO(#1657322): FilterNodesToBuild can be pretty expensive, so we should avoid doing this twice (here and in Scheduler.InitForMaster)
             else if (Scheduler.PipGraph.FilterNodesToBuild(LoggingContext, RootFilter, out var nodesRangeSet))
             {
                 return nodesRangeSet.Where(nodeId => Scheduler.GetPipType(nodeId.ToPipId()) == PipType.Process);
@@ -214,10 +220,10 @@ namespace BuildXL.Engine
 
         /// <summary>
         /// Reads in parallel all writes recorded in given sideband files (<paramref name="sidebandFiles"/>).
-        /// The task of reading paths from a single sideband file is delegated to <see cref="SandboxedProcessPipExecutor.ReadSidebandFile"/>.
+        /// The task of reading paths from a single sideband file is delegated to <see cref="SidebandReader.ReadSidebandFile"/>.
         /// Exceptions of type <see cref="IOException"/> and <see cref="BuildXLException"/> are caught, logged, and ignored.
         /// </summary>
-        internal string[] TryReadAllRecordedWrites(string[] sidebandFiles)
+        internal string[] TryReadAllRecordedWrites(IReadOnlyList<string> sidebandFiles)
         {
             return sidebandFiles
                 .AsParallel(Context)
@@ -228,7 +234,7 @@ namespace BuildXL.Engine
             {
                 try
                 {
-                    return SandboxedProcessPipExecutor.ReadSidebandFile(filename, ignoreChecksum: true);
+                    return SidebandReader.ReadSidebandFile(filename, ignoreChecksum: true);
                 }
                 catch (Exception e) when (e is BuildXLException || e is IOException)
                 {
@@ -245,7 +251,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Sets up <see cref="ParallelQuery"/> for a given array and a given configuration.
         /// </summary>
-        public static IEnumerable<T> AsParallel<T>(this T[] @this, PipExecutionContext context)
+        public static IEnumerable<T> AsParallel<T>(this IReadOnlyList<T> @this, PipExecutionContext context)
         {
             return @this
                 .AsParallel()

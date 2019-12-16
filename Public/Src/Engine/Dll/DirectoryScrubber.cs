@@ -383,11 +383,11 @@ namespace BuildXL.Engine
         /// Deletion failures are handled gracefully (by logging a warning).
         /// Returns the number of successfully deleted files.
         /// </summary>
-        public int DeleteFiles(string[] filePaths, bool logDeletedFiles = true)
+        public int DeleteFiles(IReadOnlyList<string> filePaths, bool logDeletedFiles = true)
         {
             int numRemoved = 0;
             using (var timer = new Timer(
-                _ => Tracing.Logger.Log.ScrubbingProgress(m_loggingContext, "", numRemoved, filePaths.Length),
+                _ => Tracing.Logger.Log.ScrubbingProgress(m_loggingContext, "", numRemoved, filePaths.Count),
                 null,
                 dueTime: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration),
                 period: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration)))
@@ -403,7 +403,7 @@ namespace BuildXL.Engine
                             Interlocked.Increment(ref numRemoved);
                         }
                     });
-                Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Length, numRemoved, 0);
+                Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Count, numRemoved, 0);
                 return numRemoved;
             }
         }

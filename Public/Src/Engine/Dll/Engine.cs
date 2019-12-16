@@ -1066,6 +1066,9 @@ namespace BuildXL.Engine
                 mutableConfig.Engine.ScanChangeJournal = false;
                 mutableConfig.Schedule.IncrementalScheduling = false;
 
+                // lazy scrubbing is only meant for speeding up single-machine dev builds
+                mutableConfig.Schedule.UnsafeLazySODeletion = false;
+
                 // Disable viewer
                 mutableConfig.Viewer = ViewerMode.Disable;
 

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using BuildXL.Utilities;
 
@@ -37,6 +38,17 @@ namespace BuildXL.Processes.Sideband
                 stream: new FileStream(sidebandFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete),
                 debug: false,
                 leaveOpen: false);
+        }
+
+        /// <summary>
+        /// Returns all recorded paths inside the <paramref name="sidebandFile"/> sideband file.
+        /// </summary>
+        public static IReadOnlyList<string> ReadSidebandFile(string sidebandFile, bool ignoreChecksum)
+        {
+            using var sidebandReader = new SidebandReader(sidebandFile);
+            sidebandReader.ReadHeader(ignoreChecksum: ignoreChecksum);
+            sidebandReader.ReadMetadata();
+            return sidebandReader.ReadRecordedPaths().ToList();
         }
 
         /// <summary>

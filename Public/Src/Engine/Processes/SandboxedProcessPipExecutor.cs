@@ -2558,7 +2558,7 @@ namespace BuildXL.Processes
             try
             {
                 var start = DateTime.UtcNow;
-                var sharedOpaqueOutputsToDelete = ReadSidebandFile(sidebandFile, ignoreChecksum: false);
+                var sharedOpaqueOutputsToDelete = SidebandReader.ReadSidebandFile(sidebandFile, ignoreChecksum: false);
                 var deletionResults = sharedOpaqueOutputsToDelete // TODO: possibly parallelize file deletion 
                     .Where(FileUtilities.FileExistsNoFollow)
                     .Select(path => FileUtilities.TryDeleteFile(path)) // TODO: what about deleting directories?
@@ -2594,17 +2594,6 @@ namespace BuildXL.Processes
                 Tracing.Logger.Log.CannotReadSidebandFileError(m_loggingContext, sidebandFile, e.Message);
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Returns all recorded paths inside the <paramref name="sidebandFile"/> sideband file.
-        /// </summary>
-        public static string[] ReadSidebandFile(string sidebandFile, bool ignoreChecksum)
-        {
-            using var sidebandReader = new SidebandReader(sidebandFile);
-            sidebandReader.ReadHeader(ignoreChecksum: ignoreChecksum);
-            sidebandReader.ReadMetadata();
-            return sidebandReader.ReadRecordedPaths().ToArray();
         }
 
         /// <summary>

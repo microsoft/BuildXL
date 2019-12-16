@@ -1891,6 +1891,7 @@ namespace BuildXL.Scheduler
         {
             return 
                 env.Configuration.Layout.SharedOpaqueSidebandDirectory.IsValid
+                && env.Configuration.Schedule.UnsafeLazySODeletion
                 && pip.SemiStableHash != 0 
                 && pip.HasSharedOpaqueDirectoryOutputs;
         }

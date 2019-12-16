@@ -38,6 +38,8 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void RunSingleProcessWithSharedOpaqueOutputLogging()
         {
+            Configuration.Schedule.UnsafeLazySODeletion = true;
+
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
             var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
             var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
@@ -57,16 +59,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             var result = RunScheduler().AssertSuccess();
 
             // check that shared opaque outputs have been logged in the sideband file
-            var writesInSidebandFile = GetJournaledWritesForProcess(result, pip.Process);
-            XAssert.Contains(writesInSidebandFile, outputInSharedOpaque);
-            XAssert.ContainsNot(writesInSidebandFile, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
+            AssertWritesJournaled(result, pip, outputInSharedOpaque);
 
-            // run again and assert cache hit
+            // run again, assert cache hit, assert sideband files were used to postpone scrubbing
             RunScheduler().AssertCacheHit(pip.Process.PipId);
-
-            // assert sideband files were used for scrubbing
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 1);
-            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 1);
+            AssertWritesJournaled(result, pip, outputInSharedOpaque);
+            AssertInformationalEventLogged(EventId.PostponingDeletionOfSharedOpaqueOutputs, count: 1);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

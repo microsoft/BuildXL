@@ -796,7 +796,7 @@ namespace BuildXL.Engine
                 scheduler.SetLazyDeletionOfSharedOpaqueOutputsEnabled();
 
                 // must still delete all files recorded in all extraneous sideband files though
-                if (sidebandExaminationResult.ExtraneousSidebandFiles.Length > 0)
+                if (sidebandExaminationResult.ExtraneousSidebandFiles.Count > 0)
                 {
                     Logger.Log.DeletingOutputsFromExtraneousSidebandFilesStarted(loggingContext);
                     scrubber.DeleteFiles(sidebandExaminer.TryReadAllRecordedWrites(sidebandExaminationResult.ExtraneousSidebandFiles));

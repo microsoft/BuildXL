@@ -1963,7 +1963,7 @@ namespace BuildXL.Scheduler
                 canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
                 isWeakFingerprintAugmented: false);
 
-            if (!runnableFromCacheResult.CanRunFromCache)
+            if (runnableFromCacheResult != null && !runnableFromCacheResult.CanRunFromCache)
             {
                 Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
                 processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
@@ -1976,7 +1976,7 @@ namespace BuildXL.Scheduler
                 processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
             }
 
-            return runnableFromCacheResult;           
+            return runnableFromCacheResult;
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(

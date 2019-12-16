@@ -127,7 +127,7 @@ namespace ContentStoreTest.Distributed.Sessions
             configuration.RedisGlobalStoreConnectionString = _primaryGlobalStoreDatabase.ConnectionString;
             if (_enableSecondaryRedis)
             {
-                _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
+                _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
                 configuration.RedisGlobalStoreSecondaryConnectionString = _secondaryGlobalStoreDatabase.ConnectionString;
             }
 
@@ -390,8 +390,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        private LocalRedisProcessDatabase GetDatabase(Context context, ref int index)
+        private LocalRedisProcessDatabase GetDatabase(Context context, ref int index, bool useDatabasePool = true)
         {
+            if (!useDatabasePool)
+            {
+                 return LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+            }
             index++;
             if (!_localDatabases.TryGetValue((context.Id, index), out var localDatabase))
             {
@@ -853,6 +857,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             var removeCount = 100;
             var addCount = 10;
+            _enableSecondaryRedis = false;
 
             _enableReconciliation = true;
             _reconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
@@ -1919,6 +1924,51 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task CancelRaidedRedisTest()
+        {
+            _enableSecondaryRedis = true;
+            _poolSecondaryRedisDatabase = false;
+            ConfigureWithOneMaster();
+            int machineCount = 1;
+
+            await RunTestAsync(
+                new Context(Logger),
+                machineCount,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+
+                    var masterSession = sessions[context.GetMasterIndex()];
+                    var master = context.GetMaster();
+                    var masterGlobalStore = ((RedisGlobalStore)master.LocalLocationStore.GlobalStore);
+
+                    var putResult = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                    var globalGetBulkResult = await master.GetBulkAsync(
+                        context,
+                        new[] {putResult.ContentHash},
+                        Token,
+                        UrgencyHint.Nominal,
+                        GetBulkOrigin.Global).ShouldBeSuccess();
+                    globalGetBulkResult.ContentHashesInfo[0].Locations.Count.Should().Be(1, "Content should be registered with the global store");
+
+                    //Turn off the second redis instance, and set a retry window
+                    //The second instance should always fail and resort to timing out in the retry window limit
+                    _configurations[0].RetryWindow = TimeSpan.FromSeconds(1);
+                    _secondaryGlobalStoreDatabase.Close();
+
+                    masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(0);
+                    globalGetBulkResult = await master.GetBulkAsync(
+                        context,
+                        new[] {putResult.ContentHash},
+                        Token,
+                        UrgencyHint.Nominal,
+                        GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(1);
+                });
+        }
+
+        [Fact]
         public async Task ClusterStateIsPersistedLocally()
         {
             ConfigureWithOneMaster();
@@ -2379,6 +2429,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
         protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
         protected bool _enableSecondaryRedis = false;
+        protected bool _poolSecondaryRedisDatabase = true;
         protected AbsolutePath _testDatabasePath = null;
         protected bool _storeClusterStateInDatabase = true;
         protected bool _cleanDbOnInitialize = true;

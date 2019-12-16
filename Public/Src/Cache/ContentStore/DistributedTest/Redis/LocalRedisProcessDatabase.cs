@@ -125,6 +125,7 @@ namespace ContentStoreTest.Distributed.Redis
 
             if (_process != null)
             {
+                _logger.Debug($"Killing the redis process...");
                 SafeKillProcess();
             }
 
@@ -141,6 +142,8 @@ namespace ContentStoreTest.Distributed.Redis
                 {
                     _process?.Kill();
                     _process?.WaitForExit(5000);
+
+                    _logger.Debug($"The redis process is killed");
                 }
             }
             catch (InvalidOperationException)

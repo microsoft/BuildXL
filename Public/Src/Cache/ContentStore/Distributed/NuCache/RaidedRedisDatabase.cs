@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -20,6 +21,17 @@ using StackExchange.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+    /// <summary>
+    /// Enumeration for tracking performance of raided redis operations.
+    /// </summary>
+    public enum RaidedRedisDatabaseCounters
+    {
+        /// <summary>
+        /// Counter for when we cancel one of the redis instance tasks because it takes too long
+        /// </summary>
+        CancelRedisInstance
+    }
+
     internal sealed class RaidedRedisDatabase
     {
         /// <summary>
@@ -37,6 +49,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public bool HasSecondary => SecondaryRedisDb != null;
 
+        /// <summary>
+        /// Counters for tracking raided redis related operations
+        /// </summary>
+        public CounterCollection<RaidedRedisDatabaseCounters> Counters { get; } = new CounterCollection<RaidedRedisDatabaseCounters>();
+
         /// <nodoc />
         public RaidedRedisDatabase(Tracer tracer, RedisDatabaseAdapter primaryRedisDb, RedisDatabaseAdapter secondaryRedisDb)
         {
@@ -49,6 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public CounterSet GetCounters(OperationContext context, Role? role, Counter counter)
         {
             var counters = new CounterSet();
+            counters.Merge(Counters.ToCounterSet(), "RaidedRedis.");
             counters.Merge(PrimaryRedisDb.Counters.ToCounterSet(), "Redis.");
 
             if (role != Role.Worker)
@@ -98,9 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             where TResult : BoolResult
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
-            
             var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
-
             if (!HasSecondary)
             {
                 return (await primaryResultTask, default);
@@ -126,18 +142,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Giving the second task a chance to succeed.
                 Task secondResult = await Task.WhenAny(slowerResultTask, Task.Delay(retryWindow.Value, context.Token));
-
                 if (secondResult != slowerResultTask)
                 {
+                    Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Increment();
+
                     // Avoiding task unobserved exception if the second task will fail.
-                    // TODO ST: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
-                    slowerResultTask.FireAndForget(context);
+                    slowerResultTask.FireAndForget(context, failureSeverity: Severity.Info);
 
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();
-
                     var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
-                    Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {fasterResultTask}");
+                    Tracer.Info(context, $"{Tracer.Name}.{caller}: Cancelling redis db: {failingRedisDb}, using result: {fasterResultTask.Result} from other redis db");
 
                     if (fasterResultTask == primaryResultTask)
                     {
@@ -151,7 +166,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             await slowerResultTask;
-
             var primaryResult = await primaryResultTask;
             var secondaryResult = await secondaryResultTask;
 
@@ -197,6 +211,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
+                //executeAsync may have a long synchronous part
+                await Task.Yield();
                 return await executeAsync(redisDb, token);
             }
             catch (RedisConnectionException ex)

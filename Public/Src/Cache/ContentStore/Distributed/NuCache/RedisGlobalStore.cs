@@ -36,9 +36,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly IClock _clock;
 
         /// <summary>
+        /// Exposing raided redis from global store for access from tests, specifically LocalLocationStoreDistributedContentTests.
+        /// During test with raided redis, verifying counters are correct values.
+        /// </summary>
+        internal RaidedRedisDatabase RaidedRedis => _raidedRedis;
+
+        /// <summary>
         /// The accessor for the redis database
         /// </summary>
-        private readonly RaidedRedisDatabase _redis;
+        private readonly RaidedRedisDatabase _raidedRedis;
 
         private readonly ReplicatedRedisHashKey _checkpointsKey;
         private readonly ReplicatedRedisHashKey _masterLeaseKey;
@@ -83,15 +89,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _clock = clock;
             _configuration = configuration;
-            _redis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
+            _raidedRedis = new RaidedRedisDatabase(Tracer, primaryRedisDb, secondaryRedisDb);
             var checkpointKeyBase = configuration.CentralStore.CentralStateKeyBase;
 
-            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, _redis);
-            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _redis);
-            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _redis);
+            _checkpointsKey = new ReplicatedRedisHashKey(configuration.GetCheckpointPrefix() + ".Checkpoints", this, _clock, _raidedRedis);
+            _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _raidedRedis);
+            _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _raidedRedis);
             LocalMachineLocation = localMachineLocation;
 
-            _blobAdapter = new RedisBlobAdapter(_redis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock, Tracer);
+            _blobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock, Tracer);
         }
 
         /// <inheritdoc />
@@ -102,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var counters = Counters.ToCounterSet();
             counters.Merge(_blobAdapter.GetCounters(), "BlobAdapter.");
-            counters.Merge(_redis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
+            counters.Merge(_raidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
 
@@ -114,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var machineId = await RegisterMachineAsync(context, machineLocation);
             LocalMachineId = new MachineId(machineId);
 
-            Tracer.Info(context, $"Secondary redis enabled={_redis.HasSecondary}");
+            Tracer.Info(context, $"Secondary redis enabled={_raidedRedis.HasSecondary}");
 
             return BoolResult.Success;
         }
@@ -158,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     foreach (var page in contentHashes.AsIndexed().GetPages(_configuration.RedisBatchPageSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async (redisDb, token) =>
+                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             var redisBatch = redisDb.CreateBatch(RedisOperation.GetBulkGlobal);
 
@@ -202,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    if (_redis.HasSecondary)
+                    if (_raidedRedis.HasSecondary)
                     {
                         Counters[GlobalStoreCounters.GetBulkEntrySingleResult].Add(contentHashes.Count - dualResultCount);
                     }
@@ -255,7 +261,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     foreach (var page in contentHashes.GetPages(hashBatchSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async (redisDb, token) =>
+                        var batchResult = await _raidedRedis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             Counters[GlobalStoreCounters.RegisterLocalLocationHashCount].Add(page.Count);
 

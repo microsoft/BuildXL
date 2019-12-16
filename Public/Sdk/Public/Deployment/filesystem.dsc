@@ -99,11 +99,11 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub?
 }
 
 /**
- * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
- * on 'sourceOpaqueDir`, which should be the parent opaque directory containing the file 'source'.
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.
  */
 @@public
-export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
+export function copyFileProcess(source: Artifact, target: Artifact, dependencies: Transformer.InputArtifact[], outputs: Transformer.Output[]): Transformer.ExecuteResult {
+    const wd = Context.getNewOutputDirectory("cp");
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
         ? <Transformer.ExecuteArguments>{
             tool: {
@@ -111,19 +111,18 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
                 dependsOnWindowsDirectories: true,
                 description: "Copy File",
             },
-            workingDirectory: d`${source.parent}`,
+            workingDirectory: d`${wd}`,
             arguments: [
                 Cmd.argument("/D"),
                 Cmd.argument("/C"),
                 Cmd.argument("copy"),
                 Cmd.argument("/Y"),
                 Cmd.argument("/V"),
-                Cmd.argument(Artifact.none(source)),
-                Cmd.argument(Artifact.output(target))
+                Cmd.argument(source),
+                Cmd.argument(target)
             ],
-            dependencies: [
-                sourceOpaqueDir
-            ]
+            dependencies: dependencies,
+            outputs: outputs
         }
         : <Transformer.ExecuteArguments>{
             tool: {
@@ -132,19 +131,47 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
                 dependsOnCurrentHostOSDirectories: true,
                 prepareTempDirectory: true
             },
-            workingDirectory: d`${source.parent}`,
+            workingDirectory: d`${wd}`,
             arguments: [
                 Cmd.argument("-f"),
-                Cmd.argument(Artifact.none(source)),
-                Cmd.argument(Artifact.output(target))
+                Cmd.argument(source),
+                Cmd.argument(target)
             ],
-            dependencies: [
-                sourceOpaqueDir
-            ]
+            dependencies: dependencies,
+            outputs: outputs
         };
 
-    const result = Transformer.execute(args);
-    return result.getOutputFile(target);
+    return Transformer.execute(args);
+}
+
+/**
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
+ * on 'sourceOpaqueDir`, which should be the parent opaque directory containing the file 'source'.
+ */
+@@public
+export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
+    Contract.requires(source.isWithin(sourceOpaqueDir), "Source path must be within the source opaque directory");
+    return copyFileProcess(
+        /*source*/ Artifact.none(source),
+        /*target*/ Artifact.output(target),
+        /*dependencies*/ [ sourceOpaqueDir ],
+        /*outputs*/ []
+    ).getOutputFile(target);
+}
+
+/**
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
+ * on 'source' and produces a shared opaque directory at the same path as 'targetOpaqueDir'.
+ */
+@@public
+export function copyFileIntoSharedOpaqueDirectory(source: File, target: Path, targetOpaqueDir: OpaqueDirectory): OpaqueDirectory {
+    Contract.requires(target.isWithin(targetOpaqueDir), "Target path must be within the target opaque directory");
+    return copyFileProcess(
+        /*source*/ Artifact.input(source),
+        /*target*/ Artifact.none(target),
+        /*dependencies*/ [ ],
+        /*outputs*/ [{ directory: targetOpaqueDir.root, kind: "shared" }]
+    ).getOutputDirectory(targetOpaqueDir.root);
 }
 
 /**
@@ -170,7 +197,7 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument(Artifact.none(sourceDir)),
                 Cmd.argument(Artifact.none(targetDir)),
                 Cmd.argument("*.*"),
-                Cmd.argument("/MIR"), // Mirror the directory
+                Cmd.argument("/E"),   // Copy subdirectories including empty ones (but no /PURGE, i.e., don't delete dest files that no longer exist)
                 Cmd.argument("/NJH"), // No Job Header
                 Cmd.argument("/NFL"), // No File list reducing stdout processing
                 Cmd.argument("/NP"),  // Don't show per-file progress counter
@@ -195,7 +222,6 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument("-arvh"),
                 Cmd.argument(Cmd.join("", [ Artifact.none(sourceDir), '/' ])),
                 Cmd.argument(Artifact.none(targetDir)),
-                Cmd.argument("--delete"),
             ],
             dependencies: [
                 sourceDirDep

@@ -68,6 +68,7 @@ function compileWithBxl() {
         --config "$MY_DIR/config.dsc" 
         /generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json"
         /fancyConsoleMaxStatusPips:10
+        /exp:LazySODeletion
         /nowarn:11319 # DX11319: nuget version mismatch
         "$@"
     )

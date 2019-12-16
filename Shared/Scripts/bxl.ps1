@@ -286,7 +286,7 @@ if ($VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
-$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/scrubDirectory:${enlistmentRoot}\out\objects", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
+$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/exp:LazySODeletion", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
 $AdditionalBuildXLArguments += @("/p:[Sdk.BuildXL]useQTest=true");
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {

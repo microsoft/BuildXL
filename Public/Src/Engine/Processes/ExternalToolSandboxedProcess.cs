@@ -26,8 +26,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an instance of <see cref="ExternalToolSandboxedProcess"/>.
         /// </summary>
-        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool)
-            : base(sandboxedProcessInfo)
+        public ExternalToolSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, ExternalToolSandboxedProcessExecutor tool, string externalSandboxedProcessDirectory)
+            : base(sandboxedProcessInfo, Path.Combine(externalSandboxedProcessDirectory, nameof(ExternalToolSandboxedProcess)))
         {
             Contract.Requires(tool != null);
             m_tool = tool;
@@ -87,6 +87,8 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Start()
         {
+            base.Start();
+
             SerializeSandboxedProcessInfoToFile();
 
             var process = new Process
@@ -94,7 +96,7 @@ namespace BuildXL.Processes
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = m_tool.ExecutablePath,
-                    Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
+                    Arguments = m_tool.CreateArguments(SandboxedProcessInfoFile, SandboxedProcessResultsFile),
                     WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,

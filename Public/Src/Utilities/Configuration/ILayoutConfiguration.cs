@@ -102,5 +102,10 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether a user profile has been redirected
         /// </summary>
         AbsolutePath RedirectedUserProfileJunctionRoot { get; }
+
+        /// <summary>
+        /// Directory containing files used to communicate between BuildXL process and tools for external execution, e.g., VmCommandProxy.
+        /// </summary>
+        AbsolutePath ExternalSandboxedProcessDirectory { get; set; }
     }
 }

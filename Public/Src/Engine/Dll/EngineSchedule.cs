@@ -283,6 +283,7 @@ namespace BuildXL.Engine
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        configuration.Layout.ExternalSandboxedProcessDirectory.ToString(context.PathTable),
                         vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                         subst: configuration.Logging.SubstSource.IsValid && configuration.Logging.SubstTarget.IsValid
                             ? FileUtilities.GetSubstDriveAndPath(
@@ -1696,6 +1697,7 @@ namespace BuildXL.Engine
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            newConfiguration.Layout.ExternalSandboxedProcessDirectory.ToString(newContext.PathTable),
                             vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                             newConfiguration.Logging.SubstSource.IsValid && newConfiguration.Logging.SubstTarget.IsValid
                                 ? FileUtilities.GetSubstDriveAndPath(

@@ -971,13 +971,15 @@ namespace BuildXL.Processes
                 // Preparation should be finished.
                 sandboxPrepTime.Stop();
 
+                string externalSandboxedProcessDirectory = m_layoutConfiguration.ExternalSandboxedProcessDirectory.ToString(m_pathTable);
+
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
                     Tracing.Logger.Log.PipProcessStartExternalTool(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, externalSandboxedProcessExecutor.ExecutablePath);
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new ExternalToolSandboxedProcess(spi, externalSandboxedProcessExecutor));
+                        spi => new ExternalToolSandboxedProcess(spi, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory));
                 }
                 else
                 {
@@ -990,7 +992,7 @@ namespace BuildXL.Processes
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,
-                        spi => new ExternalVmSandboxedProcess(spi, m_vmInitializer, externalSandboxedProcessExecutor));
+                        spi => new ExternalVmSandboxedProcess(spi, m_vmInitializer, externalSandboxedProcessExecutor, externalSandboxedProcessDirectory));
                 }
             }
             catch (BuildXLException ex)

@@ -37,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SharedOpaqueSidebandDirectory = pathRemapper.Remap(template.SharedOpaqueSidebandDirectory);
             EmitSpotlightIndexingWarning = template.EmitSpotlightIndexingWarning;
             RedirectedUserProfileJunctionRoot = pathRemapper.Remap(template.RedirectedUserProfileJunctionRoot);
+            ExternalSandboxedProcessDirectory = pathRemapper.Remap(template.ExternalSandboxedProcessDirectory);
         }
 
         /// <inheritdoc />
@@ -92,5 +93,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath RedirectedUserProfileJunctionRoot { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath ExternalSandboxedProcessDirectory { get; set; }
     }
 }

@@ -671,6 +671,11 @@ namespace BuildXL.Engine
                 layout.SharedOpaqueSidebandDirectory = layout.EngineCacheDirectory.Combine(pathTable, Scheduler.Scheduler.SharedOpaqueSidebandDirectory);
             }
 
+            if (!layout.ExternalSandboxedProcessDirectory.IsValid)
+            {
+                layout.ExternalSandboxedProcessDirectory = layout.ObjectDirectory.Combine(pathTable, nameof(ExternalSandboxedProcess));
+            }
+
             // Logging
             if (string.IsNullOrEmpty(logging.LogPrefix))
             {

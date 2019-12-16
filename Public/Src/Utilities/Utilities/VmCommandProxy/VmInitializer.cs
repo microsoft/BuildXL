@@ -42,11 +42,14 @@ namespace BuildXL.Utilities.VmCommandProxy
 
         private readonly (string drive, string path)? m_subst;
 
+        private readonly string m_workingDirectory;
+
         /// <summary>
         /// Creates an instance of <see cref="VmInitializer"/> from build engine.
         /// </summary>
         public static VmInitializer CreateFromEngine(
             string buildEngineDirectory,
+            string initializationDirectory,
             string vmCommandProxyAlternate = null,
             (string drive, string path)? subst = null,
             Action<string> logStartInit = null,
@@ -67,7 +70,13 @@ namespace BuildXL.Utilities.VmCommandProxy
                 vmCommandProxy = vmCommandProxyAlternate;
             }
 
-            return new VmInitializer(vmCommandProxy, subst, logStartInit, logEndInit, logInitExecution);
+            return new VmInitializer(
+                vmCommandProxy,
+                Path.Combine(initializationDirectory, nameof(VmInitializer)),
+                subst,
+                logStartInit,
+                logEndInit,
+                logInitExecution);
         }
 
         /// <summary>
@@ -75,12 +84,14 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         private VmInitializer(
             string vmCommandProxy,
+            string workingDirectory,
             (string drive, string path)? subst = null,
             Action<string> logStartInit = null,
             Action<string> logEndInit = null,
             Action<string> logInitExecution = null)
         {
             VmCommandProxy = vmCommandProxy;
+            m_workingDirectory = workingDirectory;
             LazyInitVmAsync = new Lazy<Task>(() => InitVmAsync(), true);
             m_subst = subst;
             m_logStartInit = logStartInit;
@@ -90,8 +101,11 @@ namespace BuildXL.Utilities.VmCommandProxy
 
         private async Task InitVmAsync()
         {
+            // (0) Prepare working directory.
+            PrepareWorkingDirectory();
+
             // (1) Create and serialize input for InitializeVM command.
-            var inputPath = Path.GetTempFileName();
+            var inputPath = Path.Combine(m_workingDirectory, nameof(VmCommands.InitializeVm) + ".json");
             var input = new InitializeVmRequest();
             if (m_subst.HasValue
                 && !string.IsNullOrEmpty(m_subst.Value.drive)
@@ -105,7 +119,7 @@ namespace BuildXL.Utilities.VmCommandProxy
 
             // (2) Create a process to execute VmCommandProxy.
             string arguments = $"{VmCommands.InitializeVm} /{VmCommands.Params.InputJsonFile}:\"{inputPath}\"";
-            var process = CreateVmCommandProxyProcess(arguments, Path.GetDirectoryName(Path.GetTempFileName()));
+            var process = CreateVmCommandProxyProcess(arguments);
 
             m_logStartInit?.Invoke($"{VmCommandProxy} {arguments}");
 
@@ -139,7 +153,7 @@ namespace BuildXL.Utilities.VmCommandProxy
             }
         }
 
-        private Process CreateVmCommandProxyProcess(string arguments, string workingDirectory)
+        private Process CreateVmCommandProxyProcess(string arguments)
         {
             return new Process
             {
@@ -147,7 +161,7 @@ namespace BuildXL.Utilities.VmCommandProxy
                 {
                     FileName = VmCommandProxy,
                     Arguments = arguments,
-                    WorkingDirectory = workingDirectory,
+                    WorkingDirectory = m_workingDirectory,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
@@ -156,6 +170,16 @@ namespace BuildXL.Utilities.VmCommandProxy
 
                 EnableRaisingEvents = true
             };
+        }
+
+        private void PrepareWorkingDirectory()
+        {
+            if (Directory.Exists(m_workingDirectory))
+            {
+                Directory.Delete(m_workingDirectory, true);
+            }
+
+            Directory.CreateDirectory(m_workingDirectory);
         }
     }
 }

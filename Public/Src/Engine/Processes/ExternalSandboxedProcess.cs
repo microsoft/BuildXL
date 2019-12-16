@@ -17,15 +17,30 @@ namespace BuildXL.Processes
     /// </summary>
     public abstract class ExternalSandboxedProcess : ISandboxedProcess
     {
+        private const string SandboxedProcessInfoFileName = "SandboxedProcessInfo";
+        private const string SandboxedProcessResultFileName = "SandboxedProcessResult";
+        private const string StdOutFileName = "std.out";
+        private const string StdErrFileName = "std.err";
+
         /// <summary>
         /// Empty file access set.
         /// </summary>
         protected static readonly ISet<ReportedFileAccess> EmptyFileAccessesSet = new HashSet<ReportedFileAccess>();
 
         /// <summary>
-        /// Sanboxed process info.
+        /// Sandboxed process info.
         /// </summary>
         protected SandboxedProcessInfo SandboxedProcessInfo { get; private set; }
+
+        /// <summary>
+        /// Working directory.
+        /// </summary>
+        /// <remarks>
+        /// This working directory can be the place where BuildXL puts the serialization result of sandboxed process info and
+        /// the deserialization result of sandboxed process result. This working directory can also contain the dump of the external process
+        /// when it gets killed.
+        /// </remarks>
+        protected string WorkingDirectory { get; private set; }
 
         /// <summary>
         /// Dump exception.
@@ -35,11 +50,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an instance of <see cref="ExternalSandboxedProcess"/>.
         /// </summary>
-        protected ExternalSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo)
+        protected ExternalSandboxedProcess(SandboxedProcessInfo sandboxedProcessInfo, string workingDirectoryRoot)
         {
             Contract.Requires(sandboxedProcessInfo != null);
+            Contract.Requires(!string.IsNullOrEmpty(workingDirectoryRoot));
 
             SandboxedProcessInfo = sandboxedProcessInfo;
+            WorkingDirectory = Path.Combine(workingDirectoryRoot, $"Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
         }
 
         /// <inheritdoc />
@@ -67,7 +84,25 @@ namespace BuildXL.Processes
         public abstract Task KillAsync();
 
         /// <inheritdoc />
-        public abstract void Start();
+        public virtual void Start()
+        {
+            EnsureEmptyWorkingDirectory();
+        }
+
+        /// <summary>
+        /// Ensures that working directory exists and is empty.
+        /// </summary>
+        protected void EnsureEmptyWorkingDirectory()
+        {
+            if (FileUtilities.DirectoryExistsNoFollow(WorkingDirectory))
+            {
+                FileUtilities.DeleteDirectoryContents(WorkingDirectory);
+            }
+            else
+            {
+                FileUtilities.CreateDirectory(WorkingDirectory);
+            }
+        }
 
         /// <summary>
         /// Throws an instance of <see cref="BuildXLException"/>.
@@ -80,32 +115,24 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the file to which sandboxed process info will be written.
         /// </summary>
-        protected string GetSandboxedProcessInfoFile() => Path.Combine(GetOutputDirectory(), $"SandboxedProcessInfo-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
+        protected string SandboxedProcessInfoFile => Path.Combine(WorkingDirectory, SandboxedProcessInfoFileName);
 
         /// <summary>
         /// Gets the file in which sandboxed process result will be available.
         /// </summary>
-        protected string GetSandboxedProcessResultsFile() => Path.Combine(GetOutputDirectory(), $"SandboxedProcessResult-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}");
-
-        /// <summary>
-        /// Gets the output directory for starting process externally.
-        /// </summary>
-        /// <remarks>
-        /// This output directory can be the place where BuildXL puts the serialization result of sandboxed process info and
-        /// the deserialization result of sandboxed process result. This output directory can also contain the dump of the external process
-        /// when it gets killed.
-        /// </remarks>
-        protected string GetOutputDirectory() => Path.GetDirectoryName(SandboxedProcessInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
+        protected string SandboxedProcessResultsFile => Path.Combine(WorkingDirectory, SandboxedProcessResultFileName);
 
         /// <summary>
         /// Gets the standard output path for the external executor; not the detoured process.
         /// </summary>
-        protected string GetStdOutPath(string hint) => Path.Combine(GetOutputDirectory(), $"{hint ?? string.Empty}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.out");
+        protected string GetStdOutPath(string hint) => Path.Combine(WorkingDirectory, $"{PrefixWithHintIfAny(hint)}{StdOutFileName}");
 
         /// <summary>
         /// Gets the standard error path for the external executor; not the detoured process.
         /// </summary>
-        protected string GetStdErrPath(string hint) => Path.Combine(GetOutputDirectory(), $"{hint ?? string.Empty}-Pip{SandboxedProcessInfo.PipSemiStableHash:X16}.err");
+        protected string GetStdErrPath(string hint) => Path.Combine(WorkingDirectory, $"{PrefixWithHintIfAny(hint)}{StdErrFileName}");
+
+        private static string PrefixWithHintIfAny(string hint) => hint != null ? hint + "-" : string.Empty;
 
         /// <summary>
         /// Standard output for the external executor.
@@ -127,7 +154,7 @@ namespace BuildXL.Processes
         /// </summary>
         protected void SerializeSandboxedProcessInfoToFile()
         {
-            string file = GetSandboxedProcessInfoFile();
+            string file = SandboxedProcessInfoFile;
             FileUtilities.CreateDirectory(Path.GetDirectoryName(file));
 
             try
@@ -149,7 +176,7 @@ namespace BuildXL.Processes
         /// <returns></returns>
         protected SandboxedProcessResult DeserializeSandboxedProcessResultFromFile()
         {
-            string file = GetSandboxedProcessResultsFile();
+            string file = SandboxedProcessResultsFile;
 
             try
             {
@@ -172,7 +199,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(executor != null);
 
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, GetOutputDirectory(), out DumpCreationException);
+            ProcessDumper.TryDumpProcessAndChildren(ProcessId, WorkingDirectory, out DumpCreationException);
 
             return executor.KillAsync();
         }
@@ -207,7 +234,7 @@ namespace BuildXL.Processes
                 Processes = new ReportedProcess[0],
                 MessageProcessingFailure = null,
                 DumpCreationException = DumpCreationException,
-                DumpFileDirectory = GetOutputDirectory(),
+                DumpFileDirectory = WorkingDirectory,
                 PrimaryProcessTimes = new ProcessTimes(0, 0, 0, 0),
                 SurvivingChildProcesses = new ReportedProcess[0],
             };

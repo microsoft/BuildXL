@@ -9,7 +9,6 @@ using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -43,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Secondary redis instance used to store backup of locations. NOT used for cluster state because
         /// reconciling these two is non-trivial and data loss does not typically occur with cluster state.
         /// </summary>
-        public RedisDatabaseAdapter SecondaryRedisDb { get; }
+        public RedisDatabaseAdapter? SecondaryRedisDb { get; }
 
         private Tracer Tracer { get; }
 
@@ -55,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public CounterCollection<RaidedRedisDatabaseCounters> Counters { get; } = new CounterCollection<RaidedRedisDatabaseCounters>();
 
         /// <nodoc />
-        public RaidedRedisDatabase(Tracer tracer, RedisDatabaseAdapter primaryRedisDb, RedisDatabaseAdapter secondaryRedisDb)
+        public RaidedRedisDatabase(Tracer tracer, RedisDatabaseAdapter primaryRedisDb, RedisDatabaseAdapter? secondaryRedisDb)
         {
             Tracer = tracer;
             PrimaryRedisDb = primaryRedisDb;
@@ -75,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 counters.Merge(PrimaryRedisDb.GetRedisCounters(context, Tracer, counter), "RedisInfo.");
             }
 
-            if (HasSecondary)
+            if (SecondaryRedisDb != null)
             {
                 counters.Merge(SecondaryRedisDb.Counters.ToCounterSet(), "SecondaryRedis.");
 
@@ -117,7 +116,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
-            if (!HasSecondary)
+
+            if (SecondaryRedisDb == null)
             {
                 return (await primaryResultTask, default);
             }
@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             var primaryResult = await ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
-            if (!primaryResult.Succeeded && HasSecondary)
+            if (!primaryResult.Succeeded && SecondaryRedisDb != null)
             {
                 Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {GetDbName(PrimaryRedisDb)} redis db falling back to secondary redis db: {primaryResult}");
                 return await ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync, cancellationTokenSource.Token);

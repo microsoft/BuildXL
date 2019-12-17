@@ -73,33 +73,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string? caller = null)
         {
             // Query to see which db has highest version number
-            (Result<(T result, long version)>? primaryVersionedResult, Result<(T result, long version)>? secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async (redisDb, token) =>
-            {
-                var operationResult = await redisDb.ExecuteBatchAsync(context,
-                    async batch =>
+            (Result<(T result, long version)>? primaryVersionedResult, Result<(T result, long version)>? secondaryVersionedResult) =
+                await _redis.ExecuteRaidedAsync(
+                    context,
+                    async (redisDb, token) =>
                     {
-                        var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
-                        var addOperationsTask = addOperations(batch, _key);
-                        await Task.WhenAll(versionTask, addOperationsTask);
+                        (T result, long version) operationResult = await redisDb.ExecuteBatchAsync(
+                            context,
+                            async batch =>
+                            {
+                                var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
+                                var addOperationsTask = addOperations(batch, _key);
+                                await Task.WhenAll(versionTask, addOperationsTask);
 
-                        var result = await addOperationsTask;
-                        var version = await versionTask;
-                        return (result, version);
+                                var result = await addOperationsTask;
+                                var version = await versionTask;
+                                return (result, version);
+                            },
+                            operation);
+
+                        return Result.Success(operationResult);
                     },
-                    operation);
-
-                return Result.Success(operationResult);
-            }, retryWindow,
-                // Always run on primary first to ensure that primary version will always be greater or equal in cases of
-            // concurrent writers to the key in normal case where primary and secondary are both updated successfully
-            concurrent: false,
-            caller: caller);
+                    retryWindow,
+                    // Always run on primary first to ensure that primary version will always be greater or equal in cases of
+                    // concurrent writers to the key in normal case where primary and secondary are both updated successfully
+                    concurrent: false,
+                    caller: caller);
 
             // Either primary or secondary result may be null.
             if (primaryVersionedResult == null || secondaryVersionedResult == null)
             {
                 // In this case just return an available result.
-                return new Result<T>((primaryVersionedResult ?? secondaryVersionedResult)!.Value.result, isNullAllowed: true);
+                var availableResult = (primaryVersionedResult ?? secondaryVersionedResult)!;
+                if (!availableResult.Succeeded)
+                {
+                    return new Result<T>(availableResult);
+                }
+
+                return new Result<T>(availableResult.Value.result, isNullAllowed: true);
             }
 
             if (!_redis.HasSecondary || !secondaryVersionedResult.Succeeded)
@@ -125,6 +136,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (_host.CanMirror && !_lastMirrorTime.IsRecent(_clock.UtcNow, _host.MirrorInterval))
             {
+                Contract.AssertNotNull(_redis.SecondaryRedisDb);
+
                 _lastMirrorTime = _clock.UtcNow;
 
                 if (preferPrimary)

@@ -272,7 +272,7 @@ namespace ContentStoreTest.Distributed.Redis
 
         public Task<long> HashIncrementAsync(RedisKey key, RedisValue hashField, long value = 1, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(value);
         }
 
         public Task<double> HashIncrementAsync(RedisKey key, RedisValue hashField, double value, CommandFlags flags = CommandFlags.None)

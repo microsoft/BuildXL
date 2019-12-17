@@ -13,6 +13,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public static BoolResult ShouldBeError(this BoolResult result, string expectedMessageFragment = null)
         {
             Assert.NotNull(result);
+            Assert.False(result.Succeeded, "The operation should be successful, but it failed.");
             Assert.NotNull(result.ErrorMessage);
             if (expectedMessageFragment != null)
             {

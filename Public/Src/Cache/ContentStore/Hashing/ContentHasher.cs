@@ -192,9 +192,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private readonly CryptoStreamMode _streamMode;
             private readonly long _parallelHashingFileSizeBoundary;
             private readonly bool _useParallelHashing;
-            private readonly HasherToken _hasherHandle;
-            private readonly HashAlgorithm _hashAlgorithm;
-            private bool _finalized;
+            private readonly GuardedHashAlgorithm _hashAlgorithm;
             private bool _disposed;
 
             private long _bytesHashed = 0;
@@ -220,23 +218,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
                 }
 
-                _hasherHandle = hasher.CreateToken();
-                _hashAlgorithm = _hasherHandle.Hasher;
-
-                if (!_hashAlgorithm.CanTransformMultipleBlocks)
-                {
-                    throw new NotImplementedException();
-                }
-
-                if (_hashAlgorithm.InputBlockSize != 1)
-                {
-                    throw new NotImplementedException();
-                }
-
-                if (_hashAlgorithm.OutputBlockSize != 1)
-                {
-                    throw new NotImplementedException();
-                }
+                _hashAlgorithm = new GuardedHashAlgorithm(this, hasher);
             }
 
             private void HashSegmentAsync(Pool<Buffer>.PoolHandle handle)
@@ -244,7 +226,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 using (handle)
                 {
                     var segment = handle.Value;
-                    TransformBlock(segment.Data, 0, segment.Count, null, 0);
+                    TransformBlock(segment.Data, 0, segment.Count);
                 }
             }
 
@@ -270,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 _disposed = true;
 
-                if (disposing && !_finalized)
+                if (disposing && !_hashAlgorithm.Finalized)
                 {
                     FinishHash();
                 }
@@ -278,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 if (disposing)
                 {
                     // Disposing the owning resources only during disposal and not during the finalization.
-                    _hasherHandle.Dispose();
+                    _hashAlgorithm.Dispose();
                 }
 
                 Interlocked.Increment(ref _hasher._calls);
@@ -287,7 +269,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             public override ContentHash GetContentHash()
             {
-                if (!_finalized)
+                if (!_hashAlgorithm.Finalized)
                 {
                     FinishHash();
                 }
@@ -300,13 +282,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 if (_useParallelHashing)
                 {
                     _hashingBufferBlock.Complete();
-
                     _hashingBufferBlock.Completion.GetAwaiter().GetResult();
                 }
 
-                _hashAlgorithm.TransformFinalBlock(EmptyByteArray, 0, 0);
-
-                _finalized = true;
+                _hashAlgorithm.Finish();
             }
 
             /// <inheritdoc />
@@ -389,15 +368,15 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 }
                 else
                 {
-                    TransformBlock(buffer, offset, count, null, 0);
+                    TransformBlock(buffer, offset, count);
                     return TrueTask;
                 }
             }
 
-            private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
+            private void TransformBlock(byte[] buffer, int offset, int count)
             {
                 var start = Timer.Elapsed;
-                _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
+                _hashAlgorithm.TransformBlock(buffer, offset, count);
                 var elapsed = Timer.Elapsed - start;
                 Interlocked.Add(ref _ticksSpentHashing, elapsed.Ticks);
             }
@@ -453,6 +432,97 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 if (_disposed)
                 {
                     throw new ObjectDisposedException(nameof(HashingStreamImpl));
+                }
+            }
+
+            /// <summary>
+            /// The class protects accesses to an underlying pooled HashAlgorithm so that once the
+            /// HashAlgorithm is returned to the pool, it cannot be corrupted. Without these guards,
+            /// the HashAlgorithm can be used after being returned to the pool in the following scenario:
+            /// 1. Write is stuck in the base stream WriteAsync.
+            /// 2. Write operation is canceled.
+            /// 3. Caller disposes stream which returns HashAlgorithm to the pool.
+            /// 4. Write operation completes (does not respect cancellation) and continuation writes to the HashAlgorithm.
+            /// 
+            /// It is also important to note that locking is desirable here to prevent subtle race conditions compared to other schemes
+            /// such as setting hashAlgorithm to null on Dispose.
+            /// </summary>
+            private sealed class GuardedHashAlgorithm : IDisposable
+            {
+                private readonly HasherToken _hasherToken;
+                private HashingStreamImpl _ownerStream;
+                public bool Finalized { get; private set; }
+
+                public GuardedHashAlgorithm(HashingStreamImpl ownerStream, ContentHasher<T> hasher)
+                {
+                    _ownerStream = ownerStream;
+                    _hasherToken = hasher.CreateToken();
+
+                    var hashAlgorithm = _hasherToken.Hasher;
+                    if (!hashAlgorithm.CanTransformMultipleBlocks)
+                    {
+                        throw new NotImplementedException();
+                    }
+
+                    if (hashAlgorithm.InputBlockSize != 1)
+                    {
+                        throw new NotImplementedException();
+                    }
+
+                    if (hashAlgorithm.OutputBlockSize != 1)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+
+                public byte[] Hash
+                {
+                    get
+                    {
+                        lock (this)
+                        {
+                            _ownerStream.ThrowIfDisposed();
+                            Contract.Assert(Finalized);
+                            return _hasherToken.Hasher.Hash;
+                        }
+                    }
+                }
+
+                public void TransformBlock(byte[] buffer, int offset, int count)
+                {
+                    lock (this)
+                    {
+                        if (_ownerStream._disposed || Finalized)
+                        {
+                            return;
+                        }
+
+                        _hasherToken.Hasher.TransformBlock(buffer, offset, count, null, 0);
+                    }
+                }
+
+                public void Finish()
+                {
+                    lock (this)
+                    {
+                        if (_ownerStream._disposed || Finalized)
+                        {
+                            return;
+                        }
+
+                        _hasherToken.Hasher.TransformFinalBlock(EmptyByteArray, 0, 0);
+                        Finalized = true;
+                    }
+                }
+
+                public void Dispose()
+                {
+                    lock (this)
+                    {
+                        // Owner stream must be disposed before returning the hash algorithm to pool
+                        Contract.Requires(_ownerStream._disposed);
+                        _hasherToken.Dispose();
+                    }
                 }
             }
 

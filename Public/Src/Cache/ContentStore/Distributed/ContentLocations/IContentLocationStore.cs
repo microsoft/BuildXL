@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -101,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Gets a blob from the content location store. Fails if the blob is not found.
         /// </summary>
-        Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash contentHash);
+        Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash contentHash);
 
         /// <summary>
         /// Gets whether the content location store supports blobs.

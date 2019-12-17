@@ -10,6 +10,8 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -59,12 +61,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Puts a blob into the content location store.
         /// </summary>
-        Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob);
+        Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob);
 
         /// <summary>
         /// Gets a blob from the content location store.
         /// </summary>
-        Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash);
+        Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash);
 
         /// <summary>
         /// Gets a value indicating whether the store supports storing and retrieving blobs.
@@ -76,5 +78,111 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         CounterCollection<GlobalStoreCounters> Counters { get; }
+    }
+
+    /// <nodoc />
+    public class PutBlobResult : BoolResult
+    {
+        /// <nodoc />
+        public ContentHash Hash { get; }
+
+        /// <nodoc />
+        public long BlobSize { get; }
+
+        /// <nodoc />
+        public bool AlreadyInRedis { get; }
+
+        /// <nodoc />
+        public long? NewCapacityInRedis { get; }
+
+        /// <nodoc />
+        public string? RedisKey { get; }
+
+        /// <nodoc />
+        public PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newCapacity = null, string? redisKey = null)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+            AlreadyInRedis = alreadyInRedis;
+            NewCapacityInRedis = newCapacity;
+            RedisKey = redisKey;
+        }
+
+        /// <nodoc />
+        public PutBlobResult(ContentHash hash, long blobSize, string errorMessage)
+            : base(errorMessage)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+        }
+
+        /// <nodoc />
+        public PutBlobResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            string baseResult = $"Hash=[{Hash.ToShortString()}], BlobSize=[{BlobSize}]";
+            if (Succeeded)
+            {
+                if (AlreadyInRedis)
+                {
+                    return $"{baseResult}, AlreadyInRedis=[{AlreadyInRedis}]";
+                }
+
+                return $"{baseResult}. AlreadyInRedis=[False], RedisKey=[{RedisKey}], NewCapacity=[{NewCapacityInRedis}].";
+            }
+
+            return $"{baseResult}. {ErrorMessage}";
+        }
+    }
+
+    /// <nodoc />
+    public class GetBlobResult : BoolResult
+    {
+        /// <nodoc />
+        public ContentHash Hash { get; }
+
+        /// <summary>
+        /// True if the blob is found.
+        /// </summary>
+        public bool Found => Blob != null;
+
+        /// <nodoc />
+        public byte[]? Blob { get; }
+
+        /// <nodoc />
+        public GetBlobResult(ContentHash hash, byte[]? blob)
+        {
+            Hash = hash;
+            Blob = blob;
+        }
+
+        /// <nodoc />
+        public GetBlobResult(string errorMessage, string? diagnostics = null)
+            : base(errorMessage, diagnostics)
+        {
+
+        }
+
+        /// <nodoc />
+        public GetBlobResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (Succeeded)
+            {
+                return $"Hash=[{Hash.ToShortString()}], Found={Found}";
+            }
+
+            return base.ToString();
+        }
     }
 }

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -220,14 +221,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.OpenStreamStart(context, contentHash);
         }
 
-        public override void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result)
+        public override void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.OpenStreamStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.OpenStreamStop(context, contentHash, result);
+            base.OpenStreamStop(context, contentHash, result, successSeverity: DiagnosticLevelSeverity);
         }
 
         public void PinStart(Context context, ContentHash contentHash)
@@ -247,6 +248,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 _eventSource.PinStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
+            // Unlike PlaceFile, PutFile and OpenStream
+            // pin operations are traced by this tracer all the time because it is very important to understand
+            // whether a local pin was successful or not.
             base.PinStop(context, input, result);
         }
 
@@ -267,14 +271,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PlaceFileStart(context, contentHash, path, accessMode, replacementMode, realizationMode);
         }
 
-        public override void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode)
+        public override void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PlaceFileStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode);
+            base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode, successSeverity: DiagnosticLevelSeverity);
         }
 
         public override void PutFileStart(Context context, AbsolutePath path, FileRealizationMode mode, HashType hashType, bool trusted)
@@ -297,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PutFileStart(context, path, mode, contentHash, trusted);
         }
 
-        public override void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode)
+        public override void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
@@ -305,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
-            base.PutFileStop(context, result, trusted, path, mode);
+            base.PutFileStop(context, result, trusted, path, mode, successSeverity: DiagnosticLevelSeverity);
         }
 
         public override void PutStreamStart(Context context, HashType hashType)
@@ -328,7 +332,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PutStreamStart(context, contentHash);
         }
 
-        public override void PutStreamStop(Context context, PutResult result)
+        public override void PutStreamStop(Context context, PutResult result, Severity successSeverity)
         {
             if (_eventSource.IsEnabled())
             {
@@ -336,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
-            base.PutStreamStop(context, result);
+            base.PutStreamStop(context, result, DiagnosticLevelSeverity);
         }
 
         public void CreateHardLink(
@@ -361,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            DebugCore(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms");
+            TraceDiagnostic(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms");
         }
 
         public void PlaceFileCopy(Context context, AbsolutePath path, ContentHash contentHash, TimeSpan duration)
@@ -379,7 +383,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            DebugCore(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
+            TraceDiagnostic(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)
@@ -431,6 +435,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _evictBytesCount.Add(result.EvictedSize);
             _evictFilesCount.Add(result.EvictedFiles);
 
+            // Eviction messages are not "diagnostic"-level messages and we should trace them all the time
+            // regardless of _traceDiagnosticEvents flag.
             if (context.IsEnabled)
             {
                 TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms Hash={input.ToShortString()} Size={result.EvictedSize} Replicas={result.ReplicaCount} Age={AgeAsString(result.Age)} EffAge={AgeAsString(result.EffectiveAge)}");
@@ -511,15 +517,21 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                DebugCore(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
+                TraceDiagnostic(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
             }
 
             _hashContentFileCallCounter.Completed(duration.Ticks);
         }
 
-        private void DebugCore(Context context, string message)
+        /// <summary>
+        /// Gets severity level for potentially diagnostic messages that could be promoted to 'Debug' level if
+        /// configured.
+        /// </summary>
+        private Severity DiagnosticLevelSeverity => _traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic;
+
+        private void TraceDiagnostic(Context context, string message)
         {
-            Trace(_traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic, context, message);
+            Trace(DiagnosticLevelSeverity, context, message);
         }
 
         public void PutFileExistingHardLinkStart()

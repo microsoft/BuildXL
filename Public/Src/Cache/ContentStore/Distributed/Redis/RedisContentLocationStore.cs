@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             _tracer = new RedisContentLocationStoreTracer(nameof(RedisContentLocationStore));
 
-            _blobAdapter = new RedisBlobAdapter(_contentRedisDatabaseAdapter, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock, Tracer);
+            _blobAdapter = new RedisBlobAdapter(_contentRedisDatabaseAdapter, TimeSpan.FromMinutes(Configuration.BlobExpiryTimeMinutes), Configuration.MaxBlobCapacity, _clock);
         }
 
         public bool AreBlobsSupported => Configuration.BlobExpiryTimeMinutes > 0 && Configuration.MaxBlobCapacity > 0 && Configuration.MaxBlobSize > 0;
@@ -1232,17 +1232,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return context.PerformOperationAsync(
                 Tracer,
                 async () => (BoolResult)await _blobAdapter.PutBlobAsync(context, hash, blob),
+                Counters[ContentLocationStoreCounters.PutBlob],
                 traceErrorsOnly: true);
         }
 
         /// <inheritdoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
             return context.PerformOperationAsync(
                 Tracer,
                 () => _blobAdapter.GetBlobAsync(context, hash),
+                Counters[ContentLocationStoreCounters.GetBlob],
                 traceErrorsOnly: true);
         }
 

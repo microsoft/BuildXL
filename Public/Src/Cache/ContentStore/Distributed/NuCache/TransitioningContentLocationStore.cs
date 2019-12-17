@@ -300,7 +300,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return _localLocationStore.GetBlobAsync(context, hash);
                 }
 
-                return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
+                return Task.FromResult(new GetBlobResult("Blobs are not supported."));
             }
 
             if (_redisContentLocationStore.AreBlobsSupported)
@@ -319,7 +319,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return _redisContentLocationStore.GetBlobAsync(context, hash);
             }
 
-            return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
+            return Task.FromResult(new GetBlobResult("Blobs are not supported."));
         }
 
         #endregion IDistributedLocationStore Members

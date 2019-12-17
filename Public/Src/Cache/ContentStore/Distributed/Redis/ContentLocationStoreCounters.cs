@@ -160,6 +160,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
+        PutBlob,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        GetBlob,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
         ProactiveReplication,
 
         /// <nodoc />

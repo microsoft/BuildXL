@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
@@ -286,7 +287,7 @@ namespace ContentStoreTest.Distributed.Stores
             public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] blob) => null;
 
             /// <inheritdoc />
-            public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash contentHash) => null;
+            public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash contentHash) => null;
 
             /// <inheritdoc />
             public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => default;

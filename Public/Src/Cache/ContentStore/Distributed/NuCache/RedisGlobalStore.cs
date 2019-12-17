@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _raidedRedis);
             LocalMachineLocation = localMachineLocation;
 
-            _blobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock, Tracer);
+            _blobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
         }
 
         /// <inheritdoc />
@@ -240,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return RegisterLocationAsync(context, contentHashes, LocalMachineId);
         }
 
-        /// <inheritdoc />
+        /// <nodoc />
         internal Task<BoolResult> RegisterLocationByIdAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, int id)
         {
             return RegisterLocationAsync(context, contentHashes, new MachineId(id));
@@ -336,7 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 Counters[GlobalStoreCounters.RegisterLocalLocation],
                 caller: caller,
-                traceOperationStarted: false);
+                traceErrorsOnly: true);
         }
 
         private async Task<Unit> SetLocationBitAndExpireAsync(OperationContext context, IBatch batch, RedisKey key, ContentHashWithSize hash, MachineId machineId)
@@ -573,7 +573,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         context,
                         _configuration.RetryWindow,
                         RedisOperation.UploadCheckpoint,
-                        (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount)).ThrowIfFailureAsync();
+                        (batch, key) => batch.AddCheckpointAsync(key, checkpoint, MaxCheckpointSlotCount))
+                        .ThrowIfFailureAsync();
 
                     Tracer.Debug(context, $"Saved checkpoint into slot '{slotNumber}'.");
                     return BoolResult.Success;
@@ -598,19 +599,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return await _blobAdapter.PutBlobAsync(context, hash, blob);
+            return context.PerformOperationAsync(
+                Tracer,
+                () =>_blobAdapter.PutBlobAsync(context, hash, blob),
+                traceOperationStarted: false,
+                counter: Counters[GlobalStoreCounters.PutBlob]);
         }
 
         /// <inheritdoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             Contract.Assert(AreBlobsSupported, "GetBlobAsync was called and blobs are not supported.");
 
-            return _blobAdapter.GetBlobAsync(context, hash);
+            return context.PerformOperationAsync(
+                Tracer,
+                () => _blobAdapter.GetBlobAsync(context, hash),
+                traceOperationStarted: false,
+                counter: Counters[GlobalStoreCounters.GetBlob]);
         }
     }
 }

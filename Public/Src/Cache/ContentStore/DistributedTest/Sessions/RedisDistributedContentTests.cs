@@ -287,7 +287,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     await session.PutRandomAsync(context, HashType.Vso0, false, _configuration.MaxBlobSize + 1, CancellationToken.None).ShouldBeSuccess();
                     var counters = redisStore.GetCounters(context).ToDictionaryIntegral();
 
-                    Assert.Equal(0, counters["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(0, counters["RedisContentLocationStore.PutBlob.Count"]);
                 });
         }
 
@@ -307,11 +307,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var putResult = await session0.PutRandomAsync(context, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters0["RedisContentLocationStore.PutBlob.Count"]);
 
                     await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.GetBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.GetBlob.Count"]);
                 });
         }
 
@@ -331,11 +331,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters0["RedisContentLocationStore.PutBlob.Count"]);
                     
                     await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.GetBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.GetBlob.Count"]);
                 });
         }
 
@@ -361,7 +361,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Put a random file when small files in Redis feature is disabled.
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(0, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(0, counters0["RedisContentLocationStore.PutBlob.Count"]);
                     var contentHash = putResult.ContentHash;
 
                     var session1 = context.GetDistributedSession(1);
@@ -371,8 +371,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     // This should copy the file from another "machine" and place blob into redis.
                     await session1.OpenStreamAsync(context, contentHash, CancellationToken.None).ShouldBeSuccess();
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.GetBlob.Count"]);
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.GetBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.PutBlob.Count"]);
                 });
         }
 
@@ -397,11 +397,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     await session0.PutContentAsync(context, fileString).ShouldBeSuccess();
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters0["RedisContentLocationStore.PutBlob.Count"]);
 
                     await session1.PutContentAsync(context, fileString).ShouldBeSuccess();
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.PutBlob.Count"]);
                     Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.SkippedBlobs.Count"]);
                 });
         }
@@ -424,7 +424,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var putResult = await session0.PutRandomAsync(context, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
-                    Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters0["RedisContentLocationStore.PutBlob.Count"]);
 
                     // Simulate that the blob has expired.
                     var blobKey = RedisBlobAdapter.GetBlobKey(putResult.ContentHash);
@@ -434,7 +434,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var openStreamResult = await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
                     Assert.Equal(0, counters1["RedisContentLocationStore.BlobAdapter.DownloadedBlobs.Count"]);
-                    Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
+                    Assert.Equal(1, counters1["RedisContentLocationStore.PutBlob.Count"]);
                 });
         }
     }

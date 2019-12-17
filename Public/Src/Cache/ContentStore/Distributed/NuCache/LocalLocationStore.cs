@@ -1429,13 +1429,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
-            return GlobalStore.PutBlobAsync(context, hash, blob);
+            return await GlobalStore.PutBlobAsync(context, hash, blob);
         }
 
         /// <nodoc />
-        public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
+        public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             return GlobalStore.GetBlobAsync(context, hash);
         }

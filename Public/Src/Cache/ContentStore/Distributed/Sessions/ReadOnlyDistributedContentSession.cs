@@ -115,9 +115,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected readonly DistributedContentStoreSettings Settings;
 
         /// <summary>
-        /// This type is an entry point for all the operations. So it make sense to trace starts and stops.
+        /// Trace only stops and errors to reduce the Kusto traffic.
         /// </summary>
-        protected override bool TraceOperationStarted => true;
+        protected override bool TraceOperationStarted => false;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
@@ -411,15 +411,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            var results =
-                await PlaceFileAsync(
-                        operationContext,
-                        new[] { new ContentHashWithPath(contentHash, path) },
-                        accessMode,
-                        replacementMode,
-                        realizationMode,
-                        operationContext.Token,
-                        urgencyHint);
+            // Calling a core version instead of PlaceFileAsync, to avoid double tracing.
+            var results = await PlaceFileCoreAsync(
+                operationContext,
+                new[] { new ContentHashWithPath(contentHash, path) },
+                accessMode,
+                replacementMode,
+                realizationMode,
+                urgencyHint,
+                BaseCounters[ContentSessionBaseCounters.PlaceFileBulkRetries]);
             return await results.SingleAwaitIndexed();
         }
 
@@ -697,9 +697,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     var smallFileResult = await ContentLocationStore.GetBlobAsync(operationContext, hashInfo.ContentHash);
 
-                    if (smallFileResult.Succeeded)
+                    if (smallFileResult.Succeeded && smallFileResult.Found)
                     {
-                        using (var stream = new MemoryStream(smallFileResult.Value))
+                        using (var stream = new MemoryStream(smallFileResult.Blob))
                         {
                             return await Inner.PutStreamAsync(context, hashInfo.ContentHash, stream, cts, urgencyHint);
                             

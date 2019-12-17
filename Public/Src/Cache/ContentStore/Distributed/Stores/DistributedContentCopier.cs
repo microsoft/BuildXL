@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -45,6 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
+        private readonly IClock _clock;
 
         private readonly DistributedContentStoreSettings _settings;
         private readonly IAbsFileSystem _fileSystem;
@@ -68,6 +70,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IProactiveCopier copyRequester,
             IPathTransformer<T> pathTransformer,
+            IClock clock,
             IContentLocationStore contentLocationStore)
         {
             Contract.Requires(settings != null);
@@ -81,6 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _contentLocationStore = contentLocationStore;
             _pathTransformer = pathTransformer;
             _fileSystem = fileSystem;
+            _clock = clock;
 
             _workingDirectory = _tempFolderForCopies.Path;
 
@@ -137,9 +141,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
-                var lastFailureTimes = new List<DateTime>();
+                var lastFailureTimes = new DateTime[hashInfo.Locations.Count];
                 int attemptCount = 0;
                 TimeSpan waitDelay = TimeSpan.Zero;
+
+                //DateTime defaults to 01/01/0001 when we initialize the array.
+                //This forloop initializes each element to the current time relative to the passed clock instance
+                //We use the time from a clock instance in case future tests try to simulate the progression of time.
+                for (int index = 0; index < lastFailureTimes.Length; index++)
+                {
+                    lastFailureTimes[index] = _clock.UtcNow;
+                }
 
                 // _retryIntervals controls how many cycles we go through of copying from a list of locations
                 // It also has the increasing wait times between cycles
@@ -186,7 +198,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
 
                         // Log with the original attempt count
-                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
+                        // Trace time remaining under trying to copy the first location of the next attempt.
+                        TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[0];
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in { (waitedTime < waitDelay ? (waitDelay-waitedTime).TotalMilliseconds : 0)}ms...");
                     }
                     else
                     {
@@ -303,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
-            List<DateTime> lastFailureTimes,
+            DateTime[] lastFailureTimes,
             int attemptCount,
             TimeSpan waitDelay,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
@@ -340,7 +354,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // If there is a wait time, determine how much longer we need to wait
                 if (!waitDelay.Equals(TimeSpan.Zero))
                 {
-                    TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
+                    TimeSpan waitedTime = _clock.UtcNow - lastFailureTimes[replicaIndex];
                     if (waitedTime < waitDelay)
                     {
                         await Task.Delay(waitDelay - waitedTime, cts);
@@ -539,16 +553,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 finally
                 {
-                    // If the replicaIndex hasn't been tried before it won't have a value in lastFailureTimes so add it.
-                    // Otherwise replace the old failure time with the current time.
-                    if (lastFailureTimes.Count <= replicaIndex)
-                    {
-                        lastFailureTimes.Add(DateTime.Now);
-                    }
-                    else
-                    {
-                        lastFailureTimes[replicaIndex] = DateTime.Now;
-                    }
+                    lastFailureTimes[replicaIndex] = _clock.UtcNow;
 
                     if (deleteTempFile)
                     {

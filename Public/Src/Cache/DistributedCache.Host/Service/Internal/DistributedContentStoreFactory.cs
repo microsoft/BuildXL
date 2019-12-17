@@ -249,6 +249,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,
                     contentHashBumpTime: lazyTouchContentHashBumpTime,
+                    clock: SystemClock.Instance,
                     contentStoreSettings: contentStoreSettings);
             _logger.Debug("Created Distributed content store.");
             return contentStore;

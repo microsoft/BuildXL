@@ -48,6 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly bool _enableDistributedEviction;
         private readonly PinCache _pinCache;
         private readonly bool _enableRepairHandling;
+        private readonly IClock _clock;
 
         /// <summary>
         /// Flag for testing using local Redis instance.
@@ -110,6 +111,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _contentLocationStoreFactory = contentLocationStoreFactory;
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
             _locationStoreBatchSize = locationStoreBatchSize;
+            _clock = clock;
 
             contentStoreSettings = contentStoreSettings ?? ContentStoreSettings.DefaultSettings;
             _settings = settings;
@@ -131,6 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     fileExistenceChecker,
                     copyRequester,
                     pathTransform,
+                    _clock,
                     contentLocationStore);
             };
 
@@ -140,7 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var enableTouch = contentHashBumpTime.HasValue;
             if (enableTouch)
             {
-                _contentTrackerUpdater = new ContentTrackerUpdater(ScheduleBulkTouch, contentHashBumpTime.Value, clock: clock);
+                _contentTrackerUpdater = new ContentTrackerUpdater(ScheduleBulkTouch, contentHashBumpTime.Value, clock: _clock);
             }
 
             TrimBulkAsync trimBulkAsync = null;
@@ -148,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             if (settings.PinConfiguration?.IsPinCachingEnabled == true)
             {
-                _pinCache = new PinCache(clock: clock);
+                _pinCache = new PinCache(clock: _clock);
             }
         }
 

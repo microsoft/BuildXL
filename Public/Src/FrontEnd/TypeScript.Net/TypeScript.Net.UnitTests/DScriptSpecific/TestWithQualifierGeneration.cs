@@ -109,18 +109,6 @@ export const x = A.withQualifier({}).doesNotExist;"
         }
 
         [Fact]
-        public void WithQualifierParameterTypeIsTypeChecked()
-        {
-            @"
-export declare const qualifier : {requiredField: string};
-namespace A {
-}
-
-export const x = A.withQualifier({});"
-                .TypeCheckAndAssertSingleError("Argument of type '{}' is not assignable to parameter of type '{ requiredField: string; }'");
-        }
-
-        [Fact]
         public void WithQualifierIsCompatibleWithNamespaceMerging()
         {
             @"

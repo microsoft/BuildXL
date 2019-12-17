@@ -227,7 +227,20 @@ namespace TypeScript.Net.DScript
         {
             var qualifier = CreateInjectedNode<ParameterDeclaration>(SyntaxKind.Parameter, pos, sourceFile);
             qualifier.Name = new IdentifierOrBindingPattern(CreateIdentifier(Names.WithQualifierParameter, pos, sourceFile));
-            qualifier.Type = CreateTypeOfExpression(Names.CurrentQualifier, pos, sourceFile);
+            
+            // this generates "typeof qualifier | {}" which allows the ommision of some of the fields while retaining
+            // full ide auto complete support. This relaxes the type checker for invalidly typed fields
+            // ideally we want to duplicate the actual declared qualifier type and make the members optional, but unfortunatley
+            // at this point in time we don't have access. This will change the error to be a runtime evaluation error when using
+            // a wrong qualifier key. Note the qualifier values are still properly type checked.
+            qualifier.Type = new UnionOrIntersectionTypeNode()
+                             {
+                                 Kind = SyntaxKind.UnionType,
+                                 Types = new NodeArray<ITypeNode>(
+                                     CreateTypeOfExpression(Names.CurrentQualifier, pos, sourceFile),
+                                     new TypeLiteralNode()
+                                ),
+                             };
 
             var result = new NodeArray<IParameterDeclaration>(qualifier);
             result.Pos = qualifier.Pos;

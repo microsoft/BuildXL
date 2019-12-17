@@ -30,7 +30,6 @@ namespace BuildXL
     public sealed class AzureDevOpsListener : FormattingEventListener
     {
         private static readonly char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
-
         private readonly IConsole m_console;
 
         /// <summary>
@@ -214,7 +213,9 @@ namespace BuildXL
             builder.Append(";]");
 
             // substitute newlines in the message
-            var encodedBody = body.Replace("\r", "%0D").Replace("\n", "%0A");
+            var encodedBody = body.Replace("\r\n", $"%0D%0A##[{eventType}]")
+                                  .Replace("\r", $"%0D##[{eventType}]")
+                                  .Replace("\n", $"%0A##[{eventType}]");
             builder.Append(encodedBody);
 
             m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());

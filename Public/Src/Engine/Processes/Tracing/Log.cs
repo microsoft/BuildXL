@@ -678,7 +678,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + " - failed with exit code {8}{9}\r\n{5}\r\n{6}\r\n{7}")]
+            Message = EventConstants.PipSpecPrefix + " - failed with exit code {exitCode}{optionalMessage}\r\n{outputToLog}\r\n{extraOutputMessage}\r\n{pathsToLog}")]
         public abstract void PipProcessError(
             LoggingContext context,
 

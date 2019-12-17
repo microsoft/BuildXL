@@ -41,6 +41,41 @@ namespace Test.BuildXL
         }
 
         [Fact]
+        public void LogAzureDevOpsIssueTest()
+        {
+            var console = new MockConsole();
+            BuildViewModel viewModel = new BuildViewModel();
+            viewModel.BuildSummary = new BuildSummary(Path.Combine(TestOutputDirectory, "test.md"));
+            var pipDescription = "my cool pip";
+            var pipSpecPath = @"specs\mypip.dsc";
+            var pipWorkingDirectory = @"specs\workingDir";
+            var pipExe = "coolpip.exe";
+            var outputToLog = "Failure message Line1\r\nFailure message Line2\rFailure message Line3\n";
+            var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
+            var extraOutputMessage = "Find output file in following path:";
+            var pathsToLog = @"specs\workingDir\out.txt";
+            var exitCode = -1;
+            var optionalMessage = "what does this do?";
+            var expectingConsoleLog = @$"##vso[task.logIssue type=error;][{pipDescription}, {pipSpecPath}, {pipWorkingDirectory}] - failed with exit code {exitCode}{optionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{extraOutputMessage}%0D%0A##[error]{pathsToLog}";
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null))
+            {
+                listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessError(LoggingContext,
+                    pipSemiStableHash: 24,
+                    pipDescription: pipDescription,
+                    pipSpecPath: pipSpecPath,
+                    pipWorkingDirectory: pipWorkingDirectory,
+                    pipExe: pipExe,
+                    outputToLog: outputToLog,
+                    extraOutputMessage: extraOutputMessage,
+                    pathsToLog: pathsToLog,
+                    exitCode: exitCode,
+                    optionalMessage: optionalMessage);
+                console.ValidateCall(MessageLevel.Info, expectingConsoleLog);
+            }
+        }
+
+        [Fact]
         public void BuildProgressTest()
         {
             var console = new MockConsole();

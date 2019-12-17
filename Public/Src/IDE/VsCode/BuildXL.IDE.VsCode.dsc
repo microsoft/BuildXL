@@ -18,18 +18,13 @@ namespace VsCode.Client {
 
     const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
 
-    const clientCopy2 = Deployment.copyFileIntoSharedOpaqueDirectory(
-        f`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
-        p`${clientCopy}/package-lock.json`,
-        clientCopy);
-
     @public
-    export const npmInstall = Npm.npmInstall(clientCopy, [ clientCopy2 ]);
+    export const npmInstall = Npm.npmInstall(clientCopy, []);
 
     @@public
     export const compileOutDir: OpaqueDirectory = Node.tscCompile(
         clientCopy.root, 
-        [ clientCopy, clientCopy2, npmInstall ]);
+        [ clientCopy, npmInstall ]);
 }
 
 namespace LanguageService.Server {

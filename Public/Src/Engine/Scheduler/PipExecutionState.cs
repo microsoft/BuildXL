@@ -10,6 +10,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.FileSystem;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -53,7 +54,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The global preserve outputs salt used for the build
         /// </summary>
-        private ContentHash m_preserveOutputsSalt { get; }
+        private PreserveOutputsSalt m_preserveOutputsSalt { get; }
 
         #endregion Scoped State
 
@@ -123,7 +124,7 @@ namespace BuildXL.Scheduler
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFinterprinterRuleSet,
             FileContentManager fileContentManager,
             IUnsafeSandboxConfiguration unsafeConfiguration,
-            ContentHash preserveOutputsSalt,
+            PreserveOutputsSalt preserveOutputsSalt,
             FileSystemView fileSystemView,
             bool lazyDeletionOfSharedOpaqueOutputsEnabled,
             ServiceManager serviceManager = null)

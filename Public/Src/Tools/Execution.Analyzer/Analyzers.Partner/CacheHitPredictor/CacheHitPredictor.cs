@@ -11,6 +11,7 @@ using BuildXL.Execution.Analyzer.Analyzers;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
@@ -254,7 +255,7 @@ namespace BuildXL.Execution.Analyzer
             var incrementalSchedulingState = factory.LoadOrReuseIgnoringFileEnvelope(
                 CachedGraph.PipGraph,
                 null,
-                WellKnownContentHashes.AbsentFile,
+                UnsafeOptions.PreserveOutputsNotUsed,
                 incrementalSchedulingStateFile,
                 schedulerState: null);
 

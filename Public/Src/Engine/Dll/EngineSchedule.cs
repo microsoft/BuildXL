@@ -250,7 +250,7 @@ namespace BuildXL.Engine
                                                     directoryMembershipFingerprinterRules,
                                                     moduleConfigurations);
 
-            ContentHash? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, context.PathTable, configuration);
+            PreserveOutputsSalt? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, context.PathTable, configuration);
             if (!previousOutputsSalt.HasValue)
             {
                 Contract.Assume(loggingContext.ErrorWasLogged, "Failed to prepare previous output salt, but no error was logged.");
@@ -1178,7 +1178,7 @@ namespace BuildXL.Engine
             return true;
         }
 
-        internal static ContentHash? PreparePreviousOutputsSalt(LoggingContext loggingContext, PathTable pathTable, IConfiguration config)
+        internal static PreserveOutputsSalt? PreparePreviousOutputsSalt(LoggingContext loggingContext, PathTable pathTable, IConfiguration config)
         {
             if (config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)
             {
@@ -1215,7 +1215,7 @@ namespace BuildXL.Engine
                     return null;
                 }
 
-                return ContentHashingUtilities.HashString(guid + config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
+                return new PreserveOutputsSalt(ContentHashingUtilities.HashString(guid), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             return UnsafeOptions.PreserveOutputsNotUsed;
@@ -1663,7 +1663,7 @@ namespace BuildXL.Engine
 
                 var pathTable = await pathTableTask;
 
-                ContentHash? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, pathTable, newConfiguration);
+                PreserveOutputsSalt? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, pathTable, newConfiguration);
                 if (!previousOutputsSalt.HasValue)
                 {
                     Contract.Assume(loggingContext.ErrorWasLogged);

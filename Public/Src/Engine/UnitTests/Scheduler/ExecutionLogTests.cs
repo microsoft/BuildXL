@@ -191,7 +191,7 @@ namespace Test.BuildXL.Scheduler
                     ),
                     new ObservedPathEntryExpandedPathComparer(Context.PathTable.ExpandedPathComparer)),
                 emptyObservedAccessFileNames,
-                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, ContentHashingUtilities.CreateRandom()));
+                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, new PreserveOutputsSalt(ContentHashingUtilities.CreateRandom(), 0)));
         }
 
         private AbsolutePath RandomPath()

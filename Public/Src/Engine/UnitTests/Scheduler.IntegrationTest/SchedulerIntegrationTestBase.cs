@@ -31,6 +31,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -101,7 +102,7 @@ namespace Test.BuildXL.Scheduler
 
             // Go through the command line configuration handling used by the real app to get the appropriate defaults
             ICommandLineConfiguration config;
-            XAssert.IsTrue(Args.TryParseArguments(new[] { "/c:" + Path.Combine(TemporaryDirectory, "config.dc") }, Context.PathTable, null, out config), "Failed to construct arguments");
+            XAssert.IsTrue(Args.TryParseArguments(new[] { "/c:" + Path.Combine(TemporaryDirectory, "config.dc")}, Context.PathTable, null, out config), "Failed to construct arguments");
             Configuration = new CommandLineConfiguration(config);
 
             Cache = InMemoryCacheFactory.Create();
@@ -444,7 +445,7 @@ namespace Test.BuildXL.Scheduler
             // .....................................................................................
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
             Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
-            ContentHash? previousOutputsSalt =
+            PreserveOutputsSalt? previousOutputsSalt =
                 EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................

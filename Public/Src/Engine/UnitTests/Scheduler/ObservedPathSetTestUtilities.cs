@@ -99,7 +99,7 @@ namespace Test.BuildXL.Scheduler
             return new ObservedPathSet(
                 sortedPathIds, 
                 emptyObservedAccessFileNames, 
-                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, ContentHashingUtilities.CreateRandom()));
+                new UnsafeOptions(UnsafeOptions.SafeConfigurationValues, new PreserveOutputsSalt(ContentHashingUtilities.CreateRandom(), 0)));
         }
     }
 }

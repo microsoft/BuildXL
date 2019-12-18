@@ -183,9 +183,20 @@ namespace BuildXL.Utilities.Tracing
 
                 // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
                 // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
-                Output(level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, full, doNotTranslatePaths: eventData.EventId == (int)EventId.DominoInvocation);
+                Output(level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, full, doNotTranslatePaths: DoNotTranslatePath(eventData.EventId));
             }
         }
+
+        private bool DoNotTranslatePath(int eventId) =>
+            // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
+            // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
+            (int)EventId.DominoInvocation == eventId || (int)EventId.DominoInvocationForLocalLog == eventId
+            // Don't translate paths in the CacheMissAnalysis event since that can give a wrong presentation, e.g.,
+            // two fingerprints do not match because path D:\a\b\c equals D:\a\b\c, but the latter path is actually a translation
+            // from B:\c, with D:\a\b is the subst path and B: is the subst drive. Furthermore, presentation-wise, path translation
+            // can result in invalid format. Consider for example the JSON format where paths are property names and all paths are escaped.
+            // Any occurence of "B:\\c" will be translated into "D:\a\b\\c".
+            || (int)EventId.CacheMissAnalysis == eventId;
 
         /// <nodoc/>
         public static string TimeSpanToString(TimeDisplay timeDisplay, TimeSpan t)

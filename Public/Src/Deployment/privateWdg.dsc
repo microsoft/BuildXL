@@ -17,8 +17,26 @@ namespace PrivateWdg {
     @@public
     export const deployment : Deployment.Definition = {
         contents: [
-            importFrom("Private.Wdg.ExecutionLogSdk").dll,
             importFrom("Private.Wdg").deployment,
+            importFrom("Private.Wdg.ExecutionLogSdk").dll,
+
+            {
+                subfolder: r`bxlaslibrary/net472`,
+                contents: [
+                    importFrom("Private.Wdg").deployment,
+
+                    // assemblies referned by WDG for BuildXL as a library
+                    importFrom("BuildXL.Engine").Scheduler.dll,
+                    importFrom("BuildXL.FrontEnd").Sdk.dll,
+                    importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
+                    importFrom("BuildXL.Pips").dll,
+                    importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
+                    importFrom("BuildXL.Tools").Execution.Analyzer.exe,
+                    importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+                    importFrom("BuildXL.Utilities").dll,
+                    importFrom("Private.Wdg.ExecutionLogSdk").dll,
+                ]
+            }
         ]
     };
 

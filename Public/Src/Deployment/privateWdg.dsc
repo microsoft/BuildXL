@@ -24,6 +24,7 @@ namespace PrivateWdg {
                 subfolder: r`bxlaslibrary/net472`,
                 contents: [
                     importFrom("Private.Wdg").deployment,
+                    importFrom("Private.Wdg").deployment,
 
                     // assemblies referned by WDG for BuildXL as a library
                     importFrom("BuildXL.Engine").Scheduler.dll,

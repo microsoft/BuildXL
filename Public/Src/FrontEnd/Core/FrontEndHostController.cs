@@ -1365,7 +1365,8 @@ namespace BuildXL.FrontEnd.Core
                 items,
                 taskSelector: item => item.Task,
                 action: (elapsed, all, remaining) => LogModuleEvaluationProgress(numSpecs, elapsed, all, remaining),
-                period: EvaluationProgressReportingPeriod);
+                period: EvaluationProgressReportingPeriod,
+                reportImmediately: false);
             bool success = results.All(b => b);
             if (!success)
             {
@@ -1380,7 +1381,8 @@ namespace BuildXL.FrontEnd.Core
                     tasks,
                     taskSelector: item => item.Item2,
                     action: (elapsed, all, remaining) => LogFragmentEvaluationProgress(numSpecs, elapsed, all, remaining),
-                    period: EvaluationProgressReportingPeriod);
+                    period: EvaluationProgressReportingPeriod,
+                    reportImmediately: false);
                 return results.All(b => b);
             }
 

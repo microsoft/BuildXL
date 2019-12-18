@@ -410,12 +410,14 @@ namespace BuildXL.Utilities.Tasks
         ///   (3) a collection of non-finished items
         /// </param>
         /// <param name="period">Period at which to call <paramref name="action"/>.</param>
+        /// <param name="reportImmediately">Whether <paramref name="action"/> should be called immediately.</param>
         /// <returns>The results of inidvidual tasks.</returns>
         public static async Task<TResult[]> AwaitWithProgressReporting<TItem, TResult>(
             IReadOnlyCollection<TItem> collection,
             Func<TItem, Task<TResult>> taskSelector,
             Action<TimeSpan, IReadOnlyCollection<TItem>, IReadOnlyCollection<TItem>> action,
-            TimeSpan period)
+            TimeSpan period,
+            bool reportImmediately = true)
         {
             var startTime = DateTime.UtcNow;
             var timer = new StoppableTimer(
@@ -427,7 +429,7 @@ namespace BuildXL.Utilities.Tasks
                         .ToList();
                     action(elapsed, collection, remainingItems);
                 },
-                dueTime: 0,
+                dueTime: reportImmediately ? 0 : (int)period.TotalMilliseconds,
                 period: (int)period.TotalMilliseconds);
 
             using (timer)

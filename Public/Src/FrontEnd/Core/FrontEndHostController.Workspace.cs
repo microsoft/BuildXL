@@ -171,7 +171,8 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndConvertPhaseProgress(FrontEndContext.LoggingContext, counter.Count, totalSpecs);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Conversion, counter.Count, totalSpecs));
-                });
+                },
+                reportImmediately: false);
 
             return results.All(t => t);
         }
@@ -188,7 +189,9 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndWorkspacePhaseProgress(FrontEndContext.LoggingContext, counter.Count, numParseTotal);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Parse, counter.Count, numSpecs));
-                });
+                },
+                reportImmediately: false)
+            ;
         }
 
         private void NotifyProgress(WorkspaceProgressEventArgs args)
@@ -206,7 +209,8 @@ namespace BuildXL.FrontEnd.Core
                 {
                     m_logger.FrontEndWorkspaceAnalysisPhaseProgress(FrontEndContext.LoggingContext, counter.Count, numSpecsTotal);
                     NotifyProgress(WorkspaceProgressEventArgs.Create(ProgressStage.Analysis, counter.Count, numSpecsTotal));
-                });
+                },
+                reportImmediately: false);
         }
 
         private async Task<Workspace> BuildAndFilterWorkspaceAsync(WorkspaceDefinition workspaceDefinition, IWorkspaceProvider workspaceProvider, FrontEndEngineAbstraction engineAbstraction, EvaluationFilter evaluationFilter)

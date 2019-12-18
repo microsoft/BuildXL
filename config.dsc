@@ -149,7 +149,7 @@ config({
                 // Event hubs
                 { id: "Microsoft.Azure.Amqp", version: "2.3.5" },
                 { id: "Microsoft.Azure.EventHubs", version: "2.1.0",
-                    dependentPackageIdsToSkip: ["*"],
+                    dependentPackageIdsToSkip: ["System.Net.Http", "System.Reflection.TypeExtensions", "System.Runtime.Serialization.Primitives", "Newtonsoft.Json", "System.Diagnostics.DiagnosticSource"],
                 },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
                 { id: "Microsoft.Azure.Services.AppAuthentication", version: "1.0.3" },

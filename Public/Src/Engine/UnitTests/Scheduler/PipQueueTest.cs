@@ -330,7 +330,7 @@ namespace Test.BuildXL.Scheduler
                     configuration,
                     cache: new PipTwoPhaseCache(LoggingContext, Cache, context, PathExpander),
                     unsafeConfiguration: configuration.Sandbox.UnsafeSandboxConfiguration,
-                    preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
+                    preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
                     fileAccessWhitelist: FileAccessWhitelist,
                     directoryMembershipFingerprinter: this,
                     pathExpander: PathExpander,

@@ -46,6 +46,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// PreserveOutput Trust level which is used to override the allowPreserveOutput option
         /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public int PreserveOutputsTrustLevel;
 
         /// <summary>

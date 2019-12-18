@@ -1199,7 +1199,7 @@ namespace Test.BuildXL.Scheduler
                 fileSystemView: null,
                 executionLog: null,
                 unsafeConfiguration: config.Sandbox.UnsafeSandboxConfiguration,
-                preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
+                preserveOutputsSalt: new PreserveOutputsInfo(ContentHashingUtilities.CreateRandom(), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet,
                 lazyDeletionOfSharedOpaqueOutputsEnabled: false);

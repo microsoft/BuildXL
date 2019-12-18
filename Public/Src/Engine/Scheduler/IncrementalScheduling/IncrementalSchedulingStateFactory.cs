@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -44,7 +45,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt)
+            PreserveOutputsInfo preserveOutputSalt)
         {
             Contract.Requires(atomicSaveToken.IsValid);
             Contract.Requires(pipGraph != null);
@@ -66,7 +67,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {
@@ -83,7 +84,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public IIncrementalSchedulingState LoadOrReuseIgnoringFileEnvelope(
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {
@@ -95,7 +96,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             SchedulerState schedulerState)
         {

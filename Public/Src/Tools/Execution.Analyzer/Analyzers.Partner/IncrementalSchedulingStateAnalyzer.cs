@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.Scheduler;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.ToolSupport;
@@ -87,7 +88,7 @@ namespace BuildXL.Execution.Analyzer
                 fileChangeTracker.FileEnvelopeId,
                 CachedGraph.PipGraph,
                 null,
-                WellKnownContentHashes.AbsentFile,
+                UnsafeOptions.PreserveOutputsNotUsed,
                 incrementalSchedulingStateFile,
                 schedulerState: null);
 

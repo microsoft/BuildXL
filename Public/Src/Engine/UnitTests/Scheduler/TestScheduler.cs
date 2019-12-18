@@ -63,7 +63,7 @@ namespace Test.BuildXL.Scheduler
             JournalState journalState = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
-            ContentHash? previousInputsSalt = null,
+            PreserveOutputsInfo? previousInputsSalt = null,
             IEnumerable<Pip> successfulPips = null,
             IEnumerable<Pip> failedPips = null,
             LoggingContext loggingContext = null,

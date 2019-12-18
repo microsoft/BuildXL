@@ -43,7 +43,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 69: Added dynamic existing probe.
         /// 70: Removed duplicates from ObservedAccessedFileNames.
         /// 71: Rename fields in weak fingerprint.
+        /// 72: Added PreserveoutputsTrustLevel
         /// </remarks>
-        TwoPhaseV2 = 71,
+        TwoPhaseV2 = 72,
     }
 }

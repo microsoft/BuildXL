@@ -372,6 +372,8 @@ namespace BuildXL.Scheduler.Fingerprints
                     (h, p) => h.Add(p),
                     m_pathTable.StringTable.OrdinalComparer);
             }
+
+            fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
         }
 
         /// <summary>

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
@@ -86,7 +87,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             LoggingContext loggingContext,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             ITempCleaner tempDirectoryCleaner);
     }

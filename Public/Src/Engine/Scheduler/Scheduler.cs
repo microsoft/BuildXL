@@ -760,7 +760,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Previous inputs salt.
         /// </summary>
-        private readonly ContentHash m_previousInputsSalt;
+        private readonly PreserveOutputsInfo m_previousInputsSalt;
 
         /// <summary>
         /// Pip content fingerprinter.
@@ -1045,7 +1045,7 @@ namespace BuildXL.Scheduler
             AsyncLazy<PipRuntimeTimeTable> runningTimeTable = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
-            ContentHash? previousInputsSalt = null,
+            PreserveOutputsInfo? previousInputsSalt = null,
             DirectoryTranslator directoryTranslator = null,
             IIpcProvider ipcProvider = null,
             PipTwoPhaseCache pipTwoPhaseCache = null,

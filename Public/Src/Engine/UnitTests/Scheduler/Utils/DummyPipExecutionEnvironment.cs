@@ -150,7 +150,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
             if (config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)
             {
-                preserveOutputsSalt = ContentHashingUtilities.HashString(Guid.NewGuid().ToString());
+                preserveOutputsSalt = new PreserveOutputsInfo(ContentHashingUtilities.HashString(Guid.NewGuid().ToString()), config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             State = new PipExecutionState(

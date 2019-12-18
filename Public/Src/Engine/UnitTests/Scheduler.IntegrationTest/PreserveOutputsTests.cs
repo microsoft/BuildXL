@@ -399,13 +399,59 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
 
             ModifyFile(input);
-            //increase preserve output trust level to 2 and process A will not preserve outputs anymore
+            //after decreasing global preserve output trust level to 1, process A will preserve outputs
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
             RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
             XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedA)));
 
         }
 
+        public void PreserveOutputsWithTrustLevelModification()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 3;
+            var input = CreateSourceFile();
+            var outputPreservedA = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedA"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedA, CONTENT),
+            });
+
+            // processA won't perserve outputs
+            builderA.Options |= Process.Options.AllowPreserveOutputs;
+            builderA.PreserveOutputsTrustLevel = 2;
+            var processAndOutputsA = SchedulePipBuilder(builderA);
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            // after decreasing global preserve output trust level to 1, process A will not be scheduled
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
+            ScheduleRunResult result = RunScheduler();
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertNotScheduled(processAndOutputsA.Process.PipId);
+            }
+            else
+            {
+                result.AssertCacheHit(processAndOutputsA.Process.PipId);
+            }
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            // once we change back global TL to 3, process A will be scheduled again
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 3;
+            result = RunScheduler();
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                result.AssertScheduled(processAndOutputsA.Process.PipId);
+            }
+            else
+            {
+                result.AssertCacheMiss(processAndOutputsA.Process.PipId);
+            }
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+        }
         /// <summary>
         /// Testing preserve outputs in an opaque dir
         /// </summary>

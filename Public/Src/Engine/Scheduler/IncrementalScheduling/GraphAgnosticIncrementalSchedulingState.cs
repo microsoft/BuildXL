@@ -333,7 +333,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
@@ -1378,7 +1378,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             LoggingContext loggingContext,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingPath,
             ITempCleaner tempDirectoryCleaner = null)
         {
@@ -1433,7 +1433,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
             IConfiguration configuration,
-            ContentHash preserveOutputSalt,
+            PreserveOutputsInfo preserveOutputSalt,
             string incrementalSchedulingStatePath,
             bool analysisModeOnly = false,
             ITempCleaner tempDirectoryCleaner = null)

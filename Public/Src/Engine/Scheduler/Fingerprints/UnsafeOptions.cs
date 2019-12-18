@@ -17,7 +17,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Special marker used to denote safe preserve outputs salt.
         /// </summary>
-        public static readonly ContentHash PreserveOutputsNotUsed = WellKnownContentHashes.AbsentFile;
+        public static readonly PreserveOutputsInfo PreserveOutputsNotUsed = PreserveOutputsInfo.PreserveOutputsNotUsed;
 
         /// <summary>
         /// Safe values for the <see cref="UnsafeConfiguration"/> property.
@@ -35,7 +35,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <remarks>
         /// INVARIANT: this value is not <code>null</code> IFF it is different from <see cref="PreserveOutputsNotUsed"/>.
         /// </remarks>
-        private readonly ContentHash? m_preserveOutputsSalt;
+        private readonly PreserveOutputsInfo? m_preserveOutputsSalt;
 
         /// <summary>
         /// Unsafe configuration.
@@ -45,7 +45,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Preserve output salt.
         /// </summary>
-        public ContentHash PreserveOutputsSalt => m_preserveOutputsSalt.HasValue ? m_preserveOutputsSalt.Value : PreserveOutputsNotUsed;
+        public PreserveOutputsInfo PreserveOutputsSalt => m_preserveOutputsSalt.HasValue ? m_preserveOutputsSalt.Value : PreserveOutputsNotUsed;
 
         /// <summary>
         /// Creates an instance of <see cref="UnsafeOptions"/>.
@@ -54,12 +54,12 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <param name="preserveOutputSalt">The preserveOutputsSalt to use when running the pip. NOTE: this should have
         /// the pip specific <see cref="BuildXL.Pips.Operations.Process.AllowPreserveOutputs"/> setting already applied.
         /// So if preserve outputs is disallwed for the pip, it should be set to <see cref="PreserveOutputsNotUsed"/></param>
-        public UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, ContentHash preserveOutputSalt)
-            : this(unsafeConfiguration, preserveOutputSalt != PreserveOutputsNotUsed ? preserveOutputSalt : (ContentHash?)null)
+        public UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo preserveOutputSalt)
+            : this(unsafeConfiguration, preserveOutputSalt != PreserveOutputsNotUsed ? preserveOutputSalt : (PreserveOutputsInfo?)null)
         {
         }
 
-        private UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, ContentHash? preserveOutputSalt)
+        private UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo? preserveOutputSalt)
         {
             Contract.Requires(unsafeConfiguration != null);
             Contract.Requires((preserveOutputSalt.HasValue) == (preserveOutputSalt.HasValue && preserveOutputSalt.Value != PreserveOutputsNotUsed));
@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler.Fingerprints
             return m_preserveOutputsSalt == null || 
                 UnsafeConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled ||
                 (otherUnsafeOptions.UnsafeConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled && 
-                    ( m_preserveOutputsSalt.Value == otherUnsafeOptions.PreserveOutputsSalt));
+                    ( m_preserveOutputsSalt.Value.IsAsSafeOrSaferThan(otherUnsafeOptions.PreserveOutputsSalt)));
         }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(reader != null);
 
             var unsafeConfiguration = UnsafeSandboxConfigurationExtensions.Deserialize(reader);
-            var preserveOutputsSalt = reader.ReadNullableStruct(r => new ContentHash(r));
+            var preserveOutputsSalt = reader.ReadNullableStruct(r => new PreserveOutputsInfo(r));
 
             return new UnsafeOptions(unsafeConfiguration, preserveOutputsSalt);
         }

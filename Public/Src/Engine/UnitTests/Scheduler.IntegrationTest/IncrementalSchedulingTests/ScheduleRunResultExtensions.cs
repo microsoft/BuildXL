@@ -5,7 +5,7 @@ using BuildXL.Pips;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 
-namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
+namespace IntegrationTest.BuildXL.Scheduler
 {
     /// <summary>
     /// Extension for <see cref="ScheduleRunResult"/> used for incremental scheduling tests.

@@ -31,6 +31,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -440,11 +441,11 @@ namespace Test.BuildXL.Scheduler
             DirectoryTranslator.Seal();
 
             // .....................................................................................
-            // some dummy setup in order to get a PreserveOutputsSalt.txt file and an actual salt
+            // some dummy setup in order to get a PreserveOutputsInfo.txt file and an actual salt
             // .....................................................................................
             string dummyCacheDir = Path.Combine(TemporaryDirectory, "Out", "Cache");
-            Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsSalt.txt here
-            ContentHash? previousOutputsSalt =
+            Directory.CreateDirectory(dummyCacheDir); // EngineSchedule tries to put the PreserveOutputsInfo.txt here
+            PreserveOutputsInfo? previousOutputsSalt =
                 EngineSchedule.PreparePreviousOutputsSalt(localLoggingContext, Context.PathTable, config);
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................

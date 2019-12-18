@@ -109,6 +109,8 @@ param(
 
     [switch]$DeployDev = $false,
 
+    [switch]$Bvfs = $false,
+
     [switch]$PatchDev = $false,
 
     [switch]$DisableInteractive = $false,
@@ -621,6 +623,10 @@ if (!$skipFilter){
 
     if ($SkipTests) {
         $AdditionalBuildXLArguments +=  "/f:~($CacheLongRunningFilter)and~($CacheNugetFilter)"
+    }
+
+    if ($Bvfs) {
+        $AdditionalBuildXLArguments += "/q:DebugNet472 /f:output='out/bin/debug/tools/bvfs/*'"
     }
 }
 

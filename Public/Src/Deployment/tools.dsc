@@ -95,6 +95,28 @@ namespace Tools {
         });
     }
 
+    namespace Bvfs
+    {
+        export declare const qualifier: {
+            configuration: "debug" | "release",
+            targetFramework: "net472",
+            targetRuntime: "win-x64"
+        };
+
+        export const deployment : Deployment.Definition = {
+            contents: [
+                // If the current qualifier is full framework, this tool has to be built with 472
+                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
+                importFrom("BuildXL.Cache.ContentStore").App.exe
+            ]
+        };
+
+        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment,
+            targetLocation: r`${qualifier.configuration}/tools/bvfs`
+        });
+    }
+
     namespace DistributedBuildRunner {
         export declare const qualifier: BuildXLSdk.DefaultQualifier;
 

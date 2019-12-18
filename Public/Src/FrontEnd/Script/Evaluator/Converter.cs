@@ -796,7 +796,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Converts an object to a value of value type.
         /// </summary>
-        private static T ExpectValue<T>(EvaluationResult value, in ConversionContext context) where T : struct
+        public static T ExpectValue<T>(EvaluationResult value, in ConversionContext context) where T : struct
         {
             if (value.Value is T variable)
             {

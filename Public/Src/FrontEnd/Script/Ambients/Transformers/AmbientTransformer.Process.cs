@@ -168,6 +168,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafePreserveOutputWhitelist;
         private SymbolAtom m_unsafeIncrementalTool;
         private SymbolAtom m_unsafeRequireGlobalDependencies;
+        private SymbolAtom m_unsafeChildProcessesToBreakawayFromSandbox;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -318,6 +319,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
             m_unsafeIncrementalTool = Symbol("incrementalTool");
             m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
+            m_unsafeChildProcessesToBreakawayFromSandbox = Symbol("childProcessesToBreakawayFromSandbox");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -970,6 +972,30 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             return ReadOnlyArray<int>.Empty;
         }
 
+        private static ReadOnlyArray<T> ProcessOptionalValueArray<T>(ObjectLiteral obj, SymbolAtom fieldName, bool skipUndefined) where T : struct
+        {
+            var array = Converter.ExtractArrayLiteral(obj, fieldName, allowUndefined: true);
+            if (array != null && array.Length > 0)
+            {
+                var items = new T[array.Length];
+
+                for (var i = 0; i < array.Length; i++)
+                {
+                    if (skipUndefined && array[i].IsUndefined)
+                    {
+                        continue;
+                    }
+
+                    var value = Converter.ExpectValue<T>(array[i], context: new ConversionContext(pos: i, objectCtx: array, name: fieldName));
+                    items[i] = value;
+                }
+
+                return ReadOnlyArray<T>.FromWithoutCopy(items);
+            }
+
+            return ReadOnlyArray<T>.Empty;
+        }
+
         /// <summary>
         /// Process tool outputs. Declared in DScript as:
         /// export type Output = Path | File | Directory | DirectoryOutput | FileOrPathOutput;
@@ -1240,6 +1266,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             processBuilder.PreserveOutputWhitelist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputWhitelist, strict: false, skipUndefined: true);
+
+            // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
+            processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);
         }
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)

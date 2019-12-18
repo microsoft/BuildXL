@@ -255,6 +255,15 @@ namespace Transformer {
          * Pull unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process.
          */
         requireGlobalDependencies?: boolean;
+
+        /**
+         * Process names that will break away from the sandbox when spawned by the main process
+         * The accesses of processes that break away from the sandbox won't be observed.
+         * Processes that breakaway can survive the lifespan of the sandbox.
+         * Only add to this list processes that are trusted and whose accesses can be safely predicted
+         * by some other means.
+         */
+        childProcessesToBreakawayFromSandbox?: PathAtom[];
     }
 
     /**

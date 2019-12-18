@@ -12,16 +12,6 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
     return {
         contents: [
             {
-                // TODO: Figure out who is using this and let them use Sdk/Sdk.Prelude....
-                subfolder: "ScriptPackages",
-                contents: [
-                    {
-                        subfolder: a`Prelude`,
-                        contents: glob(d`${sdkRoot}/Prelude`, "*.dsc"),
-                    }
-                ]
-            },
-            {
                 subfolder: "Sdk",
                 contents: [
                     {

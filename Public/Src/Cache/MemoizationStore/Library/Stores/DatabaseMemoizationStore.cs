@@ -186,7 +186,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        }
 
                        // If we did not accept the given value, return the value in the cache
-                       return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism);
+                       return new AddOrGetContentHashListResult(oldContentHashListWithDeterminism.Value.contentHashListInfo);
                    }
 
                    return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");

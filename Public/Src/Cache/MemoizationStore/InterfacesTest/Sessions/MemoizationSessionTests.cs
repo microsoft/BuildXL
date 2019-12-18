@@ -128,6 +128,38 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         }
 
         [Fact]
+        public Task TestAddOrGetReturnsConflictingResult()
+        {
+            var context = new Context(Logger);
+            var strongFingerprint = StrongFingerprint.Random();
+
+            return RunTestAsync(context, async session =>
+            {
+                ContentHashList contentHashList = null;
+
+                async Task<AddOrGetContentHashListResult> addNew()
+                {
+                    var putResult = await ((ICacheSession)session).PutRandomAsync(
+                        context, ContentHashType, false, RandomContentByteCount, Token);
+                    contentHashList = new ContentHashList(new[] { putResult.ContentHash });
+                    return await session.AddOrGetContentHashListAsync(
+                        context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, CacheDeterminism.None), Token).ShouldBeSuccess();
+                }
+
+                var originalResult = await addNew();
+                var originalContentHashList = contentHashList;
+                Assert.Null(originalResult.ContentHashListWithDeterminism.ContentHashList);
+
+                var conflictResult = await addNew();
+                Assert.NotNull(conflictResult.ContentHashListWithDeterminism.ContentHashList);
+                Assert.Equal(originalContentHashList, conflictResult.ContentHashListWithDeterminism.ContentHashList);
+
+                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token).ShouldBeSuccess();
+                Assert.Equal(originalContentHashList, getResult.ContentHashListWithDeterminism.ContentHashList);
+            });
+        }
+
+        [Fact]
         public Task ChangingToolDeterministicFailsWhenPreviousContentExists()
         {
             var context = new Context(Logger);

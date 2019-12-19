@@ -37,9 +37,13 @@ set SOURCE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\inputfile.txt
 set CHANGEAFFECTEDINPUTTEST_DIR=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest
 set OUTPUT_DIR_NAME=output
 set OUTPUT_FILE_NAME=outputfile.txt
-set OUTPUT_FILE=%CHANGEAFFECTEDINPUTTEST_DIR%\%OUTPUT_DIR_NAME%\%OUTPUT_FILE_NAME%
+set OUTPUT_DIR=%CHANGEAFFECTEDINPUTTEST_DIR%\%OUTPUT_DIR_NAME%
+set OUTPUT_FILE=%OUTPUT_DIR%\%OUTPUT_FILE_NAME%
 set EXPECTED_WRITTEN_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\expectedChangeAffectedInputListWrittenFile.txt
-echo %SOURCE_FILE%>%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
+set WRITTEN_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\changeAffectedInputListWrittenFile.txt
+
+set SOURCECHANGE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
+echo %SOURCE_FILE%>%SOURCECHANGE_FILE%
 echo %OUTPUT_FILE%>%EXPECTED_WRITTEN_FILE%
 
     @REM disabled warnings:
@@ -50,6 +54,11 @@ set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:
 if NOT DEFINED DISABLE_DBD_TESTRUN (
     %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
 )
+
+del %WRITTEN_FILE%
+del %EXPECTED_WRITTEN_FILE%
+del %SOURCECHANGE_FILE%
+rmdir %OUTPUT_DIR% /s/q
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

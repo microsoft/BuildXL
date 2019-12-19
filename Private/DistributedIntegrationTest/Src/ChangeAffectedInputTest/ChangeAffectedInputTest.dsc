@@ -15,7 +15,7 @@ function main() {
     const outputDir = d`${Context.getMount("ChangeAffectedInputTest").path}/${Environment.getStringValue("OUTPUT_DIR_NAME")}`;
     const affectedInputForLastProcess = p`${outputDir}/${Environment.getStringValue("OUTPUT_FILE_NAME")}`;
 
-    const changeAffectedInputListWrittenFile = f`./changeAffectedInputListWrittenFile.txt`;
+    const changeAffectedInputListWrittenFile = Environment.getFileValue("WRITTEN_FILE");
     const expectedChangeAffectedInputListWrittenFile = Environment.getFileValue("EXPECTED_WRITTEN_FILE");
 
     let result = Transformer.execute({
@@ -77,6 +77,7 @@ function main() {
         workingDirectory: d`.`
     });
 
+    let outfile3FromResult = result.getOutputFile(outfile3);
     Transformer.execute({
         tool: cmdExe,
         description: "Verification pip in ChangeAffectedInputTest",
@@ -87,6 +88,10 @@ function main() {
             Cmd.argument(Artifact.input(expectedChangeAffectedInputListWrittenFile)),
             Cmd.argument(Artifact.input(changeAffectedInputListWrittenFile)),
             Cmd.argument(Artifact.output(verificationOutput)),
+        ],
+        //Dummy input to make sure this pip run after the last process
+        dependencies: [
+            outfile3FromResult,
         ],
         workingDirectory: d`.`
     });

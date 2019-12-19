@@ -36,6 +36,9 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool IsValid => this != Invalid;
 
+        /// <inheritdoc />
+        public override string ToString() => IsFile ? FileArtifact.ToString() : DirectoryArtifact.ToString();
+
         /// <summary>
         /// Invalid union instance.
         /// </summary>

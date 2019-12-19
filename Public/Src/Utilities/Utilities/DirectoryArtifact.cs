@@ -65,6 +65,17 @@ namespace BuildXL.Utilities
             return new DirectoryArtifact(path, partialSealId, false);
         }
 
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            if (this == Invalid)
+            {
+                return "{Invalid}";
+            }
+
+            return $"{{Directory (pathId: {Path.Value.Value:x}) (partialSealId: {PartialSealId})}}";
+        }
+
         /// <summary>
         /// Indicates if this directory artifact and the one given represent the same underlying value.
         /// </summary>

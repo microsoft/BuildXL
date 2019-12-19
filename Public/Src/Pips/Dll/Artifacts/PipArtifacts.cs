@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Artifacts
 {
@@ -18,6 +18,8 @@ namespace BuildXL.Pips.Artifacts
         /// </summary>
         public static bool IsOutputMustRemainWritablePip(Pip pip)
         {
+            Contract.Requires(pip != null);
+
             switch (pip.PipType)
             {
                 case PipType.Process:

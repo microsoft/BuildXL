@@ -1067,6 +1067,8 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializatingOutputs,
             bool isDeclaredProducer)
         {
+            Contract.Requires(requestingPip != null);
+
             var pipInfo = new PipInfo(requestingPip, Context);
 
             using (PipArtifactsState state = GetPipArtifactsState())
@@ -1300,7 +1302,15 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public Pip GetDeclaredProducer(FileArtifact file)
         {
-            return m_host.GetProducer(GetDeclaredArtifact(file));
+            var declaredFile = GetDeclaredArtifact(file);
+            var declaredProducer = m_host.GetProducer(declaredFile);
+            if (declaredProducer == null)
+            {
+                var filePath = file.Path.IsValid ? file.Path.ToString(Context.PathTable) : "Invalid";
+                var declaredFilePath = declaredFile.Path.IsValid ? declaredFile.Path.ToString(Context.PathTable) : "Invalid";
+                throw new BuildXLException($"No declared producer pip found. File: {file}, File.Path: {filePath}, DeclaredFile: {declaredFile}, DeclaredFile.Path: {declaredFilePath}");
+            }
+            return declaredProducer;
         }
 
         /// <summary>

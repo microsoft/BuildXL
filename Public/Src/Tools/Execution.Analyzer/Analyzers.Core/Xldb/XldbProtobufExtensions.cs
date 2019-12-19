@@ -435,7 +435,12 @@ namespace BuildXL.Execution.Analyzer
         {
             var unsafeOpt = new Xldb.Proto.UnsafeOptions()
             {
-                PreserveOutputsSalt = unsafeOption.PreserveOutputsSalt.Salt.ToContentHash(),
+                PreserveOutputsInfo = new PreserveOutputsInfo()
+                {
+                    Salt = unsafeOption.PreserveOutputsSalt.Salt.ToContentHash(),
+                    PreserveOutputTrustLevel = unsafeOption.PreserveOutputsSalt.PreserveOutputTrustLevel
+                },
+
                 UnsafeConfiguration = new UnsafeSandboxConfiguration()
                 {
                     PreserveOutputs = (PreserveOutputsMode)(unsafeOption.UnsafeConfiguration.PreserveOutputs + 1),

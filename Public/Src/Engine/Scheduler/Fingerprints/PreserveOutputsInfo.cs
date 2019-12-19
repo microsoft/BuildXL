@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache;
 using BuildXL.Utilities;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
@@ -93,5 +94,13 @@ namespace BuildXL.Scheduler.Fingerprints
             writer.WriteCompact(PreserveOutputTrustLevel);
         }
 
+        /// <summary>
+        /// Computes fingerprint.
+        /// </summary>
+        public void ComputeFingerprint(IFingerprinter fingerprinter)
+        {
+            fingerprinter.Add(nameof(Salt), Salt.ToHex());
+            fingerprinter.Add(nameof(PreserveOutputTrustLevel), PreserveOutputTrustLevel);
+        }
     }
 }

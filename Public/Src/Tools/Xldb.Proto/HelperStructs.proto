@@ -380,13 +380,25 @@ message UnsafeSandboxConfiguration{
     bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
 }
 
+message PreserveOutputsInfo {
+    // Preserve output salt.
+    ContentHash Salt = 1;
+
+    // Trust level.
+    int32 PreserveOutputTrustLevel = 2;
+}
+
 // UnsafeOptions message. Become part of strong fingerprint
 message UnsafeOptions{
-    // Preserve output salt as hash
-    ContentHash PreserveOutputsSalt = 1;
+    
+    // was ContentHash PreserveOutputsSalt = 1;
+    reserved 1;
 
     // Unsafe configuration
     UnsafeSandboxConfiguration UnsafeConfiguration = 2;
+
+    // Preserve output info.
+    PreserveOutputsInfo PreserveOutputsInfo = 3;
 }
 
 // ObservedInput message.

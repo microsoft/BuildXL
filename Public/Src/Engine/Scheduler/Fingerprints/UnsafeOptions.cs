@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
@@ -35,7 +36,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <remarks>
         /// INVARIANT: this value is not <code>null</code> IFF it is different from <see cref="PreserveOutputsNotUsed"/>.
         /// </remarks>
-        private readonly PreserveOutputsInfo? m_preserveOutputsSalt;
+        private readonly PreserveOutputsInfo? m_preservedOutputInfo;
 
         /// <summary>
         /// Unsafe configuration.
@@ -45,27 +46,27 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Preserve output salt.
         /// </summary>
-        public PreserveOutputsInfo PreserveOutputsSalt => m_preserveOutputsSalt.HasValue ? m_preserveOutputsSalt.Value : PreserveOutputsNotUsed;
+        public PreserveOutputsInfo PreserveOutputsSalt => m_preservedOutputInfo.HasValue ? m_preservedOutputInfo.Value : PreserveOutputsNotUsed;
 
         /// <summary>
         /// Creates an instance of <see cref="UnsafeOptions"/>.
         /// </summary>
         /// <param name="unsafeConfiguration">The IUnsafeSandboxConfiguration for the pip</param>
-        /// <param name="preserveOutputSalt">The preserveOutputsSalt to use when running the pip. NOTE: this should have
+        /// <param name="preserveOutputInfo">The preserveOutputsSalt to use when running the pip. NOTE: this should have
         /// the pip specific <see cref="BuildXL.Pips.Operations.Process.AllowPreserveOutputs"/> setting already applied.
         /// So if preserve outputs is disallwed for the pip, it should be set to <see cref="PreserveOutputsNotUsed"/></param>
-        public UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo preserveOutputSalt)
-            : this(unsafeConfiguration, preserveOutputSalt != PreserveOutputsNotUsed ? preserveOutputSalt : (PreserveOutputsInfo?)null)
+        public UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo preserveOutputInfo)
+            : this(unsafeConfiguration, preserveOutputInfo != PreserveOutputsNotUsed ? preserveOutputInfo : (PreserveOutputsInfo?)null)
         {
         }
 
-        private UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo? preserveOutputSalt)
+        private UnsafeOptions(IUnsafeSandboxConfiguration unsafeConfiguration, PreserveOutputsInfo? preserveOutputInfo)
         {
             Contract.Requires(unsafeConfiguration != null);
-            Contract.Requires((preserveOutputSalt.HasValue) == (preserveOutputSalt.HasValue && preserveOutputSalt.Value != PreserveOutputsNotUsed));
+            Contract.Requires((preserveOutputInfo.HasValue) == (preserveOutputInfo.HasValue && preserveOutputInfo.Value != PreserveOutputsNotUsed));
 
             UnsafeConfiguration = unsafeConfiguration;
-            m_preserveOutputsSalt = unsafeConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled ? null : preserveOutputSalt;
+            m_preservedOutputInfo = unsafeConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled ? null : preserveOutputInfo;
         }
 
         /// <summary>
@@ -73,7 +74,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public bool IsAsSafeOrSaferThan(UnsafeOptions other)
         {
-            return UnsafeConfiguration.IsAsSafeOrSaferThan(other.UnsafeConfiguration) && IsPreserveOutputsSaltAsSafeOrSaferThan(other);
+            return UnsafeConfiguration.IsAsSafeOrSaferThan(other.UnsafeConfiguration) && IsPreserveOutputsAsSafeOrSaferThan(other);
         }
 
         /// <summary>
@@ -84,12 +85,12 @@ namespace BuildXL.Scheduler.Fingerprints
             return !IsAsSafeOrSaferThan(other);
         }
 
-        private bool IsPreserveOutputsSaltAsSafeOrSaferThan(UnsafeOptions otherUnsafeOptions)
+        private bool IsPreserveOutputsAsSafeOrSaferThan(UnsafeOptions otherUnsafeOptions)
         {
-            return m_preserveOutputsSalt == null || 
+            return m_preservedOutputInfo == null || 
                 UnsafeConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled ||
                 (otherUnsafeOptions.UnsafeConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled && 
-                    ( m_preserveOutputsSalt.Value.IsAsSafeOrSaferThan(otherUnsafeOptions.PreserveOutputsSalt)));
+                    ( m_preservedOutputInfo.Value.IsAsSafeOrSaferThan(otherUnsafeOptions.PreserveOutputsSalt)));
         }
 
         /// <summary>
@@ -98,7 +99,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public void Serialize(BuildXLWriter writer)
         {
             UnsafeConfiguration.Serialize(writer);
-            writer.Write(m_preserveOutputsSalt, (w, o) => o.Serialize(w));
+            writer.Write(m_preservedOutputInfo, (w, o) => o.Serialize(w));
         }
 
         /// <summary>
@@ -109,9 +110,9 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(reader != null);
 
             var unsafeConfiguration = UnsafeSandboxConfigurationExtensions.Deserialize(reader);
-            var preserveOutputsSalt = reader.ReadNullableStruct(r => new PreserveOutputsInfo(r));
+            var preserveOutputsInfo = reader.ReadNullableStruct(r => new PreserveOutputsInfo(r));
 
-            return new UnsafeOptions(unsafeConfiguration, preserveOutputsSalt);
+            return new UnsafeOptions(unsafeConfiguration, preserveOutputsInfo);
         }
 
         /// <summary>
@@ -137,6 +138,37 @@ namespace BuildXL.Scheduler.Fingerprints
                 return null;
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
+        }
+
+        /// <summary>
+        /// Compute fingerprint associated with this unsafe options.
+        /// </summary>
+        public void ComputeFingerprint(IFingerprinter fingerprinter)
+        {
+            fingerprinter.Add(nameof(UnsafeConfiguration.SandboxKind), UnsafeConfiguration.SandboxKind.ToString());
+            fingerprinter.Add(nameof(UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations), getBoolString(UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle), getBoolString(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints), getBoolString(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreReparsePoints), getBoolString(UnsafeConfiguration.IgnoreReparsePoints));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreSetFileInformationByHandle), getBoolString(UnsafeConfiguration.IgnoreSetFileInformationByHandle));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreZwOtherFileInformation), getBoolString(UnsafeConfiguration.IgnoreZwOtherFileInformation));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreZwRenameFileInformation), getBoolString(UnsafeConfiguration.IgnoreZwRenameFileInformation));
+            fingerprinter.Add(nameof(UnsafeConfiguration.MonitorFileAccesses), getBoolString(UnsafeConfiguration.MonitorFileAccesses));
+            fingerprinter.Add(nameof(UnsafeConfiguration.MonitorNtCreateFile), getBoolString(UnsafeConfiguration.MonitorNtCreateFile));
+            fingerprinter.Add(nameof(UnsafeConfiguration.MonitorZwCreateOpenQueryFile), getBoolString(UnsafeConfiguration.MonitorZwCreateOpenQueryFile));
+            fingerprinter.Add(nameof(UnsafeConfiguration.PreserveOutputs), UnsafeConfiguration.PreserveOutputs.ToString());
+            fingerprinter.Add(nameof(UnsafeConfiguration.UnexpectedFileAccessesAreErrors), getBoolString(UnsafeConfiguration.UnexpectedFileAccessesAreErrors));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnorePreloadedDlls), getBoolString(UnsafeConfiguration.IgnorePreloadedDlls));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes), getBoolString(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes));
+            fingerprinter.Add(nameof(UnsafeConfiguration.DoubleWritePolicy), UnsafeConfiguration.DoubleWritePolicy.HasValue ? UnsafeConfiguration.DoubleWritePolicy.Value.ToString() : string.Empty);
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques), getBoolString(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques));
+
+            if (m_preservedOutputInfo.HasValue)
+            {
+                fingerprinter.AddNested("PreserveOutputInfo", fp => m_preservedOutputInfo.Value.ComputeFingerprint(fp));
+            }
+
+            static string getBoolString(bool value) => value ? "1" : "0";
         }
     }
 }

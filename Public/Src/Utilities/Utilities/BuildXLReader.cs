@@ -392,7 +392,7 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Reads an array
         /// </summary>
-        public T[] ReadArray<T>(Func<BuildXLReader, T> reader)
+        public T[] ReadArray<T>(Func<BuildXLReader, T> reader, int minimumLength = 0)
         {
             Contract.Requires(reader != null);
             Start<T[]>();
@@ -403,7 +403,7 @@ namespace BuildXL.Utilities
                 return CollectionUtilities.EmptyArray<T>();
             }
 
-            T[] array = ReadArrayCore(reader, length);
+            T[] array = ReadArrayCore(reader, length, minimumLength: minimumLength);
 
             End();
             return array;
@@ -422,9 +422,9 @@ namespace BuildXL.Utilities
             return array;
         }
 
-        private T[] ReadArrayCore<T>(Func<BuildXLReader, T> reader, int length)
+        private T[] ReadArrayCore<T>(Func<BuildXLReader, T> reader, int length, int minimumLength = 0)
         {
-            var array = CollectionUtilities.NewOrEmptyArray<T>(length);
+            var array = CollectionUtilities.NewOrEmptyArray<T>(Math.Max(minimumLength, length));
             for (int i = 0; i < length; i++)
             {
                 array[i] = reader(this);

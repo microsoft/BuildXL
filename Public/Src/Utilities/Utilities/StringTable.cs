@@ -26,6 +26,47 @@ namespace BuildXL.Utilities
     /// ensure only one thread at a time attempts to do an insertion.
     /// When all insertions have been done, the table can be frozen, which discards some transient state and
     /// cuts heap consumption to a minimum. Trying to add a new string once the table has been frozen will crash.
+    /// 
+    /// String table is basically a two dimensional byte array, called byte buffers):
+    ///
+    ///         [------------------------- 2^m ------------------------------] where m = BytesPerBufferBits
+    ///               1                              42
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  -
+    ///         |   | f | o | o |   |   |      |   |   |   |   |     |   |   |  |
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         |   |   |   |   |   |   |      |   |   |   |   |     |   |   |  |
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         :   :   :   :   :   :   :      :   :   :   :   :     :   :   :  2^n - 1, where n = NumByteBuffers
+    ///         :   :   :   :   :   :   :      :   :   :   :   :     :   :   :  |
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         |   |   |   |   |   |   |      |   | b | a | r |     |   |   |  |
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         |   |   |   |   |   |   |      |   |   |   |   |     |   |   |  |
+    ///         +---+---+---+---+---+---+ .... +---+---+---+---+ ... +---+---+  -
+    /// 
+    /// StringId is 32 bits: 11 bits (n) for byte buffer number, and 21 bits (m) for the buffer offset.
+    /// For example, 
+    /// - foo (0-th byte buffer number, 1-st buffer offset), 
+    /// - bar (2045-th byte buffer number, 42-th buffer offset)
+    /// 
+    /// To handle a large string (length > 2^12), the string table has another table called LargeStringBuffer, which is also
+    /// a 2-dimensional byte array, but each buffer in that array has variable size depending on the size of the stored string.
+    /// 
+    ///         +---+     +---+---+---+ .... +---+---+                        -
+    ///         |   | ->  |   |   |   |      |   |   |                        |
+    ///         +---+     +---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         |   | ->  | z | o | o |      |   |   |   |   |     |   |   |  |
+    ///         +---+     +---+---+---+ .... +---+---+---+---+ ... +---+---+  |
+    ///         :   :     :   :   :   :      :   :                            2^k, where k = BytesPerBufferBits
+    ///         :   :     :   :   :   :      :   :                            |
+    ///         +---+     +---+---+---+ .... +---+                            |
+    ///         |   | ->  |   |   |   |      |   |                            |
+    ///         +---+     +---+---+---+ .... +---+---+---+---+                |
+    ///         |   | ->  |   |   |   |      |   |   |   |   |                |
+    ///         +---+     +---+---+---+ .... +---+---+---+---+                -
+    /// 
+    /// Let zoo*** be a very large string. Then the string id of zoo*** has the following composition: (2047-th byte buffer number, 1-st buffer offset).
+    /// Note that the byte buffer number of zoo*** exceeds NumByteBuffers, and now its buffer offset becomes the byte buffer number of LargeStringBuffer.
     /// </remarks>
     public class StringTable
     {
@@ -39,8 +80,8 @@ namespace BuildXL.Utilities
         internal const int BytesPerBuffer = 1 << BytesPerBufferBits; // internal for use by the unit test
         private const int BytesPerBufferMask = BytesPerBuffer - 1;
         private const int NumByteBuffersBits = 32 - BytesPerBufferBits;
-        private const int NumByteBuffers = 1 << NumByteBuffersBits;
-        private const int NumByteBuffersMask = NumByteBuffers - 1;
+        private const int NumByteBuffers = (1 << NumByteBuffersBits) - 1;
+        private const int NumByteBuffersMask = (1 << NumByteBuffersBits) - 1;
 
         // marker to indicate the length field is 4 bytes instead of 1 byte
         private const byte LongStringMarker = 255;
@@ -52,6 +93,14 @@ namespace BuildXL.Utilities
 
         // character payload for the table, new buffers are added as needed
         private byte[][] m_byteBuffers = new byte[NumByteBuffers][];
+
+        private readonly LargeStringBuffer m_largeStringBuffer;
+        private const int LargeStringBufferNum = NumByteBuffers;
+
+        /// <summary>
+        /// Threshold (4K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
+        /// </summary>
+        private const int LargeStringBufferThreshold = 1 << 12;
 
         // the number of items in the table
         private int m_count;
@@ -133,6 +182,7 @@ namespace BuildXL.Utilities
             Freeze();
             m_sizeInBytes = SizeInBytes;
             m_byteBuffers = null;
+            m_largeStringBuffer.Invalidate();
         }
 
         /// <summary>
@@ -159,6 +209,7 @@ namespace BuildXL.Utilities
 
             // set up the initial buffer and consume the first byte so that StringId.Invalid's slot is consumed
             m_byteBuffers[0] = new byte[BytesPerBuffer];
+            m_largeStringBuffer = new LargeStringBuffer();
             m_nextId = 1;
             Empty = AddString(string.Empty);
         }
@@ -178,6 +229,7 @@ namespace BuildXL.Utilities
             CaseInsensitiveComparer = new CaseInsensitiveStringIdComparer(this);
             OrdinalComparer = new OrdinalStringIdComparer(this);
 
+            m_largeStringBuffer = state.LargeStringBuffer;
             m_byteBuffers = state.ByteBuffers;
             m_count = state.Count;
             m_nextId = state.NextId;
@@ -202,33 +254,8 @@ namespace BuildXL.Utilities
                 return true;
             }
 
-            int index1 = id1.Value & BytesPerBufferMask;
-            byte[] buffer1 = m_byteBuffers[(id1.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-
-            int length1 = buffer1[index1++];
-            if (length1 == LongStringMarker)
-            {
-                Contract.Assume(index1 + 4 <= buffer1.Length);
-
-                length1 = (buffer1[index1++] << 24)
-                         | (buffer1[index1++] << 16)
-                         | (buffer1[index1++] << 8)
-                         | (buffer1[index1++] << 0);
-            }
-
-            int index2 = id2.Value & BytesPerBufferMask;
-            byte[] buffer2 = m_byteBuffers[(id2.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-
-            int length2 = buffer2[index2++];
-            if (length2 == LongStringMarker)
-            {
-                Contract.Assume(index2 + 4 <= buffer2.Length);
-
-                length2 = (buffer2[index2++] << 24)
-                         | (buffer2[index2++] << 16)
-                         | (buffer2[index2++] << 8)
-                         | (buffer2[index2++] << 0);
-            }
+            GetBytesCore(id1, out var buffer1, out var index1, out var length1);
+            GetBytesCore(id2, out var buffer2, out var index2, out var length2);
 
             if (length1 != length2)
             {
@@ -344,20 +371,7 @@ namespace BuildXL.Utilities
             Contract.Requires(id.IsValid);
             Contract.Requires(IsValid());
 
-            int index = id.Value & BytesPerBufferMask;
-            byte[] buffer = m_byteBuffers[(id.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-
-            int length = buffer[index++];
-
-            if (length == LongStringMarker)
-            {
-                Contract.Assume(index + 4 <= buffer.Length);
-
-                length = (buffer[index++] << 24)
-                         | (buffer[index++] << 16)
-                         | (buffer[index++] << 8)
-                         | (buffer[index++] << 0);
-            }
+            GetBytesCore(id, out var buffer, out var index, out var length);
 
             if (length != seg.Length)
             {
@@ -387,17 +401,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id.IsValid);
 
-            int index = id.Value & BytesPerBufferMask;
-            byte[] buffer = m_byteBuffers[(id.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-
-            int length = buffer[index++];
-            if (length == LongStringMarker)
-            {
-                length = (buffer[index++] << 24)
-                         | (buffer[index++] << 16)
-                         | (buffer[index++] << 8)
-                         | (buffer[index++] << 0);
-            }
+            GetBytesCore(id, out var buffer, out var index, out var length);
 
             uint hash = 5381;
 
@@ -448,21 +452,8 @@ namespace BuildXL.Utilities
             Contract.Requires(IsValid());
             Contract.Ensures(Contract.Result<int>() >= 0);
 
-            int index = id.Value & BytesPerBufferMask;
-            byte[] buffer = m_byteBuffers[(id.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-
-            int length = buffer[index];
-            if (length == LongStringMarker)
-            {
-                index++; // skip the marker
-                length = (buffer[index++] << 24)
-                         | (buffer[index++] << 16)
-                         | (buffer[index++] << 8)
-                         | (buffer[index] << 0);
-            }
-
+            GetBytesCore(id, out _, out _, length: out int length);
             Contract.Assume(length >= 0);
-
             return length;
         }
 
@@ -505,12 +496,7 @@ namespace BuildXL.Utilities
             // smaller of logical strings known to the table.
             bool longString = seg.Length >= 255;
 
-            int space = 1;
-            if (longString)
-            {
-                // if the length >= 255 then we store it as a marker byte followed by a 4-byte length value
-                space += 4;
-            }
+            int space = 0;
 
             // see if the string is pure ASCII
             bool isAscii = seg.OnlyContains8BitChars;
@@ -528,6 +514,17 @@ namespace BuildXL.Utilities
 
             // count how many strings are in the buffer
             Interlocked.Increment(ref m_count);
+
+            if (space > LargeStringBufferThreshold && m_largeStringBuffer.TryReserveSlot(out var largeStringIndex))
+            {
+                var buffer = new byte[space];
+                WriteBytes(seg, isAscii, buffer, 0);
+                m_largeStringBuffer[largeStringIndex] = buffer;
+                return ComputeStringId(LargeStringBufferNum, offset: largeStringIndex);
+            }
+
+            // if the length >= 255 then we store it as a marker byte followed by a 4-byte length value
+            space += longString ? 5 : 1;
 
             int byteIndex;
             int bufferNum;
@@ -598,13 +595,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-#if DebugStringTable
-            var stringId = new StringId((bufferNum << BytesPerBufferBits) + byteIndex, m_debugIndex);
-#else
-            var stringId = new StringId((bufferNum << BytesPerBufferBits) + byteIndex);
-#endif
-
-            Contract.Assert(stringId.IsValid);
+            var stringId = ComputeStringId(bufferNum, offset: byteIndex);
 
             // now copy the string data into the buffer
             byte[] currentBuffer = m_byteBuffers[bufferNum];
@@ -618,17 +609,33 @@ namespace BuildXL.Utilities
                 currentBuffer[byteIndex++] = (byte)seg.Length;
             }
 
+            WriteBytes(seg, isAscii, currentBuffer, byteIndex);
+            return stringId;
+        }
+
+        private StringId ComputeStringId(int bufferNum, int offset)
+        {
+#if DebugStringTable
+            var stringId = new StringId((bufferNum << BytesPerBufferBits) + offset, m_debugIndex);
+#else
+            var stringId = new StringId((bufferNum << BytesPerBufferBits) + offset);
+#endif
+
+            Contract.Assert(stringId.IsValid);
+            return stringId;
+        }
+
+        private static void WriteBytes<T>(T seg, bool isAscii, byte[] buffer, int byteIndex) where T : struct, ICharSpan<T>
+        {
             if (isAscii)
             {
-                seg.CopyAs8Bit(currentBuffer, byteIndex);
+                seg.CopyAs8Bit(buffer, byteIndex);
             }
             else
             {
-                currentBuffer[byteIndex++] = Utf16Marker;
-                seg.CopyAs16Bit(currentBuffer, byteIndex);
+                buffer[byteIndex++] = Utf16Marker;
+                seg.CopyAs16Bit(buffer, byteIndex);
             }
-
-            return stringId;
         }
 
         /// <summary>
@@ -734,11 +741,25 @@ namespace BuildXL.Utilities
         private void GetBytesCore(StringId id, out byte[] buffer, out int index, out int length)
         {
             index = id.Value & BytesPerBufferMask;
-            buffer = m_byteBuffers[(id.Value >> BytesPerBufferBits) & NumByteBuffersMask];
-            length = buffer[index++];
-            if (length == LongStringMarker)
+            var bufferNum = (id.Value >> BytesPerBufferBits) & NumByteBuffersMask;
+            if (bufferNum == LargeStringBufferNum)
             {
-                length = Bits.ReadInt32(buffer, ref index);
+                buffer = m_largeStringBuffer[index];
+                index = 0;
+                length = buffer.Length;
+                if (buffer[0] == Utf16Marker)
+                {
+                    length = (length - 1) / 2;
+                }
+            }
+            else
+            {
+                buffer = m_byteBuffers[bufferNum];
+                length = buffer[index++];
+                if (length == LongStringMarker)
+                {
+                    length = Bits.ReadInt32(buffer, ref index);
+                }
             }
         }
 
@@ -973,12 +994,23 @@ namespace BuildXL.Utilities
                         }
                     }
 
+                    size += m_largeStringBuffer.Size;
                     return size;
                 }
 
                 return m_sizeInBytes;
             }
         }
+
+        /// <summary>
+        /// Gets approximately how much memory (in bytes) is used by large strings
+        /// </summary>
+        public long LargeStringSize => m_largeStringBuffer.Size;
+
+        /// <summary>
+        /// Gets the number of large strings
+        /// </summary>
+        public int LargeStringCount => m_largeStringBuffer.Count;
 
         /// <summary>
         /// Gets how many strings are in this table.
@@ -1022,7 +1054,92 @@ namespace BuildXL.Utilities
             }
         }
 
-#region Serialization
+        #region Helpers
+
+        /// <summary>
+        /// Defines a buffer for large string over <see cref="LargeStringBufferThreshold"/> in size. Strings are stored as independent byte buffers
+        /// rather than sharing byte buffers
+        /// </summary>
+        protected class LargeStringBuffer
+        {
+            private byte[][] m_byteArrays;
+            private int m_indexCursor;
+            private long m_size;
+
+            /// <summary>
+            /// Total size of strings (in bytes)
+            /// </summary>
+            internal long Size => m_size;
+
+            /// <summary>
+            /// Number of strings stored
+            /// </summary>
+            internal int Count => Math.Min(m_indexCursor + 1, m_byteArrays.Length);
+
+            internal LargeStringBuffer()
+            {
+                m_indexCursor = -1;
+                m_byteArrays = new byte[BytesPerBuffer][];
+            }
+
+            private LargeStringBuffer(BuildXLReader reader)
+            {
+                m_indexCursor = reader.ReadInt32();
+                m_byteArrays = reader.ReadArray(r =>
+                {
+                    var length = r.ReadInt32Compact();
+                    return r.ReadBytes(length);
+                },
+                minimumLength: BytesPerBuffer);
+            }
+
+            internal static LargeStringBuffer Deserialize(BuildXLReader reader)
+            {
+                return new LargeStringBuffer(reader);
+            }
+
+            internal void Serialize(BuildXLWriter writer)
+            {
+                writer.Write(m_indexCursor);
+
+                var serializedByteArrays = new ArrayView<byte[]>(m_byteArrays, 0, Count);
+
+                writer.WriteReadOnlyList(serializedByteArrays, (w, b) =>
+                {
+                    w.WriteCompact(b.Length);
+                    w.Write(b);
+                });
+            }
+
+            internal bool TryReserveSlot(out int index)
+            {
+                index = Interlocked.Increment(ref m_indexCursor);
+                return index < m_byteArrays.Length;
+            }
+
+            internal void Invalidate()
+            {
+                m_byteArrays = null;
+            }
+
+            internal byte[] this[int index]
+            {
+                get
+                {
+                    return m_byteArrays[index];
+                }
+                set
+                {
+                    var priorValue = Interlocked.CompareExchange(ref m_byteArrays[index], value, null);
+                    Contract.Assert(priorValue == null);
+                    Interlocked.Add(ref m_size, value.Length);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Serialization
 
         /// <summary>
         /// Deserializes a string table
@@ -1044,6 +1161,11 @@ namespace BuildXL.Utilities
             /// Backing data
             /// </summary>
             public byte[][] ByteBuffers;
+
+            /// <summary>
+            /// The backing data for large strings
+            /// </summary>
+            public LargeStringBuffer LargeStringBuffer;
 
             /// <summary>
             /// Count of items the table contains
@@ -1089,6 +1211,8 @@ namespace BuildXL.Utilities
                 result.ByteBuffers[i] = buffer;
             }
 
+            result.LargeStringBuffer = LargeStringBuffer.Deserialize(reader);
+
             result.StringSet = ConcurrentBigSet<StringId>.Deserialize(reader, () => reader.ReadStringId());
             result.Count = reader.ReadInt32();
 
@@ -1117,6 +1241,7 @@ namespace BuildXL.Utilities
                         NextId = m_nextId,
                         StringSet = m_stringSet,
                         ByteBuffers = m_byteBuffers,
+                        LargeStringBuffer = m_largeStringBuffer
                     });
             }
             finally
@@ -1145,6 +1270,8 @@ namespace BuildXL.Utilities
                     writer.Write(NullArrayMarker);
                 }
             }
+
+            state.LargeStringBuffer.Serialize(writer);
 
             state.StringSet.Serialize(writer, id => writer.Write(id));
 

@@ -277,14 +277,34 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
         [Fact]
         public void ValidateSharedCompilationWithRelativePaths()
-        { 
+        {
+            string thisAssemblyLocation;
+            IEnumerable<string> allInputAssertions;
+            RunManagedCompilation(useSharedCompilation: true, out thisAssemblyLocation, out allInputAssertions, out _);
+            Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
+        }
+
+        [Fact]
+        public void ValidateSharedCompilationAccessesAgainstNonSharedCompilation()
+        {
+            // Run the same managed csc call with and without shared compilation
+            RunManagedCompilation(useSharedCompilation: true, out _, out var allSharedInputs, out var allSharedOutputs);
+            RunManagedCompilation(useSharedCompilation: false, out _, out var allNonSharedInputs, out var allNonSharedOutputs);
+
+            // All inputs and outputs should match
+            XAssert.AreSetsEqual(allSharedInputs.ToHashSet(), allNonSharedInputs.ToHashSet(), expectedResult: true);
+            XAssert.AreSetsEqual(allSharedOutputs.ToHashSet(), allNonSharedOutputs.ToHashSet(), expectedResult: true);
+        }
+
+        private void RunManagedCompilation(bool useSharedCompilation, out string thisAssemblyLocation, out IEnumerable<string> allInputAssertions, out IEnumerable<string> allProducedOutputs)
+        {
             // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
-            var thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+            thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
             // We just use the assembly name, but add the assembly directory to the collection of additional paths
             var managedProject = GetCscProject("Program.cs", "exe", "Out.exe", $"References='{Path.GetFileName(thisAssemblyLocation)}' AdditionalLibPaths='{Path.GetDirectoryName(thisAssemblyLocation)}'");
             var program = GetHellowWorldProgram();
 
-            var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
+            var config = (CommandLineConfiguration)Build(useSharedCompilation: useSharedCompilation)
                 .AddSpec(R("ManagedProject.csproj"), managedProject)
                 .AddFile(R("Program.cs"), program)
                 .PersistSpecsAndGetConfiguration();
@@ -294,12 +314,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             var result = RunEngineWithConfig(config);
             Assert.True(result.IsSuccess);
-
-            // Let's verify now that library reference got properly resolved
-            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant()); ;
-            Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
+            
+            // Parsing the event is not a great way to recover the path, but doing this properly doesn't seem straightforward with the current integration test infrastructure
+            allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion)
+                .Select(log => log.ToUpperInvariant()).Select(log => log.Substring(log.IndexOf("AT PATH ") + 8));
+            allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced)
+                .Select(log => log.ToUpperInvariant()).Select(log => log.Substring(log.IndexOf("PRODUCED OUTPUT '") + 17)).Select(log => log.Substring(0, log.IndexOf("'")));
         }
-
+        
         private string GetCscProject(string sourceFilename, string targetType, string outputAssembly, string extraArgs = null)
         {
             // In order to avoid depending on MSBuild SDKs, which are hard to deploy in a self-contained way,

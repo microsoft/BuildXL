@@ -314,6 +314,7 @@ namespace Test.BuildXL.Utilities
             StringId id1 = harness.AddString(s1);
             StringId id2 = harness.AddString(s2);
             StringId id3 = harness.AddString(s3);
+            harness.AddString(s3 + "繙");
 
             XAssert.AreEqual(s1.Length, st.GetLength(id1));
             XAssert.AreEqual(s2.Length, st.GetLength(id2));
@@ -527,14 +528,17 @@ namespace Test.BuildXL.Utilities
 
                 foreach (var entry in AddedStrings)
                 {
+
                     // Test deserialization behaviors
                     XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetLength(entry.Key));
+                    XAssert.AreEqual(entry.Value.Length, deserializedStringTable.GetBinaryString(entry.Key).Length);
                     XAssert.AreEqual(entry.Value, deserializedStringTable.GetString(entry.Key));
                     XAssert.AreEqual(entry.Key, deserializedStringTable.AddString(entry.Value));
 
                     // Test original string table behaviors
                     XAssert.AreEqual(entry.Key, StringTable.AddString(entry.Value));
                     XAssert.AreEqual(entry.Value.Length, StringTable.GetLength(entry.Key));
+                    XAssert.AreEqual(entry.Value.Length, StringTable.GetBinaryString(entry.Key).Length);
                     XAssert.AreEqual(entry.Value, StringTable.GetString(entry.Key));
                 }
             }

@@ -31,10 +31,8 @@ namespace BuildXL.Utilities
         /// Creates a segment from a range of an array.
         /// </summary>
         public BinaryStringSegment(byte[] value, int byteIndex, int byteLength, bool isAscii)
+            : this(new ArrayView<byte>(value, byteIndex, byteLength), isAscii)
         {
-            Contract.Assert(isAscii || (value.Length % 2) == 0, "UTF-16 must have even number of bytes");
-            m_value = new ArrayView<byte>(value, byteIndex, byteLength);
-            m_isAscii = isAscii;
         }
 
         /// <summary>

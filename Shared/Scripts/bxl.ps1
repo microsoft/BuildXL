@@ -138,6 +138,9 @@ param(
 
     [Parameter(Mandatory=$false)]
     [switch]$VsNewAll = $false,
+	
+	[Parameter(Mandatory=$false)]
+	[switch]$UseManagedSharedCompilation = $false,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
@@ -192,6 +195,10 @@ if (! (Test-Path -PathType Container $cacheDirectory)) {
 
 if ($DominoArguments -eq $null) {
     $DominoArguments = @()
+}
+
+if ($UseManagedSharedCompilation) {
+	[Environment]::SetEnvironmentVariable("[Sdk.BuildXL]useManagedSharedCompilation", "1")
 }
 
 # Use Env var to check for microsoftInternal

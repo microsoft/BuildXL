@@ -49,6 +49,7 @@ namespace BuildXL.Scheduler.Graph
         
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
+        private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
         private MacOsDefaults m_macOsDefaults;
@@ -99,6 +100,11 @@ namespace BuildXL.Scheduler.Graph
         {
             m_pips.Enqueue(pip);
             pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
+            
+            if (pip.PipType == PipType.SealDirectory)
+            {
+                m_sealDirectoryPips.TryAdd(pip.PipId, ((SealDirectory)pip).Kind);
+            }
         }
 
         /// <inheritdoc />
@@ -267,6 +273,28 @@ namespace BuildXL.Scheduler.Graph
             {
                 pip.IndependentStaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
             }
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+        {
+            Contract.Requires(directoryArtifact.IsValid);
+
+            kind = default(SealDirectoryKind);
+            if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out var pipId))
+            {
+                return false;
+            }
+
+            var result = m_sealDirectoryPips.TryGet(pipId);
+
+            if (result.IsFound)
+            {
+                kind = result.Item.Value;
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -161,5 +161,12 @@ namespace BuildXL.Engine
         {
             return false;
         }
+
+        /// <inheritdoc />
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+        {
+            kind = default(SealDirectoryKind);
+            return false;
+        }
     }
 }

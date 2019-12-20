@@ -465,5 +465,11 @@ namespace BuildXL.Scheduler.Graph
         {
             return m_builder.ApplyCurrentOsDefaults(processBuilder);
         }
+
+        /// <inheritdoc />
+        public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+        {
+            return m_builder.TryGetSealDirectoryKind(directoryArtifact, out kind);
+        }
     }
 }

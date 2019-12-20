@@ -542,7 +542,7 @@ namespace BuildXL.Pips.Operations
 
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
-            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty; 
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
         }
 
         /// <summary>
@@ -711,6 +711,12 @@ namespace BuildXL.Pips.Operations
         public bool AllowUndeclaredSourceReads => (ProcessOptions & Options.AllowUndeclaredSourceReads) != 0;
 
         /// <summary>
+        /// <see cref="Options.TrustStaticallyDeclaredAccesses"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool TrustStaticallyDeclaredAccesses => (ProcessOptions & Options.TrustStaticallyDeclaredAccesses) != 0;
+
+        /// <summary>
         /// <see cref="Options.NeedsToRunInContainer"/>
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
@@ -746,7 +752,7 @@ namespace BuildXL.Pips.Operations
         /// Processes that breakaway can survive the lifespan of the sandbox
         /// </remarks>
         public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
-
+        
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).

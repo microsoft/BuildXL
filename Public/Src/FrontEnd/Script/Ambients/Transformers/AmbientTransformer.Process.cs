@@ -169,7 +169,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeIncrementalTool;
         private SymbolAtom m_unsafeRequireGlobalDependencies;
         private SymbolAtom m_unsafeChildProcessesToBreakawayFromSandbox;
-
+        private SymbolAtom m_unsafeTrustStaticallyDeclaredAccesses;
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
         private SymbolAtom m_semaphoreInfoIncrementBy;
@@ -320,6 +320,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeIncrementalTool = Symbol("incrementalTool");
             m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
             m_unsafeChildProcessesToBreakawayFromSandbox = Symbol("childProcessesToBreakawayFromSandbox");
+            m_unsafeTrustStaticallyDeclaredAccesses = Symbol("trustStaticallyDeclaredAccesses");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -1269,6 +1270,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
             processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);
+
+            // UnsafeExecuteArguments.trustStaticallyDeclaredAccesses
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeTrustStaticallyDeclaredAccesses) == true)
+            {
+                processBuilder.Options |= Process.Options.TrustStaticallyDeclaredAccesses;
+            }
         }
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)

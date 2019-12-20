@@ -64,6 +64,8 @@ export function compile(inputArgs: Arguments) : Result {
     let cscArguments: Argument[] = [
         Cmd.flag("/nologo",         args.noLogo),
         Cmd.flag("/noconfig",       args.noConfig),
+        // the /shared option is not supported as part of the response file
+        Cmd.flag("/shared", args.shared),
 
         Cmd.startUsingResponseFile(),
 
@@ -159,6 +161,14 @@ export function compile(inputArgs: Arguments) : Result {
         workingDirectory: outputDirectory,
         dependencies: additionalDependencies.filter(f => f !== undefined), //TODO: or additionalInputs???
         tags: ["compile"],
+        // If shared compilation is enabled, then we need to allow the compiler service to breakaway. 
+        // Additionally, and since this is a trusted process, we use the statically declared accesses to
+        // compensate for the unobserved ones.
+        unsafe: args.shared? 
+            {
+                childProcessesToBreakawayFromSandbox: [a`VBCSCompiler.exe`],
+                trustStaticallyDeclaredAccesses: true,
+            } : undefined,
     };
 
     if (Context.getCurrentHost().os !== "win") {
@@ -342,6 +352,8 @@ export interface Arguments extends Transformer.RunnerArguments{
     deterministic?: boolean;
     /** Specify a mapping for source path names output by the compiler to substitute the paths in the output PDBs*/
     pathMap?: PathMapEntry[];
+    /** Enables shared compilation via VBCSCompiler service. This is an experimental flag.*/
+    shared?: boolean;
 }
 
 @@public

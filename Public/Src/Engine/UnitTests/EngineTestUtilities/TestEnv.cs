@@ -393,6 +393,12 @@ namespace Test.BuildXL.TestUtilities
             {
                 return true;
             }
+
+            /// <inheritdoc />
+            public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>

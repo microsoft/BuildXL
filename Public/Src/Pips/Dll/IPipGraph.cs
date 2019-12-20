@@ -139,5 +139,10 @@ namespace BuildXL.Pips
         /// Allows the graph to set defaults for the current process;
         /// </summary>
         bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder);
+
+        /// <summary>
+        /// Attempts to return the kind of a directory artifact. Succeeds if the directory has already been added to the graph.
+        /// </summary>
+        bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind);
     }
 }

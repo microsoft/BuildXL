@@ -134,6 +134,20 @@ namespace BuildXL.Pips.Operations
             /// and <see cref="DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor"/>
             /// </summary>
             EnforceWeakFingerprintAugmentation = 1 << 15,
+
+            /// <summary>
+            /// This option makes all statically declared artifacts on this process (inputs and outputs) to be automatically
+            /// added to the sandbox access report, as if the process actually produced those accesses
+            /// </summary>
+            /// <remarks>
+            /// Useful for automatically augmenting the sandbox access report on trusted process breakaway. <see cref="ChildProcessesToBreakawayFromSandbox"/>.
+            /// Default is false. This is an unsafe option. Should only be used on trusted process, where the statically declared inputs and outputs are guaranteed to
+            /// match the process actual behavior.
+            /// Only takes effect if <see cref="ChildProcessesToBreakawayFromSandbox"/> is a non-empty array. Otherwise is ignored.
+            /// Note that when using this, the observed set of inputs can be larger than usual since observations cannot be used to determine what actually was read, and all
+            /// statically specified inputs are used instead.
+            /// </remarks>
+            TrustStaticallyDeclaredAccesses = 1 << 16,
         }
     }
 }

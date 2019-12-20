@@ -264,6 +264,18 @@ namespace Transformer {
          * by some other means.
          */
         childProcessesToBreakawayFromSandbox?: PathAtom[];
+
+        /**
+         * This option makes all statically declared artifacts on this process (inputs and outputs) to be automatically
+         * added to the sandbox access report, as if the process actually produced those accesses.
+         * Useful for automatically augmenting the sandbox access report on trusted process breakaway.
+         * Default is false. 
+         * Should only be used on trusted process, where the statically declared inputs and outputs are guaranteed to
+         * match the process actual behavior.
+         * Only takes effect if 'childProcessesToBreakawayFromSandbox' is non-empty. Otherwise it is ignored.
+         * This option is only supported for pips with no output directories nor source sealed dependencies.
+         */
+        trustStaticallyDeclaredAccesses?: boolean;
     }
 
     /**

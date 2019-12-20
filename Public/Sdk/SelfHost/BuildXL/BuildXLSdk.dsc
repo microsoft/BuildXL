@@ -164,6 +164,12 @@ namespace Flags {
      */
     @@public
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
+
+    /**
+     * Use shared compilation for csc calls. Experimental feature.
+     */
+    @@public
+    export const useManagedSharedCompilation = Environment.getFlag("[Sdk.BuildXL]useManagedSharedCompilation");
 }
 
 @@public
@@ -485,6 +491,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,
                     additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,
+                    shared: Flags.useManagedSharedCompilation,
                 }
             },
         },

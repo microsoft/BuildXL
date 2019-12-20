@@ -1095,6 +1095,13 @@ namespace BuildXL.Processes
                     process.Dispose();
                 }
 
+                // If we trust the statically declared accesses and the pip has processes configured to breakaway
+                // then make sure we augment the reported accesses based on the pip static input/output declarations
+                if (m_pip.TrustStaticallyDeclaredAccesses && m_pip.ChildProcessesToBreakawayFromSandbox.Length > 0)
+                {
+                    AugmentWithTrustedAccessesFromDeclaredArtifacts(result, m_pip, m_directoryArtifactContext);
+                }
+
                 var start = DateTime.UtcNow;
                 SandboxedProcessPipExecutionResult executionResult =
                     await
@@ -1112,6 +1119,119 @@ namespace BuildXL.Processes
                     lastMessageCount,
                     isMessageCountSemaphoreCreated);
             }
+        }
+
+        private void AugmentWithTrustedAccessesFromDeclaredArtifacts(SandboxedProcessResult result, Process process, IDirectoryArtifactContext directoryContext)
+        {
+            // If no ReportedProcess is found it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
+            var reportedProcess = result.Processes.FirstOrDefault() ?? new ReportedProcess(0, string.Empty, string.Empty);
+
+            HashSet<ReportedFileAccess> trustedAccesses = ComputeDeclaredAccesses(process, directoryContext, reportedProcess);
+
+            // All files accesses is an optional field. If present, we augment it with all the trusted ones
+            if (result.FileAccesses != null)
+            {
+                result.FileAccesses.UnionWith(trustedAccesses);
+            }
+
+            // From all the trusted accesses, we only augment with the explicit ones
+            result.ExplicitlyReportedFileAccesses.UnionWith(trustedAccesses.Where(access => access.ExplicitlyReported));
+        }
+
+        /// <summary>
+        /// All declared inputs are represented by file reads, all declared outputs by file writes
+        /// </summary>
+        /// <remarks>
+        /// All inputs are used as an over-approximation to stay on the safe side. Only outputs that are actually
+        /// present on disk are turned into write accesses, since not all outputs are guaranteed to be produced.
+        /// </remarks>
+        private HashSet<ReportedFileAccess> ComputeDeclaredAccesses(Process process, IDirectoryArtifactContext directoryContext, ReportedProcess reportedProcess)
+        {
+            var trustedAccesses = new HashSet<ReportedFileAccess>();
+
+            // Directory outputs are not supported for now. This is enforced by the process builder.
+            Contract.Assert(process.DirectoryOutputs.Length == 0);
+
+            foreach (var inputArtifact in process.Dependencies)
+            {
+                if (TryGetDeclaredReadAccessForFile(reportedProcess, inputArtifact, out var reportedFileAccess))
+                {
+                    trustedAccesses.Add(reportedFileAccess);
+                }
+            }
+
+            foreach (var inputDirectory in process.DirectoryDependencies)
+            {
+                // Source seal directories are not supported for now. Discovering them via enumerations
+                // could be a way to do it in the future. This is enforced by the process builder.
+                Contract.Assert(!directoryContext.GetSealDirectoryKind(inputDirectory).IsSourceSeal());
+                
+                var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory);
+
+                foreach (var inputArtifact in directoryContent)
+                {
+                    if (TryGetDeclaredReadAccessForFile(reportedProcess, inputArtifact, out var reportedFileAccess))
+                    {
+                        trustedAccesses.Add(reportedFileAccess);
+                    }
+                }
+            }
+
+            foreach (var outputArtifact in process.FileOutputs)
+            {
+                // We only add outputs that were actually produced
+                if (TryGetDeclaredWriteAccessForFile(reportedProcess, outputArtifact.Path, out var reportedFileAccess) && FileUtilities.FileExistsNoFollow(outputArtifact.Path.ToString(m_pathTable)))
+                {
+                    trustedAccesses.Add(reportedFileAccess);
+                }
+            }
+
+            return trustedAccesses;
+        }
+
+        private bool TryGetDeclaredReadAccessForFile(ReportedProcess process, AbsolutePath path, out ReportedFileAccess reportedFileAccess)
+        {
+            return TryGetDeclaredAccessForFile(process, path, isRead: true, out reportedFileAccess);
+        }
+
+        private bool TryGetDeclaredWriteAccessForFile(ReportedProcess process, AbsolutePath path, out ReportedFileAccess reportedFileAccess)
+        {
+            return TryGetDeclaredAccessForFile(process, path, isRead: false, out reportedFileAccess);
+        }
+
+        private bool TryGetDeclaredAccessForFile(ReportedProcess process, AbsolutePath path, bool isRead, out ReportedFileAccess reportedFileAccess)
+        {
+            var result = m_fileAccessManifest.TryFindManifestPathFor(path, out var manifestPath, out var nodePolicy);
+            Contract.Assert(result);
+
+            bool shouldReportAccess = (nodePolicy & FileAccessPolicy.ReportAccess) != 0;
+
+            // if the access is flagged to not be reported, and the global manifest flag does not require all accesses
+            // to be reported, then we don't create it
+            if (!shouldReportAccess && !m_fileAccessManifest.ReportFileAccesses)
+            {
+                reportedFileAccess = default(ReportedFileAccess);
+                return false;
+            }
+
+            reportedFileAccess = new ReportedFileAccess(
+                ReportedFileOperation.CreateFile,
+                process,
+                isRead ? RequestedAccess.Read: RequestedAccess.Write,
+                FileAccessStatus.Allowed,
+                explicitlyReported: shouldReportAccess,
+                0,
+                Usn.Zero,
+                isRead ? DesiredAccess.GENERIC_READ : DesiredAccess.GENERIC_WRITE,
+                ShareMode.FILE_SHARE_NONE,
+                isRead ? CreationDisposition.OPEN_ALWAYS : CreationDisposition.CREATE_ALWAYS,
+                FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
+                manifestPath,
+                path: (path == manifestPath) ? null : path.ToString(m_pathTable),
+                enumeratePatttern: null,
+                FileAccessStatusMethod.TrustedTool);
+
+            return true;
         }
 
         /// <summary>

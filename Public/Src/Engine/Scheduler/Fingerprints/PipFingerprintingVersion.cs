@@ -44,7 +44,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 70: Removed duplicates from ObservedAccessedFileNames.
         /// 71: Rename fields in weak fingerprint.
         /// 72: Added PreserveoutputsTrustLevel
+        /// 73: Added Trust statically declared accesses
         /// </remarks>
-        TwoPhaseV2 = 72,
+        TwoPhaseV2 = 73,
     }
 }

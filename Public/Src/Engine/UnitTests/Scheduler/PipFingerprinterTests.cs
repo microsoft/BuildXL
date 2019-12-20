@@ -821,6 +821,7 @@ namespace Test.BuildXL.Scheduler
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
             var preserveOutputWhitelist = source.Vary(p => p.PreserveOutputWhitelist);
+            bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -852,6 +853,11 @@ namespace Test.BuildXL.Scheduler
                 {
                     uniqueRedirectedDirectoryRoot = AbsolutePath.Create(source.PathTable, X("/Z/DefaultRedirectedDirectory"));
                 }
+            }
+
+            if (trustStaticallyDeclaredAccesses)
+            {
+                options |= Process.Options.TrustStaticallyDeclaredAccesses;
             }
 
             if (requiresAdmin)

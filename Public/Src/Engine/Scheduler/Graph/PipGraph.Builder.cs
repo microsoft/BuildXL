@@ -2382,6 +2382,21 @@ namespace BuildXL.Scheduler.Graph
                 return SealDirectoryTable.CreateSharedOpaqueDirectoryWithNewSealId(directoryArtifactRoot);
             }
 
+            /// <inheritdoc/>
+            public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
+            {
+                Contract.Requires(directoryArtifact.IsValid);
+                
+                if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out var pipId))
+                {
+                    kind = default(SealDirectoryKind);
+                    return false;
+                }
+
+                kind = PipTable.GetSealDirectoryKind(pipId);
+                return true;
+            }
+
             /// <inheritdoc />
             public DirectoryArtifact AddSealDirectory(SealDirectory sealDirectory, PipId valuePipId = default)
             {

@@ -206,6 +206,8 @@ namespace BuildXL
 
             ConfigureDistributionLogging(pathTable, mutableConfig);
             ConfigureCloudBuildLogging(pathTable, mutableConfig);
+            ConfigureDevLogLogging(mutableConfig);
+
             if (mutableConfig.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled)
             {
                 ConfigureCacheMissLogging(pathTable, mutableConfig);
@@ -274,80 +276,9 @@ namespace BuildXL
                     mutableConfig.Logging.EnableAsyncLogging = true;
                 }
 
-                var logPath = mutableConfig.Logging.Log;
-
                 // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.
                 mutableConfig.Logging.CustomLog.Add(
                     mutableConfig.Logging.PipOutputLog, (new[] { (int)EventId.PipProcessOutput }, null));
-
-                mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.DevLog,
-                    (new[]
-                    {
-                        // Add useful low volume-messages for dev diagnostics here
-                        (int)EventId.DominoInvocation,
-                        (int)EventId.StartupTimestamp,
-                        (int)EventId.StartupCurrentDirectory,
-                        (int)EventId.DominoCompletion,
-                        (int)EventId.DominoPerformanceSummary,
-                        (int)EventId.DominoCatastrophicFailure,
-                        (int)EventId.UnexpectedConditionLocal,
-                        (int)EventId.UnexpectedConditionTelemetry,
-                        (int)SchedulerEventId.CriticalPathPipRecord,
-                        (int)SchedulerEventId.CriticalPathChain,
-                        (int)EventId.HistoricMetadataCacheLoaded,
-                        (int)EventId.HistoricMetadataCacheSaved,
-                        (int)EventId.RunningTimesLoaded,
-                        (int)EventId.RunningTimesSaved,
-                        (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
-                        (int)SchedulerEventId.SymlinkFileTraceMessage,
-                        (int)EventId.StartEngineRun,
-                        (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
-                        (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
-                        (int)Engine.Tracing.LogEventId.GraphNotReusedDueToChangedInput,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndEndEvaluateValues,
-                        (int)EventId.StartLoadingRunningTimes,
-                        (int)EventId.EndLoadingRunningTimes,
-                        (int)Engine.Tracing.LogEventId.StartSerializingPipGraph,
-                        (int)Engine.Tracing.LogEventId.EndSerializingPipGraph,
-                        (int)EventId.ScrubbingStarted,
-                        (int)EventId.ScrubbingFinished,
-                        (int)EventId.StartSchedulingPipsWithFilter,
-                        (int)EventId.EndSchedulingPipsWithFilter,
-                        (int)EventId.StartScanningJournal,
-                        (int)EventId.EndScanningJournal,
-                        (int)Engine.Tracing.LogEventId.StartExecute,
-                        (int)Engine.Tracing.LogEventId.EndExecute,
-                        (int)EventId.PipDetailedStats,
-                        (int)EventId.ProcessesCacheHitStats,
-                        (int)EventId.ProcessesCacheMissStats,
-                        (int)EventId.ProcessesSemaphoreQueuedStats,
-                        (int)EventId.CacheTransferStats,
-                        (int)EventId.OutputFileStats,
-                        (int)EventId.SourceFileHashingStats,
-                        (int)EventId.OutputFileHashingStats,
-                        (int)EventId.BuildSetCalculatorStats,
-                        (int)EventId.EndFilterApplyTraversal,
-                        (int)EventId.EndAssigningPriorities,
-                        (int)Engine.Tracing.LogEventId.DeserializedFile,
-                        (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings,
-                        (int)Engine.Tracing.LogEventId.ChosenABTesting,
-                        (int)EventId.SynchronouslyWaitedForCache,
-                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
-                        (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
-                    },
-                    // all errors should be included in a dev log
-                    EventLevel.Error));
 
                 // Distribution related messages are disabled in default text log and routed to special log file
                 mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);
@@ -358,6 +289,76 @@ namespace BuildXL
                 // log events in Kusto.
                 mutableConfig.Logging.CustomLogEtwKinds[mutableConfig.Logging.PipOutputLog] = "pipoutput";
             }
+        }
+
+        private static void ConfigureDevLogLogging(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        {
+            mutableConfig.Logging.CustomLog.Add(mutableConfig.Logging.DevLog, (new[]
+            {
+                // Add useful low volume-messages for dev diagnostics here
+                (int)EventId.DominoInvocation,
+                (int)EventId.StartupTimestamp,
+                (int)EventId.StartupCurrentDirectory,
+                (int)EventId.DominoCompletion,
+                (int)EventId.DominoPerformanceSummary,
+                (int)EventId.DominoCatastrophicFailure,
+                (int)EventId.UnexpectedConditionLocal,
+                (int)EventId.UnexpectedConditionTelemetry,
+                (int)SchedulerEventId.CriticalPathPipRecord,
+                (int)SchedulerEventId.CriticalPathChain,
+                (int)EventId.HistoricMetadataCacheLoaded,
+                (int)EventId.HistoricMetadataCacheSaved,
+                (int)EventId.RunningTimesLoaded,
+                (int)EventId.RunningTimesSaved,
+                (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
+                (int)SchedulerEventId.SymlinkFileTraceMessage,
+                (int)EventId.StartEngineRun,
+                (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
+                (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
+                (int)Engine.Tracing.LogEventId.GraphNotReusedDueToChangedInput,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndEndEvaluateValues,
+                (int)EventId.StartLoadingRunningTimes,
+                (int)EventId.EndLoadingRunningTimes,
+                (int)Engine.Tracing.LogEventId.StartSerializingPipGraph,
+                (int)Engine.Tracing.LogEventId.EndSerializingPipGraph,
+                (int)EventId.ScrubbingStarted,
+                (int)EventId.ScrubbingFinished,
+                (int)EventId.StartSchedulingPipsWithFilter,
+                (int)EventId.EndSchedulingPipsWithFilter,
+                (int)EventId.StartScanningJournal,
+                (int)EventId.EndScanningJournal,
+                (int)Engine.Tracing.LogEventId.StartExecute,
+                (int)Engine.Tracing.LogEventId.EndExecute,
+                (int)EventId.PipDetailedStats,
+                (int)EventId.ProcessesCacheHitStats,
+                (int)EventId.ProcessesCacheMissStats,
+                (int)EventId.ProcessesSemaphoreQueuedStats,
+                (int)EventId.CacheTransferStats,
+                (int)EventId.OutputFileStats,
+                (int)EventId.SourceFileHashingStats,
+                (int)EventId.OutputFileHashingStats,
+                (int)EventId.BuildSetCalculatorStats,
+                (int)EventId.EndFilterApplyTraversal,
+                (int)EventId.EndAssigningPriorities,
+                (int)Engine.Tracing.LogEventId.DeserializedFile,
+                (int)EventId.PipQueueConcurrency,
+                (int)Engine.Tracing.LogEventId.GrpcSettings,
+                (int)Engine.Tracing.LogEventId.ChosenABTesting,
+                (int)EventId.SynchronouslyWaitedForCache,
+                (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
+            },
+            // all errors should be included in a dev log
+            EventLevel.Error));
         }
 
         void IDisposable.Dispose()

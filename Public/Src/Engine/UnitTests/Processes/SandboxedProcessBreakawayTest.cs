@@ -229,9 +229,13 @@ namespace Test.BuildXL.Processes
             var result = RunProcess(info).GetAwaiter().GetResult();
             XAssert.AreEqual(0, result.ExitCode);
 
-            // We should get a single access with output2, since output1 should be ignored
-            var accessPath = result.FileAccesses.Single(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).ManifestPath;
+            // We should get a single explicit access with output2, since output1 should be ignored
+            var accessPath = result.ExplicitlyReportedFileAccesses.Single(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).ManifestPath;
             XAssert.AreEqual(output2.Path, accessPath);
+
+            // We should get both accesses as part of the (optional) FileAccess
+            var allTrustedAcceses = result.FileAccesses.Where(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).Select(rfa => rfa.ManifestPath);
+            XAssert.Contains(allTrustedAcceses, output1.Path, output2.Path);
         }
     }
 }

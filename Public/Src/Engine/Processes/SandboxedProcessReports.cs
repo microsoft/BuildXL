@@ -579,23 +579,18 @@ namespace BuildXL.Processes
             }
             
             var success = m_manifest.TryFindManifestPathFor(absolutePath, out AbsolutePath computedManifestPath, out FileAccessPolicy policy);
-            
-            // If the manifest specified to not report any accesses, then we just ignore this report line
-            // We could impose trusted tools the responsibility of knowing this (and not reporting these accesses), but
-            // this type of coordination is hard to achieve
-            if ((policy & FileAccessPolicy.ReportAccess) == 0)
-            {
-                path = null;
-                return true;
-            }
 
-            // If there is no explicit policy for this path, just keep the manifest path as it came from the report
+            // If there is no explicit policy for this path, just keep the manifest path and explicitlyReported flag as it came from the report
             if (!success)
             {
                 return result;
             }
 
             manifestPath = computedManifestPath;
+
+            // We override the explicitly reported flag according to the manifest policy.
+            // We could impose trusted tools the responsibility of knowing this, but this type of coordination is hard to achieve
+            explicitlyReported = (policy & FileAccessPolicy.ReportAccess) != 0;
 
             return result;
         }

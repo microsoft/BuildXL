@@ -262,7 +262,8 @@ namespace BuildXL.Processes
             result.Append($"{processId.ToString("x")}|");
             result.Append($"{((byte)requestedAccess).ToString("x")}|");
             result.Append($"{((byte)fileAccessStatus).ToString("x")}|");
-            // '1' makes the access look as explicitly reported
+            // '1' makes the access look as explicitly reported, but this actually doesn't matter since it will get
+            // set based on the manifest policy upon reception
             result.Append("1|");
             result.Append($"{errorCode.ToString("x")}|");
             result.Append($"{usn.Value.ToString("x")}|");

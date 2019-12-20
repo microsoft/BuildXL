@@ -345,19 +345,18 @@ export function test(args: TestArguments) : TestResult {
             /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
 
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
-            // QTest doesn't really work when the limit categories filter out all the tests.
-            // Basically, the logic below follows standalone test runner.
-            const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
-            const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
-            const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
-            const framework = untracked ? untrackedFramework : trackedFramework;
+            Contract.assert(args.testFramework !== undefined, "testFramework must have been set by processTestArguments");
             args = args.merge({
-                testFramework: framework,
+                testFramework: args.testFramework,
                 runTestArgs: {
                     privilegeLevel: <"standard"|"admin">"admin",
                     limitGroups: ["RequiresAdmin"],
                     parallelGroups: undefined,
                     tags: ["RequiresAdminTest"],
+                    unsafeTestRunArguments: {
+                         // Some unit test assemblies may not have unit tests that require admin privilege.
+                        allowForZeroTestCases: true
+                    }
                 }
             });
             const adminResult = Managed.runTestOnly(
@@ -575,15 +574,23 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
     ]
 });
 
+/** Returns true if test should use QTest framework. */
+function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
+    return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
+        && qualifier.targetFramework !== "netcoreapp3.0"      // QTest does not support .net core apps
+        && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
+}
+
+/** Gets test framework. */
+function getTestFramework(args: Managed.TestArguments) : Managed.TestFramework {
+    return args.testFramework || (shouldUseQTest(args.runTestArgs) ? QTest.getFramework(XUnit.framework) : XUnit.framework);
+}
 
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {
     args = processArguments(args, "library");
 
     let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8; 
-    let useQTest = Flags.isQTestEnabled 
-        && qualifier.targetFramework !== "netcoreapp3.0" // QTest is not support for .net core apps
-        && !(args.runTestArgs && args.runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
-    let testFramework = args.testFramework || (useQTest ? QTest.getFramework(XUnit.framework) : XUnit.framework);
+    let testFramework = getTestFramework(args);
 
     args = Object.merge<Managed.TestArguments>({
         testFramework: testFramework,

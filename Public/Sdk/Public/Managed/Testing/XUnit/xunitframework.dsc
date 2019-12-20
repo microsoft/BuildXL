@@ -64,21 +64,20 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
 }
 
 function runTest(args : TestRunArguments) : File[] {
-        // Creating output files
-        let logFolder = Context.getNewOutputDirectory('xunit-logs');
-        let xmlResultFile = p`${logFolder}/xunit.results.xml`;
+    // Creating output files
+    let logFolder = Context.getNewOutputDirectory('xunit-logs');
+    let xmlResultFile = p`${logFolder}/xunit.results.xml`;
 
-        args = Object.merge<TestRunArguments>({
-            xmlFile: xmlResultFile,
-            parallel: "none",
-            noShadow: true,
-            useAppDomains: false,
-            traits: args.limitGroups && args.limitGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),
-            noTraits: args.skipGroups && args.skipGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),
-            tags: ["test", "telemetry:xUnit"]
-        }, args);
-
-        let testResult = runConsoleTest(args);
+    args = Object.merge<TestRunArguments>({
+        xmlFile: xmlResultFile,
+         parallel: "none",
+         noShadow: true,
+         useAppDomains: false,
+         traits: args.limitGroups && args.limitGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),
+         noTraits: args.skipGroups && args.skipGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),
+         tags: ["test", "telemetry:xUnit"]
+    }, args);
+   let testResult = runConsoleTest(args);
     return [
         testResult.xmlFile
     ];

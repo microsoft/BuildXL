@@ -62,6 +62,21 @@ function runMultipleQTests(args: TestRunArguments) : File[]
     ];
 }
 
+function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
+    switch (qualifier.targetFramework) {
+        case "net451":
+            return Qtest.QTestDotNetFramework.framework45;
+        case "net461":
+        case "net472":
+            return Qtest.QTestDotNetFramework.framework46;
+        case "netstandard2.0":
+        case "netcoreapp3.0":
+            return Qtest.QTestDotNetFramework.frameworkCore30;
+        default:
+            Contract.fail("QTest does not support " + qualifier.targetFramework);
+    }
+}
+
 function runTest(args : TestRunArguments) : File[] {  
     const testMethod = Environment.getStringValue("[UnitTest]Filter.testMethod");
     const testClass  = Environment.getStringValue("[UnitTest]Filter.testClass");
@@ -93,11 +108,11 @@ function runTest(args : TestRunArguments) : File[] {
     }
 
     if (args.limitGroups) {
-            filterArgs = filterArgs.concat(args.limitGroups.map(testGroup => "(TestCategory=" + testGroup + "|Category=" + testGroup + ")"));
+        filterArgs = filterArgs.concat(args.limitGroups.map(testGroup => "(TestCategory=" + testGroup + "|Category=" + testGroup + ")"));
     }
 
     if (args.skipGroups) {
-            filterArgs = filterArgs.concat(args.skipGroups.map(testGroup => "(TestCategory!=" + testGroup + "&Category!=" + testGroup + ")"));
+        filterArgs = filterArgs.concat(args.skipGroups.map(testGroup => "(TestCategory!=" + testGroup + "&Category!=" + testGroup + ")"));
     }       
 
     if(filterArgs.length > 0){
@@ -124,7 +139,7 @@ function runTest(args : TestRunArguments) : File[] {
             root: testAdapterPath, 
             files: globR(testAdapterPath, "*")
         }),
-        qTestDotNetFramework: Qtest.QTestDotNetFramework.framework45,
+        qTestDotNetFramework: getQTestDotNetFramework(),
         qTestPlatform: Qtest.QTestPlatform.x64,
         qTestRetryOnFailure: true,
         qTestAttemptCount: 1,
@@ -147,6 +162,7 @@ function runTest(args : TestRunArguments) : File[] {
         privilegeLevel: args.privilegeLevel,
         qTestBuildType: qualifier.configuration,
         testSourceDir: Context.getMount("SourceRoot").path.getRelative(Context.getSpecFileDirectory().path),
+        qTestUnsafeArguments: args.unsafeTestRunArguments ? { doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases } : undefined
     });
 
     return [

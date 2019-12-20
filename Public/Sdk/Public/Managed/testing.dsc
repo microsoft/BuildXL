@@ -297,6 +297,15 @@ export interface TestRunArguments {
 
     /** Privilege level required by this process to execute. */
     privilegeLevel?: "standard" | "admin";
+
+    /** Unsafe arguments for running unit tests. */
+    unsafeTestRunArguments?: UnsafeTestRunArguments;
+}
+
+@@public
+export interface UnsafeTestRunArguments {
+    /** Allow testing zero test cases. */
+    allowForZeroTestCases?: boolean;
 }
 
 @@public

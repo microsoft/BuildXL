@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if !DISABLE_FEATURE_HTMLWRITER
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Web.UI;
+using System.Xml;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -26,139 +25,139 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             m_analyzer = analyzer;
         }
 
-        public void PrintHtmlReport(SummaryAnalyzer analyzer, HtmlTextWriter writer)
+        public void PrintHtmlReport(SummaryAnalyzer analyzer, XmlWriter writer)
         {
-            writer.Write("<!DOCTYPE html>");
-            writer.RenderBeginTag(HtmlTextWriterTag.Html);
-            writer.RenderBeginTag(HtmlTextWriterTag.Head);
+            writer.WriteRaw("<!DOCTYPE html>");
+            writer.WriteStartElement("html");
+            writer.WriteStartElement("head");
             RenderStylesheet(writer);
             RenderScript(writer);
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.Body);
+            writer.WriteEndElement();
+            writer.WriteStartElement("body");
             RenderExecutiveSummaryTable(writer, analyzer);
             RenderPipExecutionSection(writer, analyzer);
             RenderPipExecutedTrackedProcessPips(writer, analyzer);
             RenderArtifactsSummary(writer, analyzer);
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
-        private void RenderPipExecutionSection(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderPipExecutionSection(XmlWriter writer, SummaryAnalyzer analyzer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H2);
-            writer.Write("Executed Process Analysis ");
+            writer.WriteStartElement("div");
+            writer.WriteStartElement("h2");
+            writer.WriteString("Executed Process Analysis ");
             RenderFileAcronym(writer, m_analyzer.ComparedFilePath, "Current");
-            writer.Write(" Execution Log");
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.P);
-            writer.Write("This section lists executed process pips in longest pole order in ");
+            writer.WriteString(" Execution Log");
+            writer.WriteEndElement();
+            writer.WriteStartElement("p");
+            writer.WriteString("This section lists executed process pips in longest pole order in ");
             RenderFileAcronym(writer, m_analyzer.ComparedFilePath, "current");
-            writer.Write(" log. Reason for execution by comparing to matching pip in ");
+            writer.WriteString(" log. Reason for execution by comparing to matching pip in ");
             RenderFileAcronym(writer, analyzer.ComparedFilePath, "previous");
-            writer.Write(" log. Dependent process pips executed, critical path of transitive down dependent pips. Dependent list of process Pips (optional)");
-            writer.RenderEndTag();
+            writer.WriteString(" log. Dependent process pips executed, critical path of transitive down dependent pips. Dependent list of process Pips (optional)");
+            writer.WriteEndElement();
 
             var summariesToReport = m_analyzer.GetDifferecesToReport();
             RenderPipExecutions(writer, summariesToReport);
-            writer.RenderEndTag(); // closing div
+            writer.WriteEndElement(); // closing div
         }
 
-        private void RenderPipExecutedTrackedProcessPips(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderPipExecutedTrackedProcessPips(XmlWriter writer, SummaryAnalyzer analyzer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H2);
-            writer.Write("Executed Process Pips In Critical Path");
+            writer.WriteStartElement("div");
+            writer.WriteStartElement("h2");
+            writer.WriteString("Executed Process Pips In Critical Path");
             RenderFileAcronym(writer, m_analyzer.ComparedFilePath, "Current");
-            writer.Write(" Execution Log");
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.P);
-            writer.Write("This section lists executed process pips referenced in critical path. ");
-            writer.Write(" Reason for execution by comparing to matching pip in ");
+            writer.WriteString(" Execution Log");
+            writer.WriteEndElement();
+            writer.WriteStartElement("p");
+            writer.WriteString("This section lists executed process pips referenced in critical path. ");
+            writer.WriteString(" Reason for execution by comparing to matching pip in ");
             RenderFileAcronym(writer, analyzer.ComparedFilePath, "previous");
-            writer.Write(" log and pip outputs");
-            writer.RenderEndTag();
+            writer.WriteString(" log and pip outputs");
+            writer.WriteEndElement();
 
             // Allow collapsing of this section
-            writer.AddAttribute(HtmlTextWriterAttribute.Type, "button");
-            writer.AddAttribute(HtmlTextWriterAttribute.Onclick, @"toggleMe('executedTrackedProcessPips')");
-            writer.RenderBeginTag(HtmlTextWriterTag.Button);
-            writer.Write("Collapse");
-            writer.RenderEndTag();
+            writer.WriteStartElement("button");
+            writer.WriteAttributeString("type", "button");
+            writer.WriteAttributeString("onclick", @"toggleMe('executedTrackedProcessPips')");
+            writer.WriteString("Collapse");
+            writer.WriteEndElement();
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "executedTrackedProcessPips");
-            writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: block;");
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
+            writer.WriteStartElement("div");
+            writer.WriteAttributeString("id", "executedTrackedProcessPips");
+            writer.WriteAttributeString("style", "display: block;");
             RenderPipExecutions(writer, m_analyzer.PipSummaryTrackedProcessPips, false);
-            writer.RenderEndTag();
-            writer.RenderEndTag(); // closing div
+            writer.WriteEndElement();
+            writer.WriteEndElement(); // closing div
         }
 
 #region Single XLG log report
-        public void PrintHtmlReport(HtmlTextWriter writer)
+        public void PrintHtmlReport(XmlWriter writer)
         {
-            writer.Write("<!DOCTYPE html>");
-            writer.RenderBeginTag(HtmlTextWriterTag.Html);
-            writer.RenderBeginTag(HtmlTextWriterTag.Head);
+            writer.WriteString("<!DOCTYPE html>");
+            writer.WriteStartElement("html");
+            writer.WriteStartElement("head");
             RenderStylesheet(writer);
             RenderScript(writer);
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.Body);
+            writer.WriteEndElement();
+            writer.WriteStartElement("body");
             RenderExecutiveSummaryTable(writer);
             RenderPipExecutionSection(writer);
             RenderPipExecutedTrackedProcessPips(writer);
 
             // RenderArtifactsSummary(writer, analyzer);
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
-        private void RenderPipExecutionSection(HtmlTextWriter writer)
+        private void RenderPipExecutionSection(XmlWriter writer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H2);
-            writer.Write("Executed Process");
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.P);
-            writer.Write("This section lists executed process pips in longest pole order. ");
-            writer.Write("Possible reason for execution by comparing against dependencies from cached Pips");
-            writer.Write("Dependent process pips executed, critical path of transitive down dependent pips.");
-            writer.RenderEndTag();
+            writer.WriteStartElement("div");
+            writer.WriteStartElement("h2");
+            writer.WriteString("Executed Process");
+            writer.WriteEndElement();
+            writer.WriteStartElement("p");
+            writer.WriteString("This section lists executed process pips in longest pole order. ");
+            writer.WriteString("Possible reason for execution by comparing against dependencies from cached Pips");
+            writer.WriteString("Dependent process pips executed, critical path of transitive down dependent pips.");
+            writer.WriteEndElement();
 
             var summariesToReport = m_analyzer.GetExecutedProcessPipSummary();
             RenderPipExecutions(writer, summariesToReport);
-            writer.RenderEndTag(); // closing div
+            writer.WriteEndElement(); // closing div
         }
 
-        private void RenderPipExecutedTrackedProcessPips(HtmlTextWriter writer)
+        private void RenderPipExecutedTrackedProcessPips(XmlWriter writer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H2);
-            writer.Write("Executed Process Pips In Critical Path");
+            writer.WriteStartElement("div");
+            writer.WriteStartElement("h2");
+            writer.WriteString("Executed Process Pips In Critical Path");
             RenderFileAcronym(writer, m_analyzer.ComparedFilePath, "Current");
-            writer.Write(" Execution Log");
-            writer.RenderEndTag();
-            writer.RenderBeginTag(HtmlTextWriterTag.P);
-            writer.Write("This section lists executed process pips referenced in critical path.");
-            writer.RenderEndTag();
+            writer.WriteString(" Execution Log");
+            writer.WriteEndElement();
+            writer.WriteStartElement("p");
+            writer.WriteString("This section lists executed process pips referenced in critical path.");
+            writer.WriteEndElement();
 
             // Allow collapsing of this section
-            writer.AddAttribute(HtmlTextWriterAttribute.Type, "button");
-            writer.AddAttribute(HtmlTextWriterAttribute.Onclick, @"toggleMe('executedTrackedProcessPips')");
-            writer.RenderBeginTag(HtmlTextWriterTag.Button);
-            writer.Write("Collapse");
-            writer.RenderEndTag();
+            writer.WriteStartElement("button");
+            writer.WriteAttributeString("type", "button");
+            writer.WriteAttributeString("onclick", @"toggleMe('executedTrackedProcessPips')");
+            writer.WriteString("Collapse");
+            writer.WriteEndElement();
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "executedTrackedProcessPips");
-            writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: block;");
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
+            writer.WriteStartElement("div");
+            writer.WriteAttributeString("id", "executedTrackedProcessPips");
+            writer.WriteAttributeString("style", "display: block;");
             var critPathPips = m_analyzer.GetSummaryPipsReferencedInCriticalPath();
             RenderPipExecutions(writer, critPathPips, false);
-            writer.RenderEndTag();
-            writer.RenderEndTag(); // closing div
+            writer.WriteEndElement();
+            writer.WriteEndElement(); // closing div
         }
 
-        private void RenderPipExecutions(HtmlTextWriter writer, IEnumerable<SummaryAnalyzer.ProcessPipSummary> summariesToReport, bool isRootChange = true)
+        private void RenderPipExecutions(XmlWriter writer, IEnumerable<SummaryAnalyzer.ProcessPipSummary> summariesToReport, bool isRootChange = true)
         {
             foreach (var pipSummary in summariesToReport)
             {
@@ -182,28 +181,28 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 }
 
                 // Create a div for this output with id = pip hash
-                writer.AddAttribute(HtmlTextWriterAttribute.Id, pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: " + (isRootChange ? " none;" : " block;"));
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("id", pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("style", "display: " + (isRootChange ? " none;" : " block;"));
 
                 RenderTableHeader(
                     writer,
                     isRootChange ? string.Empty : m_analyzer.GetPipWorkingDirectory(pip),
                     isRootChange ? s_pipExecutionRootNodeHtmlTableColumns : s_pipExecutionHtmlTableColumns);
-                writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+                writer.WriteStartElement("tbody");
                 var reason = pipSummary.UncacheablePip
                     ? "Un-cacheable Pip"
                     : weakFingerprintCacheMiss ? "Weak Fingerprint Cache-Miss" : "Strong Fingerprint Cache-Miss";
 
                 RenderPipExecutionSummaryTableRow(writer, pipSummary, isRootChange ? reason : "parent");
-                writer.RenderEndTag();
-                writer.RenderEndTag();  // Closing table tag
+                writer.WriteEndElement();
+                writer.WriteEndElement();  // Closing table tag
 
                 // Add lists of changes in two colums
-                writer.AddAttribute(HtmlTextWriterAttribute.Class, "row");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
-                writer.AddAttribute(HtmlTextWriterAttribute.Class, "column");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("class", "row");
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("class", "column");
 
                 if (isRootChange)
                 {
@@ -215,9 +214,9 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                     RenderPipArtifactChangesColumn(writer, "Environment suspects", suspects);
                 }
 
-                writer.RenderEndTag();  // Closing div=column
+                writer.WriteEndElement();  // Closing div=column
                 RenderPipOutputsColumn(writer, pip.FileOutputs); // Outputs
-                writer.RenderEndTag();  // Closing div=row
+                writer.WriteEndElement();  // Closing div=row
 
                 // Finally render critical path and tool status
                 if (pipSummary.ExecutedDependentProcessCount > 0)
@@ -225,8 +224,8 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                     RenderCriticalPath(writer, pipSummary.CriticalPath);
                 }
 
-                writer.RenderEndTag();  // Closing div
-                writer.Write("<br>");
+                writer.WriteEndElement();  // Closing div
+                writer.WriteString("<br>");
             }
         }
 
@@ -242,7 +241,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             return list;
         }
 
-        private static void RenderPipArtifactChangesColumn(HtmlTextWriter writer, string header, IReadOnlyCollection<List<string>> changes)
+        private static void RenderPipArtifactChangesColumn(XmlWriter writer, string header, IReadOnlyCollection<List<string>> changes)
         {
             // Only if there are any changes
             if (changes.Count == 0)
@@ -250,52 +249,52 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 return;
             }
 
-            writer.RenderBeginTag(HtmlTextWriterTag.H3);
-            writer.Write(header);
-            writer.RenderEndTag(); // H3
-            writer.RenderBeginTag(HtmlTextWriterTag.Ul);
+            writer.WriteStartElement("h3");
+            writer.WriteString(header);
+            writer.WriteEndElement(); // H3
+            writer.WriteStartElement("ul");
             foreach (var file in changes)
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Li);
-                writer.AddAttribute(HtmlTextWriterAttribute.Href, "#" + file[0]);
-                writer.RenderBeginTag(HtmlTextWriterTag.A);
-                writer.Write(file[0]);
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("li");
+                writer.WriteStartElement("a");
+                writer.WriteAttributeString("href", "#" + file[0]);
+                writer.WriteString(file[0]);
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
 
-            writer.RenderEndTag(); // Ul
+            writer.WriteEndElement(); // Ul
         }
 
-        private void RenderExecutiveSummaryTable(HtmlTextWriter writer)
+        private void RenderExecutiveSummaryTable(XmlWriter writer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.H1);
-            writer.Write("Build Execution report");
-            writer.RenderEndTag();
+            writer.WriteStartElement("h1");
+            writer.WriteString("Build Execution report");
+            writer.WriteEndElement();
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "current");
-            writer.RenderBeginTag(HtmlTextWriterTag.B);
-            writer.Write("Execution Log:");
-            writer.RenderEndTag();
-            writer.Write(m_analyzer.ExecutionLogPath);
-            writer.Write("<br>");
+            writer.WriteStartElement("b");
+            writer.WriteAttributeString("id", "current");
+            writer.WriteString("Execution Log:");
+            writer.WriteEndElement();
+            writer.WriteString(m_analyzer.ExecutionLogPath);
+            writer.WriteString("<br>");
 
             RenderTableHeader(writer, string.Empty, s_summaryDifferenceHtmlTableColumns);
 
             // Table body
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
 
             RenderSummaryTableRow(m_analyzer, writer, "Current");
 
             // Closing  table tag
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
 #endregion
 
-        private void RenderPipExecutions(HtmlTextWriter writer, IEnumerable<(SummaryAnalyzer.ProcessPipSummary pipSummary1, SummaryAnalyzer.ProcessPipSummary pipSummary2)> summariesToReport, bool isRootChange = true)
+        private void RenderPipExecutions(XmlWriter writer, IEnumerable<(SummaryAnalyzer.ProcessPipSummary pipSummary1, SummaryAnalyzer.ProcessPipSummary pipSummary2)> summariesToReport, bool isRootChange = true)
         {
             // TODO:: if count is large may need to add a DIV
             foreach (var pipDiff in summariesToReport)
@@ -381,30 +380,30 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 }
 
                 // Create a div for this output with id = pip hash
-                writer.AddAttribute(HtmlTextWriterAttribute.Id, pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: " + (isRootChange ? " none;" : " block;"));
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("id", pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
+                writer.WriteAttributeString("style", "display: " + (isRootChange ? " none;" : " block;"));
 
                 RenderTableHeader(
                     writer,
                     isRootChange ? string.Empty : m_analyzer.GetPipWorkingDirectory(pip),
                     isRootChange ? s_pipExecutionRootNodeHtmlTableColumns : s_pipExecutionHtmlTableColumns);
-                writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+                writer.WriteStartElement("tbody");
                 RenderPipExecutionSummaryTableRow(writer, pipSummary, missDisplayReason);
-                writer.RenderEndTag();
-                writer.RenderEndTag();  // Closing table tag
+                writer.WriteEndElement();
+                writer.WriteEndElement();  // Closing table tag
 
                 // Add lists of changes in two colums
-                writer.AddAttribute(HtmlTextWriterAttribute.Class, "row");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
-                writer.AddAttribute(HtmlTextWriterAttribute.Class, "column");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("class", "row");
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("class", "column");
                 RenderPipArtifactChangesColumn(writer, "Environment Changes", environmentChanges, environmentMissing);
                 RenderPipArtifactChangesColumn(writer, "File Changes", fileArtifactChanges, fileArtifactMissing);
                 RenderPipArtifactChangesColumn(writer, "Observed input changes", observedInputsChanges, observedInputsMissing);
-                writer.RenderEndTag();  // Closing div=column
+                writer.WriteEndElement();  // Closing div=column
                 RenderPipOutputsColumn(writer, pip.FileOutputs); // Outputs
-                writer.RenderEndTag();  // Closing div=row
+                writer.WriteEndElement();  // Closing div=row
 
                 // Finally render critical path and tool status
                 if (pipSummary.ExecutedDependentProcessCount > 0)
@@ -412,38 +411,38 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                     RenderCriticalPath(writer, pipSummary.CriticalPath);
                 }
 
-                writer.RenderEndTag();  // Closing div
-                writer.Write("<br>");
+                writer.WriteEndElement();  // Closing div
+                writer.WriteString("<br>");
             }
         }
 
-        private void RenderPipExecutionButton(HtmlTextWriter writer, SummaryAnalyzer.ProcessPipSummary pipSummary)
+        private void RenderPipExecutionButton(XmlWriter writer, SummaryAnalyzer.ProcessPipSummary pipSummary)
         {
             var pip = pipSummary.Pip;
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "pip" + pip.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
-            writer.AddAttribute(HtmlTextWriterAttribute.Type, "button");
-            writer.AddAttribute(
-                HtmlTextWriterAttribute.Onclick,
+            writer.WriteStartElement("button");
+            writer.WriteAttributeString("id", "pip" + pip.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
+            writer.WriteAttributeString("type", "button");
+            writer.WriteAttributeString(
+                "onclick",
                 @"toggleMe('" + pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture) + "')");
-            writer.RenderBeginTag(HtmlTextWriterTag.Button);
             var elapsedTime = pipSummary.CriticalPath.Node.IsValid
                 ? pipSummary.CriticalPath.Time
                 : m_analyzer.GetPipElapsedTime(pip);
             var executedPipsString = m_analyzer.IsPipFailed(pipSummary.Pip.PipId)
                 ? @" <span style=""color: #FF6347;"">Executed Pips = </span>"
                 : @" <span style=""color: #8FBC8F;"">Executed Pips = </span>";
-            writer.Write(
+            writer.WriteString(
                 m_analyzer.GetPipWorkingDirectory(pip) + executedPipsString +
                 pipSummary.ExecutedDependentProcessCount +
                 @" <span style=""color: #8FBC8F;"">critPath =</span>" + elapsedTime.ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
-        private void RenderCriticalPath(HtmlTextWriter writer, BuildXL.Execution.Analyzer.Analyzer.NodeAndCriticalPath nodeAndCriticalPath)
+        private void RenderCriticalPath(XmlWriter writer, BuildXL.Execution.Analyzer.Analyzer.NodeAndCriticalPath nodeAndCriticalPath)
         {
             var toolStats = new ConcurrentDictionary<PathAtom, TimeSpan>();
             RenderTableHeader(writer, "Critical Path : Calculated using wall time duration of each dependent pip", s_criticalPathHtmlTableColumns);
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
             while (true)
             {
                 Pip pip = m_analyzer.GetPipByPipId(new PipId(nodeAndCriticalPath.Node.Value));
@@ -453,21 +452,21 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 var kernelTime = m_analyzer.GetPipKernelTime(pip);
                 var userTime = m_analyzer.GetPipUserTime(pip);
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+                writer.WriteStartElement("tr");
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(ToSeconds(elapsed));
-                writer.RenderEndTag();
+                writer.WriteStartElement("td");
+                writer.WriteString(ToSeconds(elapsed));
+                writer.WriteEndElement();
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(ToSeconds(kernelTime));
-                writer.RenderEndTag();
+                writer.WriteStartElement("td");
+                writer.WriteString(ToSeconds(kernelTime));
+                writer.WriteEndElement();
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(ToSeconds(userTime));
-                writer.RenderEndTag();
+                writer.WriteStartElement("td");
+                writer.WriteString(ToSeconds(userTime));
+                writer.WriteEndElement();
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
+                writer.WriteStartElement("td");
                 string pipDescription;
                 if (process != null)
                 {
@@ -475,30 +474,30 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                     pipDescription = m_analyzer.GetPipDescriptionName(pip);
                     if (m_analyzer.IsPipReferencedInCriticalPath(process))
                     {
-                        writer.AddAttribute(HtmlTextWriterAttribute.Href, "#" + pip.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
-                        writer.RenderBeginTag(HtmlTextWriterTag.A);
+                        writer.WriteStartElement("a");
+                        writer.WriteAttributeString("href", "#" + pip.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
                     }
 
-                    writer.Write(pipDescription);
+                    writer.WriteString(pipDescription);
                     if (m_analyzer.IsPipReferencedInCriticalPath(process))
                     {
-                        writer.RenderEndTag();
+                        writer.WriteEndElement();
                     }
                 }
                 else
                 {
                     pipDescription = m_analyzer.GetPipDescription(pip);
                     pipDescription = pipDescription.Replace('<', ' ').Replace('>', ' ');
-                    writer.Write(pipDescription);
+                    writer.WriteString(pipDescription);
                 }
 
-                writer.RenderEndTag();
+                writer.WriteEndElement();
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
+                writer.WriteStartElement("td");
                 var typeOrDir = process != null ? m_analyzer.GetPipWorkingDirectory(process) : pip.PipType.ToString();
-                writer.Write(typeOrDir);
-                writer.RenderEndTag();
-                writer.RenderEndTag(); // tr
+                writer.WriteString(typeOrDir);
+                writer.WriteEndElement();
+                writer.WriteEndElement(); // tr
 
                 if (!nodeAndCriticalPath.Next.IsValid)
                 {
@@ -508,27 +507,27 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 nodeAndCriticalPath = m_analyzer.GetImpactPath(nodeAndCriticalPath.Next);
             }
 
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
             // Table of tools stats for this critical path
             RenderTableHeader(writer, "Tools stats", new List<string> { "Seconds", "Tool" });
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
             foreach (var toolStatEntry in toolStats.OrderByDescending(kvp => kvp.Value))
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(ToSeconds(toolStatEntry.Value));
-                writer.RenderEndTag();
+                writer.WriteStartElement("tr");
+                writer.WriteStartElement("td");
+                writer.WriteString(ToSeconds(toolStatEntry.Value));
+                writer.WriteEndElement();
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(m_analyzer.GetPathAtomToString(toolStatEntry.Key));
-                writer.RenderEndTag();
-                writer.RenderEndTag(); // tr
+                writer.WriteStartElement("td");
+                writer.WriteString(m_analyzer.GetPathAtomToString(toolStatEntry.Key));
+                writer.WriteEndElement();
+                writer.WriteEndElement(); // tr
             }
 
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
         /// <summary>
@@ -543,7 +542,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             }
         }
 
-        private static void RenderPipArtifactChangesColumn(HtmlTextWriter writer, string header, List<List<string>> changes, List<List<string>> missing)
+        private static void RenderPipArtifactChangesColumn(XmlWriter writer, string header, List<List<string>> changes, List<List<string>> missing)
         {
             // Only if there are any changes
             if (changes.Count + missing.Count == 0)
@@ -551,146 +550,147 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 return;
             }
 
-            writer.RenderBeginTag(HtmlTextWriterTag.H3);
-            writer.Write(header);
-            writer.RenderEndTag(); // H3
-            writer.RenderBeginTag(HtmlTextWriterTag.Ul);
+            writer.WriteStartElement("h3");
+            writer.WriteString(header);
+            writer.WriteEndElement(); // H3
+            writer.WriteStartElement("ul");
             foreach (var file in changes)
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Li);
-                writer.AddAttribute(HtmlTextWriterAttribute.Href, "#" + file[0]);
-                writer.RenderBeginTag(HtmlTextWriterTag.A);
-                writer.Write(file[0]);
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("li");
+                writer.WriteStartElement("a");
+                writer.WriteAttributeString("href", "#" + file[0]);
+                writer.WriteString(file[0]);
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
 
             foreach (var file in missing)
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Li);
-                writer.AddAttribute(HtmlTextWriterAttribute.Href, "#" + file[0]);
-                writer.RenderBeginTag(HtmlTextWriterTag.A);
-                writer.Write("Dependency removed: " + file[0]);
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("li");
+                writer.WriteStartElement("a");
+                writer.WriteAttributeString("href", "#" + file[0]);
+                writer.WriteString("Dependency removed: " + file[0]);
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
 
-            writer.RenderEndTag(); // Ul
+            writer.WriteEndElement(); // Ul
         }
 
-        private void RenderPipOutputsColumn(HtmlTextWriter writer, ReadOnlyArray<FileArtifactWithAttributes> fileOutputs)
+        private void RenderPipOutputsColumn(XmlWriter writer, ReadOnlyArray<FileArtifactWithAttributes> fileOutputs)
         {
-            writer.AddAttribute(HtmlTextWriterAttribute.Class, "column");
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H3);
-            writer.Write("Outputs");
-            writer.RenderEndTag(); // H3
-            writer.RenderBeginTag(HtmlTextWriterTag.Ul);
+            writer.WriteStartElement("div");
+            writer.WriteAttributeString("class", "column");
+            writer.WriteStartElement("h3");
+            writer.WriteString("Outputs");
+            writer.WriteEndElement(); // H3
+            writer.WriteStartElement("ul");
             foreach (var output in fileOutputs)
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Li);
-                writer.Write(m_analyzer.GetAbsolutePathToString(output.Path));
-                writer.RenderEndTag();
+                writer.WriteStartElement("li");
+                writer.WriteString(m_analyzer.GetAbsolutePathToString(output.Path));
+                writer.WriteEndElement();
             }
 
-            writer.RenderEndTag(); // Ul
-            writer.RenderEndTag(); // Closing div=column of Outputs
+            writer.WriteEndElement(); // Ul
+            writer.WriteEndElement(); // Closing div=column of Outputs
         }
 
-        private void RenderPipExecutionSummaryTableRow(HtmlTextWriter writer, SummaryAnalyzer.ProcessPipSummary pipSummary, string missReason)
+        private void RenderPipExecutionSummaryTableRow(XmlWriter writer, SummaryAnalyzer.ProcessPipSummary pipSummary, string missReason)
         {
             var pip = pipSummary.Pip;
-            writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+            writer.WriteStartElement("tr");
 
             // Pip name
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(m_analyzer.GetPipDescriptionName(pip));
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(m_analyzer.GetPipDescriptionName(pip));
+            writer.WriteEndElement();
 
             // Start time
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
+            writer.WriteStartElement("td");
             var executionStart = m_analyzer.GetPipStartTime(pip);
             var executionStartText = executionStart.Equals(DateTime.MinValue) ? "-" : executionStart.ToString("h:mm:ss.ff", CultureInfo.InvariantCulture);
-            writer.Write(executionStartText);
-            writer.RenderEndTag();
+            writer.WriteString(executionStartText);
+            writer.WriteEndElement();
 
             // Duration
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(m_analyzer.GetPipElapsedTime(pip).ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(m_analyzer.GetPipElapsedTime(pip).ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Time kernel
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
+            writer.WriteStartElement("td");
             var kernelTime = pipSummary.CriticalPath.Node.IsValid ? pipSummary.CriticalPath.KernelTime : m_analyzer.GetPipKernelTime(pip);
-            writer.Write(kernelTime.ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteString(kernelTime.ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Time user
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
+            writer.WriteStartElement("td");
             var userTime = pipSummary.CriticalPath.Node.IsValid ? pipSummary.CriticalPath.UserTime : m_analyzer.GetPipUserTime(pip);
-            writer.Write(userTime.ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteString(userTime.ToString(@"hh\:mm\:ss\.f", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Pip stable hash
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(pip.Provenance.SemiStableHash.ToString("X", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Reason for execution
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.AddAttribute(HtmlTextWriterAttribute.Href, "https://www.1eswiki.com/wiki/Domino_execution_analyzer#Reasons_for_process_Pip_Execution_section");
-            writer.RenderBeginTag(HtmlTextWriterTag.A);
-            writer.Write(missReason);
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteStartElement("a");
+            writer.WriteAttributeString("href", "https://www.1eswiki.com/wiki/Domino_execution_analyzer#Reasons_for_process_Pip_Execution_section");
+            writer.WriteString(missReason);
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
             // Invalidated pips
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(
+            writer.WriteStartElement("td");
+            writer.WriteString(
                 pipSummary.CriticalPath.Node.IsValid ? pipSummary.ExecutedDependentProcessCount.ToString(CultureInfo.InvariantCulture) : "-");
-            writer.RenderEndTag();
-            writer.RenderEndTag(); // Closing Tr
+            writer.WriteEndElement();
+            writer.WriteEndElement(); // Closing Tr
         }
 
-        private static void RenderFileAcronym(HtmlTextWriter writer, string fileName, string abbr)
+        private static void RenderFileAcronym(XmlWriter writer, string fileName, string abbr)
         {
-            writer.AddAttribute(HtmlTextWriterAttribute.Title, fileName);
-            writer.RenderBeginTag(HtmlTextWriterTag.Acronym);
-            writer.Write(abbr);
-            writer.RenderEndTag();
+            writer.WriteStartElement("acronym");
+            writer.WriteAttributeString("title", fileName);
+            writer.WriteString(abbr);
+            writer.WriteEndElement();
         }
 
-        private void RenderArtifactsSummary(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderArtifactsSummary(XmlWriter writer, SummaryAnalyzer analyzer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
-            writer.RenderBeginTag(HtmlTextWriterTag.H2);
-            writer.AddAttribute(HtmlTextWriterAttribute.Type, "button");
-            writer.AddAttribute(HtmlTextWriterAttribute.Onclick, @"toggleMe('artifactSummarySection')");
-            writer.RenderBeginTag(HtmlTextWriterTag.Button);
-            writer.Write("Summary");
-            writer.RenderEndTag();
+            writer.WriteStartElement("div");
+            writer.WriteStartElement("h2");
+            writer.WriteStartElement("button");
+            writer.WriteAttributeString("type", "button");
+            writer.WriteAttributeString("onclick", @"toggleMe('artifactSummarySection')");
+            writer.WriteString("Summary");
+            writer.WriteEndElement();
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
-            writer.RenderBeginTag(HtmlTextWriterTag.P);
-            writer.Write("This section compares the summary of the distinct Pip artifacts between ");
+            writer.WriteStartElement("p");
+            writer.WriteString("This section compares the summary of the distinct Pip artifacts between ");
             RenderFileAcronym(writer, m_analyzer.ComparedFilePath, "current");
-            writer.Write(" and ");
+            writer.WriteString(" and ");
             RenderFileAcronym(writer, analyzer.ComparedFilePath, "previous");
-            writer.Write(" logs, showing only those artifacts with distinct hash, missing or different value for environment variables.");
-            writer.RenderEndTag();
+            writer.WriteString(" logs, showing only those artifacts with distinct hash, missing or different value for environment variables.");
+            writer.WriteEndElement();
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "artifactSummarySection");
-            writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: block;");
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
+            writer.WriteStartElement("div");
+            writer.WriteAttributeString("id", "artifactSummarySection");
+            writer.WriteAttributeString("style", "display: block;");
+            writer.WriteStartElement("div");
             RenderEnvironmentSummaryTable(writer, analyzer);
             RenderFileArtifactSummaryTable(writer, analyzer);
             RenderObservedInputsSummaryTable(writer, analyzer);
             RenderDirectoryMembershipSummaryTable(writer, analyzer);
             RenderDirectorydependencySummaryTable(writer);
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
         private static readonly List<string> s_criticalPathHtmlTableColumns = new List<string>()
@@ -775,35 +775,35 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                                                                      @"<a href=""#previous"">Previous</a> Execution Log",
                                                                  };
 
-        private static void RenderTableHeader(HtmlTextWriter writer, string caption, List<string> columns)
+        private static void RenderTableHeader(XmlWriter writer, string caption, List<string> columns)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Table);
+            writer.WriteStartElement("table");
 
-            writer.RenderBeginTag(HtmlTextWriterTag.Caption);
-            writer.RenderBeginTag(HtmlTextWriterTag.B);
+            writer.WriteStartElement("caption");
+            writer.WriteStartElement("b");
 
             // Table caption
-            writer.Write(caption);
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteString(caption);
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
             // Table header
-            writer.RenderBeginTag(HtmlTextWriterTag.Thead);
+            writer.WriteStartElement("thead");
 
             // Table columns row
-            writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+            writer.WriteStartElement("tr");
             foreach (var column in columns)
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.Th);
-                writer.Write(column);
-                writer.RenderEndTag();
+                writer.WriteStartElement("th");
+                writer.WriteString(column);
+                writer.WriteEndElement();
             }
 
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
-        private void RenderTableRow(HtmlTextWriter writer, IEnumerable<List<string>> rows)
+        private void RenderTableRow(XmlWriter writer, IEnumerable<List<string>> rows)
         {
             var rowCount = 0;
             foreach (var row in rows)
@@ -814,26 +814,26 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                     continue;
                 }
 
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+                writer.WriteStartElement("tr");
                 foreach (var column in row)
                 {
+                    writer.WriteStartElement("td");
                     if (m_changesToReferenceList.Contains(column))
                     {
-                        writer.AddAttribute(HtmlTextWriterAttribute.Id, column);
+                        writer.WriteAttributeString("id", column);
                     }
 
-                    writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                    writer.Write(column);
-                    writer.RenderEndTag();
+                    writer.WriteString(column);
+                    writer.WriteEndElement();
                 }
 
                 rowCount++;
-                writer.RenderEndTag();
+                writer.WriteEndElement();
             }
         }
 
         private void RenderDifferenceSummaryTable(
-            HtmlTextWriter writer,
+            XmlWriter writer,
             string tableHeader,
             List<string> columnNames,
             List<List<string>> difference,
@@ -841,15 +841,15 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         {
             if (difference.Count + missing.Count > AddScrollToTableRowCountLimit)
             {
+                writer.WriteStartElement("div");
                 // add a div to scroll when the count of rows is over the limit
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "height: 500px; overflow-y: auto");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteAttributeString("style", "height: 500px; overflow-y: auto");
             }
 
             RenderTableHeader(writer, tableHeader, columnNames);
 
             // Table body
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
 
             // Add each row of changes
             RenderTableRow(writer, difference);
@@ -858,29 +858,29 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             {
                 // TODO: will consider making this a different table
                 // Add any missing items
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-                writer.AddAttribute(HtmlTextWriterAttribute.Colspan, missing.Count.ToString(CultureInfo.InvariantCulture));
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write("Removed Dependencies");
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("tr");
+                writer.WriteStartElement("td");
+                writer.WriteAttributeString("colspan", missing.Count.ToString(CultureInfo.InvariantCulture));
+                writer.WriteString("Removed Dependencies");
+                writer.WriteEndElement();
+                writer.WriteEndElement();
 
                 RenderTableRow(writer, missing);
             }
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             // Closing table tag
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             if (difference.Count + missing.Count > AddScrollToTableRowCountLimit)
             {
                 // Closing div tag if any
-                writer.RenderEndTag();
+                writer.WriteEndElement();
             }
         }
 
-        private void RenderEnvironmentSummaryTable(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderEnvironmentSummaryTable(XmlWriter writer, SummaryAnalyzer analyzer)
         {
             var environmentDifference = SummaryAnalyzer.GenerateEnvironmentDifference(m_analyzer.Summary.EnvironmentSummary, analyzer.Summary.EnvironmentSummary);
             if (environmentDifference.enviromentChanges.Count == 0 && environmentDifference.enviromentMissing.Count == 0)
@@ -896,7 +896,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 environmentDifference.enviromentMissing);
         }
 
-        private void RenderFileArtifactSummaryTable(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderFileArtifactSummaryTable(XmlWriter writer, SummaryAnalyzer analyzer)
         {
             var fileArtifactCompare = m_analyzer.GenerateFileArtifactDifference(m_analyzer.Summary.FileArtifactSummary, analyzer.Summary.FileArtifactSummary);
             if (fileArtifactCompare.fileArtifactChanges.Count == 0 && fileArtifactCompare.fileArtifactMissing.Count == 0)
@@ -912,7 +912,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 fileArtifactCompare.fileArtifactMissing);
         }
 
-        private void RenderObservedInputsSummaryTable(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderObservedInputsSummaryTable(XmlWriter writer, SummaryAnalyzer analyzer)
         {
             var observedDifference = m_analyzer.GenerateObservedDifference(m_analyzer.Summary.ObservedSummary, analyzer.Summary.ObservedSummary);
             if (observedDifference.fileArtifactChanges.Count == 0 && observedDifference.fileArtifactMissing.Count == 0)
@@ -929,7 +929,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 observedDifference.fileArtifactMissing);
         }
 
-        private void RenderDirectoryMembershipSummaryTable(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderDirectoryMembershipSummaryTable(XmlWriter writer, SummaryAnalyzer analyzer)
         {
             // Find the top observed imput directories that have changed and make sure the enumeration is listed
             var observedDiff = SummaryAnalyzer.GetFileDependencyDiff(m_analyzer.Summary.ObservedSummary, analyzer.Summary.ObservedSummary);
@@ -959,15 +959,15 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             if (directoryMembershipNotInTwo.Count + directoryMembershipNotInOne.Count > AddScrollToTableRowCountLimit)
             {
                 // add a div to scroll when the count of rows is over the limit
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "height: 500px; overflow-y: auto");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("style", "height: 500px; overflow-y: auto");
             }
 
             var writeCount = 0;
             RenderTableHeader(writer, "Directory membership difference", s_directoryMembershipDifferenceHtmlTableColumns);
 
             // Table body
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
 
             // Enumerate changes in observed inputs first to show those relevant changes
             foreach (var s in directoryMembershipNotInTwo)
@@ -988,147 +988,153 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 RenderDirectoryEnumeration(writer, s.Key, s.Value, false);
             }
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             // Closing table tag
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             if (directoryMembershipNotInTwo.Count + directoryMembershipNotInOne.Count > AddScrollToTableRowCountLimit)
             {
                 // Closing div tag if any
-                writer.RenderEndTag();
+                writer.WriteEndElement();
             }
         }
 
-        private static void RenderDirectoryEnumeration(HtmlTextWriter writer, string directory, List<string> rows, bool current)
+        private static void RenderDirectoryEnumeration(XmlWriter writer, string directory, List<string> rows, bool current)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-            writer.AddAttribute(HtmlTextWriterAttribute.Rowspan, (rows.Count + 1).ToString(CultureInfo.InvariantCulture));
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(directory);
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteStartElement("tr");
+            writer.WriteStartElement("td");
+            writer.WriteAttributeString("rowspan", (rows.Count + 1).ToString(CultureInfo.InvariantCulture));
+            writer.WriteString(directory);
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
             foreach (var row in rows)
             {
                 var firstColum = current ? row : "no";
                 var secondColumn = current ? "no" : row;
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(firstColum);
-                writer.RenderEndTag();
-                writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                writer.Write(secondColumn);
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("tr");
+                writer.WriteStartElement("td");
+                writer.WriteString(firstColum);
+                writer.WriteEndElement();
+                writer.WriteStartElement("td");
+                writer.WriteString(secondColumn);
+                writer.WriteEndElement();
+                writer.WriteEndElement();
             }
         }
 
-        private static void RenderDirectorydependencySummaryTable(HtmlTextWriter writer)
+        private static void RenderDirectorydependencySummaryTable(XmlWriter writer)
         {
             // TODO: fill the data
-            writer.AddAttribute(HtmlTextWriterAttribute.Style, "height: 500px; overflow-y: auto");
-            writer.RenderBeginTag(HtmlTextWriterTag.Div);
+            writer.WriteStartElement("div");
+            writer.WriteAttributeString("style", "height: 500px; overflow-y: auto");
+            writer.WriteStartElement("div");
             RenderTableHeader(writer, "Directory dependency summary", s_observedInputsDifferenceHtmlTableColumns);
 
             // Table body
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
 
             // TODO: fill the data
             // Add each row of changes
-            writer.RenderEndTag();
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
+            writer.WriteEndElement();
         }
 
-        private void RenderExecutiveSummaryTable(HtmlTextWriter writer, SummaryAnalyzer analyzer)
+        private void RenderExecutiveSummaryTable(XmlWriter writer, SummaryAnalyzer analyzer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.H1);
+            writer.WriteStartElement("h1");
 
             // Add a link to wiki documentation.
-            writer.AddAttribute(HtmlTextWriterAttribute.Href, "https://www.1eswiki.com/wiki/Domino_execution_analyzer#HTML_Diff_Report_output");
-            writer.RenderBeginTag(HtmlTextWriterTag.A);
-            writer.Write("Execution log compare report");
-            writer.RenderEndTag();
-            writer.RenderEndTag();
+            writer.WriteStartElement("a");
+            writer.WriteAttributeString("href", "https://www.1eswiki.com/wiki/Domino_execution_analyzer#HTML_Diff_Report_output");
+            writer.WriteStartElement("a");
+            writer.WriteString("Execution log compare report");
+            writer.WriteEndElement();
+            writer.WriteEndElement();
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "current");
-            writer.RenderBeginTag(HtmlTextWriterTag.B);
-            writer.Write("Current Execution Log:");
-            writer.RenderEndTag();
-            writer.Write(m_analyzer.ExecutionLogPath);
-            writer.Write("<br>");
+            writer.WriteStartElement("b");
+            writer.WriteAttributeString("id", "current");
+            writer.WriteStartElement("b");
+            writer.WriteString("Current Execution Log:");
+            writer.WriteEndElement();
+            writer.WriteString(m_analyzer.ExecutionLogPath);
+            writer.WriteString("<br>");
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Id, "previous");
-            writer.RenderBeginTag(HtmlTextWriterTag.B);
-            writer.Write("Previous Execution Log:");
-            writer.RenderEndTag();
-            writer.Write(analyzer.ExecutionLogPath);
-            writer.Write("<br>");
+            writer.WriteStartElement("b");
+            writer.WriteAttributeString("id", "previous");
+            writer.WriteStartElement("b");
+            writer.WriteString("Previous Execution Log:");
+            writer.WriteEndElement();
+            writer.WriteString(analyzer.ExecutionLogPath);
+            writer.WriteString("<br>");
 
             // Check difference in the salt flags which is a global change that impacts all fingerprints
             // Diplay this in red to show the global impact
             if (!m_analyzer.CompareSaltsEquals(analyzer))
             {
-                writer.RenderBeginTag(HtmlTextWriterTag.H3);
-                writer.AddAttribute(HtmlTextWriterAttribute.Type, "button");
-                writer.AddAttribute(HtmlTextWriterAttribute.Onclick, @"toggleMe('Global_fingerprint_change')");
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "background-color:#FF6347");
-                writer.RenderBeginTag(HtmlTextWriterTag.Button);
-                writer.Write("Global fingerprint change");
-                writer.RenderEndTag();
-                writer.RenderEndTag();
+                writer.WriteStartElement("h3");
+                writer.WriteStartElement("button");
+                writer.WriteAttributeString("type", "button");
+                writer.WriteAttributeString("onclick", @"toggleMe('Global_fingerprint_change')");
+                writer.WriteAttributeString("style", "background-color:#FF6347");
+                writer.WriteStartElement("button");
+                writer.WriteString("Global fingerprint change");
+                writer.WriteEndElement();
+                writer.WriteEndElement();
 
-                writer.AddAttribute(HtmlTextWriterAttribute.Id, "Global_fingerprint_change");
-                writer.AddAttribute(HtmlTextWriterAttribute.Style, "display: none;");
-                writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                writer.WriteStartElement("div");
+                writer.WriteAttributeString("id", "Global_fingerprint_change");
+                writer.WriteAttributeString("style", "display: none;");
+                writer.WriteStartElement("div");
 
                 var saltDiffs = m_analyzer.GetSaltsDifference(analyzer);
-                writer.RenderBeginTag(HtmlTextWriterTag.Ul);
+                writer.WriteStartElement("ul");
 
                 foreach (var diff in saltDiffs)
                 {
-                    writer.RenderBeginTag(HtmlTextWriterTag.Li);
-                    writer.Write(diff);
-                    writer.RenderEndTag();
+                    writer.WriteStartElement("li");
+                    writer.WriteString(diff);
+                    writer.WriteEndElement();
                 }
 
-                writer.RenderEndTag(); // Ul
-                writer.RenderEndTag(); // Closing div
+                writer.WriteEndElement(); // Ul
+                writer.WriteEndElement(); // Closing div
             }
 
             RenderTableHeader(writer, string.Empty, s_summaryDifferenceHtmlTableColumns);
 
             // Table body
-            writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+            writer.WriteStartElement("tbody");
 
             RenderSummaryTableRow(m_analyzer, writer, "Current");
             RenderSummaryTableRow(analyzer, writer, "Previous");
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             // Closing  table tag
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
         private const float LowHitRateLimit = 75;
 
-        private static void RenderSummaryTableRow(SummaryAnalyzer analyzer, HtmlTextWriter writer, string fileReference)
+        private static void RenderSummaryTableRow(SummaryAnalyzer analyzer, XmlWriter writer, string fileReference)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+            writer.WriteStartElement("tr");
 
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
+            writer.WriteStartElement("td");
             RenderFileAcronym(writer, analyzer.ExecutionLogPath, fileReference);
-            writer.RenderEndTag();
+            writer.WriteEndElement();
 
             // Process pips
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetProcessPipCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetProcessPipCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Executed pips
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetExecutedProcessPipCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetExecutedProcessPipCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Cache hit
             float hitRate = analyzer.GetProcessPipHitRate();
@@ -1138,43 +1144,43 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 backGroundColor = "#FF6347";
             }
 
-            writer.AddAttribute(HtmlTextWriterAttribute.Bgcolor, backGroundColor);
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(hitRate.ToString("F", CultureInfo.InvariantCulture));
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteAttributeString("bgcolor", backGroundColor);
+            writer.WriteString(hitRate.ToString("F", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Failed Pips
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetFailedProcessPipCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetFailedProcessPipCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Output files produced
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetProducedFileCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetProducedFileCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Output files from cache
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetCachedFileCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetCachedFileCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // Output files up to date
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetUpToDateFileCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetUpToDateFileCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
             // uncacheable pips
-            writer.RenderBeginTag(HtmlTextWriterTag.Td);
-            writer.Write(analyzer.GetUncacheableProcessPipCount());
-            writer.RenderEndTag();
+            writer.WriteStartElement("td");
+            writer.WriteString(analyzer.GetUncacheableProcessPipCount().ToString(CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
 
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
-        private static void RenderScript(HtmlTextWriter writer)
+        private static void RenderScript(XmlWriter writer)
         {
-            writer.RenderBeginTag(HtmlTextWriterTag.Script);
-            writer.WriteLine(@"function toggleMe(a) {
+            writer.WriteStartElement("script");
+            writer.WriteString(@"function toggleMe(a) {
                 var e = document.getElementById(a);
                 if (!e)return true;
                 if (e.style.display === ""none"") {
@@ -1184,17 +1190,18 @@ namespace BuildXL.Execution.Analyzer.Analyzers
                 }
                 return true;
                 }");
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
         /// <summary>
         /// Render the stylesheet (.css)
         /// </summary>
-        private static void RenderStylesheet(HtmlTextWriter writer)
+        private static void RenderStylesheet(XmlWriter writer)
         {
-            writer.AddAttribute("type", "text/css");
-            writer.RenderBeginTag(HtmlTextWriterTag.Style);
-            writer.Write(@"    
+            writer.WriteStartElement("style");
+            writer.WriteAttributeString("type", "text/css");
+            writer.WriteStartElement("style");
+            writer.WriteString(@"    
             h1 {
                 font-size: 32px;
                 line-height: 40px;
@@ -1277,7 +1284,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             acronym {
                 color: #104E8B;
             }");
-            writer.RenderEndTag();
+            writer.WriteEndElement();
         }
 
         private static string ToSeconds(TimeSpan time)
@@ -1286,4 +1293,3 @@ namespace BuildXL.Execution.Analyzer.Analyzers
         }
     }
 }
-#endif

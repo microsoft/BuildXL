@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Execution.Analyzer.Analyzers;
 using BuildXL.Pips;
@@ -23,9 +24,6 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-#if !DISABLE_FEATURE_HTMLWRITER
-using System.Web.UI;
-#endif
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -422,17 +420,11 @@ namespace BuildXL.Execution.Analyzer
 
                     if (HtmlOutput)
                     {
-#if DISABLE_FEATURE_HTMLWRITER
-                        Console.WriteLine("HTMLWriter is not enabled in .NET Core implementation");
-                        return 1;
-#else
-
-                        using (var htmlWriter = new HtmlTextWriter(writer))
+                        using (var xmlWriter = new XmlTextWriter(writer))
                         {
                             var summaryAnalyzerHtmlWritter = new SummaryAnalyzerHtmlWritter(this);
-                            summaryAnalyzerHtmlWritter.PrintHtmlReport(analyzer, htmlWriter);
+                            summaryAnalyzerHtmlWritter.PrintHtmlReport(analyzer, xmlWriter);
                         }
-#endif
                     }
                     else
                     {
@@ -557,9 +549,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (SingleLog)
             {
-#if !DISABLE_FEATURE_HTMLWRITER
                 GenerateReport();
-#endif
             }
 
             return 0;
@@ -1088,7 +1078,6 @@ namespace BuildXL.Execution.Analyzer
         }
 
         #region Hygienator // Methods deal with analysis of single log
-#if !DISABLE_FEATURE_HTMLWRITER
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public int GenerateReport()
         {
@@ -1097,17 +1086,16 @@ namespace BuildXL.Execution.Analyzer
             {
                 using (var writer = new StreamWriter(compareFileStream))
                 {
-                    using (var htmlWriter = new HtmlTextWriter(writer))
+                    using (var XmlTextWriter = new XmlTextWriter(writer))
                     {
                         var summaryAnalyzerHtmlWritter = new SummaryAnalyzerHtmlWritter(this);
-                        summaryAnalyzerHtmlWritter.PrintHtmlReport(htmlWriter);
+                        summaryAnalyzerHtmlWritter.PrintHtmlReport(XmlTextWriter);
                     }
                 }
             }
 
             return 0;
         }
-#endif
 
         internal List<Process> GetPipsExecutionLevel(PipExecutionLevel executionLevel)
         {

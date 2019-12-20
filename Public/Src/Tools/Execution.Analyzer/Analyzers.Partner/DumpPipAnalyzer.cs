@@ -489,12 +489,8 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Timeout (error)", pip.Timeout?.ToString()),
                     m_html.CreateRow("Success Codes", pip.SuccessExitCodes.Select(code => code.ToString(CultureInfo.InvariantCulture))),
                     m_html.CreateRow("Semaphores", pip.Semaphores.Select(CreateSemaphore)),
-                    m_html.CreateRow("HasUntrackedChildProcesses", pip.HasUntrackedChildProcesses),
-                    m_html.CreateRow("ProducesPathIndependentOutputs", pip.ProducesPathIndependentOutputs),
-                    m_html.CreateRow("OutputsMustRemainWritable", pip.OutputsMustRemainWritable),
-                    m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs),
                     m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel),
-                    m_html.CreateRow("DisableCacheLookup", pip.DisableCacheLookup),
+                    m_html.CreateRow("ProcessOptions", pip.ProcessOptions.ToString()),
                     m_html.CreateRow("RetryExitCodes", pip.RetryExitCodes != null ? string.Join(",", pip.RetryExitCodes) : null)),
 
                 m_html.CreateBlock(

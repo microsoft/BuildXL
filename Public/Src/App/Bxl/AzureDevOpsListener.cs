@@ -8,6 +8,7 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -200,15 +201,15 @@ namespace BuildXL
                 builder.Append(";code=DX");
                 builder.Append(eventData.EventId.ToString("D4"));
             }
-
-            // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
-            body = string.Format(CultureInfo.CurrentCulture, message, args);
-
-            // process pip description for PipProcessError event
+           
+            // construct a short message for ADO console
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
-                ProcessCustomPipDescription(ref body, UseCustomPipDescription);
+                args[0] = Pip.FormatSemiStableHash((long)args[0]);
+                message = "[{0}, {10}, {2}] - failed with exit code {8}, {9}\r\n{5}\r\n{6}\r\n{7}";
             }
+
+            body = string.Format(CultureInfo.CurrentCulture, message, args);
 
             builder.Append(";]");
 

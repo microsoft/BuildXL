@@ -4010,7 +4010,7 @@ namespace BuildXL.Processes
         {
             string outputTolog;
             string outputPathsToLog;
-            string extraOutputMessage;
+            string messageAboutPathsToLog;
             FormatOutputAndPaths(
                 stdOut,
                 stdError,
@@ -4018,7 +4018,7 @@ namespace BuildXL.Processes
                 result.StandardError.FileName,
                 out outputTolog,
                 out outputPathsToLog,
-                out extraOutputMessage,
+                out messageAboutPathsToLog,
                 errorWasTruncated,
                 errorWasFiltered);
 
@@ -4030,11 +4030,12 @@ namespace BuildXL.Processes
                 m_workingDirectory,
                 GetToolName(),
                 EnsureToolOutputIsNotEmpty(outputTolog),
-                extraOutputMessage,
+                messageAboutPathsToLog,
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty);
+                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty,
+                m_pip.GetShortDescription(m_context));
         }
 
         private void HandleErrorsFromTool(string error)
@@ -4218,14 +4219,14 @@ namespace BuildXL.Processes
                 warningWasTruncated = true;
             }
 
-                FormatOutputAndPaths(
+            FormatOutputAndPaths(
                 warningsOutput,
                 warningsError,
                 standardOutput.FileName,
                 standardError.FileName,
                 out string outputTolog,
                 out string outputPathsToLog,
-                out string extraOutputMessage,
+                out string messageAboutPathsToLog,
                 warningWasTruncated,
                 errorFilterResult.IsFiltered || outputFilterResult.IsFiltered);
 
@@ -4237,7 +4238,7 @@ namespace BuildXL.Processes
                 m_workingDirectory,
                 GetToolName(),
                 EnsureToolOutputIsNotEmpty(outputTolog),
-                extraOutputMessage,
+                messageAboutPathsToLog,
                 AddTrailingNewLineIfNeeded(outputPathsToLog));
             return true;
         }

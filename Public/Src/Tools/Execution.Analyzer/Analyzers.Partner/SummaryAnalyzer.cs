@@ -1086,10 +1086,10 @@ namespace BuildXL.Execution.Analyzer
             {
                 using (var writer = new StreamWriter(compareFileStream))
                 {
-                    using (var XmlTextWriter = new XmlTextWriter(writer))
+                    using (var xmlTextWriter = new XmlTextWriter(writer))
                     {
                         var summaryAnalyzerHtmlWritter = new SummaryAnalyzerHtmlWritter(this);
-                        summaryAnalyzerHtmlWritter.PrintHtmlReport(XmlTextWriter);
+                        summaryAnalyzerHtmlWritter.PrintHtmlReport(xmlTextWriter);
                     }
                 }
             }

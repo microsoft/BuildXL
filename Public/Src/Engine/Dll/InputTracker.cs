@@ -105,9 +105,14 @@ namespace BuildXL.Engine
         /// </summary>
         public IDictionary<string, DirectoryMembershipTrackingFingerprint> DirectoryFingerprints => m_directoryFingerprints;
 
+        /// <summary>
+        /// This dictionary is not readonly because we can invalidate it (<see cref="InvalidateUnchangedPaths"/>)
+        /// if we detect that some paths changed unexpectedly in the middle of running a build.
+        /// </summary>
+        private ConcurrentDictionary<string, ContentHash> m_unchangedPaths;
+
         private readonly FileContentTable m_fileContentTable;
         private readonly ConcurrentDictionary<string, ContentHash> m_inputHashes = new ConcurrentDictionary<string, ContentHash>(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, ContentHash> m_unchangedPaths;
         private readonly ConcurrentQueue<string> m_changedPaths;
         private readonly bool m_isChangePathSetComplete;
 
@@ -464,6 +469,13 @@ namespace BuildXL.Engine
             RegisterFile(path, hash);
         }
 
+        private void InvalidateUnchangedPaths()
+        {
+            // setting this dictionary to null because the rest of the code already knows how to handle it
+            // (e.g., when change journal is disabled this dictionary is already being set to null)
+            m_unchangedPaths = null;
+        }
+
         private void RegisterFile(string path, ContentHash hash)
         {
             if (IsEnabled)
@@ -485,7 +497,7 @@ namespace BuildXL.Engine
                             // The path cannot be registered first as present and later as absent
                             if (hash == WellKnownContentHashes.AbsentFile)
                             {
-                                Contract.Assert(false, I($"Input file '{path}' is registered multiple times with inconsistent presence on disk. It is being registered as an absent file, but it was previously registered as a probe to a present file"));
+                                throw new BuildXLException(I($"Input file '{path}' is registered multiple times with inconsistent presence on disk. It is being registered as an absent file, but it was previously registered as a probe to a present file"));
                             }
 
                             // This is the case where the new hash is either ExistentFileProbe (and nothing really changed) or the path is now actually being read. For the latter, observe that we replace the marker for 'present file was probed'
@@ -514,9 +526,13 @@ namespace BuildXL.Engine
                             if (TryGetHashForUnchangedFile(path, out ContentHash specCacheHash))
                             {
                                 specCacheHashString = specCacheHash.ToString();
+                                if (specCacheHash != existingHash)
+                                {
+                                    InvalidateUnchangedPaths();
+                                }
                             }
 
-                            Contract.Assert(false, I($"Input file '{path}' is encountered multiple times with different hashes: Existing hash: {existingHash} | New hash: {hash} | Actual hash: {actualHashString} | Spec cache hash: {specCacheHashString}"));
+                            throw new BuildXLException(I($"Input file '{path}' is encountered multiple times with different hashes: Existing hash: {existingHash} | New hash: {hash} | Actual hash: {actualHashString} | Spec cache hash: {specCacheHashString}"));
                         }
 
                         return existingHash;

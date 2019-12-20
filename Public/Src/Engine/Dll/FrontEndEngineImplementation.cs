@@ -560,8 +560,17 @@ namespace BuildXL.Engine
                     stream = m_specCache.RequestFile(path, hash);
                     if (stream != null)
                     {
-                        m_inputTracker.RegisterAccessToTrackedFile(path, hash);
-                        return true;
+                        try
+                        {
+                            m_inputTracker.RegisterAccessToTrackedFile(path, hash);
+                            return true;
+                        }
+                        catch (BuildXLException)
+                        {
+                            // this happens if the file changed after the initial journal scan
+                            stream.Dispose();
+                            return false;
+                        }
                     }
                 }
             }

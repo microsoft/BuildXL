@@ -474,7 +474,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
         {
-            var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
+            var result = await context.PerformOperationAsync(Tracer,
+                () => processStateCoreAsync(),
+                extraEndMessage: result => $"Skipped=[{(result.Succeeded ? result.Value : false)}]");
 
             if (result.Succeeded)
             {
@@ -489,28 +491,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return result;
 
-            async Task<BoolResult> processStateCoreAsync()
+            async Task<Result<bool>> processStateCoreAsync()
             {
                 try
                 {
                     using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
                     {
-                        // This makes sure that the heartbeat is only run once for each call to this function. It is a
-                        // non-blocking check.
+                        // This makes sure that the heartbeat is only run once at the time for each call to this
+                        // function. It is a non-blocking check.
                         if (!acquired)
                         {
-                            return BoolResult.Success;
+                            return true;
                         }
 
                         var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
-
                         if (!checkpointState)
                         {
-                            // The error is already logged.
-                            return checkpointState;
+                            // The error is already logged. We need to specify cast because of the implicit bool cast.
+                            return new Result<bool>((ResultBase)checkpointState);
                         }
 
-                        return await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
+                        var processStateResult = await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
+                        if (!processStateResult)
+                        {
+                            // The error is already logged. We need to specify cast because of the implicit bool cast.
+                            return new Result<bool>((ResultBase)processStateResult);
+                        }
+
+                        return false;
                     }
                 }
                 finally

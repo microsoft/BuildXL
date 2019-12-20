@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public bool ShouldCopy { get; }
 
-        private readonly Lazy<Metadata> _metadata = new Lazy<Metadata>(() => new Metadata { { "should_copy", "false" } });
+        private readonly Lazy<Metadata> _metadata;
 
         /// <nodoc />
         public Metadata Metadata => _metadata.Value;
@@ -71,6 +71,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private PushResponse(bool shouldCopy)
         {
             ShouldCopy = shouldCopy;
+            _metadata = new Lazy<Metadata>(() => new Metadata { { "should_copy", ShouldCopy.ToString() } });
         }
 
         /// <nodoc />

@@ -168,7 +168,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Dotnet-Runtime",
-          "Version": "5.0.2"
+          "Version": "5.0.3"
         }
       }
     },
@@ -1662,7 +1662,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1671,7 +1671,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1680,7 +1680,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1689,7 +1689,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1698,7 +1698,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1725,7 +1725,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetAppHost",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1734,7 +1734,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1752,7 +1752,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1761,7 +1761,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.Platforms",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -4227,7 +4227,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -4245,7 +4245,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -4335,7 +4335,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },
@@ -4353,7 +4353,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0"
+          "Version": "3.1.0"
         }
       }
     },

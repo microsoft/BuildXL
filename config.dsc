@@ -235,36 +235,36 @@ config({
                 { id: "Validation", version: "2.3.7"},
 
                 // .NET Core Dependencies
-                { id: "Microsoft.NETCore.App.Ref", version: "3.0.0" },
+                { id: "Microsoft.NETCore.App.Ref", version: "3.1.0" },
 
                 { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
-                { id: "Microsoft.NETCore.Platforms", version: "3.0.0" },
+                { id: "Microsoft.NETCore.Platforms", version: "3.1.0" },
                 { id: "System.Security.Claims", version: "4.3.0" },
 
                 // .NET Core Self-Contained Deployment
-                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.1.0" },
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "Microsoft.NETCore.DotNetHostResolver.220" },
 
-                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.1.0" },
 
-                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0" },
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.1.0" },
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
                 // .NET Core win-x64 runtime deps
-                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.0.0" },
-                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.0.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.1.0" },
+                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.1.0" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.1.0" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.1.0" },
 
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
                 // .NET Core osx-x64 runtime deps
-                { id: "Microsoft.NETCore.App.Host.osx-x64", version: "3.0.0" },
-                { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: "3.0.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+                { id: "Microsoft.NETCore.App.Host.osx-x64", version: "3.1.0" },
+                { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: "3.1.0" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.1.0" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.1.0" },
 
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
@@ -526,21 +526,21 @@ config({
 
                 // DotNet Core Runtime
                 {
-                    moduleName: "DotNet-Runtime.win-x64.3.0.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/f15b7c04-2900-4a14-9c01-ccd66a4323cc/17a6bbd44f0d0a85d219dd9e166a89ca/dotnet-runtime-3.0.0-win-x64.zip",
-                    hash: "VSO0:FDECDEE5841EC76EFCAF739A33C14CA3E56DFED17E6C40D5841CD8FAE476736300",
+                    moduleName: "DotNet-Runtime.win-x64.3.1.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/5e1c20ea-113f-47fd-9702-22a8bf1e3974/16bf234b587064709d8e7b58439022d4/dotnet-runtime-3.1.0-win-x64.zip",
+                    hash: "VSO0:EE359BDFFFED53EF3C5E76C1716AADD1567447B12A37292C075D6A26F1138C0700",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.3.0.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/68123d89-73c0-40b0-ba9b-93667c25663b/001f66f8ec4666421acc16f74209aa99/dotnet-runtime-3.0.0-osx-x64.tar.gz",
-                    hash: "VSO0:C26993E7020F4CA1398EB813C02B2F276AD74BADE7AA71D9B842462C1BAB7F7E00",
+                    moduleName: "DotNet-Runtime.osx-x64.3.1.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/454ca582-64f7-4817-bbb0-34a7fb831499/1d2d5613a2d2ebb26da04471e97cb539/dotnet-runtime-3.1.0-osx-x64.tar.gz",
+                    hash: "VSO0:FCB44A9D07D3923DB197C05A710FEBBB060649555418A067E04EAE1A06CBCE4400",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.3.0.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/a5ff9cbb-d558-49d1-9fd2-410cb1c8b095/a940644f4133b81446cb3733a620983a/dotnet-runtime-3.0.0-linux-x64.tar.gz",
-                    hash: "VSO0:4E5F8CF2BC5B1AE739D7E860B07C52050ACCB14A240C47CFD9E4F79EB21305EF00",
+                    moduleName: "DotNet-Runtime.linux-x64.3.1.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/5d139dff-4ca0-4e0c-a68b-0976281d5b2d/d306f725466e058842faa25bf1b2f379/dotnet-runtime-3.1.0-linux-x64.tar.gz",
+                    hash: "VSO0:BE98235AD947C48B4E5B0E428D263C488E4F16B3FD81AF9CB930B985341107CD00",
                     archiveType: "tgz",
                 },
                 // The following are needed for dotnet core MSBuild test deployments

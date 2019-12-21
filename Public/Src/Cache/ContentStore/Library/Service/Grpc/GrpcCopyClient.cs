@@ -115,7 +115,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             using (var operationContext = TrackShutdown(context, ct))
             {
-                return await CopyToCoreAsync(operationContext, hash, () => stream);
+                // If a stream is passed from the outside this operation should not be closing it.
+                return await CopyToCoreAsync(operationContext, hash, () => stream, closeStream: false);
             }
         }
 
@@ -134,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the stream returned by the factory.
         /// </summary>
-        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory)
+        private async Task<CopyFileResult> CopyToCoreAsync(OperationContext context, ContentHash hash, Func<Stream> streamFactory, bool closeStream = true)
         {
             try
             {
@@ -205,9 +206,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
 
                 // Copy the content to the target stream.
-                using (targetStream)
+                try
                 {
-                    switch(compression)
+                    switch (compression)
                     {
                         case CopyCompression.None:
                             await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
@@ -217,6 +218,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                             break;
                         default:
                             throw new NotSupportedException($"CopyCompression {compression} is not supported.");
+                    }
+                }
+                finally
+                {
+                    if (closeStream)
+                    {
+#pragma warning disable AsyncFixer02 // A disposable object used in a fire & forget async call
+                        targetStream.Dispose();
+#pragma warning restore AsyncFixer02 // A disposable object used in a fire & forget async call
                     }
                 }
 

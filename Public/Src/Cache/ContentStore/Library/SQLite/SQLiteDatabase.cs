@@ -552,9 +552,9 @@ namespace BuildXL.Cache.ContentStore.SQLite
 
                 if (useTransaction)
                 {
-#pragma warning disable AsyncFixer02 // CommitAsync should be used instead of transaction.Commit
+#pragma warning disable AsyncFixer02 // DisposeAsync should be used instead of targetStream.Dispose.
                     transaction.Commit();
-#pragma warning restore AsyncFixer02
+#pragma warning restore AsyncFixer02 // DisposeAsync should be used instead of targetStream.Dispose.
                 }
             }
 

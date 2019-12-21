@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -22,6 +23,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 
 namespace ContentStoreTest.Distributed.Stores
@@ -144,6 +146,44 @@ namespace ContentStoreTest.Distributed.Stores
                 var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
                 (await client.CopyFileAsync(_context, putResult.ContentHash, destinationPath, CancellationToken.None)).ShouldBeSuccess();
 
+                var copied = FileSystem.ReadAllBytes(destinationPath);
+
+                // Compare original and copied files
+                var originalHash = content.CalculateHash(DefaultHashType);
+                var copiedHash = copied.CalculateHash(DefaultHashType);
+                Assert.Equal(originalHash, copiedHash);
+            });
+        }
+
+        [Fact]
+        public async Task CopyToShouldNotCloseGivenStream()
+        {
+            await RunTestCase(nameof(CopyExistingFile), async (rootPath, session, client) =>
+            {
+                // Write a random file
+                var sourcePath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                var content = ThreadSafeRandom.GetBytes(FileSize);
+                FileSystem.WriteAllBytes(sourcePath, content);
+
+                // Put the random file
+                PutResult putResult = await session.PutFileAsync(_context, HashType.Vso0, sourcePath, FileRealizationMode.Any, CancellationToken.None);
+                putResult.ShouldBeSuccess();
+
+                // Copy the file out via GRPC
+                var destinationPath = rootPath / ThreadSafeRandom.Generator.Next().ToString();
+                using (var destinationStream = await FileSystem.OpenAsync(
+                    destinationPath,
+                    FileAccess.ReadWrite,
+                    FileMode.CreateNew,
+                    FileShare.None,
+                    FileOptions.None,
+                    1024))
+                {
+                    (await client.CopyToAsync(_context, putResult.ContentHash, destinationStream, CancellationToken.None)).ShouldBeSuccess();
+                    // If the stream is not disposed, the following operation should not fail.
+                    destinationStream.Position.Should().BeGreaterThan(0);
+                }
+                
                 var copied = FileSystem.ReadAllBytes(destinationPath);
 
                 // Compare original and copied files

@@ -592,6 +592,14 @@ namespace BuildXL.Processes
             // We could impose trusted tools the responsibility of knowing this, but this type of coordination is hard to achieve
             explicitlyReported = (policy & FileAccessPolicy.ReportAccess) != 0;
 
+            // If the access is not explicitly reported, and the global manifest flag is not asking for all accesses to be reported, we ignore
+            // this line
+            if (!explicitlyReported && !m_manifest.ReportFileAccesses)
+            {
+                path = null;
+                return true;
+            }
+            
             return result;
         }
 

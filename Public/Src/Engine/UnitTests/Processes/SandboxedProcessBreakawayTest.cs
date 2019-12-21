@@ -10,11 +10,49 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Native.IO;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessBreakawayTest : SandboxedProcessTestBase
     {
+        private sealed class FileAccessCollector : IDetoursEventListener
+        {
+            private readonly PathTable m_pathTable;
+
+            /// <summary>
+            /// All reported paths
+            /// </summary>
+            public HashSet<AbsolutePath> FileAccessPaths { get; } = new HashSet<AbsolutePath>();
+
+            public FileAccessCollector(PathTable pathTable) 
+            {
+                SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
+                m_pathTable = pathTable;
+            }
+
+            public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs)
+            {
+                if (AbsolutePath.TryCreate(m_pathTable, path, out AbsolutePath absolutePath))
+                {
+                    FileAccessPaths.Add(absolutePath);
+                }
+            }
+
+            public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage)
+            {
+            }
+
+            public override void HandleProcessData(long pipId, string pipDescription, string processName, uint processId, DateTime creationDateTime, DateTime exitDateTime, TimeSpan kernelTime, TimeSpan userTime, uint exitCode, IOCounters ioCounters, uint parentProcessId)
+            {
+            }
+
+            public override void HandleProcessDetouringStatus(ulong processId, uint reportStatus, string processName, string startApplicationName, string startCommandLine, bool needsInjection, ulong hJob, bool disableDetours, uint creationFlags, bool detoured, uint error, uint createProcessStatusReturn)
+            {
+            }
+        }
+
         public SandboxedProcessBreakawayTest(ITestOutputHelper output)
             : base(output) { }
 
@@ -199,8 +237,10 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(basePath, fileAccess.ManifestPath);
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void MaskedReportAugmentedAccessIsNotReported()
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void MaskedReportAugmentedAccessIsNotReported(bool reportFileAccesses)
         {
             var fam = new FileAccessManifest(
                 Context.PathTable,
@@ -208,7 +248,7 @@ namespace Test.BuildXL.Processes
             {
                 FailUnexpectedFileAccesses = false,
                 ReportUnexpectedFileAccesses = true,
-                ReportFileAccesses = true
+                ReportFileAccesses = reportFileAccesses
             };
 
             var basePath = TestBinRootPath.Combine(Context.PathTable, "foo");
@@ -219,23 +259,35 @@ namespace Test.BuildXL.Processes
             // We mask reporting accesses for output1 and enable it for output2
             fam.AddScope(output1.Path, ~FileAccessPolicy.ReportAccess, FileAccessPolicy.AllowAll);
             fam.AddScope(output2.Path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess);
-            
+
+            var collector = new FileAccessCollector(Context.PathTable);
+
             var info = ToProcessInfo(
                 ToProcess(
                     Operation.AugmentedWrite(output1),
                     Operation.AugmentedWrite(output2)),
-                fileAccessManifest: fam);
+                fileAccessManifest: fam,
+                detoursListener: collector);
 
             var result = RunProcess(info).GetAwaiter().GetResult();
             XAssert.AreEqual(0, result.ExitCode);
 
-            // We should get a single explicit access with output2, since output1 should be ignored
+            // We should get a single explicit access with output2, since output1 shouldn't be reported
             var accessPath = result.ExplicitlyReportedFileAccesses.Single(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).ManifestPath;
             XAssert.AreEqual(output2.Path, accessPath);
 
-            // We should get both accesses as part of the (optional) FileAccess
-            var allTrustedAcceses = result.FileAccesses.Where(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).Select(rfa => rfa.ManifestPath);
-            XAssert.Contains(allTrustedAcceses, output1.Path, output2.Path);
+            // We should get both accesses as part of the (optional) FileAccess on request
+            if (reportFileAccesses)
+            {
+                var allTrustedAcceses = result.FileAccesses.Where(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).Select(rfa => rfa.ManifestPath);
+                XAssert.Contains(allTrustedAcceses, output1.Path, output2.Path);
+            }
+            else
+            {
+                // Make sure the access related to output1 is not actually reported, and the only one the listener got is output2
+                XAssert.Contains(collector.FileAccessPaths, output2.Path);
+                XAssert.ContainsNot(collector.FileAccessPaths, output1.Path);
+            }
         }
     }
 }

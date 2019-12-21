@@ -166,6 +166,12 @@ namespace Flags {
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
 
     /**
+     * When running tests in VM, use the specified test framework; do not let BuildXL force the framework to XUnit.
+     */
+    @@public
+    export const doNotForceXUnitFrameworkInVm = Environment.getFlag("[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm");
+
+    /**
      * Use shared compilation for csc calls. Experimental feature.
      */
     @@public
@@ -351,9 +357,19 @@ export function test(args: TestArguments) : TestResult {
             /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
 
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
+            
+            let framework = args.testFramework;
+
+            if (!Flags.doNotForceXUnitFrameworkInVm) {
+                const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
+                const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
+                const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
+                framework = untracked ? untrackedFramework : trackedFramework;
+            }
+
             Contract.assert(args.testFramework !== undefined, "testFramework must have been set by processTestArguments");
             args = args.merge({
-                testFramework: args.testFramework,
+                testFramework: framework,
                 runTestArgs: {
                     privilegeLevel: <"standard"|"admin">"admin",
                     limitGroups: ["RequiresAdmin"],

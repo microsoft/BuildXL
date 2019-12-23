@@ -27,9 +27,20 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
+    /// Interface for <see cref="ContentLocationDatabase"/>.
+    /// </summary>
+    public interface IContentLocationDatabase
+    {
+        /// <summary>
+        /// Tries to locate an entry for a given hash.
+        /// </summary>
+        bool TryGetEntry(OperationContext context, ShortHash hash, out ContentLocationEntry entry);
+    }
+
+    /// <summary>
     /// Base class that implements the core logic of <see cref="ContentLocationDatabase"/> interface.
     /// </summary>
-    public abstract class ContentLocationDatabase : StartupShutdownSlimBase
+    public abstract class ContentLocationDatabase : StartupShutdownSlimBase, IContentLocationDatabase
     {
         private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
         private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });

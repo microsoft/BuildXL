@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
@@ -25,6 +26,21 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
             public static readonly List<T> EmptyList = new List<T>();
 
             public static readonly T[] EmptyArray = new T[] { };
+        }
+
+        /// <summary>
+        /// Compare two operands and returns true if two instances are equivalent.
+        /// </summary>
+        public static bool IsCompareEquals<T>(T x1, T x2, out int compareResult, bool greatestFirst = false)
+            where T : IComparable<T>
+        {
+            compareResult = x1.CompareTo(x2);
+            if (greatestFirst)
+            {
+                compareResult = -compareResult;
+            }
+
+            return compareResult == 0;
         }
     }
 }

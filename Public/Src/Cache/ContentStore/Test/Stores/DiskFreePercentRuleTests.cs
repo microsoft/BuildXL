@@ -85,7 +85,6 @@ namespace ContentStoreTest.Stores
             var quota = new DiskFreePercentQuota(Hard, Soft);
             return new DiskFreePercentRule(
                 quota,
-                (context, contentHashInfo, onlyUnlinked) => Task.FromResult(evictResult ?? new EvictResult("error")),
                 mock,
                 new AbsolutePath(dummyPath));
         }

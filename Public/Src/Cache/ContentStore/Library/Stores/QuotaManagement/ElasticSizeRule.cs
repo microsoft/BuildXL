@@ -72,17 +72,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         public ElasticSizeRule(
             int? historyWindowSize,
             MaxSizeQuota initialElasticSize,
-            EvictAsync evictAsync,
             Func<long> getCurrentSizeFunc,
             Func<int, PinSizeHistory.ReadHistoryResult> getPinnedSizeHistoryFunc,
             IAbsFileSystem fileSystem,
             AbsolutePath rootPath,
-            double? calibrationCoefficient = default(double?),
-            DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(evictAsync, OnlyUnlinkedValue, distributedEvictionSettings)
+            double? calibrationCoefficient = default(double?))
+            : base(OnlyUnlinkedValue)
         {
             Contract.Requires(!historyWindowSize.HasValue || historyWindowSize.Value >= 0);
-            Contract.Requires(evictAsync != null);
             Contract.Requires(getCurrentSizeFunc != null);
             Contract.Requires(getPinnedSizeHistoryFunc != null);
             Contract.Requires(fileSystem != null);

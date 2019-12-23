@@ -48,7 +48,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         /// <param name="capacity">The maximum capacity of the priority queue. This value must be positive.</param>
         /// <param name="comparer">The comparer used to determine item ordering. This value must be non-null.</param>
-        public MinMaxHeap(int capacity, Comparer<T> comparer)
+        public MinMaxHeap(int capacity, IComparer<T> comparer)
         {
             Contract.Requires(capacity >= 1);
             Contract.RequiresNotNull(comparer);

@@ -503,7 +503,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             // Ensure startup was called then wait for it to complete successfully (or error)
             // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries

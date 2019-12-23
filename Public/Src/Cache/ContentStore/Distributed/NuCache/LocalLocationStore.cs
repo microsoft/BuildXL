@@ -29,8 +29,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
@@ -1172,7 +1170,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Computes content hashes with effective last access time sorted in LRU manner.
         /// </summary>
-        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
+        public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(
             Context context,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo,
             bool reverse)
@@ -1197,13 +1195,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
             // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
 
-            // Assume that EffectiveLastAccessTime will always have a value.
-            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => (reverse ? -1 : 1) * c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
+            var comparer = ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance;
 
-            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
-                page => GetEffectiveLastAccessTimes(
-                            operationContext,
-                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+            IEnumerable<ContentEvictionInfo> getContentEvictionInfos(List<ContentHashWithLastAccessTimeAndReplicaCount> page) =>
+                GetEffectiveLastAccessTimes(
+                        operationContext,
+                        page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)))
+                    .ThrowIfFailure();
 
             // We make sure that we select a set of the newer content, to ensure that we at least look at newer
             // content to see if it should be evicted first due to having a high number of replicas. We do this by
@@ -1214,29 +1212,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // not the evictability metric.
             var oldestContentSortedByEvictability = contentHashesWithInfo
                 .Take(contentHashesWithInfo.Count / 2)
-                .ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+                .ApproximateSort(comparer, getContentEvictionInfos, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
 
             var newestContentSortedByEvictability = contentHashesWithInfo
                 .SkipOptimized(contentHashesWithInfo.Count / 2)
-                .ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
+                .ApproximateSort(comparer, getContentEvictionInfos, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestContentSortedByEvictability, newestContentSortedByEvictability, comparer)
                 .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
         }
 
-        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
+        private bool IsPassEvictionAge(Context context, ContentEvictionInfo candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
         {
-            if (candidate.Age(_clock) >= evictionMinAge)
+            if (candidate.EffectiveAge >= evictionMinAge)
             {
                 evictionCount++;
                 return true;
             }
 
             context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
-                $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge(_clock)}, age = {candidate.Age(_clock)}.");
+                $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;
         }
-
         /// <summary>
         /// Returns effective last access time for all the <paramref name="contentHashes"/>.
         /// </summary>
@@ -1244,7 +1241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Effective last access time is computed based on entries last access time considering content's size and replica count.
         /// This method is used in distributed eviction.
         /// </remarks>
-        public Result<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetEffectiveLastAccessTimes(
+        public Result<IReadOnlyList<ContentEvictionInfo>> GetEffectiveLastAccessTimes(
             OperationContext context,
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
         {
@@ -1254,56 +1251,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var postInitializationResult = EnsureInitializedAsync().GetAwaiter().GetResult();
             if (!postInitializationResult)
             {
-                return new Result<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(postInitializationResult);
+                return new Result<IReadOnlyList<ContentEvictionInfo>>(postInitializationResult);
             }
 
-            // This is required because the code inside could throw.
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this));
             return context.PerformOperation(
-                Tracer,
-                () =>
-                {
-                    var effectiveLastAccessTimes = new List<ContentHashWithLastAccessTimeAndReplicaCount>();
-                    double logInverseMachineRisk = -Math.Log(_configuration.MachineRisk);
-
-                    foreach (var contentHash in contentHashes)
-                    {
-                        DateTime lastAccessTime = contentHash.LastAccessTime;
-                        int replicaCount = 1;
-                        DateTime? effectiveLastAccessTime = null;
-
-                        if (TryGetContentLocations(context, contentHash.Hash, out var entry))
-                        {
-                            // Use the latest last access time between LLS and local last access time
-                            DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
-                            lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
-
-                            // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
-                            // just because there are many replicas
-                            replicaCount = entry.Locations.Count;
-
-                            // Incorporate both replica count and size into an evictability metric.
-                            // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
-                            // of all replicas being inaccessible).
-                            // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
-                            //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
-                            // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
-                            // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
-                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
-                            effectiveLastAccessTime = lastAccessTime - totalReplicaPenalty;
-
-                            Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupHit].Increment();
-                        }
-                        else
-                        {
-                            Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
-                        }
-
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
-                    }
-
-                    return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);
-                }, Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
-                traceOperationStarted: false);
+                    Tracer,
+                    () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, LocalMachineId, contentHashes),
+                    Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
+                    traceOperationStarted: false);
         }
 
         /// <summary>
@@ -1605,6 +1561,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }
+            }
+        }
+
+        private sealed class ContentResolver : IContentResolver
+        {
+            private readonly LocalLocationStore _localLocationStore;
+
+            public ContentResolver(LocalLocationStore localLocationStore) => _localLocationStore = localLocationStore;
+
+            /// <inheritdoc />
+            public (ContentInfo info, ContentLocationEntry entry) GetContentInfo(OperationContext context, ContentHash hash)
+            {
+                ContentInfo info = default;
+                _localLocationStore._localContentStore?.TryGetContentInfo(hash, out info);
+
+                _localLocationStore.TryGetContentLocations(context, hash, out var entry);
+
+                return (info, entry);
             }
         }
     }

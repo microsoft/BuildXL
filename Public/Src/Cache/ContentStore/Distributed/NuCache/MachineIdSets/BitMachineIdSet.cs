@@ -150,6 +150,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public override int GetMachineIdIndex(MachineId currentMachineId)
+        {
+            for (int i = Offset; i < Data.Length; i++)
+            {
+                byte redisChar = Data[i];
+
+                int position = 0;
+                while (redisChar != 0)
+                {
+                    if ((redisChar & MaxCharBitMask) != 0)
+                    {
+                        return i + position;
+                    }
+
+                    redisChar <<= 1;
+                    position++;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <inheritdoc />
         public override string ToString()
         {
             return $"Count: {Count}";

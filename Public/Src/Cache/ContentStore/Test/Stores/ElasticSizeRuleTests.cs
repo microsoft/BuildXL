@@ -164,7 +164,6 @@ namespace ContentStoreTest.Stores
                 return new ElasticSizeRule(
                     ElasticSizeRule.DefaultHistoryWindowSize,
                     initialQuota,
-                    (context, contentHashInfo, onlyUnlinked) => Task.FromResult(evictResult ?? new EvictResult("error")),
                     () => currentSize,
                     windowSize => new PinSizeHistory.ReadHistoryResult(new long[0], DateTime.UtcNow.Ticks),
                     FileSystem,
@@ -186,7 +185,6 @@ namespace ContentStoreTest.Stores
             return new ElasticSizeRule(
                 windowSize,
                 initialQuota,
-                (context, contentHashInfo, onlyUnlinked) => Task.FromResult(new EvictResult("error")),
                 currentSizeFunc,
                 readHistoryFunc,
                 FileSystem,
@@ -231,11 +229,6 @@ namespace ContentStoreTest.Stores
             public BoolResult IsInsideTargetLimit(long reserveSize = 0)
             {
                 return Rule.IsInsideTargetLimit(reserveSize);
-            }
-
-            public Task<PurgeResult> PurgeAsync(Context context, long reserveSize, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo, CancellationToken token)
-            {
-                return Rule.PurgeAsync(context, reserveSize, contentHashesWithInfo, token);
             }
 
             public bool CanBeCalibrated => Rule.CanBeCalibrated;

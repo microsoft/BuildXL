@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -163,6 +164,7 @@ namespace BuildXL.Cache.MemoizationStore.DistributedTest.Metadata
 
         private IConnectionStringProvider CreateMockProvider(string connectionString)
         {
+            Contract.RequiresNotNullOrEmpty(connectionString);
             var mockProvider = new TestConnectionStringProvider(connectionString);
             return mockProvider;
         }

@@ -44,5 +44,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 yield return machineId;
             }
         }
+
+        /// <inheritdoc />
+        public override int GetMachineIdIndex(MachineId currentMachineId)
+        {
+            int index = 0;
+            foreach (var machineId in _machineIds)
+            {
+                if (new MachineId(machineId) == currentMachineId)
+                {
+                    return index;
+                }
+
+                index++;
+            }
+
+            return -1;
+        }
     }
 }

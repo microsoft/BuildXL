@@ -235,24 +235,22 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var elasticSizeRule = new ElasticSizeRule(
                     configuration.HistoryWindowSize,
                     configuration.InitialElasticSize,
-                    EvictContentAsync,
                     () => CurrentSize,
                     store.ReadPinSizeHistory,
                     fileSystem,
-                    store.RootPath,
-                    distributedEvictionSettings: distributedEvictionSettings);
+                    store.RootPath);
                 rules.Add(elasticSizeRule);
             }
             else
             {
                 if (configuration.MaxSizeQuota != null)
                 {
-                    rules.Add(new MaxSizeRule(configuration.MaxSizeQuota, EvictContentAsync, () => CurrentSize, distributedEvictionSettings));
+                    rules.Add(new MaxSizeRule(configuration.MaxSizeQuota, () => CurrentSize));
                 }
 
                 if (configuration.DiskFreePercentQuota != null)
                 {
-                    rules.Add(new DiskFreePercentRule(configuration.DiskFreePercentQuota, EvictContentAsync, fileSystem, store.RootPath, distributedEvictionSettings));
+                    rules.Add(new DiskFreePercentRule(configuration.DiskFreePercentQuota, fileSystem, store.RootPath));
                 }
             }
 

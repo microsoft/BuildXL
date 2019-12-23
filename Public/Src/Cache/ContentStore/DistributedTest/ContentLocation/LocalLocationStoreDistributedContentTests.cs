@@ -1840,9 +1840,9 @@ namespace ContentStoreTest.Distributed.Sessions
                     foreach (var item in master.GetHashesInEvictionOrder(context, lruContent))
                     {
                         tracer.Debug($"{item}");
-                        tracer.Debug($"LTO: {item.LastAccessTime.Ticks - lastTime}, LOTO: {item.LastAccessTime.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
+                        tracer.Debug($"LTO: {item.EffectiveAge.Ticks - lastTime}, LOTO: {item.EffectiveAge.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
 
-                        lastTime = item.LastAccessTime.Ticks;
+                        lastTime = item.Age.Ticks;
                     }
 
                     await Task.Yield();

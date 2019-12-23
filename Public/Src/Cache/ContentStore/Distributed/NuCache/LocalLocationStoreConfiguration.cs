@@ -114,6 +114,38 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();
 
         /// <summary>
+        /// Specifies whether tiered eviction comparison should be used when ordering content for eviction
+        /// </summary>
+        public bool UseTieredDistributedEviction { get; set; }
+
+        /// <summary>
+        /// The number of buckets to offset by for important replicas. This effectively makes important replicas look younger.
+        /// </summary>
+        public int ImportantReplicaBucketOffset { get; set; } = 2;
+
+        /// <summary>
+        /// Age buckets for use with tiered eviction
+        /// </summary>
+        public IReadOnlyList<TimeSpan> AgeBuckets { get; set; } =
+            new TimeSpan[]
+            {
+                // Roughly 30 min + 3h^i
+                TimeSpan.FromMinutes(30),
+                TimeSpan.FromHours(2),
+                TimeSpan.FromHours(4),
+                TimeSpan.FromHours(10),
+                TimeSpan.FromDays(1),
+                TimeSpan.FromDays(3),
+                TimeSpan.FromDays(10),
+                TimeSpan.FromDays(30),
+            };
+
+        /// <summary>
+        /// Controls the desired number of replicas to retain.
+        /// </summary>
+        public int DesiredReplicaRetention { get; set; } = 3;
+
+        /// <summary>
         /// Estimated decay time for content re-use.
         /// </summary>
         /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>

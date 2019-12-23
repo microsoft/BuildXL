@@ -65,7 +65,6 @@ namespace ContentStoreTest.Stores
         {
             return new MaxSizeRule(
                 new MaxSizeQuota(Hard, Soft),
-                (context, contentHashInfo, onlyUnlinked) => Task.FromResult(evictResult ?? new EvictResult("error")),
                 () => currentSize);
         }
     }

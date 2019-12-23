@@ -9,6 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
@@ -1238,9 +1239,20 @@ namespace BuildXL
                 {
                     // If RelatedActivityId is populated, use it as a seed for random number generation
                     // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
-                    Random randomGen = string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId) ?
-                        new Random() :
-                        new Random(loggingConfiguration.RelatedActivityId.GetHashCode());
+                    Random randomGen = null;
+                    if (string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
+                    {
+                        randomGen = new Random();
+                    }
+                    else
+                    {
+                        HashingHelper helper = new HashingHelper(pathTable, false);
+                        helper.Add(loggingConfiguration.RelatedActivityId);
+                        // NetCORE string.GetHashCode() is not deterministic across program executions unlike net472.
+                        // Each execution can give a different number with netcore implementation of GetHashCode. 
+                        // That's why, we use HashingHelper to get fingerprint and then get hashcode with our own implementation.
+                        randomGen = new Random(helper.GenerateHash().GetHashCode());
+                    }
 
                     int randomNum = randomGen.Next(numABTestingOptions);
                     // Sort ABTesting args.

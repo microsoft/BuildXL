@@ -342,22 +342,7 @@ namespace ContentStoreTest.Distributed.Sessions
             EnableProactiveCopy = true;
             PushProactiveCopies = true;
 
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
-                {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        Role = index == 0 ? Role.Master : Role.Worker,
-                        UseIncrementalCheckpointing = true,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                    config.EventStore.Epoch = $"Epoch";
-                });
+            ConfigureWithOneMaster();
 
             await RunTestAsync(
                 new Context(Logger),
@@ -387,6 +372,57 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Content should be available in all sessions, because of proactive replication.
                     masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
                     masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(3);
+                });
+        }
+
+        [Fact]
+        public async Task ProactiveReplicationDuringStartupTest()
+        {
+            EnableProactiveReplication = true;
+            EnableProactiveCopy = true;
+
+            ConfigureWithOneMaster();
+
+            ContentHash hash = default;
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 2,
+                iterations: 1,
+                testFunc: async outerContext =>
+                {
+                    var master = outerContext.GetLocalLocationStore(outerContext.GetMasterIndex());
+
+                    await RunTestAsync(
+                        outerContext,
+                        storeCount: 1,
+                        iterations: 2,
+                        outerContext: outerContext,
+                        testFunc: async context =>
+                        {
+                            var sessions = context.Sessions;
+
+                            if (context.Iteration == 0)
+                            {
+                                var putResult = await sessions[0].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+
+                                // Content should be available in two sessions, because of proactive put.
+                                var masterResult = await master.GetBulkAsync(context, new[] { putResult.ContentHash }, GetBulkOrigin.Global).ShouldBeSuccess();
+                                masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                                hash = putResult.ContentHash;
+
+                                await master.CreateCheckpointAsync(context).ShouldBeSuccess();
+                            }
+                            else
+                            {
+                                // Content should be available in all sessions, because of proactive replication during checkpoint triggered by startup.
+                                var masterResult = await master.GetBulkAsync(context, new[] { hash }, GetBulkOrigin.Global).ShouldBeSuccess();
+                                masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(3);
+                            }
+
+                            TestClock.UtcNow += TimeSpan.FromMinutes(2);
+                        });
                 });
         }
 

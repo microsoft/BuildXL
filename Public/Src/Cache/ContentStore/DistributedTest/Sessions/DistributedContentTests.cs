@@ -949,18 +949,24 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction = false,
             int? replicaCreditInMinutes = null,
             bool enableRepairHandling = false,
-            int iterations = 1)
+            int iterations = 1,
+            TestContext outerContext = null)
         {
             var additionalArgs = PrepareAdditionalCreateStoreArgs(storeCount);
+            var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
-                .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
+                .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
                 .ToList();
-            var testFileCopier = new TestFileCopier()
-            {
-                WorkingDirectory = indexedDirectories[0].Directory.Path
-            };
+
             for (int iteration = 0; iteration < iterations; iteration++)
             {
+                var testFileCopier = outerContext?.FileCopier ?? new TestFileCopier()
+                {
+                    WorkingDirectory = indexedDirectories[0].Directory.Path
+                };
+
+                context.Always($"Starting test iteration {iteration}");
+
                 var stores = indexedDirectories.Select(
                     directory =>
                         CreateStore(

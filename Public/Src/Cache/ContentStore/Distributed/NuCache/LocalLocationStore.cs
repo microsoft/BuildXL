@@ -474,7 +474,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
         {
-            var result = await context.PerformOperationAsync(Tracer,
+            BoolResult result = await context.PerformOperationAsync(Tracer,
                 () => processStateCoreAsync(),
                 extraEndMessage: result => $"Skipped=[{(result.Succeeded ? result.Value : false)}]");
 
@@ -487,6 +487,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
 
                 _postInitializationTask = BoolResult.SuccessTask;
+
+                // We have operations that we want to be triggered by heartbeat but require heartbeat to be successful and _postInitializationTask
+                // to be completed.
+                result &= await PostHeartbeatAsync(context);
             }
 
             return result;
@@ -532,6 +536,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
+        private async Task<BoolResult> PostHeartbeatAsync(OperationContext context)
+        {
+            // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
+            if (_configuration.EnableProactiveReplication)
+            {
+                if (_configuration.InlineProactiveReplication)
+                {
+                    var result = await ProactiveReplicationAsync(context);
+
+                    if (!result.Succeeded)
+                    {
+                        return new BoolResult(result);
+                    }
+                }
+                else
+                {
+                    var cts = new CancellationTokenSource();
+
+                    // Make sure that two different threads don't go into a race condition, potentially having two threads doing proactive replication
+                    lock (_proactiveReplicationLockObject)
+                    {
+                        _lastProactiveReplicationTokenSource?.Cancel();
+                        _lastProactiveReplicationTokenSource?.Dispose();
+                        _lastProactiveReplicationTokenSource = cts;
+                    }
+
+                    // Important to use Task.Run since we want ProactiveReplication to run in the asynchronously regardless of whether
+                    // it starts with a long synchronous operation or not.
+                    Task.Run(() => WithOperationContext(
+                        context,
+                        cts.Token,
+                        opContext => ProactiveReplicationAsync(opContext)
+                        )).FireAndForget(context);
+                }
+            }
+
+            return BoolResult.Success;
+        }
 
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {
@@ -665,38 +707,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     else
                     {
                         Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
-                    }
-                }
-
-                // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
-                if (_configuration.EnableProactiveReplication)
-                {
-                    if (_configuration.InlineProactiveReplication)
-                    {
-                        var result = await ProactiveReplicationAsync(context);
-
-                        if (!result.Succeeded)
-                        {
-                            return new BoolResult(result);
-                        }
-                    }
-                    else
-                    {
-                        var cts = new CancellationTokenSource();
-
-                        // Make sure that two different threads don't go into a race condition, potentially having two threads doing proactive replication
-                        lock (_proactiveReplicationLockObject)
-                        {
-                            _lastProactiveReplicationTokenSource?.Cancel();
-                            _lastProactiveReplicationTokenSource?.Dispose();
-                            _lastProactiveReplicationTokenSource = cts;
-                        }
-
-                        WithOperationContext(
-                            context,
-                            cts.Token,
-                            opContext => ProactiveReplicationAsync(opContext)
-                            ).FireAndForget(context);
                     }
                 }
             }

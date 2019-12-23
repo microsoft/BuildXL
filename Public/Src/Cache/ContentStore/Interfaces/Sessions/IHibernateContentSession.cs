@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
-namespace BuildXL.Cache.ContentStore.Sessions
+namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>
     ///     Extended features for sessions that can hibernate/restore.

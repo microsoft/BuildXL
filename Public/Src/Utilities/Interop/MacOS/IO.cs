@@ -118,6 +118,81 @@ namespace BuildXL.Interop.MacOS
             public long TimeNSecCreation;
         }
 
+        /// <summary>
+        /// C# representation of the native struct statfs
+        ///
+        /// CODESYNC: https://github.com/apple/darwin-xnu/blob/master/bsd/sys/mount.h#L137-L158
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        public struct StatFsBuffer
+        {
+            /// <summary>TEMPORARY SHADOW COPY OF f_type</summary>
+            public short f_otype;
+
+            /// <summary>TEMPORARY SHADOW COPY OF f_flags</summary>
+            public short f_oflags;
+
+            /// <summary>fundamental file system block size</summary>
+            public long f_bsize;
+
+            /// <summary>optimal transfer block size</summary>
+            public long f_iosize;
+
+            /// <summary>total data blocks in file system</summary>
+            public long f_blocks;
+
+            /// <summary>free blocks in fs</summary>
+            public long f_bfree;
+
+            /// <summary>free blocks avail to non-superuser</summary>
+            public long f_bavail;
+
+            /// <summary>total file nodes in file system</summary>
+            public long f_files;
+
+            /// <summary>free file nodes in fs</summary>
+            public long f_ffree;
+
+            /// <summary>file system id</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=2)]
+            public int[] f_fsid;
+
+            /// <summary>user that mounted the filesystem</summary>
+            public int f_owner;
+
+            /// <summary>spare for later</summary>
+            public short f_reserved1;
+
+            /// <summary>type of filesystem</summary>
+            public short f_type;
+
+            /// <summary>copy of mount exported flags</summary>
+            public long f_flags;
+
+            /// <summary>reserved for future use</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=2)]
+            public long[] f_reserved2;
+
+            /// <summary>fs type name</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
+            public char[] f_fstypename;
+
+            /// <summary>directory on which mounted</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
+            public char[] f_mntonname;
+
+            /// <summary>mounted filesystem</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
+            public char[] f_mntfromname;
+
+            /// <summary>For alignment</summary>
+            public char f_reserved3;
+
+            /// <summary>For future use</summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=4)]
+            public long[] f_reserved4;
+        }
+
         public enum FilePermissions : int
         {
             S_ISUID = 0x0800, // Set user ID on execution
@@ -165,6 +240,35 @@ namespace BuildXL.Interop.MacOS
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true, CharSet = CharSet.Ansi)]
         public static extern int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize);
+
+        /// <summary>
+        /// This routine returns information about a mounted file system.
+        /// The <paramref name="path"/> argument is the path name of any file or directory 
+        /// within the mounted file system.  The <paramref name="buf"/> argument is a pointer
+        /// to a <see cref="StatFsBuffer"/> structure.
+        /// </summary>
+        /// <returns>
+        /// 0 on success, -1 otherwise.
+        /// </returns>
+        [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "statfs")]
+        public static extern int StatFs([MarshalAs(UnmanagedType.LPStr)] string path, ref StatFsBuffer buf);
+
+        /// <summary>
+        /// Returns the number of available bytes left on a mounted file system.
+        /// </summary>
+        /// <param name="path">Path name of any file or directory within the mounted file system</param>
+        /// <returns>Number of available bytes or -1 on error</returns>
+        public static long FreeSpaceLeftOnDeviceInBytes(string path)
+        {
+            var statFsBuffer = new StatFsBuffer();
+            var error = StatFs(path, ref statFsBuffer);
+            if (error != 0)
+            {
+                return -1;
+            }
+
+            return statFsBuffer.f_bsize * statFsBuffer.f_bavail;
+        }
 
         /// <summary>
         /// Sets the creation, modification, change and access time of a file specified at path
@@ -279,7 +383,7 @@ namespace BuildXL.Interop.MacOS
         public const string UsrStandalone             = "/usr/standalone";
         public const string UsrSbin                   = "/usr/sbin";
         public const string Var                       = "/var";
-        
+
         public static readonly string UserProvisioning      = $"/Users/{s_user}/Library/MobileDevice/Provisioning Profiles";
         public static readonly string UserKeyChainsDb       = $"/Users/{s_user}/Library/Keychains/login.keychain-db";
         public static readonly string UserKeyChains         = $"/Users/{s_user}/Library/Keychains/login.keychain";

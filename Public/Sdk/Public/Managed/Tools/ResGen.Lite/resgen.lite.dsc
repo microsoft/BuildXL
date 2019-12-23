@@ -8,20 +8,10 @@ namespace Tool {
 
     export declare const qualifier : Managed.TargetFrameworks.CurrentMachineQualifier;
 
-    const NetFx = qualifier.targetFramework === "net472" ? importFrom("Sdk.Managed.Frameworks.Net472").NetFx : undefined;
-
     const resGenLite = Managed.executable({
         assemblyName: "ResGen.Lite",
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...addIfLazy(qualifier.targetFramework === "net472", () => [
-                NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll,
-                importFrom("System.Collections.Immutable").pkg,
-                importFrom("System.Reflection.Metadata").pkg,
-                importFrom("System.Threading.Tasks.Extensions").pkg
-            ]),
-
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("Microsoft.CodeAnalysis.CSharp.Workspaces").pkg,

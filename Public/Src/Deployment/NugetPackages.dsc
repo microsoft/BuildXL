@@ -25,16 +25,6 @@ namespace NugetPackages {
         skipXml: true,
     };
 
-    const net472 = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.net472`,
-        deployment: BuildXL.withQualifier({
-            configuration: qualifier.configuration,
-            targetFramework: "net472",
-            targetRuntime: "win-x64"
-        }).deployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
@@ -166,11 +156,9 @@ namespace NugetPackages {
         ],
     });
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(canBuildAllPackagesOnThisHost, () => [
-                net472,
                 ...addIf(!BuildXLSdk.Flags.genVSSolution,
                     winX64
                 ),

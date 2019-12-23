@@ -9,8 +9,7 @@ namespace Cache {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     /** We copy the sdk's for now. In the future the sdks can contain compiled helpers */
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             {
                 subfolder: r`ContentStore`,

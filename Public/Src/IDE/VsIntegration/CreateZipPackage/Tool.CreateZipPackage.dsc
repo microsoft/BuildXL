@@ -8,7 +8,7 @@ namespace Tool.CreateZipPackage {
 
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
-    export const exe = BuildXLSdk.executable({
+    const exe = BuildXLSdk.executable({
         assemblyName: "CreateZipPackage",
         rootNamespace: "BuildXL.IDE.CreateZipPackage",
         sources: globR(d`.`, "*.cs"),

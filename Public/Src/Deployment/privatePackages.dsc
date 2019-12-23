@@ -157,8 +157,7 @@ namespace PrivatePackages {
         }
     });
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             cloudBuildlibrary,
             azDevOpslibrary

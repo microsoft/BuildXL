@@ -25,7 +25,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                     {
                         subfolder: "Sdk.QTest",
                         contents: [
-                            ...addIfLazy(!serverDeployment && qualifier.targetRuntime !== "osx-x64", () => [
+                            ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
                                 importFrom("BuildXL.Tools.QTest").deployment
                             ]),
                         ],

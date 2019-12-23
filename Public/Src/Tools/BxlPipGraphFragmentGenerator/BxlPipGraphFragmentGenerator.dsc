@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 
 namespace BxlPipGraphFragmentGenerator {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithoutNet472;
 
     @@public
     export const exe = BuildXLSdk.executable({

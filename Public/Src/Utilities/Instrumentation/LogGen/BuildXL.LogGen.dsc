@@ -9,11 +9,6 @@ namespace LogGen {
         platform: "anycpu32bitpreferred",
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                NetFx.System.Text.Encoding.dll,
-                importFrom("System.Reflection.Metadata").pkg,
-                importFrom("System.Collections.Immutable").pkg,
-            ]),
             Common.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").dll,

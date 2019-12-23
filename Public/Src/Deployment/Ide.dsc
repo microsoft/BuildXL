@@ -7,8 +7,7 @@ import * as Deployment from "Sdk.Deployment";
 namespace Ide {
     export declare const qualifier : { configuration: "debug" | "release"};
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
                 file: importFrom("BuildXL.Ide.VsIntegration").withQualifier({

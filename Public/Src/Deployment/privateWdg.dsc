@@ -14,8 +14,7 @@ namespace PrivateWdg {
         targetRuntime: "win-x64"
     };
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             importFrom("Private.Wdg").deployment,
             importFrom("Private.Wdg.ExecutionLogSdk").dll,

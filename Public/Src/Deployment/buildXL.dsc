@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 
 namespace BuildXL {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithoutNet472;
 
     /**
      * The main deployment definition
@@ -24,20 +24,12 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").BxlPipGraphFragmentGenerator.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
-            // content placement
-            ...addIfLazy(qualifier.targetFramework === "net472" && qualifier.targetRuntime !== "osx-x64", () => [
-                importFrom("BuildXL.Tools").ContentPlacement.Extraction.exe,
-                importFrom("BuildXL.Tools").ContentPlacement.ML.exe,
-                importFrom("BuildXL.Tools").ContentPlacement.ML.dll,
-                importFrom("BuildXL.Tools").ContentPlacement.OfflineMapping.exe,
-            ]),
-
-            ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
             ]),
 
             // tools
-            ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [{
                 subfolder: r`tools`,
                 contents: [
                     // Temporarily excluding the viewer since we are reaching the nuget limit size
@@ -65,13 +57,9 @@ namespace BuildXL {
         ]
     };
 
-    const frameworkSpecificPart = BuildXLSdk.isDotNetCoreBuild
-        ? qualifier.targetRuntime
-        : qualifier.targetFramework;
-
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment,
-        targetLocation: r`${qualifier.configuration}/${frameworkSpecificPart}`,
+        targetLocation: r`${qualifier.configuration}/${qualifier.targetRuntime}`,
     });
 }

@@ -7,8 +7,7 @@ import * as Deployment from "Sdk.Deployment";
 namespace Tests {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
-    @@public
-    export const deployment : Deployment.Definition = {
+    const deployment : Deployment.Definition = {
         contents: [
             ...(qualifier.targetFramework === "net472" ? [
                 importFrom("BuildXL.Tools").DistributedBuildRunner.exe,

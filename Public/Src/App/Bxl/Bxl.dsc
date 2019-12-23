@@ -45,7 +45,7 @@ namespace Main {
                 importFrom("BuildXL.Cache.VerticalStore").BuildCacheAdapter.dll
             ),
 
-            ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.FrontEnd").MsBuild.dll,
                 importFrom("BuildXL.FrontEnd").Ninja.dll,
                 importFrom("BuildXL.FrontEnd").CMake.dll,

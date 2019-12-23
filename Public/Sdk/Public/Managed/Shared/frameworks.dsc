@@ -87,15 +87,14 @@ namespace TargetFrameworks {
     @@public
     export interface CurrentMachineQualifier extends Qualifier {
         configuration: "debug" | "release";
-        // TODO: Netstandard should handle its application deploy in the framework itself and not rely on BuildXLSdk specifics
-        targetFramework: "net472" | "netcoreapp3.0",
+        targetFramework: "netcoreapp3.0",
         targetRuntime: "win-x64" | "osx-x64",
     }
 
     @@public
     export const currentMachineQualifier : CurrentMachineQualifier = {
         configuration: "release",
-        targetFramework: Context.getCurrentHost().os === "win" ? "net472" : "netcoreapp3.0",
+        targetFramework: "netcoreapp3.0",
         targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
     };
 }

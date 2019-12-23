@@ -51,7 +51,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let framework = args.framework || Frameworks.framework;
     if (!framework)
     {
-        Contract.fail("You must specify a .NET framework. For exmple: 'importFrom(\"Sdk.Managed.Frameworks.Net451\").framework' ");
+        Contract.fail("You must specify a .NET framework. For exmple: 'importFrom(\"Sdk.Managed.Frameworks.Net472\").framework' ");
     }
     if (framework.targetFramework !== qualifier.targetFramework)
     {
@@ -188,8 +188,6 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
             ...framework.conditionalCompileDefines,
             ...targetRuntimeDefines,
             ...(args.defineConstants || []),
-            // Defining a special symbol that can be used in C# code for using new API available in .NET 4.6.1+
-            ...(qualifier.targetFramework !== "net451" ? ["NET461Plus"] : []),
         ],
         nullable: args.nullable,
         nullabilityContext: args.nullabilityContext,

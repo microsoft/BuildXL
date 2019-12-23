@@ -16,9 +16,6 @@ namespace Tracing {
         references: [
             Common.dll,
             importFrom("BuildXL.Utilities").dll,
-            ...(qualifier.targetFramework !== "net451" ? [] : [
-                importFrom("BuildXL.Utilities").System.FormattableString.dll
-            ]),
             importFrom("BuildXL.Utilities").Configuration.dll
         ],
         embeddedResources: [{resX: f`Statistics.resx`, generatedClassMode: "implicitPublic"}],

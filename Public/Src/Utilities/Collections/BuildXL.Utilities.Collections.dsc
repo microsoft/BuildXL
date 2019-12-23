@@ -4,9 +4,6 @@
 import * as Managed from "Sdk.Managed";
 namespace Collections {
 
-    // Utilities is used by CloudStore and this is used by Utilities, so it must remain net451 compatible
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
-
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Utilities.Collections",

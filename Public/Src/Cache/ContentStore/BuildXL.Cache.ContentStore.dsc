@@ -6,14 +6,14 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
+export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
 export {BuildXLSdk};
 
 export const NetFx = BuildXLSdk.NetFx;
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
     export const deployment: Deployment.Definition =

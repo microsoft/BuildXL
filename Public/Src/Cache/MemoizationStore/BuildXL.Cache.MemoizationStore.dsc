@@ -5,14 +5,13 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as ContentStore from "BuildXL.Cache.ContentStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
+export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
 export {BuildXLSdk, ContentStore};
 
 export const NetFx = BuildXLSdk.NetFx;
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const deployment: Deployment.Definition =

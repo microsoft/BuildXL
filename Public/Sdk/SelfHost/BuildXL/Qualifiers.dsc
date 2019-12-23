@@ -37,25 +37,15 @@ export interface DefaultQualifier extends Qualifier {
  * Qualifier for projects that support DotNetCore
  */
 @@public
-export interface DefaultQualifierWithNet451 extends Qualifier {
+export interface DefaultQualifierWithNetStandard20 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net451" | "net472" | "netcoreapp3.0";
-    targetRuntime: "win-x64" | "osx-x64";
-}
-
-/**
- * Qualifier for projects that support DotNetCore
- */
-@@public
-export interface DefaultQualifierWithNet451AndNetStandard20 extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net451" | "net472" | "netcoreapp3.0" | "netstandard2.0";
+    targetFramework: "net472" | "netcoreapp3.0" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net451" | "net472" | "netcoreapp3.0" | "netstandard2.0";
+    targetFramework: "net472" | "netcoreapp3.0" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 }
 
@@ -83,14 +73,4 @@ export const LatestFullFrameworkQualifier : FullFrameworkQualifier = {
     configuration: qualifier.configuration,
     targetFramework: "net472",
     targetRuntime: "win-x64"
-};
-
-/**
- * Converst the qualifier to the latest supported qualifier.
- */
-@@public
-export const Net451Qualifier : DefaultQualifierWithNet451 = {
-    configuration: qualifier.configuration,
-    targetFramework: "net451",
-    targetRuntime: qualifier.targetRuntime
 };

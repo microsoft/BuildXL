@@ -13,7 +13,6 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
 import * as Frameworks from "Sdk.Managed.Frameworks";
-import * as Net451 from "Sdk.Managed.Frameworks.Net451";
 import * as Net472 from "Sdk.Managed.Frameworks.Net472";
 
 import * as ResXPreProcessor from "Sdk.BuildXL.Tools.ResXPreProcessor";
@@ -25,10 +24,7 @@ import * as Contracts from "Tse.RuntimeContracts";
 export * from "Sdk.Managed";
 
 @@public
-export const NetFx = qualifier.targetFramework === "net451" 
-    ? Net451.withQualifier({targetFramework: "net451"}).NetFx
-    : Net472.withQualifier({targetFramework: "net472"}).NetFx
-    ;
+export const NetFx = Net472.withQualifier({targetFramework: "net472"}).NetFx;
 
 export const publicKey = "0024000004800000940000000602000000240000525341310004000001000100BDD83CF6A918814F5B0395F20B6AA573B872FCDDB8B121F162BDD7D5EB302146B2EA6D7E6551279FF9D62E7BEA417ACAE39BADC6E6DECFE45BA7B3AD70AF432A1AA587343AA67647A4D402A0E2D011A9758AAB9F0F8D1C911D554331E8176BE34592BADC08BC94BBD892AF7BCB72AC613F37E4B57A6E18599535211FEF8A7EBA";
 
@@ -99,7 +95,7 @@ export interface TestResult extends Managed.TestResult {
 export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.0" || qualifier.targetFramework === "netstandard2.0";
 
 @@public
-export const isFullFramework : boolean = qualifier.targetFramework === "net451" || qualifier.targetFramework === "net472";
+export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 
 @@public
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
@@ -468,23 +464,10 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...(args.skipDefaultReferences ? [] : [
                     ...(isDotNetCoreBuild ? [] : [
                         NetFx.System.Threading.Tasks.dll,
-                        ...(qualifier.targetFramework === "net451"
-                            ? [
-                                // net451 needs an explicit reference to ValueTuple
-                                importFrom("System.ValueTuple").pkg,
-                                // net451 does not have its own version of TPL Data flow types
-                                importFrom("Microsoft.Tpl.Dataflow").pkg,
-                            ]
-                            : [
-                                importFrom("System.Threading.Tasks.Dataflow").pkg,
-                            ]
-                        )
+                        importFrom("System.Threading.Tasks.Dataflow").pkg,
                     ]),
                     ...(qualifier.targetFramework === "netstandard2.0" ? [] : [
                         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-                    ]),
-                    ...(qualifier.targetFramework !== "net451" ? [] : [
-                        importFrom("BuildXL.Utilities").System.FormattableString.dll
                     ]),
                     ...(args.generateLogs ? [
                         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
@@ -618,15 +601,11 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         testFramework: testFramework,
         skipDocumentationGeneration: true,
         sources: [
-            ...(qualifier.targetFramework === "net451" ? [] : [
-                testFrameworkOverrideAttribute,
-            ]),
+            testFrameworkOverrideAttribute,
         ],
         references: [
-            ...addIf(qualifier.targetFramework !== "net451",
-                importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-                importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll
-            ),
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),

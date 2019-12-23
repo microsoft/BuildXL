@@ -28,7 +28,6 @@ namespace BuildXL.Utilities.Tasks
         internal TaskSourceSlim(bool runContinuationsAsynchronously)
             : this()
         {
-#if NET461Plus
             TaskCreationOptions flags = runContinuationsAsynchronously
                 ? TaskCreationOptions.RunContinuationsAsynchronously
                 : TaskCreationOptions.None;
@@ -36,10 +35,6 @@ namespace BuildXL.Utilities.Tasks
             // When a task completion source is constructed with RunContinuationsAsynchronously flag,
             // then it makes no sense to SetResult from a separate thread.
             m_setResultAsynchonously = false;
-#else
-            m_tcs = new TaskCompletionSource<TResult>();
-            m_setResultAsynchonously = runContinuationsAsynchronously;
-#endif
         }
 
         /// <summary>

@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 
 export declare const qualifier: {
     configuration: "debug" | "release";
-    targetFramework: "netcoreapp3.0" | "netstandard2.0" | "net472" | "net451";
+    targetFramework: "netcoreapp3.0" | "netstandard2.0" | "net472";
 };
 
 /** Configures which asserts should be checked at runtime. */
@@ -40,9 +40,7 @@ export function withRuntimeContracts(args: Managed.Arguments, contractsLevel?: C
     return args.merge<Managed.Arguments>({
         defineConstants: getContractsSymbols(contractsLevel || ContractLevel.full, isDebug),
         references: [
-            qualifier.targetFramework === "net451"
-                ? importFrom("RuntimeContracts").withQualifier({targetFramework: 'netstandard2.0'}).pkg // Use .NETStandard as target framework, as its compatible with both .NET 4.5.1 and .NETCore
-                : importFrom("RuntimeContracts").pkg
+            importFrom("RuntimeContracts").pkg,
         ],
         tools: {
             csc: {

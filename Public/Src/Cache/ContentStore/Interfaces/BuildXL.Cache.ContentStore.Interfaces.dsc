@@ -7,7 +7,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as NetCoreApp from "Sdk.Managed.Frameworks.NetCoreApp3.0";
 
 namespace Interfaces {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
     export const dll = BuildXLSdk.library({

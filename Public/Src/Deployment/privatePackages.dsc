@@ -14,7 +14,6 @@ namespace PrivatePackages {
         targetRuntime: "win-x64"
     };
 
-    const net451Qualifier : BuildXLSdk.DefaultQualifierWithNet451 = { configuration: qualifier.configuration, targetFramework: "net451", targetRuntime: "win-x64" };
     const net472Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
     const winx64Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" };
     const osxx64Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" };
@@ -98,20 +97,6 @@ namespace PrivatePackages {
         id: "BuildXL.library.forAzDev",
         deployment: {
             contents: [
-                {
-                    subfolder: r`lib/net451`,
-                    contents: [
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).Collections.dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).Configuration.dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).Native.dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).Interop.dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(net451Qualifier).System.FormattableString.dll.runtime,
-                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net451Qualifier).Common.dll.runtime,
-                        ...importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").withQualifier(
-                            { targetFramework: "net451" }).pkg.runtime,
-                    ],
-                },
                 {
                     subfolder: r`runtimes/win-x64/lib/netcoreapp3.0`,
                     contents: [

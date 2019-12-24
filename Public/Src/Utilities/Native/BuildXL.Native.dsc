@@ -32,7 +32,9 @@ namespace Native {
 
     @@public
     export const nativeWin = [ 
-        ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [ importFrom("BuildXL.Sandbox.Windows").Deployment.natives ])
+        ...addIfLazy(qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win", () => [
+            importFrom("BuildXL.Sandbox.Windows").Deployment.natives
+        ])
     ];
 
     @@public

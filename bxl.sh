@@ -14,6 +14,7 @@ declare arg_DeployDevRelease=""
 declare arg_UseDev=""
 declare arg_Minimal=""
 declare arg_Internal=""
+declare arg_Cgmanifest=""
 
 function findMono() {
     local monoLocation=$(which mono)
@@ -52,21 +53,20 @@ function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
     arg_Positional+=("/remoteTelemetry+")
 
-    for arg in "$@" 
+    for arg in "$@"
     do
         to_lower=`printf '%s\n' "$arg" | awk '{ print tolower($0) }'`
         if [[ " $to_lower " == *"endpointsecurity"* ]]; then
             return
         fi
     done
-    
+
     arg_Positional+=(/sandboxKind:macOsKext)
 }
 
 function compileWithBxl() {
     local args=(
-        --config "$MY_DIR/config.dsc" 
-        /generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json"
+        --config "$MY_DIR/config.dsc"
         /fancyConsoleMaxStatusPips:10
         /exp:LazySODeletion
         /nowarn:11319 # DX11319: nuget version mismatch
@@ -115,6 +115,10 @@ function parseArgs() {
             arg_Internal="1"
             shift
             ;;
+        --cgmanifest)
+            arg_Cgmanifest="1"
+            shift
+            ;;
         *)
             arg_Positional+=("$1")
             shift
@@ -146,6 +150,10 @@ fi
 
 if [[ -n "$arg_Internal" ]]; then
     setInternal $@
+fi
+
+if [[ -n "$arg_Cgmanifest" ]]; then
+    arg_Positional+=(/generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json")
 fi
 
 if [[ -n "$arg_UseDev" ]]; then

@@ -30,6 +30,9 @@ config({
                 f`Public/Sdk/Public/Prelude/package.config.dsc`, // Prelude cannot be named module because it is a v1 module
                 f`Public/Sdk/Public/Transformers/package.config.dsc`, // Transformers cannot be renamed yet because office relies on the filename
                 ...globR(d`Public/Sdk`, "module.config.dsc"),
+                ...addIf(Context.getCurrentHost().os !== "win",
+                    f`private/Facades/VisualCppTools.Community.VS2017Layout/module.config.dsc`
+                ),
             ]
         },
         {
@@ -135,7 +138,7 @@ config({
                 { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
 
                 // Cpp Sdk
-                { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"},
+                ...(Context.getCurrentHost().os === "win" ? [{ id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"}] : []),
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
@@ -154,9 +157,9 @@ config({
                 { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
                 { id: "Microsoft.Azure.Services.AppAuthentication", version: "1.0.3" },
                 { id: "Microsoft.IdentityModel.Logging", version: "5.2.2" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "5.2.2", 
+                { id: "Microsoft.IdentityModel.Tokens", version: "5.2.2",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
-                { id: "System.IdentityModel.Tokens.Jwt", version: "5.2.2", 
+                { id: "System.IdentityModel.Tokens.Jwt", version: "5.2.2",
                     dependentPackageIdsToSkip: ["Newtonsoft.Json"] },
 
                 // Package sets
@@ -181,10 +184,10 @@ config({
                 { id: "microsoft.dotnet.xunitconsolerunner", version: "2.5.1-beta.19270.4" },
                 { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
                 { id: "xunit.runner.utility", version: "2.4.1" },
-                { id: "xunit.runner.visualstudio", version: "2.4.1", 
+                { id: "xunit.runner.visualstudio", version: "2.4.1",
                     dependentPackageIdsToSkip: ["Microsoft.NET.Test.Sdk"]  },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1", 
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1",
                     dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },
 
                 // CloudStore dependencies
@@ -204,7 +207,7 @@ config({
                 // Testing
                 { id: "System.Security.Cryptography.ProtectedData", version: "4.4.0"},
                 { id: "System.Configuration.ConfigurationManager", version: "4.4.0"},
-                { id: "FluentAssertions", version: "5.3.0", 
+                { id: "FluentAssertions", version: "5.3.0",
                     dependentPackageIdsToSkip: ["System.Reflection.Emit", "System.Reflection.Emit.Lightweight"] },
 
                 { id: "DotNet.Glob", version: "2.0.3" },
@@ -360,7 +363,7 @@ config({
                 { id: "System.Runtime.Serialization.Primitives", version: "4.3.0" },
                 { id: "System.Runtime.Serialization.Xml", version: "4.3.0" },
                 { id: "System.Runtime.WindowsRuntime", version: "4.3.0" },
-                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8", 
+                { id: "System.Security.AccessControl", version: "4.6.0-preview5.19224.8",
                     dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
                 { id: "System.Security.Cryptography.Algorithms", version: "4.3.0" },
                 { id: "System.Security.Cryptography.Cng", version: "4.3.0" },
@@ -420,7 +423,7 @@ config({
 
                 // VSTS managed API
                 { id: "Microsoft.TeamFoundationServer.Client", version: "15.122.1-preview"},
-                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "15.122.1-preview", 
+                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "15.122.1-preview",
                     dependentPackageIdsToSkip: ["*"] },
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common", version: "15.112.1"},
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
@@ -437,15 +440,15 @@ config({
                 },
                 { id: "Microsoft.Build.Utilities.Core", version: "16.4.0-preview-19516-02"},
                 { id: "Microsoft.Build.Framework", version: "16.4.0-preview-19516-02"},
-                { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4", 
+                { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
-                { id: "System.Text.Encoding.CodePages", version: "4.5.1", 
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1",
                     dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild", 
+                { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild",
                     dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},
@@ -464,18 +467,18 @@ config({
                 { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
 
                 // Kusto SDK (for netstandard)
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", 
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",
                     dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", 
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8",
                     dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", 
+                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8",
                     dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
-                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", 
+                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8",
                     dependentPackageIdsToSkip: ["Microsoft.Extensions.PlatformAbstractions"] },
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
                 { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
                 { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
-                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0", 
+                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0",
                     dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],
                     dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
                 },

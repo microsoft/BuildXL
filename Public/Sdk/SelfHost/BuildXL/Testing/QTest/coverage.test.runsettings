@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <!--The XUnit test adapter for vstest uses this configuration to determine whether to run tests in parallel.-->
+  <RunConfiguration>
+    <DisableParallelization>True</DisableParallelization >
+  </RunConfiguration>
+  <!--Exclude some assemblies from code coverage reporting-->
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage" uri="datacollector://Microsoft/CodeCoverage/2.0" assemblyQualifiedName="Microsoft.VisualStudio.Coverage.DynamicCoverageDataCollector, Microsoft.VisualStudio.TraceCollector, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <Configuration>
+          <CodeCoverage>
+            <Functions>
+              <Exclude>      
+                <Function>^bond::.*</Function>
+                <Function>^grpc::.*</Function>
+              </Exclude>
+            </Functions>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

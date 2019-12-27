@@ -152,9 +152,10 @@ function runTest(args : TestRunArguments) : File[] {
         // but some of test adapter (our selfhost is using a test adapter) do not respect that, and must be told explicitly
         // in the setting file.
         //    <RunConfiguration>
-        //        <DisableParallelization>True</DisableParallelization >
+        //        <DisableParallelization>True</DisableParallelization>
         //    </RunConfiguration>
         vstestSettingsFile: f`test.runsettings`,
+        vstestSettingsFileForCoverage : f`coverage.test.runsettings`,
         qTestTool: qTestTool,
         qTestLogs: logDir,
         tags: args.tags,

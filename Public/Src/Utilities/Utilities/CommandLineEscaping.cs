@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -233,13 +234,18 @@ namespace BuildXL.Utilities
             return count * s.Length;
         }
 
+        private static readonly HashSet<char> s_unixDelimiters = new HashSet<char>
+        {
+            ' ', '\t', ';', '(', ')', '`'
+        };
+
         private static bool ContainsDelimiter(string s)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
                 foreach (char c in s)
                 {
-                    if (c == ' ' || c == '\t' || c == ';')
+                    if (s_unixDelimiters.Contains(c))
                     {
                         return true;
                     }

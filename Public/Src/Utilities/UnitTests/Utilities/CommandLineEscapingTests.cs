@@ -55,6 +55,8 @@ namespace Test.BuildXL.Utilities
 
         [Theory]
         [InlineData("DEBUG;TRACE;DEFTEMP", "\"DEBUG;TRACE;DEFTEMP\"", "DEBUG;TRACE;DEFTEMP")]
+        [InlineData("(A)", "\"(A)\"", "(A)")]
+        [InlineData("`A`", "\"`A`\"", "`A`")]
         public void TestPlatformSpecificWordEscaping(string value, string asWordOnUnix, string asWordOnWindows)
         {
             var expected = OperatingSystemHelper.IsUnixOS

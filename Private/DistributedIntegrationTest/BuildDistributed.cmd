@@ -10,11 +10,11 @@ if "%_BUILDXL_INIT_DONE%" NEQ "1" (
 )
 
 if NOT DEFINED BUILDXL_BIN_DIRECTORY (
-    set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\debug\net472
+    set BUILDXL_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\debug\win-x64
 ) 
 
 if NOT DEFINED BUILDXL_TEST_BIN_DIRECTORY (
-    set BUILDXL_TEST_BIN_DIRECTORY=%BUILDXL_BIN_DIRECTORY%\..\..\tests\debug
+    set BUILDXL_TEST_BIN_DIRECTORY=%ENLISTMENTROOT%\Out\Bin\debug\tools\DistributedBuildRunner\win-x64
 )
 
 set TEST_SOLUTION_ROOT=%~dp0
@@ -33,32 +33,24 @@ set BUILDXL_MASTER_ARGS=/maxProc:2 %BUILDXL_MASTER_ARGS%
 set BUILDXL_WORKER_ARGS=/maxProc:6 %BUILDXL_WORKER_ARGS%
 
 REM The following variables are for ChangeAffectedInputTest
+REM Due to root maps, all paths in the graph will have the mapped root. Because the content of SOURCECHANGE_FILE below will be an absolute path
+REM and the path is obtained prior to BuildXL invocation, where no substs or root maps have been applied, BuildXL invocation needs directory translation
+REM to translate the absolute path to the translated one. Otherwise, the source change is not propagated properly.
+REM One can avoid using directory translation by specifying the SOURCE_FILE below as a relative path Src\ChangeAffectedInputTest\inputfile.txt.
 set SOURCE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\inputfile.txt
-set CHANGEAFFECTEDINPUTTEST_DIR=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest
-set OUTPUT_DIR_NAME=output
-set OUTPUT_FILE_NAME=outputfile.txt
-set OUTPUT_DIR=%CHANGEAFFECTEDINPUTTEST_DIR%\%OUTPUT_DIR_NAME%
-set OUTPUT_FILE=%OUTPUT_DIR%\%OUTPUT_FILE_NAME%
-set EXPECTED_WRITTEN_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\expectedChangeAffectedInputListWrittenFile.txt
-set WRITTEN_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\changeAffectedInputListWrittenFile.txt
-
 set SOURCECHANGE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
 echo %SOURCE_FILE%>%SOURCECHANGE_FILE%
-echo %OUTPUT_FILE%>%EXPECTED_WRITTEN_FILE%
 
-    @REM disabled warnings:
-    @REM   - DX2841: Virus scanning software is enabled for.
-    @REM   - DX2200: Failed to clean temp directory. Reason: unable to enumerate the directory or a descendant directory to verify that it has been emptied.
-set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ /inputChanges:%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
+@REM disabled warnings:
+@REM   - DX2841: Virus scanning software is enabled for.
+@REM   - DX2200: Failed to clean temp directory. Reason: unable to enumerate the directory or a descendant directory to verify that it has been emptied.
+set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ "/translateDirectory:%TEST_SOLUTION_ROOT%<{sourceRoot}:\\" /inputChanges:%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
 
 if NOT DEFINED DISABLE_DBD_TESTRUN (
     %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
 )
 
-del %WRITTEN_FILE%
-del %EXPECTED_WRITTEN_FILE%
 del %SOURCECHANGE_FILE%
-rmdir %OUTPUT_DIR% /s/q
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

@@ -5,19 +5,13 @@ import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import {cmdExe} from "DistributedIntegrationTests.Utils";
 
 function main() {
-    const inputfile = Environment.getFileValue("SOURCE_FILE");
-    const tempOutDir = Context.getNewOutputDirectory("outputDirectory");
-    const outfile1 = p`${tempOutDir}/outputfile1.txt`;
-    const outfile2 = p`${tempOutDir}/outputfile2.txt`;
-    const outfile3= p`${tempOutDir}/outputfile3.txt`;
-    const verificationOutput = p`${tempOutDir}/verify.txt`;
+    // BuildXL invocation specifies inputfile.txt as source change.
+    const inputFile = f`./inputfile.txt`;
 
-    const outputDir = d`${Context.getMount("ChangeAffectedInputTest").path}/${Environment.getStringValue("OUTPUT_DIR_NAME")}`;
-    const affectedInputForLastProcess = p`${outputDir}/${Environment.getStringValue("OUTPUT_FILE_NAME")}`;
-
-    const changeAffectedInputListWrittenFile = Environment.getFileValue("WRITTEN_FILE");
-    const expectedChangeAffectedInputListWrittenFile = Environment.getFileValue("EXPECTED_WRITTEN_FILE");
-
+    const outputDir1 = Context.getNewOutputDirectory("outputDirectory1");
+    const outputFile1 = p`${outputDir1}/outputfile1.txt`;
+    
+    // inputfile.txt -> Process1 -> outputDirectory1/outputfile1.txt
     let result = Transformer.execute({
         tool: cmdExe,
         description: "First process pip in ChangeAffectedInputTest",
@@ -25,14 +19,15 @@ function main() {
             Cmd.argument("/d"),
             Cmd.argument("/c"),
             Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
-            Cmd.argument(Artifact.input(inputfile)),
-            Cmd.argument(Artifact.output(outfile1)),
+            Cmd.argument(Artifact.input(inputFile)),
+            Cmd.argument(Artifact.output(outputFile1)),
         ],
         workingDirectory: d`.`
     });
 
-    let outfile1FromResult = result.getOutputFile(outfile1);
+    const outputFile2 = p`${outputDir1}/outputfile2.txt`;
 
+    // outputDirectory1/outputfile1.txt -> Process2 -> outputDirectory1/outputfile2.txt
     result = Transformer.execute({
         tool: cmdExe,
         description: "Second process pip in ChangeAffectedInputTest",
@@ -40,44 +35,58 @@ function main() {
             Cmd.argument("/d"),
             Cmd.argument("/c"),
             Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
-            Cmd.argument(Artifact.input(outfile1FromResult)),
-            Cmd.argument(Artifact.output(outfile2)),
+            Cmd.argument(Artifact.input(result.getOutputFile(outputFile1))),
+            Cmd.argument(Artifact.output(outputFile2)),
         ],
         workingDirectory: d`.`
     });
 
-    let outfile2FromResult = result.getOutputFile(outfile2);
+    const outputDir2 = Context.getNewOutputDirectory("outputDirectory2");
+    
+    // outputDirectory1/outputfile2.txt -> CopyFile -> outputDirectory2/copied_outputfile2.txt
+    const copiedOutputFile2 = Transformer.copyFile(
+        result.getOutputFile(outputFile2),
+        p`${outputDir2}/copied_outputfile2.txt`,
+        [],
+        "CopyFile pip in ChangeAffectedInputTest");
 
-    let copiedFile = Transformer.copyFile(
-                outfile2FromResult,
-                affectedInputForLastProcess,
-                [],
-                "CopyFile pip in ChangeAffectedInputTest"
-            );
-
+    // sealedDir = Seal(outputDirectory2, members: [outputDirectory2/copied_outputfile2.txt])
     let sealedDir = Transformer.sealDirectory({
-                root: outputDir,
-                files: [copiedFile],
-                scrub: true,
-                description: "sealDirectory pip in ChangeAffectedInputTest",
-            });
+        root: outputDir2,
+        files: [copiedOutputFile2],
+        scrub: true,
+        description: "sealDirectory pip in ChangeAffectedInputTest" 
+    });
 
-    Transformer.execute({
+    const changeAffectedInputListWrittenFile = p`${outputDir1}/changed_affected_file.txt`;
+    const outputFile3 = p`${outputDir1}/outputfile3.txt`;
+    
+    // SealedDir -> Process3 (last) -> outputDirectory1/outputfile3.txt
+    // Prior to Process3 execution, BuildXL writes outputDirectory1/changed_affected_file.txt containing inputs that are affected by source change, i.e., inputfile.txt.
+    // The file outputDirectory1/changed_affected_file.txt should contain the path outputDirectory2/copied_outputfile2.txt, due to Process3's dependency on the sealed directory.
+    // Process3 reads outputDirectory1/changed_affected_file.txt and write its content to outputDirectory1/outputfile3.txt.
+    result = Transformer.execute({
         tool: cmdExe,
         description: "Last process pip in ChangeAffectedInputTest",
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
             Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
-            Cmd.argument(affectedInputForLastProcess),
-            Cmd.argument(Artifact.output(outfile3)),
+            Cmd.argument(Artifact.none(changeAffectedInputListWrittenFile)),
+            Cmd.argument(Artifact.output(outputFile3)),
         ],
         dependencies: [sealedDir],
-        changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile.path,
+        changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile,
         workingDirectory: d`.`
     });
 
-    let outfile3FromResult = result.getOutputFile(outfile3);
+    // Expected change affected input for Process3 should contain outputDirectory2/copied_outputfile2.txt.
+    // The expected change is written to outputDirectory1/expected_changed_affected_file.txt.
+    const expectedChangeAffectedInputListWrittenFile = Transformer.writeFile(p`${outputDir1}/expected_changed_affected_file.txt`, copiedOutputFile2.path);
+
+    const verificationOutput = p`${outputDir1}/verify.txt`;
+
+    // Verify that outputDirectory1/outputfile3.txt and outputDirectory1/expected_changed_affected_file.txt have the same content.
     Transformer.execute({
         tool: cmdExe,
         description: "Verification pip in ChangeAffectedInputTest",
@@ -86,12 +95,8 @@ function main() {
             Cmd.argument("/c"),
             Cmd.argument(Artifact.input(f`../Utils/verifyOutput.cmd`)),
             Cmd.argument(Artifact.input(expectedChangeAffectedInputListWrittenFile)),
-            Cmd.argument(Artifact.input(changeAffectedInputListWrittenFile)),
+            Cmd.argument(Artifact.input(result.getOutputFile(outputFile3))),
             Cmd.argument(Artifact.output(verificationOutput)),
-        ],
-        //Dummy input to make sure this pip run after the last process
-        dependencies: [
-            outfile3FromResult,
         ],
         workingDirectory: d`.`
     });

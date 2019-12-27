@@ -20,13 +20,6 @@ config({
             trackSourceFileChanges: true,
             isWritable: false,
             isReadable: true,
-        },
-        {
-            name: PathAtom.create("ChangeAffectedInputTest"),
-            path: Environment.hasVariable("CHANGEAFFECTEDINPUTTEST_DIR") ? p`${Environment.getPathValue("CHANGEAFFECTEDINPUTTEST_DIR")}` : p`Src/ChangeAffectedInputTest`,
-            trackSourceFileChanges: true,
-            isWritable: true,
-            isReadable: true,
-        },
+        }
     ],
 });

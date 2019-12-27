@@ -53,7 +53,7 @@ namespace BuildXL.Storage.InputChange
             {
                 using (StreamReader reader = new StreamReader(path))
                 {
-                    return CreateFromStream(loggingContext, reader, path, directoryTranslator: directoryTranslator);
+                    return CreateFromStream(loggingContext, reader, filePathOrigin: path, sourceRoot: sourceRoot, directoryTranslator: directoryTranslator);
                 }
             }
             catch (IOException ioException)

@@ -34,6 +34,7 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
+    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
     public abstract class RedisContentLocationStoreTests : TestWithOutput
     {
         private const string DefaultKeySpace = RedisContentLocationStoreFactory.DefaultKeySpace;

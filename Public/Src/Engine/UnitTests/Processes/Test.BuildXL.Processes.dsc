@@ -52,9 +52,9 @@ namespace Processes {
                         }
                     ]
                 },
-                importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
             ]),
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
             importFrom("BuildXL.Utilities.UnitTests").InfiniteWaiter.exe
-        ],
+        ]
     });
 }

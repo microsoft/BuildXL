@@ -12,6 +12,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Ninja
@@ -19,6 +20,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
     /// <summary>
     /// Provides facilities to run tests on the engine with Ninja specs
     /// </summary>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class NinjaPipExecutionTestBase : DsTestWithCacheBase
     {
         // Default Ninja build file and its location (which we imply to be the project root)

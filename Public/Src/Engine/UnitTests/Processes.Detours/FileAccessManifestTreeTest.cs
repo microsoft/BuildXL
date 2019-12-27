@@ -14,6 +14,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes.Detours
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class FileAccessManifestTreeTest : XunitBuildXLTest
     {
         /// <inheritdoc />

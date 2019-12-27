@@ -60,6 +60,7 @@ export function compile(inputArgs: Arguments) : Result {
         : undefined;
     const outputDocPath = args.doc && p`${outputDirectory}/${args.doc}`;
     const outputRefPath = args.emitReferenceAssembly ? p`${outputDirectory}/ref/${args.out}` : undefined;
+    const dirSep = Context.getCurrentHost().os === "win" ? "\\" : "/";
 
     let cscArguments: Argument[] = [
         Cmd.flag("/nologo",         args.noLogo),
@@ -145,7 +146,7 @@ export function compile(inputArgs: Arguments) : Result {
             Cmd.option("/resource:", Cmd.join(",", [Artifact.input(lr.file), lr.logicalName, lr.isPublic ? "public" : "private"]))),
 
         ...(args.sourceFolders || []).map(sourceFolder =>
-            Cmd.option("/recurse:",  Cmd.join("", [Artifact.input(sourceFolder), "\\*"]))
+            Cmd.option("/recurse:",  Cmd.join("", [Artifact.input(sourceFolder), dirSep, "*"]))
         ),
 
         Cmd.files(args.sources),

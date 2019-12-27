@@ -11,7 +11,7 @@ namespace Deployment {
     const Core86 = Core.withQualifier({platform: "x86", configuration: qualifier.configuration});
 
     @@public
-    export const detours: SdkDeployment.Definition = {
+    export const detours: SdkDeployment.Definition = Runtime.isHostOsWindows && {
         contents: [
             {
                 subfolder: "x64",
@@ -36,7 +36,7 @@ namespace Deployment {
     };
 
     @@public
-    export const natives: SdkDeployment.Definition = {
+    export const natives: SdkDeployment.Definition = Runtime.isHostOsWindows && {
         contents: [
             {
                 subfolder: "x64",

@@ -534,8 +534,8 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public Possible<string> GetFileName(string path) => Path.GetFileName(path);
 
-        /// <inheritdoc />
-        public string GetKnownFolderPath(Guid knownFolder) => throw new NotImplementedException();
+        /// <summary>Doesn't know any known folders, i.e., always returns <c>null</c>.</summary>
+        public string GetKnownFolderPath(Guid knownFolder) => null;
 
         /// <inheritdoc />
         public string GetUserSettingsFolder(string appName)

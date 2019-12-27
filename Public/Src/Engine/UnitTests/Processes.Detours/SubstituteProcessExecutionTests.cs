@@ -19,6 +19,7 @@ namespace Test.BuildXL.Processes.Detours
     /// <summary>
     /// Tests for substitute process execution shim capability in the Windows Detours code.
     /// </summary>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class SubstituteProcessExecutionTests : XunitBuildXLTest
     {
         private readonly ITestOutputHelper m_output;

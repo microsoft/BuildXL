@@ -56,6 +56,8 @@ namespace Sdk.DeploymentTests {
         expectFile(result, r`b.txt`, f`folder/b.txt`);
     }
 
+    const dirSep = Context.getCurrentHost().os === "win" ? "\\" : "/";
+
     @@Testing.unitTest()
     export function flattenTwoFilesFromDifferentFolderSameName() {
         Testing.expectFailure( () => 
@@ -64,8 +66,8 @@ namespace Sdk.DeploymentTests {
                     { contents: [f`a.txt`, f`folder/a.txt`]}
                 );
             },
-            "\\a.txt' and file '",
-            "\\folder\\a.txt' to the same location: 'r`a.txt`"  
+            `${dirSep}a.txt' and file '`,
+            `${dirSep}folder${dirSep}a.txt' to the same location: 'r` + "`a.txt`"
         );
     }
 

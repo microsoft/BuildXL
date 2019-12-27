@@ -119,6 +119,16 @@ function parseArgs() {
             arg_Cgmanifest="1"
             shift
             ;;
+        --test-class)
+            arg_Positional+=("/p:[UnitTest]Filter.testClass=$2")
+            shift
+            shift
+            ;;
+        --test-method)
+            arg_Positional+=("/p:[UnitTest]Filter.testMethod=$2")
+            shift
+            shift
+            ;;
         *)
             arg_Positional+=("$1")
             shift

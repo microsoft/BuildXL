@@ -100,6 +100,10 @@ export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 @@public
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
 
+
+@@public
+export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
+
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */
 @@public
 export const restrictTestRunToSomeQualifiers =
@@ -623,6 +627,10 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                         {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}
                     ],
                     errorRegex: " \b",
+                    unsafe: {
+                        // allowing process dumps to be written to /cores on macOS
+                        untrackedScopes: Context.getCurrentHost().os === "macOS" ?  [ d`/cores` ] : []
+                    }
                 }
             }
         },

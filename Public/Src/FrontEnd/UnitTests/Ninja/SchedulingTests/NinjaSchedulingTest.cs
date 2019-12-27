@@ -40,8 +40,6 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
             XAssert.IsTrue(inputs.Any(file => GetFileName(file) == "input.o"));
         }
 
-
-
         [Fact]
         public void DoNotSchedulePhonyProcess()
         {
@@ -76,7 +74,6 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
             XAssert.AreEqual(BogusExecutable, process.Executable.Path.ToString(PathTable));
             XAssert.AreEqual(options, process.Arguments.ToString(PathTable));
         }
-
 
         [Theory]
         [InlineData("/SomeArg /ZI", "/SomeArg /Z7 ")]
@@ -188,14 +185,11 @@ namespace Test.BuildXL.FrontEnd.Ninja.SchedulingTests
 
         }
 
-
         private string GetFileName(FileArtifact file) => file.Path.GetName(PathTable).ToString(PathTable.StringTable);
-
 
         private IReadOnlySet<AbsolutePath> Paths(params string[] paths)
         {
             return paths.Select(p => TestPath.Combine(PathTable, p)).ToReadOnlySet();
         }
-
     }
 }

@@ -392,7 +392,7 @@ export function test(args: TestArguments): TestResult {{
                         return FailOrUpdateLkg(lkgFile, actual);
                     }
 
-                    var expected = File.ReadAllText(lkgFile);
+                    var expected = TranslateLkgContentForCurrentPlatform(File.ReadAllText(lkgFile));
                     string message;
                     if (!FileComparison.ValidateContentsAreEqual(expected, actual, lkgFile, out message))
                     {
@@ -409,6 +409,19 @@ export function test(args: TestArguments): TestResult {{
             }
 
             return true;
+        }
+
+        private static string TranslateLkgContentForCurrentPlatform(string str)
+        {
+            return !OperatingSystemHelper.IsUnixOS
+                ? str // LKG is written assuming Windows OS 
+                : str
+                    // Sometimes, a single '\' in an LKG file is escaped twice ('\\\\'): once for DScript and
+                    // once for JSON generated from DScript. Other times, it is escaped only once ('\\') for 
+                    // DScript.  In all those cases, we want to replace '\' with '/' when running on a Unix platform.
+                    .Replace(@"\\\\", "/")
+                    .Replace(@"\\", "/")
+                    .Replace(@"\r\n", @"\n");
         }
 
         private string GetAutoFixString()

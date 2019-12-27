@@ -54,14 +54,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
             RequiresJournalScan = requiresJournalScan;
             RequiresSymlinkPermission = requiresSymlinkPermission;
 
-            // Use same logic and underlying static state to determine wheter to Skip tests
+            // Use same logic and underlying static state to determine whether to Skip tests
             Skip = new FactIfSupportedAttribute(
                 requiresAdmin: requiresAdmin,
                 requiresJournalScan: requiresJournalScan,
                 requiresSymlinkPermission: requiresSymlinkPermission,
                 requiresWindowsBasedOperatingSystem: requiresWindowsBasedOperatingSystem,
                 requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem
-
             ).Skip;
         }
     }

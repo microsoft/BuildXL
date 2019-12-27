@@ -43,7 +43,7 @@ namespace Core {
 
     export const pathToDeviceMapLib: PathAtom = a`${qualifier.platform.replace("x", qualifier.configuration)}`;
 
-    const sharedSettings = Detours.Lib.nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
+    const sharedSettings = Runtime.isHostOsWindows && Detours.Lib.nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
             includes: [
                 ...headers,
                 importFrom("BuildXL.DeviceMap").Contents.all,
@@ -70,7 +70,7 @@ namespace Core {
             ],
     });
 
-    export const nativesDll: Native.Dll.NativeDllImage = Native.Dll.build(
+    export const nativesDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("BuildXLNatives.dll"),
             preprocessorSymbols: [{name: "BUILDXL_NATIVES_LIBRARY"}],
@@ -105,7 +105,7 @@ namespace Core {
         })
     );
 
-    export const detoursDll: Native.Dll.NativeDllImage = Native.Dll.build(
+    export const detoursDll: Native.Dll.NativeDllImage = Runtime.isHostOsWindows && Native.Dll.build(
         sharedSettings.merge<Native.Dll.Arguments>({
             outputFileName: PathAtom.create("DetoursServices.dll"),
             preprocessorSymbols: [{name: "DETOURS_SERVICES_NATIVES_LIBRARY"}],

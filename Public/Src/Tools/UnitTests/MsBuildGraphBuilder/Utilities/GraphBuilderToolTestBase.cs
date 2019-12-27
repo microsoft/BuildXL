@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder.Utilities
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class GraphBuilderToolTestBase : TemporaryStorageTestBase
     {
         /// <nodoc/>

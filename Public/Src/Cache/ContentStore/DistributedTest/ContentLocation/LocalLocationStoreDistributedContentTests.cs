@@ -44,6 +44,7 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
+    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
     [Collection("Redis-based tests")]
     public class LocalLocationStoreDistributedContentTests : DistributedContentTests
     {

@@ -19,6 +19,7 @@ using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.TestEnv;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
@@ -33,6 +34,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
     /// Meant to be used in conjunction with <see cref="MsBuildProjectBuilder"/>
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class MsBuildPipSchedulingTestBase : DsTestWithCacheBase
     {
         private readonly ModuleDefinition m_testModule;

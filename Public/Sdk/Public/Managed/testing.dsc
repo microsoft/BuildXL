@@ -77,8 +77,7 @@ export function runTestOnly(args: TestArguments, compileArguments: boolean, test
         if (testRunArgs.parallelBucketCount) {
             for (let i = 0; i < testRunArgs.parallelBucketCount; i++) {
                 let bucketTestRunArgs = testRunArgs.merge({
-                    parallelBucketIndex: i,
-                    
+                    parallelBucketIndex: i
                 });
 
                 testResults = testResults.concat(testFramework.runTest(bucketTestRunArgs));

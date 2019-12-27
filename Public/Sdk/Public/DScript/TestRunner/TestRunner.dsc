@@ -129,7 +129,7 @@ namespace TestGenerator {
     @@public
     export const tool: Transformer.ToolDefinition = {
         exe: testGeneratorContents.getFile(Context.getCurrentHost().os === "win" ? r`Win/TestGenerator.exe` : r`MacOs/TestGenerator`),
-        dependsOnWindowsDirectories: true,
+        dependsOnCurrentHostOSDirectories: true,
         prepareTempDirectory: true,
         runtimeDirectoryDependencies: [testGeneratorContents],
     };

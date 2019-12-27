@@ -59,9 +59,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
         private void AddPath(string name, string folder)
         {
-            m_pathExpander.AddReplacement(
-                AbsolutePath.Create(m_pathTable, folder),
-                "${Context.getMount('" + name + "').path}");
+            if (!string.IsNullOrWhiteSpace(folder) && 
+                AbsolutePath.TryCreate(m_pathTable, folder, out var path))
+            {
+                m_pathExpander.AddReplacement(path, "${Context.getMount('" + name + "').path}");
+            }
         }
 
         /// <summary>

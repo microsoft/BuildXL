@@ -153,7 +153,11 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(sidebandLogFile, readInfo.SidebandWriter.SidebandLogFile);
                 XAssert.ArrayEqual(loggerRootDirs, readInfo.SidebandWriter.RootDirectories.ToArray());
 
-                ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
+                if (!OperatingSystemHelper.IsUnixOS)
+                {
+                    // this validator examines serialized FAM bytes using the same Windows-only native parser used by Detours
+                    ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
+                }
             }
         }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -5,7 +6,7 @@ using Xunit;
 
 namespace Test.BuildXL.Processes.Detours
 {
-    public sealed partial class OutputFilterTest
+    public sealed class OutputFilterTest
     {
         [Fact]
         public void GetErrorFilterTest()
@@ -21,13 +22,17 @@ namespace Test.BuildXL.Processes.Detours
 * AFTER *
 * <error>err2</error> * <error>err3</error> *
 ";
-            const string ExpectedErrOutput = @" *
+            var expectedErrOutputChunks = new[] 
+            {
+                @" *
 * err1 *
-* 
-err2
-err3";
+* ",
+                "err2",
+                "err3"
+            };
 
-            XAssert.AreEqual(ExpectedErrOutput, errorFilter.ExtractMatches(ErrText));
+            var expectedErrOutput = string.Join(Environment.NewLine, expectedErrOutputChunks);
+            XAssert.AreEqual(expectedErrOutput, errorFilter.ExtractMatches(ErrText));
         }
 
         [Fact]

@@ -19,6 +19,7 @@ using BuildXL.FrontEnd.Sdk;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.TestEnv;
 
@@ -32,6 +33,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
     /// Meant to be used in conjunction with <see cref="NinjaSchedulingProjectBuilder"/>
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class NinjaPipSchedulingTestBase : DsTestWithCacheBase
     {
         private readonly ModuleDefinition m_testModule;

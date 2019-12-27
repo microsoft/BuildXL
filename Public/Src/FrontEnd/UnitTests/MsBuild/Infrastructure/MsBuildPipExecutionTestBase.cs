@@ -11,6 +11,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
@@ -23,6 +24,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
     /// <summary>
     /// Provides facilities to run the engine adding MSBuild specific artifacts.
     /// </summary>
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class MsBuildPipExecutionTestBase : DsTestWithCacheBase
     {
         /// <summary>

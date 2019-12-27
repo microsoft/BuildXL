@@ -84,7 +84,7 @@ namespace BuildXL.Processes
         /// (to be used later to match individual lines from the input string).
         /// </summary>
         /// <remarks>
-        /// The errRegex must be inialized prior to calling this, which means after TryInitializeErrorRegexAsync in <see cref="SandboxedProcessPipExecutor"/>
+        /// The errRegex must be initialized prior to calling this, which means after TryInitializeErrorRegexAsync in <see cref="SandboxedProcessPipExecutor"/>
         /// </remarks>
         internal static OutputFilter GetErrorFilter(Regex errRegex, bool enableMultiLineScanning)
         {

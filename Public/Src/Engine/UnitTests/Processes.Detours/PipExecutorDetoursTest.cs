@@ -30,6 +30,7 @@ using ProcessLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes.Detours
 {
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed partial class SandboxedProcessPipExecutorTest
     {
         private const int ErrorPrivilegeNotHeld = 1314;

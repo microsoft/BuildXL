@@ -41,6 +41,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// Duration and number of regenerated specs.
         /// </summary>
         Counter SpecGeneration { get; }
+
+        /// <summary>
+        /// Number of generated empty package stubs.
+        /// </summary>
+        Counter PackageGenStubs { get; }
     }
 
     /// <summary>

@@ -105,6 +105,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// The package came from a remote store (like nuget). 
         /// </summary>
         RemoteStore,
+
+        /// <summary>
+        /// Automatically generated empty stub.
+        /// </summary>
+        Stub,
     }
 
     /// <summary>
@@ -186,5 +191,14 @@ namespace BuildXL.FrontEnd.Sdk
             IReadOnlyList<RelativePath> contents,
             string fingerprint)
             => new PackageDownloadResult(packageIdentity, targetLocation, contents, PackageSource.RemoteStore, fingerprint);
+
+        /// <nodoc />
+        public static PackageDownloadResult EmptyStub(string weakFingerprint, PackageIdentity packageIdentity, AbsolutePath packageFolder)
+            => new PackageDownloadResult(
+                    packageIdentity,
+                    packageFolder,
+                    CollectionUtilities.EmptyArray<RelativePath>(),
+                    PackageSource.Stub,
+                    weakFingerprint);
     }
 }

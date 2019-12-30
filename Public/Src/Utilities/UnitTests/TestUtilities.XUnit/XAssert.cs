@@ -214,6 +214,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
+        [StringFormatMethod("format")]
+        public static void IsEmpty<T>(IEnumerable<T> actual, string format = null, params object[] args)
+        {
+            AreSetsEqual(new T[0], actual, true, format: format, args: args);
+        }
+
+        /// <nodoc/>
         public static void AreSetsEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, bool expectedResult, IEqualityComparer<T> comparer = null, string format = null, params object[] args)
         {
             var expectedSet = expected != null ? new HashSet<T>(expected) : null;
@@ -247,8 +254,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 expected == null && actual == null ? null :
                 expected == null && actual != null ? "Expected null but got a non-null array" :
                 expected != null && actual == null ? "Expected a non-null array but got null" :
-                expected.Length != actual.Length ? "Array lengths are different" :
-                (i = firstDisagreeingIndex()) != -1 ? "Elements at position " + i + " disagree" :
+                expected.Length != actual.Length ? $"Array lengths are different (expected: {expected.Length}, actual: {actual.Length})" :
+                (i = firstDisagreeingIndex()) != -1 ? $"Elements at position {i} disagree(expected[{i}]: '{ToString(expected[i])}', actual[{i}]: '{ToString(actual[i])}'" :
                 null;
         }
 

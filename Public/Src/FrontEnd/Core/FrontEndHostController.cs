@@ -697,6 +697,7 @@ namespace BuildXL.FrontEnd.Core
                 { "NuGet.PackagesFromDisk", m_frontEndStatistics.NugetStatistics.PackagesFromDisk.Count },
                 { "NuGet.PackagesFromCache", m_frontEndStatistics.NugetStatistics.PackagesFromCache.Count },
                 { "NuGet.PackagesFromNuget", m_frontEndStatistics.NugetStatistics.PackagesFromNuget.Count },
+                { "NuGet.PackageGenStubs", m_frontEndStatistics.NugetStatistics.PackageGenStubs.Count },
 
                 { "DScript.TotalNumberOfSpecsParsed", (long)m_frontEndStatistics.SpecParsing.Count },
                 { "DScript.ParseDurationMs", (long)m_frontEndStatistics.EndToEndParsing.AggregateDuration.TotalMilliseconds },

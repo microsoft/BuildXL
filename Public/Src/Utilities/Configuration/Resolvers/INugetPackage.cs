@@ -33,6 +33,15 @@ namespace BuildXL.Utilities.Configuration
         string Tfm { get; }
 
         /// <summary>
+        /// Host operating systems on which to skip downloading this NuGet package.
+        /// 
+        /// A stub DScript module is always generated.
+        /// 
+        /// For valid values are: "win", "macOS", and "unix".
+        /// </summary>
+        List<string> OsSkip { get; }
+
+        /// <summary>
         /// Optional dependent Nuget packages to skip when resolving dependencies during package generation, a list of Nuget package Ids
         /// </summary>
         List<string> DependentPackageIdsToSkip { get; }

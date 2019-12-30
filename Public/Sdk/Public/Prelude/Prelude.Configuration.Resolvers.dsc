@@ -47,7 +47,16 @@ interface NuGetResolver extends ResolverBase {
     /**
      * The transitive set of NuGet packages to retrieve
      */
-    packages?: {id: string; version: string; alias?: string; tfm?: string; dependentPackageIdsToSkip?: string[], dependentPackageIdsToIgnore?: string[], forceFullFrameworkQualifiersOnly?: boolean}[];
+    packages?: {
+        id: string;
+        version: string;
+        alias?: string;
+        tfm?: string;
+        osSkip?: OsType[];
+        dependentPackageIdsToSkip?: string[],
+        dependentPackageIdsToIgnore?: string[],
+        forceFullFrameworkQualifiersOnly?: boolean
+    }[];
 
     /**
      * Whether to enforce that the version range specified for dependencies in a NuGet package

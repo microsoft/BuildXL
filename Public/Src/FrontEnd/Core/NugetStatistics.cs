@@ -30,5 +30,9 @@ namespace BuildXL.FrontEnd.Core
 
         /// <inheritdoc />
         public Counter SpecGeneration { get; } = new Counter();
+
+        /// <inheritdoc />
+        public Counter PackageGenStubs { get; } = new Counter();
+
     }
 }

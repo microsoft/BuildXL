@@ -23,6 +23,7 @@ using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
@@ -629,6 +630,9 @@ namespace BuildXL.FrontEnd.Nuget
                 case PackageSource.RemoteStore:
                     m_statistics.PackagesFromNuget.Increment();
                     break;
+                case PackageSource.Stub:
+                    m_statistics.PackageGenStubs.Increment();
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(source), source, null);
             }
@@ -1030,6 +1034,34 @@ namespace BuildXL.FrontEnd.Nuget
             Contract.Requires(packageOnDisk != null);
 
             var package = packageOnDisk.Package;
+
+            var maybeNuspecXdoc = TryLoadNuSpec(packageOnDisk);
+            if (!maybeNuspecXdoc.Succeeded)
+            {
+                return maybeNuspecXdoc.Failure;
+            }
+
+            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, maybeNuspecXdoc.Result,
+                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions);
+
+            if (result == null)
+            {
+                // error already logged
+                return new NugetFailure(package, NugetFailure.FailureType.AnalyzeNuSpec);
+            }
+
+            return result;
+        }
+
+        private Possible<XDocument> TryLoadNuSpec(PackageOnDisk packageOnDisk)
+        {
+            // no nuspec file needed for stub packags
+            if (packageOnDisk.PackageDownloadResult.Source == PackageSource.Stub)
+            {
+                return (XDocument)null;
+            }
+
+            var package = packageOnDisk.Package;
             var nuspecFile = packageOnDisk.NuSpecFile;
 
             if (!nuspecFile.IsValid)
@@ -1041,11 +1073,9 @@ namespace BuildXL.FrontEnd.Nuget
 
             var nuspecPath = nuspecFile.ToString(m_context.PathTable);
 
-            XDocument xdoc = null;
-            Exception exception = null;
             try
             {
-                xdoc = ExceptionUtilities.HandleRecoverableIOException(
+                return ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     XDocument.Load(nuspecPath),
                     e =>
@@ -1055,14 +1085,14 @@ namespace BuildXL.FrontEnd.Nuget
             }
             catch (XmlException e)
             {
-                exception = e;
+                return logFailure(e);
             }
             catch (BuildXLException e)
             {
-                exception = e.InnerException;
+                return logFailure(e.InnerException);
             }
 
-            if (exception != null)
+            NugetFailure logFailure(Exception exception)
             {
                 Logger.Log.NugetFailedToReadNuSpecFile(
                     m_context.LoggingContext,
@@ -1072,17 +1102,6 @@ namespace BuildXL.FrontEnd.Nuget
                     exception.ToStringDemystified());
                 return new NugetFailure(package, NugetFailure.FailureType.ReadNuSpecFile, exception);
             }
-
-            var result = NugetAnalyzedPackage.TryAnalyzeNugetPackage(m_context, m_nugetFrameworkMonikers, xdoc,
-                packageOnDisk, m_packageRegistry.AllPackagesById, doNotEnforceDependencyVersions);
-
-            if (result == null)
-            {
-                // error already logged
-                return new NugetFailure(package, NugetFailure.FailureType.AnalyzeNuSpec);
-            }
-
-            return result;
         }
 
         private async Task<Possible<PackageOnDisk>> TryRestorePackageWithCache(
@@ -1098,17 +1117,20 @@ namespace BuildXL.FrontEnd.Nuget
                 "repos=" + UppercaseSortAndJoinStrings(m_repositories.Values),
                 "cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))),
             };
-
             var weakFingerprint = "nuget://" + string.Join("&", fingerprintParams);
-            var maybePackage = await m_host.DownloadPackage(
-                weakFingerprint,
-                PackageIdentity.Nuget(package.Id, package.Version, package.Alias),
-                layout.PackageFolder,
-                () =>
-                {
-                    progress.StartDownloadFromNuget();
-                    return TryDownloadPackage(package, layout, credentialProviderPaths);
-                });
+            var identity = PackageIdentity.Nuget(package.Id, package.Version, package.Alias);
+
+            var maybePackage = package.OsSkip.Contains(Host.Current.CurrentOS.GetDScriptValue())
+                ? PackageDownloadResult.EmptyStub(weakFingerprint, identity, layout.PackageFolder)
+                : await m_host.DownloadPackage(
+                    weakFingerprint,
+                    identity,
+                    layout.PackageFolder,
+                    () =>
+                    {
+                        progress.StartDownloadFromNuget();
+                        return TryDownloadPackage(package, layout, credentialProviderPaths);
+                    });
 
             return maybePackage.Then(downloadResult =>
             {

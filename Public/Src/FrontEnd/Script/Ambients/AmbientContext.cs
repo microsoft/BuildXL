@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Interop;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -64,20 +65,10 @@ namespace BuildXL.FrontEnd.Script.Ambients
         {
             var currentHost = Host.Current;
             var osName = SymbolAtom.Create(StringTable, "os");
-            string osValue;
-            switch (currentHost.CurrentOS)
+            string osValue = currentHost.CurrentOS.GetDScriptValue();
+            if (string.IsNullOrEmpty(osValue))
             {
-                case BuildXL.Interop.OperatingSystem.Win:
-                    osValue = "win";
-                    break;
-                case BuildXL.Interop.OperatingSystem.MacOS:
-                    osValue = "macOS";
-                    break;
-                case BuildXL.Interop.OperatingSystem.Unix:
-                    osValue = "unix";
-                    break;
-                default:
-                    throw Contract.AssertFailure("Unhandled HostOS Type");
+                throw Contract.AssertFailure("Unhandled HostOS Type");
             }
 
             var cpuName = SymbolAtom.Create(StringTable, "cpuArchitecture");

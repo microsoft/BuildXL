@@ -8,6 +8,8 @@ using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
 using Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.TestUtilities.Xunit;
+using System;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
@@ -144,6 +146,40 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 }}
 )();", expectedpackageRoot);
             Assert.Equal(expectedSpec, text);
+        }
+
+        [Fact]
+        public void GenerateNuSpecForStub()
+        {
+            var pkg = m_packageGenerator.AnalyzePackageStub(s_packagesOnConfig);
+            var spec = new NugetSpecGenerator(m_context.PathTable, pkg).CreateScriptSourceFile(pkg);
+            var text = spec.ToDisplayStringV2();
+            m_output.WriteLine(text);
+
+            string expectedSpec = @"import {Transformer} from ""Sdk.Transformers"";
+
+export declare const qualifier: {
+    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netstandard2.1"",
+};
+
+const packageRoot = Contents.packageRoot;
+
+namespace Contents {
+    export declare const qualifier: {
+    };
+    export const packageRoot = d`../../../pkgs/TestPkgStub.1.999`;
+    @@public
+    export const all: StaticDirectory = Transformer.sealDirectory(packageRoot, []);
+}
+
+@@public
+export const pkg: NugetPackage = {contents: Contents.all, dependencies: []};";
+            XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
+        }
+
+        private string[] SplitToLines(string text)
+        {
+            return text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         }
     }
 }

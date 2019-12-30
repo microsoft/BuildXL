@@ -13,6 +13,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using JetBrains.Annotations;
 using NuGet.Versioning;
 using Moniker = BuildXL.Utilities.PathAtom;
 
@@ -23,6 +24,8 @@ namespace BuildXL.FrontEnd.Nuget
     /// </summary>
     public sealed class NugetAnalyzedPackage
     {
+        private readonly List<INugetPackage> m_dependencies;
+
         /// <summary>
         /// Source of the package: disk, cache, nuget.
         /// </summary>
@@ -31,10 +34,10 @@ namespace BuildXL.FrontEnd.Nuget
         /// <summary>
         /// Nuget package dependencies
         /// </summary>
-        public IReadOnlyList<INugetPackage> Dependencies { get; private set; }
+        public IReadOnlyList<INugetPackage> Dependencies => m_dependencies;
 
         /// <nodoc />
-        public MultiValueDictionary<Moniker, INugetPackage> DependenciesPerFramework { get; private set; }
+        public MultiValueDictionary<Moniker, INugetPackage> DependenciesPerFramework { get; }
 
         /// <nodoc />
         public bool IsManagedPackage { get; set; }
@@ -47,17 +50,17 @@ namespace BuildXL.FrontEnd.Nuget
         /// <summary>
         /// Package assembly references per framework
         /// </summary>
-        public MultiValueDictionary<NugetTargetFramework, RelativePath> References { get; private set; }
+        public MultiValueDictionary<NugetTargetFramework, RelativePath> References { get; }
 
         /// <summary>
         /// Package libraries per framework
         /// </summary>
-        public MultiValueDictionary<NugetTargetFramework, RelativePath> Libraries { get; private set; }
+        public MultiValueDictionary<NugetTargetFramework, RelativePath> Libraries { get; }
 
         /// <summary>
         /// Assembly name to target framework. An assembly may be available in multiple frameworks
         /// </summary>
-        public MultiValueDictionary<PathAtom, NugetTargetFramework> AssemblyToTargetFramework { get; private set; }
+        public MultiValueDictionary<PathAtom, NugetTargetFramework> AssemblyToTargetFramework { get; }
 
         /// <summary>
         /// Indicates if the package contains only .NETStandard comaptible assemblies (this is false if full framework or .NETCoreApp assemblies are present)
@@ -86,10 +89,15 @@ namespace BuildXL.FrontEnd.Nuget
         public string Tfm => PackageOnDisk.Package.Tfm;
 
         /// <nodoc />
-        public List<string> DependentPackageIdsToSkip => PackageOnDisk.Package.DependentPackageIdsToSkip ?? new List<string>() { };
+        public string NuSpecFilePath => PackageOnDisk.NuSpecFile.IsValid
+            ? PackageOnDisk.NuSpecFile.ToString(m_context.PathTable)
+            : "<stub>";
 
         /// <nodoc />
-        public List<string> DependentPackageIdsToIgnore => PackageOnDisk.Package.DependentPackageIdsToIgnore ?? new List<string>() { };
+        public List<string> DependentPackageIdsToSkip => PackageOnDisk.Package.DependentPackageIdsToSkip ?? new List<string>();
+
+        /// <nodoc />
+        public List<string> DependentPackageIdsToIgnore => PackageOnDisk.Package.DependentPackageIdsToIgnore ?? new List<string>();
 
         /// <nodoc />
         public bool ForceFullFrameworkQualifiersOnly => PackageOnDisk.Package.ForceFullFrameworkQualifiersOnly;
@@ -109,7 +117,6 @@ namespace BuildXL.FrontEnd.Nuget
         /// <nodoc />
         public NugetFrameworkMonikers NugetFrameworkMonikers { get; }
 
-        private readonly XDocument m_nuSpec;
         private readonly Dictionary<string, INugetPackage> m_packagesOnConfig;
         private readonly bool m_doNotEnforceDependencyVersions;
 
@@ -117,18 +124,21 @@ namespace BuildXL.FrontEnd.Nuget
         private NugetAnalyzedPackage(
             FrontEndContext context,
             NugetFrameworkMonikers nugetFrameworkMonikers,
-            XDocument nuSpec,
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions)
         {
             m_context = context;
-            m_nuSpec = nuSpec;
             PackageOnDisk = packageOnDisk;
             NugetFrameworkMonikers = nugetFrameworkMonikers;
             m_packagesOnConfig = packagesOnConfig;
             m_doNotEnforceDependencyVersions = doNotEnforceDependencyVersions;
             TargetFrameworks = new List<Moniker>();
+            References = new MultiValueDictionary<NugetTargetFramework, RelativePath>();
+            Libraries = new MultiValueDictionary<NugetTargetFramework, RelativePath>();
+            AssemblyToTargetFramework = new MultiValueDictionary<PathAtom, NugetTargetFramework>();
+            m_dependencies = new List<INugetPackage>();
+            DependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
         }
 
         /// <summary>
@@ -140,21 +150,19 @@ namespace BuildXL.FrontEnd.Nuget
         public static NugetAnalyzedPackage TryAnalyzeNugetPackage(
             FrontEndContext context,
             NugetFrameworkMonikers nugetFrameworkMonikers,
-            XDocument nuSpec,
+            [CanBeNull] XDocument nuSpec,
             PackageOnDisk packageOnDisk,
             Dictionary<string, INugetPackage> packagesOnConfig,
             bool doNotEnforceDependencyVersions)
         {
             Contract.Requires(context != null);
-            Contract.Requires(nuSpec != null);
             Contract.Requires(packageOnDisk != null);
-            Contract.Requires(packageOnDisk.NuSpecFile.IsValid);
 
-            var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, nuSpec, packageOnDisk,
+            var analyzedPackage = new NugetAnalyzedPackage(context, nugetFrameworkMonikers, packageOnDisk,
                 packagesOnConfig, doNotEnforceDependencyVersions);
 
             analyzedPackage.ParseManagedSemantics();
-            if (!analyzedPackage.TryParseDependenciesFromNuSpec())
+            if (nuSpec != null && !analyzedPackage.TryParseDependenciesFromNuSpec(nuSpec))
             {
                 return null;
             }
@@ -167,10 +175,6 @@ namespace BuildXL.FrontEnd.Nuget
             var stringTable = m_context.PathTable.StringTable;
             var magicNugetMarker = PathAtom.Create(stringTable, "_._");
             var dllExtension = PathAtom.Create(stringTable, ".dll");
-
-            var refs = new MultiValueDictionary<NugetTargetFramework, RelativePath>();
-            var libs = new MultiValueDictionary<NugetTargetFramework, RelativePath>();
-            var assemblyToTargetFramework = new MultiValueDictionary<PathAtom, NugetTargetFramework>();
 
             foreach (var relativePath in PackageOnDisk.Contents.OrderBy(path => path.ToString(stringTable)))
             {
@@ -203,12 +207,12 @@ namespace BuildXL.FrontEnd.Nuget
                             isManagedEntry = true;
                             if (isRef)
                             {
-                                refs.Add(targetFramework, relativePath);
+                                References.Add(targetFramework, relativePath);
                             }
 
                             if (isLib)
                             {
-                                libs.Add(targetFramework, relativePath);
+                                Libraries.Add(targetFramework, relativePath);
                             }
                         }
                         else if (fileName == magicNugetMarker)
@@ -229,7 +233,7 @@ namespace BuildXL.FrontEnd.Nuget
                             // So we don't want to add a magic marker as a real artifact that can be referenced.
                             if (fileName != magicNugetMarker)
                             {
-                                assemblyToTargetFramework.Add(fileName, targetFramework);
+                                AssemblyToTargetFramework.Add(fileName, targetFramework);
                             }
                         }
                     }
@@ -249,17 +253,13 @@ namespace BuildXL.FrontEnd.Nuget
             }
 
             // For the refs without lib, copy them to refs.
-            foreach (var kv in libs)
+            foreach (var kv in Libraries)
             {
-                if (!refs.ContainsKey(kv.Key))
+                if (!References.ContainsKey(kv.Key))
                 {
-                    refs.Add(kv.Key, kv.Value.ToArray());
+                    References.Add(kv.Key, kv.Value.ToArray());
                 }
             }
-
-            References = refs;
-            Libraries = libs;
-            AssemblyToTargetFramework = assemblyToTargetFramework;
         }
 
         /// <summary>
@@ -334,9 +334,9 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <nodoc />
-        private bool TryParseDependenciesFromNuSpec()
+        private bool TryParseDependenciesFromNuSpec(XDocument nuSpec)
         {
-            var dependencyNodes = m_nuSpec
+            var dependencyNodes = nuSpec
                 .Elements()
                 .Where(el => string.Equals(el.Name.LocalName, "package", StringComparison.Ordinal))
                 .Elements()
@@ -346,9 +346,8 @@ namespace BuildXL.FrontEnd.Nuget
                 .Elements();
 
             // Namespace independent query, nuget has about 6 different namespaces as of may 2016.
-            var dependencies = new List<INugetPackage>();
-            var skipIdLookupTable = new HashSet<string>(this.DependentPackageIdsToSkip);
-            var ignoreIdLookupTable = new HashSet<string>(this.DependentPackageIdsToIgnore);
+            var skipIdLookupTable = new HashSet<string>(DependentPackageIdsToSkip);
+            var ignoreIdLookupTable = new HashSet<string>(DependentPackageIdsToIgnore);
             bool skipAllDependencies = skipIdLookupTable.Contains("*");
             bool ignoreAllDependencies = ignoreIdLookupTable.Contains("*");
 
@@ -362,11 +361,10 @@ namespace BuildXL.FrontEnd.Nuget
 
                 if (genericDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(genericDependency.GetPackageIdentity()))
                 {
-                    dependencies.Add(genericDependency);
+                    m_dependencies.Add(genericDependency);
                 }
             }
 
-            var dependenciesPerFramework = new MultiValueDictionary<PathAtom, INugetPackage>();
             var groups = dependencyNodes.Where(el => string.Equals(el.Name.LocalName, "group", StringComparison.Ordinal));
 
             foreach (var group in groups)
@@ -403,15 +401,12 @@ namespace BuildXL.FrontEnd.Nuget
 
                             if (grouppedDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(grouppedDependency.GetPackageIdentity()))
                             {
-                                dependenciesPerFramework.Add(targetFramework, grouppedDependency);
+                                DependenciesPerFramework.Add(targetFramework, grouppedDependency);
                             }
                         }
                     }
                 }
             }
-
-            Dependencies = dependencies;
-            DependenciesPerFramework = dependenciesPerFramework;
 
             IsNetStandardPackageOnly =
                 !TargetFrameworks.Any(tfm => NugetFrameworkMonikers.FullFrameworkVersionHistory.Contains(tfm)) &&
@@ -431,7 +426,7 @@ namespace BuildXL.FrontEnd.Nuget
                     m_context.LoggingContext,
                     PackageOnDisk.Package.Id,
                     PackageOnDisk.Package.Version,
-                    PackageOnDisk.NuSpecFile.ToString(m_context.PathTable),
+                    NuSpecFilePath,
                     "Malformed NuGet dependency. 'id' is a required attribute.");
 
                 return null;
@@ -450,7 +445,7 @@ namespace BuildXL.FrontEnd.Nuget
                 m_context.LoggingContext,
                 PackageOnDisk.Package.Id,
                 PackageOnDisk.Package.Version,
-                PackageOnDisk.NuSpecFile.ToString(m_context.PathTable),
+                NuSpecFilePath,
                 errorMessage);
 
             return null;

@@ -23,4 +23,20 @@ namespace BuildXL.Interop
         /// </summary>
         Unix
     }
+
+    /// <nodoc />
+    public static class OperatingSystemExtensions
+    {
+        /// <summary>
+        /// DScript string constant that corresponds to <paramref name="this"/>
+        /// </summary>
+        public static string GetDScriptValue(this OperatingSystem @this)
+        {
+            return
+                @this == OperatingSystem.Win ? "win" :
+                @this == OperatingSystem.MacOS ? "macOS" :
+                @this == OperatingSystem.Unix ? "unix" :
+                null;
+        }
+    }
 }

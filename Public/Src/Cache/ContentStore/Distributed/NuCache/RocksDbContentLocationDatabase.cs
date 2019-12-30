@@ -194,6 +194,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private BoolResult InitialLoad(OperationContext context, StoreSlot activeSlot)
         {
             var clean = _configuration.CleanOnInitialize;
+
+            // We backup the logs right before loading the first DB we load
+            var storeLocation = GetStoreLocation(activeSlot);
+            BackupLogs(context, storeLocation, name: $"InitialLoad{activeSlot}");
+
             var result = Load(context, activeSlot, clean);
 
             if (!clean && !result.Succeeded)
@@ -215,14 +220,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (Directory.Exists(storeLocation))
                 {
-                    // We backup right before loading. This means we should never loose any logs, but it also means
-                    // the backup directory will only hold logs for DBs that have already been overwritten.
-                    if (_logManager != null)
-                    {
-                        _logManager.BackupAsync(context, new AbsolutePath(storeLocation), activeSlot.ToString()).Result.IgnoreFailure();
-                        Task.Run(() => _logManager.GarbageCollect(context)).FireAndForget(context, severityOnException: Severity.Error);
-                    }
-
                     if (clean)
                     {
                         FileUtilities.DeleteDirectoryContents(storeLocation, deleteRootDirectory: true);
@@ -289,6 +286,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             catch (Exception ex) when (ex.IsRecoverableIoException())
             {
                 return new BoolResult(ex);
+            }
+        }
+
+        private void BackupLogs(OperationContext context, string instancePath, string name)
+        {
+            if (_logManager != null)
+            {
+                _logManager.BackupAsync(context, new AbsolutePath(instancePath), name).Result.IgnoreFailure();
+                Task.Run(() => _logManager.GarbageCollect(context)).FireAndForget(context, severityOnException: Severity.Error);
             }
         }
 
@@ -361,8 +367,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
-                var nextActiveSlot = GetNextSlot(_activeSlot);
-                var newStoreLocation = GetStoreLocation(nextActiveSlot);
+                var activeSlot = _activeSlot;
+
+                var newActiveSlot = GetNextSlot(activeSlot);
+                var newStoreLocation = GetStoreLocation(newActiveSlot);
 
                 Tracer.Info(context.TracingContext, $"Loading content location database checkpoint from '{checkpointDirectory}' into '{newStoreLocation}'.");
 
@@ -373,11 +381,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 Directory.Move(checkpointDirectory.ToString(), newStoreLocation);
 
-                var possiblyLoaded = Load(context, nextActiveSlot, clean: false);
+                var possiblyLoaded = Load(context, newActiveSlot, clean: false);
                 if (possiblyLoaded.Succeeded)
                 {
                     SaveActiveSlot(context.TracingContext);
                 }
+
+                // At this point in time, we have unloaded the old database and loaded the new one. This means we're
+                // free to backup the old one's logs.
+                var oldStoreLocation = GetStoreLocation(activeSlot);
+                BackupLogs(context, oldStoreLocation, name: $"Restore{activeSlot}");
 
                 return possiblyLoaded;
             }

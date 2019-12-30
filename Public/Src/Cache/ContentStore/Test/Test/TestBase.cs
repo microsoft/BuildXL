@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.InterfacesTest;
+using Test.BuildXL.TestUtilities;
 using Xunit.Abstractions;
 
 namespace ContentStoreTest.Test
@@ -35,28 +36,15 @@ namespace ContentStoreTest.Test
         protected TestBase(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, ITestOutputHelper output = null)
             : this(logger, new Lazy<IAbsFileSystem>(createFileSystemFunc), output)
         {
-            TaskScheduler.UnobservedTaskException += OnTaskSchedulerOnUnobservedTaskException;
-        }
-
-        private void OnTaskSchedulerOnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
-        {
-            Logger.Error("Task unobserved exception: " + args.Exception);
         }
 
         protected TestBase(ILogger logger, Lazy<IAbsFileSystem> fileSystem, ITestOutputHelper output = null)
-            : base (output)
+            : this (logger, output)
         {
-            Contract.Requires(logger != null);
             Contract.Requires(fileSystem != null);
 
-            Logger = logger;
             _fileSystem = fileSystem;
             _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem, Guid.NewGuid().ToString("N").Substring(0, 12)));
-        }
-
-        protected virtual IAbsFileSystem CreateFileSystem()
-        {
-            return null;
         }
 
         protected TestBase(ILogger logger, ITestOutputHelper output = null)
@@ -64,6 +52,19 @@ namespace ContentStoreTest.Test
         {
             Contract.Requires(logger != null);
             Logger = logger;
+
+            TaskScheduler.UnobservedTaskException += OnTaskSchedulerOnUnobservedTaskException;
+            FailFastContractChecker.RegisterForFailFastContractViolations();
+        }
+
+        private void OnTaskSchedulerOnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        {
+            Logger.Error("Task unobserved exception: " + args.Exception);
+        }
+
+        protected virtual IAbsFileSystem CreateFileSystem()
+        {
+            return null;
         }
 
         public sealed override void Dispose()
@@ -74,6 +75,8 @@ namespace ContentStoreTest.Test
             }
 
             TaskScheduler.UnobservedTaskException -= OnTaskSchedulerOnUnobservedTaskException;
+
+            FailFastContractChecker.UnregisterForFailFastContractViolations();
 
             base.Dispose();
 

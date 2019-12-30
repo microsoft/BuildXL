@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         .Select(
                             (_, index) =>
                             {
-                                var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off);
+                                var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off);
                                 return new ActionBlock<ProcessEventsInput>(
                                     t => ProcessEventsCoreAsync(t, serializer),
                                     new ExecutionDataflowBlockOptions()

@@ -21,14 +21,14 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {
-    public class RocksDbLogsManagerTests : TestWithOutput
+    public class RocksDbLogsManagerTests : TestBase
     {
         private readonly MemoryClock _clock = new MemoryClock();
-        private readonly IAbsFileSystem _fileSystem;
+        private readonly new IAbsFileSystem _fileSystem;
         private readonly DisposableDirectory _workingDirectory;
 
-        public RocksDbLogsManagerTests(ITestOutputHelper output)
-            : base(output)
+        public RocksDbLogsManagerTests(ITestOutputHelper? output = null)
+            : base(TestGlobal.Logger, output)
         {
             // Need to use unique folder for each test instance, because more then one test may be executed simultaneously.
             var uniqueOutputFolder = Guid.NewGuid().ToString();

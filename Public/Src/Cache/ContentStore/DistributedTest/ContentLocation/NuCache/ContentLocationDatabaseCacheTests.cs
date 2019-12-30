@@ -20,7 +20,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
     /// These tests are meant to test very basic functionality of the cache. The reason no further testing is done is
     /// because it would be intruding into the private implementation, instead of just unit testing.
     /// </summary>
-    public class ContentLocationDatabaseCacheTests : TestWithOutput
+    public class ContentLocationDatabaseCacheTests : TestBase
     {
         protected readonly MemoryClock Clock = new MemoryClock();
 
@@ -36,8 +36,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             CacheMaximumUpdatesPerFlush = -1
         };
 
-        public ContentLocationDatabaseCacheTests(ITestOutputHelper output)
-            : base(output)
+        public ContentLocationDatabaseCacheTests(ITestOutputHelper output = null)
+            : base(TestGlobal.Logger, output)
         {
             
         }

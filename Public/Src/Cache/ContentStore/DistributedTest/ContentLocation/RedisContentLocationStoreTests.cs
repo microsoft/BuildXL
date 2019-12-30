@@ -52,7 +52,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
         }
 
         /// <inheritdoc />
-        protected RedisContentLocationStoreTests(ITestOutputHelper output)
+        protected RedisContentLocationStoreTests(ITestOutputHelper output = null)
             : base(output)
         {
         }

@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
-            ValidationMode validationMode = configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
+            ValidationMode validationMode = configuration.SelfCheckSerialization ? (configuration.SelfCheckSerializationShouldFail ? ValidationMode.Fail : ValidationMode.Trace) : ValidationMode.Off;
             EventDataSerializer = new ContentLocationEventDataSerializer(validationMode);
         }
 

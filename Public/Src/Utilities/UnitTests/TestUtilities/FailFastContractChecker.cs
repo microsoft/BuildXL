@@ -52,37 +52,47 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         public static void RegisterForFailFastContractViolations()
         {
-            Contract.ContractFailed += (sender, args) =>
+            Contract.ContractFailed += FailFastContractViolationsCheck;
+        }
+
+        /// <summary>
+        /// Unregisters for <see cref="Contract.ContractFailed"/> event.
+        /// </summary>
+        public static void UnregisterForFailFastContractViolations()
+        {
+            Contract.ContractFailed -= FailFastContractViolationsCheck;
+        }
+
+        private static void FailFastContractViolationsCheck(object sender, ContractFailedEventArgs args)
+        {
+            Console.WriteLine("Contract exception occurred. Waiting for {0} seconds then killing the app in fail fast way!", s_failFastWaitTime.TotalSeconds);
+            Console.WriteLine("Condition: " + args.Condition);
+            Console.WriteLine("Message: " + args.Message);
+
+            lock (s_syncLock)
             {
-                Console.WriteLine("Contract exception occurred. Waiting for {0} seconds then killing the app in fail fast way!", s_failFastWaitTime.TotalSeconds);
-                Console.WriteLine("Condition: " + args.Condition);
-                Console.WriteLine("Message: " + args.Message);
+                s_testRunnerActiveSinceContractFailure = false;
 
-                lock (s_syncLock)
-                {
-                    s_testRunnerActiveSinceContractFailure = false;
-
-                    Analysis.IgnoreResult(
-                        Task.Run(
-                            async () =>
-                            {
+                Analysis.IgnoreResult(
+                    Task.Run(
+                        async () =>
+                        {
                                 // Wait two seconds then fail if test runner has not reported activity in
                                 // that time period.
                                 await Task.Delay(s_failFastWaitTime);
 
-                                lock (s_syncLock)
+                            lock (s_syncLock)
+                            {
+                                if (!s_testRunnerActiveSinceContractFailure)
                                 {
-                                    if (!s_testRunnerActiveSinceContractFailure)
-                                    {
-                                        var msg = "MS Test can't deal with exception serialization. Killing the app in fail fast way!";
-                                        ExceptionHandling.OnFatalException(null, msg);
-                                    }
+                                    var msg = "MS Test can't deal with exception serialization. Killing the app in fail fast way!";
+                                    ExceptionHandling.OnFatalException(null, msg);
                                 }
-                            }),
-                        "Fire and forget is okay here"
-                    );
-                }
-            };
+                            }
+                        }),
+                    "Fire and forget is okay here"
+                );
+            }
         }
 
         /// <summary>

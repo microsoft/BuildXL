@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {
-    public class RocksDbContentLocationDatabaseTests : TestWithOutput
+    public class RocksDbContentLocationDatabaseTests : TestBase
     {
         protected readonly MemoryClock Clock = new MemoryClock();
 
@@ -18,8 +18,8 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
         protected ContentLocationDatabaseConfiguration DefaultConfiguration { get; } = null;
 
-        public RocksDbContentLocationDatabaseTests(ITestOutputHelper output)
-            : base(output)
+        public RocksDbContentLocationDatabaseTests(ITestOutputHelper output = null)
+            : base(TestGlobal.Logger, output)
         {
             // Need to use unique folder for each test instance, because more then one test may be executed simultaneously.
             var uniqueOutputFolder = Guid.NewGuid().ToString();

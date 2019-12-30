@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     /// <summary>
     /// Event store that uses Azure Event Hub for event propagation.
     /// </summary>
-    public sealed class EventHubContentLocationEventStore : ContentLocationEventStore
+    public class EventHubContentLocationEventStore : ContentLocationEventStore
     {
         private const string EventProcessingDelayInSecondsMetricName = nameof(EventProcessingDelayInSecondsMetricName);
 
@@ -298,8 +298,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
+        /// <inheritdoc />
+        protected virtual async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
         {
+            // When shutdown begins, we won't be creating any more checkpoints. This means that all processing that
+            // happens after shutdown starts will actually be lost, because whoever takes over processing won't have
+            // seen that the current master processed them. Moreover, shutdown will block until we have completed all
+            // processing. Here, we force processing to close as soon as possible so as to avoid delaying shutdown.
+            if (ShutdownStarted)
+            {
+                return;
+            }
+
             var context = input.State.Context;
             var counters = input.State.EventStoreCounters;
 
@@ -475,18 +485,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public int MaxBatchSize { get; set; }
         }
 
-        private class SharedEventProcessingState
+        /// <nodoc />
+        protected class SharedEventProcessingState
         {
             private int _remainingMessageCount;
             private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
+            /// <nodoc />
             public long SequenceNumber { get; }
+
+            /// <nodoc />
             public OperationContext Context { get; }
+
+            /// <nodoc />
             public EventHubContentLocationEventStore Store { get; }
+
+            /// <nodoc />
             public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters { get; } = new CounterCollection<ContentLocationEventStoreCounters>();
 
+            /// <nodoc />
             public bool IsComplete => _remainingMessageCount == 0;
 
+            /// <nodoc />
             public SharedEventProcessingState(
                 OperationContext context,
                 EventHubContentLocationEventStore store,
@@ -499,6 +519,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 store._pendingEventProcessingStates.Enqueue(this);
             }
 
+            /// <nodoc />
             public void Complete(int messageCount)
             {
                 if (Interlocked.Add(ref _remainingMessageCount, -messageCount) == 0)
@@ -512,18 +533,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private class ProcessEventsInput
+        /// <nodoc />
+        protected class ProcessEventsInput
         {
             private readonly EventHubContentLocationEventStore _store;
 
+            /// <nodoc />
             public DateTime LocalEnqueueTime { get; } = DateTime.UtcNow;
 
+            /// <nodoc />
             public SharedEventProcessingState State { get; }
 
+            /// <nodoc />
             public IEnumerable<EventData> Messages { get; }
 
+            /// <nodoc />
             public int ActionBlockIndex { get; }
 
+            /// <nodoc />
             public ActionBlock<ProcessEventsInput>? EventProcessingBlock =>
                 ActionBlockIndex != -1 ? _store._eventProcessingBlocks![ActionBlockIndex] : null;
 
@@ -541,6 +568,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 Interlocked.Increment(ref store._queueSize);
             }
 
+            /// <nodoc />
             public void Complete()
             {
                 Interlocked.Decrement(ref _store._queueSize);

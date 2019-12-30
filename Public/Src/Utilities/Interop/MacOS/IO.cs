@@ -101,10 +101,10 @@ namespace BuildXL.Interop.MacOS
         [StructLayout(LayoutKind.Sequential)]
         public struct StatBuffer
         {
-            public long DeviceID;
-            public long InodeNumber;
-            public int Mode;
-            public long HardLinks;
+            public int DeviceID;
+            public ulong InodeNumber;
+            public ushort Mode;
+            public ushort HardLinks;
             public uint UserID;
             public uint GroupID;
             public long Size;
@@ -243,7 +243,7 @@ namespace BuildXL.Interop.MacOS
 
         /// <summary>
         /// This routine returns information about a mounted file system.
-        /// The <paramref name="path"/> argument is the path name of any file or directory 
+        /// The <paramref name="path"/> argument is the path name of any file or directory
         /// within the mounted file system.  The <paramref name="buf"/> argument is a pointer
         /// to a <see cref="StatFsBuffer"/> structure.
         /// </summary>

@@ -27,9 +27,9 @@ static int CallStat(const char *path, bool followSymlink, struct stat *result)
 
 static void ConvertStatToStatBuffer(struct stat *fileStat, StatBuffer *statBuffer)
 {
-    statBuffer->st_dev                = (int64_t)fileStat->st_dev;
-    statBuffer->st_ino                = (int64_t)fileStat->st_ino;
-    statBuffer->st_mode               = (int32_t)fileStat->st_mode;
+    statBuffer->st_dev                = fileStat->st_dev;
+    statBuffer->st_ino                = fileStat->st_ino;
+    statBuffer->st_mode               = fileStat->st_mode;
     statBuffer->st_nlink              = fileStat->st_nlink;
     statBuffer->st_uid                = fileStat->st_uid;
     statBuffer->st_gid                = fileStat->st_gid;
@@ -90,9 +90,7 @@ int StatFileDescriptor(intptr_t fd, StatBuffer *statBuffer, long bufferSize)
 
 intptr_t Open(const char *path, int32_t flags, int32_t mode)
 {
-    int result;
-    while ((result = open(path, flags, (mode_t)mode)) < 0 && errno == EINTR);
-    return result;
+    return open(path, flags, (mode_t)mode);
 }
 
 int SetAttributeList(const char *path, uint commonAttr, struct timespec spec, bool followSymLink)

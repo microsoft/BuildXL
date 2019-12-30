@@ -11,12 +11,12 @@
 typedef struct timespec spec;
 
 typedef struct {
-    int64_t st_dev;                  /* ID of device containing file */
-    int64_t st_ino;                  /* Inode number */
-    int32_t st_mode;                 /* File type and mode */
-    int64_t st_nlink;                /* Number of hard links */
-    int32_t st_uid;                  /* User ID of owner */
-    int32_t st_gid;                  /* Group ID of owner */
+    int32_t st_dev;                  /* ID of device containing file */
+    uint64_t st_ino;                  /* Inode number */
+    uint16_t st_mode;                 /* File type and mode */
+    uint16_t st_nlink;                /* Number of hard links */
+    uint32_t st_uid;                  /* User ID of owner */
+    uint32_t st_gid;                  /* Group ID of owner */
     int64_t st_size;                 /* Total size, in bytes */
     int64_t st_atimespec;            /* Time of last access */
     int64_t st_atimespec_nsec;       /* Time of last access - nsec */

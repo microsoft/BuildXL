@@ -79,10 +79,7 @@ export function compile(inputArgs: Arguments) : Result {
 
         Cmd.option("/langversion:", args.languageVersion),
 
-        // TODO: uncoment the following line and delete the line after it once a new LKG is published
-        // Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined),
-        ...addIf((args.defines || []).length > 0, Cmd.rawArgument(`/define:"${args.defines.join(';')}"`)),
-
+        Cmd.option("/define:",       args.defines ? args.defines.join(";") : undefined),
         Cmd.option("/nowarn:",       args.noWarnings ? args.noWarnings.map(n => n.toString()).join(",") : undefined),
         Cmd.flag("/warnaserror",     args.treatWarningsAsErrors),
         Cmd.option("/warnaserror-:", (args.treatWarningsAsErrors && args.warningsNotAsErrors) ? args.warningsNotAsErrors.join(",") : undefined),

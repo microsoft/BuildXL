@@ -292,6 +292,42 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Make sure that a DisallowedFileAccess on a shared opaque produced file yields the appropriate related pip information
+        /// in the error log
+        /// </summary>
+        [Fact]
+        public void UndeclaredConsumersAreCorrectlyReferencedInViolationError()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // PipA produces outputArtifactA in a shared opaque directory
+            FileArtifact outputArtifactA = CreateOutputFileArtifact(sharedOpaqueDir);
+            // Dummy output, just to force an order between pips and avoid races
+            FileArtifact dummyOutputA = CreateOutputFileArtifact();
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: dummyOutputA, CreateSourceFile(), new KeyValuePair<FileArtifact, string>(outputArtifactA, null));
+
+            // PipB consumed outputArtifactA without declaring it.
+            FileArtifact outputArtifactB = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(dummyOutputA),
+                Operation.ReadFile(outputArtifactA, doNotInfer: true),
+                Operation.WriteFile(outputArtifactB),
+            });
+
+            SchedulePipBuilder(builderB);
+            
+            // Build should fail with a Disallowed File Access
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(EventId.FileMonitoringError, 1);
+
+            // And we should have a related pip
+            AssertLogContains(caseSensitive: false, "Violations related to pip");
+            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+        }
+
+        /// <summary>
         /// Consumers which produce to a shared opaque can only read files in that opaque directory which were produced by its declared producers
         /// </summary>
         [Fact]

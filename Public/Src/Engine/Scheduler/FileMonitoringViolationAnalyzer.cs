@@ -1249,17 +1249,35 @@ namespace BuildXL.Scheduler
                             continue;
                         }
 
+                        // No statically declared producers. Check for a dynamically observed produced file
+                        if (m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var producer))
+                        {
+                            maybeProducer = m_graph.HydratePip(producer.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+
+                            reportedViolations.Add(
+                                HandleDependencyViolation(
+                                    DependencyViolationType.ReadRace,
+                                    AccessLevel.Read,
+                                    violation.Path,
+                                    pip,
+                                    isWhitelistedViolation,
+                                    related: maybeProducer,
+                                    violation.ProcessPath));
+
+                            continue;
+                        }
+
                         // No declared producers whatsoever.  Probably just a new not-mentioned-anywhere source file.
                         // TODO: Maybe there should be a separate violation for 'extra file accessed under an output mount' (need to first disallow source files in writable mounts).
                         reportedViolations.Add(
-                            HandleDependencyViolation(
-                                DependencyViolationType.MissingSourceDependency,
-                                AccessLevel.Read,
-                                violation.Path,
-                                pip,
-                                isWhitelistedViolation,
-                                related: null,
-                                violation.ProcessPath));
+                        HandleDependencyViolation(
+                            DependencyViolationType.MissingSourceDependency,
+                            AccessLevel.Read,
+                            violation.Path,
+                            pip,
+                            isWhitelistedViolation,
+                            related: null,
+                            violation.ProcessPath));
 
                         // Report read for undeclared output if applicable.
                         // NOTE: For the sake of determinism with the case where writer may run after reader, we still report a missing source dependency

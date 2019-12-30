@@ -616,8 +616,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(File.Exists(ArtifactToString(symlinkFile)));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ValidateCachingUnsafeIgnoreReparsePoint()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreReparsePoints = true;
@@ -671,12 +670,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// When true, a pip is created that passes a symlink into a CreateFile or NtCreateFile/OpenFile API
         /// When false, a pip is created that passes a symlink into a filemanagement API other than CreateFile or NtCreateFile/OpenFile
         /// </param>
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true, true)]
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
-        [Trait("Category", "WindowsOSOnly")]
         public void ValidateCachingUnsafeIgnoreReparsePointReadFile(bool ignoreOnlyNonCreateFileReparsePoints, bool useCreateFileAPI)
         {
             // Allows pips to input and output symlink files without declaring the corresponding target files

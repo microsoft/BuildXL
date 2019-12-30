@@ -130,7 +130,7 @@ function categoryToTrait(cat: string) {
 };
 
 function renameOutputFile(name: string, file: Path) : Path {
-    return file && file.changeExtension(a`${name}.${file.extension}`);
+    return file && file.changeExtension(a`.${name}${file.extension}`);
 }
 
 function runMultipleConsoleTests(args: TestRunArguments) : Result

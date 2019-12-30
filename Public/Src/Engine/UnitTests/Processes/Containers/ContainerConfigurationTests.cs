@@ -18,7 +18,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes.Containers
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class ContainerConfigurationTests : TemporaryStorageTestBase
     {
         private readonly string m_testProcessPath;

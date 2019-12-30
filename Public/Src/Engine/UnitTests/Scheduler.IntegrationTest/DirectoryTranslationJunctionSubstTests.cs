@@ -19,7 +19,7 @@ using IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     [Feature(Features.DirectoryTranslation)]
     public class DirectoryTranslationJunctionSubstTests : SchedulerIntegrationTestBase
     {

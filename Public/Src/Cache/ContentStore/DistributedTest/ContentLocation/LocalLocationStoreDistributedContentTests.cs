@@ -36,6 +36,7 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -44,8 +45,8 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
-    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
     [Collection("Redis-based tests")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class LocalLocationStoreDistributedContentTests : DistributedContentTests
     {
         private readonly LocalRedisFixture _redis;

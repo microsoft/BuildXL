@@ -2446,9 +2446,9 @@ namespace Test.BuildXL.Scheduler
         }
         #endregion
 
-        [Fact]
+        // when one opens a file for writing on Unix, others can still read it
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        [Trait("Category", "WindowsOSOnly")] // when one opens a file for writing on Unix, others can still read it
         public async Task TestSourceFileLocked()
         {
             Setup();

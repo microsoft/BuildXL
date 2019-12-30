@@ -17,7 +17,7 @@ namespace Test.BuildXL.Storage
     /// <summary>
     /// Tests for enumerating volumes, accessing files by ID (relative to a volume-root handle), etc.
     /// </summary>
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class NativeVolumeEnumerationAndIdBasedOpenUnitTests : TemporaryStorageTestBase
     {
         [Fact]

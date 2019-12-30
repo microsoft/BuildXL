@@ -708,8 +708,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // we currently cannot detect enumerate pattern with macOS sandbox
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // we currently cannot detect enumerate pattern with macOS sandbox
         public void ValidateCachingDirectoryEnumerationWithComplexFilterReadOnlyMount()
         {
             AbsolutePath readonlyPath;
@@ -1195,8 +1194,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(EventId.FileMonitoringWarning, count: 1);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectory()
         {
             // Create \temp.
@@ -1245,8 +1243,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// This test shows our limitation in supporting MoveDirectory.
         /// </summary>
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // WriteFile operation failed on MacOS; need further investigation.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectoryFailed()
         {
             // Create \temp.

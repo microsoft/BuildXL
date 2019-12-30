@@ -246,7 +246,7 @@ export function library(args: Arguments): Managed.Assembly {
 
 @@public
 export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult {
-    if (Context.getCurrentHost().os !== "macOS") {
+    if (!isHostOsOsx) {
         const asm = executable(args);
         return asm.override<CoreRT.NativeExecutableResult>({
             getExecutable: () => asm.runtime.binary
@@ -629,7 +629,7 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                     errorRegex: " \b",
                     unsafe: {
                         // allowing process dumps to be written to /cores on macOS
-                        untrackedScopes: Context.getCurrentHost().os === "macOS" ?  [ d`/cores` ] : []
+                        untrackedScopes: isHostOsOsx ?  [ d`/cores` ] : []
                     }
                 }
             }

@@ -26,13 +26,14 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
-    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
     [Collection("Redis-based tests")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class RedisDistributedContentTests : DistributedContentTests
     {
         private readonly LocalRedisFixture _redis;

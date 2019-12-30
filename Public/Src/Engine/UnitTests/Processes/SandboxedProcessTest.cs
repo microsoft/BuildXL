@@ -81,8 +81,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(echoMessage, stdout.Trim());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // reported files are not consistent on Mac
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // reported files are not consistent on Mac
         public async Task CheckDetoursNotifications()
         {
             async Task<SandboxedProcessResult> RunEchoProcess(IDetoursEventListener detoursListener = null)
@@ -171,9 +170,8 @@ namespace Test.BuildXL.Processes
             yield return new object[] { CmdHelper.CmdX86 };
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(CmdExeLocationsData))]
-        [Trait("Category", "WindowsOSOnly")]
         public async Task Start(string cmdExeLocation)
         {
             var echoMessage = "Success";
@@ -395,9 +393,8 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)] // same as Survivors, but using cmd.exe
         [MemberData(nameof(CmdExeLocationsData))]
-        [Trait("Category", "WindowsOSOnly")] // same as Survivors, but using cmd.exe
         public async Task SurvivorsHaveCommandLines(string cmdExeLocation)
         {
             if (!JobObject.OSSupportsNestedJobs)
@@ -600,8 +597,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(workingDir, stdout.Trim());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ProcessId()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: false))
@@ -643,8 +639,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoBuildExeTraceLog()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -665,8 +660,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -687,8 +681,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoNulColon()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -709,8 +702,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoFolderNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -733,8 +725,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportNoDriveNul()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -770,12 +761,11 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true, true)]
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
-        [Trait("Category", "WindowsOSOnly")]
         public async Task ReportSingleAccess(bool expectUsn, bool reportUsn)
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -892,8 +882,7 @@ namespace Test.BuildXL.Processes
                     explicitlyReported: true));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ReportSingleUnexpectedUsnAccess()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -1001,8 +990,7 @@ namespace Test.BuildXL.Processes
             AssertReportedAccessesContains(Context.PathTable, result.AllUnexpectedFileAccesses, rfa);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task IgnoreInvalidPathRead()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
@@ -1233,8 +1221,7 @@ namespace Test.BuildXL.Processes
             XAssert.Fail(message.ToString());
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task CheckPreloadedDll()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))

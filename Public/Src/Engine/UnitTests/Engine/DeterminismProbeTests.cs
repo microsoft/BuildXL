@@ -17,7 +17,7 @@ namespace Test.BuildXL.Engine
     /// Incremental build tests for <see cref="DirectoryArtifact" /> dependencies.
     /// </summary>
     [Trait("Category", "DeterminismProbeTests")]
-    [Trait("Category", "WindowsOSOnly")] // heavily depends on cmd.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // heavily depends on cmd.exe
     public sealed class DeterminismProbeTests : IncrementalBuildTestBase
     {
         public DeterminismProbeTests(ITestOutputHelper output)

@@ -24,7 +24,7 @@ using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 namespace Test.BuildXL.Storage
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class FileUtilitiesUnsafeTests : TemporaryStorageTestBase
     {
         public FileUtilitiesUnsafeTests()

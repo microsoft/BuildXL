@@ -52,8 +52,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSuccess()
         {
             string path = Path.Combine(TemporaryDirectory, "file");
@@ -85,8 +84,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void ReOpenFileSharingViolation()
         {
             string path = Path.Combine(TemporaryDirectory, "file");

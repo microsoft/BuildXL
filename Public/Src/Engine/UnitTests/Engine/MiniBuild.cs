@@ -22,7 +22,7 @@ using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 namespace Test.BuildXL.EngineTests
 {
     // NOTE: don't add more tests here, use SchedulerIntegrationTestBase instead
-    [Trait("Category", "WindowsOSOnly")] // relies heavily on csc.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // relies heavily on csc.exe
     [Trait("Category", "MiniBuildTester")] // relies on csc deployment.
     public sealed class MiniBuildTester : BaseEngineTest
     {

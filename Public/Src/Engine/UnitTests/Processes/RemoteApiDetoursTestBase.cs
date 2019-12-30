@@ -16,7 +16,7 @@ namespace Test.BuildXL.Processes
     /// <summary>
     /// Base class for tests that run a sanboxed <see cref="RemoteApi" /> process and verify reports from Detours.
     /// </summary>
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class RemoteApiDetoursTestBase : TemporaryStorageTestBase, ISandboxedProcessFileStorage
     {
         /// <summary>

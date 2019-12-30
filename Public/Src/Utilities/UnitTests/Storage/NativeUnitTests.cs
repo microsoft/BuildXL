@@ -84,8 +84,7 @@ namespace Test.BuildXL.Storage
                 skipHashCodeForNotEqualValues: false);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void OsVersionCheckConsistency()
         {
             // On Windows 8.1, this will return Windows 8.
@@ -93,8 +92,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(FileSystemWin.StaticIsOSVersionGreaterOrEqual(version.Version.Major, version.Version.Minor));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void OsVersionCheckNegative()
         {
             // This comment is a time capsule to the person who has to fix this test when 999.5 is a shipping Windows version

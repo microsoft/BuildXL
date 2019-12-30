@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Test.BuildXL.Storage
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class NativeExceptionTests
     {
         [Fact]

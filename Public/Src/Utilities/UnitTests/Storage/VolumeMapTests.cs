@@ -19,7 +19,7 @@ namespace Test.BuildXL.Storage
     /// <summary>
     /// Tests for <see cref="VolumeMap"/>
     /// </summary>
-     [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class VolumeMapTests : TemporaryStorageTestBase
     {
         [Fact]

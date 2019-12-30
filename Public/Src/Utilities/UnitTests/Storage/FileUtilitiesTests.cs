@@ -84,8 +84,7 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
         public void GetFileNameCasing()
         {
             const string UppercaseFileName = @"UPPERCASE.txt";
@@ -243,8 +242,7 @@ namespace Test.BuildXL.Storage
             XAssert.AreEqual(Contents, File.ReadAllText(GetFullPath(Target)));
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")] // written from WriteAllByeAsync is true... fails XAssert
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // written from WriteAllByeAsync is true... fails XAssert
         public async Task WriteAllBytesPredicate()
         {
             const string Target = "target";
@@ -286,8 +284,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsTrue(written);
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task WriteAllBytesCallback()
         {
             const string Target = "target";
@@ -349,8 +346,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void CreateReplacementFileReplacesFileEvenIfTruncationWasPossible()
         {
             const string Target = @"Target";
@@ -414,8 +410,7 @@ namespace Test.BuildXL.Storage
         }
 
         // HandleSearcher is Windows dependent
-        [Fact]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void FindOpenHandle()
         {
             string directory = Path.Combine(TemporaryDirectory, "directoryToDelete");
@@ -469,8 +464,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        [Trait("Category", "WindowsOSOnly")]
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void GetChainOfJunctions()
         {
             string targetDirectory = GetFullPath("target");
@@ -495,8 +489,7 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        [Trait("Category", "WindowsOSOnly")] // TODO: Fix for non Windows
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)] // TODO: Fix for non Windows
         public void GetChainOfSymlinksWithDirectorySymlink()
         {
             // File and directory layout:
@@ -617,8 +610,8 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
         public void TestResolveSymlinkWithDirectorySymlinkOrJunction(bool useJunction, bool oneDotDot)
         {
@@ -679,8 +672,8 @@ namespace Test.BuildXL.Storage
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void TestResolveSymlinkWithMixedDirectorySymlinkAndJunction()
         {
             // File and directory layout:
@@ -729,8 +722,8 @@ namespace Test.BuildXL.Storage
             XAssert.ArePathEqual(expectedFinalPath, maybeResult.Result);
         }
 
-        [Trait("Category", "WindowsOSOnly")] // Windows OS only because junctions do not exist on other platforms.
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        // Windows OS only because junctions do not exist on other platforms.
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public void TestResolveRelativeSymlinks()
         {
             VerifyResolveRelativeSymlink(
@@ -968,7 +961,6 @@ namespace Test.BuildXL.Storage
             }
         }
 
-        [Trait("Category", "WindowsOSOnly")]
         [TheoryIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]

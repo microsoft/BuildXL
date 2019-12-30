@@ -13,7 +13,7 @@ using Xunit.Abstractions;
 namespace Test.BuildXL.Engine
 {
     [Trait("Category", "LazyMaterializationBuildTests")]
-    [Trait("Category", "WindowsOSOnly")] // depends on csc.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // depends on csc.exe
     [Feature(Features.LazyOutputMaterialization)]
     public sealed class LazyMaterializationBuildTests : IncrementalBuildTestBase
     {

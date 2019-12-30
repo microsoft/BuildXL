@@ -31,10 +31,11 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using StackExchange.Redis;
 using Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public abstract class RedisContentLocationStoreTests : TestWithOutput
     {
         private const string DefaultKeySpace = RedisContentLocationStoreFactory.DefaultKeySpace;

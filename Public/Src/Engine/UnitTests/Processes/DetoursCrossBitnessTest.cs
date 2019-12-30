@@ -14,7 +14,7 @@ using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 namespace Test.BuildXL.Processes
 {
     [Trait("Category", "DetoursCrossBitnessTest")]
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class DetoursCrossBitnessTest
     {
         private const string DetoursCrossBitnessTestCategory = "DetoursCrossBitnessTest";

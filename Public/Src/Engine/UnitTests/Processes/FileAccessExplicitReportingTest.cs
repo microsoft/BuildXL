@@ -41,9 +41,8 @@ namespace Test.BuildXL.Processes
                 ExpectAccess(file));
         }
 
-        [Theory]
         [MemberData(nameof(AccessTypes))]
-        [Trait("Category", "WindowsOSOnly")]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public Task DirectlyReportedCaseInsensitive(AccessType accessType)
         {
             var file = CreateSourceFile();
@@ -53,9 +52,8 @@ namespace Test.BuildXL.Processes
                 ExpectAccess(file));
         }
 
-        [Theory]
         [MemberData(nameof(AccessTypes))]
-        [Trait("Category", "WindowsOSOnly")]
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public Task DirectlyReportedUnicodeCaseInsensitive(AccessType accessType)
         {
             // everything should work the same for files with Unicode characters in their name

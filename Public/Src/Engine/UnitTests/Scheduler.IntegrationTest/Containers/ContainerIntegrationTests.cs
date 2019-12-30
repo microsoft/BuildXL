@@ -23,7 +23,7 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler.Containers
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class ContainerIntegrationTests : SchedulerIntegrationTestBase
     {
         public ContainerIntegrationTests(ITestOutputHelper output)

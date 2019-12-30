@@ -19,12 +19,13 @@ using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
     [Collection("Redis-based tests")]
     [Trait("Category", "LongRunningTest")]
-    [Trait("Category", "WindowsOSOnly")] // needs local redis-server.exe
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class PinBetterDistributedContentSessionTests : ContentSessionTests
     {
         private readonly LocalRedisFixture _redis;

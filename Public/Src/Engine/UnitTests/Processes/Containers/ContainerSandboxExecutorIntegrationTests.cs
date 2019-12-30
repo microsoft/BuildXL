@@ -21,7 +21,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes
 {
-    [Trait("Category", "WindowsOSOnly")]
+    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class ContainerSandboxExecutorIntegrationTests : XunitBuildXLTest
     {
         public ContainerSandboxExecutorIntegrationTests(ITestOutputHelper output)

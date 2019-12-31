@@ -2521,7 +2521,7 @@ If you can't update and need this feature after July 2018 please reach out to th
       [GeneratedEvent(
             (int)LogEventId.VirusScanEnabledForPath,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             Message = "Virus scanning software is enabled for '{path}' which is used in this build. Build performance is potentially greatly impacted unless a directory exclusion is configured.")]

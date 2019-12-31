@@ -11,10 +11,8 @@ namespace Deployment {
 
     @@public
     export const macBinaryUsage = Context.getCurrentHost().os === "macOS"
-        ? "build"
-        : BuildXLSdk.Flags.isMicrosoftInternal
-            ? "package"
-            : "none";
+        ? (BuildXLSdk.Flags.isValidatingOsxRuntime ? "package" : "build")
+        : (BuildXLSdk.Flags.isMicrosoftInternal    ? "package" : "none");
 
     @@public
     export const kext: SdkDeployment.Definition = {

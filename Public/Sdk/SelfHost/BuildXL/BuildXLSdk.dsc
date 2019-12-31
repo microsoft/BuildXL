@@ -28,7 +28,7 @@ export const NetFx = Net472.withQualifier({targetFramework: "net472"}).NetFx;
 
 export const publicKey = "0024000004800000940000000602000000240000525341310004000001000100BDD83CF6A918814F5B0395F20B6AA573B872FCDDB8B121F162BDD7D5EB302146B2EA6D7E6551279FF9D62E7BEA417ACAE39BADC6E6DECFE45BA7B3AD70AF432A1AA587343AA67647A4D402A0E2D011A9758AAB9F0F8D1C911D554331E8176BE34592BADC08BC94BBD892AF7BCB72AC613F37E4B57A6E18599535211FEF8A7EBA";
 
-const envVarNamePrefix = "[Sdk.BuildXL]";
+const envVarNamePrefix = Flags.envVarNamePrefix;
 const redisConnectionStringEnvVarName = "CloudStoreRedisConnectionString";
 
 const brandingDefines = [
@@ -133,8 +133,13 @@ export const isSymbolToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosof
 namespace Flags {
     export declare const qualifier: {};
 
+    export const envVarNamePrefix = "[Sdk.BuildXL]";
+
     @@public
-    export const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
+    export const isMicrosoftInternal = Environment.getFlag(envVarNamePrefix + "microsoftInternal");
+
+    @@public
+    export const isValidatingOsxRuntime = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "validateOsxRuntime");
 
     @@public
     export const isVstsArtifactsEnabled = isMicrosoftInternal;
@@ -143,7 +148,7 @@ namespace Flags {
     * Whether tests are configured to run with QTest. Not whether QTest gets bundled with the BuildXL deployment
     */
     @@public
-    export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag("[Sdk.BuildXL]useQTest");
+    export const isQTestEnabled = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "useQTest");
 
     /**
      * Whether we are generating VS solution.

@@ -15,7 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace IntegrationTest.BuildXL.Scheduler
+namespace ExternalToolTest.BuildXL.Scheduler
 {
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class ExternalToolExecutionTests : SchedulerIntegrationTestBase

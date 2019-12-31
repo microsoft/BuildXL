@@ -4,7 +4,7 @@
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 
-namespace IntegrationTest.BuildXL.Scheduler
+namespace ExternalToolTest.BuildXL.Scheduler
 {
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
     public class ExternalVmExecutionTests : ExternalToolExecutionTests

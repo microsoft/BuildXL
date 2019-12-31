@@ -4,42 +4,38 @@
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
-namespace Scheduler.IntegrationTest {
+namespace ExternalToolTest {
+
     @@public
     export const dll = BuildXLSdk.test({
         // These tests require Detours to run itself, so we can't detour xunit itself
         // TODO: QTest
         testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
 
-        assemblyName: "IntegrationTest.BuildXL.Scheduler",
+        assemblyName: "ExternalToolTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
-        runTestArgs: {
-                parallelBucketCount: 20,
-            },
         references: [
             Scheduler.dll,
             EngineTestUtilities.dll,
-            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
-            importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
-            importFrom("BuildXL.Engine").Cache.dll,
-            importFrom("BuildXL.App").Main.exe,
-            importFrom("BuildXL.Engine").Engine.dll,
-            importFrom("BuildXL.Engine").Processes.dll,
+            Scheduler.IntegrationTest.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
-            importFrom("BuildXL.Utilities").Ipc.dll,
-            importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
-            importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,
+            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+            // TODO: Move it to the root when we can access the real VmCommandProxy in CB.
+            {
+                subfolder: r`tools/VmCommandProxy/tools`,
+                contents: [
+                    importFrom("BuildXL.Utilities.UnitTests").MockVmCommandProxy.exe
+                ]
+            }
         ],
     });
 }

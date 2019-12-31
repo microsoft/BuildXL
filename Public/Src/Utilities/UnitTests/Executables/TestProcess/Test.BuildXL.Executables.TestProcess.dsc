@@ -12,10 +12,7 @@ namespace TestProcess {
         defineConstants: [ "TestProcess" ],
         references: [
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Engine").Processes.dll,
         ]
     });

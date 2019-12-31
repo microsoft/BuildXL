@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Default value will be set to null, and both redis instances need to be completed before moving forward.
         /// </remarks>
         /// </summary>
-        public TimeSpan? RetryWindow { get; set; } = null;
+        public TimeSpan? RetryWindow { get; set; }
 
         /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates

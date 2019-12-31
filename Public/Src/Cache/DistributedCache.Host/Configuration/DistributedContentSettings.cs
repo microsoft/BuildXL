@@ -222,7 +222,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// A candidate must have an age older than this amount, or else it won't be evicted.
         /// </summary>
         [DataMember]
-        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+        public int? EvictionMinAgeMinutes { get; set; }
 
         /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
@@ -240,7 +240,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
         /// Default to always wait for both instances to complete.
         /// </summary>
-        public TimeSpan? RetryWindow { get; set; } = null;
+        public int? RetryWindowSeconds { get; set; }
 
         private int[] _retryIntervalForCopiesMs =
             new int[]

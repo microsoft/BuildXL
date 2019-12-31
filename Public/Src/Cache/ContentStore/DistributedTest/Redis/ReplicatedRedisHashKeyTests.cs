@@ -56,7 +56,7 @@ namespace ContentStoreTest.Distributed.Redis
             var replicatedRedisHashKey = new ReplicatedRedisHashKey("key", new MockReplicatedKeyHost(), new MemoryClock(), raidedDatabaseAdapter);
             var error = await replicatedRedisHashKey.UseReplicatedHashAsync(
                 context,
-                TimeSpan.FromMinutes(1),
+                retryWindow: TimeSpan.FromMinutes(1),
                 RedisOperation.All,
                 (batch, key) =>
                 {

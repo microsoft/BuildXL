@@ -12,11 +12,7 @@ namespace Tests {
             ...(qualifier.targetFramework === "net472" ? [
                 importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
                 importFrom("BuildXL.Tools").VerifyFileContentTable.exe,
-            ] : []),
-            {
-                subfolder: a`osx-x64`,
-                contents: qualifier.targetRuntime === "osx-x64" ? [Tests.Osx.deployment] : []
-            }
+            ] : [])
         ]
     };
 

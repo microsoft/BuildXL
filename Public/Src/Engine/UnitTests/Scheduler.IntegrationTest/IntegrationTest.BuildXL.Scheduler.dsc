@@ -5,22 +5,6 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Scheduler.IntegrationTest {
-
-    @@public
-    export const categoriesToRunInParallel =  [
-        "BaselineTests",
-        "FileAccessPolicyTests",
-        "OpaqueDirectoryTests",
-        "SharedOpaqueDirectoryTests",
-        "AllowedUndeclaredReadsTests",
-        "LazyMaterializationTests",
-        "WhitelistTests",
-        "PreserveOutputsTests",
-        "NonStandardOptionsTests",
-        "StoreNoOutputsToCacheTests",
-        // "IncrementalSchedulingTests", TODO: Some shared tests (IS vs. non-IS) create substs, and this can cause race.
-    ];
-
     @@public
     export const dll = BuildXLSdk.test({
         // These tests require Detours to run itself, so we can't detour xunit itself

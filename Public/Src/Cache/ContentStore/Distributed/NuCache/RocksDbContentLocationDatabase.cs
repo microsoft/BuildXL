@@ -235,7 +235,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         StoreDirectory = storeLocation,
                         AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
-                        RotateLogs = true,
+                        RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
+                        RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
+                        RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
                         EnableStatistics = true,
                         FastOpen = true,
                     },

@@ -147,6 +147,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
 
         /// <summary>
+        /// Whether to enable long-term log keeping. Should only be true for servers, where we can keep a lot of logs.
+        /// </summary>
+        public bool LogsKeepLongTerm { get; set; } = false;
+
+        /// <summary>
         /// Log retention path for the ContentLocationDatabase. When the database is loaded, logs from the old
         /// instance are backed up into a separate folder.
         ///

@@ -60,14 +60,19 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             public bool DropMismatchingColumns { get; set; }
 
             /// <summary>
-            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours,
-            /// up to a maximum of 60 logs (i.e. 30 days). When the maximum amount of logs is reached, the oldest logs
-            /// are overwritten in a circular fashion.
-            ///
-            /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
-            /// open the DB more than once in a 12 hour period, you will only have partial information.
+            /// Number of files to keep before deletion when rotating logs.
             /// </summary>
-            public bool RotateLogs { get; set; }
+            public ulong? RotateLogsNumFiles { get; set; }
+
+            /// <summary>
+            /// Maximum log file size before rotating.
+            /// </summary>
+            public ulong? RotateLogsMaxFileSizeBytes { get; set; }
+
+            /// <summary>
+            /// Maximum log age before rotating.
+            /// </summary>
+            public TimeSpan? RotateLogsMaxAge { get; set; }
 
             /// <summary>
             /// Opens RocksDb for bulk data loading.
@@ -232,16 +237,22 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     m_defaults.DbOptions.PrepareForBulkLoad();
                 }
 
-                if (arguments.RotateLogs)
+                // Maximum number of information log files
+                if (arguments.RotateLogsNumFiles != null)
                 {
-                    // Maximum number of information log files
-                    m_defaults.DbOptions.SetKeepLogFileNum(60);
+                    m_defaults.DbOptions.SetKeepLogFileNum(arguments.RotateLogsNumFiles.Value);
+                }
 
-                    // Do not rotate information logs based on file size
-                    m_defaults.DbOptions.SetMaxLogFileSize(0);
+                // Do not rotate information logs based on file size
+                if (arguments.RotateLogsMaxFileSizeBytes != null)
+                {
+                    m_defaults.DbOptions.SetMaxLogFileSize(arguments.RotateLogsMaxFileSizeBytes.Value);
+                }
 
-                    // How long before we rotate the current information log file
-                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)TimeSpan.FromHours(12).Seconds);
+                // How long before we rotate the current information log file
+                if (arguments.RotateLogsMaxAge != null)
+                {
+                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)arguments.RotateLogsMaxAge.Value.Seconds);
                 }
 
                 if (arguments.FastOpen)

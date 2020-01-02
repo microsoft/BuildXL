@@ -48,7 +48,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 StoreClusterState = true,
                 CleanOnInitialize = clean,
-                GarbageCollectionInterval = Timeout.InfiniteTimeSpan
+                GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
+                LogsKeepLongTerm = false,
             };
             _clusterState = new ClusterState();
 

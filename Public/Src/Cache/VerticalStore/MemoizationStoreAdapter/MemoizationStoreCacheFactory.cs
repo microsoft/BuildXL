@@ -382,6 +382,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         MetadataGarbageCollectionEnabled = true,
                         MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep,
                         OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = false,
                     },
                 };
             }

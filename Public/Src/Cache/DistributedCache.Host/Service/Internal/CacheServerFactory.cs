@@ -192,6 +192,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     {
                         MetadataGarbageCollectionEnabled = true,
                         OnFailureDeleteExistingStoreAndRetry = true,
+                        LogsKeepLongTerm = true,
                     },
                 };
 

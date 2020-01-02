@@ -254,9 +254,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
         /// to create a new one in its place. This will cause data loss of the old store.
         /// </param>
-        /// <param name="rotateLogs">
-        /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
-        /// </param>
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
         /// </param>
@@ -275,7 +272,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false,
             bool openBulkLoad = false,
             Action<Failure<Exception>> invalidationHandler = null,
             Action<Failure> onStoreReset = null)
@@ -290,7 +286,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 openReadOnly,
                 dropMismatchingColumns,
                 onFailureDeleteExistingStoreAndRetry,
-                rotateLogs,
                 openBulkLoad,
                 invalidationHandler,
                 onStoreReset);
@@ -337,9 +332,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// On failure to open an existing store at the given directory, whether an attempt to delete the existing store should be made
         /// to create a new one in its place. This will cause data loss of the old store.
         /// </param>
-        /// <param name="rotateLogs">
-        /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
-        /// </param>
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
         /// </param>
@@ -359,7 +351,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false,
             bool openBulkLoad = false,
             Action<Failure<Exception>> invalidationHandler = null,
             Action<Failure> onStoreReset = null)
@@ -373,7 +364,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     AdditionalKeyTrackedColumns = additionalKeyTrackedColumns,
                     ReadOnly = openReadOnly,
                     DropMismatchingColumns = dropMismatchingColumns,
-                    RotateLogs = rotateLogs,
                     OpenBulkLoad = openBulkLoad,
                 },
                 storeVersion,

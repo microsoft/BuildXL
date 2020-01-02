@@ -94,7 +94,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 var dbConfig = new RocksDbContentLocationDatabaseConfiguration(localCacheRoot / "LocationDb")
                 {
-                    StoreClusterState = _distributedSettings.StoreClusterStateInDatabase
+                    StoreClusterState = _distributedSettings.StoreClusterStateInDatabase,
+                    LogsKeepLongTerm = true,
                 };
 
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)

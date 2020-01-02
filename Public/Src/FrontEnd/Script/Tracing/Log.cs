@@ -359,6 +359,11 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void EvaluationCanceled(LoggingContext loggingContext);
 
+        /// <summary>
+        /// Marker to make sure multiple threads don't all log the EvaluationCanceled event at once
+        /// </summary>
+        public int EvaluationCancelledFirstLogged = 0;
+
         [GeneratedEvent(
             (ushort)LogEventId.ExplicitSemanticsDoesNotAdmitAllowedModuleDependencies,
             EventGenerators = EventGenerators.LocalOnly,

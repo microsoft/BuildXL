@@ -98,6 +98,10 @@ namespace BuildXL.Engine
         /// <param name="blockedPaths">
         /// Stop the above enumeration performed by directory scrubber. All file/directories underneath a blocked path should not be removed.
         /// </param>
+        /// <param name="statisticIdentifier">
+        /// Identifies the purpose of this scrubber invocation in telemetry and logging. Use this to differentiate since there can
+        /// be multiple scrubber invocations in the same build session for different purposes.
+        /// </param>
         /// <param name="nonDeletableRootDirectories">
         /// Contains list of directory paths that can never be deleted, however,
         /// the contents of the directory can be scrubbed. For example, mount roots should not be deleted.
@@ -113,6 +117,7 @@ namespace BuildXL.Engine
             IEnumerable<string> pathsToScrub,
             IEnumerable<string> blockedPaths,
             IEnumerable<string> nonDeletableRootDirectories,
+            string statisticIdentifier = Category,
             MountPathExpander mountPathExpander = null,
             bool logRemovedFiles = true)
         {
@@ -124,7 +129,7 @@ namespace BuildXL.Engine
                 finalNonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
             }
 
-            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander, logRemovedFiles);
+            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander, logRemovedFiles, statisticIdentifier);
         }
 
         private bool RemoveExtraneousFilesAndDirectories(
@@ -133,7 +138,8 @@ namespace BuildXL.Engine
             HashSet<string> blockedPaths,
             HashSet<string> nonDeletableRootDirectories,
             MountPathExpander mountPathExpander,
-            bool logRemovedFiles)
+            bool logRemovedFiles,
+            string statisticIdentifier)
         { 
             int directoriesEncountered = 0;
             int filesEncountered = 0;
@@ -142,7 +148,7 @@ namespace BuildXL.Engine
 
             using (var pm = PerformanceMeasurement.Start(
                 m_loggingContext,
-                Category,
+                statisticIdentifier,
                 // The start of the scrubbing is logged before calling this function, since there are two sources of scrubbing (regular scrubbing and shared opaque scrubbing)
                 // with particular messages
                 (_ => {}),

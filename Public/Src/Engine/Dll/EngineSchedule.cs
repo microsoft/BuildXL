@@ -828,7 +828,8 @@ namespace BuildXL.Engine
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: mountPathExpander);
+                    mountPathExpander: mountPathExpander,
+                    statisticIdentifier: "Scrubbing");
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says.
@@ -859,7 +860,8 @@ namespace BuildXL.Engine
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
-                    mountPathExpander: null);
+                    mountPathExpander: null,
+                    statisticIdentifier: "SharedOpaqueScrubbing");
             }
         }
 

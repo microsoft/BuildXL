@@ -12,14 +12,15 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.0.99" },
-    { id: "Aria.Cpp.SDK", version: "8.5.6" },
+    { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
+    { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS"] },
 
-    { id: "CB.QTest", version: "19.11.27.124129" },
+    { id: "CB.QTest", version: "19.11.27.124129", osSkip: [ "macOS" ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
     // Windows Sdk so microsoft dev's don't have to install it.
-    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk" },
+    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS" ] },
 
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
@@ -45,10 +46,10 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "13.3.0-noTest" },
-    { id: "PowerShell.Core", version: "6.1.0" },
+    { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS" ] },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.3" },
+    { id: "Dotnet-Runtime", version: "5.0.3", osSkip: ["macOS"] },
 
 ] : [
 

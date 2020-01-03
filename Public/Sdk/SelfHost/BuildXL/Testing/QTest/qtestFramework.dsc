@@ -10,7 +10,7 @@ export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
 
 @@public
-export const qTestTool: Transformer.ToolDefinition = {
+export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os === "win" && {
     exe: qTestContents.getFile(r`tools/DBS.QTest.exe`),
     description: "SelfHost Dev Build QTest",
     runtimeDirectoryDependencies: [

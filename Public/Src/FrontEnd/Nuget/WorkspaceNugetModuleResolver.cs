@@ -1120,7 +1120,8 @@ namespace BuildXL.FrontEnd.Nuget
             var weakFingerprint = "nuget://" + string.Join("&", fingerprintParams);
             var identity = PackageIdentity.Nuget(package.Id, package.Version, package.Alias);
 
-            var maybePackage = package.OsSkip.Contains(Host.Current.CurrentOS.GetDScriptValue())
+            var currentOs = Host.Current.CurrentOS.GetDScriptValue();
+            var maybePackage = package.OsSkip?.Contains(currentOs) == true
                 ? PackageDownloadResult.EmptyStub(weakFingerprint, identity, layout.PackageFolder)
                 : await m_host.DownloadPackage(
                     weakFingerprint,

@@ -3,8 +3,7 @@
 
 import {Transformer} from "Sdk.Transformers";
 
-// This is an dummy facade for the VisualCppTools.Community.VS2017Layout package,
-// it's used to avoid downloading the package on non-windows systems
+// This is an empty facade for a Microsoft internal package.
 
 namespace Contents {
     export declare const qualifier: {
@@ -12,7 +11,7 @@ namespace Contents {
 
     @@public
     export const all: StaticDirectory = Transformer.sealDirectory({
-        root: d`.`,
+        root: d`.`, 
         files: []
     });
 }

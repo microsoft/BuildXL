@@ -22,10 +22,6 @@ namespace Helpers
                 pkgContents = importFrom("DotNet-Runtime.osx-x64").extracted;
                 executable = r`dotnet`;
                 break;
-            case "unix":
-                pkgContents = importFrom("DotNet-Runtime.linux-x64").extracted;
-                executable = r`dotnet`;
-                break;
             default:
                 Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Esure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
         }

@@ -11,6 +11,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <nodoc />
         public NugetPackage()
         {
+            OsSkip = new List<string>();
+            DependentPackageIdsToSkip = new List<string>();
+            DependentPackageIdsToIgnore = new List<string>();
         }
 
         /// <nodoc />

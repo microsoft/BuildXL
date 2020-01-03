@@ -83,7 +83,7 @@ namespace Sandbox {
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 
-    const ariaPkg = importFrom("Aria.Cpp.SDK");
+    const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
     const ariaXcconfig = Transformer.writeData({
         outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
         contents: {

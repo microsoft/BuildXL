@@ -30,9 +30,6 @@ config({
                 f`Public/Sdk/Public/Prelude/package.config.dsc`, // Prelude cannot be named module because it is a v1 module
                 f`Public/Sdk/Public/Transformers/package.config.dsc`, // Transformers cannot be renamed yet because office relies on the filename
                 ...globR(d`Public/Sdk`, "module.config.dsc"),
-                ...addIf(Context.getCurrentHost().os !== "win",
-                    f`private/Facades/VisualCppTools.Community.VS2017Layout/module.config.dsc`
-                ),
             ]
         },
         {
@@ -74,9 +71,9 @@ config({
 
                 { id: "RuntimeContracts", version: "0.1.9.1" },
 
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5"},
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5"},
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0-alpha-5"},
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0-alpha-5" },
 
                 { id: "EntityFramework", version: "6.0.0" },
 
@@ -138,7 +135,7 @@ config({
                 { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
 
                 // Cpp Sdk
-                ...(Context.getCurrentHost().os === "win" ? [{ id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506"}] : []),
+                { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS" ] },
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
@@ -254,14 +251,14 @@ config({
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
                 // .NET Core win-x64 runtime deps
-                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.1.0" },
-                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.1.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.1.0" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.1.0" },
+                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.1.0", osSkip: [ "macOS" ]  },
+                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.1.0", osSkip: [ "macOS" ]  },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.1.0", osSkip: [ "macOS" ]  },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.1.0", osSkip: [ "macOS" ]  },
 
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220", osSkip: [ "macOS" ]  },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220", osSkip: [ "macOS" ]  },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220", osSkip: [ "macOS" ]  },
 
                 // .NET Core osx-x64 runtime deps
                 { id: "Microsoft.NETCore.App.Host.osx-x64", version: "3.1.0" },
@@ -401,8 +398,8 @@ config({
                 { id: "System.Collections.Immutable", version: "1.5.0" },
 
                 { id: "runtime.native.System", version: "4.3.0" },
-                { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: "4.3.0" },
-                { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: "4.3.0" },
+                { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: "4.3.0", osSkip: [ "macOS" ]  },
+                { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: "4.3.0", osSkip: [ "macOS" ]  },
                 { id: "runtime.native.System.Data.SqlClient.sni", version: "4.3.0" },
                 { id: "runtime.native.System.Net.Http", version: "4.3.0" },
                 { id: "runtime.native.System.IO.Compression", version: "4.3.0" },
@@ -463,8 +460,8 @@ config({
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // CoreRT
-                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "win" ] },
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "macOS" ] },
 
                 // Kusto SDK (for netstandard)
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",
@@ -540,30 +537,12 @@ config({
                     hash: "VSO0:FCB44A9D07D3923DB197C05A710FEBBB060649555418A067E04EAE1A06CBCE4400",
                     archiveType: "tgz",
                 },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.3.1.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/5d139dff-4ca0-4e0c-a68b-0976281d5b2d/d306f725466e058842faa25bf1b2f379/dotnet-runtime-3.1.0-linux-x64.tar.gz",
-                    hash: "VSO0:BE98235AD947C48B4E5B0E428D263C488E4F16B3FD81AF9CB930B985341107CD00",
-                    archiveType: "tgz",
-                },
                 // The following are needed for dotnet core MSBuild test deployments
                 {
                     moduleName: "DotNet-Runtime.win-x64.2.2.2",
                     url: "https://download.visualstudio.microsoft.com/download/pr/b10d0a68-b720-48ae-bab8-4ac39bd1b5d3/f32b8b41dff5c1488c2b915a007fc4a6/dotnet-runtime-2.2.2-win-x64.zip",
                     hash: "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600",
                     archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.2.2.2",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d1f0dfb3-b6bd-42ae-895f-f149bf1d90ca/9b1fb91a9692fc31d6fc83e97caba4cd/dotnet-runtime-2.2.2-osx-x64.tar.gz",
-                    hash: "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.2.2.2",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
-                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
-                    archiveType: "tgz",
                 },
                 // NodeJs
                 {

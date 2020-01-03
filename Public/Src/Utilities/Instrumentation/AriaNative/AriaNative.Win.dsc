@@ -16,7 +16,7 @@ namespace AriaNative {
     const needNativeAria = Context.getCurrentHost().os === "win" && BuildXLSdk.Flags.isMicrosoftInternal;
 
     const platform: "x86" | "x64" = "x64";
-    const AriaPkgContents = importFrom("Aria.Cpp.SDK").Contents.all;
+    const AriaPkgContents = importFrom("Aria.Cpp.SDK.win-x64").Contents.all;
     const WindowsSdk = importFrom("WindowsSdk").withQualifier({platform: platform});
     const VisualCpp = importFrom("VisualCpp").withQualifier({platform: platform});
 

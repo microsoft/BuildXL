@@ -105,8 +105,9 @@ namespace BuildXL.Utilities
         // the number of items in the table
         private int m_count;
 
+        private readonly int m_objectCacheCapacity = HashCodeHelper.GetGreaterOrEqualPrime(4000);
         // Cache string expansions to avoid redundant allocations.
-        private readonly ObjectCache<StringId, string> m_expansionCache = new ObjectCache<StringId, string>(HashCodeHelper.GetGreaterOrEqualPrime(4000));
+        private readonly ObjectCache<StringId, string> m_expansionCache;
 
         // this block of fields is used as the table is built up and then ignored once the table is frozen
         private ConcurrentBigSet<StringId> m_stringSet;
@@ -212,6 +213,11 @@ namespace BuildXL.Utilities
             m_largeStringBuffer = new LargeStringBuffer();
             m_nextId = 1;
             Empty = AddString(string.Empty);
+
+            // TODO: Remove once we are done with the experiments (user story #1660993)
+            var envVarValue = Environment.GetEnvironmentVariable("BUILDXL_EXPERIMENTAL_STRINGTABLE_BCLOBJECTCACHE");
+            bool.TryParse(envVarValue, out var useExperimentalObjectCache);
+            m_expansionCache = useExperimentalObjectCache ? new ObjectCacheExperimental<StringId, string>(m_objectCacheCapacity) : new ObjectCache<StringId, string>(m_objectCacheCapacity);
         }
 
         /// <summary>
@@ -235,6 +241,11 @@ namespace BuildXL.Utilities
             m_nextId = state.NextId;
             m_stringSet = state.StringSet;
             Empty = AddString(string.Empty);
+
+            // TODO: Remove once we are done with the experiments (user story #1660993)
+            var envVarValue = Environment.GetEnvironmentVariable("BUILDXL_EXPERIMENTAL_STRINGTABLE_BCLOBJECTCACHE");
+            bool.TryParse(envVarValue, out var useExperimentalObjectCache);
+            m_expansionCache = useExperimentalObjectCache ? new ObjectCacheExperimental<StringId, string>(m_objectCacheCapacity) : new ObjectCache<StringId, string>(m_objectCacheCapacity);
         }
 
         /// <summary>

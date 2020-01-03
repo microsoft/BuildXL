@@ -28,22 +28,31 @@ namespace Test.BuildXL.Utilities
             }
         }
 
+        private ObjectCache<T, K> CreateObjectCache<T, K>(int capacity, bool experimental)
+        {
+            return experimental ? new ObjectCacheExperimental<T, K>(capacity) : new ObjectCache<T, K>(capacity);
+        }
+
         public ObjectCacheTests(ITestOutputHelper output)
             : base(output) { }
 
-        [Fact]
-        public void TestCacheNotPresent()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TestCacheNotPresent(bool experimental)
         {
-            var cache = new ObjectCache<HashedKey, int>(16);
+            var cache = CreateObjectCache<HashedKey, int>(capacity: 16, experimental);
             int value;
             XAssert.IsFalse(cache.TryGetValue(default(HashedKey), out value));
             XAssert.IsFalse(cache.TryGetValue(new HashedKey { Hash = int.MaxValue }, out value));
         }
 
-        [Fact]
-        public void TestCacheAddGet()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TestCacheAddGet(bool experimental)
         {
-            var cache = new ObjectCache<HashedKey, int>(16);
+            var cache = CreateObjectCache<HashedKey, int>(capacity: 16, experimental);
 
             long hits = 0;
             long misses = 0;
@@ -81,29 +90,31 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [Fact]
-        public void TestParallelCacheAddGet()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TestParallelCacheAddGet(bool experimental)
         {
-            var cache = new ObjectCache<HashedKey, int>(17);
+            var cache = CreateObjectCache<HashedKey, int>(capacity: 17, experimental);
             var random = new Random(0);
 
             var expectedValues = new int[16 * 1024];
             for (int i = 0; i < expectedValues.Length; i++)
-                {
-                    // Use some arbitrarily chose sampling sets to
-                    // give a test of interspersed hits and misses
+            {
+                // Use some arbitrarily chose sampling sets to
+                // give a test of interspersed hits and misses
                 if ((i % 9) == 0)
-                    {
+                {
                     expectedValues[i] = random.Next(-5, 5);
-                    }
+                }
                 else if ((i % 7) == 0)
-                    {
+                {
                     expectedValues[i] = random.Next(16, 32);
-                    }
-                    else
-                    {
+                }
+                else
+                {
                     expectedValues[i] = random.Next(-64, 64);
-                    }
+                }
             }
 
             // Skip zero since table cache will find HashedKey with key = 0 and hash = 0.

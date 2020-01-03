@@ -231,6 +231,7 @@ namespace BuildXL.Engine.Tracing
 
         ChosenABTesting = 7126,
 
+        StringTableConfiguration = 7127,
         // max 7200
     }
 }

@@ -21,19 +21,23 @@ namespace BuildXL.Utilities.Collections
     /// </remarks>
     /// <typeparam name="TKey">the key type</typeparam>
     /// <typeparam name="TValue">the value type</typeparam>
-    public sealed class ObjectCache<TKey, TValue>
+    public class ObjectCache<TKey, TValue>
     {
-        private struct Entry
+        /// <nodoc/>
+        protected struct Entry
         {
             /// <summary>
             /// 0 means not present
             /// </summary>
             public int ModifiedHashCode;
+            /// <nodoc/>
             public TKey Key;
+            /// <nodoc/>
             public TValue Value;
         }
 
-        private readonly Entry[] m_slots;
+        /// <nodoc/>
+        protected readonly Entry[] m_slots;
         private readonly ReadWriteLock[] m_locks;
         private readonly IEqualityComparer<TKey> m_comparer;
 
@@ -135,7 +139,8 @@ namespace BuildXL.Utilities.Collections
             GetEntry(ref modifiedHashCode, out index, out entry);
         }
 
-        private void GetEntry(ref int modifiedHashCode, out uint index, out Entry entry)
+        /// <nodoc/>
+        protected virtual void GetEntry(ref int modifiedHashCode, out uint index, out Entry entry)
         {
             Contract.Ensures(Contract.ValueAtReturn<int>(out modifiedHashCode) != 0);
 
@@ -157,7 +162,8 @@ namespace BuildXL.Utilities.Collections
             }
         }
 
-        private void SetEntry(uint index, Entry entry)
+        /// <nodoc/>
+        protected virtual void SetEntry(uint index, Entry entry)
         {
             using (var writeLock = m_locks[(uint)index % (uint)m_locks.Length].TryAcquireWriteLock())
             {

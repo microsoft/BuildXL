@@ -119,39 +119,33 @@ namespace BuildXL.Interop.MacOS
         }
 
         /// <summary>
-        /// C# representation of the native struct statfs
+        /// C# representation of the native struct statfs64
         ///
-        /// CODESYNC: https://github.com/apple/darwin-xnu/blob/master/bsd/sys/mount.h#L137-L158
+        /// CODESYNC: https://github.com/apple/darwin-xnu/blob/master/bsd/sys/mount.h#L103-L120
         /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public struct StatFsBuffer
         {
-            /// <summary>TEMPORARY SHADOW COPY OF f_type</summary>
-            public short f_otype;
-
-            /// <summary>TEMPORARY SHADOW COPY OF f_flags</summary>
-            public short f_oflags;
-
             /// <summary>fundamental file system block size</summary>
-            public long f_bsize;
+            public uint f_bsize;
 
             /// <summary>optimal transfer block size</summary>
-            public long f_iosize;
+            public int f_iosize;
 
             /// <summary>total data blocks in file system</summary>
-            public long f_blocks;
+            public ulong f_blocks;
 
             /// <summary>free blocks in fs</summary>
-            public long f_bfree;
+            public ulong f_bfree;
 
             /// <summary>free blocks avail to non-superuser</summary>
-            public long f_bavail;
+            public ulong f_bavail;
 
             /// <summary>total file nodes in file system</summary>
-            public long f_files;
+            public ulong f_files;
 
             /// <summary>free file nodes in fs</summary>
-            public long f_ffree;
+            public ulong f_ffree;
 
             /// <summary>file system id</summary>
             [MarshalAs(UnmanagedType.ByValArray, SizeConst=2)]
@@ -160,37 +154,30 @@ namespace BuildXL.Interop.MacOS
             /// <summary>user that mounted the filesystem</summary>
             public int f_owner;
 
-            /// <summary>spare for later</summary>
-            public short f_reserved1;
-
             /// <summary>type of filesystem</summary>
-            public short f_type;
+            public uint f_type;
 
             /// <summary>copy of mount exported flags</summary>
-            public long f_flags;
+            public uint f_flags;
 
-            /// <summary>reserved for future use</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=2)]
-            public long[] f_reserved2;
+            /// <summary>fs sub-type (flavor)</summary>
+            public uint f_fssubtype;
 
             /// <summary>fs type name</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
-            public char[] f_fstypename;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=16)]
+            public string f_fstypename;
 
             /// <summary>directory on which mounted</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
-            public char[] f_mntonname;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=Constants.MaxPathLength)]
+            public string f_mntonname;
 
             /// <summary>mounted filesystem</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
-            public char[] f_mntfromname;
-
-            /// <summary>For alignment</summary>
-            public char f_reserved3;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=Constants.MaxPathLength)]
+            public string f_mntfromname;
 
             /// <summary>For future use</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=4)]
-            public long[] f_reserved4;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=8)]
+            public uint[] f_reserved;
         }
 
         public enum FilePermissions : int
@@ -250,21 +237,21 @@ namespace BuildXL.Interop.MacOS
         /// <returns>
         /// 0 on success, -1 otherwise.
         /// </returns>
-        [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "statfs")]
+        [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "statfs64")]
         public static extern int StatFs([MarshalAs(UnmanagedType.LPStr)] string path, ref StatFsBuffer buf);
 
         /// <summary>
         /// Returns the number of available bytes left on a mounted file system.
         /// </summary>
         /// <param name="path">Path name of any file or directory within the mounted file system</param>
-        /// <returns>Number of available bytes or -1 on error</returns>
-        public static long FreeSpaceLeftOnDeviceInBytes(string path)
+        /// <returns>Number of available bytes or <c>null</c> on error</returns>
+        public static ulong? FreeSpaceLeftOnDeviceInBytes(string path)
         {
             var statFsBuffer = new StatFsBuffer();
             var error = StatFs(path, ref statFsBuffer);
             if (error != 0)
             {
-                return -1;
+                return null;
             }
 
             return statFsBuffer.f_bsize * statFsBuffer.f_bavail;

@@ -26,16 +26,24 @@ namespace Test.BuildXL.Utilities
 
             var buf = new StatFsBuffer();
             int error = IO.StatFs(path, ref buf);
-            long freeSpaceBytes = IO.FreeSpaceLeftOnDeviceInBytes(path);
+            ulong? maybeFreeSpaceBytes = IO.FreeSpaceLeftOnDeviceInBytes(path);
             if (pathExists)
             {
-                XAssert.AreEqual(0, error, $"Expected statfs to return 0 on {path} which exists; instead.");
-                XAssert.IsTrue(freeSpaceBytes > 0, $"Expected free space to be greater than 0B, instead it is {freeSpaceBytes}B.");
+                XAssert.IsNotNull(maybeFreeSpaceBytes);
+                ulong freeSpaceBytes = maybeFreeSpaceBytes.Value;
+                var dbg = $"{path} (free {freeSpaceBytes >> 30}GB) :: {buf.f_fstypename}: {buf.f_mntfromname} -> {buf.f_mntonname}";
+
+                XAssert.AreEqual(0, error, $"Expected statfs to return 0 on {path} which exists. {dbg}");
+                XAssert.IsTrue(freeSpaceBytes > 0, $"Expected free space to be greater than 0B, instead it is {freeSpaceBytes}B. {dbg}");
+                if (path == "/")
+                {
+                    XAssert.AreEqual("/", buf.f_mntonname, $"Path '/' must be mounted to '/'. {dbg}");
+                }
             }
             else
             {
                 XAssert.AreEqual(-1, error, $"Expected statfs to return -1 on '{path}' which does not exist.");
-                XAssert.AreEqual(-1, freeSpaceBytes, $"Expected free space to be -1 for path '{path}' that does not exist.");
+                XAssert.IsNull(maybeFreeSpaceBytes, $"Expected free space to be -1 for path '{path}' that does not exist.");
             }
         }
     }

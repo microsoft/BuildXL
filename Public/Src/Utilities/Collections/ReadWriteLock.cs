@@ -64,7 +64,7 @@ namespace BuildXL.Utilities.Threading
         public WriteLock AcquireWriteLock(bool allowReads = false)
         {
             EnterWriteLock(allowReads);
-            return new WriteLock(this);
+            return new WriteLock(this, allowReads);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace BuildXL.Utilities.Threading
         public WriteLock TryAcquireWriteLock(bool allowReads = false)
         {
             bool acquired = TryEnterWriteLock(allowReads);
-            return new WriteLock(acquired ? this : Invalid);
+            return new WriteLock(acquired ? this : Invalid, allowReads);
         }
 
         /// <summary>
@@ -146,9 +146,9 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Releases a write lock.
         /// </summary>
-        public void ExitWriteLock()
+        public void ExitWriteLock(bool ensureExcludeReadsLockReleased = false)
         {
-            m_locker.ExitWriteLock();
+            m_locker.ExitWriteLock(ensureExcludeReadsLockReleased);
         }
 
         /// <summary>
@@ -159,6 +159,9 @@ namespace BuildXL.Utilities.Threading
         /// a write flag bit which prevents further reads because all readers will wait on the monitor in the event
         /// that the write flag is set. Readers increment a reader counter
         /// which pending writer spin waits to reach zero.
+        /// 
+        /// We are intentionally using Interlocked.CompareExchange to read the value of m_readerCountAndWriteFlag (CompareExchange always
+        /// returns the original value regardless whether the exchange happened or not)
         /// </summary>
         private sealed class Locker
         {
@@ -169,7 +172,7 @@ namespace BuildXL.Utilities.Threading
             // write lock flag  overflow buffer  read lock counter
             private long m_readerCountAndWriteFlag;
 
-            public bool HasExclusiveAccess => Monitor.IsEntered(this) && Volatile.Read(ref m_readerCountAndWriteFlag) == WRITE_FLAG;
+            public bool HasExclusiveAccess => Monitor.IsEntered(this) && Interlocked.CompareExchange(ref m_readerCountAndWriteFlag, 0, 0) == WRITE_FLAG;
 
             public void EnterReadLock()
             {
@@ -184,7 +187,7 @@ namespace BuildXL.Utilities.Threading
                         Interlocked.Decrement(ref m_readerCountAndWriteFlag);
 
                         SpinWait spinWait = default(SpinWait);
-                        while (Volatile.Read(ref m_readerCountAndWriteFlag) >= WRITE_FLAG)
+                        while (Interlocked.CompareExchange(ref m_readerCountAndWriteFlag, 0, 0) >= WRITE_FLAG)
                         {
                             // Write flag is set.
                             // Spin wait for it to be unset so the read can proceed
@@ -231,7 +234,7 @@ namespace BuildXL.Utilities.Threading
 
             public void ExcludeReads()
             {
-                long readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
+                long readerCountAndWriteFlag = Interlocked.CompareExchange(ref m_readerCountAndWriteFlag, 0, 0);
                 if (readerCountAndWriteFlag >= WRITE_FLAG)
                 {
                     // Write flag is set so must have entered lock recursively
@@ -243,21 +246,27 @@ namespace BuildXL.Utilities.Threading
 
                 // Wait until all previously acquired read locks are released.
                 SpinWait spinWait = default(SpinWait);
-                while (Volatile.Read(ref m_readerCountAndWriteFlag) != WRITE_FLAG)
+                while (Interlocked.CompareExchange(ref m_readerCountAndWriteFlag, 0, 0) != WRITE_FLAG)
                 {
                     spinWait.SpinOnce();
                 }
             }
 
-            public void ExitWriteLock()
+            public void ExitWriteLock(bool ensureExcludeReadsLockReleased)
             {
-                long readerCountAndWriteFlag = Volatile.Read(ref m_readerCountAndWriteFlag);
+                long readerCountAndWriteFlag = Interlocked.CompareExchange(ref m_readerCountAndWriteFlag, 0, 0);
                 // Check if the flag is set; and unset it if necessary.
                 // The flag is set in ExcludeReads method, and we only step into that method if allowReads is false,
                 // i.e., it is possible to acquire a write lock without setting the flag.
                 if (readerCountAndWriteFlag >= WRITE_FLAG)
                 {
                     Interlocked.Add(ref m_readerCountAndWriteFlag, -WRITE_FLAG);
+                }
+                else if (ensureExcludeReadsLockReleased)
+                {
+                    // If ensureExcludeReadLockReleased is true, we know that we are holding an exclude reads write lock that needs to be released.
+                    // If we stepped into this branch, something is wrong with the m_readerCountAndWriteFlag variable, i.e., the flag is missing.
+                    throw new InvalidOperationException($"Expected to unset the write lock flag, but it is already unset (m_readerCountAndWriteFlag={m_readerCountAndWriteFlag}).");
                 }
 
                 Monitor.Exit(this);
@@ -316,6 +325,7 @@ namespace BuildXL.Utilities.Threading
         public static readonly WriteLock Invalid = default(WriteLock);
 
         private readonly ReadWriteLock m_lock;
+        private readonly bool m_allowReads;
 
         /// <summary>
         /// Indicates if the lock is a properly initialized
@@ -333,9 +343,10 @@ namespace BuildXL.Utilities.Threading
         /// <summary>
         /// Constructor
         /// </summary>
-        public WriteLock(ReadWriteLock rwLock)
+        public WriteLock(ReadWriteLock rwLock, bool allowReads)
         {
             m_lock = rwLock;
+            m_allowReads = allowReads;
         }
 
         /// <summary>
@@ -357,7 +368,9 @@ namespace BuildXL.Utilities.Threading
         {
             if (IsValid)
             {
-                m_lock.ExitWriteLock();
+                // If WriteLock is configured to exclude reads, ensure that we are unsetting the flag.
+                // This check is not applicable to write locks that were upgraded from allow reads to exclude reads.
+                m_lock.ExitWriteLock(ensureExcludeReadsLockReleased: !m_allowReads);
             }
         }
     }

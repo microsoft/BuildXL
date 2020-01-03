@@ -11,6 +11,7 @@ using BuildXL;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities;

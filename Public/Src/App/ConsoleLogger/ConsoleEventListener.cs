@@ -14,11 +14,10 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
-using Strings = bxl.Strings;
+using Strings = BuildXL.ConsoleLogger.Strings;
 
 namespace BuildXL
 {

@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics.Tracing;
+using System.Linq;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -84,18 +86,13 @@ namespace BuildXL.PipGraphFragmentGenerator
 
             var eventSources = new EventSource[]
                                {
-                                   bxl.ETWLogger.Log,
                                    BxlPipGraphFragmentGenerator.ETWLogger.Log,
                                    BuildXL.Engine.Cache.ETWLogger.Log,
                                    BuildXL.Engine.ETWLogger.Log,
                                    BuildXL.Scheduler.ETWLogger.Log,
                                    BuildXL.Tracing.ETWLogger.Log,
                                    BuildXL.Storage.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Core.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Script.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Download.ETWLogger.Log,
-                               };
+                               }.Concat(FrontEndControllerFactory.GeneratedEventSources);
 
             using (var dummy = new TrackingEventListener(Events.Log))
             {

@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
-using BuildXL.App.Tracing;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Download;
+using BuildXL.FrontEnd.Factory.Tracing;
 #if !PLATFORM_OSX
 using BuildXL.FrontEnd.CMake;
 using BuildXL.FrontEnd.MsBuild;
@@ -19,14 +21,13 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Evaluator.Profiling;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugProtocol;
 
-namespace BuildXL
+namespace BuildXL.FrontEnd.Factory
 {
     /// <summary>
     /// "Yet another factory" (c) that is responsible for entire front-end construction.
@@ -51,6 +52,40 @@ namespace BuildXL
 
         /// <nodoc />
         public PerformanceCollector Collector { get; }
+
+        /// <nodoc />
+        public static IEnumerable<EventSource> GeneratedEventSources => 
+            new EventSource[]
+            {
+                global::BuildXL.FrontEnd.Factory.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Core.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Download.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Script.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Script.Debugger.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Nuget.ETWLogger.Log,
+#if !PLATFORM_OSX
+                global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
+                global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
+#endif
+            };
+
+        /// <nodoc />
+        public static int[] DevLogEvents => 
+            new int[]
+            {
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseStart,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseComplete,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues,
+                (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndEndEvaluateValues,
+            };
 
         /// <nodoc />
         private FrontEndControllerFactory(

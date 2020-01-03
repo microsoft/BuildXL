@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,8 @@ using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
+using BuildXL.FrontEnd.Factory;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -35,7 +38,6 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.ViewModel;
 #pragma warning disable SA1649 // File name must match first type name
 using BuildXL.Utilities.CrashReporting;
-using System.Diagnostics.Tracing;
 
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -282,7 +284,7 @@ namespace BuildXL
 
                 mutableConfig.Logging.CustomLog.Add(
                     mutableConfig.Logging.DevLog,
-                    (new[]
+                    (new List<int>(FrontEndControllerFactory.DevLogEvents)
                     {
                         // Add useful low volume-messages for dev diagnostics here
                         (int)EventId.DominoInvocation,
@@ -305,16 +307,7 @@ namespace BuildXL
                         (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.GraphNotReusedDueToChangedInput,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndBuildWorkspacePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndWorkspaceAnalysisPhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseStart,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndParsePhaseComplete,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues,
-                        (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndEndEvaluateValues,
+
                         (int)EventId.StartLoadingRunningTimes,
                         (int)EventId.EndLoadingRunningTimes,
                         (int)Engine.Tracing.LogEventId.StartSerializingPipGraph,
@@ -759,20 +752,24 @@ namespace BuildXL
             CancellationToken cancellationToken,
             AppLoggers appLoggers,
             EngineState engineState,
-            PerformanceCollector collector)
+            PerformanceCollector performanceCollector)
         {
             var fileSystem = new PassThroughFileSystem(m_pathTable);
             var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem);
+            var frontEndControllerFactory = FrontEndControllerFactory.Create(
+                    m_configuration.FrontEnd.FrontEndMode(),
+                    loggingContext,
+                    m_initialConfiguration,
+                    performanceCollector);
 
             return RunEngine(
-                    engineContext,
-                    FrontEndControllerFactory.Create(
-                        m_configuration.FrontEnd.FrontEndMode(),
-                        loggingContext,
-                        m_initialConfiguration,
-                        collector),
-                    appLoggers.TrackingEventListener,
-                    engineState);
+                loggingContext,
+                engineContext,
+                m_initialConfiguration,
+                performanceCollector,
+                frontEndControllerFactory,
+                appLoggers.TrackingEventListener,
+                engineState);
         }
 
         internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
@@ -1168,18 +1165,9 @@ namespace BuildXL
                     global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Sdk.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Core.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Download.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Script.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Script.Debugger.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-#if !PLATFORM_OSX
-                    global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
-                    global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
-#endif
-               };
+               }.Concat(
+                FrontEndControllerFactory.GeneratedEventSources
+            );
 
         internal static PathTranslator GetPathTranslator(ILoggingConfiguration conf, PathTable pathTable)
         {
@@ -1933,14 +1921,14 @@ namespace BuildXL
         }
 
         private EngineState RunEngine(
+            LoggingContext loggingContext,
             EngineContext engineContext,
-            FrontEndControllerFactory factory,
+            ICommandLineConfiguration configuration,
+            PerformanceCollector performanceCollector,
+            IFrontEndControllerFactory factory,
             TrackingEventListener trackingEventListener,
             EngineState engineState)
         {
-            var configuration = factory.Configuration;
-            var loggingContext = factory.LoggingContext;
-
             var appInitializationDurationMs = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;
 
             BuildXL.Tracing.Logger.Log.Statistic(
@@ -1957,7 +1945,7 @@ namespace BuildXL
                 configuration,
                 factory,
                 m_buildViewModel,
-                factory.Collector,
+                performanceCollector,
                 m_startTimeUtc,
                 trackingEventListener,
                 rememberAllChangedTrackedInputs: true,

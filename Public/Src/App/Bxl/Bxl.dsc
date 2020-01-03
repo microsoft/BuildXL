@@ -45,12 +45,7 @@ namespace Main {
                 importFrom("BuildXL.Cache.VerticalStore").BuildCacheAdapter.dll
             ),
 
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                importFrom("BuildXL.FrontEnd").MsBuild.dll,
-                importFrom("BuildXL.FrontEnd").Ninja.dll,
-                importFrom("BuildXL.FrontEnd").CMake.dll,
-            ]),
-
+            ConsoleLogger.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
@@ -73,10 +68,7 @@ namespace Main {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
-            importFrom("BuildXL.FrontEnd").Core.dll,
-            importFrom("BuildXL.FrontEnd").Download.dll,
-            importFrom("BuildXL.FrontEnd").Script.dll,
-            importFrom("BuildXL.FrontEnd").Nuget.dll,
+            importFrom("BuildXL.FrontEnd").Factory.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
         ],

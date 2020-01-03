@@ -12,6 +12,7 @@ namespace UnitTests.Bxl {
                 NetFx.System.Xml.Linq.dll
             ),
             Main.exe,
+            ConsoleLogger.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

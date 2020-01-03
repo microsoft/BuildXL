@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -86,18 +87,13 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
 
             var eventSources = new EventSource[]
                                {
-                                   bxl.ETWLogger.Log,
                                    bxlScriptAnalyzer.ETWLogger.Log,
                                    BuildXL.Engine.Cache.ETWLogger.Log,
                                    BuildXL.Engine.ETWLogger.Log,
                                    BuildXL.Scheduler.ETWLogger.Log,
                                    BuildXL.Tracing.ETWLogger.Log,
                                    BuildXL.Storage.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Core.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Script.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-                                   BuildXL.FrontEnd.Download.ETWLogger.Log,
-                               };
+                               }.Concat(FrontEndControllerFactory.GeneratedEventSources);
 
             using (var dummy = new TrackingEventListener(Events.Log))
             {

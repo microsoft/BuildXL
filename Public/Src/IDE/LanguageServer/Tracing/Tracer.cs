@@ -2,11 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Runtime.ExceptionServices;
+using BuildXL.FrontEnd.Factory;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -79,7 +81,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
         {
             var eventListener = new TextWriterEventListener(eventSource: Events.Log, writer: writer, baseTime: DateTime.UtcNow, level: level);
 
-            var primarySource = bxl.ETWLogger.Log;
+            var primarySource = BuildXL.FrontEnd.Factory.ETWLogger.Log;
             if (primarySource.ConstructionException != null)
             {
                 // Rethrow an exception preserving the original stack trace.
@@ -96,17 +98,13 @@ namespace BuildXL.Ide.LanguageServer.Tracing
 
             var eventSources = new EventSource[]
             {
-                bxl.ETWLogger.Log,
                 BuildXL.Engine.Cache.ETWLogger.Log,
                 BuildXL.Engine.ETWLogger.Log,
                 BuildXL.Scheduler.ETWLogger.Log,
                 BuildXL.Tracing.ETWLogger.Log,
                 bxlScriptAnalyzer.ETWLogger.Log,
                 BuildXL.Ide.LanguageServer.ETWLogger.Log,
-                BuildXL.FrontEnd.Core.ETWLogger.Log,
-                BuildXL.FrontEnd.Script.ETWLogger.Log,
-                BuildXL.FrontEnd.Nuget.ETWLogger.Log,
-            };
+            }.Concat(FrontEndControllerFactory.GeneratedEventSources);
 
             using (var listener = new TrackingEventListener(Events.Log))
             {

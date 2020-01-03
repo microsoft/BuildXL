@@ -16,7 +16,6 @@ namespace Test.Tool.Analyzers {
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Engine").Cache.dll,
-            importFrom("BuildXL.App").Main.exe,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,

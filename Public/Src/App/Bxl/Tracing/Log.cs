@@ -584,15 +584,6 @@ namespace BuildXL.App.Tracing
         public abstract void WaitingCleanupLogDir(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)EventId.WaitingClientDebugger,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = @"Waiting for a debugger to connect (blocking). Configure VSCode by adding \""debugServer\"": {port} to your '.vscode/launch.json' and choose \""Attach to running {ShortScriptName}\"".",
-            EventLevel = Level.LogAlways,
-            EventTask = (ushort)Tasks.HostApplication,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void WaitingForClientDebuggerToConnect(LoggingContext context, int port);
-
-        [GeneratedEvent(
             (int)EventId.EventWriteFailuresOccurred,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -626,24 +617,6 @@ namespace BuildXL.App.Tracing
             Message = EventConstants.PhasePrefix + "{ShortProductName} JournalService is properly set up and you are ready to use {ShortProductName} with graph-caching enabled.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void ChangeJournalServiceReady(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)EventId.MaterializingProfilerReport,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.LogAlways,
-            EventTask = (ushort)Tasks.HostApplication,
-            Message = EventConstants.PhasePrefix + "Writing profiler report to '{destination}'.",
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void MaterializingProfilerReport(LoggingContext context, string destination);
-
-        [GeneratedEvent(
-            (ushort)EventId.ErrorMaterializingProfilerReport,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.LogAlways,
-            EventTask = (ushort)Tasks.HostApplication,
-            Message = EventConstants.PhasePrefix + "Profiler report could not be written. Error code {errorCode:X8}: {message}.",
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void ErrorMaterializingProfilerReport(LoggingContext context, int errorCode, string message);
 
         [GeneratedEvent(
             (ushort)EventId.BuildHasPerfSmells,

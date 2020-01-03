@@ -307,6 +307,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertProcessPipCountersByFilterSumToPipExecutorCounters(filterMissFilterRun);
         }
         
+        [Fact]
         public void ValidateProcessPipCountersByTelemetryTag()
         {
             // A <- B [blue] <- C [blue]
@@ -335,7 +336,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Process B.
             FileArtifact bInput = CreateSourceFile();
             FileArtifact bOutput = CreateOutputFileArtifact();
-            var processB = CreateAndSchedulePipBuilder(new[] { Operation.ReadFile(bInput), Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) }, tags(BlueTag));
+            var processB = CreateAndSchedulePipBuilder(new[] { Operation.ReadFile(bInput), Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) }, 
+                // Make sure we don't count BlueTag twice if mistakenly duplicated in the pip specification.
+                tags(BlueTag, BlueTag));
 
             // Process C.
             FileArtifact cInput = CreateSourceFile();

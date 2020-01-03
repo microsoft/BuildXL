@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -68,7 +69,7 @@ namespace ContentStoreTest.Distributed.Stores
             }
 
             // Start cleanup now; don't wait for another loop
-            await _clientCache.CleanupAsync();
+            await _clientCache.CleanupAsync(force: false, numberToRelease: int.MaxValue);
 
             var newClient = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression);
             clientList.Add(newClient.Value);
@@ -76,6 +77,39 @@ namespace ContentStoreTest.Distributed.Stores
             // If we found a different client, then cleanup successfully removed the original client
             Assert.NotSame(newClient.Value, clientWrapper.Value);
             Assert.Equal(1, newClient.Uses);
+        }
+
+        [Fact]
+        public async Task ValidateSingleCleanup()
+        {
+            var clientsToCreate = 10;
+
+            var clients = new List<GrpcCopyClient>();
+            ResourceWrapper<GrpcCopyClient> clientWrapper;
+            foreach (var num in Enumerable.Range(1, clientsToCreate))
+            {
+                var key = new GrpcCopyClientKey(LocalHost, num, true);
+
+                using (clientWrapper = await _clientCache.CreateAsync(key.Host, key.GrpcPort, key.UseCompression))
+                {
+                    clients.Add(clientWrapper.Value);
+                    clientWrapper._lastUseTime = DateTime.UtcNow - TimeSpan.FromHours(num); // Last client will be oldest.
+                }
+            }
+
+            Assert.Equal(0, _clientCache.Counter[ResourcePoolCounters.Cleaned].Value);
+            Assert.Equal(clientsToCreate, _clientCache.Counter[ResourcePoolCounters.Created].Value);
+
+            await _clientCache.CleanupAsync(force: true, numberToRelease: 1);
+
+            Assert.Equal(1, _clientCache.Counter[ResourcePoolCounters.Cleaned].Value);
+
+            foreach (var client in clients.Take(clientsToCreate - 1))
+            {
+                Assert.False(client.ShutdownStarted);
+            }
+
+            Assert.True(clients.Last().ShutdownCompleted);
         }
 
         [Fact]
@@ -123,7 +157,7 @@ namespace ContentStoreTest.Distributed.Stores
                 c.Wrapper.Dispose();
             }
 
-            await _clientCache.CleanupAsync();
+            await _clientCache.CleanupAsync(force: false, numberToRelease: int.MaxValue);
 
             // All clients were cleaned
             Assert.Equal(maxClientCount, _clientCache.Counter.GetCounterValue(ResourcePoolCounters.Cleaned));

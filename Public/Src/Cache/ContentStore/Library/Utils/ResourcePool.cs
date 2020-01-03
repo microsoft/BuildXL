@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -37,6 +36,8 @@ namespace BuildXL.Cache.ContentStore.Utils
         private readonly ConcurrentDictionary<TKey, ResourceWrapper<TObject>> _resourceDict;
         private readonly Func<TKey, TObject> _resourceFactory;
 
+        private int _resourceCount;
+
         internal CounterCollection<ResourcePoolCounters> Counter { get; } = new CounterCollection<ResourcePoolCounters>();
 
         /// <summary>
@@ -62,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <summary>
-        /// Call <see cref="EnsureCapacityAsync"/> in a background delayed loop.
+        /// Call <see cref="EnqueueCleanupAsync"/> in a background delayed loop.
         /// </summary>
         private async Task BackgroundCleanupAsync()
         {
@@ -70,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             while (!ct.IsCancellationRequested)
             {
-                await EnsureCapacityAsync();
+                await EnqueueCleanupAsync(force: false, numberToRelease: int.MaxValue);
 
                 try
                 {
@@ -80,46 +81,47 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
         }
 
-        private async Task EnsureCapacityAsync()
-        {
-            if (_resourceDict.Count >= _maxResourceCount)
-            {
-                await RunOnceAsync(ref _pendingCleanupTask, _pendingCleanupTaskLock, () => CleanupAsync(force: true));
-            }
-        }
+        private Task EnqueueCleanupAsync(bool force, int numberToRelease)
+            => EnqueueTaskAsync(ref _pendingCleanupTask, _pendingCleanupTaskLock, () => CleanupAsync(force, numberToRelease));
 
-        /// <summary>
-        /// Assuming <paramref name="pendingTask"/> is a non-null Task, will either return the incomplete <paramref name="pendingTask"/> or start a new task constructed by <paramref name="runAsync"/>.
-        /// </summary>
-        private static Task RunOnceAsync(ref Task pendingTask, object lockHandle, Func<Task> runAsync)
+        private static Task EnqueueTaskAsync(ref Task queueTail, object lockHandle, Func<Task> runAsync)
         {
-            if (pendingTask.IsCompleted)
+            lock (lockHandle)
             {
-                lock (lockHandle)
+                if (queueTail.IsCompleted)
                 {
-                    if (pendingTask.IsCompleted)
-                    {
-                        pendingTask = runAsync();
-                    }
+                    queueTail = runAsync();
                 }
-            }
+                else
+                {
+                    queueTail = queueTail.ContinueWith(_ => runAsync()).Unwrap();
+                }
 
-            return pendingTask;
+                return queueTail;
+            }
         }
 
         /// <summary>
         /// Free resources which are no longer in use and older than <see cref="_maximumAgeInMinutes"/> minutes.
         /// </summary>
         /// <param name="force">Whether last use time should be ignored.</param>
-        internal async Task CleanupAsync(bool force = false)
+        /// <param name="numberToRelease">Max amount of resources you want to release.</param>
+        internal async Task CleanupAsync(bool force, int numberToRelease)
         {
             var earliestLastUseTime = DateTime.UtcNow - TimeSpan.FromMinutes(_maximumAgeInMinutes);
             var shutdownTasks = new List<Task<BoolResult>>();
 
             using (var sw = Counter[ResourcePoolCounters.Cleanup].Start())
             {
-                foreach (var kvp in _resourceDict)
+                var amountRemoved = 0;
+
+                foreach (var kvp in _resourceDict.OrderBy(kvp => kvp.Value._lastUseTime))
                 {
+                    if (amountRemoved >= numberToRelease)
+                    {
+                        break;
+                    }
+
                     // Don't free resources which have not yet been instantiated. This avoids a race between
                     // construction of the lazy object and initialization.
                     if (!kvp.Value.IsValueCreated)
@@ -140,6 +142,9 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                         // Cannot await within a lock
                         shutdownTasks.Add(resourceValue.ShutdownAsync(_context));
+
+                        Interlocked.Decrement(ref _resourceCount);
+                        amountRemoved++;
                     }
                 }
 
@@ -179,8 +184,13 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
                 else
                 {
+                    var count = Interlocked.Increment(ref _resourceCount);
+
                     // Start resource "GC" if the cache is full and it isn't already running
-                    await EnsureCapacityAsync();
+                    if (count >= _maxResourceCount)
+                    {
+                        await EnqueueCleanupAsync(force: true, numberToRelease: 1);
+                    }
 
                     returnWrapper = _resourceDict.GetOrAdd(
                         key,

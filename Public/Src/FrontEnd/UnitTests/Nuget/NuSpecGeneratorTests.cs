@@ -77,7 +77,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 import * as Managed from ""Sdk.Managed"";
 
 export declare const qualifier: {{
-    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netstandard2.1"",
+    targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
 }};
 
 const packageRoot = Contents.packageRoot;
@@ -129,6 +129,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
         case ""netcoreapp2.1"":
         case ""netcoreapp2.2"":
         case ""netcoreapp3.0"":
+        case ""netcoreapp3.1"":
         case ""netstandard2.1"":
             return Managed.Factory.createNugetPackage(
                 ""TestPkg"",
@@ -159,7 +160,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
             string expectedSpec = @"import {Transformer} from ""Sdk.Transformers"";
 
 export declare const qualifier: {
-    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netstandard2.1"",
+    targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
 };
 
 const packageRoot = Contents.packageRoot;

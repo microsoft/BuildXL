@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.Nuget
         private const int MaxRetryCount = 2;
         private const int RetryDelayMs = 100;
 
-        private const int SpecGenerationFormatVersion = 1;
+        private const int SpecGenerationFormatVersion = 3;
         private const string SpecGenerationVersionFileSuffix = ".version";
 
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;

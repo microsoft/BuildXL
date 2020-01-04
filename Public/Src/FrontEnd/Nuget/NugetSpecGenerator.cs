@@ -26,7 +26,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PackageOnDisk m_packageOnDisk;
         private readonly NugetAnalyzedPackage m_analyzedPackage;
 
-        private readonly  NugetFrameworkMonikers m_nugetFrameworkMonikers;
+        private readonly NugetFrameworkMonikers m_nugetFrameworkMonikers;
 
         private readonly PathAtom m_xmlExtension;
         private readonly PathAtom m_pdbExtension;
@@ -342,7 +342,10 @@ namespace BuildXL.FrontEnd.Nuget
             if (compatibleTfms.Count > 0)
             {
                 // { targetFramework: 'tf1' | 'tf2' | ... }
-                var qualifierType = UnionType(propertyName: "targetFramework", literalTypes: compatibleTfms.Select(m => m.ToString(m_pathTable.StringTable)).ToArray());
+                var qualifierType = UnionType(
+                    (propertyName: "targetFramework", literalTypes: compatibleTfms.Select(m => m.ToString(m_pathTable.StringTable))),
+                    (propertyName: "targetRuntime", literalTypes: m_nugetFrameworkMonikers.SupportedTargetRuntimes)
+                );
                 statement = Qualifier(qualifierType);
                 return true;
             }

@@ -10,6 +10,11 @@ import * as Nuget from "Sdk.Managed.Tools.NuGet";
 namespace NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release" };
 
+    const net472PackageQualifer = {
+        targetFramework: "net472",
+        targetRuntime: "win-x64"
+    };
+
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
 
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
@@ -61,13 +66,13 @@ namespace NugetPackages {
         dependencies: [
             { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion},
 
-            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
-            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
-            importFrom("Grpc.Core").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("Google.Protobuf").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("StackExchange.Redis.StrongName").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("Microsoft.Tpl.Dataflow").withQualifier(net472PackageQualifer).pkg,
+            importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
+            importFrom("Grpc.Core").withQualifier(net472PackageQualifer).pkg,
+            importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
+            importFrom("StackExchange.Redis.StrongName").withQualifier(net472PackageQualifer).pkg,
+            importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,
+            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472PackageQualifer).pkg,
         ]
     });
 
@@ -77,8 +82,8 @@ namespace NugetPackages {
         dependencies: [
             { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion},
 
-            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
-            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
+            importFrom("Microsoft.Tpl.Dataflow").withQualifier(net472PackageQualifer).pkg,
+            importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
         ]
     });
 
@@ -149,10 +154,10 @@ namespace NugetPackages {
             ]
         },
         dependencies: [
-            importFrom("RocksDbSharpSigned").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("RocksDbNative").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("Google.Protobuf").withQualifier({ targetFramework: "net472" }).pkg,
-            importFrom("RuntimeContracts").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("RocksDbSharpSigned").withQualifier(net472PackageQualifer).pkg,
+            importFrom("RocksDbNative").withQualifier(net472PackageQualifer).pkg,
+            importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
+            importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
         ],
     });
 

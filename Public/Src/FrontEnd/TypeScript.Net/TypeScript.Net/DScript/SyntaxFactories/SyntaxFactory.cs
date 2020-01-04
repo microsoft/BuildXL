@@ -158,6 +158,28 @@ namespace TypeScript.Net.DScript
         }
 
         /// <summary>
+        /// Creates a union type with multiple fields each with a propertyName and a set of cases represented by the literalTypes/>.
+        /// </summary>
+        public static ITypeLiteralNode UnionType(params (string propertyName, IEnumerable<string> literalTypes)[] members)
+        {
+            Contract.Requires(members.Length > 0);
+
+            return new TypeLiteralNode(
+                members.Select(member => 
+                    new PropertySignature(
+                        member.propertyName,
+                        new UnionOrIntersectionTypeNode()
+                        {
+                            Types = new NodeArray<ITypeNode>(
+                                member.literalTypes.Select(lt => new StringLiteralTypeNode(lt)
+                            ).ToArray()),
+                            Kind = SyntaxKind.UnionType,
+                        })
+                ).ToArray()
+            );
+        }
+
+        /// <summary>
         /// Creates a qualifier declaration with a given <paramref name="qualifierType"/>.
         /// </summary>
         public static IVariableStatement Qualifier(ITypeLiteralNode qualifierType)

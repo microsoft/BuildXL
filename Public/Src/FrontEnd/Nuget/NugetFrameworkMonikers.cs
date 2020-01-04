@@ -126,6 +126,9 @@ namespace BuildXL.FrontEnd.Nuget
         public bool IsFullFrameworkMoniker(PathAtom moniker) => FullFrameworkVersionHistory.Contains(moniker);
 
         /// <nodoc />
+        public string[] SupportedTargetRuntimes {get;}
+
+        /// <nodoc />
         public NugetFrameworkMonikers(StringTable stringTable)
         {
             LibFolderName = PathAtom.Create(stringTable, "lib");
@@ -170,6 +173,11 @@ namespace BuildXL.FrontEnd.Nuget
             Net472 = Register(stringTable, "net472", ".NETFramework4.7.2", FullFrameworkVersionHistory);
 
             NetStandardToFullFrameworkCompatibility = new List<PathAtom>() { Net461, Net462, Net472 };
+
+            SupportedTargetRuntimes = new [] {
+                "win-x64",
+                "osx-x64"
+            };
         }
 
         private PathAtom Register(StringTable stringTable, string smallMoniker, string largeMoniker, List<PathAtom> versions)

@@ -78,6 +78,7 @@ import * as Managed from ""Sdk.Managed"";
 
 export declare const qualifier: {{
     targetFramework: ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
+    targetRuntime: ""win-x64"" | ""osx-x64"",
 }};
 
 const packageRoot = Contents.packageRoot;
@@ -161,6 +162,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 
 export declare const qualifier: {
     targetFramework: ""net10"" | ""net11"" | ""net20"" | ""net35"" | ""net40"" | ""net45"" | ""net451"" | ""net452"" | ""net46"" | ""net461"" | ""net462"" | ""net472"" | ""netstandard1.0"" | ""netstandard1.1"" | ""netstandard1.2"" | ""netstandard1.3"" | ""netstandard1.4"" | ""netstandard1.5"" | ""netstandard1.6"" | ""netstandard2.0"" | ""netcoreapp2.0"" | ""netcoreapp2.1"" | ""netcoreapp2.2"" | ""netcoreapp3.0"" | ""netcoreapp3.1"" | ""netstandard2.1"",
+    targetRuntime: ""win-x64"" | ""osx-x64"",
 };
 
 const packageRoot = Contents.packageRoot;

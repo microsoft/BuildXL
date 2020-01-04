@@ -64,12 +64,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 // See: https://github.com/facebook/rocksdb/wiki/rocksdb-basics#database-debug-logs
                 _fileSystem.EnumerateFiles(instancePath, "*LOG*", false,
-                    async fileInfo =>
+                    fileInfo =>
                     {
                         var fileName = fileInfo.FullPath.FileName;
                         var targetFilePath = backupPath / fileName;
 
-                        await _fileSystem.CopyFileAsync(fileInfo.FullPath, targetFilePath, replaceExisting: true);
+                        // Do not use Async here: since EnumerateFiles takes an Action, making this async means we'll
+                        // need to make the action async as well, which is equivalent to an async void function. That
+                        // leads to race conditions.
+#pragma warning disable AsyncFixer02 // Long running or blocking operations under an async method
+                        _fileSystem.CopyFile(fileInfo.FullPath, targetFilePath, replaceExisting: true);
+#pragma warning restore AsyncFixer02 // Long running or blocking operations under an async method
 
                         ++numCopiedFiles;
                     });

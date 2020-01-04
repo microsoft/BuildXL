@@ -8,16 +8,6 @@ namespace MemoizationStoreAdapter {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.MemoizationStoreAdapter",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [
-            {
-                namespace: "MemoizationStoreAdapter",
-                factoryClass: "CloudStoreLocalCacheServiceFactory",
-            },
-            {
-                namespace: "MemoizationStoreAdapter",
-                factoryClass: "MemoizationStoreCacheFactory",
-            },
-        ],
         references: [
             Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,

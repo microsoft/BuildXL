@@ -6,10 +6,6 @@ namespace VerticalAggregator {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.VerticalAggregator",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [{
-            namespace: "VerticalAggregator",
-            factoryClass: "VerticalCacheAggregatorFactory",
-        }],
         references: [
             ImplementationSupport.dll,
             Interfaces.dll,

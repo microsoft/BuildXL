@@ -8,13 +8,6 @@ namespace BuildCacheAdapter {
     export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.BuildCacheAdapter",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [{
-            namespace: "BuildCacheAdapter",
-            factoryClass: "BuildCacheFactory",
-        },{
-            namespace: "BuildCacheAdapter",
-            factoryClass: "DistributedBuildCacheFactory",
-        }],
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Storage.dll,

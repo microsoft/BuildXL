@@ -6,10 +6,6 @@ namespace BasicFilesystem {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.BasicFilesystem",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [{
-            namespace: "BasicFilesystem",
-            factoryClass: "BasicFilesystemCacheFactory",
-        }],
         references: [
             ImplementationSupport.dll,
             Interfaces.dll,

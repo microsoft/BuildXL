@@ -66,12 +66,6 @@ export interface Arguments extends Managed.Arguments {
 
     /** The assemblies that are internal visible for this assembly */
     internalsVisibleTo?: string[],
-
-    /** Temporary workaround for old names */
-    cacheOldNames?: {
-        namespace: string,
-        factoryClass: string,
-    }[]
 }
 
 @@public
@@ -200,53 +194,8 @@ export const dotNetFramework = isDotNetCoreBuild
  */
 @@public
 export function library(args: Arguments): Managed.Assembly {
-    let csFiles : File[] = undefined;
-
-    if (args.cacheOldNames)
-    {
-        csFiles = args.cacheOldNames.map(cacheOldName =>
-            Transformer.writeAllLines({
-                outputPath: p`${Context.getNewOutputDirectory("oldcache")}/cache.g.cs`,
-                lines: [
-                    `namespace Cache.${cacheOldName.namespace}`,
-                    `{`,
-                    `    /// <nodoc />`,
-                    `    public class ${cacheOldName.factoryClass} : BuildXL.Cache.${cacheOldName.namespace}.${cacheOldName.factoryClass}`,
-                    `    {`,
-                    `    }`,
-                    `}`,
-                ]
-            })
-        );
-
-        args = args.merge<Arguments>({
-            sources: csFiles,
-        });
-    }
-
     args = processArguments(args, "library");
-    let result = Managed.library(args);
-
-    if (args.cacheOldNames)
-    {
-        let assemblyWithOldName = library({
-            assemblyName: args.assemblyName.replace("BuildXL.", ""),
-            sources: csFiles,
-            references: [
-                result
-            ],
-        });
-
-        result = result.merge<Managed.Assembly>({
-            runtimeContent: {
-                contents: [
-                    assemblyWithOldName.runtime.binary,
-                ]
-            }
-        });
-    }
-
-    return result;
+    return Managed.library(args);
 }
 
 @@public

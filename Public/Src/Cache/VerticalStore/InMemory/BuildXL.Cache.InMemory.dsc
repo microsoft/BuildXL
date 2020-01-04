@@ -6,10 +6,6 @@ namespace InMemory {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.InMemory",
         sources: globR(d`.`, "*.cs"),
-        cacheOldNames: [{
-            namespace: "InMemory",
-            factoryClass: "MemCacheFactory",
-        }],
         references: [
             Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

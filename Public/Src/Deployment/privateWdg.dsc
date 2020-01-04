@@ -16,13 +16,9 @@ namespace PrivateWdg {
 
     const deployment : Deployment.Definition = {
         contents: [
-            importFrom("Private.Wdg").deployment,
-            importFrom("Private.Wdg.ExecutionLogSdk").dll,
-
             {
                 subfolder: r`bxlaslibrary/net472`,
                 contents: [
-                    importFrom("Private.Wdg").deployment,
                     importFrom("Private.Wdg").deployment,
 
                     // assemblies referned by WDG for BuildXL as a library

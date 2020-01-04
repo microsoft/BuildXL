@@ -6,7 +6,7 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace Test.Tool.MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.test({

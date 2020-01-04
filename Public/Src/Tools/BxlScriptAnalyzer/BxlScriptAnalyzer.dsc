@@ -5,8 +5,6 @@ import * as Managed from "Sdk.Managed";
 
 namespace BxlScriptAnalyzer {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlScriptAnalyzer",

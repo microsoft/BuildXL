@@ -14,15 +14,6 @@ namespace Main {
         assemblyInfo: {
             fileVersion: Branding.Managed.fileVersion,
         },
-        assemblyBindingRedirects: qualifier.targetFramework === 'net472' ? [
-            {
-                name: "System.Threading.Tasks.Dataflow",
-                publicKeyToken: "b03f5f7f11d50a3a",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-4.6.3.0",
-                newVersion: "4.6.3.0",
-            },
-        ] : [],
         appConfig: f`App.Config`,
         sources: globR(d`.`, "*.cs"),
         embeddedResources: [{resX: f`Strings.resx`}],

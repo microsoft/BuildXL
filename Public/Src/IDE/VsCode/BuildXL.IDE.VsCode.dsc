@@ -46,7 +46,7 @@ namespace LanguageService.Server {
         });
 
         // Zip and return
-        const vsix = VSIntegration.Tool.CreateZipPackage.run({
+        const vsix = VSIntegration.CreateZipPackage.zip({
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,

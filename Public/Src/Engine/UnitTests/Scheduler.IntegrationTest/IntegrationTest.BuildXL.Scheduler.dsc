@@ -5,6 +5,8 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Scheduler.IntegrationTest {
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    
     @@public
     export const dll = BuildXLSdk.test({
         // These tests require Detours to run itself, so we can't detour xunit itself

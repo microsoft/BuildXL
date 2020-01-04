@@ -10,7 +10,6 @@ import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -49,14 +48,14 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`net472`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"}))
+                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "net472"}))
                         .MsBuildGraphBuilder.exe
                     ]
             },
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"}))
+                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "netcoreapp3.0"}))
                         .MsBuildGraphBuilder.exe
                     ]
             }

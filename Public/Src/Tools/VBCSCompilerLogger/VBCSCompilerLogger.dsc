@@ -5,7 +5,6 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace VBCSCompilerLogger {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({

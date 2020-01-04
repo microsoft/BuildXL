@@ -3,4 +3,4 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier: BuildXLSdk.DefaultQualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;

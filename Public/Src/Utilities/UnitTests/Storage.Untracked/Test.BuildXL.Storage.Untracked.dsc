@@ -3,8 +3,6 @@
 
 namespace Storage.Untracked {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.test({
         // TODO: QTest

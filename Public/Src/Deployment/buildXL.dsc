@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 
 namespace BuildXL {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithoutNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     /**
      * The main deployment definition

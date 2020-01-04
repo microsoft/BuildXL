@@ -5,8 +5,6 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Test.Ninja {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.FrontEnd.Ninja",

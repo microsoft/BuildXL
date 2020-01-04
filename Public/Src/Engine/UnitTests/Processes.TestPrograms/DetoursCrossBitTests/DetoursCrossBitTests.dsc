@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 
 namespace Processes.TestPrograms.DetoursCrossBitTests {
-    interface PlatformSpecificManagedCode extends Qualifier, BuildXLSdk.DefaultQualifier
+    interface PlatformSpecificManagedCode extends Qualifier, BuildXLSdk.DefaultQualifierWithNet472
     {
         platform: "x86" | "x64";
     }

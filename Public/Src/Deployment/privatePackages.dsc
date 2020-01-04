@@ -14,9 +14,9 @@ namespace PrivatePackages {
         targetRuntime: "win-x64"
     };
 
-    const net472Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
-    const winx64Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" };
-    const osxx64Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" };
+    const net472Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
+    const winx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" };
+    const osxx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" };
 
     const cloudBuildlibrary = NugetPackages.pack({
         id: "BuildXL.library.forCloudBuild",

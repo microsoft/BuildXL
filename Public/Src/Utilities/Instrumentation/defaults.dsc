@@ -7,4 +7,4 @@ import { NetFx } from "Sdk.BuildXL";
 
 export {BuildXLSdk, Managed, NetFx};
 
-export declare const qualifier: BuildXLSdk.DefaultQualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;

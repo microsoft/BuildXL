@@ -8,8 +8,6 @@ import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
 namespace MsBuild {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.MsBuild",
@@ -42,12 +40,12 @@ namespace MsBuild {
             {
                 subfolder: r`tools/vbcslogger/net472`,
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"})).dll]
+                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "net472"})).dll]
             },
             {
                 subfolder: r`tools/vbcslogger/dotnetcore`,
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})).dll]
+                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "netcoreapp3.0"})).dll]
             }
         ]
     });

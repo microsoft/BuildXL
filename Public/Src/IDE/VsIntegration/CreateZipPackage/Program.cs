@@ -61,7 +61,6 @@ namespace BuildXL.IDE.CreateZipPackage
                     {
                         foreach (var entry in archive.Entries.ToList())
                         {
-#if FEATURE_EXTENDED_ATTR
                             if (args.FixUnixPermissions)
                             {
                                 // The ZIP specification describes ExternalAttributes as OS specific region, used to
@@ -70,7 +69,7 @@ namespace BuildXL.IDE.CreateZipPackage
                                 // with the 'exec' bit set and then being added to an archive.
                                 entry.ExternalAttributes = -2115158016;
                             }
-#endif
+
                             Console.WriteLine(entry.FullName);
                             var newFullName = entry.FullName.Replace('\\', '/');
                             if (entry.FullName != newFullName)

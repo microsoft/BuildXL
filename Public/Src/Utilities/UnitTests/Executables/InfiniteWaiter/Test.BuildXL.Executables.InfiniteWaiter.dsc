@@ -3,8 +3,6 @@
 
 namespace InfiniteWaiter {
 
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-    
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "Test.BuildXL.Executables.InfiniteWaiter",

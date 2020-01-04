@@ -113,13 +113,13 @@ namespace NugetPackages {
         }).deployment
     });
 
-    const xldbnetcorequalifier : BuildXLSdk.DefaultQualifier = {
+    const xldbnetcorequalifier : BuildXLSdk.DefaultQualifierWithNet472 = {
         targetFramework: "netcoreapp3.0",
         configuration: qualifier.configuration,
         targetRuntime: "win-x64"
     };
 
-    const xldbnet472qualifier : BuildXLSdk.DefaultQualifier = {
+    const xldbnet472qualifier : BuildXLSdk.DefaultQualifierWithNet472 = {
         targetFramework: "net472",
         configuration: qualifier.configuration,
         targetRuntime: "win-x64"

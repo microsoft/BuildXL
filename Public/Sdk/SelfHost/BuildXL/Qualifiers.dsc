@@ -17,7 +17,7 @@ export interface FullFrameworkQualifier extends Qualifier {
  * Qualifier for projects that support DotNetCore
  */
 @@public
-export interface DefaultQualifierWithoutNet472 extends Qualifier {
+export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";
@@ -27,7 +27,7 @@ export interface DefaultQualifierWithoutNet472 extends Qualifier {
  * Qualifier for projects that support DotNetCore
  */
 @@public
-export interface DefaultQualifier extends Qualifier {
+export interface DefaultQualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net472" | "netcoreapp3.0";
     targetRuntime: "win-x64" | "osx-x64";

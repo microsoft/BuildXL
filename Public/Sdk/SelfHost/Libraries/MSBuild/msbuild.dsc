@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier: BuildXLSdk.DefaultQualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
 @@public
 export const msbuildReferences: Managed.ManagedNugetPackage[] = [

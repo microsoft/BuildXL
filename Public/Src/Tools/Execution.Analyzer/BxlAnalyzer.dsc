@@ -5,7 +5,7 @@ import * as GrpcSdk from "Sdk.Protocols.Grpc";
 import {VSCode} from "BuildXL.Ide";
 
 namespace Execution.Analyzer {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "bxlanalyzer",

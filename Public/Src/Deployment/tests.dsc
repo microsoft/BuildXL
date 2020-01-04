@@ -5,7 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
 namespace Tests {
-    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
 
     const deployment : Deployment.Definition = {
         contents: [

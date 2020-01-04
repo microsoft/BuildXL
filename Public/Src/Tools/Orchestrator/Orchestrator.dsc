@@ -6,7 +6,6 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Orchestrator {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({

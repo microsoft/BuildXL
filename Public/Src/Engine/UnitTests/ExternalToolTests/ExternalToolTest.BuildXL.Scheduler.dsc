@@ -5,6 +5,7 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 namespace ExternalToolTest {
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({

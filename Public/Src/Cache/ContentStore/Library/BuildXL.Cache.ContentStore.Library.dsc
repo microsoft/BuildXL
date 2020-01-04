@@ -3,7 +3,7 @@
 
 namespace Library {
 
-    export declare const qualifier : BuildXLSdk.DefaultQualifier;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.library({

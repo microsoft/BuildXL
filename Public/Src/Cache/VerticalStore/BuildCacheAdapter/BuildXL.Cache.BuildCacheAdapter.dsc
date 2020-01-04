@@ -4,8 +4,6 @@
 import * as Managed from "Sdk.Managed";
 
 namespace BuildCacheAdapter {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
-
     @@public
     export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : BuildXLSdk.library({
         assemblyName: "BuildXL.Cache.BuildCacheAdapter",

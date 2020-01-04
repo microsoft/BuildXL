@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
@@ -332,7 +333,7 @@ return { requestedIncrement, currentValue }";
         public void AddOperationAndTraceIfFailure<T>(Context context, string key, Func<IBatch, Task<T>> operation, [CallerMemberName]string operationName = null)
         {
             // Trace failure using 'Debug' severity to avoid pollution of warning traces.
-            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Interfaces.Logging.Severity.Debug);
+            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Severity.Debug);
         }
 
         /// <inheritdoc />
@@ -855,7 +856,10 @@ return { requestedIncrement, currentValue }";
             foreach (IRedisOperationAndResult operation in _redisOperations)
             {
                 var task = operation.AddTaskToBatch(batch);
-                task.FireAndForget(context); // FireAndForget not inlined because we don't want to replace parent task with continuation
+                // FireAndForget not inlined because we don't want to replace parent task with continuation. Failure
+                // severity is Unknown to stop the logging from happening. We still need to do FireAndForget in order
+                // to avoid any ThrowOnUnobservedTaskException triggers.
+                task.FireAndForget(context, failureSeverity: Severity.Diagnostic);
                 taskToTrack.Add(task);
             }
 

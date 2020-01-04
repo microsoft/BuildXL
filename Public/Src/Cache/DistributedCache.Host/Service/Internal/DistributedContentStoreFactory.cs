@@ -377,7 +377,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (_distributedSettings.UseDistributedCentralStorage)
             {
-                configuration.DistributedCentralStore = new DistributedCentralStoreConfiguration(localCacheRoot)
+                var distributedCentralStoreConfiguration = new DistributedCentralStoreConfiguration(localCacheRoot)
                 {
                     MaxRetentionGb = _distributedSettings.MaxCentralStorageRetentionGb,
                     PropagationDelay = TimeSpan.FromSeconds(
@@ -385,6 +385,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
                 };
+
+                ApplyIfNotNull(_distributedSettings.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds, v => distributedCentralStoreConfiguration.PeerToPeerCopyTimeout = TimeSpan.FromSeconds(v));
+                configuration.DistributedCentralStore = distributedCentralStoreConfiguration;
             }
 
             var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(

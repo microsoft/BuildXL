@@ -397,6 +397,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int CentralStorageMaxSimultaneousCopies { get; set; } = 10;
 
+        [DataMember]
+        public double? DistributedCentralStoragePeerToPeerCopyTimeoutSeconds { get; set; } = null;
+
         #endregion
 
         [DataMember]

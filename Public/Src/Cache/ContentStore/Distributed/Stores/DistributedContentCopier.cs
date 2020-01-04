@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         waitDelay,
                         handleCopyAsync);
 
-                    if (putResult || operationContext.Token.IsCancellationRequested)
+                    if (putResult || cts.IsCancellationRequested)
                     {
                         break;
                     }

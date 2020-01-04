@@ -329,6 +329,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Defines the target maximum number of simultaneous copies
         /// </summary>
         public int MaxSimultaneousCopies { get; set; } = 10;
+
+        /// <summary>
+        /// Maximum time to wait for a P2P copy to finish. When this times out, we will attempt to copy from the
+        /// fallback storage.
+        /// </summary>
+        public TimeSpan PeerToPeerCopyTimeout { get; set; } = TimeSpan.Zero;
     }
 
     /// <summary>

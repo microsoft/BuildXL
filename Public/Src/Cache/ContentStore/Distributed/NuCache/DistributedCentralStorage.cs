@@ -203,43 +203,60 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private async Task<PutResult> CopyLocalAndPutAsync(OperationContext context, ContentHash hash)
+        private async Task<PutResult> CopyLocalAndPutAsync(OperationContext operationContext, ContentHash hash)
         {
-            var startedCopyHash = ComputeStartedCopyHash(hash);
-            await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1));
-
-            for (int i = 0; i < _configuration.PropagationIterations; i++)
+            var context = operationContext;
+            CancellationTokenSource copyCancellationTokenSource = null;
+            if (_configuration.PeerToPeerCopyTimeout > TimeSpan.Zero)
             {
-                // If initial place fails, try to copy the content from remote locations
-                var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
-
-                var machineId = _locationStore.LocalMachineId.Index;
-                int machineNumber = GetMachineNumber();
-                var requiredReplicas = ComputeRequiredReplicas(machineNumber);
-
-                var actualReplicas = hashInfo.Locations.Count;
-
-                // Copy from peers if:
-                // The number of pending copies is known to be less that the max allowed copies
-                // OR the number replicas exceeds the number of required replicas computed based on the machine index
-                bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
-
-                Tracer.OperationDebug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
-                    $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={_configuration.MaxSimultaneousCopies}");
-
-                if (shouldCopy)
-                {
-                    var putResult = await _copier.TryCopyAndPutAsync(context, hashInfo,
-                        args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
-
-                    return putResult;
-                }
-
-                // Wait for content to propagate to more machines
-                await Task.Delay(_configuration.PropagationDelay, context.Token);
+                // We need to construct a new one because we just want to cancel this copy. Tracing will happen under
+                // the same context.
+                copyCancellationTokenSource = new CancellationTokenSource(_configuration.PeerToPeerCopyTimeout);
+                context = operationContext.WithCancellationToken(copyCancellationTokenSource.Token);
             }
 
-            return new ErrorResult("Insufficient replicas").AsResult<PutResult>();
+            try
+            {
+                var startedCopyHash = ComputeStartedCopyHash(hash);
+                await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1));
+
+                for (int i = 0; i < _configuration.PropagationIterations; i++)
+                {
+                    // If initial place fails, try to copy the content from remote locations
+                    var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
+
+                    var machineId = _locationStore.LocalMachineId.Index;
+                    int machineNumber = GetMachineNumber();
+                    var requiredReplicas = ComputeRequiredReplicas(machineNumber);
+
+                    var actualReplicas = hashInfo.Locations.Count;
+
+                    // Copy from peers if:
+                    // The number of pending copies is known to be less that the max allowed copies
+                    // OR the number replicas exceeds the number of required replicas computed based on the machine index
+                    bool shouldCopy = pendingCopyCount < _configuration.MaxSimultaneousCopies || actualReplicas >= requiredReplicas;
+
+                    Tracer.OperationDebug(context, $"{i} (ShouldCopy={shouldCopy}): Id={machineId}" +
+                        $", Replicas={actualReplicas}, RequiredReplicas={requiredReplicas}, Pending={pendingCopyCount}, Max={_configuration.MaxSimultaneousCopies}");
+
+                    if (shouldCopy)
+                    {
+                        var putResult = await _copier.TryCopyAndPutAsync(context, hashInfo,
+                            args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
+
+                        return putResult;
+                    }
+
+                    // Wait for content to propagate to more machines
+                    await Task.Delay(_configuration.PropagationDelay, context.Token);
+                }
+
+                return new ErrorResult("Insufficient replicas").AsResult<PutResult>();
+            }
+            finally
+            {
+                copyCancellationTokenSource?.Dispose();
+            }
         }
 
         /// <summary>

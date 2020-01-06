@@ -8,17 +8,17 @@ import * as Nuget from "Sdk.Managed.Tools.NuGet";
 namespace Cache.NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release"};
 
-    const Net472ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const Net472ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
+    const WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
+    const OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
 
-    const Net472MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const Net472MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
+    const WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
+    const OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
 
-    const Net472DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const Net472DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
+    const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
+    const OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
 
     export const tools : Deployment.Definition = {
         contents: [
@@ -97,7 +97,7 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayoutWithSpecificRuntime(WinX64ContentStore.Interfaces.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(OsxX64ContentStore.Interfaces.dll, "osx-x64", false),
             Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.ContentStore").Interfaces.withQualifier(
-                { configuration: qualifier.configuration, targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
+                { targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
             ).dll),
 
             // MemoizationStore.Interfaces
@@ -114,7 +114,7 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayoutWithSpecificRuntime(WinX64ContentStore.Hashing.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(OsxX64ContentStore.Hashing.dll, "osx-x64", false),
             Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.ContentStore").Hashing.withQualifier(
-                { configuration: qualifier.configuration, targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
+                { targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
             ).dll),
 
             // ContentStore.UtilitiesCore
@@ -122,7 +122,7 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayoutWithSpecificRuntime(WinX64ContentStore.UtilitiesCore.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(OsxX64ContentStore.UtilitiesCore.dll, "osx-x64", false),
             Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.withQualifier(
-                { configuration: qualifier.configuration, targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
+                { targetFramework: "netstandard2.0", targetRuntime: "win-x64" }
             ).dll),
         ]
     };

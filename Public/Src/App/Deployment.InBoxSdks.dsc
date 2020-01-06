@@ -35,7 +35,6 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                         contents: [
                             ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
                                 importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                    configuration: qualifier.configuration,
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
                                 }).deployment
@@ -47,7 +46,6 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                         contents: [
                             ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
                                 importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                    configuration: qualifier.configuration,
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
                                 }).deployment

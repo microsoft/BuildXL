@@ -14,15 +14,14 @@ namespace AriaNative {
     };
 
     const needNativeAria = Context.getCurrentHost().os === "win" && BuildXLSdk.Flags.isMicrosoftInternal;
-
-    const platform: "x86" | "x64" = "x64";
+    
+    const platform = "x64";
     const AriaPkgContents = importFrom("Aria.Cpp.SDK.win-x64").Contents.all;
     const WindowsSdk = importFrom("WindowsSdk").withQualifier({platform: platform});
     const VisualCpp = importFrom("VisualCpp").withQualifier({platform: platform});
+    const native = importFrom("Sdk.Native").withQualifier({platform: platform});
 
     const ariaWinIncludeDir = Transformer.reSealPartialDirectory(AriaPkgContents, r`win-x64/tools/include`, "win");
-
-    const native = importFrom("Sdk.Native").withQualifier({platform: platform, configuration: qualifier.configuration});
 
     export const clRunnerDefaultValue = native.Templates.nativeBuildersClRunnerTemplate.merge({
         preprocessorSymbols: [],

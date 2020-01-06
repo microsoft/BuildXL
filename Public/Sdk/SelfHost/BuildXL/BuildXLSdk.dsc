@@ -185,8 +185,8 @@ export const cacheRuleSet = f`BuildXl.Cache.ruleset`;
 
 @@public
 export const dotNetFramework = isDotNetCoreBuild
-? qualifier.targetRuntime
-: qualifier.targetFramework;
+    ? qualifier.targetRuntime
+    : qualifier.targetFramework;
 
 /**
  * Builds a BuildXL library project, resulting in a DLL.

@@ -48,14 +48,14 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`net472`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "net472"}))
+                        $.withQualifier({ targetFramework: "net472" })
                         .MsBuildGraphBuilder.exe
                     ]
             },
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier(Object.merge<BuildXLSdk.DefaultQualifierWithNet472>(qualifier, {targetFramework: "netcoreapp3.0"}))
+                        $.withQualifier({ targetFramework: "netcoreapp3.0" })
                         .MsBuildGraphBuilder.exe
                     ]
             }

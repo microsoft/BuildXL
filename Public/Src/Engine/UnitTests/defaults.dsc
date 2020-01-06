@@ -12,18 +12,14 @@ namespace DetoursCrossBitTests
     @@public
     export const x64 = qualifier.targetRuntime === "win-x64" ?
         Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
-            configuration: qualifier.configuration,
             platform: "x64",
-            targetFramework: qualifier.targetFramework,
             targetRuntime: "win-x64"
         }).exe : undefined;
 
     @@public
     export const x86 = qualifier.targetRuntime === "win-x64" ?
         Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
-            configuration: qualifier.configuration,
             platform: "x86",
-            targetFramework: qualifier.targetFramework,
             targetRuntime: "win-x64"
         }).exe : undefined;
 }

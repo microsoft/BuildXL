@@ -13,7 +13,6 @@ namespace TestGeneratorDeployment {
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [{
                 subfolder: a`Win`,
                 contents: $.withQualifier({
-                    configuration: qualifier.configuration,
                     targetFramework: "net472",
                     targetRuntime: "win-x64"
                 }).TestGenerator.deploymentContents
@@ -21,7 +20,6 @@ namespace TestGeneratorDeployment {
             {
                 subfolder: a`MacOs`,
                 contents: $.withQualifier({
-                    configuration: qualifier.configuration,
                     targetFramework: "netcoreapp3.0",
                     targetRuntime: "osx-x64"
                 }).TestGenerator.deploymentContents

@@ -33,7 +33,6 @@ namespace NugetPackages {
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
-            configuration: qualifier.configuration,
             targetFramework: "netcoreapp3.0",
             targetRuntime: "win-x64"
         }).deployment,
@@ -43,7 +42,6 @@ namespace NugetPackages {
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
-            configuration: qualifier.configuration,
             targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment,
@@ -97,7 +95,6 @@ namespace NugetPackages {
     const toolsSandBoxExec = pack({
         id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,
         deployment: Tools.SandboxExec.withQualifier({
-            configuration: qualifier.configuration,
             targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment
@@ -107,7 +104,6 @@ namespace NugetPackages {
     const toolsOrchestrator = pack({
         id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64`,
         deployment: Tools.Orchestrator.withQualifier({
-            configuration: qualifier.configuration,
             targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment
@@ -148,7 +144,7 @@ namespace NugetPackages {
                 {
                     subfolder: r`content`,
                     contents: [
-                        importFrom("BuildXL.Sandbox.Windows").Deployment.withQualifier({ configuration: qualifier.configuration, targetRuntime: "win-x64" }).natives,
+                        importFrom("BuildXL.Sandbox.Windows").Deployment.withQualifier({ targetRuntime: "win-x64" }).natives,
                     ]
                 },
             ]

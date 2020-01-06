@@ -25,7 +25,6 @@ namespace TestProcess {
                     subfolder: r`TestProcess/Win`,
                     contents: [
                         $.withQualifier({
-                            configuration: qualifier.configuration,
                             targetFramework: "net472",
                             targetRuntime: "win-x64"
                         }).testProcessExe
@@ -35,7 +34,6 @@ namespace TestProcess {
                     subfolder: r`TestProcess/MacOs`,
                     contents: [
                         $.withQualifier({
-                            configuration: qualifier.configuration,
                             targetFramework: "netcoreapp3.0",
                             targetRuntime: "osx-x64"
                         }).testProcessExe,

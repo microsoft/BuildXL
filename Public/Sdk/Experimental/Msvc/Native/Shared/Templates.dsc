@@ -11,9 +11,9 @@ namespace Templates {
         configuration: "debug" | "release",
     };
 
-    const ClQ = Cl.withQualifier({platform: "x86", configuration: qualifier.configuration});
-    const LinkQ = Link.withQualifier({platform: "x86", configuration: qualifier.configuration});
-    const LibQ = Lib.withQualifier({platform: "x86", configuration: qualifier.configuration});
+    const ClQ = Cl.withQualifier({platform: "x86"});
+    const LinkQ = Link.withQualifier({platform: "x86"});
+    const LibQ = Lib.withQualifier({platform: "x86"});
 
     /** The default Cl release optimizations */
     @@public

@@ -122,9 +122,7 @@ function isDirectory(item: Directory|StaticDirectory) : item is Directory {
 namespace TestGenerator {
 
     // Narrow the testGenerator tool to the supported qualifiers
-    const testGeneratorContents = SdkTesting.TestGeneratorDeployment.withQualifier({
-        configuration: qualifier.configuration
-    }).contents;
+    const testGeneratorContents = SdkTesting.TestGeneratorDeployment.contents;
 
     @@public
     export const tool: Transformer.ToolDefinition = {

@@ -7,8 +7,8 @@ import * as SdkDeployment from "Sdk.Deployment";
 namespace Deployment {
     export declare const qualifier: {configuration: "debug" | "release", targetRuntime: "win-x64"};
 
-    const Core64 = Core.withQualifier({platform: "x64", configuration: qualifier.configuration});
-    const Core86 = Core.withQualifier({platform: "x86", configuration: qualifier.configuration});
+    const Core64 = Core.withQualifier({platform: "x64"});
+    const Core86 = Core.withQualifier({platform: "x86"});
 
     @@public
     export const detours: SdkDeployment.Definition = Runtime.isHostOsWindows && {

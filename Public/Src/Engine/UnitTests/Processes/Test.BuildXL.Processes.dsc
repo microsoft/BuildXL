@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
-const DetoursTest64 = DetoursTest.withQualifier({platform: "x64", configuration: qualifier.configuration});
+const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
 namespace Processes {
     @@public
@@ -47,7 +47,7 @@ namespace Processes {
                             contents: [
                                 DetoursTest64.inputFile,
                                 DetoursTest64.exe.binaryFile,
-                                Processes.TestPrograms.RemoteApi.withQualifier({configuration: qualifier.configuration, platform: "x64"}).exe.binaryFile,
+                                Processes.TestPrograms.RemoteApi.withQualifier({platform: "x64"}).exe.binaryFile,
                             ],
                         }
                     ]

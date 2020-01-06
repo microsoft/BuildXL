@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
-const DetoursTest64 = DetoursTest.withQualifier({platform: "x64", configuration: qualifier.configuration});
-const DetoursTest86 = DetoursTest.withQualifier({platform: "x86", configuration: qualifier.configuration});
+const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
+const DetoursTest86 = DetoursTest.withQualifier({platform: "x86"});
 import * as Managed from "Sdk.Managed";
 
 namespace Processes.Detours {

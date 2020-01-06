@@ -1837,7 +1837,9 @@ BOOL WINAPI Detoured_CreateProcessW(
         return ret;
     }
 
-    if (!MonitorChildProcesses())
+    DetouredScope scope;
+
+    if (!MonitorChildProcesses() || scope.Detoured_IsDisabled())
     {
         return Real_CreateProcessW(
             lpApplicationName,

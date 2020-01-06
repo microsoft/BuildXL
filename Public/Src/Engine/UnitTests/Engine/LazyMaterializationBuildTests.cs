@@ -183,6 +183,7 @@ function runTool(exeFileName: string, args: Argument[]) : File {
 
     const deployment = Deployment.deployToDisk({
         targetDirectory: d`obj/deploy/bin`,
+        sealPartialWithoutScrubbing: true,
         definition: {
             contents: [
                 f`./${exeFileName + '.config'}`,

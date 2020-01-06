@@ -65,7 +65,11 @@ export function install(args: Arguments) : Result {
         };
     }
 
-    let deployedProject = Deployment.deployToDisk({definition: projectDeployment, targetDirectory: projectFolder}).contents;
+    let deployedProject = Deployment.deployToDisk({
+        definition: projectDeployment, 
+        targetDirectory: projectFolder, 
+        sealPartialWithoutScrubbing: true // We have to use partial seal here since we will run the in-place restore in this location, fully sealing would not allow writes here after that.
+        }).contents;
     
     const nodeModules = d`${projectFolder}/node_modules`;
 

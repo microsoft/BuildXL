@@ -60,6 +60,9 @@ export interface DeployToDiskArguments {
     /** Optional list of tags to tag the pips with. */
     tags?: string[];
 
+    /** Whether the deployment should not be fully sealed and therefore not be scrubbed. This means that old files no longer part of the build will not be removed between builds. */
+    sealPartialWithoutScrubbing?: boolean;
+
     /** A set of options specific to the deployment. deployToDisk just dumbly passes it along to the flatten method of the Deployable interface. */
     deploymentOptions?: DeploymentOptions;
 }
@@ -266,7 +269,19 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
     // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents;
     // we do, however, pass those additional opaque directories along (via the 'targetOpaques' property)
     // so the caller can appropriately take dependencies on them.
-    const contents = Transformer.sealPartialDirectory(rootDir, targetFiles, args.tags);
+    const contents = args.sealPartialWithoutScrubbing
+        ? Transformer.sealPartialDirectory({
+            root: rootDir,
+            files: targetFiles,
+            tags: args.tags
+            })
+        : Transformer.sealDirectory({
+            root: rootDir,
+            files: targetFiles,
+            scrub: true,
+            tags: args.tags
+            })
+        ;
 
     return {
         deployedDefinition: args.definition,

@@ -240,6 +240,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
         /// Default to always wait for both instances to complete.
         /// </summary>
+        [DataMember]
         public int? RetryWindowSeconds { get; set; }
 
         private int[] _retryIntervalForCopiesMs =
@@ -275,6 +276,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Controls the maximum total number of copy retry attempts
         /// </summary>
+        [DataMember]
         public int MaxRetryCount { get; set; } = 32;
         #region Grpc Copier
         /// <summary>

@@ -1033,7 +1033,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // the empty file in the cache directory.
             if (content.Hash.IsEmptyHash())
             {
-                return new PutResult(content.Hash, 0L);
+                return new PutResult(content.Hash, 0L, contentAlreadyExistsInCache: true);
             }
 
             bool shouldAttemptHardLink = ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode);
@@ -1125,6 +1125,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
+                bool alreadyInCache = true;
                 // If hard linking failed or wasn't attempted, fall back to copy.
                 stopwatch = new Stopwatch();
                 await PutContentInternalAsync(
@@ -1137,6 +1138,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                          {
                                              try
                                              {
+                                                 alreadyInCache = false;
                                                  _tracer.PutFileNewCopyStart();
                                                  stopwatch.Start();
 
@@ -1169,7 +1171,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                                              }
                                          });
 
-                return new PutResult(content.Hash, content.Size)
+                return new PutResult(content.Hash, content.Size, contentAlreadyExistsInCache: alreadyInCache)
                     .WithLockAcquisitionDuration(contentHashHandle);
             }
         }

@@ -17,18 +17,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="PutResult" /> class.
         /// </summary>
         public PutResult(ContentHash contentHash, long contentSize)
+            : this(contentHash, contentSize, contentAlreadyExistsInCache: false)
         {
-            Contract.Requires(contentHash.HashType != HashType.Unknown);
-
-            ContentHash = contentHash;
-            ContentSize = contentSize;
-            ContentAlreadyExistsInCache = false;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PutResult" /> class.
         /// </summary>
-        public PutResult(ContentHash contentHash, long contentSize, bool contentAlreadyExistsInCache = false)
+        public PutResult(ContentHash contentHash, long contentSize, bool contentAlreadyExistsInCache)
         {
             Contract.Requires(contentHash.HashType != HashType.Unknown);
 

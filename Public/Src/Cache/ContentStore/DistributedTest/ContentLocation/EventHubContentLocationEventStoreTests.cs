@@ -7,6 +7,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -97,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             string centralStateKeyBase = "ThisIsUnused";
 
             var clock = new MemoryClock();
-            using var fileSystem = new MemoryFileSystem(clock);
+            using var fileSystem = new PassThroughFileSystem(TestGlobal.Logger);
             var tracingContext = new Context(TestGlobal.Logger);
 
             {

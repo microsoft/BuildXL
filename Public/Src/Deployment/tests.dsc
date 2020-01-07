@@ -8,17 +8,19 @@ namespace Tests {
     export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
 
     const deployment : Deployment.Definition = {
-        contents: [
-            ...(qualifier.targetFramework === "net472" ? [
+        contents: qualifier.targetFramework === "net472" 
+            ? [
                 importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
                 importFrom("BuildXL.Tools").VerifyFileContentTable.exe,
-            ] : [])
-        ]
+              ] 
+            : []
     };
 
     @@public
-    export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
-        definition: deployment, 
-        targetLocation: r`tests/${qualifier.configuration}`, 
-    });
+    export const deployed = qualifier.targetFramework === "net472"
+        ? BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment, 
+            targetLocation: r`tests/${qualifier.configuration}`
+          })
+        : undefined;
 }

@@ -1054,6 +1054,7 @@ const helloWorldResult = Transformer.execute({
 
 const deployedFiles = Deployment.deployToDisk({
     targetDirectory: resultFolder,
+    sealPartialWithoutScrubbing: true,
     definition: {
         contents: [
             {

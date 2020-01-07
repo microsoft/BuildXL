@@ -2018,7 +2018,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _enableSecondaryRedis = true;
             _poolSecondaryRedisDatabase = false;
             ConfigureWithOneMaster();
-            int machineCount = 10;
+            int machineCount = 1;
 
             await RunTestAsync(
                 new Context(Logger),

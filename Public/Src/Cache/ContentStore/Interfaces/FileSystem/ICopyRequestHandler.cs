@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 #nullable enable
 
@@ -35,5 +36,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
         /// <nodoc />
         bool HasContentLocally(Context context, ContentHash hash);
+    }
+
+    /// <summary>
+    /// Handles delete requests to this machine
+    /// </summary>
+    public interface IDeleteFileHandler
+    {
+        /// <nodoc />
+        Task<DeleteResult> HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions);
     }
 }

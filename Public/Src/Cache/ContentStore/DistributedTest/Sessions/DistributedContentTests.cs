@@ -80,6 +80,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
                     fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                     fileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    fileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
                 }
             }
 

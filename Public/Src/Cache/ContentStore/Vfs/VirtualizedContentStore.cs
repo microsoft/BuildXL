@@ -122,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash) => _innerStore.DeleteAsync(context, contentHash);
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null) => _innerStore.DeleteAsync(context, contentHash, deleteOptions);
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) => _innerStore.PostInitializationCompleted(context, result);

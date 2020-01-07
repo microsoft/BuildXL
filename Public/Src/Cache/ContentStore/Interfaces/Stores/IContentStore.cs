@@ -12,6 +12,17 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores
 {
     /// <summary>
+    /// Options for deleting content from machines
+    /// </summary>
+    public class DeleteContentOptions
+    {
+        /// <summary>
+        /// Variable controlling local or distributed delete
+        /// </summary>
+        public bool DeleteLocalOnly { get; set; }
+    }
+
+    /// <summary>
     ///     Standard interface for content stores.
     /// </summary>
     public interface IContentStore : IStartupShutdown
@@ -34,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         ///     Remove given content from all sessions.
         /// </summary>
-        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash);
+        Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions? deleteOptions);
 
         /// <summary>
         /// Notifies that the post initialization step of the outer component is finished.

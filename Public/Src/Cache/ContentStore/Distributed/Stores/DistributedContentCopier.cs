@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
-        private readonly IProactiveCopier _copyRequester;
+        private readonly IContentCommunicationManager _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
-            IProactiveCopier copyRequester,
+            IContentCommunicationManager copyRequester,
             IPathTransformer<T> pathTransformer,
             IClock clock,
             IContentLocationStore contentLocationStore)
@@ -787,6 +787,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             /// <nodoc />
             RemoteFilesFailedCopy
+        }
+
+        /// <summary>
+        /// The content communication manager calls DeleteFileAsync on every machine that has the contentHash.
+        /// This will create a GrpcContentClient for each machine that calls deleteAsync.
+        /// We then aggregate the results returned from every machine, and return the highest level of error code.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="contentHash"></param>
+        /// <param name="machines"></param>
+        /// <returns></returns>
+        public async Task<DeleteResult> DeleteAsync(OperationContext context, ContentHash contentHash, IReadOnlyList<MachineLocation> machines)
+        {
+            var tasks = machines.Select(m => _copyRequester.DeleteFileAsync(context, contentHash, m)).ToList();
+            var deleteResults = await Task.WhenAll(tasks);
+            bool succeeded = true;
+            long evictedSize = 0L;
+            long pinnedSize = 0L;
+            int index = 0;
+            int code = (int)DeleteResult.ResultCode.ContentNotFound;
+            foreach (var deleteResult in deleteResults)
+            {
+                succeeded &= deleteResult.Succeeded;
+                evictedSize += deleteResult.EvictedSize;
+                pinnedSize += deleteResult.PinnedSize;
+
+                // Return the most severe result code
+                code = Math.Max(code, (int)deleteResult.Code);
+                if (!deleteResult.Succeeded)
+                {
+                    Tracer.Info(context, $"Machine: {machines[index]} tried to delete file with hash: {contentHash}, but failed with code: {deleteResult.Code}");
+                }
+
+                index++;
+            }
+
+            return new DeleteResult((DeleteResult.ResultCode) code, contentHash, evictedSize, pinnedSize );
         }
     }
 }

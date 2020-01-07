@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Copies files to another machine.
     /// </summary>
-    public interface IProactiveCopier
+    public interface IContentCommunicationManager // TODO: rename to IContentManager
     {
         /// <summary>
         /// Requests another machine to copy a file.
@@ -73,6 +73,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Pushes content to a target machine.
         /// </summary>
         Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source, MachineLocation targetMachine);
+
+        /// <summary>
+        /// Deletes content from a target machine
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="hash"></param>
+        /// <param name="targetMachine"></param>
+        /// <returns></returns>
+        Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
     }
 
     /// <summary>

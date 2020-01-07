@@ -366,7 +366,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public async Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
         {
             int code = (int)DeleteResult.ResultCode.ContentNotFound;
             long evictedSize = 0L;
@@ -374,7 +374,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             foreach (var kvp in _drivesWithContentStore)
             {
-                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash);
+                var deleteResult = await kvp.Value.DeleteAsync(context, contentHash, deleteOptions);
                 if (deleteResult.Succeeded)
                 {
                     code = Math.Max(code, (int)deleteResult.Code);

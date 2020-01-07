@@ -700,7 +700,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var cacheContext = new Context(new Guid(request.TraceId), Logger);
             var contentHash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
-            var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash)));
+            var deleteOptions = new DeleteContentOptions() {DeleteLocalOnly = request.DeleteLocalOnly };
+            var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash, deleteOptions)));
 
             bool succeeded = true;
             long evictedSize = 0L;

@@ -244,9 +244,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
-        {
-            return Store.DeleteAsync(context, contentHash);
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
+        { 
+            return Store.DeleteAsync(context, contentHash, deleteOptions);
         }
 
         /// <inheritdoc />

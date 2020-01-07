@@ -48,6 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public void Serialize(BinaryWriter writer)
         {
+            Contract.Requires(Index >= 0, "Can't serialize an instance created by default constructor.");
             writer.Write(Index);
         }
 

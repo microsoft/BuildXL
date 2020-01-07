@@ -382,9 +382,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
         {
-            return ContentStore.DeleteAsync(context, contentHash);
+            return ContentStore.DeleteAsync(context, contentHash, deleteOptions);
         }
 
         /// <inheritdoc />

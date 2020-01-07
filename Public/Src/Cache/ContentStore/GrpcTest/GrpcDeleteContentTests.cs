@@ -73,7 +73,7 @@ namespace ContentStoreTest.Grpc
                 placeResult.ShouldBeSuccess();
 
                 // Delete content
-                var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash);
+                var deleteResult = await rpcClient.DeleteContentAsync(context, putResult.ContentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentHash.Equals(putResult.ContentHash).Should().BeTrue();
                 string.IsNullOrEmpty(deleteResult.ErrorMessage).Should().BeTrue();
@@ -100,7 +100,7 @@ namespace ContentStoreTest.Grpc
                 var contentHash = content.CalculateHash(HashType.Vso0);
 
                 // Delete content
-                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash);
+                var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
                 deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotFound);
                 deleteResult.ContentHash.Equals(contentHash).Should().BeTrue();

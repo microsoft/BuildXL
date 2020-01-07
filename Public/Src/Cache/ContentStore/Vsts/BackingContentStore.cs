@@ -175,7 +175,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(_sessionCounterTracker.ToCounterSet()));
 
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null)
         {
             throw new NotImplementedException();
         }

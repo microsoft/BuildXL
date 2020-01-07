@@ -7,12 +7,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
@@ -20,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
-    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, IProactiveCopier
+    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, IContentCommunicationManager
     {
         private readonly Context _context;
         private readonly int _grpcPort;
@@ -110,6 +112,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             using var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression);
             return await clientWrapper.Value.RequestCopyFileAsync(context, hash);
+        }
+
+        /// <inheritdoc />
+        public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        {
+            var targetPath = new AbsolutePath(targetMachine.Path);
+            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+
+            using (var client = new GrpcContentClient(
+                new ServiceClientContentSessionTracer(nameof(ServiceClientContentSessionTracer)),
+                new PassThroughFileSystem(),
+                new ServiceClientRpcConfiguration(_grpcPort) {GrpcHost = targetMachineName},
+                scenario: string.Empty))
+            {
+                return await client.DeleteContentAsync(context, hash, deleteLocalOnly: true);
+            }
         }
     }
 }

@@ -381,7 +381,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public async Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash)
+        public async Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash, bool deleteLocalOnly)
         {
             try
             {
@@ -389,7 +389,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     TraceId = context.Id.ToString(),
                     HashType = (int)hash.HashType,
-                    ContentHash = hash.ToByteString()
+                    ContentHash = hash.ToByteString(),
+                    DeleteLocalOnly = deleteLocalOnly
                 };
 
                 DeleteContentResponse response = await Client.DeleteAsync(request);

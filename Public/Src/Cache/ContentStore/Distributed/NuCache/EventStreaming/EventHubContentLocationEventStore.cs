@@ -216,6 +216,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private IReadOnlyList<EventData> SerializeEventData(OperationContext context, ContentLocationEventData[] events)
         {
+            // EventDataSerializer is not thread-safe.
+            // This is usually not a problem, because the nagle queue that is used by this class
+            // kind of guarantees that it would be just a single thread responsible for sending the events
+            // to event hub.
+            // But this is not the case when the batch size is 1 (used by tests only).
+            // In this case a special version of a nagle queue is created, that doesn't have this guarantee.
+            // In this case this method can be called from multiple threads causing serialization/deserialization issues.
+            // So to prevent random test failures because of the state corruption we're using lock
+            // if the batch size is 1.
+            if (_configuration.EventBatchSize == 1)
+            {
+                lock (EventDataSerializer)
+                {
+                    return EventDataSerializer.Serialize(context, events);
+                }
+            }
+
             return EventDataSerializer.Serialize(context, events);
         }
 

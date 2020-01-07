@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
@@ -257,6 +258,56 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        [Fact]
+        public async Task DeleteAsyncDistributedTest()
+        {
+            int machineCount = 3;
+            var loggingContext = new Context(Logger);
+            var servers = new LocalContentServer[machineCount];
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var stores = context.Stores;
+                    var sessions = context.Sessions;
+                    var masterIndex = context.GetMasterIndex();
+                    var masterSession = sessions[masterIndex];
+                    var masterLocationStore = context.GetLocationStore(masterIndex);
+
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var hashInfo = HashInfoLookup.Find(ContentHashType);
+                    var contentHash = hashInfo.CreateContentHasher().GetContentHash(content);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
+
+                    // Put file into master session
+                    var putResult = await masterSession.PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+
+                    // Put file into each worker session
+                    foreach (var workerId in context.EnumerateWorkersIndices())
+                    {
+                        var workerSession = context.Sessions[workerId];
+                        var workerResult= await workerSession.PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token)
+                            .ShouldBeSuccess();
+                    }
+
+                    // Create checkpoint on master, and restore checkpoint on workers
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    var masterResult = await masterLocationStore.GetBulkAsync(context, new List<ContentHash>(){ putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                    masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(machineCount);
+
+                    // Call distributed delete of the content from worker session
+                    var deleteResult = await stores[context.GetFirstWorkerIndex()].DeleteAsync(context, putResult.ContentHash, new DeleteContentOptions(){DeleteLocalOnly = false});
+
+                    // Verify no records of machine having this content from master session
+                    masterResult = await masterLocationStore.GetBulkAsync(context, new List<ContentHash>() { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                    masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(0);
+                });
+        }
 
         [Fact]
         public async Task ProactiveCopyDistributedTest()
@@ -1967,7 +2018,7 @@ namespace ContentStoreTest.Distributed.Sessions
             _enableSecondaryRedis = true;
             _poolSecondaryRedisDatabase = false;
             ConfigureWithOneMaster();
-            int machineCount = 1;
+            int machineCount = 10;
 
             await RunTestAsync(
                 new Context(Logger),

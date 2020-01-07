@@ -234,6 +234,7 @@ message DeleteContentRequest {
     string traceId = 1;
     int32 hashType = 2;
     bytes contentHash = 3;
+    bool deleteLocalOnly = 4;
 }
 
 message DeleteContentResponse {

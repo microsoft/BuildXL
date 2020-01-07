@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler, IDeleteFileHandler
         where T : PathBase
     {
         /// <summary>
@@ -90,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
-            IProactiveCopier copyRequester,
+            IContentCommunicationManager copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -597,10 +597,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
         }
 
+        Task<DeleteResult> IDeleteFileHandler.HandleDeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions) => DeleteAsync(context, contentHash, deleteOptions);
+
         /// <inheritdoc />
-        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions)
         {
-            throw new NotImplementedException();
+            var operationContext = OperationContext(context);
+            deleteOptions ??= new DeleteContentOptions() {DeleteLocalOnly = true};
+
+            return operationContext.PerformOperationAsync(Tracer,
+                async () =>
+                {
+                    var deleteResult = await InnerContentStore.DeleteAsync(context, contentHash, deleteOptions);
+                    var contentHashes = new ContentHash[] { contentHash };
+                    if (!deleteResult)
+                    {
+                        return deleteResult;
+                    }
+
+                    // Tell the event hub that this machine has removed the content locally
+                    var unRegisterResult = await UnregisterAsync(context, contentHashes, operationContext.Token).ThrowIfFailure();
+                    if (!unRegisterResult)
+                    {
+                        return new DeleteResult(unRegisterResult, unRegisterResult.ToString());
+                    }
+
+                    if (deleteOptions.DeleteLocalOnly)
+                    {
+                        return deleteResult;
+                    }
+
+                    var result = await _contentLocationStore.GetBulkAsync(context, contentHashes, operationContext.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+                    if (!result)
+                    {
+                        return new DeleteResult(result, result.ToString());
+                    }
+
+                    // Go through each machine that has this content, and delete async locally on each machine.
+                    if (result.ContentHashesInfo.Count == 1 && result.ContentHashesInfo.ElementAt(0).Locations != null)
+                    {
+                        var machineLocations = result.ContentHashesInfo[0].Locations;
+                        return await _distributedCopier.DeleteAsync(operationContext, contentHash, machineLocations);
+                    }
+
+                    return deleteResult;
+                });
         }
 
         /// <inheritdoc />

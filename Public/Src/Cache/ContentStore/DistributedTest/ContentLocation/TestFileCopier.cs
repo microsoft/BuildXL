@@ -11,13 +11,14 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IProactiveCopier
+    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IContentCommunicationManager
     {
         public AbsolutePath WorkingDirectory { get; set; }
 
@@ -32,6 +33,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
 
         public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new Dictionary<MachineLocation, IPushFileHandler>();
+
+        public Dictionary<MachineLocation, IDeleteFileHandler> DeleteHandlersByLocation { get; } = new Dictionary<MachineLocation, IDeleteFileHandler>();
 
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
@@ -132,6 +135,13 @@ namespace ContentStoreTest.Distributed.ContentLocation
             File.Delete(tempFile.Path);
 
             return result ? BoolResult.Success : new BoolResult(result);
+        }
+
+        public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        {
+            var result = await DeleteHandlersByLocation[targetMachine]
+                .HandleDeleteAsync(context, hash, new DeleteContentOptions() {DeleteLocalOnly = true});
+            return result;
         }
     }
 }

@@ -82,6 +82,6 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Remove given content from all sessions.
         /// </summary>
-        Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash);
+        Task<DeleteResult> DeleteContentAsync(Context context, ContentHash hash, bool deleteLocalOnly);
     }
 }

@@ -178,6 +178,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     builder.AppendLine($"{eventData.Kind}[{eventData.ContentHashes.Count}]({GetTraceInfo(eventData)})");
                 }
 
+                builder.AppendLine($"Deserialized event information:");
+                foreach (var eventData in deserializedEvents)
+                {
+                    builder.AppendLine($"{eventData.Kind}[{eventData.ContentHashes.Count}]({GetTraceInfo(eventData)})");
+                }
+
                 // Split up printout of original event information so that it doesn't get discarded by the telemetry pipeline
                 var totalLength = builder.Length;
                 var traceCount = (int)Math.Ceiling((double)totalLength / MaxDesiredTraceMessageSize);

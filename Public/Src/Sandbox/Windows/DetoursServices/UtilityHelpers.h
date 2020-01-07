@@ -30,14 +30,3 @@ struct CaseInsensitiveStringHasher {
         return std::hash<std::wstring>()(lowerstr);
     }
 };
-
-// Tries to mimic the CreateProcess logic by identifying the image name based on the application
-// name and command line for a process
-// See https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
-std::wstring GetImageName(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine);
-
-// First it tries with the candidate path, afterwards by appending '.exe' to it
-bool TryFindImage(_In_ std::wstring candidatePath, _Out_opt_ std::wstring& imageName);
-
-// Resolves the candidate path into an absolute path and double checks that the path exists on disk
-bool IsPathToImage(_In_ std::wstring candidatePath, _Out_opt_ std::wstring& imageName);

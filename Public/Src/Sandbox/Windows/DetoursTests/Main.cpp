@@ -1118,6 +1118,65 @@ int CallDeleteOnOpenedHardlink()
     return lastError;
 }
 
+int CallCreateSelfForWrite()
+{
+    HMODULE hModule = GetModuleHandleW(NULL);
+    WCHAR path[MAX_PATH];
+    DWORD nFileName = GetModuleFileNameW(hModule, path, MAX_PATH);
+
+    if (nFileName == 0 || nFileName == MAX_PATH) {
+        return ERROR_PATH_NOT_FOUND;
+    }
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    std::wstring cmdLine(L"\"");
+    cmdLine.append(path);
+    cmdLine.append(L"\" ");
+    cmdLine.append(L"CallDetouredCreateFileWWrite");
+    
+    if (!CreateProcess(
+        NULL,
+        &cmdLine[0],
+        NULL,
+        NULL,
+        FALSE,
+        0,
+        NULL,
+        NULL,
+        &si,
+        &pi))
+    {
+        return (int)GetLastError();
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD childExitCode;
+    if (!GetExitCodeProcess(pi.hProcess, &childExitCode))
+    {
+        return (int)GetLastError();
+    }
+    
+    if (childExitCode != ERROR_SUCCESS)
+    {
+        return (int)childExitCode;
+    }
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    
+    return (int)GetLastError();
+}
+
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1151,6 +1210,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallOpenFileById);
     IF_COMMAND(CallDeleteWithoutSharing);
     IF_COMMAND(CallDeleteOnOpenedHardlink);
+    IF_COMMAND(CallCreateSelfForWrite);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2
@@ -1197,7 +1257,6 @@ static void LoggingTests(const string& verb)
 #define IF_COMMAND2(NAME)   { if (verb == ("2" ## #NAME)) { NAME(); NAME(); exit(ERROR_SUCCESS); } }
 #define IF_COMMAND(NAME)    { IF_COMMAND1(NAME); IF_COMMAND2(NAME); }
 
-    IF_COMMAND(CreateProcessWLogging);
     IF_COMMAND(CreateProcessWLogging);
     IF_COMMAND(CreateProcessALogging);
     IF_COMMAND(CreateFileWLogging);

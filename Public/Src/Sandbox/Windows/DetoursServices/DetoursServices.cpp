@@ -641,16 +641,16 @@ struct ProcessCreationAttributes {
     typedef unique_ptr<_PROC_THREAD_ATTRIBUTE_LIST, AttrListDeleter> attrlist_ptr;
 
     ProcessCreationAttributes(HANDLE job) : hJob{ job } {}
-	ProcessCreationAttributes(const ProcessCreationAttributes&) = delete;
-	ProcessCreationAttributes& operator=(const ProcessCreationAttributes&) = delete;
+    ProcessCreationAttributes(const ProcessCreationAttributes&) = delete;
+    ProcessCreationAttributes& operator=(const ProcessCreationAttributes&) = delete;
 
-	ProcessCreationAttributes(ProcessCreationAttributes&& other)
+    ProcessCreationAttributes(ProcessCreationAttributes&& other)
         : attrList(move(other.attrList)), handles(move(other.handles)) 
     { 
         hJob = other.hJob;
     }
 
-	ProcessCreationAttributes& operator=(ProcessCreationAttributes&& other) 
+    ProcessCreationAttributes& operator=(ProcessCreationAttributes&& other) 
     {
         attrList = move(other.attrList);
         handles = move(other.handles);
@@ -667,29 +667,29 @@ struct ProcessCreationAttributes {
 /** Initializes the list of attributes based on whether the process needs to be added to a silo
 */
 static bool InitializeAttributeList(ProcessCreationAttributes& attr, bool addProcessToSilo) {
-	// There is always at least one attribute for the explicit handle inheritance. There are two
-	// if the process needs to be created inside a silo
-	DWORD attributeCount = addProcessToSilo ? 2ul : 1ul;
+    // There is always at least one attribute for the explicit handle inheritance. There are two
+    // if the process needs to be created inside a silo
+    DWORD attributeCount = addProcessToSilo ? 2ul : 1ul;
 
-	// First we establish the required allocation size.
-	SIZE_T requiredSize = 0;
-	if (!InitializeProcThreadAttributeList(NULL, attributeCount, /*flags*/ 0, &requiredSize) &&
-		GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-		return false;
-	}
+    // First we establish the required allocation size.
+    SIZE_T requiredSize = 0;
+    if (!InitializeProcThreadAttributeList(NULL, attributeCount, /*flags*/ 0, &requiredSize) &&
+        GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        return false;
+    }
 
-	assert(requiredSize > 0);
+    assert(requiredSize > 0);
 
-	attr.attrList = ProcessCreationAttributes::attrlist_ptr(
-		static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(dd_malloc(requiredSize)));
+    attr.attrList = ProcessCreationAttributes::attrlist_ptr(
+        static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(dd_malloc(requiredSize)));
 
-	assert(attr.attrList.get() != nullptr);
+    assert(attr.attrList.get() != nullptr);
 
-	if (!InitializeProcThreadAttributeList(attr.attrList.get(), attributeCount, /*flags*/ 0, &requiredSize)) {
-		return false;
-	}
+    if (!InitializeProcThreadAttributeList(attr.attrList.get(), attributeCount, /*flags*/ 0, &requiredSize)) {
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 /** Populates an LPPROC_THREAD_ATTRIBUTE_LIST that specifies whitelisted inheritance of the given handles.
@@ -701,52 +701,52 @@ static bool InitializeAttributeList(ProcessCreationAttributes& attr, bool addPro
 #pragma warning( disable: 6102 ) // requiredSize is the result of a function call which may fail, but there is no other way to use that function
 
 static bool CreateProcAttributesForExplicitHandleInheritance(
-	/*in opt */ HANDLE hStdInput,
-	/*in opt */ HANDLE hStdOutput,
-	/*in opt */ HANDLE hStdError,
-	/*out    */ ProcessCreationAttributes& attr
+    /*in opt */ HANDLE hStdInput,
+    /*in opt */ HANDLE hStdOutput,
+    /*in opt */ HANDLE hStdError,
+    /*out    */ ProcessCreationAttributes& attr
 ) {
 
-	if (hStdInput != INVALID_HANDLE_VALUE) {
-		attr.handles.push_back(hStdInput);
-	}
+    if (hStdInput != INVALID_HANDLE_VALUE) {
+        attr.handles.push_back(hStdInput);
+    }
 
-	if (hStdOutput != INVALID_HANDLE_VALUE) {
-		attr.handles.push_back(hStdOutput);
-	}
+    if (hStdOutput != INVALID_HANDLE_VALUE) {
+        attr.handles.push_back(hStdOutput);
+    }
 
-	if (hStdError != INVALID_HANDLE_VALUE &&
-		hStdError != hStdOutput) { /* A common case for duplicate handle values. */
-		attr.handles.push_back(hStdError);
-	}
+    if (hStdError != INVALID_HANDLE_VALUE &&
+        hStdError != hStdOutput) { /* A common case for duplicate handle values. */
+        attr.handles.push_back(hStdError);
+    }
 
-	assert(attr.handles.size() > 0);
+    assert(attr.handles.size() > 0);
 
-	if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
-		PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-		&attr.handles[0], sizeof(HANDLE) * attr.handles.size(),
-		/*prev value*/ NULL, /*return size*/ NULL)) {
+    if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
+        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+        &attr.handles[0], sizeof(HANDLE) * attr.handles.size(),
+        /*prev value*/ NULL, /*return size*/ NULL)) {
 
-		return false;
-	}
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 #pragma warning( pop )
 
 static bool CreateProcAttributeForAddingProcessToSilo(
-	/*in out*/ ProcessCreationAttributes& attr) {
+    /*in out*/ ProcessCreationAttributes& attr) {
 
-	if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
-		PROC_THREAD_ATTRIBUTE_JOB_LIST,
-		&attr.hJob, sizeof(HANDLE),
-		/*prev value*/ NULL, /*return size*/ NULL)) {
+    if (!UpdateProcThreadAttribute(attr.attrList.get(), /*flags*/ 0,
+        PROC_THREAD_ATTRIBUTE_JOB_LIST,
+        &attr.hJob, sizeof(HANDLE),
+        /*prev value*/ NULL, /*return size*/ NULL)) {
 
-		return false;
-	}
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 /** Creates a ProcessCreationAttributes to handle:
@@ -754,93 +754,93 @@ static bool CreateProcAttributeForAddingProcessToSilo(
 - Optionally, adding process to silo
 */
 static CreateDetouredProcessStatus CreateProcessAttributes(
-	/*in opt */ HANDLE hStdInput,
-	/*in opt */ HANDLE hStdOutput,
-	/*in opt */ HANDLE hStdError,
-	/*in     */ LPCWSTR lpcwCommandLine,
-	/*in     */ DWORD dwCreationFlags,
+    /*in opt */ HANDLE hStdInput,
+    /*in opt */ HANDLE hStdOutput,
+    /*in opt */ HANDLE hStdError,
+    /*in     */ LPCWSTR lpcwCommandLine,
+    /*in     */ DWORD dwCreationFlags,
     /*in     */ bool addProcessToSilo,
-	/*out    */ ProcessCreationAttributes& processCreationAttributes) {
+    /*out    */ ProcessCreationAttributes& processCreationAttributes) {
 
-	if (!InitializeAttributeList(processCreationAttributes, addProcessToSilo))
-	{
-		Dbg(L"Failed initializing attribute list");
-		fwprintf(stderr, L"Failure in CreateProcessAttributes initializing attribute list. LastError: %d, Status: %d. Exiting with code -62.", (int)GetLastError(), (int)CreateDetouredProcessStatus::CreateProcessAttributeListFailed);
-		HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ATTRIBUTE_LIST_21, L"Failure in CreateDetouredProcess. Exiting with code -63.", DETOURS_WINDOWS_LOG_MESSAGE_21);
+    if (!InitializeAttributeList(processCreationAttributes, addProcessToSilo))
+    {
+        Dbg(L"Failed initializing attribute list");
+        fwprintf(stderr, L"Failure in CreateProcessAttributes initializing attribute list. LastError: %d, Status: %d. Exiting with code -62.", (int)GetLastError(), (int)CreateDetouredProcessStatus::CreateProcessAttributeListFailed);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ATTRIBUTE_LIST_21, L"Failure in CreateDetouredProcess. Exiting with code -63.", DETOURS_WINDOWS_LOG_MESSAGE_21);
 
-		if (LogProcessDetouringStatus())
-		{
-			ReportProcessDetouringStatus(
-				ProcessDetouringStatus_Done,
-				L"",
-				(LPWSTR)lpcwCommandLine,
-				0,
-				INVALID_HANDLE_VALUE,
-				0,
-				dwCreationFlags,
-				false,
-				GetLastError(),
-				CreateDetouredProcessStatus::CreateProcessAttributeListFailed);
-		}
+        if (LogProcessDetouringStatus())
+        {
+            ReportProcessDetouringStatus(
+                ProcessDetouringStatus_Done,
+                L"",
+                (LPWSTR)lpcwCommandLine,
+                0,
+                INVALID_HANDLE_VALUE,
+                0,
+                dwCreationFlags,
+                false,
+                GetLastError(),
+                CreateDetouredProcessStatus::CreateProcessAttributeListFailed);
+        }
 
-		return CreateDetouredProcessStatus::CreateProcessAttributeListFailed;
-	}
+        return CreateDetouredProcessStatus::CreateProcessAttributeListFailed;
+    }
 
-	if (!CreateProcAttributesForExplicitHandleInheritance(
-		hStdInput, 
-		hStdOutput, 
-		hStdError,
-		/*out*/ processCreationAttributes)) {
-		Dbg(L"Failed creating extended attributes");
-		fwprintf(stderr, L"Failure in CreateDetouredProcess creating ProcAttributes for explicit handle inheritance. LastError: %d, Status: %d. Exiting with code -49.", (int)GetLastError(), (int)CreateDetouredProcessStatus::HandleInheritanceFailed);
-		HandleDetoursInjectionAndCommunicationErrors(DETOURS_INHERIT_HANDLES_ERROR_7, L"Failure in CreateDetouredProcess. Exiting with code -49.", DETOURS_WINDOWS_LOG_MESSAGE_7);
+    if (!CreateProcAttributesForExplicitHandleInheritance(
+        hStdInput, 
+        hStdOutput, 
+        hStdError,
+        /*out*/ processCreationAttributes)) {
+        Dbg(L"Failed creating extended attributes");
+        fwprintf(stderr, L"Failure in CreateDetouredProcess creating ProcAttributes for explicit handle inheritance. LastError: %d, Status: %d. Exiting with code -49.", (int)GetLastError(), (int)CreateDetouredProcessStatus::HandleInheritanceFailed);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_INHERIT_HANDLES_ERROR_7, L"Failure in CreateDetouredProcess. Exiting with code -49.", DETOURS_WINDOWS_LOG_MESSAGE_7);
 
-		if (LogProcessDetouringStatus())
-		{
-			ReportProcessDetouringStatus(
-				ProcessDetouringStatus_Done,
-				L"",
-				(LPWSTR)lpcwCommandLine,
-				0,
-				INVALID_HANDLE_VALUE,
-				0,
-				dwCreationFlags,
-				false,
-				GetLastError(),
-				CreateDetouredProcessStatus::HandleInheritanceFailed);
-		}
+        if (LogProcessDetouringStatus())
+        {
+            ReportProcessDetouringStatus(
+                ProcessDetouringStatus_Done,
+                L"",
+                (LPWSTR)lpcwCommandLine,
+                0,
+                INVALID_HANDLE_VALUE,
+                0,
+                dwCreationFlags,
+                false,
+                GetLastError(),
+                CreateDetouredProcessStatus::HandleInheritanceFailed);
+        }
 
-		return CreateDetouredProcessStatus::HandleInheritanceFailed;
-	}
+        return CreateDetouredProcessStatus::HandleInheritanceFailed;
+    }
 
-	if (addProcessToSilo)
-	{
-		if (!CreateProcAttributeForAddingProcessToSilo(
-			/*in out*/ processCreationAttributes)) {
-			Dbg(L"Failed adding process to silo");
-			fwprintf(stderr, L"Failure in CreateDetouredProcess adding process to a silo. LastError: %d, Status: %d. Exiting with code -61.", (int)GetLastError(), (int)CreateDetouredProcessStatus::AddProcessToSiloFailed);
-			HandleDetoursInjectionAndCommunicationErrors(DETOURS_ADD_TO_SILO_ERROR_20, L"Failure in CreateDetouredProcess. Exiting with code -62.", DETOURS_WINDOWS_LOG_MESSAGE_20);
+    if (addProcessToSilo)
+    {
+        if (!CreateProcAttributeForAddingProcessToSilo(
+            /*in out*/ processCreationAttributes)) {
+            Dbg(L"Failed adding process to silo");
+            fwprintf(stderr, L"Failure in CreateDetouredProcess adding process to a silo. LastError: %d, Status: %d. Exiting with code -61.", (int)GetLastError(), (int)CreateDetouredProcessStatus::AddProcessToSiloFailed);
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_ADD_TO_SILO_ERROR_20, L"Failure in CreateDetouredProcess. Exiting with code -62.", DETOURS_WINDOWS_LOG_MESSAGE_20);
 
-			if (LogProcessDetouringStatus())
-			{
-				ReportProcessDetouringStatus(
-					ProcessDetouringStatus_Done,
-					L"",
-					(LPWSTR)lpcwCommandLine,
-					0,
-					INVALID_HANDLE_VALUE,
-					0,
-					dwCreationFlags,
-					false,
-					GetLastError(),
-					CreateDetouredProcessStatus::AddProcessToSiloFailed);
-			}
+            if (LogProcessDetouringStatus())
+            {
+                ReportProcessDetouringStatus(
+                    ProcessDetouringStatus_Done,
+                    L"",
+                    (LPWSTR)lpcwCommandLine,
+                    0,
+                    INVALID_HANDLE_VALUE,
+                    0,
+                    dwCreationFlags,
+                    false,
+                    GetLastError(),
+                    CreateDetouredProcessStatus::AddProcessToSiloFailed);
+            }
 
-			return CreateDetouredProcessStatus::AddProcessToSiloFailed;
-		}
-	}
-	
-	return CreateDetouredProcessStatus::Succeeded;
+            return CreateDetouredProcessStatus::AddProcessToSiloFailed;
+        }
+    }
+    
+    return CreateDetouredProcessStatus::Succeeded;
 }
 
 CreateDetouredProcessStatus
@@ -877,21 +877,21 @@ CreateDetouredProcess(
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
 
-	ProcessCreationAttributes processCreationAttributes = ProcessCreationAttributes(hJob);
+    ProcessCreationAttributes processCreationAttributes = ProcessCreationAttributes(hJob);
     
-	CreateDetouredProcessStatus createAttributesStatus = CreateProcessAttributes(
-		hStdInput, 
-		hStdOutput, 
-		hStdError,
-		lpcwCommandLine,
+    CreateDetouredProcessStatus createAttributesStatus = CreateProcessAttributes(
+        hStdInput, 
+        hStdOutput, 
+        hStdError,
+        lpcwCommandLine,
         dwCreationFlags,
         addProcessToSilo,
-		/*in out*/ processCreationAttributes);
+        /*in out*/ processCreationAttributes);
 
-	if (createAttributesStatus != CreateDetouredProcessStatus::Succeeded)
-	{
-		return createAttributesStatus;
-	}
+    if (createAttributesStatus != CreateDetouredProcessStatus::Succeeded)
+    {
+        return createAttributesStatus;
+    }
 
     si.lpAttributeList = processCreationAttributes.attrList.get();
 
@@ -977,7 +977,7 @@ static bool DllProcessDetach()
         ReportProcessData(counters, creationTime, exitTime, kernelTime, userTime, exitCode, g_parentProcessId, (LONG64)g_detoursMaxAllocatedMemoryInBytes);
     }
 
-#if MEASURE_DETOURED_NT_CLOSE_IMPACT	
+#if MEASURE_DETOURED_NT_CLOSE_IMPACT    
     // Do some statistical information logging for different measurements
     Dbg(L"Populate NtClose pool list entries time: %d ms.", g_msTimeToPopulatePoolList);
     Dbg(L"Pip execution time: %d ms.", (LONG)(GetTickCount64() - g_pipExecutionStart));

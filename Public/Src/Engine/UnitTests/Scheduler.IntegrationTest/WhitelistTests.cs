@@ -12,6 +12,9 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Configuration = BuildXL.Utilities.Configuration;
+using Test.BuildXL.Processes;
+using BuildXL.Pips.Builders;
+using BuildXL.Native.IO;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -347,6 +350,66 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void WhitelistOnSpawnProcess(bool includeExecutableLink)
+        {
+            FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
+            FileArtifact exeLink = FileArtifact.CreateSourceFile(CreateUniqueSourcePath());
+            XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(exeLink.Path.ToString(Context.PathTable), exe.Path.ToString(Context.PathTable), true).Succeeded);
+
+            Configuration.CacheableFileAccessWhitelist.Add(new Configuration.Mutable.FileAccessWhitelistEntry() { ToolPath = exeLink, PathRegex = ".*" });
+
+            FileArtifact output = CreateOutputFileArtifact();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.SpawnExe(
+                    Context.PathTable,
+                    exeLink,
+                    string.Format(OperatingSystemHelper.IsUnixOS ? "-c \"echo 'hi' > {0}\"" : "/d /c echo 'hi' > {0}", output.Path.ToString(Context.PathTable))),
+            });
+            builder.AddOutputFile(output.Path);
+
+            if (includeExecutableLink)
+            {
+                builder.AddInputFile(exeLink);
+            }
+
+            foreach (var dep in CmdHelper.GetCmdDependencies(Context.PathTable))
+            {
+                builder.AddUntrackedFile(dep);
+            }
+
+            foreach (var dep in CmdHelper.GetCmdDependencyScopes(Context.PathTable))
+            {
+                builder.AddUntrackedDirectoryScope(dep);
+            }
+
+            SchedulePipBuilder(builder);
+
+            if (includeExecutableLink)
+            {
+                RunScheduler().AssertSuccess();
+                XAssert.AreEqual("hi", File.ReadAllText(ArtifactToString(output)).Trim().Trim('\''));
+            }
+            else
+            {
+                RunScheduler().AssertFailure();
+
+                // DFA on exeLink because it is not specified as input.
+                // Although there's a cacheable whitelist entry for exeLink, that entry only holds for file accessed by exeLink.
+                // In this case, exeLink is accessed by the test process, so there's a read operation by the test process on exeLink, hence DFA.
+                AssertErrorEventLogged(EventId.FileMonitoringError, 1);
+                AssertLogContains(false, $"R  {exeLink.Path.ToString(Context.PathTable)}");
+
+                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
+            }
+        }
+
+
+
         /// <summary>
         /// Creates and schedules a pip that either consumes or outputs a (default) non-cacheable whitelist file
         /// </summary>
@@ -379,7 +442,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         protected void AddWhitelistEntry(FileArtifact whitelistFile, bool cacheableWhitelist = false)
         {
-            Configuration.Mutable.FileAccessWhitelistEntry entry = new Configuration.Mutable.FileAccessWhitelistEntry()
+            var entry = new Configuration.Mutable.FileAccessWhitelistEntry()
             {
                 Value = "testValue",
                 PathFragment = ArtifactToString(whitelistFile),

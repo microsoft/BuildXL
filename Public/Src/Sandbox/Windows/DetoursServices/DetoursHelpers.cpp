@@ -1056,3 +1056,126 @@ bool ExistsAsFile(_In_ PCWSTR path)
     return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
         !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
+
+bool ExistsImageFile(_In_ CanonicalizedPath& candidatePath)
+{
+    if (candidatePath.IsNull())
+    {
+        return false;
+    }
+
+    return ExistsAsFile(candidatePath.GetPathString());
+}
+
+bool TryFindImagePath(_In_ std::wstring& candidatePath, _Out_opt_ CanonicalizedPath& imagePath)
+{
+    imagePath = CanonicalizedPath::Canonicalize(candidatePath.c_str());
+    if (ExistsImageFile(imagePath))
+    {
+        return true;
+    }
+
+    if (HasSuffix(candidatePath.c_str(), candidatePath.length(), L".exe"))
+    {
+        // Candidate path has .exe already, and it does not exist.
+        return false;
+    }
+
+    std::wstring candidatePathExe(candidatePath);
+    candidatePathExe.append(L".exe");
+    imagePath = CanonicalizedPath::Canonicalize(candidatePathExe.c_str());
+
+    return ExistsImageFile(imagePath);
+}
+
+CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine)
+{
+    // Tries to mimic the CreateProcess logic by identifying the image path based on the application
+    // name and command line for a process.
+    // See https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
+
+    // If the application name is not null, it should be a path to the image name
+    if (lpApplicationName != nullptr)
+    {
+        return CanonicalizedPath::Canonicalize(lpApplicationName);
+    }
+    else
+    {
+        if (lpCommandLine == nullptr)
+        {
+            // The command line should not be null.
+            return CanonicalizedPath();
+        }
+
+        std::wstring imagePathCandidate = L"";
+
+        LPWSTR cursor = lpCommandLine;
+        unsigned int count = 0;
+
+        // First check for a leading quote.
+        if (*cursor == L'\"')
+        {
+            cursor++;
+            lpCommandLine = cursor;
+            while (*cursor && *cursor != (WCHAR)'\"') {
+                cursor++;
+                count++;
+            }
+
+            // Start with the first quoted string.
+            imagePathCandidate.assign(lpCommandLine, count);
+
+            // If we found and ending quote, advance the cursor past it.
+            if (*cursor == (WCHAR)'\"')
+            {
+                cursor++;
+            }
+        }
+        else
+        {
+            // Look for the first whitespace/tab.
+            while (*cursor && *cursor != (WCHAR)' ' && *cursor != (WCHAR)'\t') {
+                cursor++;
+                count++;
+            }
+
+            // Start with the first string delimited with the first space/tab.
+            imagePathCandidate.assign(lpCommandLine, count);
+        }
+
+        CanonicalizedPath imagePath = CanonicalizedPath();
+        if (TryFindImagePath(imagePathCandidate, imagePath))
+        {
+            return imagePath;
+        }
+
+        // Now keep checking space/tab separated blocks until we find an image or run out of command line.
+        while (*cursor)
+        {
+            lpCommandLine = cursor;
+            count = 0;
+
+            // Skip trailing spaces.
+            while ((*cursor == (WCHAR)' ') || (*cursor == (WCHAR)'\t'))
+            {
+                count++;
+                cursor++;
+            }
+
+            // Move through the next space separated block.
+            while ((*cursor) && (*cursor != (WCHAR)' ') && (*cursor != (WCHAR)'\t'))
+            {
+                count++;
+                cursor++;
+            }
+
+            imagePathCandidate.append(lpCommandLine, count);
+            if (TryFindImagePath(imagePathCandidate, imagePath))
+            {
+                return imagePath;
+            }
+        }
+
+        return CanonicalizedPath();
+    }
+}

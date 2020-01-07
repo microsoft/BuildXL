@@ -9,7 +9,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
-using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
@@ -724,17 +723,16 @@ namespace BuildXL.Processes
                 path = null;
             }
 
-            var pathAsAbsolutePath = finalPath;
-            if (!pathAsAbsolutePath.IsValid)
+            if (!finalPath.IsValid)
             {
-                AbsolutePath.TryCreate(m_pathTable, path, out pathAsAbsolutePath);
+                AbsolutePath.TryCreate(m_pathTable, path, out finalPath);
             }
 
-            if (pathAsAbsolutePath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
+            if (finalPath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
             {
                 // flushing immediately to ensure the write is recorded as soon as possible
                 // (and so that we are more likely to have a record of it if bxl crashes)
-                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath, flushImmediately: true);
+                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, finalPath, flushImmediately: true);
             }
 
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));
@@ -764,36 +762,46 @@ namespace BuildXL.Processes
                 // non-deterministically deny the access
                 // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\
                 // are not canonicalized in detours
-                if (path != null && pathAsAbsolutePath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
+                if (path != null && finalPath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(finalPath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
-                    m_overrideAllowedWritePaths[pathAsAbsolutePath] = (status == FileAccessStatus.Denied);
+                    m_overrideAllowedWritePaths[finalPath] = (status == FileAccessStatus.Denied);
                 }
 
                 return true;
             }
 
+            if (operation == ReportedFileOperation.CreateProcess)
+            {
+                // Ensure that when the operation is CreateProcess, the desire access includes execute.
+                // This will prevent CreateProcess from being collapsed into Process operation because
+                // reported file access does not include operation type in the hash code.
+                desiredAccess = desiredAccess | DesiredAccess.GENERIC_EXECUTE;
+            }
+
             // If this is an augmented file access, the method was not based on policy, but a trusted tool reported the access
-            FileAccessStatusMethod method = isAnAugmentedFileAccess? 
-                    FileAccessStatusMethod.TrustedTool : 
-                    FileAccessStatusMethod.PolicyBased;
+            FileAccessStatusMethod method = isAnAugmentedFileAccess
+                ? FileAccessStatusMethod.TrustedTool
+                : FileAccessStatusMethod.PolicyBased;
 
             // If we are processing an allowed write, but this should be overridden based on file existence,
             // we change the status here
             // Observe that if the access is coming from a trusted tool, that trumps file existence and we don't deny the access
-            if (method != FileAccessStatusMethod.TrustedTool &&
-                path != null &&
-                (requestedAccess & RequestedAccess.Write) != 0 &&
-                status == FileAccessStatus.Allowed &&
-                m_overrideAllowedWritePaths.Count > 0 && // Avoid creating the absolute path if the override allowed writes flag is off
-                pathAsAbsolutePath.IsValid &&
-                m_overrideAllowedWritePaths.TryGetValue(pathAsAbsolutePath, out bool shouldOverrideAllowedAccess) &&
-                shouldOverrideAllowedAccess)
+            if (method != FileAccessStatusMethod.TrustedTool
+                && path != null
+                && (requestedAccess & RequestedAccess.Write) != 0
+                && status == FileAccessStatus.Allowed
+                && m_overrideAllowedWritePaths.Count > 0 // Avoid creating the absolute path if the override allowed writes flag is off
+                && finalPath.IsValid
+                && m_overrideAllowedWritePaths.TryGetValue(finalPath, out bool shouldOverrideAllowedAccess)
+                && shouldOverrideAllowedAccess)
             {
                 status = FileAccessStatus.Denied;
                 method = FileAccessStatusMethod.FileExistenceBased;
             }
 
+            // Note that when the operation is Process, then the reported process <code>process</code> is the process itself.
+            // This can be interpreted as follows: the process starts and it's accessing the file path of the executable.
             var reportedAccess =
                 new ReportedFileAccess(
                     operation,
@@ -813,6 +821,7 @@ namespace BuildXL.Processes
                     method);
 
             HandleReportedAccess(reportedAccess);
+
             return true;
         }
 

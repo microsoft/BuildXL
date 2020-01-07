@@ -118,7 +118,6 @@ namespace Core {
                 f`DetoursServices.cpp`,
                 f`DetouredFunctions.cpp`,
                 f`DetoursHelpers.cpp`,
-                f`UtilityHelpers.cpp`,
                 f`FileAccessHelpers.cpp`,
                 f`DetouredScope.cpp`,
                 f`StringOperations.cpp`,

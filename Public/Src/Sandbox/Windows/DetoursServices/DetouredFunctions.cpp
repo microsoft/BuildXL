@@ -1854,16 +1854,18 @@ BOOL WINAPI Detoured_CreateProcessW(
             lpProcessInformation);
     }
 
+    CanonicalizedPath imagePath = GetImagePath(lpApplicationName, lpCommandLine);
+
     // If the process to be created is configured to breakaway from the current
     // job object, we use the regular process creation, and set the breakaway flag
     if (!g_processNamesToBreakAwayFromJob->empty())
     {
-        std::wstring imageName = GetImageName(lpApplicationName, lpCommandLine);
-
-        // An empty string means we couldn't find a candidate, or the path was malformed.
+        // An null path means we couldn't find a candidate, or the path was malformed.
         // In this case we just let the regular detoured create process take control
-        if (imageName != L"")
+        if (!imagePath.IsNull())
         {
+            std::wstring imageName(imagePath.GetLastComponent());
+
             std::unordered_set<wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>::iterator result;
             result = g_processNamesToBreakAwayFromJob->find(imageName);
             
@@ -1886,6 +1888,38 @@ BOOL WINAPI Detoured_CreateProcessW(
                     lpStartupInfo,
                     lpProcessInformation);
             }
+        }
+    }
+
+    FileOperationContext operationContext = FileOperationContext::CreateForRead(L"CreateProcess", !imagePath.IsNull() ? imagePath.GetPathString() : L"");
+    FileReadContext readContext;
+    AccessCheckResult readCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);
+    PolicyResult policyResult;
+
+    if (!imagePath.IsNull())
+    { 
+        readContext.FileExistence = FileExistence::Existent; // Valid imagePath guarantees that the image exists; thanks to GetFileAttributes called by GetImagePath.
+        readContext.OpenedDirectory = false;
+
+        if (!policyResult.Initialize(imagePath.GetPathString()))
+        {
+            policyResult.ReportIndeterminatePolicyAndSetLastError(operationContext);
+            return FALSE;
+        }
+
+        readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext);
+
+        if (readCheck.ShouldDenyAccess()) 
+        {
+            DWORD denyError = readCheck.DenialError();
+            ReportIfNeeded(readCheck, operationContext, policyResult, denyError);
+            readCheck.SetLastErrorToDenialError();
+            return FALSE;
+        }
+
+        if (!EnforceChainOfReparsePointAccessesForNonCreateFile(operationContext))
+        {
+            return FALSE;
         }
     }
 
@@ -1913,11 +1947,21 @@ BOOL WINAPI Detoured_CreateProcessW(
 
         if (status == CreateDetouredProcessStatus::Succeeded) 
         {
+            if (!imagePath.IsNull())
+            {
+                ReportIfNeeded(readCheck, operationContext, policyResult, ERROR_SUCCESS);
+            }
+
             return TRUE;
         }
         else if (status == CreateDetouredProcessStatus::ProcessCreationFailed) 
         {
             // Process creation failure is something normally visible to the caller. Preserve last error information.
+            if (!imagePath.IsNull())
+            {
+                ReportIfNeeded(readCheck, operationContext, policyResult, GetLastError());
+            }
+
             return FALSE;
         }
         else 
@@ -1938,6 +1982,12 @@ BOOL WINAPI Detoured_CreateProcessW(
             // We've invented a failure other than process creation due to our detours; invent a consistent error
             // rather than leaking whatever error might be set due to our failed efforts.
             SetLastError(ERROR_ACCESS_DENIED);
+
+            if (!imagePath.IsNull())
+            {
+                ReportIfNeeded(readCheck, operationContext, policyResult, GetLastError());
+            }
+
             return FALSE;
         }
     }

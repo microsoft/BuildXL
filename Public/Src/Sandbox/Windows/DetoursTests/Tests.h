@@ -32,3 +32,4 @@ int CallCreateFileOnNtEscapedPath();
 int CallOpenFileById();
 int CallDeleteWithoutSharing();
 int CallDeleteOnOpenedHardlink();
+int CallCreateSelfForWrite();

@@ -416,7 +416,7 @@ namespace Test.BuildXL.Processes
                         // we'll wait for at most 1 seconds for nested processes to terminate, as we know we'll have to wait by design of the test
                         NestedProcessTerminationTimeout = TimeSpan.FromSeconds(1)
                     };
-
+                info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 var result = await RunProcess(info);
 
                 // after we detect surviving child processes, we kill them, so this test won't leave around zombie cmd.exe processes

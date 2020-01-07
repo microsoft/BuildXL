@@ -21,6 +21,11 @@ namespace BuildXL.Processes
         CreateFile,
 
         /// <summary>
+        /// CreateProcess
+        /// </summary>
+        CreateProcess,
+
+        /// <summary>
         /// GetFileAttributes
         /// </summary>
         GetFileAttributes,

@@ -124,6 +124,11 @@ bool EnumerateDirectory(
 
 bool ExistsAsFile(_In_ PCWSTR path);
 
+// Tries to mimic the CreateProcess logic by identifying the image path based on the application
+// name and command line for a process
+// See https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa.
+CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine);
+
 class ReportData
 {
 private:

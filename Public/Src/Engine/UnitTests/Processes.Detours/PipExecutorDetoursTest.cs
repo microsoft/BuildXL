@@ -33,6 +33,7 @@ namespace Test.BuildXL.Processes.Detours
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed partial class SandboxedProcessPipExecutorTest
     {
+        private const string DetoursTestsExe = "DetoursTests.exe";
         private const int ErrorPrivilegeNotHeld = 1314;
         private const string ExtraFileNameInDirectory = "foo.txt";
 
@@ -73,14 +74,13 @@ namespace Test.BuildXL.Processes.Detours
             out string errorString,
             bool existingDirectoryProbesAsEnumerations = false,
             bool disableDetours = false,
-            AbsolutePath binDirectory = default(AbsolutePath),
+            AbsolutePath binDirectory = default,
             bool unexpectedFileAccessesAreErrors = true,
             List<TranslateDirectoryData> directoriesToTranslate = null,
             bool ignoreGetFinalPathNameByHandle = false,
             bool ignoreZwOtherFileInformation = true,
             bool monitorZwCreateOpenQueryFile = false,
             bool ignoreNonCreateFileReparsePoints = true,
-            bool ignoreZwCreateOpenQuesryFile = true,
             bool isQuickBuildIntegrated = false,
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false)
@@ -165,7 +165,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -252,13 +252,13 @@ namespace Test.BuildXL.Processes.Detours
             List<AbsolutePath> additionalTempDirectories = null,
             List<DirectoryArtifact> outputDirectories = null)
         {
-            // Get the executable "DetoursTests.exe".
+            // Get the executable DetoursTestsExe.
             string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
             XAssert.IsTrue(!string.IsNullOrWhiteSpace(currentCodeFolder), "Current code folder is unknown");
 
             Contract.Assert(currentCodeFolder != null);
 
-            string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+            string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
             XAssert.IsTrue(File.Exists(executable));
 
             FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -855,7 +855,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -978,7 +978,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -1065,7 +1065,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -1154,7 +1154,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -1739,7 +1739,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -1859,7 +1859,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -1971,7 +1971,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -2082,7 +2082,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -2182,7 +2182,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -2296,7 +2296,7 @@ namespace Test.BuildXL.Processes.Detours
                 Contract.Assume(currentCodeFolder != null);
                 List<AbsolutePath> untrackedPaths = new List<AbsolutePath>();
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -3567,7 +3567,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -3651,7 +3651,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -4269,9 +4269,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(inputFile, result.ObservedFileAccesses[0].Path.ToString(pathTable));
                 XAssert.AreEqual(1, result.ObservedFileAccesses.Length);
-                XAssert.AreEqual(0, (result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null) ?
-                    0 :
-                    result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+                VerifyNoFileAccessViolation(result);
             }
         }
 
@@ -4326,11 +4324,7 @@ namespace Test.BuildXL.Processes.Detours
                 if (!declareNonExistentFile)
                 {
                     XAssert.AreEqual(1, result.ObservedFileAccesses.Length);
-                    XAssert.AreEqual(
-                        0,
-                        (result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null)
-                        ? 0
-                        : result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+                    VerifyNoFileAccessViolation(result);
                 }
                 else
                 {
@@ -4806,7 +4800,7 @@ namespace Test.BuildXL.Processes.Detours
                 string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
                 Contract.Assume(currentCodeFolder != null);
 
-                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+                string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
 
                 XAssert.IsTrue(File.Exists(executable));
                 FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -6377,7 +6371,7 @@ namespace Test.BuildXL.Processes.Detours
                     ? new[] { createdInputPaths["CreateFileWForProbingOnly.txt"] }
                     : new AbsolutePath[0];
 
-                var observationsToVerify = new List<(AbsolutePath abosultePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)>
+                var observationsToVerify = new List<(AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)>
                 {
                     (createdInputPaths["CreateFileWForProbingOnly.lnk"], RequestedAccess.Probe, FileAccessStatus.Allowed)
                 };
@@ -6392,6 +6386,44 @@ namespace Test.BuildXL.Processes.Detours
                     result.AllReportedFileAccesses,
                     observationsToVerify.ToArray(),
                     pathsToFalsify: pathsToFalsify);
+            }
+        }
+
+        [Fact]
+        public async Task CallCreateSelfForWrite()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                AbsolutePath createdFile = tempFiles.GetFileName(pathTable, "CreateFile");
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallCreateSelfForWrite",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(createdFile), FileExistence.Required)),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreRepPoints: false,
+                    disableDetours: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                VerifyNormalSuccess(context, result);
+                VerifyProcessCreations(context, result.AllReportedFileAccesses, new[] { DetoursTestsExe });
             }
         }
 
@@ -6414,13 +6446,13 @@ namespace Test.BuildXL.Processes.Detours
             Contract.Requires(outputFiles != null && Contract.ForAll(outputFiles, artifact => artifact.IsValid));
             Contract.Requires(outputDirectories != null && Contract.ForAll(outputDirectories, artifact => artifact.IsValid));
 
-            // Get the executable "DetoursTests.exe".
+            // Get the executable DetoursTestsExe.
             string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
             XAssert.IsTrue(!string.IsNullOrWhiteSpace(currentCodeFolder), "Current code folder is unknown");
 
             Contract.Assert(currentCodeFolder != null);
 
-            string executable = Path.Combine(currentCodeFolder, DetourTestFolder, "DetoursTests.exe");
+            string executable = Path.Combine(currentCodeFolder, DetourTestFolder, DetoursTestsExe);
             XAssert.IsTrue(File.Exists(executable));
 
             FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executable));
@@ -6464,9 +6496,9 @@ namespace Test.BuildXL.Processes.Detours
         private static void VerifyFileAccesses(
             BuildXLContext context,
             IReadOnlyList<ReportedFileAccess> reportedFileAccesses,
-            (AbsolutePath abosultePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToVerify,
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToVerify,
             AbsolutePath[] pathsToFalsify = null,
-            (AbsolutePath abosultePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToFalsify = null)
+            (AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)[] observationsToFalsify = null)
         {
             PathTable pathTable = context.PathTable;
             var pathsToReportedFileAccesses = new Dictionary<AbsolutePath, List<ReportedFileAccess>>();
@@ -6507,11 +6539,11 @@ namespace Test.BuildXL.Processes.Detours
             foreach (var observation in observationsToVerify)
             {
                 List<ReportedFileAccess> pathSpecificAccesses;
-                bool getFileAccess = pathsToReportedFileAccesses.TryGetValue(observation.abosultePath, out pathSpecificAccesses);
+                bool getFileAccess = pathsToReportedFileAccesses.TryGetValue(observation.absolutePath, out pathSpecificAccesses);
                 XAssert.IsTrue(
                     getFileAccess,
                     "Expected path '{0}' is missing from the reported file accesses; reported accesses are as follows: {1}{2}",
-                    observation.abosultePath.ToString(pathTable),
+                    observation.absolutePath.ToString(pathTable),
                     Environment.NewLine,
                     string.Join(Environment.NewLine, pathsToReportedFileAccesses.Keys.Select(p => "--- " + p.ToString(pathTable))));
 
@@ -6531,7 +6563,7 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.IsTrue(
                     foundExpectedAccess,
                     "Expected access for path '{0}' with requested access '{1}' and access status '{2}' is missing from the reported file accesses; reported accesses are as follows: {3}{4}",
-                    observation.abosultePath.ToString(pathTable),
+                    observation.absolutePath.ToString(pathTable),
                     observation.requestedAccess.ToString(),
                     observation.fileAccessStatus.ToString(),
                     Environment.NewLine,
@@ -6556,7 +6588,7 @@ namespace Test.BuildXL.Processes.Detours
                 foreach (var observation in observationsToFalsify)
                 {
                     List<ReportedFileAccess> pathSpecificAccesses;
-                    var getFileAccess = pathsToReportedFileAccesses.TryGetValue(observation.abosultePath, out pathSpecificAccesses);
+                    var getFileAccess = pathsToReportedFileAccesses.TryGetValue(observation.absolutePath, out pathSpecificAccesses);
                     if (!getFileAccess)
                     {
                         continue;
@@ -6578,29 +6610,51 @@ namespace Test.BuildXL.Processes.Detours
                     XAssert.IsFalse(
                         foundExpectedAccess,
                         "Unexpected access for path '{0}' with requested access '{1}' and access status '{2}' exists in the reported file accesses",
-                        observation.abosultePath.ToString(pathTable),
+                        observation.absolutePath.ToString(pathTable),
                         observation.requestedAccess.ToString(),
                         observation.fileAccessStatus.ToString());
                 }
             }
         }
 
+        private static void VerifyProcessCreations(
+            BuildXLContext context,
+            IReadOnlyList<ReportedFileAccess> reportedFileAccesses,
+            string[] executableNames)
+        {
+            var executableNameSet = new HashSet<string>(executableNames, StringComparer.OrdinalIgnoreCase);
+            var reportedProcessCreations = reportedFileAccesses
+                .Where(rfa => rfa.Operation == ReportedFileOperation.CreateProcess)
+                .Select(rfa => !string.IsNullOrEmpty(rfa.Path) ? AbsolutePath.Create(context.PathTable, rfa.Path) : rfa.ManifestPath)
+                .Select(p => p.GetName(context.PathTable))
+                .Select(a => a.ToString(context.PathTable.StringTable));
+            executableNameSet.ExceptWith(reportedProcessCreations);
+
+            var remain = string.Join(", ", executableNameSet);
+            XAssert.AreEqual(0, executableNameSet.Count, $"Non created processes are '{{{remain}}}'");
+        }
+
+        private static void VerifyFileAccessViolations(SandboxedProcessPipExecutionResult result, int expectedCount)
+        {
+            XAssert.AreEqual(
+                expectedCount,
+                result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null
+                ? 0
+                : result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+        }
+
+        private static void VerifyNoFileAccessViolation(SandboxedProcessPipExecutionResult result) => VerifyFileAccessViolations(result, expectedCount: 0);
+
         private static void VerifyNoFileAccesses(SandboxedProcessPipExecutionResult result)
         {
             XAssert.AreEqual(0, result.ObservedFileAccesses.Length);
-            XAssert.AreEqual(
-                0, 
-                (result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null) 
-                ? 0 
-                : result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+            VerifyNoFileAccessViolation(result);
         }
 
         private static void VerifyNoObservedFileAccessesAndUnexpectedFileAccesses(SandboxedProcessPipExecutionResult result, string[] unexpectedFileAccesses, PathTable pathTable)
         {
             XAssert.AreEqual(0, result.ObservedFileAccesses.Length);
-            XAssert.AreEqual(unexpectedFileAccesses.Length, (result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null) ?
-                0 :
-                result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+            VerifyFileAccessViolations(result, result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
 
             foreach (string unexpectedFileAccessExpected in unexpectedFileAccesses)
             {

@@ -72,20 +72,25 @@ namespace Tools {
         };
 
         export const deployment : Deployment.Definition = {
-            contents: addIf(!BuildXLSdk.Flags.excludeBuildXLExplorer,
-                {
-                    subfolder: r`app`,
-                    contents: [importFrom("BuildXL.Explorer").App.app.appFolder],
-                }
-            )
+            contents: [
+                ...(BuildXLSdk.Flags.excludeBuildXLExplorer
+                ? []
+                : [{
+                    // There is an error when deploying a single sealed directory where the graph
+                    // invalidly thinks there is a duplicate deployment between robocopy and the sealed
+                    // directory... Using a subfolder is a workaround for now.
+                    subfolder: "bxp",
+                    contents: [
+                        importFrom("BuildXL.Explorer").App.app.appFolder
+                    ]
+                }])
+            ]
         };
 
-        const deployed = !BuildXLSdk.Flags.excludeBuildXLExplorer
-            ? BuildXLSdk.DeploymentHelpers.deploy({
-                definition: deployment,
-                targetLocation: r`${qualifier.configuration}/tools/bxp`
-              })
-            : undefined;
+        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+            definition: deployment,
+            targetLocation: r`${qualifier.configuration}/tools`
+        });
     }
 
     namespace Bvfs

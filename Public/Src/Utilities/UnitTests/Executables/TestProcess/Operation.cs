@@ -30,6 +30,8 @@ namespace Test.BuildXL.Executables.TestProcess
         private const string AllUppercasePath = "allUpper";
         private const string UseLongPathPrefix = "useLongPathPrefix";
         private const string SpawnExePrefix = "[SpawnExe]";
+        private const string InvalidPathString = "{Invalid}";
+
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
         /// <paramref name="count"/> number of times.
@@ -748,6 +750,16 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Similar to <see cref="AugmentedRead(FileOrDirectoryArtifact, bool)"/>, but allows to pass paths as plain strings to validate
+        /// non-canonicalized path behavior.
+        /// </summary>
+        public static Operation AugmentedRead(string path, bool doNotInfer = false)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+            return new Operation(Type.AugmentedReadFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
+        }
+
+        /// <summary>
         /// Creates an operation that reports an augmented write file access to detours without actually performing any IO
         /// </summary>
         /// <remarks>
@@ -756,6 +768,15 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation AugmentedWrite(FileOrDirectoryArtifact path, bool doNotInfer = false)
         {
             return new Operation(Type.AugmentedWriteFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Similar to <see cref="AugmentedWrite(FileOrDirectoryArtifact, bool)"/>, but allows to pass paths as plain strings to validate
+        /// non-canonicalized path behavior.
+        /// </summary>
+        public static Operation AugmentedWrite(string path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedWriteFile, FileOrDirectoryArtifact.Invalid, doNotInfer: doNotInfer, additionalArgs: path);
         }
 
         /// <summary>
@@ -972,6 +993,13 @@ namespace Test.BuildXL.Executables.TestProcess
         private string DoAugmentedReadFile(string path = null)
         {
             path = path ?? PathAsString;
+
+            // A plain string could have been passed to exercise non-canonicalized paths
+            if (path == InvalidPathString)
+            {
+                path = AdditionalArgs;
+            }
+
             var success = AugmentedManifestReporter.Instance.TryReportFileReads(new[] { path });
 
             if (!success)
@@ -985,6 +1013,13 @@ namespace Test.BuildXL.Executables.TestProcess
         private string DoAugmentedWriteFile(string path = null)
         {
             path = path ?? PathAsString;
+
+            // A plain string could have been passed to exercise non-canonicalized paths
+            if (path == InvalidPathString)
+            {
+                path = AdditionalArgs;
+            }
+
             var success = AugmentedManifestReporter.Instance.TryReportFileCreations(new[] { path });
 
             if (!success)
@@ -1246,9 +1281,9 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             Type opType;
-            string pathAsString = "{Invalid}";
+            string pathAsString = InvalidPathString;
             SymbolicLinkFlag symLinkFlag;
-            string linkPathAsString = "{Invalid}";
+            string linkPathAsString = InvalidPathString;
 
             if (!Enum.TryParse<Type>(opArgs[0], out opType))
             {

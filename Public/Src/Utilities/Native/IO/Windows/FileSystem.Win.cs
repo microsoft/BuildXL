@@ -3571,6 +3571,21 @@ namespace BuildXL.Native.IO.Windows
             FileMaximumInformation,
         }
 
+        /// <inheritdoc/>
+        public string GetFullPath(string path)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+
+            string fullPath = GetFullPath(path, out int hResult);
+
+            if (fullPath == null)
+            {
+                new BuildXLException(I($"Failed to get a full path from '{path}'"), CreateWin32Exception(hResult, "GetFullPathNameW"));
+            }
+
+            return fullPath;
+        }
+
         /// <summary>
         /// Gets the full path of the specified path.
         /// </summary>

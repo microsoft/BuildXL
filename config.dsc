@@ -83,15 +83,15 @@ config({
                 // Roslyn
                 { id: "Microsoft.Net.Compilers", version: "3.3.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
                 { id: "Microsoft.NETCore.Compilers", version: "3.3.1" },
-                { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "2.10.0",
+                { id: "Microsoft.CodeAnalysis.Common", version: "3.4.0" },
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.4.0" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.4.0" },
+                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.4.0",
                     dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                     dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                 },
-                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "2.10.0" },
+                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.4.0" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "3.4.0" },
 
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "2.6.3" },

@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using BuildXL.Native.IO;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 
@@ -62,7 +64,8 @@ namespace BuildXL.Processes
         /// Attempts to report a file access to BuildXL without actually performing any IO
         /// </summary>
         /// <remarks>
-        /// Failure means this method was invoked from a process that was not configured to breakaway from the sandbox
+        /// Failure means this method was invoked from a process that was not configured to breakaway from the sandbox.
+        /// The provided path is required to be non-null and rooted
         /// </remarks>
         public bool TryReportAugmentedFileAccess(
             ReportedFileOperation reportedFileOperation,
@@ -182,6 +185,22 @@ namespace BuildXL.Processes
         {
             var process = Process.GetCurrentProcess();
 
+            Contract.Requires(!string.IsNullOrEmpty(path));
+            Contract.Requires(Path.IsPathRooted(path));
+
+            // The given path may not be canonicalized (e.g. it may contain '..')
+            string fullPath;
+
+            try
+            {
+                fullPath = FileUtilities.GetFullPath(path);
+            }
+            catch(BuildXLException)
+            {
+                // If getting the full path fails, we follow a behavior similar to what detours does, where the access is ignored
+                return;
+            }
+
             string access = FileAccessReportLine.GetReportLineForAugmentedFileAccess(
                 reportedFileOperation,
                 (uint)process.Id,
@@ -193,7 +212,7 @@ namespace BuildXL.Processes
                 shareMode,
                 creationDisposition,
                 flagsAndAttributes,
-                path,
+                fullPath,
                 enumeratePattern,
                 processArgs);
 

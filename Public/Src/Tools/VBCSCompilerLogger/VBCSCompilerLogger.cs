@@ -107,7 +107,9 @@ namespace VBCSCompilerLogger
             RegisterInput(args.AppConfigPath);
             RegisterInput(args.RuleSetPath);
             RegisterInput(args.SourceLink);
-            
+            RegisterInput(args.CompilationOptions.CryptoKeyFile);
+            RegisterInputs(args.AnalyzerConfigPaths);
+
             // All outputs
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));

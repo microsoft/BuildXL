@@ -12,6 +12,7 @@ using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Native.IO;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Test.BuildXL.Processes
 {
@@ -22,9 +23,14 @@ namespace Test.BuildXL.Processes
             private readonly PathTable m_pathTable;
 
             /// <summary>
-            /// All reported paths
+            /// All reported paths that could be parsed as absolute paths
             /// </summary>
             public HashSet<AbsolutePath> FileAccessPaths { get; } = new HashSet<AbsolutePath>();
+
+            /// <summary>
+            /// All file accesses, and they came (raw) from detours
+            /// </summary>
+            public HashSet<string> AllFileAccessPaths { get; } = new HashSet<string>();
 
             public FileAccessCollector(PathTable pathTable) 
             {
@@ -38,6 +44,8 @@ namespace Test.BuildXL.Processes
                 {
                     FileAccessPaths.Add(absolutePath);
                 }
+
+                AllFileAccessPaths.Add(path);
             }
 
             public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage)
@@ -288,6 +296,47 @@ namespace Test.BuildXL.Processes
                 XAssert.Contains(collector.FileAccessPaths, output2.Path);
                 XAssert.ContainsNot(collector.FileAccessPaths, output1.Path);
             }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void AugmentedAccessPathsAreCanonicalized()
+        {
+            var fam = new FileAccessManifest(
+                    Context.PathTable,
+                    childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
+
+            var basePath = TestBinRootPath.Combine(Context.PathTable, "foo").Combine(Context.PathTable, "bar");
+
+            // Let's create a path that is equivalent to base path but it is constructed with '..'
+            string nonCanonicalBasePath = Path.Combine(basePath.ToString(Context.PathTable), "..", "bar");
+
+            var source = CreateSourceFile(basePath);
+            var output = CreateOutputFileArtifact(basePath);
+
+            // Now create non-canonical paths for source and output
+            string nonCanonicalSource = Path.Combine(nonCanonicalBasePath, source.Path.GetName(Context.PathTable).ToString(Context.StringTable));
+            string nonCanonicalOutput = Path.Combine(nonCanonicalBasePath, output.Path.GetName(Context.PathTable).ToString(Context.StringTable));
+
+            var collector = new FileAccessCollector(Context.PathTable);
+
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.AugmentedRead(nonCanonicalSource),
+                    Operation.AugmentedWrite(nonCanonicalOutput)),
+                fileAccessManifest: fam,
+                detoursListener: collector);
+
+            var result = RunProcess(info).GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            // Let's check the raw paths reported by detours to make sure they are canonicalized
+            var allRawPaths = collector.AllFileAccessPaths.Select(path => path.ToUpperInvariant());
+            XAssert.Contains(allRawPaths, source.Path.ToString(Context.PathTable).ToUpperInvariant(), output.Path.ToString(Context.PathTable).ToUpperInvariant());
         }
     }
 }

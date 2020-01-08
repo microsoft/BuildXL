@@ -21,6 +21,7 @@ namespace VBCSCompilerLogger {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
             importFrom("System.Reflection.Metadata").pkg

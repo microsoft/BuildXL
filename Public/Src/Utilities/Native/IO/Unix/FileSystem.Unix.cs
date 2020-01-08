@@ -1245,5 +1245,20 @@ namespace BuildXL.Native.IO.Unix
             var reparsePointType = TryGetReparsePointType(path);
             return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink && Directory.Exists(path);
         }
+
+        /// <inheritdoc/>
+        public string GetFullPath(string path)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(path));
+
+            try
+            {
+                return Path.GetFullPath(path);
+            }
+            catch(Exception e) when (e is ArgumentException || e is SecurityException || e is NotSupportedException || e is PathTooLongException)
+            {
+                throw new BuildXLException(I($"Failed to get a full path from '{path}'"), e);
+            }
+        }
     }
 }

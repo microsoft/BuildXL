@@ -33,6 +33,18 @@ namespace BuildXL.Native.IO
         /// </summary>
         bool IsDirectorySeparator(char c);
 
+        /// <summary>
+        /// Gets the full path of the specified path.
+        /// </summary>
+        /// <param name="path">The file or directory for which to obtain absolute path information. Cannot be null or empty.</param>
+        /// <remarks>
+        /// This method functions like <see cref="Path.GetFullPath(string)"/>, i.e., it merges the name of the current drive and directory with
+        /// a specified file name to determine the full path of a specified file.
+        /// Automatically adds long path prefix for Windows to the given path if needed.
+        /// </remarks>
+        /// <exception cref="BuildXLException">On failure</exception>
+        string GetFullPath(string path);
+
         #endregion
 
         #region Directory related functions

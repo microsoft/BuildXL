@@ -725,6 +725,9 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>
         public static bool IsDirectorySymlinkOrJunction(string path) => s_fileSystem.IsDirectorySymlinkOrJunction(path);
 
+        /// <see cref="IFileSystem.GetFullPath(string)"/>
+        public static string GetFullPath(string path) => s_fileSystem.GetFullPath(path);
+
 #endregion
 
         #region Journaling functions

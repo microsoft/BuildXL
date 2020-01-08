@@ -278,9 +278,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [Fact]
         public void ValidateSharedCompilationWithRelativePaths()
         {
-            string thisAssemblyLocation;
-            IEnumerable<string> allInputAssertions;
-            RunManagedCompilation(useSharedCompilation: true, out thisAssemblyLocation, out allInputAssertions, out _);
+            RunManagedCompilation(useSharedCompilation: true, out string thisAssemblyLocation, out IEnumerable<string> allInputAssertions, out _);
             Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
         }
 

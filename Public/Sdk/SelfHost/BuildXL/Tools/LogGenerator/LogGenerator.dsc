@@ -40,7 +40,7 @@ export const defaultArgs: Arguments = {
     outputFile: undefined,
     references: [],
     sources: [],
-    targetFramework: "netcoreapp3.0",
+    targetFramework: "netcoreapp3.1",
     targetRuntime: "win-x64",
 };
 

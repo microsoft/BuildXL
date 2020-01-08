@@ -33,7 +33,7 @@ namespace NugetPackages {
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.win-x64`,
         deployment: BuildXL.withQualifier({
-            targetFramework: "netcoreapp3.0",
+            targetFramework: "netcoreapp3.1",
             targetRuntime: "win-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -42,7 +42,7 @@ namespace NugetPackages {
     const osxX64 = pack({
         id: `${packageNamePrefix}.osx-x64`,
         deployment: BuildXL.withQualifier({
-            targetFramework: "netcoreapp3.0",
+            targetFramework: "netcoreapp3.1",
             targetRuntime: "osx-x64"
         }).deployment,
         deploymentOptions: reducedDeploymentOptions
@@ -95,7 +95,7 @@ namespace NugetPackages {
     const toolsSandBoxExec = pack({
         id: `${packageNamePrefix}.Tools.SandboxExec.osx-x64`,
         deployment: Tools.SandboxExec.withQualifier({
-            targetFramework: "netcoreapp3.0",
+            targetFramework: "netcoreapp3.1",
             targetRuntime: "osx-x64"
         }).deployment
     });
@@ -104,13 +104,13 @@ namespace NugetPackages {
     const toolsOrchestrator = pack({
         id: `${packageNamePrefix}.Tools.Orchestrator.osx-x64`,
         deployment: Tools.Orchestrator.withQualifier({
-            targetFramework: "netcoreapp3.0",
+            targetFramework: "netcoreapp3.1",
             targetRuntime: "osx-x64"
         }).deployment
     });
 
     const xldbnetcorequalifier : BuildXLSdk.DefaultQualifierWithNet472 = {
-        targetFramework: "netcoreapp3.0",
+        targetFramework: "netcoreapp3.1",
         configuration: qualifier.configuration,
         targetRuntime: "win-x64"
     };

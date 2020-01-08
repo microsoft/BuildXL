@@ -54,7 +54,7 @@ namespace Tools {
         export const deployment : Deployment.Definition = {
             contents: [
                 importFrom("BuildXL.Tools").withQualifier({
-                    targetFramework: "netcoreapp3.0",
+                    targetFramework: "netcoreapp3.1",
                 }).Orchestrator.exe
             ],
         };

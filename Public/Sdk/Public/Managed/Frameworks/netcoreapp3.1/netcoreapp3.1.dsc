@@ -6,7 +6,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as Deployment from "Sdk.Deployment";
 import * as MacOS from "Sdk.MacOS";
 
-export declare const qualifier: {targetFramework: "netcoreapp3.0"};
+export declare const qualifier: {targetFramework: "netcoreapp3.1"};
 
 const defaultAssemblies: Shared.Assembly[] = createDefaultAssemblies();
 
@@ -77,5 +77,5 @@ function createDefaultAssemblies() : Shared.Assembly[] {
     const pkgContents = importFrom("Microsoft.NETCore.App.Ref").Contents.all;
     const netcoreAppPackageContents = pkgContents.contents;
     const dlls = netcoreAppPackageContents.filter(file => file.hasExtension && file.extension === a`.dll`);
-    return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp3.0", [], true));
+    return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp3.1", [], true));
 }

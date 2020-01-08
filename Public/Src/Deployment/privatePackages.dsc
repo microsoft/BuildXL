@@ -15,8 +15,8 @@ namespace PrivatePackages {
     };
 
     const net472Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
-    const winx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" };
-    const osxx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" };
+    const winx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" };
+    const osxx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" };
 
     const cloudBuildlibrary = NugetPackages.pack({
         id: "BuildXL.library.forCloudBuild",
@@ -88,7 +88,7 @@ namespace PrivatePackages {
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Storage.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").withQualifier(winx64Qualifier).VBCSCompilerLogger.dll),
 
-                ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netcoreapp3.0" }).pkg.runtime
+                ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netcoreapp3.1" }).pkg.runtime
             ]
         },
     });
@@ -98,7 +98,7 @@ namespace PrivatePackages {
         deployment: {
             contents: [
                 {
-                    subfolder: r`runtimes/win-x64/lib/netcoreapp3.0`,
+                    subfolder: r`runtimes/win-x64/lib/netcoreapp3.1`,
                     contents: [
                         importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll,
                         importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll,
@@ -115,7 +115,7 @@ namespace PrivatePackages {
                     ],
                 },
                 {
-                    subfolder: r`runtimes/osx-x64/lib/netcoreapp3.0/`,
+                    subfolder: r`runtimes/osx-x64/lib/netcoreapp3.1/`,
                     contents: [
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Collections.dll,

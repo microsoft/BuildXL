@@ -20,7 +20,7 @@ namespace TestGeneratorDeployment {
             {
                 subfolder: a`MacOs`,
                 contents: $.withQualifier({
-                    targetFramework: "netcoreapp3.0",
+                    targetFramework: "netcoreapp3.1",
                     targetRuntime: "osx-x64"
                 }).TestGenerator.deploymentContents
             }

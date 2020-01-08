@@ -572,13 +572,13 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: "netcoreapp3.0",
+            targetFramework: "netcoreapp3.1",
             targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
         },
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -588,19 +588,19 @@ config({
             },
             DebugDotNetCore: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "win-x64",
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "osx-x64",
             },
 
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {
@@ -611,12 +611,12 @@ config({
 
             ReleaseDotNetCore: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "netcoreapp3.0",
+                targetFramework: "netcoreapp3.1",
                 targetRuntime: "osx-x64",
             },
         }

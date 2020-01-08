@@ -55,7 +55,7 @@ namespace MsBuildGraphBuilder {
             {
                 subfolder: r`dotnetcore`,
                 contents: [
-                        $.withQualifier({ targetFramework: "netcoreapp3.0" })
+                        $.withQualifier({ targetFramework: "netcoreapp3.1" })
                         .MsBuildGraphBuilder.exe
                     ]
             }

@@ -28,7 +28,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     let testDeployment = args.testDeployment;
 
     const tool : Transformer.ToolDefinition = Managed.Factory.createTool({
-        exe: qualifier.targetFramework === "netcoreapp3.0"
+        exe: qualifier.targetFramework === "netcoreapp3.1"
             ? testDeployment.contents.getFile(r`xunit.console.dll`)
             // Using xunit executable from different folders depending on the target framework.
             // This allow us to actually to run tests targeting different frameworks.
@@ -88,7 +88,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         });
     }
 
-    if (qualifier.targetFramework === "netcoreapp3.0") {
+    if (qualifier.targetFramework === "netcoreapp3.1") {
         execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(execArguments);
     }
 

@@ -173,7 +173,7 @@ namespace Helpers {
             case "net461":
             case "net472":
                 return"net46";
-            case "netcoreapp3.0":
+            case "netcoreapp3.1":
             case "netstandard2.0":
             default:
                 return "netstandard1.3";

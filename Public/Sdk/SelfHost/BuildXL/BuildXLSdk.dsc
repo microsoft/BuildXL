@@ -85,7 +85,7 @@ export interface TestResult extends Managed.TestResult {
  * Returns if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.0" || qualifier.targetFramework === "netstandard2.0";
+export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -102,7 +102,7 @@ export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "netcoreapp3.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net472") ||
     (Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64");
 
 @@public
@@ -529,7 +529,7 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && qualifier.targetFramework !== "netcoreapp3.0"      // QTest does not support .net core apps
+        && qualifier.targetFramework !== "netcoreapp3.1"      // QTest does not support .net core apps
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

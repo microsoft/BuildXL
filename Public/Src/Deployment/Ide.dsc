@@ -18,14 +18,14 @@ namespace Ide {
             },
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework:"netcoreapp3.0",
+                    targetFramework:"netcoreapp3.1",
                     targetRuntime: "win-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.win.vsix`,
             }]),
             {
                 file: importFrom("BuildXL.Ide").withQualifier({
-                    targetFramework:"netcoreapp3.0",
+                    targetFramework:"netcoreapp3.1",
                     targetRuntime: "osx-x64"}
                     ).LanguageService.Server.vsix,
                 targetFileName: a`BuildXL.vscode.osx.vsix`,

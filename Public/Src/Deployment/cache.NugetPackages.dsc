@@ -9,16 +9,16 @@ namespace Cache.NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release"};
 
     const Net472ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const WinX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
+    const OsxX64ContentStore = importFrom("BuildXL.Cache.ContentStore").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
 
     const Net472MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const WinX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
+    const OsxX64MemoizationStore = importFrom("BuildXL.Cache.MemoizationStore").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
 
     const Net472DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
-    const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" });
-    const OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.0", targetRuntime: "osx-x64" });
+    const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
+    const OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
 
     export const tools : Deployment.Definition = {
         contents: [

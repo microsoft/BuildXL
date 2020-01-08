@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: {
-    targetFramework: "netcoreapp3.0" | "net472";
+    targetFramework: "netcoreapp3.1" | "net472";
     targetRuntime: "win-x64" | "osx-x64";
 };
 

@@ -37,7 +37,7 @@ namespace BuildXL {
                     //     {
                     //         subfolder: r`bxp-server`,
                     //         contents: [
-                    //             importFrom("BuildXL.Explorer").Server.withQualifier({targetFramework: "netcoreapp3.0"}).exe
+                    //             importFrom("BuildXL.Explorer").Server.withQualifier({targetFramework: "netcoreapp3.1"}).exe
                     //         ]
                     //     }
                     // ),

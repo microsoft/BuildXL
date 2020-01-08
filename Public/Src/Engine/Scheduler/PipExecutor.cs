@@ -1149,6 +1149,7 @@ namespace BuildXL.Scheduler
         /// <param name="fingerprint">The pip fingerprint</param>
         /// <param name="processIdListener">Callback to call when the process is actually started (PID is passed to it) and when the process exited (negative PID is passed to it)</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
+        /// <param name="detoursEventListener">Detours listener to collect detours reported accesses. For tests only</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,
@@ -1159,7 +1160,8 @@ namespace BuildXL.Scheduler
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
             Action<int> processIdListener = null,
-            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters))
+            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters),
+            IDetoursEventListener detoursEventListener = null)
         {
             var context = environment.Context;
             var counters = environment.Counters;
@@ -1402,7 +1404,8 @@ namespace BuildXL.Scheduler
                                     vmInitializer: environment.VmInitializer,
                                     tempDirectoryCleaner: environment.TempCleaner,
                                     incrementalTools: configuration.IncrementalTools,
-                                    changeAffectedInputs: changeAffectedInputs);
+                                    changeAffectedInputs: changeAffectedInputs,
+                                    detoursListener: detoursEventListener);
 
                                 registerQueryRamUsageMb(
                                     () =>

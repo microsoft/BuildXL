@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -76,6 +77,11 @@ namespace BuildXL.Engine
         /// for move-deleting files
         /// </summary>
         public string TempCleanerTempDirectory { get; set; } = null;
+
+        /// <summary>
+        /// Listener to collect detours reported accesses
+        /// </summary>
+        public IDetoursEventListener DetoursListener { get; set; }
 
         /// <inheritdoc />
         public void Dispose()

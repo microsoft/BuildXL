@@ -18,6 +18,7 @@ using Xunit.Abstractions;
 using BuildXL.Utilities;
 using System;
 using System.Diagnostics;
+using BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -137,7 +138,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             FileUtilities.DeleteDirectoryContents(engineCacheDirectoryPath);
         }
 
-        protected BuildXLEngineResult RunEngineWithConfig(ICommandLineConfiguration config, TestCache testCache = null)
+        protected BuildXLEngineResult RunEngineWithConfig(ICommandLineConfiguration config, TestCache testCache = null, IDetoursEventListener detoursListener = null)
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
             {
@@ -152,7 +153,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     testRootDirectory: null,
                     rememberAllChangedTrackedInputs: true,
                     engine: out var engine,
-                    testCache: testCache);
+                    testCache: testCache,
+                    detoursListener: detoursListener);
 
                 return engineResult;
             }

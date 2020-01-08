@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage.ChangeTracking;
@@ -40,5 +41,10 @@ namespace BuildXL.Scheduler
         /// Test hooks for the <see cref="FingerprintStore"/>.
         /// </summary>
         public FingerprintStoreTestHooks FingerprintStoreTestHooks { get; set; }
+
+        /// <summary>
+        /// Listener to collect detours reported accesses
+        /// </summary>
+        public IDetoursEventListener DetoursListener { get; set; }
     }
 }

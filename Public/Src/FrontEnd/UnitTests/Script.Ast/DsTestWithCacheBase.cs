@@ -23,6 +23,7 @@ using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using BuildXL.Processes;
 
 namespace Test.DScript.Ast
 {
@@ -104,7 +105,8 @@ namespace Test.DScript.Ast
             bool rememberAllChangedTrackedInputs,
             out BuildXLEngine engine,
             Action<EngineTestHooksData> verifyEngineTestHooksData = null,
-            TestCache testCache = null)
+            TestCache testCache = null,
+            IDetoursEventListener detoursListener = null)
         {
             testCache = testCache ?? TestCache;
 
@@ -113,7 +115,8 @@ namespace Test.DScript.Ast
                                                        AppDeployment = appDeployment,
                                                        CacheFactory = () => new EngineCache(
                                                             testCache.GetArtifacts(),
-                                                            testCache.Fingerprints)
+                                                            testCache.Fingerprints),
+                                                       DetoursListener = detoursListener,
                                                     })
             {
                 engine = CreateEngine(config, appDeployment, testRootDirectory, rememberAllChangedTrackedInputs, verifyEngineTestHooksData);

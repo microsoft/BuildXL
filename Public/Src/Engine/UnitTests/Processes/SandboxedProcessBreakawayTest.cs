@@ -13,54 +13,12 @@ using Xunit.Abstractions;
 using BuildXL.Native.IO;
 using System.Collections.Generic;
 using System.IO;
+using Test.BuildXL.TestUtilities;
 
 namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessBreakawayTest : SandboxedProcessTestBase
     {
-        private sealed class FileAccessCollector : IDetoursEventListener
-        {
-            private readonly PathTable m_pathTable;
-
-            /// <summary>
-            /// All reported paths that could be parsed as absolute paths
-            /// </summary>
-            public HashSet<AbsolutePath> FileAccessPaths { get; } = new HashSet<AbsolutePath>();
-
-            /// <summary>
-            /// All file accesses, and they came (raw) from detours
-            /// </summary>
-            public HashSet<string> AllFileAccessPaths { get; } = new HashSet<string>();
-
-            public FileAccessCollector(PathTable pathTable) 
-            {
-                SetMessageHandlingFlags(MessageHandlingFlags.FileAccessNotify | MessageHandlingFlags.FileAccessCollect | MessageHandlingFlags.ProcessDataCollect | MessageHandlingFlags.ProcessDetoursStatusCollect);
-                m_pathTable = pathTable;
-            }
-
-            public override void HandleFileAccess(long pipId, string pipDescription, ReportedFileOperation operation, RequestedAccess requestedAccess, FileAccessStatus status, bool explicitlyReported, uint processId, uint error, DesiredAccess desiredAccess, ShareMode shareMode, CreationDisposition creationDisposition, FlagsAndAttributes flagsAndAttributes, string path, string processArgs)
-            {
-                if (AbsolutePath.TryCreate(m_pathTable, path, out AbsolutePath absolutePath))
-                {
-                    FileAccessPaths.Add(absolutePath);
-                }
-
-                AllFileAccessPaths.Add(path);
-            }
-
-            public override void HandleDebugMessage(long pipId, string pipDescription, string debugMessage)
-            {
-            }
-
-            public override void HandleProcessData(long pipId, string pipDescription, string processName, uint processId, DateTime creationDateTime, DateTime exitDateTime, TimeSpan kernelTime, TimeSpan userTime, uint exitCode, IOCounters ioCounters, uint parentProcessId)
-            {
-            }
-
-            public override void HandleProcessDetouringStatus(ulong processId, uint reportStatus, string processName, string startApplicationName, string startCommandLine, bool needsInjection, ulong hJob, bool disableDetours, uint creationFlags, bool detoured, uint error, uint createProcessStatusReturn)
-            {
-            }
-        }
-
         public SandboxedProcessBreakawayTest(ITestOutputHelper output)
             : base(output) { }
 
@@ -268,7 +226,7 @@ namespace Test.BuildXL.Processes
             fam.AddScope(output1.Path, ~FileAccessPolicy.ReportAccess, FileAccessPolicy.AllowAll);
             fam.AddScope(output2.Path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess);
 
-            var collector = new FileAccessCollector(Context.PathTable);
+            var collector = new FileAccessDetoursListenerCollector(Context.PathTable);
 
             var info = ToProcessInfo(
                 ToProcess(
@@ -293,8 +251,8 @@ namespace Test.BuildXL.Processes
             else
             {
                 // Make sure the access related to output1 is not actually reported, and the only one the listener got is output2
-                XAssert.Contains(collector.FileAccessPaths, output2.Path);
-                XAssert.ContainsNot(collector.FileAccessPaths, output1.Path);
+                XAssert.Contains(collector.GetFileAccessPaths(), output2.Path);
+                XAssert.ContainsNot(collector.GetFileAccessPaths(), output1.Path);
             }
         }
 
@@ -322,7 +280,7 @@ namespace Test.BuildXL.Processes
             string nonCanonicalSource = Path.Combine(nonCanonicalBasePath, source.Path.GetName(Context.PathTable).ToString(Context.StringTable));
             string nonCanonicalOutput = Path.Combine(nonCanonicalBasePath, output.Path.GetName(Context.PathTable).ToString(Context.StringTable));
 
-            var collector = new FileAccessCollector(Context.PathTable);
+            var collector = new FileAccessDetoursListenerCollector(Context.PathTable);
 
             var info = ToProcessInfo(
                 ToProcess(
@@ -335,7 +293,7 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, result.ExitCode);
 
             // Let's check the raw paths reported by detours to make sure they are canonicalized
-            var allRawPaths = collector.AllFileAccessPaths.Select(path => path.ToUpperInvariant());
+            var allRawPaths = collector.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant());
             XAssert.Contains(allRawPaths, source.Path.ToString(Context.PathTable).ToUpperInvariant(), output.Path.ToString(Context.PathTable).ToUpperInvariant());
         }
     }

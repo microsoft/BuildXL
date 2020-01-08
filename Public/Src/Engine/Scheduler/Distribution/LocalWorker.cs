@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Tasks;
 
@@ -29,16 +30,18 @@ namespace BuildXL.Scheduler.Distribution
         public int RunningProcesses => Volatile.Read(ref m_currentlyRunningPipCount);
 
         private int m_currentlyRunningPipCount = 0;
+        private readonly IDetoursEventListener m_detoursListener;
 
         /// <summary>
         /// Constructor
         /// </summary>
-        public LocalWorker(int totalProcessSlots, int totalCacheLookupSlots)
+        public LocalWorker(int totalProcessSlots, int totalCacheLookupSlots, IDetoursEventListener detoursListener)
             : base(workerId: 0, name: "#0 (Local)")
         {
             TotalProcessSlots = totalProcessSlots;
             TotalCacheLookupSlots = totalCacheLookupSlots;
             Start();
+            m_detoursListener = detoursListener;
         }
 
         /// <inheritdoc />
@@ -87,7 +90,8 @@ namespace BuildXL.Scheduler.Distribution
                     process,
                     fingerprint,
                     processIdListener: UpdateCurrentlyRunningPipsCount,
-                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable));
+                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable),
+                    detoursEventListener: m_detoursListener);
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;

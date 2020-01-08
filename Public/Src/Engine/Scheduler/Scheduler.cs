@@ -1173,7 +1173,8 @@ namespace BuildXL.Scheduler
                 m_pipStateCountersSnapshots[i] = new PipStateCountersSnapshot();
             }
 
-            LocalWorker = new LocalWorker(m_scheduleConfiguration.MaxProcesses, m_scheduleConfiguration.MaxCacheLookup);
+            m_testHooks = testHooks;
+            LocalWorker = new LocalWorker(m_scheduleConfiguration.MaxProcesses, m_scheduleConfiguration.MaxCacheLookup, m_testHooks?.DetoursListener);
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
@@ -1188,8 +1189,6 @@ namespace BuildXL.Scheduler
                 m_configuration.Schedule.IncrementalScheduling &&
                 m_configuration.Distribution.BuildRole == DistributedBuildRoles.None &&
                 m_configuration.Schedule.ForceSkipDependencies == ForceSkipDependenciesMode.Disabled;
-
-            m_testHooks = testHooks;
 
             // Execution log targets
             m_executionLogFileTarget = CreateExecutionLog(

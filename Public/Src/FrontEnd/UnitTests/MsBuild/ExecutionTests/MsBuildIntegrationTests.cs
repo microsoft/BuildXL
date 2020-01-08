@@ -17,6 +17,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using System.Reflection;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using Test.BuildXL.TestUtilities;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -253,16 +255,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
             config.Sandbox.LogObservedFileAccesses = true;
-            
-            var result = RunEngineWithConfig(config);
+
+            var listener = new FileAccessDetoursListenerCollector(PathTable);
+
+            var result = RunEngineWithConfig(config, detoursListener: listener);
             Assert.True(result.IsSuccess);
 
             // Let's verify now that accesses were properly compensated. We should see the (single) source
             // file and the output + pdb as outputs
-            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant());
-            Assert.True(allInputAssertions.Any(input => input.Contains(sourceFilename.ToUpperInvariant())));
-
-            var allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Select(log => log.ToUpperInvariant());
+            var allAccesses = listener.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant());
+            Assert.True(allAccesses.Any(input => input.Contains(sourceFilename.ToUpperInvariant())));
 
             // If the output assembly is not specified, there should be an output reported anyway, with a 
             // filename (modulo extension) equal to the source
@@ -271,35 +273,49 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 outputAssembly = Path.ChangeExtension(sourceFilename, null);
             }
 
-            Assert.True(allProducedOutputs.Any(output => output.Contains(outputAssembly.ToUpperInvariant())));
-            Assert.True(allProducedOutputs.Any(output => output.Contains(Path.ChangeExtension(outputAssembly, ".pdb").ToUpperInvariant())));
+            Assert.True(allAccesses.Any(output => output.Contains(outputAssembly.ToUpperInvariant())));
+            Assert.True(allAccesses.Any(output => output.Contains(Path.ChangeExtension(outputAssembly, ".pdb").ToUpperInvariant())));
         }
 
         [Fact]
         public void ValidateSharedCompilationWithRelativePaths()
         {
-            RunManagedCompilation(useSharedCompilation: true, out string thisAssemblyLocation, out IEnumerable<string> allInputAssertions, out _);
-            Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
+            var collector = RunManagedCompilation(useSharedCompilation: true, out string absolutePathToReference, out _);
+            Assert.True(collector.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant()).Any(input => input.Contains(absolutePathToReference.ToUpperInvariant())));
         }
 
         [Fact]
         public void ValidateSharedCompilationAccessesAgainstNonSharedCompilation()
         {
             // Run the same managed csc call with and without shared compilation
-            RunManagedCompilation(useSharedCompilation: true, out _, out var allSharedInputs, out var allSharedOutputs);
-            RunManagedCompilation(useSharedCompilation: false, out _, out var allNonSharedInputs, out var allNonSharedOutputs);
+            var sharedAccessCollector = RunManagedCompilation(useSharedCompilation: true, out _, out _);
+            var nonSharedAccessCollector = RunManagedCompilation(useSharedCompilation: false, out _, out var tempDirectory);
 
-            // All inputs and outputs should match
-            XAssert.AreSetsEqual(allSharedInputs.ToHashSet(), allNonSharedInputs.ToHashSet(), expectedResult: true);
-            XAssert.AreSetsEqual(allSharedOutputs.ToHashSet(), allNonSharedOutputs.ToHashSet(), expectedResult: true);
+            // The non-shared accesses should be a subset of the shared ones. Shared access case could be over-reporting since
+            // some predicted artifacts may not be accessed at all. This is anyway a conservative check.
+            // Observe there might be some differences under the temp directory, since MSBuild generates there some files with random names, so they are different on each execution. We exclude those.
+            var diff = nonSharedAccessCollector.GetFileAccessPaths()
+                        .Except(sharedAccessCollector.GetFileAccessPaths())
+                        .Where(path => !path.IsWithin(PathTable, tempDirectory));
+
+            // There shouldn't be non shared accesses that were not predicted
+            XAssert.IsEmpty(diff);
         }
 
-        private void RunManagedCompilation(bool useSharedCompilation, out string thisAssemblyLocation, out IEnumerable<string> allInputAssertions, out IEnumerable<string> allProducedOutputs)
+        private FileAccessDetoursListenerCollector RunManagedCompilation(bool useSharedCompilation, out string absolutePathToReference, out AbsolutePath usedTempDirectory)
         {
             // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
-            thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+            absolutePathToReference = Assembly.GetExecutingAssembly().Location;
             // We just use the assembly name, but add the assembly directory to the collection of additional paths
-            var managedProject = GetCscProject("Program.cs", "exe", "Out.exe", $"References='{Path.GetFileName(thisAssemblyLocation)}' AdditionalLibPaths='{Path.GetDirectoryName(thisAssemblyLocation)}'");
+            var managedProject = GetCscProject(
+                "Program.cs", 
+                "exe", 
+                "Out.exe", 
+                @$"References='{Path.GetFileName(absolutePathToReference)}' 
+                   AdditionalLibPaths='{Path.GetDirectoryName(absolutePathToReference)}'
+                   NoStandardLib='false'
+                   NoConfig='false'");
+
             var program = GetHellowWorldProgram();
 
             var config = (CommandLineConfiguration)Build(useSharedCompilation: useSharedCompilation)
@@ -310,14 +326,15 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
             config.Sandbox.LogObservedFileAccesses = true;
 
-            var result = RunEngineWithConfig(config);
+            var listener = new FileAccessDetoursListenerCollector(PathTable);
+            var result = RunEngineWithConfig(config, detoursListener: listener);
             Assert.True(result.IsSuccess);
-            
-            // Parsing the event is not a great way to recover the path, but doing this properly doesn't seem straightforward with the current integration test infrastructure
-            allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion)
-                .Select(log => log.ToUpperInvariant()).Select(log => log.Substring(log.IndexOf("AT PATH ") + 8));
-            allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced)
-                .Select(log => log.ToUpperInvariant()).Select(log => log.Substring(log.IndexOf("PRODUCED OUTPUT '") + 17)).Select(log => log.Substring(0, log.IndexOf("'")));
+
+            // The whole compilation is performed by a single pip
+            var process = (Process)result.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).Single();
+            usedTempDirectory = process.TempDirectory;
+
+            return listener;
         }
         
         private string GetCscProject(string sourceFilename, string targetType, string outputAssembly, string extraArgs = null)

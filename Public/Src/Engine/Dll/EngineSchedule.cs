@@ -188,7 +188,8 @@ namespace BuildXL.Engine
             int maxDegreeOfParallelism,
             SymlinkDefinitions symlinkDefinitions,
             TempCleaner tempCleaner,
-            string buildEngineFingerprint)
+            string buildEngineFingerprint,
+            IDetoursEventListener detoursListener = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
@@ -261,6 +262,13 @@ namespace BuildXL.Engine
 
             try
             {
+                // If a detours listener was specified, propagate it as art of the scheduler test hook
+                SchedulerTestHooks testHooks = null;
+                if (detoursListener != null)
+                {
+                    testHooks = new SchedulerTestHooks { DetoursListener = detoursListener };
+                }
+
                 scheduler = new Scheduler.Scheduler(
                     pipGraph,
                     pipQueue,
@@ -292,7 +300,9 @@ namespace BuildXL.Engine
                             : default,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
-                        message => Logger.Log.InitializingVm(loggingContext, message)));
+                        message => Logger.Log.InitializingVm(loggingContext, message)),
+                    testHooks: testHooks);
+
             }
             catch (BuildXLException e)
             {

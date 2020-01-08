@@ -2888,7 +2888,8 @@ namespace BuildXL.Engine
                             maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
                             symlinkDefinitions: maybeSymlinkDefinitions.Result,
                             tempCleaner: m_tempCleaner,
-                            buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString());
+                            buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
+                            detoursListener: TestHooks?.DetoursListener);
 
                         if (engineSchedule == null)
                         {

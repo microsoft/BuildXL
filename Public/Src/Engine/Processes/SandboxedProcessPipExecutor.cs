@@ -181,6 +181,8 @@ namespace BuildXL.Processes
         /// Inputs affected by file/source changes.
         /// </summary>
         private readonly IReadOnlyList<AbsolutePath> m_changeAffectedInputs;
+        
+        private readonly IDetoursEventListener m_detoursListener;
 
         /// <summary>
         /// Whether the process invokes an incremental tool with preserveOutputs mode.
@@ -236,7 +238,8 @@ namespace BuildXL.Processes
             VmInitializer vmInitializer = null,
             SubstituteProcessExecutionInfo shimInfo = null,
             IReadOnlyList<RelativePath> incrementalTools = null,
-            IReadOnlyList<AbsolutePath> changeAffectedInputs = null)
+            IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
+            IDetoursEventListener detoursListener = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -371,6 +374,7 @@ namespace BuildXL.Processes
             }
 
             m_changeAffectedInputs = changeAffectedInputs;
+            m_detoursListener = detoursListener;
         }
 
         /// <inheritdoc />
@@ -723,7 +727,8 @@ namespace BuildXL.Processes
                         m_pip.TestRetries,
                         m_loggingContext,
                         sandboxConnection: sandboxConnection,
-                        sidebandWriter: sidebandWriter)
+                        sidebandWriter: sidebandWriter,
+                        detoursEventListener: m_detoursListener)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

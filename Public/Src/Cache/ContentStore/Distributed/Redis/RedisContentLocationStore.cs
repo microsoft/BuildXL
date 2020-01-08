@@ -1271,6 +1271,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <inheritdoc />
         public bool IsMachineActive(MachineLocation machine) => _idsByLocation.ContainsKey(machine);
 
+        /// <inheritdoc />
+        public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Gets the page size used in bulk Redis queries.
         /// </summary>

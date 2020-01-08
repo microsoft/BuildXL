@@ -353,6 +353,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
             => throw new NotImplementedException();
 
         /// <nodoc />
-        protected virtual CounterSet GetCounters() => BaseCounters.ToCounterSet();
+        protected internal virtual CounterSet GetCounters() => BaseCounters.ToCounterSet();
     }
 }

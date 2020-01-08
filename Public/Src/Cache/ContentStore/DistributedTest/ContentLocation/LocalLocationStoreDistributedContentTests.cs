@@ -87,6 +87,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool EnableProactiveCopy { get; set; } = false;
         protected bool PushProactiveCopies { get; set; } = false;
         protected bool EnableProactiveReplication { get; set; } = false;
+        protected bool ProactiveCopyUsePreferredLocations { get; set; } = false;
 
         protected override IContentStore CreateStore(
             Context context,
@@ -181,6 +182,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.OutsideRing : ProactiveCopyMode.Disabled,
                     InlineProactiveCopies = true,
                     PushProactiveCopies = PushProactiveCopies,
+                    ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
@@ -386,14 +388,17 @@ namespace ContentStoreTest.Distributed.Sessions
                 implicitPin: ImplicitPin.None);
         }
 
-        [Fact]
-        public async Task ProactiveReplicationTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ProactiveReplicationTest(bool usePreferredLocations)
         {
             var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
 
             EnableProactiveReplication = true;
             EnableProactiveCopy = true;
             PushProactiveCopies = true;
+            ProactiveCopyUsePreferredLocations = usePreferredLocations;
 
             ConfigureWithOneMaster();
 
@@ -421,6 +426,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Restore checkpoint by heartbeating worker. This should trigger proactive replication
                     await lls[1].HeartbeatAsync(context).ShouldBeSuccess();
+
+                    var proactiveStore = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(1);
+                    var proactiveSession = (await proactiveStore.ProactiveCopySession.Value).ThrowIfFailure();
+                    var counters = proactiveSession.GetCounters().ToDictionaryIntegral();
+                    counters["ProactiveCopy_OutsideRingFromPreferredLocations.Count"].Should().Be(usePreferredLocations ? 1 : 0);
 
                     // Content should be available in all sessions, because of proactive replication.
                     masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();

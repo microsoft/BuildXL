@@ -163,6 +163,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool PushProactiveCopies { get; set; } = false;
 
         /// <summary>
+        /// Whether to use the preferred locations for proactive copies.
+        /// </summary>
+        public bool ProactiveCopyUsePreferredLocations { get; set; } = false;
+
+        /// <summary>
         /// Should only be used for testing.
         /// </summary>
         public bool InlineProactiveCopies { get; set; } = false;

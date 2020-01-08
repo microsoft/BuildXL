@@ -45,7 +45,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private enum Counters
         {
             GetLocationsSatisfiedFromLocal,
-            GetLocationsSatisfiedFromRemote
+            GetLocationsSatisfiedFromRemote,
+            ProactiveCopy_OutsideRingFromPreferredLocations
         }
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
@@ -1234,6 +1235,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         }
 
                         IReadOnlyList<MachineLocation> buildRingMachines = null;
+                        var replicatedLocations = getLocationsResult.ContentHashesInfo[0].Locations;
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
@@ -1280,7 +1282,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 if (machines?.Count > 0)
                                 {
                                     var index = ThreadSafeRandom.Generator.Next(0, machines.Count);
-                                    getLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
+                                    getLocationResult = new MachineLocation(machines[index]);
+                                }
+                            }
+
+                            // Try to select one of the designated machines for this hash.
+                            if (Settings.ProactiveCopyUsePreferredLocations && getLocationResult?.Succeeded != true)
+                            {
+                                var designatedLocationsResult = ContentLocationStore.GetDesignatedLocations(hash);
+                                if (designatedLocationsResult)
+                                {
+                                    var candidates = designatedLocationsResult.Value
+                                        .Except(replicatedLocations).ToArray();
+
+                                    if (candidates.Length > 0)
+                                    {
+                                        getLocationResult = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
+                                        _counters[Counters.ProactiveCopy_OutsideRingFromPreferredLocations].Increment();
+                                    }
                                 }
                             }
 

@@ -205,6 +205,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
 
         /// <summary>
+        /// Expiry time for preferred locations after being replaced or removed.
+        /// </summary>
+        public TimeSpan PreferredLocationsExpiryTime { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
         /// Whether to enable proactive replication
         /// </summary>
         public bool EnableProactiveReplication { get; set; } = false;

@@ -295,6 +295,11 @@ namespace ContentStoreTest.Distributed.Stores
             /// <inheritdoc />
             public bool IsMachineActive(MachineLocation machine) => false;
 
+            public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+            {
+                throw new NotImplementedException();
+            }
+
             /// <inheritdoc />
             public bool AreBlobsSupported => false;
 

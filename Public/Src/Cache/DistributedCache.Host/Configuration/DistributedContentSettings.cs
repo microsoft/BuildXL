@@ -629,6 +629,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool ProactiveCopyOnPin { get; set; } = false;
 
         [DataMember]
+        public bool ProactiveCopyUsePreferredLocations { get; set; } = false;
+
+        [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
 
         [DataMember]
@@ -639,6 +642,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int ProactiveReplicationDelaySeconds { get; set; } = 30;
+
+        [DataMember]
+        public int PreferredLocationsExpiryTimeMinutes { get; set; } = 30;
 
         [DataMember]
         public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;

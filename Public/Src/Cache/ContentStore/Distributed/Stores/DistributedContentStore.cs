@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private DistributedContentCopier<T> _distributedCopier;
         private readonly Func<IContentLocationStore, DistributedContentCopier<T>> _distributedCopierFactory;
-        private Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>> _proactiveCopySession;
+        internal Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>> ProactiveCopySession;
 
         /// <nodoc />
         public DistributedContentStore(
@@ -176,7 +176,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             var startupTask = base.StartupAsync(context);
 
-            _proactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>>(() => CreateCopySession(context));
+            ProactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>>(() => CreateCopySession(context));
 
             if (_setPostInitializationCompletionAfterStartup)
             {
@@ -212,7 +212,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // Define proactive copy logic.
                 async Task<ResultBase> proactiveCopyTaskFactory(OperationContext operationContext, ContentHash hash)
                 {
-                    var sessionResult = await _proactiveCopySession.Value;
+                    var sessionResult = await ProactiveCopySession.Value;
                     if (sessionResult)
                     {
                         return await sessionResult.Value.ProactiveCopyIfNeededAsync(operationContext, hash, tryBuildRing: false);
@@ -260,13 +260,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             var results = new List<Tuple<string, BoolResult>>();
 
-            if (_proactiveCopySession?.IsValueCreated == true)
+            if (ProactiveCopySession?.IsValueCreated == true)
             {
-                var sessionResult = await _proactiveCopySession.Value;
+                var sessionResult = await ProactiveCopySession.Value;
                 if (sessionResult.Succeeded)
                 {
                     var proactiveCopySessionShutdownResult = await sessionResult.Value.ShutdownAsync(context);
-                    results.Add(Tuple.Create(nameof(_proactiveCopySession), proactiveCopySessionShutdownResult));
+                    results.Add(Tuple.Create(nameof(ProactiveCopySession), proactiveCopySessionShutdownResult));
                 }
             }
 
@@ -651,7 +651,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return operationContext.PerformOperationAsync(Tracer,
                 async () =>
                 {
-                    var session = await _proactiveCopySession.Value.ThrowIfFailureAsync();
+                    var session = await ProactiveCopySession.Value.ThrowIfFailureAsync();
                     using (await session.OpenStreamAsync(context, hash, operationContext.Token).ThrowIfFailureAsync(o => o.Stream))
                     {
                         // Opening stream to ensure the content is copied locally. Stream is immediately disposed.

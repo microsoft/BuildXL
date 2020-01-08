@@ -32,6 +32,7 @@ using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -122,6 +123,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveReplicationTaskFactory;
         private CancellationTokenSource _lastProactiveReplicationTokenSource;
         private readonly object _proactiveReplicationLockObject = new object();
+
+        private const string BinManagerKey = "LocalLocationStore.BinManager";
 
         /// <nodoc />
         public LocalLocationStore(
@@ -599,6 +602,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Database.UpdateClusterState(context, ClusterState, write: true);
                     }
 
+                    if (CurrentRole == Role.Master)
+                    {
+                        ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: _configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: _configuration.PreferredLocationsExpiryTime);
+                    }
+
                     return updateResult;
                 },
                 extraEndMessage: result => $"[MaxMachineId=({startMaxMachineId} -> (Db={postDbMaxMachineId}, Global={postGlobalMaxMachineId}))]");
@@ -641,6 +649,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 Tracer.Debug(context.TracingContext, "Could not create a checkpoint because the sequence point is missing. Apparently, no events were processed at this time.");
                 return BoolResult.Success;
+            }
+
+            var manager = ClusterState.BinManager;
+            if (manager != null)
+            {
+                var bytes = manager.Serialize();
+                var serializedString = Convert.ToBase64String(bytes);
+                Database.SetGlobalEntry(BinManagerKey, serializedString);
             }
 
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
@@ -706,6 +722,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
                     }
+                }
+
+                // Update bin manager in cluster state.
+                if (Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
+                {
+                    var bytes = Convert.FromBase64String(serializedString);
+                    ClusterState.BinManager = BinManager.CreateFromSerialized(bytes, _configuration.ProactiveCopyLocationsThreshold, _clock, _configuration.PreferredLocationsExpiryTime);
                 }
             }
 
@@ -792,15 +815,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             if ((entry.LastAccessTimeUtc.ToDateTime() + _configuration.TouchFrequency < now)
                                 && _recentlyTouchedHashes.Add(hash, _configuration.TouchFrequency))
                             {
-                                // Entry was not touched recently so no need to send a touch event
-                                touchEventHashes.Add(hash);
+                                    // Entry was not touched recently so no need to send a touch event
+                                    touchEventHashes.Add(hash);
                             }
                         }
                         else
                         {
-                            // NOTE: Entries missing from the local db are not touched. They referring to content which is no longer
-                            // in the system or content which is new and has not been propagated through local db
-                            entry = ContentLocationEntry.Missing;
+                                // NOTE: Entries missing from the local db are not touched. They referring to content which is no longer
+                                // in the system or content which is new and has not been propagated through local db
+                                entry = ContentLocationEntry.Missing;
                         }
 
                         entries.Add(entry);

@@ -6,7 +6,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
@@ -57,12 +59,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
+        /// <nodoc />
+        public BinManager BinManager { get; set; }
+
         /// <summary>
         /// Gets whether a machine is marked inactive
         /// </summary>
         public bool IsMachineMarkedInactive(MachineId machineId)
         {
-            return _inactiveMachinesSet[machineId]; 
+            return _inactiveMachinesSet[machineId];
         }
 
         /// <nodoc />
@@ -70,6 +75,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
+
+            if (BinManager != null)
+            {
+                var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
+                BinManager.UpdateAll(activeMachines, InactiveMachines);
+            }
         }
 
         /// <summary>
@@ -80,6 +91,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_inactiveMachinesSet[machineId.Index])
             {
                 SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
+
+                BinManager?.AddLocation(machineId);
             }
         }
 
@@ -114,6 +127,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             _idByLocationMap[machineLocation] = machineId;
+
+            BinManager?.AddLocation(machineId);
         }
 
         /// <summary>
@@ -161,6 +176,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return new Result<MachineLocation>("Could not select a machine location.");
             }
+        }
+
+        /// <summary>
+        /// This should only be used from the master.
+        /// </summary>
+        internal Result<MachineId[][]> GetBinMappings() => BinManager?.GetBins() ?? new Result<MachineId[][]>("Failed to get mappings since BinManager is null");
+
+        /// <summary>
+        /// Gets the set of locations designated for a hash. This is relevant for proactive copies and eviction.
+        /// </summary>
+        internal Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash, bool includeExpired)
+        {
+            if (BinManager == null)
+            {
+                return new Result<MachineLocation[]>("Could not get designated locations because BinManager is null");
+            }
+
+            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
+            return locations
+                .Where(machineId => !_inactiveMachinesSet[machineId])
+                .Select(id =>_locationByIdMap[id.Index])
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Initializes the BinManager if it is required.
+        /// </summary>
+        internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)
+        {
+            BinManager ??= new BinManager(locationsPerBin, _idByLocationMap.Values, clock, expiryTime);
         }
     }
 }

@@ -974,7 +974,8 @@ namespace Test.BuildXL.FingerprintStore
                 cacheMissList.Add(new PipCacheMissInfo
                 (
                     pipId: pip.PipId,
-                    cacheMissType: cacheMissType
+                    cacheMissType: cacheMissType,
+                    missedOutputs: null
                 ));
             }
 

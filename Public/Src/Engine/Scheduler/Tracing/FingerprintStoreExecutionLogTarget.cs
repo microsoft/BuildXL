@@ -561,6 +561,7 @@ namespace BuildXL.Scheduler.Tracing
                 {
                     PipId = data.PipId,
                     CacheMissType = data.CacheMissType,
+                    MissedOutputs = data.MissedOutputs,
                 };
 
                 m_pipCacheMissesQueue.Enqueue(cacheMissInfo);

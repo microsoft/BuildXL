@@ -39,6 +39,7 @@ namespace Scheduler.IntegrationTest {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,

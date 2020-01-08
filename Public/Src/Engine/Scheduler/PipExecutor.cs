@@ -2892,7 +2892,14 @@ namespace BuildXL.Scheduler
                                 strongFingerprint: strongFingerprint,
                                 metadataHash: maybeParsedDescriptor.MetadataHash,
                                 standardOutput: maybeParsedDescriptor.StandardOutput,
-                                standardError: maybeParsedDescriptor.StandardError);
+                                standardError: maybeParsedDescriptor.StandardError,
+                                onContentUnavailable: (i, s) => {
+                                    if (pipCacheMiss.Value.MissedOutputs == null)
+                                    {
+                                        pipCacheMiss.Value.MissedOutputs = new List<string>();
+                                    }
+                                    pipCacheMiss.Value.MissedOutputs.Add(maybeParsedDescriptor.CachedArtifactContentHashes[i].fileArtifact.Path.ToString(environment.Context.PathTable));
+                                });
 
                     if (!isContentAvailable)
                     {
@@ -3831,6 +3838,7 @@ namespace BuildXL.Scheduler
         /// <param name="metadataHash">the hash of the metadata which entry which references the content</param>
         /// <param name="standardOutput">Standard output</param>
         /// <param name="standardError">Standard error</param>
+        /// <param name="onContentUnavailable">Handler for content unavailable case</param>
         /// <returns>True if all succeeded, otherwise false.</returns>
         private static async Task<bool> TryLoadAvailableOutputContentAsync(
             OperationContext operationContext,
@@ -3840,7 +3848,8 @@ namespace BuildXL.Scheduler
             StrongContentFingerprint strongFingerprint,
             ContentHash metadataHash,
             Tuple<AbsolutePath, ContentHash, string> standardOutput = null,
-            Tuple<AbsolutePath, ContentHash, string> standardError = null)
+            Tuple<AbsolutePath, ContentHash, string> standardError = null,
+            Action<int, string> onContentUnavailable = null)
         {
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
@@ -3889,7 +3898,8 @@ namespace BuildXL.Scheduler
                     pip,
                     operationContext,
                     allHashes,
-                    materialize: materializeToVerifyAvailability);
+                    materialize: materializeToVerifyAvailability,
+                    onContentUnavailable: onContentUnavailable);
 
                 if (materializeToVerifyAvailability || !succeeded)
                 {

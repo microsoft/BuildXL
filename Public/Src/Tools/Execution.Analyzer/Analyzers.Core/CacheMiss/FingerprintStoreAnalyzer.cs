@@ -266,7 +266,7 @@ namespace BuildXL.Execution.Analyzer
                         var possibleMatch = PipTable.GetPipSemiStableHash(pipId);
                         if (possibleMatch == SemiStableHashToRun)
                         {
-                            firstMiss = new PipCacheMissInfo(pipId, PipCacheMissType.Hit);
+                            firstMiss = new PipCacheMissInfo(pipId, PipCacheMissType.Hit, null);
                         }
                     }
                 }

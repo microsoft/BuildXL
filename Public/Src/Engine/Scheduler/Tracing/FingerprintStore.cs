@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
@@ -89,12 +90,18 @@ namespace BuildXL.Scheduler.Tracing
         public PipCacheMissType CacheMissType;
 
         /// <summary>
+        /// Missed outputs from cache
+        /// </summary>
+        public IReadOnlyList<string> MissedOutputs;
+
+        /// <summary>
         /// Constructor.
         /// </summary>
-        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType)
+        public PipCacheMissInfo(PipId pipId, PipCacheMissType cacheMissType, IReadOnlyList<string> missedOutputs = null)
         {
             PipId = pipId;
             CacheMissType = cacheMissType;
+            MissedOutputs = missedOutputs;
         }
 
         /// <summary>
@@ -104,6 +111,20 @@ namespace BuildXL.Scheduler.Tracing
         {
             writer.Write(PipId.Value);
             writer.Write(Convert.ToByte(CacheMissType));
+
+            if (MissedOutputs != null)
+            {
+                writer.Write(true);
+                writer.Write(MissedOutputs.Count);
+                foreach (var o in MissedOutputs)
+                {
+                    writer.Write(o);
+                }
+            }
+            else
+            {
+                writer.Write(false);
+            }
         }
 
         /// <summary>
@@ -111,7 +132,26 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public static PipCacheMissInfo Deserialize(BinaryReader reader)
         {
-            return new PipCacheMissInfo(new PipId(reader.ReadUInt32()), (PipCacheMissType)reader.ReadByte());
+            var pipId = new PipId(reader.ReadUInt32());
+            var pipCacheMissType = (PipCacheMissType)reader.ReadByte();
+            var hasMissedOutputs = reader.ReadBoolean();
+
+            List<string> missedOutputs = null;
+            if (hasMissedOutputs)
+            {
+                var missedOutputCount = reader.ReadUInt32();
+                if (missedOutputCount > 0)
+                {
+                    missedOutputs = new List<string>();
+
+                    for (int i = 0; i < missedOutputCount; ++i)
+                    {
+                        missedOutputs.Add(reader.ReadString());
+                    }
+                }
+            }
+
+            return new PipCacheMissInfo(pipId, pipCacheMissType, missedOutputs);
         }
     }
 

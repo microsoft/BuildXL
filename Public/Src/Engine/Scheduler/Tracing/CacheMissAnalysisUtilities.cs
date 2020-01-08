@@ -4,7 +4,9 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.FingerprintStoreReader;
@@ -39,6 +41,9 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <nodoc/>
         DataMiss,
+
+        /// <nodoc/>
+        OutputMiss,
 
         /// <nodoc/>
         InvalidDescriptors,
@@ -81,11 +86,17 @@ namespace BuildXL.Scheduler.Tracing
 
                 // We had a weak and strong fingerprint match, but couldn't retrieve correct data from the cache
                 case PipCacheMissType.MissForCacheEntry:
+                    WriteLine($"Cache entry missing from the cache.", writer);
+                    return CacheMissAnalysisResult.DataMiss;
+
                 case PipCacheMissType.MissForProcessMetadata:
                 case PipCacheMissType.MissForProcessMetadataFromHistoricMetadata:
-                case PipCacheMissType.MissForProcessOutputContent:
-                    WriteLine($"Data missing from the cache.", writer);
+                    WriteLine($"MetaData missing from the cache.", writer);
                     return CacheMissAnalysisResult.DataMiss;
+
+                case PipCacheMissType.MissForProcessOutputContent:
+                    WriteLine(new JProperty("MissingOutputs", missInfo.MissedOutputs).ToString(), writer);                 
+                    return CacheMissAnalysisResult.OutputMiss;
 
                 case PipCacheMissType.MissDueToInvalidDescriptors:
                     WriteLine($"Cache returned invalid data.", writer);

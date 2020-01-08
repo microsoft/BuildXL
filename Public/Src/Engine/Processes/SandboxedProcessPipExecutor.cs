@@ -2512,24 +2512,40 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            // Suppose that the root of temp directory in VM is T:\BxlInt\Temp.
-            // Users can also set the root, but currently that mechanism is used by unit tests.
+            // Suppose that the root of temp directory in VM is T:\BxlTemp.
+            // Users can specify the root for redirected temp folder. This user-specified root is currently only used by self-host's unit tests because T drive is not
+            // guaranteed to exist when running locally on desktop.
             string redirectedTempRoot = m_sandboxConfig.RedirectedTempFolderRootForVmExecution.IsValid
                 ? m_sandboxConfig.RedirectedTempFolderRootForVmExecution.ToString(m_pathTable)
                 : VmIOConstants.Temp.Root;
 
-            // Create a target temp folder in VM, e.g., T:\BxlInt\Temp\Pip123\0
+            // Create a target temp folder in VM, e.g., T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0.
             // Note that this folder may not exist yet in VM. The sandboxed process executor that runs in the VM is responsible for
             // creating (or ensuring the existence) of the folder.
-            string redirectedPath = Path.Combine(redirectedTempRoot, m_pip.FormattedSemiStableHash, m_tempFolderRedirectionForVm.Count.ToString());
+            string pathRoot = Path.GetPathRoot(path);
+            string pathRootAsDirectoryName = pathRoot
+                .Replace(Path.VolumeSeparatorChar, '_')
+                .Replace(Path.DirectorySeparatorChar, '_')
+                .Replace(Path.AltDirectorySeparatorChar, '_');
+            string redirectedPath = Path.Combine(redirectedTempRoot, pathRootAsDirectoryName, path.Substring(pathRoot.Length));
+
+            if (redirectedPath.Length > FileUtilities.MaxDirectoryPathLength())
+            {
+                // Force short path: T:\BxlTemp\Pip123\0
+                redirectedPath = Path.Combine(redirectedTempRoot, m_pip.FormattedSemiStableHash, m_tempFolderRedirectionForVm.Count.ToString());
+            }
+
             AbsolutePath tempRedirectedPath = AbsolutePath.Create(m_pathTable, redirectedPath);
 
             m_tempFolderRedirectionForVm.Add(tempDirectoryPath, tempRedirectedPath);
 
-            // Create a directory symlink D:\Bxl\Out\Object\Pip123\Temp\t_0 -> T:\BxlInt\Temp\Pip123\0.
-            // Any access to D:\Bxl\Out\Object\Pip123\Temp\t_0 will be redirected to T:\BxlInt\Temp\Pip123\0.
+            // Create a directory symlink D:\Bxl\Out\Object\Pip123\Temp\t_0 -> T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0.
+            // Any access to D:\Bxl\Out\Object\Pip123\Temp\t_0 will be redirected to T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0.
             // To make this access work, one needs to ensure that symlink evaluation behaviors R2R and R2L are enabled in VM.
             // VmCommandProxy is ensuring that such symlink evaluation behaviors are enabled during VM initialization.
+            // To create the directory symlink, one also needs to ensure that the parent directory of the directory symlink exists,
+            // i.e., D:\Bxl\Out\Object\Pip123\Temp exists.
+            FileUtilities.CreateDirectory(Path.GetDirectoryName(path));
             var createDirectorySymlink = FileUtilities.TryCreateSymbolicLink(path, redirectedPath, isTargetFile: false);
 
             if (!createDirectorySymlink.Succeeded)
@@ -2546,7 +2562,7 @@ namespace BuildXL.Processes
 
             Contract.Assert(m_fileAccessManifest != null);
 
-            // Ensure that T:\BxlInt\Temp\Pip123\0 is untracked. Thus, there is no need for a directory translation.
+            // Ensure that T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0 is untracked. Thus, there is no need for a directory translation.
             m_fileAccessManifest.AddScope(tempRedirectedPath, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
 
             Tracing.Logger.Log.PipTempSymlinkRedirection(

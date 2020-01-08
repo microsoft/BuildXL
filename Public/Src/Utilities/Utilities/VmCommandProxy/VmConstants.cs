@@ -95,7 +95,7 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// <summary>
             /// Root for temporary folder.
             /// </summary>
-            public static readonly string Root = $@"{Drive}:\BxlInt\Temp";
+            public static readonly string Root = $@"{Drive}:\BxlTemp";
         }
 
         /// <summary>

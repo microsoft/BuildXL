@@ -4629,6 +4629,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "Caught OverflowException in ExecutePipStep: {exception}")]
         internal abstract void ExecutePipStepOverflowFailure(LoggingContext loggingContext, string exception);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CacheOnlyStatistics,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = EventConstants.PhasePrefix + "Skipped {processPipsSkippedDueToCacheOnly} processes due to /CacheOnly mode.")]
+        internal abstract void CacheOnlyStatistics(LoggingContext loggingContext, long processPipsSkippedDueToCacheOnly);
     }
 }
 #pragma warning restore CA1823 // Unused field

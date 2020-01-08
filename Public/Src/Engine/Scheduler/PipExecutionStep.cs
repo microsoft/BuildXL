@@ -91,10 +91,12 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         Cancel,
 
         /// <summary>
-        /// Skip pip because of the failed dependencies
+        /// Skip processing the pip. This may either be due to upstream failed dependencies or cache misses when the user
+        /// requests a cacheonly build. Skipped pips are not failures and do not fail the build. If they are skipped due
+        /// failed dependencies, the upstream pip is the one that will cause the build session to be a failure.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
-        SkipDueToFailedDependencies,
+        Skip,
 
         /// <summary>
         /// Check whether this pip is skipped due to incremental scheduling, if so ensure outputs are hashed
@@ -211,7 +213,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                     return toStep == PipExecutionStep.Start;
 
                 case PipExecutionStep.Start:
-                    return toStep == PipExecutionStep.SkipDueToFailedDependencies
+                    return toStep == PipExecutionStep.Skip
                         || toStep == PipExecutionStep.CheckIncrementalSkip
                         || toStep == PipExecutionStep.ExecuteNonProcessPip
                         || toStep == PipExecutionStep.ChooseWorkerCpu
@@ -229,7 +231,8 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.CacheLookup:
                     return toStep == PipExecutionStep.RunFromCache
                          || toStep == PipExecutionStep.ChooseWorkerCpu
-                         || toStep == PipExecutionStep.HandleResult;
+                         || toStep == PipExecutionStep.HandleResult
+                         || toStep == PipExecutionStep.Skip;
 
                 case PipExecutionStep.ChooseWorkerCpu:
                     return toStep == PipExecutionStep.MaterializeInputs
@@ -255,7 +258,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                         || toStep == PipExecutionStep.HandleResult;         /* failure */
 
                 case PipExecutionStep.Cancel:
-                case PipExecutionStep.SkipDueToFailedDependencies:
+                case PipExecutionStep.Skip:
                     return toStep == PipExecutionStep.HandleResult;
 
                 case PipExecutionStep.MaterializeOutputs:
@@ -309,8 +312,8 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                     return nameof(PipExecutionStep.PostProcess);
                 case PipExecutionStep.RunFromCache:
                     return nameof(PipExecutionStep.RunFromCache);
-                case PipExecutionStep.SkipDueToFailedDependencies:
-                    return nameof(PipExecutionStep.SkipDueToFailedDependencies);
+                case PipExecutionStep.Skip:
+                    return nameof(PipExecutionStep.Skip);
                 case PipExecutionStep.Start:
                     return nameof(PipExecutionStep.Start);
                 default:

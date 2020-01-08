@@ -141,6 +141,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeLazySODeletion = template.UnsafeLazySODeletion;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
+            CacheOnly = template.CacheOnly;
         }
 
         /// <inheritdoc />
@@ -330,5 +331,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath InputChanges { get; set; }
+
+        /// <inheritdoc />
+        public bool CacheOnly { get; set; }
     }
 }

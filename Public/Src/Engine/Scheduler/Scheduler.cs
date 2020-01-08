@@ -1676,11 +1676,21 @@ namespace BuildXL.Scheduler
             }
 
             long processPipsExecutedDueToCacheMiss = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsExecutedDueToCacheMiss);
+            long processPipsSkippedExecutionDueToCacheOnly = PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessPipsSkippedExecutionDueToCacheOnly);
             // The master keeps track of total cache miss counter across workers but not for individual miss reasons,
             // so don't check the sum for distributed builds
-            if (!IsDistributedBuild && processPipsExecutedDueToCacheMiss != cacheMissSum)
+            if (!IsDistributedBuild && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly ) != cacheMissSum)
             {
-                BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, $"ProcessPipsExecutedDueToCacheMiss != sum of counters for all cache miss types. ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, Sum: {cacheMissSum}");
+                BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " + 
+                    "ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
+            }
+
+            // Log details about pips skipped under /CacheOnly mode only if pips were actually skipped.
+            if (m_configuration.Schedule.CacheOnly && processPipsSkippedExecutionDueToCacheOnly > 0)
+            {
+                // Log the total number of pips skipped including downstream pips. 
+                // processPipsSkippedExecutionDueToCacheOnly only contains the pips where cache lookup was performed, not downstream pips that were skipped
+                Logger.Log.CacheOnlyStatistics(loggingContext, m_numProcessPipsSkipped);
             }
 
             State?.Cache.Counters.LogAsStatistics("PipCaching", loggingContext);
@@ -2364,6 +2374,7 @@ namespace BuildXL.Scheduler
                 Contract.Assert((result.PerformanceInfo == null) == !result.Status.IndicatesExecution());
 
                 bool succeeded = !result.Status.IndicatesFailure();
+                bool skipped = result.Status == PipResultStatus.Skipped;
                 PipId pipId = pip.PipId;
                 PipType pipType = pip.PipType;
                 var nodeId = pipId.ToNodeId();
@@ -2433,18 +2444,6 @@ namespace BuildXL.Scheduler
 
                         pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Failed);
                     }
-                    else if (result.Status == PipResultStatus.Skipped)
-                    {
-                        // No state transition in this case (already terminal)
-                        if (pipRuntimeInfo.State != PipState.Skipped)
-                        {
-                            Contract.Assume(false, "Prior state assumed to be skipped. Was: " + pipRuntimeInfo.State.ToString());
-                        }
-
-                        Contract.Assume(
-                            !m_scheduleConfiguration.StopOnFirstError,
-                            "When stopping on first failure, ReportSkippedPip should be unreachable.");
-                    }
                     else if (result.Status == PipResultStatus.Canceled)
                     {
                         if (pipRuntimeInfo.State != PipState.Running)
@@ -2458,6 +2457,14 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Assume(false, "Unhandled failed PipResult");
                         return;
+                    }
+                }
+                else if (skipped)
+                {
+                    // No state transition in this case (already terminal)
+                    if (pipRuntimeInfo.State != PipState.Skipped)
+                    {
+                        Contract.Assume(false, "Prior state assumed to be skipped. Was: " + pipRuntimeInfo.State.ToString());
                     }
                 }
                 else
@@ -2528,7 +2535,7 @@ namespace BuildXL.Scheduler
 
                 if (!wasAlreadyCompleted)
                 {
-                    if (succeeded)
+                    if (succeeded && !skipped)
                     {
                         // Incremental scheduling: On success, a pip is 'clean' in that we know its outputs are up to date w.r.t. its inputs.
                         // When incrementally scheduling on the next build, we can skip this pip altogether unless it or a dependency have become dirty (due to file changes).
@@ -2712,7 +2719,7 @@ namespace BuildXL.Scheduler
                     dependentPipRuntimeInfo.IsUncacheableImpacted = true;
                 }
 
-                if (!succeeded)
+                if (!succeeded || result.Status == PipResultStatus.Skipped)
                 {
                     // The current pip failed, so skip the dependent pip.
                     // Note that we decrement the ref count; this dependent pip will eventually have ref count == 0
@@ -3270,7 +3277,7 @@ namespace BuildXL.Scheduler
                 case PipExecutionStep.CheckIncrementalSkip:
                 case PipExecutionStep.RunFromCache: // Just reports hashes and replay warnings (inline)
                 case PipExecutionStep.Cancel:
-                case PipExecutionStep.SkipDueToFailedDependencies:
+                case PipExecutionStep.Skip:
                 case PipExecutionStep.HandleResult:
                 case PipExecutionStep.None:
                 case PipExecutionStep.Done:
@@ -3347,7 +3354,7 @@ namespace BuildXL.Scheduler
                         var state = TryStartPip(runnablePip);
                         if (state == PipState.Skipped)
                         {
-                            return PipExecutionStep.SkipDueToFailedDependencies;
+                            return PipExecutionStep.Skip;
                         }
 
                         if (state == PipState.Running)
@@ -3408,7 +3415,7 @@ namespace BuildXL.Scheduler
                         return runnablePip.SetPipResult(PipResult.CreateWithPointPerformanceInfo(PipResultStatus.Canceled));
                     }
 
-                case PipExecutionStep.SkipDueToFailedDependencies:
+                case PipExecutionStep.Skip:
                     {
                         // We report skipped pips when all dependencies (failed or otherwise) complete.
                         // This has the side-effect that stack depth is bounded when a pip fails; ReportSkippedPip
@@ -3648,13 +3655,21 @@ namespace BuildXL.Scheduler
                                 return PipExecutionStep.RunFromCache;
                             }
                         }
+                        else if (m_configuration.Schedule.CacheOnly)
+                        {
+                            // CacheOnly mode only wants to perform cache lookups and skip execution for pips that are misses
+                            environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsSkippedExecutionDueToCacheOnly);
+                            PipRuntimeInfo pipRuntimeInfo = GetPipRuntimeInfo(pipId);
+                            pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Skipped);
+                            return PipExecutionStep.Skip;
+                        }
                         else
                         {
                             environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipsExecutedDueToCacheMiss);
                         }
 
-                        return PipExecutionStep.ChooseWorkerCpu;
-                    }
+                    return PipExecutionStep.ChooseWorkerCpu;
+                }
 
                 case PipExecutionStep.RunFromCache:
                     {

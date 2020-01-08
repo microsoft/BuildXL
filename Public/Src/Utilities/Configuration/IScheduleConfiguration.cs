@@ -324,5 +324,10 @@ namespace BuildXL.Utilities.Configuration
         /// Path to file containing input changes.
         /// </summary>
         AbsolutePath InputChanges { get; }
+
+        /// <summary>
+        /// Instructs the scheduler to only perform cache lookup and skip execution of pips that are cache misses.
+        /// </summary>
+        bool CacheOnly { get; }
     }
 }

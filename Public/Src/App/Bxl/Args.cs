@@ -255,6 +255,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "cacheMissDiffFormat",
                             opt => CommandLineUtilities.ParseEnumOption<CacheMissDiffFormat>(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cacheOnly",
+                            opt => schedulingConfiguration.CacheOnly = opt),
                         OptionHandlerFactory.CreateOption(
                             "cacheSessionName",
                             opt => cacheConfiguration.CacheSessionName = CommandLineUtilities.ParseStringOption(opt)),

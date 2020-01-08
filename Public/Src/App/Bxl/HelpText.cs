@@ -639,6 +639,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/cacheOnly[+|-]",
+                Strings.HelpText_DisplayHelp_CacheOnly,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/scrub[+|-]",
                 Strings.HelpText_DisplayHelp_Scrub,
                 HelpLevel.Verbose);

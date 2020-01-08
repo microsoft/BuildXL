@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -1394,6 +1395,58 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
+        }
+
+        /// <summary>
+        /// Tests the logic for the CacheOnly mode which only performs cache lookups and skips executing pips upon misses
+        /// </summary>
+        [Fact]
+        public void CacheOnlyMode()
+        {
+            // Create a build graph with pip dependency ordering of:
+            // pipA -> pipB -> pipC
+            var pipAInput = CreateSourceFile();
+            var pipAOutput = CreateOutputFileArtifact();
+            var pipA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(pipAInput),
+                Operation.WriteFile(pipAOutput),
+            });
+
+            var pipBInput = CreateSourceFile();
+            var pipBOutput = CreateOutputFileArtifact();
+            var pipB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(pipBInput),
+                Operation.ReadFile(pipAOutput),
+                Operation.WriteFile(pipBOutput),
+            });
+
+            var pipC = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.ReadFile(pipBOutput),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            // Run the build to get all pips in the cache
+            RunScheduler().AssertSuccess();
+
+            // Ensure they're all cached
+            RunScheduler().AssertSuccess().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId);
+
+            // Modify the input to pipB and rerun with CacheOnly mode
+            File.AppendAllText(ToString(pipBInput.Path), "ChangedFileContent");
+            Configuration.Schedule.CacheOnly = true;
+            ScheduleRunResult cacheOnlyRun = RunScheduler();
+
+            // We expect the build to succeed, PipA to be cached
+            cacheOnlyRun.AssertSuccess();
+            cacheOnlyRun.AssertCacheHit(pipA.Process.PipId);
+            // PipB should be skipped because its input changed
+            XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipB.Process.PipId]);
+            // PipB should also be skipped because its upstream dependency was skipped
+            XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipC.Process.PipId]);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

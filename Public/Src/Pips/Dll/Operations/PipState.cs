@@ -105,9 +105,12 @@ namespace BuildXL.Pips.Operations
                     // Queued pips can be run when they reach the queue head.
                     return current == PipState.Ready;
                 case PipState.Skipped:
-                    // Skipping (due to failure of pre-requirements) can occur so long as the pip still has pre-requirements (i.e., Pending),
-                    // or if we tentatively skipped a filter-failing pip (that was later scheduled due to a filter change).
-                    return current == PipState.Waiting;
+                    return
+                        // Skipping (due to failure of pre-requirements) can occur so long as the pip still has pre-requirements (i.e., Pending),
+                        // or if we tentatively skipped a filter-failing pip (that was later scheduled due to a filter change).
+                        current == PipState.Waiting || 
+                        // The pip may also transition from Running to Skipped if using /cacheonly mode and the pip was not a cache hit.
+                        current == PipState.Running;
                 case PipState.Canceled:
                     // Completion / failure is the consequence of actual execution.
                     return current == PipState.Running;
@@ -161,6 +164,7 @@ namespace BuildXL.Pips.Operations
                 case PipState.Done:
                     return false; // Terminal but successful
                 case PipState.Skipped:
+                    return false; // Terminal but not considered a failure 
                 case PipState.Failed:
                 case PipState.Canceled:
                     return true; // Oh no!

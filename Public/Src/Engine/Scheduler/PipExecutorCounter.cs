@@ -1145,7 +1145,15 @@ namespace BuildXL.Scheduler
         NumFilesFailedToMaterialize,
 
         /// <nodoc/>
-        NumFilesFailedToMaterializeDueToEarlyWorkerRelease
+        NumFilesFailedToMaterializeDueToEarlyWorkerRelease,
+
+        /// <summary>
+        /// Number of process pips that would have been executed due to being a cache miss but were skipped because the
+        /// build ran under <see cref="BuildXL.Utilities.Configuration.IScheduleConfiguration.CacheOnly"/> mode. This
+        /// only includes the pips that had a cache lookup performed. Downstream pips of the miss will also be skipped
+        /// but they are not included in this counter because no cache lookup was performed.
+        /// </summary>
+        ProcessPipsSkippedExecutionDueToCacheOnly,
     }
 
     /// <summary>

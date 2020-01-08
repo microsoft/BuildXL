@@ -172,7 +172,9 @@ namespace BuildXL.Pips
         [Pure]
         public static bool IndicatesFailure(this PipResultStatus result)
         {
-            return result == PipResultStatus.Failed || result == PipResultStatus.Skipped || result == PipResultStatus.Canceled;
+            // Note: Skipped pips are not considered failures because they do not by themselves cause a build to fail.
+            // If a pip is skipped due to an upstream failure, that upstream pip is the one that causes the session to fail.
+            return result == PipResultStatus.Failed || result == PipResultStatus.Canceled;
         }
 
         /// <summary>

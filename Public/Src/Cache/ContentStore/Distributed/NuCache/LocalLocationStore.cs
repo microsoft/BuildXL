@@ -120,8 +120,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
 
-        private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveReplicationTaskFactory;
-        private CancellationTokenSource _lastProactiveReplicationTokenSource;
+        private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveCopyTaskFactory;
+
+        private Task _proactiveReplicationTask = Task.CompletedTask;
         private readonly object _proactiveReplicationLockObject = new object();
 
         private const string BinManagerKey = "LocalLocationStore.BinManager";
@@ -236,7 +237,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
 
-            _proactiveReplicationTaskFactory = proactiveCopyTaskFactory;
+            _proactiveCopyTaskFactory = proactiveCopyTaskFactory;
 
             if (_configuration.DistributedCentralStore != null)
             {
@@ -553,23 +554,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 else
                 {
-                    var cts = new CancellationTokenSource();
-
-                    // Make sure that two different threads don't go into a race condition, potentially having two threads doing proactive replication
-                    lock (_proactiveReplicationLockObject)
-                    {
-                        _lastProactiveReplicationTokenSource?.Cancel();
-                        _lastProactiveReplicationTokenSource?.Dispose();
-                        _lastProactiveReplicationTokenSource = cts;
-                    }
-
-                    // Important to use Task.Run since we want ProactiveReplication to run in the asynchronously regardless of whether
-                    // it starts with a long synchronous operation or not.
-                    Task.Run(() => WithOperationContext(
-                        context,
-                        cts.Token,
-                        opContext => ProactiveReplicationAsync(opContext)
-                        )).FireAndForget(context);
+                    Interfaces.Extensions.TaskExtensions.RunIfCompleted(
+                        ref _proactiveReplicationTask,
+                        _proactiveReplicationLockObject,
+                        () => WithOperationContext(
+                            context,
+                            CancellationToken.None,
+                            opContext => ProactiveReplicationAsync(opContext)),
+                        out var newTaskWasCreated)
+                        .FireAndForget(context, traceFailures: newTaskWasCreated); // Only log failures on the context on which proactive replication was initiated.
                 }
             }
 
@@ -1282,7 +1275,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer,
                     () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, LocalMachineId, contentHashes),
                     Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
-                    traceOperationStarted: false);
+                    traceOperationStarted: false,
+                    traceErrorsOnly: true);
         }
 
         /// <summary>
@@ -1495,6 +1489,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
+                    // Important to yield as GetContentInfoAsync has a synchronous implementation.
+                    await Task.Yield();
+
                     var localContent = (await _localContentStore.GetContentInfoAsync(context.Token))
                         .OrderByDescending(info => info.LastAccessTimeUtc) // GetHashesInEvictionOrder expects entries to already be ordered by last access time.
                         .Select(info => new ContentHashWithLastAccessTimeAndReplicaCount(info.ContentHash, info.LastAccessTimeUtc))
@@ -1504,10 +1501,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     var succeeded = 0;
                     var failed = 0;
-                    Task delayTask = Task.FromResult(0);
+                    var scanned = 0;
+                    var delayTask = Task.CompletedTask;
                     foreach (var content in contents)
                     {
                         context.Token.ThrowIfCancellationRequested();
+
+                        scanned++;
 
                         if (Database.TryGetEntry(context, content.ContentHash, out var entry))
                         {
@@ -1516,7 +1516,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 await delayTask;
                                 delayTask = Task.Delay(_configuration.DelayForProactiveReplication);
 
-                                var result = await _proactiveReplicationTaskFactory(context, content.ContentHash);
+                                var result = await _proactiveCopyTaskFactory(context, content.ContentHash);
 
                                 if (result.Succeeded)
                                 {
@@ -1537,7 +1537,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    return new ProactiveReplicationResult(succeeded, failed, localContent.Length);
+                    return new ProactiveReplicationResult(succeeded, failed, localContent.Length, scanned);
                 },
                 counter: Counters[ContentLocationStoreCounters.ProactiveReplication]);
         }

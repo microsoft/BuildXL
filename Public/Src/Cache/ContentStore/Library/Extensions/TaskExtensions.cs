@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// If the task is given up on, this prevents any unhandled exception from bringing down
         /// the process (if ThrowOnUnobservedTaskException is set) by observing any exception.
         /// </remarks>
-        public static void FireAndForget(this Task task, Context context, [CallerMemberName]string operation = null, Severity failureSeverity = Severity.Warning)
+        public static void FireAndForget(this Task task, Context context, [CallerMemberName]string operation = null, Severity failureSeverity = Severity.Warning, bool traceFailures = true)
         {
             // Since we're no longer going to wait for this task, we need to handle the case where it later throws
             // an exception as ThrowOnUnobservedTaskException is usually set in Q services.
@@ -32,9 +32,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
             task.ContinueWith(
                 t =>
                 {
-                    context.TraceMessage(
-                        failureSeverity,
-                        $"Unhandled exception in fire and forget task for operation '{operation}': {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                    if (traceFailures)
+                    {
+                        context.TraceMessage(
+                            failureSeverity,
+                            $"Unhandled exception in fire and forget task for operation '{operation}': {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                    }
                 },
             TaskContinuationOptions.OnlyOnFaulted);
         }
@@ -232,6 +235,29 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                 TaskContinuationOptions.ExecuteSynchronously);
 
             return tcs.Task;
+        }
+
+        /// <summary>
+        /// Assuming <paramref name="pendingTask"/> is a non-null Task, will either return the incomplete <paramref name="pendingTask"/> or start a new task constructed by <paramref name="runAsync"/>.
+        /// <paramref name="newTaskWasCreated"/> returns whether the function was run or false if the previous task was returned.
+        /// </summary>
+        public static Task RunIfCompleted(ref Task pendingTask, object lockHandle, Func<Task> runAsync, out bool newTaskWasCreated)
+        {
+            newTaskWasCreated = false;
+
+            if (pendingTask.IsCompleted)
+            {
+                lock (lockHandle)
+                {
+                    if (pendingTask.IsCompleted)
+                    {
+                        newTaskWasCreated = true;
+                        pendingTask = runAsync();
+                    }
+                }
+            }
+
+            return pendingTask;
         }
     }
 }

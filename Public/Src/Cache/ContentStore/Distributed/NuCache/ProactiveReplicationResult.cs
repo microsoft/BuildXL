@@ -20,11 +20,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public int TotalLocalContent { get; }
 
         /// <nodoc />
-        public ProactiveReplicationResult(int succeeded, int failed, int totalLocalContent)
+        public int TotalContentScanned { get; }
+
+        /// <nodoc />
+        public ProactiveReplicationResult(int succeeded, int failed, int totalLocalContent, int totalContentScanned)
         {
             SuccessCount = succeeded;
             FailCount = failed;
             TotalLocalContent = totalLocalContent;
+            TotalContentScanned = totalContentScanned;
         }
 
         /// <nodoc />
@@ -33,6 +37,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override string GetSuccessString() => $"{base.GetSuccessString()} (Succeeded={SuccessCount}, Failed={FailCount}, Total={SuccessCount + FailCount}, TotalLocalContent={TotalLocalContent})";
+        protected override string GetSuccessString() => $"{base.GetSuccessString()} (Succeeded={SuccessCount}, Failed={FailCount}, Total={SuccessCount + FailCount}, TotalContentScanned={TotalContentScanned}, TotalLocalContent={TotalLocalContent})";
     }
 }

@@ -457,13 +457,21 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
         private Stream TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            try
             {
-                return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    return TryOpenFileUnix(path, accessMode, mode, share, options, bufferSize);
+                }
+                else
+                {
+                    return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+                }
             }
-            else
+            catch (FileNotFoundException)
             {
-                return TryOpenFileWin(path, accessMode, mode, share, options, bufferSize);
+                // Even though we checked file existence before opening the file, it is possible that the file was deleted already.
+                return null;
             }
         }
 
@@ -479,15 +487,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 return null;
             }
 
-            try
-            {
-                return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
-            }
-            catch(System.IO.FileNotFoundException)
-            {
-                // Even though we checked file existance before, it is possible that the file was deleted already.
-                return null;
-            }
+            return new FileStream(path.Path, mode, accessMode, share, bufferSize, options);
         }
 
         /// <summary>

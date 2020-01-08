@@ -285,6 +285,7 @@ namespace BuildXL.Processes
                     // since multiple pips can have no provenance, SemiStableHash is not always unique across all pips
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
+                    IgnoreCreateProcessReport = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
                     SubstituteProcessExecutionInfo = shimInfo,
                 };
 

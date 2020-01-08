@@ -122,7 +122,8 @@ namespace Test.BuildXL.Processes.Detours
                     MonitorNtCreateFile = monitorNtCreate,
                     IgnoreGetFinalPathNameByHandle = ignoreGetFinalPathNameByHandle,
                     MonitorZwCreateOpenQueryFile = monitorZwCreateOpenQueryFile,
-                    IgnorePreloadedDlls = ignorePreloadedDlls
+                    IgnorePreloadedDlls = ignorePreloadedDlls,
+                    IgnoreCreateProcessReport = false
                 },
                 EnforceAccessPoliciesOnDirectoryCreation = enforceAccessPoliciesOnDirectoryCreation,
                 FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors
@@ -1595,6 +1596,7 @@ namespace Test.BuildXL.Processes.Detours
                         IgnoreNonCreateFileReparsePoints = false,
                         MonitorZwCreateOpenQueryFile = false,
                         MonitorNtCreateFile = true,
+                        IgnoreCreateProcessReport = false
                     }
                 };
 

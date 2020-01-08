@@ -84,6 +84,7 @@ namespace BuildXL.Processes
             QBuildIntegrated = false;
             PipId = 0L;
             EnforceAccessPoliciesOnDirectoryCreation = false;
+            IgnoreCreateProcessReport = true;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -241,6 +242,15 @@ namespace BuildXL.Processes
         {
             get => GetFlag(FileAccessManifestFlag.IgnoreNonCreateFileReparsePoints);
             set => SetFlag(FileAccessManifestFlag.IgnoreNonCreateFileReparsePoints, value);
+        }
+
+        /// <summary>
+        /// If true, ignore report from CreateProcess.
+        /// </summary>
+        public bool IgnoreCreateProcessReport
+        {
+            get => GetFlag(FileAccessManifestFlag.IgnoreCreateProcessReport);
+            set => SetFlag(FileAccessManifestFlag.IgnoreCreateProcessReport, value);
         }
 
         /// <summary>
@@ -1068,6 +1078,7 @@ namespace BuildXL.Processes
             IgnoreZwOtherFileInformation = 0x400000,
             MonitorZwCreateOpenQueryFile = 0x800000,
             IgnoreNonCreateFileReparsePoints = 0x1000000,
+            IgnoreCreateProcessReport = 0x2000000,
             QBuildIntegrated = 0x4000000,
             IgnorePreloadedDlls = 0x8000000,
             EnforceAccessPoliciesOnDirectoryCreation = 0x10000000

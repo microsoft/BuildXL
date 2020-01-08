@@ -115,6 +115,11 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; }
 
+        /// <summary>
+        /// Ignores CreateProcess report.
+        /// </summary>
+        bool IgnoreCreateProcessReport { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -163,6 +168,7 @@ namespace BuildXL.Utilities.Configuration
                 writer.Write((byte)@this.DoubleWritePolicy.Value);
             }
             writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
+            writer.Write(@this.IgnoreCreateProcessReport);
         }
 
         /// <nodoc/>
@@ -188,6 +194,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreDynamicWritesOnAbsentProbes = reader.ReadBoolean(),
                 DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
+                IgnoreCreateProcessReport = reader.ReadBoolean(),
             };
         }
 
@@ -214,12 +221,9 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
-                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques);
-        }
+                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
+                && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport);
 
-        private static bool IsAllowMissingOutputFileNamesSafer(IReadOnlyList<string> lhsValue, IReadOnlyList<string> rhsValue)
-        {
-            return lhsValue == null || lhsValue.Count == 0 || lhsValue.All(e => rhsValue.Contains(e));
         }
 
         private static bool IsAsSafeOrSafer<T>(T lhsValue, T rhsValue, T safeValue) where T: struct
@@ -227,28 +231,6 @@ namespace BuildXL.Utilities.Configuration
             return
                 EqualityComparer<T>.Default.Equals(lhsValue, safeValue) ||
                 EqualityComparer<T>.Default.Equals(lhsValue, rhsValue);
-        }
-
-        private static void WriteReadOnlyList(BuildXLWriter writer, IReadOnlyList<string> list)
-        {
-            var count = list != null ? list.Count : 0;
-            writer.WriteCompact(count);
-            for (int i = 0; i < count; i++)
-            {
-                writer.Write(list[i]);
-            }
-        }
-
-        private static List<string> ReadReadOnlyList(BuildXLReader reader)
-        {
-            var count = reader.ReadInt32Compact();
-            var result = new List<string>(count);
-            for (int i = 0; i < count; i++)
-            {
-                result.Add(reader.ReadString());
-            }
-
-            return result;
         }
     }
 }

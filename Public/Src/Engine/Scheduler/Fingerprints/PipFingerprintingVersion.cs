@@ -45,7 +45,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 71: Rename fields in weak fingerprint.
         /// 72: Added PreserveoutputsTrustLevel
         /// 73: Added Trust statically declared accesses
+        /// 74: Added IgnoreCreateProcessReport in IUnsafeSandboxConfiguration.
         /// </remarks>
-        TwoPhaseV2 = 73,
+        TwoPhaseV2 = 74,
     }
 }

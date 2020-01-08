@@ -30,6 +30,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = false;
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
+            
+            // TODO: this is a temporary flag. Take it out in a few weeks.
+            IgnoreCreateProcessReport = true;
+
             // Make sure to update SafeOptions below if necessary when new flags are added
         }
 
@@ -39,7 +43,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// </summary>
         public static readonly IUnsafeSandboxConfiguration SafeOptions = new UnsafeSandboxConfiguration()
         {
-            IgnorePreloadedDlls = false,            
+            IgnorePreloadedDlls = false,
+            IgnoreCreateProcessReport = false,
         };
 
         /// <nodoc />
@@ -63,6 +68,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
             IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
+            IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
         }
 
         /// <inheritdoc />
@@ -118,5 +124,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }
+
+        /// <inheritdoc />
+        public bool IgnoreCreateProcessReport { get; set; }
     }
 }

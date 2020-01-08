@@ -125,6 +125,9 @@ namespace Test.BuildXL.Scheduler
             // Compute static pip fingerprints for incremental scheduling tests.
             Configuration.Schedule.ComputePipStaticFingerprints = true;
 
+            // Disable currently enabled unsafe option.
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = false;
+
             // Populate file system capabilities.
             // Here, for example, we use copy-on-write instead of hardlinks when Unix file system supports copy-on-write.
             // Particular tests can override this by setting Configuration.Engine.UseHardlinks.

@@ -1117,6 +1117,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreGetFinalPathNameByHandle(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)EventId.ConfigIgnoreCreateProcessReport,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnoreCreateProcessReport enabled: {ShortProductName} is configured to not report file access due to CreateProcess API. This can lead to incorrect builds.")]
+        public abstract void ConfigIgnoreCreateProcessReport(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)EventId.ConfigPreserveOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

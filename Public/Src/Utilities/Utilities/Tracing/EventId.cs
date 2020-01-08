@@ -594,6 +594,8 @@ namespace BuildXL.Utilities.Tracing
         WarnToNotUsePackagesButModules = 937,
         WarnToNotUseProjectsField = 938,
 
+        ConfigIgnoreCreateProcessReport = 939,
+
         // RESERVED TO [950, 960] (BuildXL.Frontend.Sdk)
 
         // Reserved = 1005,

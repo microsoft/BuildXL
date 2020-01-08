@@ -693,6 +693,9 @@ namespace BuildXL
                             "minCacheContentReplica",
                             opt => cacheConfiguration.MinimumReplicaCountForStrongGuarantee = (byte)CommandLineUtilities.ParseInt32Option(opt, 0, 32)),
                         OptionHandlerFactory.CreateOption(
+                            "minimumDiskSpaceForPipsGb",
+                            opt => schedulingConfiguration.MinimumDiskSpaceForPipsGb = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "minWorkers",
                             opt => distributionConfiguration.MinimumWorkers = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(

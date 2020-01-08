@@ -149,6 +149,7 @@ namespace BuildXL.Scheduler.Tracing
         DebugFragment = 5052,
 
         PipSourceDependencyCannotBeHashed = 5053,
+        WorkerFailedDueToLowDiskSpace = 5054,
 
         ProblematicWorkerExit = 5070,
         ProcessPipExecutionInfo = 5071,

@@ -4631,6 +4631,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ExecutePipStepOverflowFailure(LoggingContext loggingContext, string exception);
 
         [GeneratedEvent(
+            (ushort)LogEventId.WorkerFailedDueToLowDiskSpace,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Worker execution terminated because available disk space in '{driveName}' drive is lower than {diskSpaceRequired}GB as specified in the /minimumDiskSpaceForPipsGb:<int> argument but available disk space is {diskSpaceAvailable}GB.")]
+        internal abstract void WorkerFailedDueToLowDiskSpace(LoggingContext loggingContext, string driveName, int diskSpaceRequired, int diskSpaceAvailable);
+
+        [GeneratedEvent(
             (ushort)LogEventId.CacheOnlyStatistics,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

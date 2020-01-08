@@ -250,6 +250,22 @@ namespace BuildXL.Interop.Windows
             // public byte[] StorageManagerName = new byte[24];
         }
 
+        /// <summary>
+        /// DiskStats contains some values that are not a part of DeviceIoControl along with DISK_PERFORMANCE
+        /// </summary>
+        public struct DiskStats
+        {
+            /// <summary>
+            /// Available Disk Space in GigaBytes
+            /// </summary>
+            public double AvailableSpaceGb;
+
+            /// <summary>
+            /// DISK_PERFORMANCE from DeviceIoControl
+            /// </summary>
+            public DISK_PERFORMANCE DiskPerformance;
+        }
+
         /// <nodoc />
         public const uint IOCTL_DISK_PERFORMANCE = 0x70020;
 

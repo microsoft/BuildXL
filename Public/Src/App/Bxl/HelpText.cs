@@ -1159,6 +1159,9 @@ namespace BuildXL
                 "/posixDeleteMode:[NoRun|RunFirst|RunLast]",
                 Strings.HelpText_DisplayHelp_PosixDeleteMode);
 
+            hw.WriteOption("/minimumDiskSpaceForPipsGb:<int representing disk space in Gigabyte>",
+                Strings.HelpText_DisplayHelp_DiskSpaceForPip);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

@@ -74,7 +74,7 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 set start=%time%
 set stepName=Building 'release\win-x64' and DistributedBuildRunner using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
+    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json 
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 

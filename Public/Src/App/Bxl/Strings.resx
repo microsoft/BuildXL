@@ -1024,6 +1024,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ValidateCgManifest" xml:space="preserve">
     <value>Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:&lt;path&gt;</value>
   </data>
+  <data name="HelpText_DisplayHelp_DiskSpaceForPip" xml:space="preserve">
+    <value>Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable.</value>
+  </data>
   <data name="HelpText_DisplayHelp_CacheMissDiffFormat" xml:space="preserve">
     <value>Diff format for cache miss analysis. Allowed values are CustomJsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff</value>
   </data>

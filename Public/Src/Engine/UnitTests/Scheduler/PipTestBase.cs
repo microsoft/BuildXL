@@ -395,7 +395,7 @@ namespace Test.BuildXL.Scheduler
                 root: CmdExecutable.Path.GetParent(pathTable),
                 allowHashing: false,
                 readable: true,
-                writable: true));
+                writable: false));
 
             Expander.Add(pathTable, new SemanticPathInfo(
                 rootName: PathAtom.Create(stringTable, nameof(TestBinRoot)),

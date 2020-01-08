@@ -1143,6 +1143,11 @@ namespace BuildXL.Scheduler.Tracing
         public int[] DiskQueueDepths;
 
         /// <summary>
+        /// Available Disk space in Gigabyte
+        /// </summary>
+        public int[] DiskAvailableSpaceGb;
+
+        /// <summary>
         /// Ram usage percent
         /// </summary>
         public int RamPercent;
@@ -1265,17 +1270,9 @@ namespace BuildXL.Scheduler.Tracing
 
             writer.Write(CpuPercent);
 
-            writer.Write(DiskPercents.Length);
-            foreach (var diskPercent in DiskPercents)
-            {
-                writer.Write(diskPercent);
-            }
-
-            writer.Write(DiskQueueDepths.Length);
-            foreach (var diskQueueDepth in DiskQueueDepths)
-            {
-                writer.Write(diskQueueDepth);
-            }
+            writer.Write(DiskPercents, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskQueueDepths, (w, e) => w.WriteCompact(e));
+            writer.Write(DiskAvailableSpaceGb, (w, e) => w.WriteCompact(e));
 
             writer.Write(RamPercent);
             writer.Write(ProcessCpuPercent);
@@ -1314,19 +1311,9 @@ namespace BuildXL.Scheduler.Tracing
 
             CpuPercent = reader.ReadInt32();
 
-            var diskCount = reader.ReadInt32();
-            DiskPercents = new int[diskCount];
-            for (int i = 0; i < DiskPercents.Length; i++)
-            {
-                DiskPercents[i] = reader.ReadInt32();
-            }
-
-            var diskQueueDepthCount = reader.ReadInt32();
-            DiskQueueDepths = new int[diskQueueDepthCount];
-            for (int i = 0; i < DiskQueueDepths.Length; i++)
-            {
-                DiskQueueDepths[i] = reader.ReadInt32();
-            }
+            DiskPercents = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskQueueDepths = reader.ReadArray(r => r.ReadInt32Compact());
+            DiskAvailableSpaceGb = reader.ReadArray(r => r.ReadInt32Compact());
 
             RamPercent = reader.ReadInt32();
             ProcessCpuPercent = reader.ReadInt32();

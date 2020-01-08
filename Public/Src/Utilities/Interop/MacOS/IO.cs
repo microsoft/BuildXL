@@ -258,6 +258,23 @@ namespace BuildXL.Interop.MacOS
         }
 
         /// <summary>
+        /// Returns the root mount for a given path or <c>null</c> in case of an error.
+        /// </summary>
+        /// <param name="path">Path name of any file or directory within the mounted file system</param>
+        /// <returns>String containing the mount name</returns>
+        public static string GetMountNameForPath(string path)
+        {
+            var statFsBuffer = new StatFsBuffer();
+            var error = StatFs(path, ref statFsBuffer);
+            if (error != 0)
+            {
+                return null;
+            }
+
+            return statFsBuffer.f_mntonname;
+        }
+
+        /// <summary>
         /// Sets the creation, modification, change and access time of a file specified at path
         /// </summary>
         /// <returns>Returns zero in case of success, otherwise error</returns>

@@ -354,7 +354,13 @@ namespace Test.BuildXL.Scheduler
         /// Runs the scheduler using the instance member PipGraph and Configuration objects. This will also carry over
         /// any state from any previous run such as the cache
         /// </summary>
-        public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+        public ScheduleRunResult RunScheduler(
+            SchedulerTestHooks testHooks = null, 
+            SchedulerState schedulerState = null, 
+            RootFilter filter = null, 
+            ITempCleaner tempCleaner = null, 
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
+            PerformanceCollector performanceCollector = null)
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -366,7 +372,7 @@ namespace Test.BuildXL.Scheduler
 
             return RunSchedulerSpecific(LastGraph,
                 (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
-                testHooks, schedulerState, filter, constraintExecutionOrder);
+                testHooks, schedulerState, filter, constraintExecutionOrder, performanceCollector: performanceCollector);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -400,7 +406,8 @@ namespace Test.BuildXL.Scheduler
             SchedulerState schedulerState = null,
             RootFilter filter = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
-            string runNameOrDescription = null)
+            string runNameOrDescription = null,
+            PerformanceCollector performanceCollector = null)
         {
             MarkSchedulerRun(runNameOrDescription);
 
@@ -483,7 +490,8 @@ namespace Test.BuildXL.Scheduler
                     config.Layout.BuildEngineDirectory.ToString(Context.PathTable),
                     config.Layout.ExternalSandboxedProcessDirectory.ToString(Context.PathTable),
                     subst: subst), // VM command proxy for unit tests comes from engine.
-                testHooks: testHooks))
+                testHooks: testHooks,
+                performanceCollector: performanceCollector))
             {
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();

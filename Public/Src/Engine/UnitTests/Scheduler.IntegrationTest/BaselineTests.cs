@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -157,6 +158,29 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (!shouldPipSucceed)
             {
                 AssertErrorEventLogged(EventId.PipProcessError);
+            }
+        }
+
+        [Fact]
+        public void VerifyGracefulTeardownWhenAvailableDiskSpaceLowerThanMinimumDiskSpaceForPipsGb()
+        {
+            Configuration.Schedule.MinimumDiskSpaceForPipsGb = int.MaxValue - 1;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10)))
+            {
+                RunScheduler(performanceCollector: performanceCollector).AssertFailure();
+                IgnoreWarnings();
+                AssertErrorEventLogged(LogEventId.WorkerFailedDueToLowDiskSpace);
             }
         }
 

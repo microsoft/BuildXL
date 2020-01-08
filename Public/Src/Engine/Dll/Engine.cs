@@ -1067,6 +1067,8 @@ namespace BuildXL.Engine
             // CloudBuild overrides
             if (mutableConfig.InCloudBuild())
             {
+                mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
+
                 // Enable fail fast for null reference exceptions caught by
                 // ExceptionUtilities.IsUnexpectedException
                 EngineEnvironmentSettings.FailFastOnNullReferenceException.Value = true;

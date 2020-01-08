@@ -75,6 +75,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
+
+            // Required minimum available disk space on all drives to keep executing pips 
+            MinimumDiskSpaceForPipsGb = 0;
         }
 
         /// <nodoc />
@@ -102,6 +105,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatDirectoryAsAbsentFileOnHashingInputContent = template.TreatDirectoryAsAbsentFileOnHashingInputContent;
             MaximumRamUtilizationPercentage = template.MaximumRamUtilizationPercentage;
             MinimumTotalAvailableRamMb = template.MinimumTotalAvailableRamMb;
+            MinimumDiskSpaceForPipsGb = template.MinimumDiskSpaceForPipsGb;
             MaximumAllowedMemoryPressureLevel = template.MaximumAllowedMemoryPressureLevel;
             AllowCopySymlink = template.AllowCopySymlink;
             AdaptiveIO = template.AdaptiveIO;
@@ -210,7 +214,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ForceUseEngineInfoFromCache { get; set; }
-
+        
         /// <inheritdoc />
         public bool? UseHistoricalRamUsageInfo { get; set; }
 
@@ -331,6 +335,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath InputChanges { get; set; }
+
+        /// <inheritdoc />
+        public int MinimumDiskSpaceForPipsGb { get; set; }
 
         /// <inheritdoc />
         public bool CacheOnly { get; set; }

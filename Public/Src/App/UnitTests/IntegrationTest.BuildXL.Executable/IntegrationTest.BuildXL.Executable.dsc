@@ -57,10 +57,4 @@ namespace IntegrationTest.BuildXL.Executable {
     });
 
     const testsDeployment = dll.testDeployment.deployedDefinition;
-
-    @@public
-    export const deployed = BuildXLSdk.StandaloneTestUtils.shouldDeployStandaloneTest ? BuildXLSdk.DeploymentHelpers.deploy({
-        definition: testsDeployment,
-        targetLocation: r`tests/standaloneTest/executabletests/${qualifier.configuration}/${BuildXLSdk.dotNetFramework}/IntegrationTest.BuildXL.Executable`,
-    }) : undefined;
 }

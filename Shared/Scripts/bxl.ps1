@@ -79,9 +79,6 @@ param(
     [string]$TestClass = "",
 
     [Parameter(Mandatory=$false)]
-    [switch]$DeployStandaloneTest = $false,
-
-    [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
     [string]$SharedCacheMode = "Disable",
 
@@ -271,10 +268,6 @@ if ($TestMethod -ne "") {
 
 if ($TestClass -ne "") {
     $AdditionalBuildXLArguments += "/p:[UnitTest]Filter.testClass=$TestClass";
-}
-
-if ($DeployStandaloneTest) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]DeployStandaloneTest=true";
 }
 
 if ($Vs) {

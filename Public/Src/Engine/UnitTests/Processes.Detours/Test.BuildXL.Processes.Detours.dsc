@@ -18,7 +18,6 @@ namespace Processes.Detours {
             testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
 
             assemblyName: assemblyName,
-            standaloneTestFolder: a`${assemblyName}.${platform}`,
 
             sources: [
                 f`PipExecutorDetoursTest.cs`,

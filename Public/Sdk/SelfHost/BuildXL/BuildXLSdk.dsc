@@ -74,7 +74,6 @@ export interface Result extends Managed.Assembly {
 
 @@public
 export interface TestArguments extends Arguments, Managed.TestArguments {
-    standaloneTestFolder?: PathAtom;
 }
 
 @@public
@@ -300,16 +299,6 @@ export function test(args: TestArguments) : TestResult {
     let result = Managed.test(args);
 
     if (!args.skipTestRun) {
-        StandaloneTest.deploy(
-            result.testDeployment,
-            args.testFramework,
-            /* deploymentOptions:    */ args.deploymentOptions,
-            /* subfolder:            */ args.standaloneTestFolder,
-            /* parallelCategories:   */ args.runTestArgs && args.runTestArgs.parallelGroups,
-            /* limitCategories:      */ args.runTestArgs && args.runTestArgs.limitGroups,
-            /* skipCategories:       */ args.runTestArgs && args.runTestArgs.skipGroups,
-            /* untrackTestDirectory: */ args.runTestArgs && args.runTestArgs.untrackTestDirectory);
-
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
             
             let framework = args.testFramework;

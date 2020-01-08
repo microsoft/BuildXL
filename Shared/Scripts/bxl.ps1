@@ -216,7 +216,6 @@ if ($DevCache) {
 }
 
 $useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
-$useL3Cache = $useSharedCache;
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
@@ -323,14 +322,14 @@ function New-Deployment {
 }
 
 function Write-CacheConfigJson {
-    param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [bool]$UseL3Cache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
 
-    $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -UseL3Cache $UseL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
     Set-Content -Path $configPath -Value (ConvertTo-Json $configOptions)
 }
 
 function Get-CacheConfig {
-    param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [bool]$UseL3Cache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
     
     $localCache = @{
          Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
@@ -341,38 +340,26 @@ function Get-CacheConfig {
          CacheLogPath = "[BuildXLSelectedLogPath]";
          UseStreamCAS = $true;
          UseRocksDbMemoizationStore = $true;
-         <# TODO: Enable elasticity when new lkg is published. #>
-         <# EnableElasticity = $true; #>
     };
 
     if (! $UseSharedCache) {
         return $localCache;
     }
 
-    if ($UseL3Cache) {
-        $remoteCache = @{
-            Assembly = "BuildXL.Cache.BuildCacheAdapter";
-            Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
-            CacheId = "L3Cache";
-            CacheLogPath = "[BuildXLSelectedLogPath].new";
-            CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
-            CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
-            UseBlobContentHashLists = $true;
-            CacheNamespace = $CacheNamespace;
-        };
-		
-		<# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
-		if ($UseDedupStore) {
-			$remoteCache.Add("UseDedupStore", $true);
-		}
-    } else {
-        $remoteCache = @{
-            Assembly = "BuildXL.Cache.BasicFilesystem";
-            Type = "BuildXL.Cache.BasicFilesystem.BasicFilesystemCacheFactory";
-            CacheId = "SelfhostBasicFileSystemL2";
-            CacheRootPath = $SharedCachePath;
-            StrictMetadataCasCoupling = $true;
-        };
+    $remoteCache = @{
+        Assembly = "BuildXL.Cache.BuildCacheAdapter";
+        Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
+        CacheId = "L3Cache";
+        CacheLogPath = "[BuildXLSelectedLogPath].new";
+        CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
+        CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
+        UseBlobContentHashLists = $true;
+        CacheNamespace = $CacheNamespace;
+    };
+    
+    <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
+    if ($UseDedupStore) {
+        $remoteCache.Add("UseDedupStore", $true);
     }
 
     return @{
@@ -503,7 +490,7 @@ $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifest
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -UseL3Cache $useL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }

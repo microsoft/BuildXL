@@ -993,7 +993,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (int)EventId.TwoPhasePathSetInvalid,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Failed to parse a prior path set (content hash {pathSetHash}) relevant to this pip (weak fingerprint {weakFingerprint}). This may result in a cache-miss for this pip.  Failure: {failure}")]

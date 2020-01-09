@@ -182,7 +182,7 @@ namespace Test.BuildXL
             XAssert.IsTrue(config.Schedule.IncrementalScheduling);
             XAssert.IsTrue(config.Schedule.MaxIO == 1);
             XAssert.IsTrue(config.Logging.TraceInfo.ContainsKey(TraceInfoExtensions.ABTesting));
-            XAssert.IsTrue(config.Logging.TraceInfo.Values.Contains($"Id1;{abTestingArg.GetHashCode()}"));
+            XAssert.IsTrue(config.Logging.TraceInfo.Values.Any(a => a.Contains($"Id1")));
         }
 
         [Fact]

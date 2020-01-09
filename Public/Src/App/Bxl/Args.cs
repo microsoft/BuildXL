@@ -1250,45 +1250,7 @@ namespace BuildXL
                 // Iterate through each argument, looking each argument up in the table.
                 IterateArgs(cl, configuration, specialCaseUnsafeOptions);
 
-                int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
-                if (numABTestingOptions > 0)
-                {
-                    // If RelatedActivityId is populated, use it as a seed for random number generation
-                    // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
-                    Random randomGen = null;
-                    if (string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
-                    {
-                        randomGen = new Random();
-                    }
-                    else
-                    {
-                        HashingHelper helper = new HashingHelper(pathTable, false);
-                        helper.Add(loggingConfiguration.RelatedActivityId);
-                        // NetCORE string.GetHashCode() is not deterministic across program executions unlike net472.
-                        // Each execution can give a different number with netcore implementation of GetHashCode. 
-                        // That's why, we use HashingHelper to get fingerprint and then get hashcode with our own implementation.
-                        randomGen = new Random(helper.GenerateHash().GetHashCode());
-                    }
-
-                    int randomNum = randomGen.Next(numABTestingOptions);
-                    // Sort ABTesting args.
-                    var randomOption = startupConfiguration.ABTestingArgs.OrderBy(a => a.Key).ToList()[randomNum];
-                    string abTestingKey = randomOption.Key;
-                    string abTestingArgs = randomOption.Value;
-
-                    // Add key and the hash code of the arguments to traceInfo for telemetry purposes.
-                    // As the ID for the AB testing arguments is specified by the user, there is a chance to
-                    // give the same ID to the different set of arguments. That's why, we also add the hash code of
-                    // the arguments to traceInfo.
-                    loggingConfiguration.TraceInfo.Add(
-                        TraceInfoExtensions.ABTesting,
-                        $"{abTestingKey};{abTestingArgs.GetHashCode().ToString()}");
-
-                    string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
-                    var cl2 = new CommandLineUtilities(splittedABTestingArgs);
-                    IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
-                    startupConfiguration.ChosenABTestingKey = abTestingKey;
-                }
+                AddABTestingArgs(pathTable, configuration, specialCaseUnsafeOptions);
 
                 foreach (string arg in cl.Arguments)
                 {
@@ -1412,6 +1374,74 @@ namespace BuildXL
                 arguments = null;
                 return false;
             }
+        }
+
+        private void AddABTestingArgs(PathTable pathTable, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)
+        {
+            var startupConfiguration = configuration.Startup;
+            var loggingConfiguration = configuration.Logging;
+
+            if (loggingConfiguration.TraceInfo.TryGetValue(TraceInfoExtensions.ABTesting, out var key))
+            {
+                startupConfiguration.ABTestingArgs.Add(key, string.Empty);
+                // AB testing argument might be chosen before BuildXL is started; for instance, GenericBuildRunner in CloudBuild.
+                // In those cases, we do not choose one among /abTesting args, instead use the one provided. 
+                // That argument is already applied, so we just need to set ChosenABTestingKey. 
+                startupConfiguration.ChosenABTestingKey = key;
+                return;
+            }
+
+            int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
+
+            if (numABTestingOptions == 0)
+            {
+                return;
+            }
+
+            // If RelatedActivityId is populated, use it as a seed for random number generation
+            // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
+            Random randomGen = null;
+            if (string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
+            {
+                randomGen = new Random();
+            }
+            else
+            {
+                using (var helper = new HashingHelper(pathTable, false))
+                {
+                    helper.Add(loggingConfiguration.RelatedActivityId);
+                    // NetCORE string.GetHashCode() is not deterministic across program executions unlike net472.
+                    // Each execution can give a different number with netcore implementation of GetHashCode. 
+                    // That's why, we use HashingHelper to get fingerprint and then get hashcode with our own implementation.
+                    randomGen = new Random(helper.GenerateHash().GetHashCode());
+                }
+            }
+
+            int randomNum = randomGen.Next(numABTestingOptions);
+            // Sort ABTesting args.
+            var randomOption = startupConfiguration.ABTestingArgs.OrderBy(a => a.Key).ToList()[randomNum];
+            string abTestingKey = randomOption.Key;
+            string abTestingArgs = randomOption.Value;
+
+            using (var helper = new HashingHelper(pathTable, false))
+            {
+                helper.Add(abTestingArgs);
+
+                // Add key and the hash code of the arguments to traceInfo for telemetry purposes.
+                // As the ID for the AB testing arguments is specified by the user, there is a chance to
+                // give the same ID to the different set of arguments. That's why, we also add the hash code of
+                // the arguments to traceInfo.
+                loggingConfiguration.TraceInfo.Add(
+                    TraceInfoExtensions.ABTesting,
+                    $"{abTestingKey};{helper.GenerateHash().GetHashCode().ToString()}");
+            }
+
+            startupConfiguration.ChosenABTestingKey = abTestingKey;
+
+            // Apply the arguments to configuration.
+            string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
+            var cl2 = new CommandLineUtilities(splittedABTestingArgs);
+            IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
         }
 
         private void IterateArgs(CommandLineUtilities cl, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)

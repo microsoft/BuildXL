@@ -6,13 +6,15 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
     /// <nodoc />
-    internal class ProactiveCopyResult : ResultBase
+    public class ProactiveCopyResult : ResultBase
     {
         /// <nodoc />
         public bool WasProactiveCopyNeeded { get; }
 
+        /// <nodoc />
         public BoolResult RingCopyResult { get; }
 
+        /// <nodoc />
         public BoolResult OutsideRingCopyResult { get; }
 
         /// <nodoc />
@@ -27,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public ProactiveCopyResult(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
+            WasProactiveCopyNeeded = true;
             RingCopyResult = ringCopyResult;
             OutsideRingCopyResult = outsideRingCopyResult;
         }

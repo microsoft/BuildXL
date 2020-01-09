@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -120,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
 
-        private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveCopyTaskFactory;
+        private Func<OperationContext, ContentHash, Task<ProactiveCopyResult>> _proactiveCopyTaskFactory;
 
         private Task _proactiveReplicationTask = Task.CompletedTask;
         private readonly object _proactiveReplicationLockObject = new object();
@@ -229,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void PreStartupInitialize(Context context, ILocalContentStore localStore, IDistributedContentCopier copier, Func<OperationContext, ContentHash, Task<ResultBase>> proactiveCopyTaskFactory)
+        public void PreStartupInitialize(Context context, ILocalContentStore localStore, IDistributedContentCopier copier, Func<OperationContext, ContentHash, Task<ProactiveCopyResult>> proactiveCopyTaskFactory)
         {
             Contract.Requires(!StartupStarted, $"{nameof(PreStartupInitialize)} must be called before {nameof(StartupAsync)}");
             context.Debug($"Reconciliation enabled: {_configuration.EnableReconciliation}. Local content store provided: {localStore != null}");
@@ -1520,8 +1521,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                 if (result.Succeeded)
                                 {
-                                    Counters[ContentLocationStoreCounters.ProactiveReplication_Succeeded].Increment();
-                                    succeeded++;
+                                    if (result.WasProactiveCopyNeeded)
+                                    {
+                                        Counters[ContentLocationStoreCounters.ProactiveReplication_Succeeded].Increment();
+                                        succeeded++;
+                                    }
                                 }
                                 else
                                 {

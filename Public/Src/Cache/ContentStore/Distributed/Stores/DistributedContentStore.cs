@@ -210,7 +210,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             if (_contentLocationStore is TransitioningContentLocationStore tcs && tcs.IsLocalLocationStoreEnabled)
             {
                 // Define proactive copy logic.
-                async Task<ResultBase> proactiveCopyTaskFactory(OperationContext operationContext, ContentHash hash)
+                async Task<ProactiveCopyResult> proactiveCopyTaskFactory(OperationContext operationContext, ContentHash hash)
                 {
                     var sessionResult = await ProactiveCopySession.Value;
                     if (sessionResult)
@@ -218,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         return await sessionResult.Value.ProactiveCopyIfNeededAsync(operationContext, hash, tryBuildRing: false);
                     }
 
-                    return new BoolResult("Failed to retrieve session for proactive copies.");
+                    return new ProactiveCopyResult(new BoolResult("Failed to retrieve session for proactive copies."));
                 }
 
                 tcs.LocalLocationStore.PreStartupInitialize(context, InnerContentStore as ILocalContentStore, _distributedCopier, proactiveCopyTaskFactory);

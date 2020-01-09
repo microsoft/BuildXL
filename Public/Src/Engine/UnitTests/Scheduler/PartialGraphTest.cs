@@ -138,7 +138,7 @@ namespace Test.BuildXL.Scheduler
             var seal = CreateSealDirectory(root, SealDirectoryKind.Partial);
             PipGraphBuilder.AddSealDirectory(seal);
             var builder = new PatchablePipGraph(
-                oldPipGraph: PipGraphBuilder.DataflowGraph,
+                oldPipGraph: PipGraphBuilder.DirectedGraph,
                 oldPipTable: PipTable,
                 graphBuilder: CreatePipGraphBuilder(),
                 maxDegreeOfParallelism: Environment.ProcessorCount);
@@ -148,7 +148,7 @@ namespace Test.BuildXL.Scheduler
 
         private void ExpectEmptyGraph(GraphReloadResult reloadResult)
         {
-            var newGraph = reloadResult.PipGraph.DataflowGraph;
+            var newGraph = reloadResult.PipGraph.DirectedGraph;
             Assert.Equal(0, newGraph.NodeCount);
             Assert.Equal(0, newGraph.EdgeCount);
             Assert.Equal(0, reloadResult.Stats.NumPipsReloaded);
@@ -161,7 +161,7 @@ namespace Test.BuildXL.Scheduler
 
             var newPipGraph = reloadResult.PipGraph;
             var newPipTable = newPipGraph.PipTable;
-            var newGraph = newPipGraph.DataflowGraph;
+            var newGraph = newPipGraph.DirectedGraph;
 
             // check that the new pip table contains expected number of relevant pips
             var allPipTypes = new HashSet<PipType>(oldPips.Select(pip => pip.PipType).Distinct());
@@ -226,7 +226,7 @@ namespace Test.BuildXL.Scheduler
 
             // partially reload graph into the newly created PipGraph.Builder
             var builder = new PatchablePipGraph(
-                oldPipGraph: PipGraphBuilder.DataflowGraph,
+                oldPipGraph: PipGraphBuilder.DirectedGraph,
                 oldPipTable: PipTable,
                 graphBuilder: CreatePipGraphBuilder(),
                 maxDegreeOfParallelism: Environment.ProcessorCount);

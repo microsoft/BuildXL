@@ -246,7 +246,7 @@ namespace Tool.ExecutionLogSdk
         /// The length of the pip's dependency chain based on the number of dependent pips when considering the whole build graph,
         /// not just the build graph containing Process pips only.
         /// </summary>
-        public int NodeHeight => m_buildGraph.DataflowGraph.GetNodeHeight(NodeId);
+        public int NodeHeight => m_buildGraph.DirectedGraph.GetNodeHeight(NodeId);
 
         /// <summary>
         /// The amount of time (in milliseconds) it takes to execute the pips on the critical path starting from the current pip.

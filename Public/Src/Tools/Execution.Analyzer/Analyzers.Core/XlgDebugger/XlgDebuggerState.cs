@@ -234,8 +234,8 @@ namespace BuildXL.Execution.Analyzer
             obi = s_pipFields.Aggregate(obi, (acc, fi) => acc.Prop(fi.Name, () => fi.GetValue(pip)));
             return obi
                 .Prop("Description", () => pip.GetDescription(PipGraph.Context))
-                .Prop("DownstreamPips", CachedGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
-                .Prop("UpstreamPips", CachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
+                .Prop("DownstreamPips", CachedGraph.DirectedGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
+                .Prop("UpstreamPips", CachedGraph.DirectedGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Cast<Edge>().Select(e => Analyzer.GetPip(e.OtherNode.ToPipId())))
                 .Preview(PipPreview(pip));
         }
 

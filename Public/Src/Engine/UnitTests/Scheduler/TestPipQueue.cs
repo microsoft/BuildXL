@@ -158,7 +158,7 @@ namespace Test.BuildXL.Scheduler
                     }
 
                     var nodeId = hashSourceFilePip.ToNodeId();
-                    bool runnableOnDemand = pipGraph.DataflowGraph.GetOutgoingEdges(nodeId).All(edge => edge.IsLight);
+                    bool runnableOnDemand = pipGraph.DirectedGraph.GetOutgoingEdges(nodeId).All(edge => edge.IsLight);
 
                     if (!runnableOnDemand)
                     {

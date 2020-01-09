@@ -139,7 +139,7 @@ namespace BuildXL.Engine
             {
                 Logger.Log.UsingPatchableGraphBuilder(loggingContext);
                 patchableGraph = new PatchablePipGraph(
-                    oldPipGraph: reuseResult.PipGraph.DataflowGraph,
+                    oldPipGraph: reuseResult.PipGraph.DirectedGraph,
                     oldPipTable: reuseResult.PipGraph.PipTable,
                     graphBuilder: builder,
                     maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency());

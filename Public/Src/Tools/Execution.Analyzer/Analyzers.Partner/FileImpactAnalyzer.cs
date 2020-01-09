@@ -539,7 +539,7 @@ namespace BuildXL.Execution.Analyzer
 
         private IDictionary<NodeId, CriticalPathStats> ComputeNodeCriticalPaths(HashSet<NodeId> allNodes)
         {
-            CriticalPath criticalPathCalculator = new CriticalPath(GetElapsed, (nodeId) => CachedGraph.DataflowGraph.GetOutgoingEdges(nodeId).Select(edge => edge.OtherNode));
+            CriticalPath criticalPathCalculator = new CriticalPath(GetElapsed, (nodeId) => CachedGraph.DirectedGraph.GetOutgoingEdges(nodeId).Select(edge => edge.OtherNode));
             var now = DateTime.Now;
             Console.WriteLine("Computing critical paths " + now);
             TimeSpan longestCriticalPath = TimeSpan.Zero;
@@ -628,7 +628,7 @@ namespace BuildXL.Execution.Analyzer
 
         public IEnumerable<NodeId> GetIncomingEdges(NodeId nodeId, HashSet<NodeId> allNodes)
         {
-            foreach (var incomingNode in CachedGraph.DataflowGraph.GetIncomingEdges(nodeId))
+            foreach (var incomingNode in CachedGraph.DirectedGraph.GetIncomingEdges(nodeId))
             {
                 if (allNodes == null || allNodes.Contains(incomingNode.OtherNode))
                 {

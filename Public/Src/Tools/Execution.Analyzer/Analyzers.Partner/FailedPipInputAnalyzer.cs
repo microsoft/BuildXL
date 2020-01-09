@@ -113,9 +113,9 @@ namespace BuildXL.Execution.Analyzer
         public FailedPipInputAnalyzer(AnalysisInput input)
             : base(input)
         {
-            nodeVisitor = new NodeVisitor(DataflowGraph);
-            m_failedPipsClosure = new VisitationTracker(DataflowGraph);
-            m_cachedPips = new VisitationTracker(DataflowGraph);
+            nodeVisitor = new NodeVisitor(DirectedGraph);
+            m_failedPipsClosure = new VisitationTracker(DirectedGraph);
+            m_cachedPips = new VisitationTracker(DirectedGraph);
         }
 
         public override void Prepare()
@@ -253,7 +253,7 @@ namespace BuildXL.Execution.Analyzer
                     nodeVisitor.VisitTransitiveDependencies(m_failedPips.Select(p => p.ToNodeId()), m_failedPipsClosure, visitNode: node =>
                     {
                         dependencyBuffer.Clear();
-                        foreach (var dependencyEdge in DataflowGraph.GetIncomingEdges(node))
+                        foreach (var dependencyEdge in DirectedGraph.GetIncomingEdges(node))
                         {
                             if (PipTable.GetPipType(dependencyEdge.OtherNode.ToPipId()) != PipType.HashSourceFile)
                             {

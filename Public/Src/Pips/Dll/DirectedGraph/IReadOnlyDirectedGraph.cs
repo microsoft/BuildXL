@@ -100,6 +100,11 @@ namespace BuildXL.Pips.DirectedGraph
         int NodeCount { get; }
 
         /// <summary>
+        /// Number of edges.
+        /// </summary>
+        int EdgeCount { get; }
+
+        /// <summary>
         /// Gets the range of valid node IDs.
         /// </summary>
         NodeRange NodeRange { get; }

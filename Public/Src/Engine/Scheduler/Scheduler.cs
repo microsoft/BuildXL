@@ -274,7 +274,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Underlying data-flow graph for the pip graph.
         /// </summary>
-        public IReadonlyDirectedGraph DataflowGraph => PipGraph.DataflowGraph;
+        public IReadonlyDirectedGraph DirectedGraph => PipGraph.DirectedGraph;
 
         /// <summary>
         /// Test hooks.
@@ -1225,7 +1225,7 @@ namespace BuildXL.Scheduler
                     graph.PipTable,
                     m_pipContentFingerprinter,
                     cache,
-                    DataflowGraph,
+                    DirectedGraph,
                     m_fingerprintStoreCounters,
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
@@ -5487,7 +5487,7 @@ namespace BuildXL.Scheduler
             {
                 NodeIdDebugView.RuntimeInfos = m_pipRuntimeInfos;
 
-                VisitationTracker nodeFilter = new VisitationTracker(DataflowGraph);
+                VisitationTracker nodeFilter = new VisitationTracker(DirectedGraph);
                 nodes = nodes.Where(a => m_pipTable.GetPipType(a.ToPipId()) != PipType.HashSourceFile).ToList();
                 foreach (var node in nodes)
                 {
@@ -5883,7 +5883,7 @@ namespace BuildXL.Scheduler
         public string GetConsumerDescription(in FileOrDirectoryArtifact artifact)
         {
             var producerId = PipGraph.GetProducer(artifact);
-            foreach (var consumerEdge in DataflowGraph.GetOutgoingEdges(producerId.ToNodeId()))
+            foreach (var consumerEdge in DirectedGraph.GetOutgoingEdges(producerId.ToNodeId()))
             {
                 Pip consumer = PipGraph.GetPipFromPipId(consumerEdge.OtherNode.ToPipId());
                 return consumer.GetDescription(Context);
@@ -6578,12 +6578,12 @@ namespace BuildXL.Scheduler
                 if (IncrementalSchedulingState == null)
                 {
                     // Short cut.
-                    return DataflowGraph.Nodes;
+                    return DirectedGraph.Nodes;
                 }
 
                 // We don't select nodes explicitly (through filters). This also means that we select all nodes.
                 // BuildSetCalculator will add the meta-pips after calculating the nodes to scheduled.
-                explicitlySelectedNodes = DataflowGraph.Nodes.Where(node => !m_pipTable.GetPipType(node.ToPipId()).IsMetaPip());
+                explicitlySelectedNodes = DirectedGraph.Nodes.Where(node => !m_pipTable.GetPipType(node.ToPipId()).IsMetaPip());
                 forceSkipDepsMode = ForceSkipDependenciesMode.Disabled;
             }
 
@@ -6727,7 +6727,7 @@ namespace BuildXL.Scheduler
             public SchedulerBuildSetCalculator(LoggingContext loggingContext, Scheduler scheduler)
                 : base(
                     loggingContext,
-                    scheduler.PipGraph.DataflowGraph,
+                    scheduler.PipGraph.DirectedGraph,
                     scheduler.IncrementalSchedulingState?.DirtyNodeTracker,
                     scheduler.PipExecutionCounters)
             {

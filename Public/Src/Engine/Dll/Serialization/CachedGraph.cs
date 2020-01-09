@@ -31,7 +31,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// The directed graph for the graph
         /// </summary>
-        public readonly DirectedGraph DataflowGraph;
+        public readonly IReadonlyDirectedGraph DirectedGraph;
 
         /// <summary>
         /// The pip table for the graph
@@ -61,14 +61,14 @@ namespace BuildXL.Engine
         /// <summary>
         /// Class constructor
         /// </summary>
-        public CachedGraph(PipGraph pipGraph, DirectedGraph dataflowGraph, PipExecutionContext context, MountPathExpander mountPathExpander, EngineSerializer serializer = null)
+        public CachedGraph(PipGraph pipGraph, IReadonlyDirectedGraph directedGraph, PipExecutionContext context, MountPathExpander mountPathExpander, EngineSerializer serializer = null)
         {
             Contract.Requires(pipGraph != null);
-            Contract.Requires(dataflowGraph != null);
+            Contract.Requires(directedGraph != null);
             Contract.Requires(context != null);
             Contract.Requires(mountPathExpander != null);
 
-            DataflowGraph = dataflowGraph;
+            DirectedGraph = directedGraph;
             PipTable = pipGraph.PipTable;
             MountPathExpander = mountPathExpander;
             Context = context;
@@ -247,7 +247,7 @@ namespace BuildXL.Engine
             m_pipExecutionContextTask = CreateAsyncLazyFromResult((PipExecutionContext)new SchedulerContext(cancellationToken, engineState.StringTable, engineState.PathTable, engineState.SymbolTable, engineState.QualifierTable));
             m_historicDataTask = CreateAsyncLazyFromResult(engineState.HistoricTableSizes);
             m_pipGraphTask = CreateAsyncLazyFromResult(pipGraph);
-            m_cachedGraphTask = CreateAsyncLazyFromResult(new CachedGraph(pipGraph, pipGraph.DataflowGraph, m_pipExecutionContextTask.Value.Result, engineState.MountPathExpander));
+            m_cachedGraphTask = CreateAsyncLazyFromResult(new CachedGraph(pipGraph, pipGraph.DirectedGraph, m_pipExecutionContextTask.Value.Result, engineState.MountPathExpander));
         }
 
         private async Task<CachedGraph> CreateCachedGraph(Task<PipTable> pipTableTask, Task<PipGraph> pipGraphTask, Task<DeserializedDirectedGraph> directedGraphTask, Task<PipExecutionContext> contextTask, Task<MountPathExpander> mountPathExpanderTask)

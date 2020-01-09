@@ -57,7 +57,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
         {
             ConcurrentNodeDictionary<ulong> durations = new ConcurrentNodeDictionary<ulong>(true);
 
-            foreach (var node in ExecutionData.DataflowGraph.Nodes)
+            foreach (var node in ExecutionData.DirectedGraph.Nodes)
             {
                 if (EndTimes[node] > threshold)
                 {
@@ -78,12 +78,12 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 
         public void DetectCycles()
         {
-            var graph = ExecutionData.DataflowGraph;
+            var graph = ExecutionData.DirectedGraph;
             BitArray bitArray = new BitArray(graph.NodeCount + 1);
             Stack<NodeId> nodeStack = new Stack<NodeId>();
             HashSet<NodeId> visitedNodes = new HashSet<NodeId>();
 
-            foreach (var node in ExecutionData.DataflowGraph.Nodes)
+            foreach (var node in ExecutionData.DirectedGraph.Nodes)
             {
                 DetectCyclesCore(node, visitedNodes, nodeStack, bitArray);
             }
@@ -112,7 +112,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
             else
             {
                 nodeStack.Push(node);
-                var graph = ExecutionData.DataflowGraph;
+                var graph = ExecutionData.DirectedGraph;
                 foreach (var dependent in graph.GetOutgoingEdges(node))
                 {
                     DetectCyclesCore(dependent.OtherNode, visitedNodes, nodeStack, bitArray);
@@ -174,9 +174,9 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 
             // how many outstanding direct dependencies have not been processed yet
             // does what the scheduler does
-            foreach (var node in ExecutionData.DataflowGraph.Nodes)
+            foreach (var node in ExecutionData.DirectedGraph.Nodes)
             {
-                RefCounts[node] = ExecutionData.DataflowGraph.GetIncomingEdgesCount(node);
+                RefCounts[node] = ExecutionData.DirectedGraph.GetIncomingEdgesCount(node);
             }
 
             Contract.Assert(maxThreadCount > 0);
@@ -188,7 +188,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
             }
 
             // what is a source node? all nodes that have no dependecies, can be build without anything before?
-            foreach (var sourceNode in ExecutionData.DataflowGraph.GetSourceNodes())
+            foreach (var sourceNode in ExecutionData.DirectedGraph.GetSourceNodes())
             {
                 AddOrComplete(m_simulationCurrentTime, sourceNode);
             }
@@ -245,7 +245,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
                 TotalActiveTime += thread.ActiveTime;
             }
 
-            var graph = ExecutionData.DataflowGraph;
+            var graph = ExecutionData.DirectedGraph;
             foreach (var thread in Threads)
             {
                 ulong minStart = 0;
@@ -314,7 +314,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
             {
                 foreach (var execution in Threads.SelectMany(t => t.Executions).OrderBy(p => p.StartTime).ThenBy(p => p.Duration).ThenBy(p => p.Id.Value))
                 {
-                    foreach (var node in ExecutionData.DataflowGraph.GetIncomingEdges(execution.Id))
+                    foreach (var node in ExecutionData.DirectedGraph.GetIncomingEdges(execution.Id))
                     {
                         incoming.Add(ExecutionData.PipIds[execution.Id].ToString());
                     }
@@ -346,7 +346,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 
             StartTimes[pip] = startTime;
             EndTimes[pip] = endTime;
-            foreach (var outgoingEdge in ExecutionData.DataflowGraph.GetOutgoingEdges(pip))
+            foreach (var outgoingEdge in ExecutionData.DirectedGraph.GetOutgoingEdges(pip))
             {
                 var consumer = outgoingEdge.OtherNode;
                 var consumerRefCount = RefCounts[consumer] - 1;

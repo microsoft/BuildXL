@@ -323,7 +323,7 @@ namespace BuildXL.Execution.Analyzer
             var pipTable = CachedGraph.PipTable;
 
             var pipsEnumerable = CachedGraph
-                .DataflowGraph
+                .DirectedGraph
                 .GetOutgoingEdges(rootPip.PipId.ToNodeId())
                 .Select(edge => edge.OtherNode)
                 .Select(nodeId => nodeId.ToPipId())

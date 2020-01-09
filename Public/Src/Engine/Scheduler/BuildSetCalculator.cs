@@ -27,9 +27,9 @@ namespace BuildXL.Scheduler
     internal abstract class BuildSetCalculator<TProcess, TPath, TFile, TDirectory>
     {
         /// <summary>
-        /// The dataflow graph of nodes
+        /// The directed graph of nodes
         /// </summary>
-        private readonly DirectedGraph m_graph;
+        private readonly IReadonlyDirectedGraph m_graph;
 
         /// <summary>
         /// The node visitor for the graph
@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler
         /// <param name="counters">Counter collection.</param>
         protected BuildSetCalculator(
             LoggingContext loggingContext,
-            DirectedGraph graph,
+            IReadonlyDirectedGraph graph,
             DirtyNodeTracker dirtyNodeTracker,
             CounterCollection<PipExecutorCounter> counters)
         {

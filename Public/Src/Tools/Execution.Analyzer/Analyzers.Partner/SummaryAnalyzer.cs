@@ -1345,7 +1345,7 @@ namespace BuildXL.Execution.Analyzer
         private void GetDependentNodes(NodeId node, HashSet<NodeId> visitedNodes)
         {
             visitedNodes.Add(node);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 if (visitedNodes.Contains(dependency.OtherNode))
                 {
@@ -1366,7 +1366,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             NodeAndCriticalPath maxDependencyCriticalPath = default(NodeAndCriticalPath);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 var dependencyCriticalPath = ComputeCriticalPath(dependency.OtherNode);
                 if (dependencyCriticalPath.Time > maxDependencyCriticalPath.Time)

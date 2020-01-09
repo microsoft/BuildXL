@@ -168,7 +168,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 var pipIdx = pipId.Value;
 
-                int incommingCount = CachedGraph.DataflowGraph.GetIncomingEdgesCount(pipId.ToNodeId());
+                int incommingCount = CachedGraph.DirectedGraph.GetIncomingEdgesCount(pipId.ToNodeId());
                 refCounts[pipIdx] = incommingCount;
 
                 if (incommingCount == 0)

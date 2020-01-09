@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The loaded directed graph
         /// </summary>
-        public DirectedGraph DataflowGraph => PipGraph.DataflowGraph;
+        public IReadonlyDirectedGraph DirectedGraph => PipGraph.DirectedGraph;
 
         /// <summary>
         /// The loaded pip table

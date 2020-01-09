@@ -178,7 +178,7 @@ namespace BuildXL.Execution.Analyzer
 
             Console.WriteLine("Creating nodes");
 
-            foreach (var node in DataflowGraph.Nodes)
+            foreach (var node in DirectedGraph.Nodes)
             {
                 m_mutableGraph.CreateNode();
             }
@@ -259,7 +259,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     using (var scope = m_mutableGraph.AcquireExclusiveIncomingEdgeScope(nodeId))
                     {
-                        foreach (var edge in DataflowGraph.GetIncomingEdges(nodeId))
+                        foreach (var edge in DirectedGraph.GetIncomingEdges(nodeId))
                         {
                             scope.AddEdge(edge.OtherNode, edge.IsLight);
                         }
@@ -293,7 +293,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Simulating [Reading]");
             var simulator = new BuildSimulatorAnalyzer(Input);
             simulator.Increment = SimulatorIncrement ?? simulator.Increment;
-            simulator.ExecutionData.DataflowGraph = m_mutableGraph;
+            simulator.ExecutionData.DirectedGraph = m_mutableGraph;
 
             simulator.OutputDirectory = OutputFilePath;
             if (!simulator.ReadExecutionLog())
@@ -348,7 +348,7 @@ namespace BuildXL.Execution.Analyzer
                     var entry = GetEntry(seal.Directory);
                     (PipId node, ulong cost) maxDependency = default;
 
-                    foreach (var dep in DataflowGraph.GetIncomingEdges(pipId.ToNodeId()))
+                    foreach (var dep in DirectedGraph.GetIncomingEdges(pipId.ToNodeId()))
                     {
                         var cost = simulator.ExecutionData.BottomUpAggregateCosts[dep.OtherNode];
                         if (!maxDependency.node.IsValid || cost > maxDependency.cost)

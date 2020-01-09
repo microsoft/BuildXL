@@ -35,11 +35,11 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         /// <summary>
         /// The loaded directed graph
         /// </summary>
-        public DirectedGraph DataflowGraph
+        public IReadonlyDirectedGraph DirectedGraph
         {
             get
             {
-                return CachedGraph.DataflowGraph;
+                return CachedGraph.DirectedGraph;
             }
         }
 
@@ -86,8 +86,8 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         public AnalysisModel(CachedGraph graph)
         {
             CachedGraph = graph;
-            ChangedPips = new VisitationTracker(CachedGraph.DataflowGraph);
-            visitor = new NodeVisitor(graph.DataflowGraph);
+            ChangedPips = new VisitationTracker(CachedGraph.DirectedGraph);
+            visitor = new NodeVisitor(graph.DirectedGraph);
             LookupHashFunction = LookupHash;
         }
 
@@ -217,7 +217,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
 
         public bool HasChangedDependencies(PipId pipId)
         {
-            foreach (var incoming in DataflowGraph.GetIncomingEdges(pipId.ToNodeId()))
+            foreach (var incoming in DirectedGraph.GetIncomingEdges(pipId.ToNodeId()))
             {
                 if (ChangedPips.WasVisited(incoming.OtherNode))
                 {

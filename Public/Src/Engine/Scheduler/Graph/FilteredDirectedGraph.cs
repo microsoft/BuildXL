@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// The underlying graph
         /// </summary>
-        private readonly DirectedGraph m_graph;
+        private readonly IReadonlyDirectedGraph m_graph;
 
         /// <summary>
         /// The filter over the graph nodes
@@ -37,7 +37,7 @@ namespace BuildXL.Scheduler.Graph
 
         private readonly Lazy<Dictionary<NodeId, int>> m_nodeHeights;
 
-        public FilteredDirectedGraph(DirectedGraph graph, VisitationTracker nodeFilter)
+        public FilteredDirectedGraph(IReadonlyDirectedGraph graph, VisitationTracker nodeFilter)
         {
             m_graph = graph;
             m_nodeFilter = nodeFilter;
@@ -48,6 +48,9 @@ namespace BuildXL.Scheduler.Graph
 
         /// <inheritdoc />
         int IReadonlyDirectedGraph.NodeCount => m_nodeFilter.VisitedCount;
+
+        /// <inheritdoc />
+        int IReadonlyDirectedGraph.EdgeCount => m_graph.EdgeCount;
 
         /// <inheritdoc />
         NodeRange IReadonlyDirectedGraph.NodeRange => m_graph.NodeRange;

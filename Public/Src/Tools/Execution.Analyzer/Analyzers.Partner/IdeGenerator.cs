@@ -48,7 +48,7 @@ namespace BuildXL.Execution.Analyzer
             };
 
             Ide.Generator.IdeGenerator.Configure(config, config.Startup, PathTable);
-            m_ideGenerator = new Ide.Generator.IdeGenerator(PipGraph.Context, PipGraph, PipGraph.DataflowGraph, config.Startup.ConfigFile, config.Ide);
+            m_ideGenerator = new Ide.Generator.IdeGenerator(PipGraph.Context, PipGraph, PipGraph.DirectedGraph, config.Startup.ConfigFile, config.Ide);
             m_solutionFile = Ide.Generator.IdeGenerator.GetSolutionPath(config.Ide, PathTable);
         }
 

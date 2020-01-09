@@ -106,11 +106,11 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             Console.WriteLine("Starting analysis");
-            HashSet<NodeId> sourceNodes = new HashSet<NodeId>(CachedGraph.DataflowGraph.GetSourceNodes());
+            HashSet<NodeId> sourceNodes = new HashSet<NodeId>(CachedGraph.DirectedGraph.GetSourceNodes());
             NodeAndCriticalPath[] criticalPaths = new NodeAndCriticalPath[sourceNodes.Count];
 
             Console.WriteLine("Computing critical paths");
-            VisitationTracker visitedNodes = new VisitationTracker(CachedGraph.DataflowGraph);
+            VisitationTracker visitedNodes = new VisitationTracker(CachedGraph.DirectedGraph);
             int i = 0;
             foreach (var sourceNode in sourceNodes)
             {
@@ -191,7 +191,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             NodeAndCriticalPath maxDependencyCriticalPath = default(NodeAndCriticalPath);
-            foreach (var dependency in CachedGraph.DataflowGraph.GetOutgoingEdges(node))
+            foreach (var dependency in CachedGraph.DirectedGraph.GetOutgoingEdges(node))
             {
                 var dependencyCriticalPath = ComputeCriticalPath(dependency.OtherNode, visitedNodes);
                 if (dependencyCriticalPath.Time > maxDependencyCriticalPath.Time)

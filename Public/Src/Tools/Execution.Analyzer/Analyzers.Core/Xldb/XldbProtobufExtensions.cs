@@ -607,7 +607,7 @@ namespace BuildXL.Execution.Analyzer
                 PipId = pip.PipId.Value,
             };
 
-            foreach (var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
+            foreach (var incomingEdge in cachedGraph.DirectedGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
             {
                 var pipType = cachedGraph.PipTable.HydratePip(incomingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
 
@@ -617,7 +617,7 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            foreach (var outgoingEdge in cachedGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
+            foreach (var outgoingEdge in cachedGraph.DirectedGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
             {
                 var pipType = cachedGraph.PipTable.HydratePip(outgoingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
 

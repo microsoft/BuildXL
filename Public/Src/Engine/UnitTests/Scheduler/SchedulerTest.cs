@@ -2036,7 +2036,7 @@ namespace Test.BuildXL.Scheduler
 
             var shutdownPipProcessDependencies = PipGraphBuilder
                 .Build()
-                .DataflowGraph
+                .DirectedGraph
                 .GetIncomingEdges(shutdownPip.PipId.ToNodeId())
                 .Where(e => PipTable.GetPipType(e.OtherNode.ToPipId()) == PipType.Process);
             XAssert.AreEqual(0, shutdownPipProcessDependencies.Count());
@@ -2234,7 +2234,7 @@ namespace Test.BuildXL.Scheduler
             NodeId prevNode = prev.PipId.ToNodeId();
             NodeId nextNode = next.PipId.ToNodeId();
             XAssert.IsTrue(
-                graph.DataflowGraph.GetOutgoingEdges(prev.PipId.ToNodeId()).Any(edge => edge.OtherNode == next.PipId.ToNodeId()),
+                graph.DirectedGraph.GetOutgoingEdges(prev.PipId.ToNodeId()).Any(edge => edge.OtherNode == next.PipId.ToNodeId()),
                 "expected to find an edge between '" + prevDesc + "' and '" + nextDesc + "'");
         }
 
@@ -2521,7 +2521,7 @@ namespace Test.BuildXL.Scheduler
                 // Serialize the schedule
                 BuildXLWriter writer = new BuildXLWriter(true, stream, true, true);
                 PipTable.Serialize(writer, maxDegreeOfParallelism: Environment.ProcessorCount);
-                PipGraphBuilder.DataflowGraph.Serialize(writer);
+                PipGraphBuilder.DirectedGraph.Serialize(writer);
                 var pipGraph = PipGraphBuilder.Build();
                 pipGraph.Serialize(writer);
 

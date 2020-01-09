@@ -404,7 +404,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             EnsureSourceFilesCleanAndMaterialized(pipGraph, dirtyNodes, materializedNodes);
 
             // TODO: The constructor of DirtyNodeTracker looks unnatural, please fix.
-            return new DirtyNodeTracker(pipGraph.DataflowGraph, dirtyNodes, perpetualDirtyNodes, dirtyNodeChanged, materializedNodes);
+            return new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodes, perpetualDirtyNodes, dirtyNodeChanged, materializedNodes);
         }
 
         /// <summary>
@@ -421,7 +421,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             dirtyNodes.Fill();
 
-            foreach (var node in pipGraph.DataflowGraph.Nodes)
+            foreach (var node in pipGraph.DirectedGraph.Nodes)
             {
                 if (pipGraph.PipTable.GetPipType(node.ToPipId()) == PipType.HashSourceFile)
                 {
@@ -1404,7 +1404,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 PipGraph,
                 m_internalPathTable,
                 newIncrementalSchedulingStateId,
-                new DirtyNodeTracker(pipGraph.DataflowGraph, DirtyNodeTracker.CreateSerializedState()),
+                new DirtyNodeTracker(pipGraph.DirectedGraph, DirtyNodeTracker.CreateSerializedState()),
                 m_pipProducers,
                 m_cleanPips,
                 m_materializedPips,
@@ -1563,7 +1563,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 // Loaded graph id matches the graph id of the current graph, which means that
                 // the dirty node tracker can be reused. Other states do not need to be changed.
                 Contract.Assert(dirtyNodeTrackerSerializedState != null);
-                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DataflowGraph, dirtyNodeTrackerSerializedState);
+                dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DirectedGraph, dirtyNodeTrackerSerializedState);
             }
             else
             {

@@ -1917,7 +1917,7 @@ namespace BuildXL.Engine
                     serializer.SerializeToFileAsync(GraphCacheFile.PipTable, writer => pipTable.Serialize(writer, PipTableMaxDegreeOfParallelismDuringSerialization)),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraph, pipGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraphId, pipGraph.SerializeGraphId),
-                    serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DataflowGraph.Serialize),
+                    serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DirectedGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.MountPathExpander, mountPathExpander.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.HistoricTableSizes, historicTableSizes.Serialize),
                 };

@@ -78,7 +78,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var valuePip in allValuePips)
             {
-                foreach (var incoming in DataflowGraph.GetIncomingEdges(valuePip.PipId.ToNodeId()))
+                foreach (var incoming in DirectedGraph.GetIncomingEdges(valuePip.PipId.ToNodeId()))
                 {
                     if (!PipTable.GetPipType(incoming.OtherNode.ToPipId()).IsMetaPip())
                     {
@@ -92,7 +92,7 @@ namespace BuildXL.Execution.Analyzer
                 var value = ((ValuePip)concretePipValue.HydratePip()).Symbol.ToString(SymbolTable);
                 writer.AddNode(new DgmlWriter.Node(concretePipValue.PipId.ToString(), value));
 
-                foreach (var incoming in DataflowGraph.GetIncomingEdges(concretePipValue.PipId.ToNodeId()))
+                foreach (var incoming in DirectedGraph.GetIncomingEdges(concretePipValue.PipId.ToNodeId()))
                 {
                     var incomingId = incoming.OtherNode.ToPipId();
                     if (concretePipValues.ContainsKey(incomingId))

@@ -131,7 +131,7 @@ namespace BuildXL.Scheduler.Graph
         #region Dependency-based queries (IQueryablePipDependencyGraph)
 
         /// <summary>
-        /// Performs a reachability check between <paramref name="from" /> and <paramref name="to" /> on <see cref="PipGraphBase.DataflowGraph" />.
+        /// Performs a reachability check between <paramref name="from" /> and <paramref name="to" /> on <see cref="PipGraphBase.DirectedGraph" />.
         /// </summary>
         /// <remarks>
         /// TODO: This will not return correct results w.r.t. meta-pips, e.g. spec file pips. Need to get meta-pips ordered correctly (i.e., add them topologically).

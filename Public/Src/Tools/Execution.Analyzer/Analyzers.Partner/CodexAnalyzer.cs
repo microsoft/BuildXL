@@ -56,7 +56,7 @@ namespace BuildXL.Execution.Analyzer
         public CodexAnalyzer(AnalysisInput input, string outputDirectory)
             : base(input)
         {
-            m_executedPipsTracker = new VisitationTracker(input.CachedGraph.DataflowGraph);
+            m_executedPipsTracker = new VisitationTracker(input.CachedGraph.DirectedGraph);
             OutputDirectory = outputDirectory;
         }
 

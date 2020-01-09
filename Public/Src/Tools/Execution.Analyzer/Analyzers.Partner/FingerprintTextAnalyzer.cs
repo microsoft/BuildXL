@@ -106,7 +106,7 @@ namespace BuildXL.Execution.Analyzer
             List<PipReference> orderedPips = CachedGraph.PipGraph
                 .RetrievePipReferencesOfType(PipType.Process)
                 .Where(lazyPip => m_completedPips.Contains(lazyPip.PipId))
-                .OrderBy(lazyPip => CachedGraph.DataflowGraph.GetNodeHeight(lazyPip.PipId.ToNodeId()))
+                .OrderBy(lazyPip => CachedGraph.DirectedGraph.GetNodeHeight(lazyPip.PipId.ToNodeId()))
                 .ThenBy(lazyPip => lazyPip.SemiStableHash)
                 .ToList();
 
@@ -156,7 +156,7 @@ namespace BuildXL.Execution.Analyzer
                                 writer.WriteLine("PipStableId: Pip{0:X16}", pip.SemiStableHash);
                                 writer.WriteLine(
                                     "Pip Dependency Chain Length: {0}",
-                                    CachedGraph.DataflowGraph.GetNodeHeight(pip.PipId.ToNodeId()));
+                                    CachedGraph.DirectedGraph.GetNodeHeight(pip.PipId.ToNodeId()));
                                 writer.WriteLine(pip.GetDescription(CachedGraph.Context));
                                 writer.WriteLine("Fingerprint: {0}", fingerprint);
                                 writer.WriteLine();

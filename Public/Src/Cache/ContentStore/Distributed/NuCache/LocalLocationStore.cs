@@ -104,6 +104,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private DateTime _lastCheckpointTime;
         private Task<BoolResult> _pendingProcessCheckpointTask;
+        private readonly object _pendingProcessCheckpointTaskLock = new object();
 
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
@@ -389,13 +390,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
         {
-            return await RunOutOfBandAsync(
-                inline,
+            var operationResult = await RunOutOfBandAsync(
+                _configuration.InlinePostInitialization || inline,
                 ref _pendingProcessCheckpointTask,
+                _pendingProcessCheckpointTaskLock,
                 context.CreateOperation(Tracer, async () =>
                 {
-                    BoolResult result = BoolResult.Success;
-
                     var oldRole = CurrentRole;
                     var newRole = checkpointState.Role;
                     var switchedRoles = oldRole != newRole;
@@ -415,6 +415,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
                                           _configuration.Checkpoint.RestoreCheckpointInterval,
                                           _lastRestoreTime));
+                    BoolResult result;
 
                     if (shouldRestore || forceRestore)
                     {
@@ -472,7 +473,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     CurrentRole = newRole;
 
                     return result;
-                }));
+                }),
+                out var factoryWasCalled);
+
+            if (!factoryWasCalled)
+            {
+                Tracer.Debug(context, "ProcessStateAsync operation was skipped because _pendingProcessCheckpointTask is still running.");
+            }
+
+            return operationResult;
         }
 
         internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
@@ -611,28 +620,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return (_clock.UtcNow - lastTime) >= interval;
         }
 
-        private Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, PerformAsyncOperationBuilder<BoolResult> operation, [CallerMemberName] string caller = null)
+        /// <summary>
+        /// Run a given operation out of band but only if <paramref name="pendingTask"/> is not completed.
+        /// </summary>
+        public static Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, object locker, PerformAsyncOperationBuilder<BoolResult> operation, out bool factoryWasCalled, [CallerMemberName] string caller = null)
         {
-            if (_configuration.InlinePostInitialization || inline)
+            factoryWasCalled = false;
+            if (inline)
             {
                 operation.AppendStartMessage(extraStartMessage: "inlined=true");
                 return operation.RunAsync(caller);
             }
 
-            if (pendingTask != null)
+            // Using a separate method to avoid a race condition.
+            if (pendingTaskIsNullOrCompleted(pendingTask))
             {
-                if (pendingTask.IsCompleted)
+                lock (locker)
                 {
-                    var resultTask = pendingTask;
-                    pendingTask = null;
-                    return resultTask;
+                    if (pendingTaskIsNullOrCompleted(pendingTask))
+                    {
+                        factoryWasCalled = true;
+                        pendingTask = Task.Run(() => operation.RunAsync(caller));
+                    }
                 }
-
-                return BoolResult.SuccessTask;
             }
 
-            pendingTask = Task.Run(() => operation.RunAsync(caller));
             return BoolResult.SuccessTask;
+
+            bool pendingTaskIsNullOrCompleted(Task task)
+            {
+                return task == null || task.IsCompleted;
+            }
         }
 
         internal async Task<BoolResult> CreateCheckpointAsync(OperationContext context)

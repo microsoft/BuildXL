@@ -27,6 +27,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
@@ -41,6 +43,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -196,6 +199,55 @@ namespace ContentStoreTest.Distributed.Sessions
 
             distributedContentStore.DisposeContentStoreFactory = false;
             return distributedContentStore;
+        }
+
+        [Fact]
+        public async Task RunOutOfBandAsyncStartsNewTaskIfTheCurrentOneIsCompleted()
+        {
+            var context = new OperationContext(new Context(Logger));
+            var tracer = new Tracer("tracer");
+            var locker = new object();
+            Task<BoolResult> task = null;
+
+            var operation = context.CreateOperation(tracer,
+                async () =>
+                {
+                    await Task.Delay(1);
+                    return BoolResult.Success;
+                });
+
+            Task<BoolResult> result = LocalLocationStore.RunOutOfBandAsync(inline: false, ref task, locker, operation, out var factoryWasCalled);
+
+            result.IsCompleted.Should().BeTrue("The task should be completed synchronously.");
+            task.Should().NotBeNull();
+            factoryWasCalled.Should().BeTrue();
+
+            (await task).ShouldBeSuccess();
+
+            result = LocalLocationStore.RunOutOfBandAsync(inline: false, ref task, locker, operation, out _);
+            result.IsCompleted.Should().BeTrue("The task should be completed synchronously.");
+            task.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void RunOutOfBandAsyncWithInlineTest()
+        {
+            var context = new OperationContext(new Context(Logger));
+            var tracer = new Tracer("tracer");
+            var locker = new object();
+            Task<BoolResult> task = null;
+
+            var operation = context.CreateOperation(tracer,
+                async () =>
+                {
+                    await Task.Delay(1);
+                    return BoolResult.Success;
+                });
+
+            Task <BoolResult> result = LocalLocationStore.RunOutOfBandAsync(inline: true, ref task, locker, operation, out _);
+
+            result.IsCompleted.Should().BeFalse("The task should not be completed synchronously.");
+            task.Should().BeNull("Task is not set when inline is true");
         }
 
         [Fact]

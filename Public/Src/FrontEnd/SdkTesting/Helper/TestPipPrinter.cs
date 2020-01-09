@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// <summary>
         /// Prints a pipGraph. Relies on the TypeScript.Net pretty printer
         /// </summary>
-        public string Print(IPipGraph pipGraph)
+        public string Print(IPipScheduleTraversal pipGraph)
         {
             var sourceFile = Generate(pipGraph);
             return sourceFile.ToDisplayString();
@@ -79,7 +79,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// Generates a SourceFile from a PipGraph
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        public ISourceFile Generate(IPipGraph pipGraph)
+        public ISourceFile Generate(IPipScheduleTraversal pipGraph)
         {
             var statements = new List<IStatement>();
             foreach (var pip in pipGraph.RetrieveScheduledPips())

@@ -194,7 +194,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serializes pip graph fragment.
         /// </summary>
-        public void Serialize(AbsolutePath filePath, IPipGraph pipGraph, string fragmentDescription = null, bool useTopSortSerialization = false)
+        public void Serialize(AbsolutePath filePath, IPipScheduleTraversal pipGraph, string fragmentDescription = null, bool useTopSortSerialization = false)
         {
             if (useTopSortSerialization)
             {

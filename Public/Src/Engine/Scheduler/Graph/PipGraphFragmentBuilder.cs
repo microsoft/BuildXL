@@ -23,7 +23,7 @@ namespace BuildXL.Scheduler.Graph
     /// <summary>
     /// Class for building graph fragments.
     /// </summary>
-    public class PipGraphFragmentBuilder : IPipGraph
+    public class PipGraphFragmentBuilder : IMutablePipGraph, IPipScheduleTraversal
     {
         /// <summary>
         /// Seal directory table

@@ -20,7 +20,7 @@ namespace BuildXL.Engine
     /// <remarks>
     /// This graph is intended to be used when processing Config and Module build files.
     /// </remarks>
-    internal sealed class DisallowedGraph : IPipGraph
+    internal sealed class DisallowedGraph : IMutablePipGraph, IPipScheduleTraversal
     {
         /// <inheritdoc />
         public bool AddProcess(Process process, PipId valuePip)

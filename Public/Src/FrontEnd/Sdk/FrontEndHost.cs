@@ -93,7 +93,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// PipGraph to construct.
         /// </summary>
-        public IPipGraph PipGraph { get; protected set; }
+        public IMutablePipGraph PipGraph { get; protected set; }
 
         /// <summary>
         /// Handles adding pip fragments to the build.

@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Script.Debugger
@@ -144,7 +145,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             {
                 new ObjectContext(Context, new ScopeLocals(this, frameIndex)),
                 new ObjectContext(Context, new ScopeCurrentModule(Env)),
-                new ObjectContext(Context, new ScopePipGraph(Context.GetPipConstructionHelper().PipGraph)),
+                new ObjectContext(Context, new ScopePipGraph(Context.FrontEndHost.PipGraph as IPipScheduleTraversal)),
             };
         }
 

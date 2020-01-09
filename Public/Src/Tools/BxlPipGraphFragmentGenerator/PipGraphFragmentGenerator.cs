@@ -72,8 +72,6 @@ namespace BuildXL.PipGraphFragmentGenerator
                 return false;
             }
 
-            IPipGraph pipGraphBuilder = null;
-
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
                     new InMemoryArtifactContentCache(),
@@ -93,7 +91,7 @@ namespace BuildXL.PipGraphFragmentGenerator
                     5000,
                     false);
 
-                pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
+                var pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
                     ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander)
                     : new PipGraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
 
@@ -136,7 +134,7 @@ namespace BuildXL.PipGraphFragmentGenerator
         private static bool SerializeFragmentIfRequested(
             PipGraphFragmentGeneratorConfiguration pipGraphFragmentGeneratorConfig,
             FrontEndContext context,
-            IPipGraph pipGraph)
+            IPipScheduleTraversal pipGraph)
         {
             Contract.Requires(context != null);
             Contract.Requires(pipGraph != null);

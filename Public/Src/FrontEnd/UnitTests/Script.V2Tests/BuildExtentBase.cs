@@ -25,7 +25,7 @@ namespace Test.DScript.Ast.DScriptV2
             m_pipGraph = new TestEnv.TestPipGraph();
         }
 
-        protected override IPipGraph GetPipGraph() => m_pipGraph;
+        protected override TestEnv.TestPipGraph GetPipGraph() => m_pipGraph;
 
         private const string TemplateWithPackagesBody = @"
         modules: [ f`src/package.config.dsc` ],

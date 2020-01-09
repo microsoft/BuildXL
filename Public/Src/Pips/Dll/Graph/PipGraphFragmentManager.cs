@@ -1,30 +1,25 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Pips;
-using BuildXL.Pips.Graph;
+using BuildXL.Pips.Tracing;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Manager which controls adding pip fragments to the graph.
     /// </summary>
     public class PipGraphFragmentManager : IPipGraphFragmentManager
     {
-        private readonly IPipGraph m_pipGraph;
+        private readonly IMutablePipGraph m_pipGraph;
 
         private readonly PipExecutionContext m_context;
 
@@ -48,7 +43,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
-        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IPipGraph pipGraph, int? maxParallelism)
+        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IMutablePipGraph pipGraph, int? maxParallelism)
         {
             m_loggingContext = loggingContext;
             m_context = context;

@@ -12,7 +12,7 @@ namespace BuildXL.Pips.Graph
     /// Manager to add binary pip fragments to a pip graph builder
     /// </summary>
     /// <remarks>
-    /// TODO: Should this implement <see cref="IPipGraph"/>?
+    /// TODO: Should this implement <see cref="IMutablePipGraph"/>?
     /// </remarks>
     public interface IPipGraphFragmentManager
     {

@@ -170,9 +170,9 @@ namespace Test.DScript.Ast.PartialEvaluation
                 new ConfigurationImpl(),
                 new MountPathExpander(PathTable));
 
-            IPipGraph pipGraph = oldPipGraph != null
+            IMutablePipGraph pipGraph = oldPipGraph != null
                 ? new PatchablePipGraph(oldPipGraph.DataflowGraph, oldPipGraph.PipTable, graphBuilder, maxDegreeOfParallelism: Environment.ProcessorCount)
-                : (IPipGraph)graphBuilder;
+                : (IMutablePipGraph)graphBuilder;
 
             frontEndHost.SetState(Engine, pipGraph, configuration);
 

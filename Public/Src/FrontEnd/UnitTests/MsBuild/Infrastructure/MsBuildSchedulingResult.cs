@@ -27,10 +27,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <summary>
         /// The scheduled graph
         /// </summary>
-        public IPipGraph PipGraph { get; }
+        public IMutablePipGraph PipGraph { get; }
 
         /// <nodoc/>
-        internal MsBuildSchedulingResult(PathTable pathTable, IPipGraph pipGraph, Dictionary<ProjectWithPredictions, (bool, string, Process)> schedulingResult)
+        internal MsBuildSchedulingResult(PathTable pathTable, IMutablePipGraph pipGraph, Dictionary<ProjectWithPredictions, (bool, string, Process)> schedulingResult)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(schedulingResult != null);

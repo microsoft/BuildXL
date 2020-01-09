@@ -270,10 +270,10 @@ namespace BuildXL.FrontEnd.Script.Debugger
     public sealed class ScopePipGraph
     {
         /// <nodoc />
-        public IPipGraph Graph { get; }
+        public IPipScheduleTraversal Graph { get; }
 
         /// <nodoc />
-        public ScopePipGraph(IPipGraph graph)
+        public ScopePipGraph(IPipScheduleTraversal graph)
         {
             Graph = graph;
         }

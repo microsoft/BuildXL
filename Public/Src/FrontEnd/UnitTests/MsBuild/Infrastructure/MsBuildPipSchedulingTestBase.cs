@@ -76,7 +76,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
             PopulateMainConfigAndPrelude();
         }
 
-        protected override IPipGraph GetPipGraph() => new TestPipGraph();
+        protected override TestPipGraph GetPipGraph() => new TestPipGraph();
 
         /// <summary>
         /// Starts the addition of projects

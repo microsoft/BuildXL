@@ -59,7 +59,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Pip graph.
         /// </summary>
-        protected IPipGraph PipGraph { get; private set; }
+        protected IMutablePipGraph PipGraph { get; private set; }
 
         /// <summary>
         /// The logger
@@ -84,7 +84,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Helper that stores some shared state on the Analyzer
         /// </summary>
-        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IPipGraph pipGraph)
+        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IMutablePipGraph pipGraph)
         {
             m_arguments = arguments;
             Context = context;

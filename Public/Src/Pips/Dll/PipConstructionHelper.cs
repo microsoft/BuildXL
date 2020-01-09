@@ -39,7 +39,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The graph
         /// </summary>
-        public IPipGraph PipGraph { get; }
+        public IMutablePipGraph PipGraph { get; }
 
         /// <summary>
         /// A unique relative path for this value pip
@@ -79,7 +79,7 @@ namespace BuildXL.Pips
             AbsolutePath objectRoot,
             AbsolutePath redirectedRoot,
             AbsolutePath tempRoot,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             ModuleId moduleId,
             string moduleName,
             ValuePip valuePip,
@@ -112,7 +112,7 @@ namespace BuildXL.Pips
             AbsolutePath objectRoot,
             AbsolutePath redirectedRoot,
             AbsolutePath tempRoot,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             ModuleId moduleId,
             string moduleName,
             RelativePath specRelativePath,
@@ -183,7 +183,7 @@ namespace BuildXL.Pips
             AbsolutePath? objectRoot = null,
             AbsolutePath? redirectedRoot = null,
             AbsolutePath? tempRoot = null,
-            IPipGraph pipGraph = null,
+            IMutablePipGraph pipGraph = null,
             string moduleName = null,
             string specRelativePath = null,
             string symbol = null,

@@ -1217,8 +1217,8 @@ namespace BuildXL.Engine
                     Logger.Log.CheckingForPipGraphReuseStatus(loggingContext, numFilesToCheck - filesToCheck.Count, filesToCheck.Count);
                 },
                 null,
-                BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfig),
-                BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfig)))
+                loggingConfig.GetTimerUpdatePeriodInMs(),
+                loggingConfig.GetTimerUpdatePeriodInMs()))
             {
                 foreach (var t in threads)
                 {

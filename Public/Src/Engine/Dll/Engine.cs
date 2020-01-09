@@ -2780,7 +2780,7 @@ namespace BuildXL.Engine
                         m_snapshotCollector,
                         m_directoryTranslator,
                         () => FileContentTable,
-                        GetTimerUpdatePeriodInMs(Configuration.Logging),
+                        Configuration.Logging.GetTimerUpdatePeriodInMs(),
                         reuseResult?.IsPartialReuse == true))
                     {
                         PipGraph newlyEvaluatedGraph;
@@ -2789,7 +2789,7 @@ namespace BuildXL.Engine
                             TestHooks.FrontEndEngineAbstraction.Value = frontEndEngineAbstraction;
                         }
 
-                        Stopwatch sw = Stopwatch.StartNew();
+                        var sw = Stopwatch.StartNew();
                         // Create the evaluation filter
                         EvaluationFilter evaluationFilter;
                         if (enablePartialEvaluation)
@@ -3369,27 +3369,6 @@ namespace BuildXL.Engine
         }
 
         #endregion
-
-        /// <summary>
-        /// Gets the update and delay time for status timers
-        /// </summary>
-        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig)
-        {
-            if (loggingConfig != null)
-            {
-                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
-                {
-                    return 10_000;
-                }
-
-                if (loggingConfig.FancyConsole)
-                {
-                    return 2_000;
-                }
-            }
-
-            return 5_000;
-        }
     }
 
     /// <summary>

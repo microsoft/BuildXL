@@ -25,7 +25,7 @@ namespace BuildXL.Scheduler.Graph
     /// <see cref="PartiallyReloadGraph"/>
     /// <see cref="SetSpecsToIgnore"/>
     /// </summary>
-    public sealed class PatchablePipGraph : IPipGraphBuilder
+    public sealed class PatchablePipGraph : IPipGraphBuilder, IPipScheduleTraversal
     {
         private static readonly HashSet<PipType> s_reloadablePipTypes = new HashSet<PipType>
         {

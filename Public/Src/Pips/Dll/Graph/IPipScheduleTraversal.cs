@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
 using JetBrains.Annotations;
 

@@ -6,6 +6,7 @@ import * as Managed from "Sdk.Managed";
 @@public
 export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
+    generateLogs: true,
     sources: globR(d`.`, "*.cs"),
     references: [
         importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

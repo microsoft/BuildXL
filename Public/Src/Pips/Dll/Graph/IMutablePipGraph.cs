@@ -11,12 +11,12 @@ using JetBrains.Annotations;
 namespace BuildXL.Pips.Graph
 {
     /// <summary>
-    /// A mutable pip graphs
+    /// A mutable pip graph
     /// </summary>
     /// <remarks>
     /// All methods are thread-safe.
     /// </remarks>
-    public interface IPipGraph : IPipScheduleTraversal
+    public interface IMutablePipGraph
     {
         /// <summary>
         /// Schedules a process Pip. The return value indicate whether this was a valid Pip.

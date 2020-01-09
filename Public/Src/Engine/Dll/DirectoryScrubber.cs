@@ -172,8 +172,8 @@ namespace BuildXL.Engine
                     Tracing.Logger.Log.ScrubbingStatus(m_loggingContext, filesEncountered);
                 },
                 null,
-                dueTime: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration),
-                period: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration)))
+                dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
+                period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
                 var deletableDirectoryCandidates = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var nondeletableDirectories = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
@@ -395,8 +395,8 @@ namespace BuildXL.Engine
             using (var timer = new Timer(
                 _ => Tracing.Logger.Log.ScrubbingProgress(m_loggingContext, "", numRemoved, filePaths.Count),
                 null,
-                dueTime: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration),
-                period: BuildXLEngine.GetTimerUpdatePeriodInMs(m_loggingConfiguration)))
+                dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
+                period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
                 filePaths
                     .AsParallel()

@@ -10,7 +10,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core.Incrementality;
 using BuildXL.FrontEnd.Core.Tracing;
@@ -22,7 +21,6 @@ using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -113,7 +111,7 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly PerformanceCollector m_collector;
 
-        private TimeSpan EvaluationProgressReportingPeriod => TimeSpan.FromMilliseconds(BuildXLEngine.GetTimerUpdatePeriodInMs(Configuration.Logging));
+        private TimeSpan EvaluationProgressReportingPeriod => TimeSpan.FromMilliseconds(Configuration.Logging.GetTimerUpdatePeriodInMs());
 
         /// <summary>
         /// Constructor.
@@ -156,7 +154,7 @@ namespace BuildXL.FrontEnd.Core
         /// Ideally, Engine should be set in the constructor but parsing the config file prevents this ideal scenario.
         /// Until we create an engine before parsing the config, the engine can't be set in the constructor above.
         /// </summary>
-        internal void SetState(FrontEndEngineAbstraction engine, IPipGraph pipGraph, IConfiguration configuration)
+        internal void SetState(FrontEndEngineAbstraction engine, IMutablePipGraph pipGraph, IConfiguration configuration)
         {
             Contract.Requires(engine != null);
             Contract.Requires(configuration != null);
@@ -315,7 +313,7 @@ namespace BuildXL.FrontEnd.Core
         /// <inheritdoc />
         bool IFrontEndController.PopulateGraph(
             Task<Possible<EngineCache>> cacheTask,
-            IPipGraph graph,
+            IMutablePipGraph graph,
             FrontEndEngineAbstraction engineAbstraction,
             EvaluationFilter evaluationFilter,
             IConfiguration configuration,
@@ -557,7 +555,7 @@ namespace BuildXL.FrontEnd.Core
             return paths.Select(p => AbsolutePath.Create(FrontEndContext.PathTable, p)).ToList();
         }
 
-        private void ReloadUnchangedPartsOfTheGraph(IPipGraph graph, IReadOnlyList<AbsolutePath> changedPaths, IReadOnlyList<AbsolutePath> unchangedPaths)
+        private void ReloadUnchangedPartsOfTheGraph(IMutablePipGraph graph, IReadOnlyList<AbsolutePath> changedPaths, IReadOnlyList<AbsolutePath> unchangedPaths)
         {
             WorkspaceBasedSpecDependencyProvider provider = new WorkspaceBasedSpecDependencyProvider(Workspace, FrontEndContext.PathTable);
 

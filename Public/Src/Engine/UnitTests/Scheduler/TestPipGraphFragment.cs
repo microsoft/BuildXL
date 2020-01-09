@@ -29,8 +29,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Internal pip graph.
         /// </summary>
-        public IPipGraph PipGraph { get; }
-
+        public PipGraphFragmentBuilder PipGraph { get; }
         private readonly AbsolutePath m_sourceRoot;
         private readonly AbsolutePath m_objectRoot;
         private readonly LoggingContext m_loggingContext;

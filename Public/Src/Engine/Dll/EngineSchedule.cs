@@ -1446,7 +1446,7 @@ namespace BuildXL.Engine
             // If ResourceSamplingFrequencyMs is passed by the user, use it as timer period.
             return loggingConfiguration.StatusFrequencyMs != 0
                 ? loggingConfiguration.StatusFrequencyMs
-                : BuildXLEngine.GetTimerUpdatePeriodInMs(loggingConfiguration);
+                : loggingConfiguration.GetTimerUpdatePeriodInMs();
         }
 
         private static void LogDiskFreeSpace(LoggingContext loggingContext, bool executionStart)

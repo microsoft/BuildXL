@@ -15,6 +15,7 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
@@ -223,7 +224,7 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// A fake pip graph for testing.
         /// </summary>
-        public sealed class TestPipGraph : IPipGraphBuilder
+        public sealed class TestPipGraph : IPipGraphBuilder, IPipScheduleTraversal
         {
             private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
             private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());

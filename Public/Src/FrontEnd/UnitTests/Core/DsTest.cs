@@ -34,6 +34,7 @@ using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Tracing;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities;
 using TypeScript.Net.Utilities;
@@ -985,7 +986,7 @@ namespace Test.BuildXL.FrontEnd.Core
             Project
         }
 
-        protected virtual IPipGraph GetPipGraph() => null; // if this is DisallowedGraph(), then evaluations involving sealed directories will fail.
+        protected virtual TestEnv.TestPipGraph GetPipGraph() => null; // if this is DisallowedGraph(), then evaluations involving sealed directories will fail.
 
         protected FrontEndHostController CreateFrontEndHost(
             ICommandLineConfiguration config,

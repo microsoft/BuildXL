@@ -16,7 +16,7 @@ namespace Test.DScript.Ast.Interpretation
     {
         public ServicePipTests(ITestOutputHelper output) : base(output) { }
 
-        protected override IPipGraph GetPipGraph() => new TestPipGraph();
+        protected override TestPipGraph GetPipGraph() => new TestPipGraph();
 
         [Fact]
         public void TestServiceId()

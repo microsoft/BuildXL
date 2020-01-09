@@ -7,11 +7,11 @@ using BuildXL.Pips.Graph;
 namespace BuildXL.Scheduler.Graph
 {
     /// <summary>
-    /// Extends <see cref="IPipGraph"/> to add a method (<see cref="Build"/>) for materializing added pips
+    /// Extends <see cref="IMutablePipGraph"/> to add a method (<see cref="Build"/>) for materializing added pips
     /// into a <see cref="PipGraph"/>.  After <see cref="Build"/> has been called, this builder becomes
     /// immutable; hence no subsequent Add*Pip method calls are allowed.
     /// </summary>
-    public interface IPipGraphBuilder : IPipGraph
+    public interface IPipGraphBuilder : IMutablePipGraph
     {
         /// <summary>
         /// Indicates whether the pip graph has been finalized such that further modifications are not allowed.

@@ -112,7 +112,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
-            out IPipGraph pipGraph,
+            out IMutablePipGraph pipGraph,
             WorkspaceBuilderConfiguration configuration,
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
@@ -162,7 +162,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            IPipGraph pipGraphBuilder = null;
+            IMutablePipGraph pipGraphBuilder = null;
 
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
@@ -328,7 +328,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             PathTable pathTable,
             ICommandLineConfiguration configuation,
             out Workspace workspace,
-            out IPipGraph pipGraph,
+            out IMutablePipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
             out FrontEndContext context)
         {

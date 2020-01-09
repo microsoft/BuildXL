@@ -35,8 +35,29 @@ namespace BuildXL.Utilities.Configuration
             return configuration.Logging.StoreFingerprints.HasValue
                 && configuration.Logging.StoreFingerprints.Value
                 && configuration.Distribution.BuildRole != DistributedBuildRoles.Worker
-                && configuration.Layout.FingerprintStoreDirectory.IsValid 
+                && configuration.Layout.FingerprintStoreDirectory.IsValid
                 && configuration.Engine.Phase.HasFlag(EnginePhases.Execute);
+        }
+
+        /// <summary>
+        /// Gets the update and delay time for status timers
+        /// </summary>
+        public static int GetTimerUpdatePeriodInMs(this ILoggingConfiguration loggingConfig)
+        {
+            if (loggingConfig != null)
+            {
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
+                {
+                    return 10_000;
+                }
+
+                if (loggingConfig.FancyConsole)
+                {
+                    return 2_000;
+                }
+            }
+
+            return 5_000;
         }
     }
 }

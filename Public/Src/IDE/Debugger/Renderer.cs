@@ -152,7 +152,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
                 ScopeAllModules scope => ArrayObjInfo(scope.EvaluatedModules.ToArray()).WithPreview(EvaluatedModulesScopeName),
                 IModuleAndContext mc => GetObjectInfo(mc.Tree.RootContext, mc.Module),
                 ObjectInfo objInf => objInf,
-                IPipGraph graph => PipGraphInfo(graph),
+                IPipScheduleTraversal graph => PipGraphInfo(graph),
                 Pip pip => GenericObjectInfo(pip, $"<{pip.PipType}>").Build(),
                 PipProvenance prov => ProvenanceInfo(prov),
                 EnvironmentVariable envVar => EnvironmentVariableInfo(envVar),
@@ -239,7 +239,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             return builder;
         }
 
-        private static ObjectInfo PipGraphInfo(IPipGraph graph)
+        private static ObjectInfo PipGraphInfo(IPipScheduleTraversal graph)
         {
             return new ObjectInfo(
                 "PipGraph",

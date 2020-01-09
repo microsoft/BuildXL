@@ -38,7 +38,7 @@ namespace BuildXL.Scheduler.Graph
             private readonly DirectoryArtifact[] m_untrackedDirectories;
 
             /// <nodoc />
-            public MacOsDefaults(PathTable pathTable, IPipGraph pipGraph)
+            public MacOsDefaults(PathTable pathTable, IMutablePipGraph pipGraph)
             {
                 m_provenance = new PipProvenance(
                     0,
@@ -135,7 +135,7 @@ namespace BuildXL.Scheduler.Graph
                 return true;
             }
 
-            private DirectoryArtifact GetSourceSeal(PathTable pathTable, IPipGraph pipGraph, string path)
+            private DirectoryArtifact GetSourceSeal(PathTable pathTable, IMutablePipGraph pipGraph, string path)
             {
                 var sealDirectory = new SealDirectory(
                     AbsolutePath.Create(pathTable, path),

@@ -698,7 +698,7 @@ namespace Test.BuildXL.Scheduler
                 PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture));
         }
 
-        protected PipProvenance CreateProvenance(IPipGraph pipGraph, string value = null, string usage = null)
+        protected PipProvenance CreateProvenance(IMutablePipGraph pipGraph, string value = null, string usage = null)
         {
             value = value ?? PipValuePrefix + (m_pipFreshId++).ToString(CultureInfo.InvariantCulture);
 
@@ -710,7 +710,7 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public static PipProvenance CreateProvenance(
             BuildXLContext context,
-            IPipGraph pipGraph,
+            IMutablePipGraph pipGraph,
             StringId usage,
             AbsolutePath specFile,
             string valueName)
@@ -732,7 +732,7 @@ namespace Test.BuildXL.Scheduler
             return provenance;
         }
 
-        public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IPipGraph pipGraph)
+        public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IMutablePipGraph pipGraph)
         {
             var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path);
             var locationData = new LocationData(provenance.Token.Path, 0, 0);
@@ -894,7 +894,7 @@ namespace Test.BuildXL.Scheduler
             FileArtifact? stdError = null,
             bool withWarning = false,
             string value = null,
-            IPipGraph pipGraph = null,
+            IMutablePipGraph pipGraph = null,
             IEnumerable<FileArtifact> untrackedFiles = null,
             IEnumerable<DirectoryArtifact> directoryOutputs = null)
         {

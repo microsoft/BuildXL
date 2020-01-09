@@ -13,7 +13,7 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     public sealed class PipGraphFragmentTopSort
     {
-        private readonly IPipGraph m_pipGraph;
+        private readonly IPipScheduleTraversal m_pipGraph;
 
         /// <summary>
         /// When true, ensure that pips should be in a similar order to how they were originally inserted into the graph.
@@ -24,7 +24,7 @@ namespace BuildXL.Pips.Operations
         /// Create an instance of <see cref="PipGraphFragmentTopSort"/>/
         /// </summary>
         /// <param name="pipGraph">Pip graph.</param>
-        public PipGraphFragmentTopSort(IPipGraph pipGraph)
+        public PipGraphFragmentTopSort(IPipScheduleTraversal pipGraph)
         {
             Contract.Requires(pipGraph != null);
             m_pipGraph = pipGraph;

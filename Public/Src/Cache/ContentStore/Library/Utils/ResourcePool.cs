@@ -115,7 +115,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var amountRemoved = 0;
 
-                foreach (var kvp in _resourceDict.OrderBy(kvp => kvp.Value._lastUseTime))
+                // Important to call ToArray as there is a race condition in ConcurrentDictionary when calling OrderBy
+                foreach (var kvp in _resourceDict.ToArray().OrderBy(kvp => kvp.Value._lastUseTime))
                 {
                     if (amountRemoved >= numberToRelease)
                     {
@@ -135,10 +136,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (kvp.Value.TryMarkForShutdown(force, earliestLastUseTime))
                     {
                         bool removed = _resourceDict.TryRemove(kvp.Key, out _);
-                        if (!removed)
-                        {
-                            Contract.Assert(false, $"Unable to remove resource with key {kvp.Key} which was marked for shutdown.");
-                        }
 
                         // Cannot await within a lock
                         shutdownTasks.Add(resourceValue.ShutdownAsync(_context));

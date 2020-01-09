@@ -317,7 +317,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             ExpandedAbsolutePath path,
             ContentHash contentHash)
         {
-            Possible<ContentHash, Failure> maybeStored = await TryStoreAsync(fileRealizationModes, path);
+            Possible<ContentHash, Failure> maybeStored = await Helpers.RetryOnFailureAsync(
+                async lastAttempt =>
+                {
+                    return await TryStoreAsync(fileRealizationModes, path);
+                });
 
             return maybeStored.Then<Unit>(
                 cacheReportedHash =>

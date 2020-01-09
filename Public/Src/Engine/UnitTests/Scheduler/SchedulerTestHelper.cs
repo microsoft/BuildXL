@@ -4,7 +4,6 @@
 using BuildXL.Pips.Builders;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 

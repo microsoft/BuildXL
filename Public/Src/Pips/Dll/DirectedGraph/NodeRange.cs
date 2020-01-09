@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Inclusive range of <see cref="NodeId"/>s.

@@ -10,8 +10,8 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 

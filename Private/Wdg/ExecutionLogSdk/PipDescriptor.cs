@@ -10,6 +10,8 @@ using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;

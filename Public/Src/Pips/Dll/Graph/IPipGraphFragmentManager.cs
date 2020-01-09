@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
-namespace BuildXL.Pips
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Manager to add binary pip fragments to a pip graph builder

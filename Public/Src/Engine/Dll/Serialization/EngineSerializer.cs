@@ -13,6 +13,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;

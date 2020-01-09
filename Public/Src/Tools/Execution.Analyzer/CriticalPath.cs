@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 
 namespace BuildXL.Execution.Analyzer
 {

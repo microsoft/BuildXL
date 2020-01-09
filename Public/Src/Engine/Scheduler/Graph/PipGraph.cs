@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -112,8 +113,8 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(context != null);
             Contract.Requires(semanticPathExpander != null);
 
-            Debugging.NodeIdDebugView.DebugPipGraph = this;
-            Debugging.NodeIdDebugView.DebugContext = context;
+            NodeIdDebugView.DebugPipGraph = this;
+            NodeIdDebugView.DebugContext = context;
 
             // Serialized State
             GraphId = serializedState.GraphId;

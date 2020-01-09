@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Typed wrapper around ConcurrentDenseIndex

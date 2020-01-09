@@ -9,7 +9,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
-using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;

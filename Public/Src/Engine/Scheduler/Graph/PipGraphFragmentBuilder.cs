@@ -10,13 +10,13 @@ using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
-using static BuildXL.Scheduler.Graph.PipGraph;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -51,8 +51,8 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly ConcurrentBigMap<PipId, SealDirectoryKind> m_sealDirectoryPips = new ConcurrentBigMap<PipId, SealDirectoryKind>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
-        private WindowsOsDefaults m_windowsOsDefaults;
-        private MacOsDefaults m_macOsDefaults;
+        private PipGraph.WindowsOsDefaults m_windowsOsDefaults;
+        private PipGraph.MacOsDefaults m_macOsDefaults;
         private readonly object m_osDefaultLock = new object();
         private int m_nextPipId = 0;
 
@@ -220,7 +220,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         if (m_macOsDefaults == null)
                         {
-                            m_macOsDefaults = new MacOsDefaults(m_pipExecutionContext.PathTable, this);
+                            m_macOsDefaults = new PipGraph.MacOsDefaults(m_pipExecutionContext.PathTable, this);
                         }
                     }
                 }
@@ -235,7 +235,7 @@ namespace BuildXL.Scheduler.Graph
                     {
                         if (m_windowsOsDefaults == null)
                         {
-                            m_windowsOsDefaults = new WindowsOsDefaults(m_pipExecutionContext.PathTable);
+                            m_windowsOsDefaults = new PipGraph.WindowsOsDefaults(m_pipExecutionContext.PathTable);
                         }
                     }
                 }

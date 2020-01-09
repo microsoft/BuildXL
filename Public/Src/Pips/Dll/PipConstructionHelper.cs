@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Threading;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Utilities;

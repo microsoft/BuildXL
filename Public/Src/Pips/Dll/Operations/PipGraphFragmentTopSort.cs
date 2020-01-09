@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Pips.Graph;
 
 namespace BuildXL.Pips.Operations
 {

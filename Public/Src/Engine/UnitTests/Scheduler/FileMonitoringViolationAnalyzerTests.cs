@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;

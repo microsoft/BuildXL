@@ -1,13 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Represents a mutable set of <see cref="NodeId"/>s in a given range.

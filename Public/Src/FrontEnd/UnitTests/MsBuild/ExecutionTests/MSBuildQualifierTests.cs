@@ -3,6 +3,8 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
 using TypeScript.Net.Extensions;

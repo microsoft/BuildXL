@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 {

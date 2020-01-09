@@ -7,6 +7,8 @@ using System.Linq;
 using BuildXL.FrontEnd.Ninja;
 using BuildXL.FrontEnd.Ninja.Serialization;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

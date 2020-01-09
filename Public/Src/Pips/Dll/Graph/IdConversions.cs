@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using BuildXL.Pips;
 
 #pragma warning disable SA1649 // File name must match first type name
 
-namespace BuildXL.Scheduler.Graph
+using BuildXL.Pips.DirectedGraph;
+
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// NodeId Utilities

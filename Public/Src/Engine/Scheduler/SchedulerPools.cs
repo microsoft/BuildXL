@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

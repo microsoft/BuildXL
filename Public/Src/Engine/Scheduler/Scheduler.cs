@@ -15,10 +15,14 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
+#if PLATFORM_OSX
+using BuildXL.Interop;
+#endif
+using BuildXL.Interop.MacOS;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Multiplexing;
@@ -26,42 +30,40 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.Containers;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
-using BuildXL.Scheduler.Debugging;
 using BuildXL.Scheduler.Diagnostics;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
+using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.InputChange;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.ViewModel;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
-using BuildXL.Scheduler.FileSystem;
-using BuildXL.Scheduler.IncrementalScheduling;
-using BuildXL.Interop;
-using BuildXL.Interop.MacOS;
-using BuildXL.Processes.Containers;
-using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
-using BuildXL.Utilities.VmCommandProxy;
-using BuildXL.Storage.InputChange;
-using BuildXL.ViewModel;
 
 namespace BuildXL.Scheduler
 {
@@ -74,7 +76,7 @@ namespace BuildXL.Scheduler
     [SuppressMessage("Microsoft.Maintainability", "CA1506")]
     public partial class Scheduler : IPipScheduler, IPipExecutionEnvironment, IFileContentManagerHost, IOperationTrackerHost, IDisposable
     {
-        #region Constants
+#region Constants
 
         /// <summary>
         /// Ref count for pips which have executed already (distinct from ref count 0; ready to execute)
@@ -156,9 +158,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         public const string SharedOpaqueSidebandDirectory = "SharedOpaqueSidebandState";
 
-        #endregion Constants
+#endregion Constants
 
-        #region State
+#region State
 
         /// <summary>
         /// Configuration. Ideally shouldn't be used because it reads config state not related to the scheduler.
@@ -716,9 +718,9 @@ namespace BuildXL.Scheduler
             return IncrementalSchedulingState != null && IncrementalSchedulingState.DirtyNodeTracker.IsNodeCleanAndMaterialized(pipId.ToNodeId());
         }
 
-        #endregion State
+#endregion State
 
-        #region Members: Fingerprinting, Content Hashing, and Output Caching
+#region Members: Fingerprinting, Content Hashing, and Output Caching
 
         /// <summary>
         /// Manages materialization and tracking of source and output content.
@@ -843,9 +845,9 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly LoggingContext m_loggingContext;
 
-        #endregion
+#endregion
 
-        #region Ready Queue
+#region Ready Queue
 
         /// <summary>
         /// Ready queue of executable pips.
@@ -854,9 +856,9 @@ namespace BuildXL.Scheduler
 
         private PipQueue OptionalPipQueueImpl => m_pipQueue as PipQueue;
 
-        #endregion
+#endregion
 
-        #region Statistics
+#region Statistics
 
         private ulong m_totalPeakVirtualMemoryUsageMb;
         private ulong m_totalPeakWorkingSetMb;
@@ -1017,7 +1019,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         private volatile bool m_hitLowMemoryPerfSmell;
 
-        #endregion Statistics
+#endregion Statistics
 
         /// <summary>
         /// Sets the process start time
@@ -1027,7 +1029,7 @@ namespace BuildXL.Scheduler
             m_processStartTimeUtc = processStartTimeUtc;
         }
 
-        #region Constructor
+#region Constructor
 
         /// <summary>
         /// Constructs a scheduler for an immutable pip graph.
@@ -1313,9 +1315,9 @@ namespace BuildXL.Scheduler
                     args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, message, args) : message));
         }
 
-        #endregion Constructor
+#endregion Constructor
 
-        #region Execution
+#region Execution
 
         /// <summary>
         /// Returns a Boolean indicating if the scheduler has so far been successful in executing pips.
@@ -4572,7 +4574,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        #region Critical Path Logging
+#region Critical Path Logging
 
         private void LogCriticalPath(Dictionary<string, long> statistics, [CanBeNull] BuildSummary buildSummary)
         {
@@ -5016,7 +5018,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        #endregion Critical Path Logging
+#endregion Critical Path Logging
 
         /// <summary>
         /// Given the execution performance of a just-completed pip, records its performance info for future schedules
@@ -5082,9 +5084,9 @@ namespace BuildXL.Scheduler
                    m_artificialCacheMissOptions.ShouldHaveArtificialMiss(pip.SemiStableHash);
         }
 
-        #endregion Execution
+#endregion Execution
 
-        #region Runtime Initialization
+#region Runtime Initialization
 
         /// <summary>
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips
@@ -5668,7 +5670,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        #endregion Runtime Initialization
+#endregion Runtime Initialization
 
         /// <summary>
         /// Records the final content hashes (by path; no rewrite count) of the given <see cref="SealDirectory" /> pip's contents.
@@ -5770,7 +5772,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        #region IFileContentManagerHost Members
+#region IFileContentManagerHost Members
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         LoggingContext IFileContentManagerHost.LoggingContext => m_executePhaseLoggingContext;
@@ -6059,9 +6061,9 @@ namespace BuildXL.Scheduler
                 });
         }
 
-        #endregion IFileContentManagerHost Members
+#endregion IFileContentManagerHost Members
 
-        #region IOperationTrackerHost Members
+#region IOperationTrackerHost Members
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         string IOperationTrackerHost.GetDescription(in FileOrDirectoryArtifact artifact)
@@ -6092,9 +6094,9 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-        #endregion IOperationTrackerHost Members
+#endregion IOperationTrackerHost Members
 
-        #region Event Logging
+#region Event Logging
 
         private delegate void PipProvenanceEvent(
             LoggingContext loggingContext,
@@ -6398,9 +6400,9 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-        #endregion Event Logging
+#endregion Event Logging
 
-        #region Helpers
+#region Helpers
 
         private PipRuntimeInfo GetPipRuntimeInfo(PipId pipId)
         {
@@ -6422,9 +6424,9 @@ namespace BuildXL.Scheduler
             return info;
         }
 
-        #endregion Helpers
+#endregion Helpers
 
-        #region Schedule Requests
+#region Schedule Requests
 
         /// <summary>
         /// Retrieves the list of pips of a particular type that are in the provided state
@@ -6868,7 +6870,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        #endregion
+#endregion
 
         /// <inheritdoc />
         public void Dispose()

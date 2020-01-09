@@ -90,6 +90,7 @@ namespace BuildXL.Pips
         Explorer,
         PreserveOutput,
         CacheMaterializationError,
+        VisualStudioDebugView,
         End,
 #pragma warning restore 1591
     }

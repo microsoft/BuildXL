@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities;

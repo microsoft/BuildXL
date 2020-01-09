@@ -430,12 +430,12 @@ namespace BuildXL.Execution.Analyzer
                 PipInput != null ?
                     GetProcessPipDependents(CachedGraph.PipGraph.TryFindProducer(
                         AbsolutePath.Create(CachedGraph.Context.PathTable, PipInput),
-                        global::BuildXL.Scheduler.VersionDisposition.Latest,
+                        global::BuildXL.Pips.Graph.VersionDisposition.Latest,
                         null
                     )).ToList() :
                 PipOutput != null ? new List<Process>() { CachedGraph.PipGraph.TryFindProducer(
                         AbsolutePath.Create(CachedGraph.Context.PathTable, PipOutput),
-                        global::BuildXL.Scheduler.VersionDisposition.Latest,
+                        global::BuildXL.Pips.Graph.VersionDisposition.Latest,
                         null
                     ) as Process} :
                 throw new InvalidOperationException();

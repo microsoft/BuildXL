@@ -8,7 +8,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
-namespace BuildXL.Pips
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// A mutable pip graphs

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -6,9 +6,10 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Scheduler
+namespace BuildXL.Pips
 {
     /// <summary>
     /// Contains the runtime-specific pip data, like the current state, ref count and assigned priority

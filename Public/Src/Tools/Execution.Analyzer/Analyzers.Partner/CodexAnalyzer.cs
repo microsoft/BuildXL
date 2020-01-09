@@ -4,8 +4,9 @@
 using System;
 using System.IO;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;

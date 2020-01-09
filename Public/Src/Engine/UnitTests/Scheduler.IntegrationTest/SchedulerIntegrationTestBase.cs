@@ -13,6 +13,8 @@ using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;

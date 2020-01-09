@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Graph

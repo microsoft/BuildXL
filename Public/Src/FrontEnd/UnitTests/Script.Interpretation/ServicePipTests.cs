@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;

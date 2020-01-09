@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Directed graph with unweighted edges. Edges are tagged as either 'light' or 'heavy'

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities;

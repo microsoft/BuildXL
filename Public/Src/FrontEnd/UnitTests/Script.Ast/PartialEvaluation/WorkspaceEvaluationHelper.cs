@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
-using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;

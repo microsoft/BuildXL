@@ -8,6 +8,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
@@ -19,7 +21,6 @@ using BuildXL.Storage.ChangeJournalService;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
 
 namespace Test.BuildXL.Scheduler
 {

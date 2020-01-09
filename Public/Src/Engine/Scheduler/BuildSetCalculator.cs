@@ -8,8 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -179,7 +179,7 @@ namespace BuildXL.Scheduler
         #endregion
 
         /// <summary>
-        /// Result of <see cref="BuildSetCalculator{TProcess,TPath,TFile,TDirectory}.GetNodesToSchedule(bool,System.Collections.Generic.IEnumerable{BuildXL.Scheduler.Graph.NodeId},ForceSkipDependenciesMode,bool)"/>
+        /// Result of <see cref="BuildSetCalculator{TProcess,TPath,TFile,TDirectory}.GetNodesToSchedule(bool,System.Collections.Generic.IEnumerable{BuildXL.Pips.DirectedGraph.NodeId},ForceSkipDependenciesMode,bool)"/>
         /// </summary>
         public sealed class GetScheduledNodesResult
         {

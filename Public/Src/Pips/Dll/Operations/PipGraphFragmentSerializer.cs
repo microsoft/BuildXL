@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations

@@ -5,12 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -22,6 +22,8 @@ namespace Test.BuildXL.Scheduler
     /// </summary>
     public sealed class QueryablePipDependencyGraph : IQueryablePipDependencyGraph
     {
+        public IReadonlyDirectedGraph DirectedGraph => throw new NotImplementedException();
+
         private readonly BuildXLContext m_context;
         private readonly Dictionary<AbsolutePath, Pip> m_pathProducers = new Dictionary<AbsolutePath, Pip>();
         private readonly Dictionary<PipId, Pip> m_pips = new Dictionary<PipId, Pip>();

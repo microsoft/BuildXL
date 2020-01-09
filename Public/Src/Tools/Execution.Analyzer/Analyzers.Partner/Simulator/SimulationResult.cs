@@ -8,7 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 
 namespace BuildXL.Execution.Analyzer.Analyzers.Simulator
 {

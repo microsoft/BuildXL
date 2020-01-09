@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using static BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingStateWriteTextHelpers;

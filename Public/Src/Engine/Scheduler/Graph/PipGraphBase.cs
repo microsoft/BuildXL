@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -45,7 +47,10 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Supporting data-flow graph.
         /// </summary>
-        public readonly DirectedGraph DataflowGraph;
+        public DirectedGraph DataflowGraph;
+
+        /// <inheritdoc />
+        public IReadonlyDirectedGraph DirectedGraph => DataflowGraph;
 
         /// <summary>
         /// Mapping from full symbol and qualifier to value nodes.

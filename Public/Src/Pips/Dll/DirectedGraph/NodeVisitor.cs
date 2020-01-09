@@ -1,12 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 
-namespace BuildXL.Scheduler
+namespace BuildXL.Pips.DirectedGraph
 {
     internal delegate bool VisitNode(NodeId node);
 

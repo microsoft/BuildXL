@@ -4,13 +4,13 @@
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;

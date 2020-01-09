@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 
 namespace BuildXL.Scheduler

@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Scheduler;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;

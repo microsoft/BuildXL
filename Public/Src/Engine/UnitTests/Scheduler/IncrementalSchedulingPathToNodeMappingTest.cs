@@ -4,12 +4,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Scheduler.Graph.NodeId>;
+using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Pips.DirectedGraph.NodeId>;
 
 namespace Test.BuildXL.Scheduler
 {

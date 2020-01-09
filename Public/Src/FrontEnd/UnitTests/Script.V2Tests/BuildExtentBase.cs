@@ -4,6 +4,9 @@
 using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Scheduler.Graph;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;

@@ -10,17 +10,17 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Engine;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
-using BuildXL.Utilities.Configuration;
-using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Pips.Builders;
 using Test.BuildXL.EngineTestUtilities;
 
 namespace Test.BuildXL.TestUtilities

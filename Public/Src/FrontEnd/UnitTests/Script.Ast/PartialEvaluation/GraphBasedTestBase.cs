@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;

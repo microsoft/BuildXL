@@ -8,23 +8,24 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using BuildXL.Engine;
 using BuildXL.Interop;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Qualifier;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using System.Threading;
-using BuildXL.Scheduler;
 using MacPaths = BuildXL.Interop.MacOS.IO;
 
 namespace Test.BuildXL.Scheduler

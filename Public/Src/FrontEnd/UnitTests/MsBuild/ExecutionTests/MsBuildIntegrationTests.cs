@@ -7,6 +7,8 @@ using System.Linq;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using Test.BuildXL.EngineTestUtilities;
 using Xunit;

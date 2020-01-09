@@ -17,7 +17,7 @@ using BuildXL.Engine.Distribution;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
-using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;

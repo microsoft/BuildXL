@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;

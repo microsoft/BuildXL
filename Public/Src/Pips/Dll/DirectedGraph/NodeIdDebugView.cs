@@ -1,15 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Scheduler.Debugging
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Debugger display class for NodeId which provides information about the node's
@@ -18,7 +15,7 @@ namespace BuildXL.Scheduler.Debugging
     internal sealed class NodeIdDebugView
     {
         // Take weak references to data structures to avoid keeping them alive
-        private static readonly WeakReference<PipGraph> s_weakDebugPipGraph = new WeakReference<PipGraph>(null);
+        private static readonly WeakReference<IQueryablePipDependencyGraph> s_weakDebugPipGraph = new WeakReference<IQueryablePipDependencyGraph>(null);
         private static readonly WeakReference<IReadonlyDirectedGraph> s_weakAlternateGraph = new WeakReference<IReadonlyDirectedGraph>(null);
         private static readonly WeakReference<PipExecutionContext> s_weakPipExecutionContext = new WeakReference<PipExecutionContext>(null);
         private static readonly WeakReference<PipRuntimeInfo[]> s_runtimeInfos = new WeakReference<PipRuntimeInfo[]>(null);
@@ -42,7 +39,7 @@ namespace BuildXL.Scheduler.Debugging
         /// <summary>
         /// The pip graph to use when displaying the node information
         /// </summary>
-        internal static PipGraph DebugPipGraph
+        internal static IQueryablePipDependencyGraph DebugPipGraph
         {
             get
             {
@@ -106,12 +103,12 @@ namespace BuildXL.Scheduler.Debugging
         public NodeIdDebugView(NodeId node)
         {
             m_node = node;
-            Graph = DebugPipGraph.DataflowGraph;
+            Graph = DebugPipGraph.DirectedGraph;
         }
 
         public NodeIdDebugView AlternateNode => AlternateGraph == null ? this : new NodeIdDebugView(m_node) { Graph = AlternateGraph };
 
-        public Pip Pip => DebugPipGraph?.GetPipFromPipId(m_node.ToPipId());
+        public Pip Pip => DebugPipGraph?.HydratePip(m_node.ToPipId(), PipQueryContext.VisualStudioDebugView);
 
         public string ValueName => Pip?.Provenance?.OutputValueSymbol.ToString(DebugContext.SymbolTable);
 

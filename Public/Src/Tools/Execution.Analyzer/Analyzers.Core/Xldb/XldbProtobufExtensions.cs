@@ -3,7 +3,7 @@
 
 using System.Linq;
 using BuildXL.Engine;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Xldb.Proto;

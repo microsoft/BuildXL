@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 

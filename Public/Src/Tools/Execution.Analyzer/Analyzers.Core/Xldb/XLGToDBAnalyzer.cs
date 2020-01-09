@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;

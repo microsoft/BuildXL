@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Engine;
@@ -12,6 +11,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Execution.Analyzer.Analyzers.Simulator;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;

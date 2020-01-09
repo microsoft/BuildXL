@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Allows for tracking of nodes that have been visited in a graph traversal.

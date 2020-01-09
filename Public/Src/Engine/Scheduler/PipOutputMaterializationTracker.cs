@@ -5,9 +5,9 @@ using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Utilities;
 

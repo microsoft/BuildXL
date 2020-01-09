@@ -23,6 +23,12 @@ namespace Cache {
                     importFrom("BuildXL.Cache.MemoizationStore").Default.deployment,
                 ]
             },
+            {
+                subfolder: r`Monitor`,
+                contents: [
+                    importFrom("BuildXL.Cache.Monitor").Default.deployment,
+                ]
+            },
         ],
     };
 

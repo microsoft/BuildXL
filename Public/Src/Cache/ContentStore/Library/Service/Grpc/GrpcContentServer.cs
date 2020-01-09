@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private readonly IAbsFileSystem _fileSystem;
         private readonly AbsolutePath _workingDirectory;
-        private readonly AbsolutePath _tempDirectory;
+        private DisposableDirectory _temporaryDirectory;
 
         /// <summary>
         /// This adapter routes messages from Grpc to the current class.
@@ -93,8 +93,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _sessionHandler = sessionHandler;
 
             _fileSystem = localServerConfiguration?.FileSystem ?? new PassThroughFileSystem();
-            _workingDirectory = (localServerConfiguration?.DataRootPath ?? new AbsolutePath(Directory.GetCurrentDirectory())) / "GrpcContentServer";
-            _tempDirectory = _workingDirectory / "temp";
+            _workingDirectory = (localServerConfiguration?.DataRootPath ?? _fileSystem.GetTempPath()) / "GrpcContentServer";
 
             GrpcAdapter = new ContentServerAdapter(this);
 
@@ -104,7 +103,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _fileSystem.CreateDirectory(_tempDirectory);
+            _temporaryDirectory = new DisposableDirectory(_fileSystem, _workingDirectory / "temp");
+            return BoolResult.SuccessTask;
+        }
+
+        /// <inheritdoc />
+        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            _temporaryDirectory?.Dispose();
             return BoolResult.SuccessTask;
         }
 
@@ -403,26 +409,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 await callContext.WriteResponseHeadersAsync(PushResponse.Copy.Metadata);
 
-                var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
-
-                using (var tempFile = File.OpenWrite(tempFilePath.Path))
+                PutResult result = null;
+                using (var disposableFile = new DisposableFile(cacheContext, _fileSystem, _temporaryDirectory.CreateRandomFileName()))
                 {
-                    while (await requestStream.MoveNext())
+                    // NOTE(jubayard): DeleteOnClose not used here because the file needs to be placed into the CAS.
+                    // Opening a file for read/write and then doing pretty much anything to it leads to weird behavior
+                    // that needs to be tested on a case by case basis. Since we don't know what the underlying store
+                    // plans to do with the file, it is more robust to just use the DisposableFile construct.
+                    using (var tempFile = await _fileSystem.OpenSafeAsync(disposableFile.Path, FileAccess.Write, FileMode.CreateNew, FileShare.None))
                     {
-                        if (token.IsCancellationRequested)
+                        while (await requestStream.MoveNext())
                         {
-                            return;
+                            if (token.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            var request = requestStream.Current;
+                            var bytes = request.Content.ToByteArray();
+                            await tempFile.WriteAsync(bytes, 0, bytes.Length);
                         }
-
-                        var request = requestStream.Current;
-                        var bytes = request.Content.ToByteArray();
-                        await tempFile.WriteAsync(bytes, 0, bytes.Length);
                     }
+
+                    result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);
                 }
-
-                var result = await store.HandlePushFileAsync(cacheContext, hash, tempFilePath, token);
-
-                File.Delete(tempFilePath.Path);
 
                 var response = result
                     ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }

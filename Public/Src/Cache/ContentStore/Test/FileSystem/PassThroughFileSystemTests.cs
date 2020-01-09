@@ -14,6 +14,7 @@ using BuildXL.Native.IO;
 using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using FluentAssertions;
+using System.Linq;
 
 namespace ContentStoreTest.FileSystem
 {
@@ -463,6 +464,53 @@ namespace ContentStoreTest.FileSystem
                         StringComparison.OrdinalIgnoreCase);
                 }
             }
+        }
+
+        [Fact]
+        public async Task DeleteOnCloseRemovesFileTest()
+        {
+            using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
+            var filePath = testDirectory.Path / "Foo.txt";
+
+            using (var file = await FileSystem.OpenSafeAsync(
+                filePath,
+                FileAccess.Write,
+                FileMode.CreateNew,
+                FileShare.None,
+                FileOptions.DeleteOnClose))
+            {
+                await file.WriteAsync(Enumerable.Range(1, 10).Select(b => (byte)b).ToArray(), 0, 10);
+                Assert.True(FileSystem.FileExists(filePath));
+            }
+
+            Assert.False(FileSystem.FileExists(filePath));
+        }
+
+        [Fact]
+        public async Task CanMoveFileIfYouShareDelete()
+        {
+            using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
+            var filePath = testDirectory.Path / "Foo.txt";
+            var replacementFilePath = testDirectory.Path / "Bar.txt";
+
+            using (var file = await FileSystem.OpenSafeAsync(
+                filePath,
+                FileAccess.Write,
+                FileMode.CreateNew,
+                FileShare.Delete,
+                FileOptions.DeleteOnClose))
+            {
+                await file.WriteAsync(Enumerable.Range(1, 10).Select(b => (byte)b).ToArray(), 0, 10);
+                Assert.True(FileSystem.FileExists(filePath));
+
+                FileSystem.MoveFile(filePath, replacementFilePath, replaceExisting: true);
+
+                Assert.False(FileSystem.FileExists(filePath));
+                Assert.True(FileSystem.FileExists(replacementFilePath));
+            }
+
+            Assert.False(FileSystem.FileExists(filePath));
+            Assert.False(FileSystem.FileExists(replacementFilePath));
         }
     }
 }

@@ -255,6 +255,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <inheritdoc />
         public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
         {
+            // TODO(jubayard): this can be optimized to move in some cases (i.e. GrpcContentServer creates a file just
+            // for this, no need to copy it)
             return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
         }
 

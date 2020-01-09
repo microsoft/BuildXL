@@ -48,7 +48,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 74: Added IgnoreCreateProcessReport in IUnsafeSandboxConfiguration.
         /// 75: Changed the type of <see cref="Utilities.Configuration.IUnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes"/> 
         ///     from <c>bool</c> to <see cref="Utilities.Configuration.DynamicWriteOnAbsentProbePolicy"/>
+        /// 76: Put extra salt's options in weakfingerprint instead of ExecutionAndFingerprintOptionsHash.
         /// </remarks>
-        TwoPhaseV2 = 75,
+        TwoPhaseV2 = 76,
     }
 }

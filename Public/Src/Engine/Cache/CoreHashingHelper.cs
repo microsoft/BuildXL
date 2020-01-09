@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Security.Cryptography;
 using System.Text;
@@ -51,7 +52,7 @@ namespace BuildXL.Engine.Cache
     /// <summary>
     /// Helper class for computing fingerprints.
     /// </summary>
-    public abstract class CoreHashingHelperBase : IDisposable
+    public abstract class CoreHashingHelperBase : IDisposable, IHashingHelper
     {
         private static readonly char[] NibbleHex =
         { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };

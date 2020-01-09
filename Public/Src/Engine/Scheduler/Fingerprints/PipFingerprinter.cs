@@ -174,7 +174,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(fingerprinter != null);
             Contract.Requires(pip != null);
 
-            fingerprinter.Add(PipFingerprintField.ExecutionAndFingerprintOptionsHash, m_extraFingerprintSalts.CalculatedSaltsFingerprint);
+            fingerprinter.AddNested(PipFingerprintField.ExecutionAndFingerprintOptions, fp => m_extraFingerprintSalts.AddFingerprint(fp));
 
             // Fingerprints must change when outputs are hashed with a different algorithm.
             fingerprinter.Add(PipFingerprintField.ContentHashAlgorithmName, s_outputContentHashAlgorithmName);

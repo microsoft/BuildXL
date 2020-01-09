@@ -16,6 +16,7 @@ namespace Test.BuildXL.FingerprintStore {
         assemblyName: "Test.BuildXL.FingerprintStore",
         sources: globR(d`.`, "*.cs"),
         references: [
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,

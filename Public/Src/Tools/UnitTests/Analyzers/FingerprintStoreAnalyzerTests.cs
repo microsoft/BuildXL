@@ -772,11 +772,74 @@ namespace Test.Tool.Analyzers
             XAssert.AreNotEqual(correctOut2, incorrectOut);
         }
 
-        /// <summary>
-        /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
-        /// when serializing to JSON.
-        /// </summary>
-        private string ArtifactToPrint(FileOrDirectoryArtifact artifact)
+        [Fact]
+        public void OutputMissingTest()
+        {
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
+            FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            var pip = SchedulePipBuilder(pipBuilder);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            DiscardFileContentInArtifactCacheIfExists(output);
+            File.Delete(ArtifactToString(output));
+
+            ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            string[] messages = { ArtifactToPrint(output) };
+
+            RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForProcessOutputContent, messages);
+        }
+
+        [Fact]
+        public void ExtraFingerprintSaltsTest()
+        {
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
+            FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            var pip = SchedulePipBuilder(pipBuilder);
+
+            SetExtraSalts("FirstSalt", true);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            SetExtraSalts("SecondSalt", false);
+            ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            string[] messages = 
+            { 
+                nameof(ExtraFingerprintSalts.FingerprintSalt),
+                nameof(ExtraFingerprintSalts.MaskUntrackedAccesses),
+                nameof(ExtraFingerprintSalts.NormalizeReadTimestamps),
+                nameof(ExtraFingerprintSalts.PipWarningsPromotedToErrors),
+                nameof(ExtraFingerprintSalts.ValidateDistribution)
+            };
+
+            RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
+        }
+
+        private void SetExtraSalts(string salt, bool booleanOptionValues)
+        {
+            Configuration.Cache.CacheSalt = salt;
+            Configuration.Sandbox.MaskUntrackedAccesses = booleanOptionValues;
+            Configuration.Sandbox.NormalizeReadTimestamps = booleanOptionValues;
+            Configuration.Logging.TreatWarningsAsErrors = booleanOptionValues;
+            Configuration.Distribution.ValidateDistribution = booleanOptionValues;
+        }
+
+    /// <summary>
+    /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
+    /// when serializing to JSON.
+    /// </summary>
+    private string ArtifactToPrint(FileOrDirectoryArtifact artifact)
         {
             return Expander.ExpandPath(Context.PathTable, artifact.Path).ToLowerInvariant().Replace(@"\", @"\\");
         }
@@ -890,7 +953,7 @@ namespace Test.Tool.Analyzers
         {
             foreach (var message in messages)
             {
-                XAssert.IsTrue(result.FileOutput.Contains(ObservedInputConstants.ToExpandedString(message)), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", ObservedInputConstants.ToExpandedString(message), result.FileOutput);
+                XAssert.IsTrue(result.FileOutput.ToUpperInvariant().Contains(ObservedInputConstants.ToExpandedString(message).ToUpperInvariant()), "Expected message: \"{0}\" to appear in analyzer output: \"{1}\"", ObservedInputConstants.ToExpandedString(message), result.FileOutput);
             }
 
             return result;

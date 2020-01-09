@@ -278,25 +278,26 @@ namespace BuildXL.Scheduler.Tracing
                     }
                 }
 
+                case nameof(PipFingerprintField.ExecutionAndFingerprintOptions):
                 case nameof(Process.EnvironmentVariables):
                 {
-                    using (var envVarDataPool = EnvironmentVariableDataMapPool.GetInstance())
-                    using (var otherEnvVarDataPool = EnvironmentVariableDataMapPool.GetInstance())
+                    using (var nameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
+                    using (var othernameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
                     {
-                        var envVarData = envVarDataPool.Instance;
-                        var otherEnvVarData = otherEnvVarDataPool.Instance;
-                        populateEnvironmentVariableData(fieldNode, envVarData);
-                        populateEnvironmentVariableData(otherFieldNode, otherEnvVarData);
+                        var nameValuePairData = nameValuePairDataPool.Instance;
+                        var othernameValuePairData = othernameValuePairDataPool.Instance;
+                        populateNameValuePairData(fieldNode, nameValuePairData);
+                        populateNameValuePairData(otherFieldNode, othernameValuePairData);
                         return ExtractUnorderedMapDiff(
-                            envVarData,
-                            otherEnvVarData,
+                            nameValuePairData,
+                            othernameValuePairData,
                             (dOld, dNew) => dOld.Equals(dNew),
                             out var added,
                             out var removed,
                             out var changed)
                             ? new JProperty(fieldNode.Name, RenderUnorderedMapDiff(
-                                envVarData,
-                                otherEnvVarData,
+                                nameValuePairData,
+                                othernameValuePairData,
                                 added,
                                 removed,
                                 changed,
@@ -304,7 +305,7 @@ namespace BuildXL.Scheduler.Tracing
                                 (dataA, dataB) => dataA.Value))
                             : null;
                     }
-                }
+                }              
 
                 case nameof(Process.DirectoryDependencies):
                 case nameof(Process.DirectoryOutputs):
@@ -373,13 +374,13 @@ namespace BuildXL.Scheduler.Tracing
                     recurse: false);
             }
 
-            void populateEnvironmentVariableData(JsonNode environmentVariableNode, Dictionary<string, EnvironmentVariableData> environmentVariableData)
+            void populateNameValuePairData(JsonNode nameValuePairNode, Dictionary<string, NameValuePairData> nameValuePairData)
             {
                 JsonTree.VisitTree(
-                    environmentVariableNode,
+                    nameValuePairNode,
                     node =>
                     {
-                        environmentVariableData[node.Name] = new EnvironmentVariableData(
+                        nameValuePairData[node.Name] = new NameValuePairData(
                             node.Name,
                             node.Values.Count > 0 ? node.Values[0] : CacheMissAnalysisUtilities.RepeatedStrings.MissingValue);
                     },

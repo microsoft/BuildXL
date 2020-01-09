@@ -9,7 +9,7 @@ namespace BuildXL.Scheduler.Fingerprints
     public struct PipFingerprintField
     {
         /// <nodoc/>
-        public const string ExecutionAndFingerprintOptionsHash = nameof(ExecutionAndFingerprintOptionsHash);
+        public const string ExecutionAndFingerprintOptions = nameof(ExecutionAndFingerprintOptions);       
 
         /// <nodoc/>
         public const string ContentHashAlgorithmName = nameof(ContentHashAlgorithmName);

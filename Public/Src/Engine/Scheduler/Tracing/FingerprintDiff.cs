@@ -257,7 +257,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Environment variable data.
         /// </summary>
-        internal struct EnvironmentVariableData : IEquatable<EnvironmentVariableData>
+        internal struct NameValuePairData : IEquatable<NameValuePairData>
         {
             /// <summary>
             /// Name.
@@ -270,16 +270,16 @@ namespace BuildXL.Scheduler.Tracing
             public readonly string Value;
 
             /// <summary>
-            /// Creates an instance of <see cref="EnvironmentVariableData"/>.
+            /// Creates an instance of <see cref="NameValuePairData"/>.
             /// </summary>
-            public EnvironmentVariableData(string name, string value)
+            public NameValuePairData(string name, string value)
             {
                 Name = name;
                 Value = value;
             }
 
             /// <inheritdoc/>
-            public bool Equals(EnvironmentVariableData other) => Name == other.Name && Value == other.Value;
+            public bool Equals(NameValuePairData other) => Name == other.Name && Value == other.Value;
 
             /// <inheritdoc/>
             public override bool Equals(object obj) => StructUtilities.Equals(this, obj);
@@ -292,7 +292,7 @@ namespace BuildXL.Scheduler.Tracing
                 static int hashCode(string s) => s != null ? EqualityComparer<string>.Default.GetHashCode(s) : 0;
             }
         }
-
+       
         #endregion Internal fingerprint data
 
         #region Pools
@@ -313,9 +313,9 @@ namespace BuildXL.Scheduler.Tracing
         public static ObjectPool<Dictionary<string, OutputFileData>> OutputFileDataMapPool { get; } = CreateMapPool<OutputFileData>();
 
         /// <summary>
-        /// Pool for <see cref="EnvironmentVariableData"/>.
+        /// Pool for <see cref="NameValuePairData"/>.
         /// </summary>
-        public static ObjectPool<Dictionary<string, EnvironmentVariableData>> EnvironmentVariableDataMapPool { get; } = CreateMapPool<EnvironmentVariableData>();
+        public static ObjectPool<Dictionary<string, NameValuePairData>> NameValuePairDataMapPool { get; } = CreateMapPool<NameValuePairData>();
 
         /// <summary>
         /// Pool for <see cref="ObservedInputData"/>.

@@ -385,47 +385,54 @@ namespace BuildXL.Scheduler.Fingerprints
 
         private CalculatedFingerprintTuple CalculatedWeakFingerprintTuple => m_calculatedSaltsFingerprint ?? (m_calculatedSaltsFingerprint = ComputeWeakFingerprint());
 
+        /// <summary>
+        /// Add fields to fingerprint
+        /// </summary>
+        public void AddFingerprint(IHashingHelper fingerprinter)
+        {
+            if (!string.IsNullOrEmpty(FingerprintSalt))
+            {
+                fingerprinter.Add(nameof(FingerprintSalt), FingerprintSalt);
+            }
+
+            if (SearchPathToolsHash.HasValue)
+            {
+                fingerprinter.Add(nameof(SearchPathToolsHash), SearchPathToolsHash.Value);
+            }
+
+            if (!MaskUntrackedAccesses)
+            {
+                fingerprinter.Add(nameof(MaskUntrackedAccesses), -1);
+            }
+
+            if (!NormalizeReadTimestamps)
+            {
+                fingerprinter.Add(nameof(NormalizeReadTimestamps), -1);
+            }
+
+            if (PipWarningsPromotedToErrors)
+            {
+                fingerprinter.Add(nameof(PipWarningsPromotedToErrors), 1);
+            }
+
+            if (ValidateDistribution)
+            {
+                fingerprinter.Add(nameof(ValidateDistribution), 1);
+            }
+
+            if (!string.IsNullOrEmpty(RequiredKextVersionNumber))
+            {
+                fingerprinter.Add(nameof(RequiredKextVersionNumber), RequiredKextVersionNumber);
+            }
+
+            fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);
+        }
+
         private CalculatedFingerprintTuple ComputeWeakFingerprint()
         {
             using (var hasher = new CoreHashingHelper(true))
             {
-                if (!string.IsNullOrEmpty(FingerprintSalt))
-                {
-                    hasher.Add("FingerprintSalt", FingerprintSalt);
-                }
-
-                if (SearchPathToolsHash.HasValue)
-                {
-                    hasher.Add("SearchPathToolsHash", SearchPathToolsHash.Value);
-                }
-
-                if (!MaskUntrackedAccesses)
-                {
-                    hasher.Add("MaskUntrackedAccesses", -1);
-                }
-
-                if (!NormalizeReadTimestamps)
-                {
-                    hasher.Add("NormalizeReadTimestamps", -1);
-                }
-
-                if (PipWarningsPromotedToErrors)
-                {
-                    hasher.Add("PipWarningsPromotedToErrors", 1);
-                }
-
-                if (ValidateDistribution)
-                {
-                    hasher.Add("ValidateDistribution", 1);
-                }
-
-                if (!string.IsNullOrEmpty(RequiredKextVersionNumber))
-                {
-                    hasher.Add("RequiredKextVersionNumber", RequiredKextVersionNumber);
-                }
-
-                hasher.Add("Version", (int)FingerprintVersion);
-
+                AddFingerprint(hasher);
                 return new CalculatedFingerprintTuple(hasher.GenerateHash(), hasher.FingerprintInputText);
             }
         }

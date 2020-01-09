@@ -139,7 +139,7 @@ namespace Test.BuildXL
         }
 
         [Theory]
-        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes-", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes-", DynamicWriteOnAbsentProbePolicy.IgnoreNothing)]
         [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes+", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
         [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
         [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreNothing", DynamicWriteOnAbsentProbePolicy.IgnoreNothing)]

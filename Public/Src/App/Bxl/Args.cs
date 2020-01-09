@@ -1071,10 +1071,11 @@ namespace BuildXL
                             {
                                 var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign, 
                                     trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll, 
-                                    falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes);
+                                    falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = value;
                             },
-                            isUnsafe: true),
+                            isUnsafe: true,
+                            isEnabled: () => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes != DynamicWriteOnAbsentProbePolicy.IgnoreNothing),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreSetFileInformationByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreSetFileInformationByHandle = sign,

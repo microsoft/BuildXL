@@ -7,7 +7,7 @@ import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 
-export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier;
+export declare const qualifier: Managed.TargetFrameworks.MachineQualifier.Current;
 
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 

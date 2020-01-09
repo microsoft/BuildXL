@@ -4,9 +4,11 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 
+export declare const qualifier: Managed.TargetFrameworks.ConfigurationQualifier;
+
 namespace Tool {
 
-    export declare const qualifier : Managed.TargetFrameworks.CurrentMachineQualifier;
+    export declare const qualifier : Managed.TargetFrameworks.MachineQualifier.Current;
 
     const resGenLite = Managed.executable({
         assemblyName: "ResGen.Lite",
@@ -71,7 +73,7 @@ export function generate(args: Arguments): Result {
     ];
 
     const result = Transformer.execute({
-        tool: args.tool || Tool.withQualifier(Managed.TargetFrameworks.currentMachineQualifier).tool,
+        tool: args.tool || Tool.withQualifier(Managed.TargetFrameworks.MachineQualifier.current).tool,
         arguments: arguments,
         workingDirectory: outputDirectory,
         // because sourceFile could be undefined we need to filter both: dependencies and expected outputs.

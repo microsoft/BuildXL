@@ -222,7 +222,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
             const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
             const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
 
-            const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.currentMachineQualifier).patchBinary({
+            const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
                 binary: cscResult.binary.binary,
                 targetRuntimeVersion: qualifier.targetRuntime
             });

@@ -64,8 +64,12 @@ namespace TargetFrameworks {
     export type StandardTargetFrameworks = "netstandard2.0";
 
     @@public
-    export interface BaseQualifier {
-        configuration: "debug" | "release";
+    export interface ConfigurationQualifier extends Qualifier {
+        configuration: "debug" | "release"
+    }
+
+    @@public
+    export interface BaseQualifier extends ConfigurationQualifier, Qualifier {
         targetRuntime: RuntimeVersion;
     }
 
@@ -84,17 +88,22 @@ namespace TargetFrameworks {
         targetFramework: DesktopTargetFrameworks | CoreClrTargetFrameworks | StandardTargetFrameworks;
     }
 
-    @@public
-    export interface CurrentMachineQualifier extends Qualifier {
-        configuration: "debug" | "release";
-        targetFramework: "netcoreapp3.1",
-        targetRuntime: "win-x64" | "osx-x64",
-    }
+    /** Current Machine qualifier that respect current configuration */
+    namespace MachineQualifier {
+        export declare const qualifier: {configuration: "debug" | "release" };
 
-    @@public
-    export const currentMachineQualifier : CurrentMachineQualifier = {
-        configuration: "release",
-        targetFramework: "netcoreapp3.1",
-        targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
-    };
+        @@public
+        export interface Current extends Qualifier {
+            configuration: "debug" | "release";
+            targetFramework: "netcoreapp3.1",
+            targetRuntime: "win-x64" | "osx-x64",
+        }
+
+        @@public
+        export const current : Current = {
+            configuration: qualifier.configuration,
+            targetFramework: "netcoreapp3.1",
+            targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
+        };
+    }
 }

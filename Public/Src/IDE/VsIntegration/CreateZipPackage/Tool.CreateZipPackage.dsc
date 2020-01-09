@@ -6,11 +6,11 @@ import * as Deployment from "Sdk.Deployment";
 
 namespace CreateZipPackage
 {
-    export declare const qualifier: {};
+    export declare const qualifier: BuildXLSdk.TargetFrameworks.ConfigurationQualifier;
 
     namespace Tool 
     {
-        export declare const qualifier: BuildXLSdk.TargetFrameworks.CurrentMachineQualifier;
+        export declare const qualifier: BuildXLSdk.TargetFrameworks.MachineQualifier.Current;
 
         const exe = BuildXLSdk.executable({
             assemblyName: "CreateZipPackage",
@@ -54,7 +54,7 @@ namespace CreateZipPackage
             Cmd.sign("/fixUnixPermissions", args.fixUnixPermissions),
         ];
 
-        const tool = Tool.withQualifier(BuildXLSdk.TargetFrameworks.currentMachineQualifier).deployed;
+        const tool = Tool.withQualifier(BuildXLSdk.TargetFrameworks.MachineQualifier.current).deployed;
 
         const result = Transformer.execute({
             tool: tool, 

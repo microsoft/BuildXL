@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace LogGen {
-    export declare const qualifier: BuildXLSdk.TargetFrameworks.CurrentMachineQualifier;
+    export declare const qualifier: BuildXLSdk.TargetFrameworks.MachineQualifier.Current;
 
     const exe = BuildXLSdk.executable({
         assemblyName: "BuildXL.LogGen",

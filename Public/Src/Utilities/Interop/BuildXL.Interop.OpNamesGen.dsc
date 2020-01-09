@@ -101,7 +101,7 @@ namespace BuildXL.Interop.MacOS
     });
 
     function genOpNamesCSharpFile(inputHppFile: SourceFile): DerivedFile {
-        const tool = Interop.withQualifier(BuildXLSdk.TargetFrameworks.currentMachineQualifier).deployed;
+        const tool = Interop.withQualifier(BuildXLSdk.TargetFrameworks.MachineQualifier.current).deployed;
         const outDir = Context.getNewOutputDirectory("op-name-out");
         const consoleOutPath = p`${outDir}/FileOperation.g.cs`;
         const result = Transformer.execute({

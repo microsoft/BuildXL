@@ -451,7 +451,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 if (resource.resX) {
                     return resource.override({
                         resX: ResXPreProcessor
-                            .withQualifier(Managed.TargetFrameworks.currentMachineQualifier)
+                            .withQualifier(Managed.TargetFrameworks.MachineQualifier.current)
                             .preProcess({
                                 resX: resource.resX,
                                 defines: brandingDefines,

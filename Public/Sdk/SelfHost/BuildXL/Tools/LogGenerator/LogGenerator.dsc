@@ -4,6 +4,8 @@
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Managed from "Sdk.Managed";
 
+export declare const qualifier: Managed.TargetFrameworks.ConfigurationQualifier;
+
 /**
  * Arguments for LogGenenerator
  */
@@ -83,7 +85,7 @@ export function generate(inputArgs: Arguments): File {
 
     const result = Transformer.execute(
         {
-            tool: importFrom("BuildXL.Utilities.Instrumentation").LogGen.withQualifier(Managed.TargetFrameworks.currentMachineQualifier).tool,
+            tool: importFrom("BuildXL.Utilities.Instrumentation").LogGen.withQualifier(Managed.TargetFrameworks.MachineQualifier.current).tool,
             arguments: commandLineArgs,
             workingDirectory: outputFolder,
         }
@@ -91,3 +93,4 @@ export function generate(inputArgs: Arguments): File {
 
     return result.getOutputFile(outFile);
 }
+

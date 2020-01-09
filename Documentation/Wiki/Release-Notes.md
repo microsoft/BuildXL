@@ -11,6 +11,23 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
+# 0.1.0-20200103.10.2 (Release [51927](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 1/8/2020
+
+- Server GC re-enabled for macOS platform
+- Std err/out files get copied to the log directory upon pip failure
+- Improvements for runtime cache miss analysis accuracy and presentation
+- Externally configurable hash algorithm for ContentStore
+- Lazy shared opaque directory output deletion
+- Add childProcessToBreakawayFromSandbox option to allow pips to breakaway untracked and outlive process tree
+- Highlight all lines of multiline errors/warnings in Azure DevOps
+- Fix broken JSON format in cache miss analysis
+- StringTable scale improvements for large strings
+- Display more accurate related pip information for shared opaque Disallowed File Accesses
+- Fix under aggressive memory resource throttling
+- Stopped producing the last net451 cache binaries in nuget packages
+- Stopped producing the net472 nuget package of BuildXL and the net472 version in drop
+- Misc bug fixes
+
 # 0.1.0-20191208.3 (Release [49574](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 12/11/2019
 -	ADO Listener respects /nowarn and other warning mappings.
 -	Use cheaper hash algorithm for server deployment.

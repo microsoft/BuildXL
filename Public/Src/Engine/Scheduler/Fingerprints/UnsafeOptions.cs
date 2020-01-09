@@ -159,7 +159,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.PreserveOutputs), UnsafeConfiguration.PreserveOutputs.ToString());
             fingerprinter.Add(nameof(UnsafeConfiguration.UnexpectedFileAccessesAreErrors), getBoolString(UnsafeConfiguration.UnexpectedFileAccessesAreErrors));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnorePreloadedDlls), getBoolString(UnsafeConfiguration.IgnorePreloadedDlls));
-            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes), getBoolString(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes), UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes.ToString());
             fingerprinter.Add(nameof(UnsafeConfiguration.DoubleWritePolicy), UnsafeConfiguration.DoubleWritePolicy.HasValue ? UnsafeConfiguration.DoubleWritePolicy.Value.ToString() : string.Empty);
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques), getBoolString(UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques));
 

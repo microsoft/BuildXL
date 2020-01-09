@@ -10,6 +10,7 @@ import "tools/google/protobuf/duration.proto";
 import "Enums/CreationDisposition.proto";
 import "Enums/DesiredAccess.proto";
 import "Enums/DoubleWritePolicy.proto";
+import "Enums/DynamicWriteOnAbsentProbePolicy.proto";
 import "Enums/FileAccessStatus.proto";
 import "Enums/FlagsAndAttributes.proto";
 import "Enums/FileAccessStatusMethod.proto";
@@ -370,14 +371,16 @@ message UnsafeSandboxConfiguration{
     // If getting the final path name by handle was ignored
     bool IgnoreGetFinalPathNameByHandle = 14;
 
-    // If dynamic writes on absent probes was ignored
-    bool IgnoreDynamicWritesOnAbsentProbes = 15;
+    // was: bool IgnoreDynamicWritesOnAbsentProbes = 15;
 
     // The Double Write Policy
     DoubleWritePolicy DoubleWritePolicy = 16;
 
     // If the undeclared accesses under shared opaques was ignored
     bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
+
+    // If dynamic writes on absent probes was ignored
+    DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes = 18;
 }
 
 message PreserveOutputsInfo {

@@ -369,7 +369,7 @@ namespace BuildXL.Execution.Analyzer
             private readonly WhitelistAnalyzer m_whitelistAnalyzer;
 
             public WhitelistFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, PipGraph pipGraph, WhitelistAnalyzer whitelistAnalyzer)
-                : base(loggingContext, context, pipGraph, new QueryableFileContentManager(whitelistAnalyzer.OutputDirectoryContent), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true)
+                : base(loggingContext, context, pipGraph, new QueryableFileContentManager(whitelistAnalyzer.OutputDirectoryContent), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: Utilities.Configuration.DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true)
             {
                 m_whitelistAnalyzer = whitelistAnalyzer;
             }

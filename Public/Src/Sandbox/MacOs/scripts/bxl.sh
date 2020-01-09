@@ -32,7 +32,6 @@ export COMPlus_DefaultStackSize=200000
 function setBxlCmdArgs {
     g_bxlCmdArgs=(
         # some defaults
-        /sandboxKind:none
         /enableIncrementalFrontEnd-
         /useHardLinks-
         # some environment variables

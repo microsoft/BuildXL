@@ -457,7 +457,7 @@ namespace BuildXL.Execution.Analyzer
                     SandboxKind = (SandboxKind)(unsafeOption.UnsafeConfiguration.SandboxKind + 1),
                     UnexpectedFileAccessesAreErrors = unsafeOption.UnsafeConfiguration.UnexpectedFileAccessesAreErrors,
                     IgnoreGetFinalPathNameByHandle = unsafeOption.UnsafeConfiguration.IgnoreGetFinalPathNameByHandle,
-                    IgnoreDynamicWritesOnAbsentProbes = unsafeOption.UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes,
+                    IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)(unsafeOption.UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes),
                     IgnoreUndeclaredAccessesUnderSharedOpaques = unsafeOption.UnsafeConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques,
                 }
             };

@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsTrustLevel = (int)PreserveOutputsTrustValue.Lowest;
             IgnoreGetFinalPathNameByHandle = false;
             MonitorZwCreateOpenQueryFile = true;
-            IgnoreDynamicWritesOnAbsentProbes = false;
+            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             
             // TODO: this is a temporary flag. Take it out in a few weeks.
@@ -45,6 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             IgnorePreloadedDlls = false,
             IgnoreCreateProcessReport = false,
+            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing
         };
 
         /// <nodoc />
@@ -117,7 +118,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool IgnoreGetFinalPathNameByHandle { get; set; }
 
         /// <inheritdoc />
-        public bool IgnoreDynamicWritesOnAbsentProbes { get; set; }
+        public DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; set; }
 
         /// <inheritdoc />
         public DoubleWritePolicy? DoubleWritePolicy { get; set; }

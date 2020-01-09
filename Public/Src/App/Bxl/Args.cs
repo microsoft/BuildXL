@@ -1065,11 +1065,14 @@ namespace BuildXL
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = sign;
                             },
                             isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
+                        OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
-                            sign =>
+                            (opt, sign) =>
                             {
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = sign;
+                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign, 
+                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll, 
+                                    falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes);
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = value;
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(

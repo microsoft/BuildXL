@@ -18,7 +18,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -29,7 +28,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         public OpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
             // TODO: remove when the default changes
-            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreDynamicWritesOnAbsentProbes = false;
+            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing;
         }
 
         /// <summary>

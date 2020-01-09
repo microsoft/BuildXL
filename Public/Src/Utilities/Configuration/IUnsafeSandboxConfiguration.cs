@@ -1,11 +1,39 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace BuildXL.Utilities.Configuration
 {
+    /// <summary>
+    /// Policy for handling dynamic writes on absent path probe
+    /// </summary>
+    [Flags]
+    public enum DynamicWriteOnAbsentProbePolicy : int
+    {
+        /// <summary>
+        /// Do not ignore any dynamic writes on absent path probe
+        /// </summary>
+        IgnoreNothing = 0,
+
+        /// <summary>
+        /// Ignore when the path in question is a directory
+        /// </summary>
+        IgnoreDirectoryProbes = 1,
+
+        /// <summary>
+        /// Ignore when the path in question is a file
+        /// </summary>
+        IgnoreFileProbes = 1 << 1,
+
+        /// <summary>
+        /// Ignore always
+        /// </summary>
+        IgnoreAll = IgnoreDirectoryProbes | IgnoreFileProbes
+    }
+
     /// <summary>
     /// White List entry
     /// </summary>
@@ -97,7 +125,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether BuildXL flags writes under opaque directories (exclusive or shared) that make existing absent probes to become present probes.
         /// </summary>
-        bool IgnoreDynamicWritesOnAbsentProbes { get; }
+        DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; }
 
         /// <summary>
         /// Policy to be applied when a process incurs in a double write
@@ -161,7 +189,7 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.PreserveOutputsTrustLevel);
             writer.Write(@this.UnexpectedFileAccessesAreErrors);
             writer.Write(@this.IgnorePreloadedDlls);
-            writer.Write(@this.IgnoreDynamicWritesOnAbsentProbes);
+            writer.WriteCompact((int)@this.IgnoreDynamicWritesOnAbsentProbes);
             writer.Write(@this.DoubleWritePolicy.HasValue);
             if (@this.DoubleWritePolicy.HasValue)
             {
@@ -191,7 +219,7 @@ namespace BuildXL.Utilities.Configuration
                 PreserveOutputsTrustLevel = reader.ReadInt32(),
                 UnexpectedFileAccessesAreErrors = reader.ReadBoolean(),
                 IgnorePreloadedDlls = reader.ReadBoolean(),
-                IgnoreDynamicWritesOnAbsentProbes = reader.ReadBoolean(),
+                IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)reader.ReadInt32Compact(),
                 DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
@@ -223,8 +251,16 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
                 && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport);
-
         }
+
+        /// <nodoc />
+        public static bool IsAsSafeOrSafer(DynamicWriteOnAbsentProbePolicy lhsValue, DynamicWriteOnAbsentProbePolicy rhsValue)
+        {
+            return (lhsValue & rhsValue) == lhsValue;
+        }
+
+        private static bool IsAsSafeOrSafer(DynamicWriteOnAbsentProbePolicy lhsValue, DynamicWriteOnAbsentProbePolicy rhsValue, DynamicWriteOnAbsentProbePolicy _)
+            => IsAsSafeOrSafer(lhsValue, rhsValue);
 
         private static bool IsAsSafeOrSafer<T>(T lhsValue, T rhsValue, T safeValue) where T: struct
         {

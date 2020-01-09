@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
@@ -28,6 +29,12 @@ namespace Test.BuildXL.Scheduler
         private readonly Dictionary<AbsolutePath, Pip> m_pathProducers = new Dictionary<AbsolutePath, Pip>();
         private readonly Dictionary<PipId, Pip> m_pips = new Dictionary<PipId, Pip>();
         private int m_nextPipIdValue = 1;
+
+        /// <summary>
+        /// An edge (pipId1, pipId2) in this graph signifies that there is a dataflow dependency from 
+        /// pipId1 to pipId2 (i.e., in a build, pipId1 must be executed before pipId2).
+        /// </summary>
+        private readonly MultiValueDictionary<PipId, PipId> m_dataflowGraph = new MultiValueDictionary<PipId, PipId>();
 
         private int m_concurrentStart = -1;
         private int m_concurrentStop = -1;
@@ -165,12 +172,54 @@ namespace Test.BuildXL.Scheduler
             return new PipId((uint)(m_nextPipIdValue++));
         }
 
+        /// <summary>
+        /// Adds a dataflow dependency from <paramref name="from"/> to <paramref name="to"/>
+        /// (signifying 
+        /// </summary>
+        public void AddDataflowDependency(PipId from, PipId to)
+        {
+            m_dataflowGraph.Add(from, to);
+        }
+
         #region IQueryablePipDependencyGraph Members
+
+        private static readonly PipId[] EmptyPipIdList = new PipId[0];
 
         /// <inheritdoc />
         public bool IsReachableFrom(PipId from, PipId to)
         {
-            throw new NotImplementedException();
+            if (from == to)
+            {
+                return true;
+            }
+
+            var visited = new HashSet<PipId>();
+            var workList = new Queue<PipId>();
+            workList.Enqueue(from);
+            visited.Add(from);
+            while (workList.Count > 0)
+            {
+                var node = workList.Dequeue();
+                foreach (var nextNode in GetOutgoingNodes(node).Except(visited))
+                {
+                    if (nextNode == to)
+                    {
+                        return true;
+                    }
+
+                    workList.Enqueue(nextNode);
+                    visited.Add(nextNode);
+                }
+            }
+
+            return false;
+        }
+
+        private IReadOnlyList<PipId> GetOutgoingNodes(PipId node)
+        {
+            return m_dataflowGraph.TryGetValue(node, out var outNodes) && outNodes != null
+                ? outNodes
+                : EmptyPipIdList;
         }
 
         public Pip HydratePip(PipId pipId, PipQueryContext queryContext)

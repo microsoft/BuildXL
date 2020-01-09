@@ -28,7 +28,7 @@ namespace Test.BuildXL.Scheduler
     /// <summary>
     /// Tests for <see cref="FileMonitoringViolationAnalyzer"/> and <see cref="DependencyViolationEventSink"/> on a stubbed <see cref="IQueryablePipDependencyGraph"/>.
     /// </summary>
-    public class FileMonitoringViolationAnalyzerTests : BuildXL.TestUtilities.Xunit.XunitBuildXLTest
+    public class FileMonitoringViolationAnalyzerTests : XunitBuildXLTest
     {
         private readonly string ReportedExecutablePath = X("/X/bin/tool.exe");
         private readonly string JunkPath = X("/X/out/junk");
@@ -119,7 +119,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, DoubleWritePath);
@@ -155,7 +155,7 @@ namespace Test.BuildXL.Scheduler
                 new QueryableEmptyFileContentManager(), 
                 validateDistribution: validateDistribution, 
                 unexpectedFileAccessesAsErrors: unexpectedFileAccessesAsErrors,
-                ignoreDynamicWritesOnAbsentProbes: false);
+                ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, DoubleWritePath);
@@ -301,7 +301,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, ProducedPath);
@@ -329,7 +329,7 @@ namespace Test.BuildXL.Scheduler
         {
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
             var graph = new QueryablePipDependencyGraph(context);
-            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: true, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true);
+            var analyzer = new FileMonitoringViolationAnalyzer(LoggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: true, ignoreDynamicWritesOnAbsentProbes: DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true);
 
             AbsolutePath violatorOutput = CreateAbsolutePath(context, JunkPath);
             AbsolutePath producerOutput = CreateAbsolutePath(context, ProducedPath);
@@ -886,6 +886,77 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(result.IsViolationClean);
         }
 
+        [Theory]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2/file.txt", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        //
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1/sub2", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        //
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreNothing, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes, true)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes, false)]
+        [InlineData("sub1/sub2/file.txt", "sub1", DynamicWriteOnAbsentProbePolicy.IgnoreAll, false)]
+        public void WriteOnAbsentPathProbeTests(string writeRelPath, string probeRelPath, DynamicWriteOnAbsentProbePolicy policy, bool isViolation)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph, policy: policy);
+
+            var sod = X("/x/out/sod");
+            var sodPath = CreateAbsolutePath(context, sod);
+            var probePath = CreateAbsolutePath(context, X($"{sod}/{probeRelPath}"));
+            var writePath = CreateAbsolutePath(context, X($"{sod}/{writeRelPath}"));
+            var prober = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/prober-out.txt")));
+
+            analyzer.AnalyzePipViolations(
+                prober,
+                violations: null,
+                whitelistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: null,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: new ReadOnlyHashSet<AbsolutePath>(new[] { probePath }),
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out _);
+
+            var producer = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/producer-out.txt")));
+            var sodWrites = new Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>
+            {
+                [sodPath] = new[] { writePath }
+            };
+
+            analyzer.AnalyzePipViolations(
+                producer,
+                violations: null,
+                whitelistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sodWrites,
+                allowedUndeclaredReads: null,
+                absentPathProbesUnderOutputDirectories: null,
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                out _);
+
+            if (isViolation)
+            {
+                analyzer.AssertContainsViolation(
+                    new DependencyViolation(
+                        DependencyViolationType.WriteOnAbsentPathProbe,
+                        AccessLevel.Write,
+                        probePath,
+                        violator: producer,
+                        related: prober),
+                    "The violator created a file/directory after absent path probe but it wasn't reported.");
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+            }
+
+            analyzer.AssertNoExtraViolationsCollected();
+        }
+
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
         {
             return AbsolutePath.Create(context.PathTable, path);
@@ -938,8 +1009,8 @@ namespace Test.BuildXL.Scheduler
         private bool m_doLogging;
         private bool m_collectNonErrorViolations;
 
-        public TestFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, IQueryablePipDependencyGraph graph, bool doLogging = false, bool collectNonErrorViolations = true)
-            : base(loggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: false, unexpectedFileAccessesAsErrors: true)
+        public TestFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, IQueryablePipDependencyGraph graph, bool doLogging = false, bool collectNonErrorViolations = true, DynamicWriteOnAbsentProbePolicy policy = DynamicWriteOnAbsentProbePolicy.IgnoreNothing)
+            : base(loggingContext, context, graph, new QueryableEmptyFileContentManager(), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: policy, unexpectedFileAccessesAsErrors: true)
         {
             m_doLogging = doLogging;
             m_collectNonErrorViolations = collectNonErrorViolations;

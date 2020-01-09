@@ -46,7 +46,9 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 72: Added PreserveoutputsTrustLevel
         /// 73: Added Trust statically declared accesses
         /// 74: Added IgnoreCreateProcessReport in IUnsafeSandboxConfiguration.
+        /// 75: Changed the type of <see cref="Utilities.Configuration.IUnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes"/> 
+        ///     from <c>bool</c> to <see cref="Utilities.Configuration.DynamicWriteOnAbsentProbePolicy"/>
         /// </remarks>
-        TwoPhaseV2 = 74,
+        TwoPhaseV2 = 75,
     }
 }

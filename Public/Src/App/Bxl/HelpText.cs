@@ -886,7 +886,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-]",
+                "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-|:IgnoreNothing|:IgnoreDirectoryProbes|:IgnoreFileProbes|:IgnoreAll]",
                 Strings.HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes,
                 HelpLevel.Verbose);
 

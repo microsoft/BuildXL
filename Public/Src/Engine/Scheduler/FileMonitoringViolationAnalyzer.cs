@@ -84,7 +84,7 @@ namespace BuildXL.Scheduler
         // builds to work.
         private readonly bool m_validateDistribution;
         private readonly bool m_unexpectedFileAccessesAsErrors;
-        private readonly bool m_ignoreDynamicWritesOnAbsentProbes;
+        private readonly DynamicWriteOnAbsentProbePolicy m_dynamicWritesOnAbsentProbePolicy;
         private readonly CounterCollection<FileMonitoringViolationAnalysisCounter> m_counters = new CounterCollection<FileMonitoringViolationAnalysisCounter>();
 
         // When the materialization info for a file is not available/not pertinent, we store an absent file info
@@ -226,7 +226,7 @@ namespace BuildXL.Scheduler
             IQueryableFileContentManager fileContentManager,
             bool validateDistribution,
             bool unexpectedFileAccessesAsErrors,
-            bool ignoreDynamicWritesOnAbsentProbes,
+            DynamicWriteOnAbsentProbePolicy ignoreDynamicWritesOnAbsentProbes,
             IExecutionLogTarget executionLog = null)
         {
             Contract.Requires(loggingContext != null);
@@ -240,7 +240,7 @@ namespace BuildXL.Scheduler
             m_fileContentManager = fileContentManager;
             m_validateDistribution = validateDistribution;
             m_unexpectedFileAccessesAsErrors = unexpectedFileAccessesAsErrors;
-            m_ignoreDynamicWritesOnAbsentProbes = ignoreDynamicWritesOnAbsentProbes;
+            m_dynamicWritesOnAbsentProbePolicy = ignoreDynamicWritesOnAbsentProbes;
             m_executionLog = executionLog;
         }
 
@@ -651,6 +651,7 @@ namespace BuildXL.Scheduler
         /// Violations of this kind can be:
         /// - Another pip dynamically or statically writing the same file
         /// - A source sealed directory containing the write
+        /// - Another pip probed absent path at which location <paramref name="pip"/> created a directory
         /// </remarks>
         private void ReportSharedOpaqueViolations(
             Process pip,
@@ -662,13 +663,84 @@ namespace BuildXL.Scheduler
             foreach (var kvp in sharedOpaqueDirectoryWriteAccesses)
             {
                 var accesses = kvp.Value;
+                var rootSharedOpaqueDirectory = kvp.Key;
+                using var createdSubDirectoriesWrapper = IsDirProbeAnalysisDisabled ? (PooledObjectWrapper<HashSet<AbsolutePath>>?)null : Pools.GetAbsolutePathSet();
                 foreach (var access in accesses)
                 {
                     ReportWriteViolations(pip, reportedViolations, outputArtifactsInfo, access, allowedDoubleWriteViolations);
                     ReportBlockedScopesViolations(pip, reportedViolations, access);
+                    DirProbe_AccumulateParentDirectories(createdSubDirectoriesWrapper?.Instance, rootSharedOpaqueDirectory, access);
+                }
+
+                DirProbe_ReportViolations(pip, createdSubDirectoriesWrapper?.Instance, reportedViolations);
+            }
+        }
+
+        #region Directory Probe Analysis 
+        private bool IsDirProbeAnalysisDisabled => m_dynamicWritesOnAbsentProbePolicy.HasFlag(DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes);
+
+        /// <summary>
+        /// Returns immediately if <see cref="IsDirProbeAnalysisDisabled"/> is true.
+        /// 
+        /// Otherwise, traverses parents of <paramref name="accessPath"/> up to (and exclusing) <paramref name="rootDirectory"/>
+        /// and adds them to <paramref name="accumulator"/>.
+        /// </summary>
+        private void DirProbe_AccumulateParentDirectories(HashSet<AbsolutePath> accumulator, AbsolutePath rootDirectory, AbsolutePath accessPath)
+        {
+            Contract.Requires(IsDirProbeAnalysisDisabled || accumulator != null);
+
+            if (IsDirProbeAnalysisDisabled)
+            {
+                return;
+            }
+
+            // traverse parents of the 'access' path up to its root shared opaque directory
+            var parent = accessPath.GetParent(Context.PathTable);
+            while (parent.IsValid && parent != rootDirectory)
+            {
+                accumulator.Add(parent);
+                parent = parent.GetParent(Context.PathTable);
+            }
+        }
+
+        /// <summary>
+        /// Returns immediately if <see cref="IsDirProbeAnalysisDisabled"/> is true.
+        /// 
+        /// Otherwise, goes through the list of directories (<paramref name="createdDirectories"/>) created by <paramref name="pip"/>
+        /// and for each checks if there was another pip that had previously reported an absent path probe for it.  If so, it creates
+        /// a violation, reports it, and adds it to <paramref name="reportedViolations"/>.
+        /// </summary>
+        private void DirProbe_ReportViolations(Process pip, HashSet<AbsolutePath> createdDirectories, List<ReportedViolation> reportedViolations)
+        {
+            Contract.Requires(IsDirProbeAnalysisDisabled || createdDirectories != null);
+
+            if (IsDirProbeAnalysisDisabled)
+            {
+                return;
+            }
+
+            // check if any of the created sub-directories was previously probed (while it was still absent) by a different pip
+            foreach (var dirAccess in createdDirectories)
+            {
+                var getResult = m_dynamicReadersAndWriters.TryGet(dirAccess);
+                if (getResult.IsFound &&
+                    getResult.Item.Value.processPip != pip.PipId &&
+                    getResult.Item.Value.accessType == DynamicFileAccessType.AbsentPathProbe &&
+                    !IsDependencyDeclared(writerPipId: pip.PipId, absentProbePipId: getResult.Item.Value.processPip))
+                {
+                    var relatedPip = m_graph.HydratePip(getResult.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                    reportedViolations.Add(HandleDependencyViolation(
+                        DependencyViolationType.WriteOnAbsentPathProbe,
+                        AccessLevel.Write,
+                        dirAccess,
+                        pip,
+                        isWhitelistedViolation: false,
+                        relatedPip,
+                        pip.Executable.Path));
                 }
             }
         }
+        #endregion
 
         private void ReportBlockedScopesViolations(Process pip, List<ReportedViolation> reportedViolations, AbsolutePath access)
         {
@@ -730,7 +802,7 @@ namespace BuildXL.Scheduler
             // is considered a double write violation
             var maybeProducer = TryFindProducer(access, VersionDisposition.Latest);
 
-            if (maybeProducer != null)
+            if (maybeProducer != null && maybeProducer.PipId != pip.PipId)
             {
                 // AllowSameContentDoubleWrites is not actually supported for statically declared files, since the double write may not have occurred yet, and the content
                 // may be unavailable. So just warn about this, and log the violation as an error.
@@ -815,7 +887,7 @@ namespace BuildXL.Scheduler
                 (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
 
             // We found an existing dynamic access to the same file
-            if (result.IsFound)
+            if (result.IsFound && result.Item.Value.processPip != pip.PipId)
             {
                 var related = (Process)m_graph.HydratePip(result.Item.Value.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
@@ -845,17 +917,10 @@ namespace BuildXL.Scheduler
                     case DynamicFileAccessType.UndeclaredRead:
                         violationType = DependencyViolationType.WriteInUndeclaredSourceRead;
                         break;
-                    // There was an absent path probe, so this is a write on an absent path probe
+                    // There was an absent file probe, so this is a write on an absent file probe
                     case DynamicFileAccessType.AbsentPathProbe:
-                        // If the sandbox is configured to ignore these, we just return here
-                        if (m_ignoreDynamicWritesOnAbsentProbes)
-                        {
-                            return;
-                        }
-
-                        // WriteOnAbsentPathProbe message literaly says "declare an explicit dependency between these pips",
-                        // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
-                        if (m_graph.IsReachableFrom(from: related.PipId, to: pip.PipId))
+                        if (m_dynamicWritesOnAbsentProbePolicy.HasFlag(DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes) ||
+                            IsDependencyDeclared(absentProbePipId: related.PipId, writerPipId: pip.PipId))
                         {
                             return;
                         }
@@ -877,6 +942,13 @@ namespace BuildXL.Scheduler
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
             }
+        }
+
+        private bool IsDependencyDeclared(PipId writerPipId, PipId absentProbePipId)
+        {
+            // WriteOnAbsentPathProbe message literaly says "declare an explicit dependency between these pips",
+            // so don't complain if a dependency already exists (i.e., 'pip' must run after 'related').
+            return m_graph.IsReachableFrom(from: absentProbePipId, to: writerPipId);
         }
 
         private void ReportAllowedUndeclaredReadViolations(
@@ -943,7 +1015,7 @@ namespace BuildXL.Scheduler
             List<ReportedViolation> reportedViolations)
         {
             // If the sandbox is configured to ignore these, we shortcut the search
-            if (m_ignoreDynamicWritesOnAbsentProbes)
+            if (m_dynamicWritesOnAbsentProbePolicy == DynamicWriteOnAbsentProbePolicy.IgnoreAll)
             {
                 return;
             }

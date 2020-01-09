@@ -138,6 +138,27 @@ namespace Test.BuildXL
             XAssert.IsFalse(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, "/storeFingerprints:Gibberish" }, pt, out config));
         }
 
+        [Theory]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes-", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes+", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes", DynamicWriteOnAbsentProbePolicy.IgnoreAll)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreNothing", DynamicWriteOnAbsentProbePolicy.IgnoreNothing)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreDirectoryProbes", DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:IgnoreFileProbes", DynamicWriteOnAbsentProbePolicy.IgnoreFileProbes)]
+        [InlineData("/unsafe_IgnoreDynamicWritesOnAbsentProbes:Gibberish", null)]
+
+        public void IgnoreDynamicWritesOnAbsentProbesOption(string cmdLineOption, DynamicWriteOnAbsentProbePolicy? result)
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            XAssert.AreEqual(result.HasValue, argsParser.TryParse(new[] { @"/c:" + m_specFilePath, cmdLineOption }, pt, out var config));
+            if (result.HasValue)
+            {
+                XAssert.AreEqual(result.Value, config.Sandbox.UnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes);
+            }
+        }
+
         /// <summary>
         /// Primarily makes sure help text format strings do not have any crashes
         /// </summary>

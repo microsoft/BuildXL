@@ -2070,7 +2070,7 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? default(PerformanceCollector.MachinePerfInfo);
+                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? m_testHooks?.SyntheticMachinePerfInfo ?? default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
 
                 // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
@@ -2308,7 +2308,7 @@ namespace BuildXL.Scheduler
                 bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
                 bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
 
-                resourceAvailable = !(exceededMaxRamUtilizationPercentage && underMinimumAvailableRam);
+                resourceAvailable &= !(exceededMaxRamUtilizationPercentage && underMinimumAvailableRam);
 
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty
@@ -2332,7 +2332,7 @@ namespace BuildXL.Scheduler
 
                 // We will go ahead to cancel pips for physical ram as process using the higher ram will also use the higher commit memory.
                 // There is no specific cancellation for high commit usage.
-                resourceAvailable = !(exceededMaxCommitUtilizationPercentage && underMinimumAvailableCommit);
+                resourceAvailable &= !(exceededMaxCommitUtilizationPercentage && underMinimumAvailableCommit);
 
                 if (!m_hitLowMemoryPerfSmell && (availableCommit < 100 || perfInfo.CommitUsagePercentage.Value > 98))
                 {

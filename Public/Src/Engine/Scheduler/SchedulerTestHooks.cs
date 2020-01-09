@@ -7,6 +7,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler
 {
@@ -46,5 +47,10 @@ namespace BuildXL.Scheduler
         /// Listener to collect detours reported accesses
         /// </summary>
         public IDetoursEventListener DetoursListener { get; set; }
+
+        /// <summary>
+        /// A synthetic machine perf info to pass it to Scheduler to test various functions related to cancellation.
+        /// </summary>
+        public PerformanceCollector.MachinePerfInfo SyntheticMachinePerfInfo { get; set; }
     }
 }

@@ -94,6 +94,74 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(EventId.PipProcessError);
         }
 
+        [Fact]
+        public void StopSchedulerDueToLowPhysicalMemory()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            RunScheduler(testHooks: new SchedulerTestHooks()
+            {
+                SyntheticMachinePerfInfo = new PerformanceCollector.MachinePerfInfo()
+                {
+                    AvailableRamMb = 100,
+                    RamUsagePercentage = 99,
+                    TotalRamMb = 10000,
+                    CommitUsedMb = 10000,
+                    CommitUsagePercentage = 10,
+                    CommitLimitMb = 100000,
+                }
+
+            });
+
+            AssertVerboseEventLogged(EventId.LowRamMemory);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+        }
+
+        [Fact]
+        public void StopSchedulerDueToLowCommitMemory()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+
+            var output = CreateOutputFileArtifact();
+
+            var operations = new List<Operation>()
+            {
+                Operation.WriteFile(CreateOutputFileArtifact(output)),
+            };
+
+            var builder = CreatePipBuilder(operations);
+            SchedulePipBuilder(builder);
+
+            RunScheduler(testHooks: new SchedulerTestHooks()
+            {
+                SyntheticMachinePerfInfo = new PerformanceCollector.MachinePerfInfo()
+                {
+                    AvailableRamMb = 9000,
+                    RamUsagePercentage = 10,
+                    TotalRamMb = 10000,
+                    CommitUsedMb = 99000,
+                    CommitUsagePercentage = 99,
+                    CommitLimitMb = 100000,
+                }
+
+            });
+
+            AssertVerboseEventLogged(EventId.LowCommitMemory);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

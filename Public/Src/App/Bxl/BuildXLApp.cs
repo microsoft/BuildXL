@@ -384,8 +384,10 @@ namespace BuildXL
             using (var appLoggers = new AppLoggers(m_startTimeUtc, m_console, m_configuration.Logging, m_pathTable,
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
                    buildViewModel: m_buildViewModel,
+                   // In CloudBuild, additionally log the local timezone absolute time to match other CloudBuild system logs
+                   logFileTimeDisplay: m_configuration.InCloudBuild() ? TimeDisplay.LocalTimezoneMillisecondsWithRelative : TimeDisplay.Milliseconds,
                    // TODO: Remove this once we can add timestamps for all logs by default
-                   displayWarningErrorTime: m_configuration.InCloudBuild()))
+                   warningErrorLogFileTimeDisplay: m_configuration.InCloudBuild() ? TimeDisplay.LocalTimezoneMillisecondsWithRelative : TimeDisplay.None))
             {
                 // Mapping roots. Error is logged here to console because file logging may be set up under
                 // the mapped path. In success case, logging of root mappings is done below to ensure it goes
@@ -1204,7 +1206,8 @@ namespace BuildXL
             private readonly List<BaseEventListener> m_listeners = new List<BaseEventListener>();
             private readonly Dictionary<AbsolutePath, TextWriterEventListener> m_listenersByPath = new Dictionary<AbsolutePath, TextWriterEventListener>();
             private bool m_disposed;
-            private readonly bool m_displayWarningErrorTime;
+            private readonly TimeDisplay m_warningErrorLogFileTimeDisplay;
+            private readonly TimeDisplay m_logFileTimeDisplay;
             private TextWriterEventListener m_defaultFileListener;
             private TextWriterEventListener m_statusFileListener;
 
@@ -1238,7 +1241,8 @@ namespace BuildXL
                 PathTable pathTable,
                 bool notWorker,
                 BuildViewModel buildViewModel,
-                bool displayWarningErrorTime)
+                TimeDisplay warningErrorLogFileTimeDisplay,
+                TimeDisplay logFileTimeDisplay)
             {
                 Contract.Requires(console != null);
                 Contract.Requires(configuration != null);
@@ -1247,7 +1251,8 @@ namespace BuildXL
                 m_baseTime = startTime;
                 m_configuration = configuration;
                 m_pathTable = pathTable;
-                m_displayWarningErrorTime = displayWarningErrorTime;
+                m_warningErrorLogFileTimeDisplay = warningErrorLogFileTimeDisplay;
+                m_logFileTimeDisplay = logFileTimeDisplay;
 
                 LogPath = configuration.Log.ToString(pathTable);
                 RootLogDirectory = Path.GetDirectoryName(LogPath);
@@ -1315,12 +1320,12 @@ namespace BuildXL
 
                     if (m_configuration.ErrorLog.IsValid)
                     {
-                        ConfigureErrorAndWarningLogging(m_configuration.ErrorLog, true, false, displayTime: m_displayWarningErrorTime);
+                        ConfigureErrorAndWarningLogging(m_configuration.ErrorLog, true, false);
                     }
 
                     if (m_configuration.WarningLog.IsValid)
                     {
-                        ConfigureErrorAndWarningLogging(m_configuration.WarningLog, false, true, displayTime: m_displayWarningErrorTime);
+                        ConfigureErrorAndWarningLogging(m_configuration.WarningLog, false, true);
                     }
 
                     if (m_configuration.StatsLog.IsValid)
@@ -1547,7 +1552,7 @@ namespace BuildXL
                             m_baseTime,
                             m_warningManager.GetState,
                             m_configuration.FileVerbosity.ToEventLevel(),
-                            TimeDisplay.Milliseconds,
+                            m_logFileTimeDisplay,
                             eventMask,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                             pathTranslator: PathTranslatorForLogging);
@@ -1577,7 +1582,7 @@ namespace BuildXL
                 }
             }
 
-            private void ConfigureErrorAndWarningLogging(AbsolutePath logFilePath, bool logErrors, bool logWarnings, bool displayTime)
+            private void ConfigureErrorAndWarningLogging(AbsolutePath logFilePath, bool logErrors, bool logWarnings)
             {
                 AddFileBasedListener(
                     logFilePath,
@@ -1591,7 +1596,7 @@ namespace BuildXL
                             logWarnings,
                             m_warningManager.GetState,
                             PathTranslatorForLogging,
-                            timeDisplay: displayTime ? TimeDisplay.Milliseconds : TimeDisplay.None);
+                            timeDisplay: m_warningErrorLogFileTimeDisplay);
                     });
             }
 

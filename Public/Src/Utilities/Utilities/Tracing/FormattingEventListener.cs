@@ -30,6 +30,17 @@ namespace BuildXL.Utilities.Tracing
         /// Display time to millisecond accuracy.
         /// </summary>
         Milliseconds,
+
+        /// <summary>
+        /// Display times as absolute times in the local timezone, millisecond accuracy.
+        /// </summary>
+        LocalTimezoneMilliseconds,
+
+        /// <summary>
+        /// Display times as absolute times in the local timezone, millisecond accuracy.
+        /// Also includes the relative time since the beginning of the build in seconds.
+        /// </summary>
+        LocalTimezoneMillisecondsWithRelative,
     }
 
     /// <summary>
@@ -199,55 +210,64 @@ namespace BuildXL.Utilities.Tracing
             || (int)EventId.CacheMissAnalysis == eventId;
 
         /// <nodoc/>
-        public static string TimeSpanToString(TimeDisplay timeDisplay, TimeSpan t)
+        public static string TimeToString(DateTime time, DateTime baseTime, TimeDisplay timeDisplay)
         {
-            if (timeDisplay == TimeDisplay.Seconds)
-            {
-                string text;
-                if (t.Days > 0 || t.Hours > 0)
-                {
-                    text = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "[{0}:{1:d02}:{2:d02}]",
-                        (t.Days * 24) + t.Hours,
-                        t.Minutes,
-                        t.Seconds);
-                }
-                else
-                {
-                    text = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "[{0}:{1:d02}]",
-                        t.Minutes,
-                        t.Seconds);
-                }
+            Contract.Assert(baseTime != DateTime.MinValue ||
+                timeDisplay == TimeDisplay.LocalTimezoneMilliseconds ||
+                timeDisplay == TimeDisplay.LocalTimezoneMillisecondsWithRelative,
+                "BaseTime must be valid if using relative time.");
 
-                return text;
-            }
-            else
+            TimeSpan t;
+            switch (timeDisplay)
             {
-                string text;
-                if (t.Days > 0 || t.Hours > 0)
-                {
-                    text = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "[{0}:{1:d02}:{2:d02}.{3:d03}]",
-                        (t.Days * 24) + t.Hours,
-                        t.Minutes,
-                        t.Seconds,
-                        t.Milliseconds);
-                }
-                else
-                {
-                    text = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "[{0}:{1:d02}.{2:d03}]",
-                        t.Minutes,
-                        t.Seconds,
-                        t.Milliseconds);
-                }
-
-                return text;
+                case TimeDisplay.None:
+                    return string.Empty;
+                case TimeDisplay.Seconds:
+                    t = time - baseTime;
+                    if (t.Days > 0 || t.Hours > 0)
+                    {
+                        return string.Format(
+                            CultureInfo.InvariantCulture,
+                            "[{0}:{1:d02}:{2:d02}]",
+                            (t.Days * 24) + t.Hours,
+                            t.Minutes,
+                            t.Seconds);
+                    }
+                    else
+                    {
+                        return string.Format(
+                            CultureInfo.InvariantCulture,
+                            "[{0}:{1:d02}]",
+                            t.Minutes,
+                            t.Seconds);
+                    }
+                case TimeDisplay.Milliseconds:
+                    t = time - baseTime;
+                    if (t.Days > 0 || t.Hours > 0)
+                    {
+                        return string.Format(
+                            CultureInfo.InvariantCulture,
+                            "[{0}:{1:d02}:{2:d02}.{3:d03}]",
+                            (t.Days * 24) + t.Hours,
+                            t.Minutes,
+                            t.Seconds,
+                            t.Milliseconds);
+                    }
+                    else
+                    {
+                        return string.Format(
+                            CultureInfo.InvariantCulture,
+                            "[{0}:{1:d02}.{2:d03}]",
+                            t.Minutes,
+                            t.Seconds,
+                            t.Milliseconds);
+                    }
+                case TimeDisplay.LocalTimezoneMilliseconds:
+                    return time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss,fff", CultureInfo.InvariantCulture);
+                case TimeDisplay.LocalTimezoneMillisecondsWithRelative:
+                    return $"{TimeToString(time, baseTime, TimeDisplay.LocalTimezoneMilliseconds)} {TimeToString(time, baseTime, TimeDisplay.Seconds)}";
+                default:
+                    throw new NotImplementedException($"Implementaiton missing for TimeDisplay.{timeDisplay.ToString()}");
             }
         }
 
@@ -306,7 +326,7 @@ namespace BuildXL.Utilities.Tracing
                 full = string.Format(
                     CultureInfo.InvariantCulture,
                     "{0} {1}",
-                    TimeSpanToString(timeDisplay, DateTime.UtcNow - baseTime),
+                    TimeToString(DateTime.UtcNow, baseTime, timeDisplay),
 
                     // error/warning text
                     body);
@@ -324,7 +344,7 @@ namespace BuildXL.Utilities.Tracing
                     full = string.Format(
                         CultureInfo.InvariantCulture,
                         "{0} {1} DX{2:D4}: {3}",
-                        TimeSpanToString(timeDisplay, DateTime.UtcNow - baseTime),
+                        TimeToString(DateTime.UtcNow, baseTime, timeDisplay),
 
                         // error/warning/info/etc
                         label,

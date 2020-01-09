@@ -489,5 +489,28 @@ namespace Test.BuildXL.Utilities
 
             XAssert.IsTrue(Regex.IsMatch(text, $"^{suppressedWarningEventLabel} DX{(int)EventId.WarningEvent:D4}: Cookie 4\\r?$", RegexOptions.Multiline));
         }
+
+        [Fact]
+        public void TimeToStringTests()
+        {
+            DateTime start = DateTime.Now;
+
+            // Make sure hours and days are only displayed when the time difference is large enough to warrant such
+            foreach (TimeDisplay timeDisplay in new [] {TimeDisplay.Seconds, TimeDisplay.Milliseconds })
+            {
+                string shortTime = FormattingEventListener.TimeToString(start.AddSeconds(23), start, timeDisplay);
+                string longTime = FormattingEventListener.TimeToString(start.AddHours(20).AddSeconds(23), start, timeDisplay);
+                XAssert.IsTrue(shortTime.Length < longTime.Length);
+            }
+
+            // Exercise all TimeDisplay rendering options with various times to check for exceptions
+            foreach (TimeDisplay timeDisplay in Enum.GetValues(typeof(TimeDisplay)))
+            {
+                FormattingEventListener.TimeToString(start.AddSeconds(23), start, timeDisplay);
+                FormattingEventListener.TimeToString(start.AddMinutes(10).AddSeconds(23), start, timeDisplay);
+                FormattingEventListener.TimeToString(start.AddHours(1).AddMinutes(10).AddSeconds(23), start, timeDisplay);
+                FormattingEventListener.TimeToString(start.AddDays(3).AddHours(1).AddMinutes(10).AddSeconds(23), start, timeDisplay);
+            }
+        }
     }
 }

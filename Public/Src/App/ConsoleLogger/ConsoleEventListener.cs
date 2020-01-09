@@ -611,7 +611,7 @@ namespace BuildXL
                 using (var pooledWrapper = Pools.StringBuilderPool.GetInstance())
                 {
                     StringBuilder sb = pooledWrapper.Instance;
-                    sb.Append(TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime));
+                    sb.Append(TimeToString(DateTime.UtcNow, BaseTime, TimeDisplay.Seconds));
                     sb.Append(' ');
                     sb.Append(standardStatus);
                     if (!string.IsNullOrWhiteSpace(perfInfo))
@@ -644,7 +644,7 @@ namespace BuildXL
                             {
                                 // Otherwise include it in the string
                                 string info = string.Format(CultureInfo.InvariantCulture, "   {0} {1}",
-                                    TimeSpanToString(TimeDisplay.Seconds, item.Value.LastSeen - item.Value.FirstSeen),
+                                    TimeToString(item.Value.LastSeen, item.Value.FirstSeen, TimeDisplay.Seconds),
                                     item.Value.PipDescription);
 
                                 // Don't have a trailing newline for the last message;

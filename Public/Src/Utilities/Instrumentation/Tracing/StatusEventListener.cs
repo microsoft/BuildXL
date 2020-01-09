@@ -53,7 +53,7 @@ namespace BuildXL.Tracing
             }
             else if (eventData.EventId == (int)EventId.Status)
             {
-                var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
+                var time = TimeToString(DateTime.UtcNow, BaseTime, TimeDisplay.Seconds);
                 Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }

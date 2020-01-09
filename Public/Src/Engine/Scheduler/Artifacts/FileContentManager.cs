@@ -480,6 +480,12 @@ namespace BuildXL.Scheduler.Artifacts
                         });
 
                         return false;
+                    case ArtifactMaterializationResult.VerifySourceFilesFailed:
+                        Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
+                            operationContext,
+                            pip.GetDescription(Context),
+                            state.GetFailure().DescribeIncludingInnerFailures());
+                        return false; 
                     default:
                         // Catch-all error for non-cache dependency materialization failures
                         Logger.Log.PipMaterializeDependenciesFailureUnrelatedToCache(
@@ -2824,6 +2830,14 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 Logger.Log.PipInputVerificationMismatchExpectedNonExistence(
                     loggingContext,
+                    filePath: file.Path.ToString(pathTable));
+            }
+            else if (file.IsSourceFile)
+            {
+                Logger.Log.PipInputVerificationMismatchForSourceFile(
+                    loggingContext,
+                    actualHash: actualHash.ToHex(),
+                    expectedHash: expectedHash.ToHex(),
                     filePath: file.Path.ToString(pathTable));
             }
             else

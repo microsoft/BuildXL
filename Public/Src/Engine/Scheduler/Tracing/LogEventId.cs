@@ -70,7 +70,7 @@ namespace BuildXL.Scheduler.Tracing
         PipTwoPhaseCachePublishCacheEntry = 3654,
         ScheduleProcessNotStoredToWarningsUnderWarnAsError = 3655,
         // was ScheduleProcessNotStoredDueToMissingOutputs = 3656,
-
+        PipInputVerificationMismatchForSourceFile = 3657,
 
         // Historic metadata cache warnings
         HistoricMetadataCacheCreateFailed = 3660,
@@ -155,6 +155,8 @@ namespace BuildXL.Scheduler.Tracing
         ProcessPipExecutionInfo = 5071,
         ProcessPipExecutionInfoOverflowFailure = 5072,
         CacheOnlyStatistics = 5073,
+
+        PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed = 5080,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

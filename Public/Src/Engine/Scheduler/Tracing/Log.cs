@@ -340,6 +340,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFailureUnrelatedToCache(LoggingContext loggingContext, string pipDescription, string artifactMaterializationResult, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.UserError,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to materialize pip dependencies due to VerifySourceFilesFailed. Error: {errorMessage}")]
+        internal abstract void PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
             (ushort)EventId.PipMaterializeDependenciesFromCacheFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -675,11 +684,20 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
              (ushort)LogEventId.PipInputVerificationMismatch,
              EventGenerators = EventGenerators.LocalOnly,
-             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master. Ensure that source files are properly replicated from the master.",
+             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master.",
              EventLevel = Level.Error,
              EventTask = (ushort)Tasks.Distribution,
              Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError))]
         public abstract void PipInputVerificationMismatch(LoggingContext context, string actualHash, string expectedHash, string filePath);
+
+        [GeneratedEvent(
+             (ushort)LogEventId.PipInputVerificationMismatchForSourceFile,
+             EventGenerators = EventGenerators.LocalOnly,
+             Message = "Pip input '{filePath}' has hash '{actualHash}' which does not match expected hash '{expectedHash}' from master. Ensure that source files are properly replicated from the master.",
+             EventLevel = Level.Error,
+             EventTask = (ushort)Tasks.Distribution,
+             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void PipInputVerificationMismatchForSourceFile(LoggingContext context, string actualHash, string expectedHash, string filePath);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipInputVerificationMismatchExpectedExistence,

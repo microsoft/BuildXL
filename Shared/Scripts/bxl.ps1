@@ -136,8 +136,8 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$VsNewAll = $false,
 	
-	[Parameter(Mandatory=$false)]
-	[switch]$UseManagedSharedCompilation = $false,
+    [Parameter(Mandatory=$false)]
+    [switch]$UseManagedSharedCompilation = $true,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
@@ -194,12 +194,21 @@ if ($DominoArguments -eq $null) {
     $DominoArguments = @()
 }
 
-if ($UseManagedSharedCompilation) {
-	[Environment]::SetEnvironmentVariable("[Sdk.BuildXL]useManagedSharedCompilation", "1")
-}
-
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
+
+# Even if managed shared compilation was requested to be on, we turn it off when:
+# - /ado option is present, so AzDevOps scenarios are kept unchanged. 
+# - this is not considered an internal build
+# We might decide to relax this once shared compilation gets enough mileage.
+if ($UseManagedSharedCompilation -and 
+        (($DominoArguments -like '*/ado*') -or (-not $isMicrosoftInternal))) {
+    $UseManagedSharedCompilation = $false
+}
+
+if ($UseManagedSharedCompilation) {
+    [Environment]::SetEnvironmentVariable("[Sdk.BuildXL]useManagedSharedCompilation", "1")
+}
 
 # Dev cache adds 5-10s to TTFP due to cache initialization. Since we want tight inner loop (code-test-debug) 
 # to be crisp, we disable dev cache when TestMethod or TestClass is specified, i.e., when testing

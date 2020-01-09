@@ -320,7 +320,8 @@ endlocal && exit /b 0
 
 
 :RunBxl
-    call %ENLISTMENTROOT%\Bxl.cmd %*
+    REM Make sure (for now) shared compilation is turned off for any BuildXL invocation under RunCheckInTests
+    call %ENLISTMENTROOT%\Bxl.cmd -UseManagedSharedCompilation:$false %*
     if %ERRORLEVEL% NEQ 0 (
         echo. 1>&2
         echo --------------------------------------------------------------- 1>&2

@@ -36,6 +36,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md)
 * [Sealed Directories](Wiki/Advanced-Features/Sealed-Directories.md) TODO: groom
 * [Search Path Enumeration](Wiki/Advanced-Features/Search-Path-Enumeration.md)
+* [Escaping the sandbox](Wiki/Advanced-Features/Process-breakaway.md)
 
 ## Build Execution
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md)

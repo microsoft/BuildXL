@@ -71,6 +71,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 EvictionDiscardFraction = _distributedSettings.EvictionDiscardFraction,
+                UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),

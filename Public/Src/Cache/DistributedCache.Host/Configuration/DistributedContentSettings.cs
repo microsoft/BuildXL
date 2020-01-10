@@ -237,6 +237,12 @@ namespace BuildXL.Cache.Host.Configuration
         public float EvictionDiscardFraction { get; set; } = 0;
 
         /// <summary>
+        /// Configures whether to use new tiered eviction logic or not.
+        /// </summary>
+        [DataMember]
+        public bool UseTieredDistributedEviction { get; set; } = false;
+
+        /// <summary>
         /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
         /// Default to always wait for both instances to complete.
         /// </summary>

@@ -19,7 +19,7 @@ namespace Server {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
               // TODO: revisit this!
-              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App.Ref").Contents.all, r`ref/netcoreapp3.1/netstandard.dll`)
+              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App.Ref").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
             ),
 
             importFrom("BuildXL.Pips").dll,

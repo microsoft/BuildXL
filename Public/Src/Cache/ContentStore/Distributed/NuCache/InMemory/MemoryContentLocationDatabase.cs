@@ -108,6 +108,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             EnumerationFilter filter = null)
         {
             return _map
+                // Directly calling OrderBy on ConcurrentDictionary instance is not thread-safe.
+                // Making a copy by calling instance ToArray method first.
+                .ToArray()
                 .OrderBy(kvp => kvp.Key)
                 .SkipWhile(kvp => filter?.StartingPoint != null && filter.StartingPoint > kvp.Key)
                 .Where(kvp => filter?.ShouldEnumerate == null || filter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true)

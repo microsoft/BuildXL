@@ -38,7 +38,7 @@ namespace ContentStoreTest.FileSystem
 
                 for(var i = 0; i < iterations; i++)
                 {
-                    FileSystem.WriteAllText(path, "test");
+                    await writeAllTextAsync(FileSystem, path, "test", attemptCount: 5);
                     var t1 = openAndClose(FileSystem, path);
                     var t2 = openAndClose(FileSystem, path);
                     var t3 = openAndClose(FileSystem, path);
@@ -60,6 +60,23 @@ namespace ContentStoreTest.FileSystem
                 }
                 catch(UnauthorizedAccessException)
                 { }
+            }
+
+            static async Task writeAllTextAsync(IAbsFileSystem fileSystem, AbsolutePath path, string content, int attemptCount)
+            {
+                // There is a subtle race condition dealing with file system deletion.
+                // It is possible that the deletion that happened on the previous iteration is not fully done yet
+                // and the following WriteAllText may fail with 'FileNotFound' exception.
+                for (int i = 0; i < attemptCount; i++)
+                {
+                    try
+                    {
+                        fileSystem.WriteAllText(path, content);
+                        await Task.Delay(10);
+                    }
+                    catch (FileNotFoundException)
+                    { }
+                }
             }
         }
 

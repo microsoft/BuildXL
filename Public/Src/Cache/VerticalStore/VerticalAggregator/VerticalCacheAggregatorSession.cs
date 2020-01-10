@@ -23,7 +23,7 @@ namespace BuildXL.Cache.VerticalAggregator
     public sealed class VerticalCacheAggregatorSession : ICacheSession
     {
         private readonly VerticalCacheAggregator m_cache;
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
         private readonly string m_sessionId;
         private readonly bool m_isReadOnly;
         private readonly bool m_remoteIsReadOnly;
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.VerticalAggregator
             m_localSession = localSession;
             m_remoteSession = remoteSession;
             m_remoteROSession = remoteROSession;
-            m_cacheId = localSession.CacheId + "_" + remoteROSession.CacheId;
+            m_cacheId = new CacheId(localSession.CacheId, remoteROSession.CacheId);
             m_remoteIsReadOnly = remoteIsReadOnly;
             m_sessionCounters = new SessionCounters();
             m_finalStats = Lazy.Create(ExportStats);
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.VerticalAggregator
         public string CacheSessionId => m_sessionId;
 
         /// <inheritdoc/>
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         /// <inheritdoc/>
         public bool StrictMetadataCasCoupling => m_cache.StrictMetadataCasCoupling;

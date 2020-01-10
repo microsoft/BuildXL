@@ -47,9 +47,9 @@ namespace BuildXL.Cache.Interfaces.Test
             }
         }
 
-        public Func<ICache, string> CacheIdGetCallback;
+        public Func<ICache, CacheId> CacheIdGetCallback;
 
-        public string CacheId
+        public CacheId CacheId
         {
             get
             {

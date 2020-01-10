@@ -74,7 +74,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("DistributedBuildCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Cache key expiry bump time in minutes

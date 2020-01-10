@@ -41,7 +41,7 @@ namespace BuildXL.Cache.InputListFilter
 
         #region ICache interface methods
 
-        public string CacheId => m_cache.CacheId;
+        public CacheId CacheId => m_cache.CacheId;
 
         public Guid CacheGuid => m_cache.CacheGuid;
 

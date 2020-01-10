@@ -521,7 +521,7 @@ namespace BuildXL.Engine
             // This will be the cache ID with the deepest hierarchy.
             foreach (CacheSessionStatistics oneStatSet in stats)
             {
-                string[] splitPath = oneStatSet.CacheId.Split('_');
+                string[] splitPath = oneStatSet.CacheId.HierarchicalIds.ToArray();
                 if (splitPath.Length > longestPathLength)
                 {
                     longestPathLength = splitPath.Length;
@@ -532,7 +532,7 @@ namespace BuildXL.Engine
             // Now set the cache IDs for all caches that are aggregators
             foreach (CacheSessionStatistics oneStatSet in stats)
             {
-                string[] splitPath = oneStatSet.CacheId.Split('_');
+                string[] splitPath = oneStatSet.CacheId.HierarchicalIds.ToArray();
 
                 if (splitPath.Length > 1)
                 {

@@ -167,7 +167,7 @@ namespace BuildXL.Cache.InMemory
 
         #region ICacheReadOnlySession methods
 
-        public string CacheId => Cache.CacheId;
+        public CacheId CacheId => Cache.CacheId;
 
         public string CacheSessionId => m_sessionId;
 

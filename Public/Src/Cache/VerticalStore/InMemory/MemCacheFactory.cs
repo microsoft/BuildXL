@@ -32,7 +32,7 @@ namespace BuildXL.Cache.InMemory
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("MemCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Flag signaling that strict metadata coupling should be used

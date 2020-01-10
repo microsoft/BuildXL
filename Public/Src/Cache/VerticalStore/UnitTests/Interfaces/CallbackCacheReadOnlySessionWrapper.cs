@@ -24,9 +24,9 @@ namespace BuildXL.Cache.Interfaces.Test
         /// </summary>
         public ICacheReadOnlySession WrappedSession => m_realSession;
 
-        public Func<ICacheReadOnlySession, string> CacheIdCallback;
+        public Func<ICacheReadOnlySession, CacheId> CacheIdCallback;
 
-        public string CacheId
+        public CacheId CacheId
         {
             get
             {

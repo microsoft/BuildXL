@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Interfaces
         /// Returns the CacheId of the cache this session is connected to
         /// </summary>
         [NotNull]
-        string CacheId { get; }
+        CacheId CacheId { get; }
 
         /// <summary>
         /// The name unique name of this session or null if anonymous

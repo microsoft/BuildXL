@@ -31,7 +31,7 @@ namespace BuildXL.Cache.VerticalAggregator
             }
         }
 
-        public string CacheId
+        public CacheId CacheId
         {
             get
             {

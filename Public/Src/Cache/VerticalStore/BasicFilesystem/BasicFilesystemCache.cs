@@ -83,7 +83,7 @@ namespace BuildXL.Cache.BasicFilesystem
         // Root path for the sessions
         private readonly string m_sessionRoot;
 
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
 
         private readonly bool m_strictMetadataCasCoupling;
 
@@ -138,7 +138,7 @@ namespace BuildXL.Cache.BasicFilesystem
         /// May throw an exception on construction if the cache can not be created
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
-        internal BasicFilesystemCache(string cacheId, string rootPath, bool readOnly, bool strictMetadataCasCoupling, bool isauthoritative, int contentionBackoffMax, int defaultMinFingerprintAgeMinutes)
+        internal BasicFilesystemCache(CacheId cacheId, string rootPath, bool readOnly, bool strictMetadataCasCoupling, bool isauthoritative, int contentionBackoffMax, int defaultMinFingerprintAgeMinutes)
         {
             Contract.Requires(cacheId != null);
             Contract.Requires(rootPath != null);
@@ -2760,7 +2760,7 @@ namespace BuildXL.Cache.BasicFilesystem
         #region ICache interface methods
 
         /// <inheritdoc/>
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         /// <inheritdoc/>
         public Guid CacheGuid => m_cacheGuid;

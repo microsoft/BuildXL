@@ -55,7 +55,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public MemoizationStoreAdapterCacheCacheSession(
             BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ICacheSession cacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
-            string cacheId,
+            CacheId cacheId,
             ILogger logger,
             string sessionId = null,
             bool replaceExistingOnPlaceFile = false)

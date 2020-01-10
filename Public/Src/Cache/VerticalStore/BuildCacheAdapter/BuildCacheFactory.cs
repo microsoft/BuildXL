@@ -59,7 +59,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("RemoteBuildCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
         }
 
         /// <inheritdoc />

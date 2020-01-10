@@ -16,7 +16,7 @@ namespace BuildXL.Cache.InMemory
     /// </summary>
     internal sealed class MemCache : ICache
     {
-        private readonly string m_cacheId;
+        private readonly CacheId m_cacheId;
 
         private readonly Guid m_cacheGuid;
 
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.InMemory
             }
         }
 
-        internal MemCache(string cacheId, bool strictMetadataCasCoupling, bool isauthoritative)
+        internal MemCache(CacheId cacheId, bool strictMetadataCasCoupling, bool isauthoritative)
         {
             m_cacheGuid = CacheDeterminism.NewCacheGuid();
             m_cacheId = cacheId;
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.InMemory
 
         #region ICache interface methods
 
-        public string CacheId => m_cacheId;
+        public CacheId CacheId => m_cacheId;
 
         public Guid CacheGuid => m_cacheGuid;
 

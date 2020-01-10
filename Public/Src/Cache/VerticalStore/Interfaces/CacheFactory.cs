@@ -31,6 +31,11 @@ namespace BuildXL.Cache.Interfaces
         private const string DictionaryKeyFactoryTypeName = "Type";
 
         /// <summary>
+        /// String that holds the dictionary key for the cache factory cache id
+        /// </summary>
+        private const string DictionaryKeyFactoryCacheId = "CacheId";
+
+        /// <summary>
         /// The regex that cache IDs must match
         /// </summary>
         private const string CacheIdRegex = @"^[a-zA-Z0-9_]{2,50}$";
@@ -258,12 +263,12 @@ namespace BuildXL.Cache.Interfaces
             }
 
             var cacheConfig = (T)cacheConfigConversion.Result;
-            var cacheIdProperty = cacheConfig.GetType().GetProperties().FirstOrDefault(p => string.Equals("CacheId", p.Name));
+            var cacheIdProperty = cacheConfig.GetType().GetProperties().FirstOrDefault(p => string.Equals(DictionaryKeyFactoryCacheId, p.Name));
 
             if (cacheIdProperty != null)
             {
-                var cacheId = cacheIdProperty.GetValue(cacheConfig) as string;
-                if (cacheId == null)
+                var cacheId = (CacheId) cacheIdProperty.GetValue(cacheConfig);
+                if (!cacheId.IsValid)
                 {
                     return new IncorrectJsonConfigDataFailure("{0} requires a non-null value for '{1}' in Json configuration data", configName, cacheIdProperty.Name);
                 }
@@ -316,7 +321,16 @@ namespace BuildXL.Cache.Interfaces
                     {
                         try
                         {
-                            propertyInfo.SetValue(target, Convert.ChangeType(value, propertyInfo.PropertyType, CultureInfo.InvariantCulture));
+                            // For cacheId property, the string value retrieved from the configuration has to be lifted to a CacheId
+                            if (propertyInfo.Name == DictionaryKeyFactoryCacheId && (value == null || value is string))
+                            {
+                                string cacheId = (string)value;
+                                propertyInfo.SetValue(target, cacheId == null ? CacheId.Invalid : new CacheId(cacheId));
+                            }
+                            else
+                            {
+                                propertyInfo.SetValue(target, Convert.ChangeType(value, propertyInfo.PropertyType, CultureInfo.InvariantCulture));
+                            }
                         }
                         catch (Exception e)
                         {

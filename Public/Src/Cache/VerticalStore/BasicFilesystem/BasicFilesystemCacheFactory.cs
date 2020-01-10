@@ -36,7 +36,7 @@ namespace BuildXL.Cache.BasicFilesystem
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("BasicFilesystemCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// The directory where the cache data is stored

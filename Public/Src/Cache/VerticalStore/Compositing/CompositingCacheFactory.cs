@@ -32,7 +32,7 @@ namespace BuildXL.Cache.Compositing
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("CompositingCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// The Metadata Cache configuration

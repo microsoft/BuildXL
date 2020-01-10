@@ -15,7 +15,7 @@ namespace BuildXL.Cache.Interfaces
         /// <summary>
         /// The CacheId of the cache these statistics are about
         /// </summary>
-        public readonly string CacheId;
+        public readonly CacheId CacheId;
 
         /// <summary>
         /// A string representation of the underlying cache type
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="cacheId">CacheI of these statistics</param>
         /// <param name="statistics">The statistics dictionary</param>
         /// <param name="cacheType">The .Net type name for the cache.</param>
-        public CacheSessionStatistics(string cacheId, string cacheType, Dictionary<string, double> statistics)
+        public CacheSessionStatistics(CacheId cacheId, string cacheType, Dictionary<string, double> statistics)
         {
             Contract.Requires(cacheId != null);
             Contract.Requires(statistics != null);
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.Interfaces
         /// <nodoc />
         bool System.IEquatable<CacheSessionStatistics>.Equals(CacheSessionStatistics other)
         {
-            return object.ReferenceEquals(Statistics, other.Statistics) && (CacheId == other.CacheId);
+            return object.ReferenceEquals(Statistics, other.Statistics) && CacheId.Equals(other);
         }
 
         /// <nodoc />

@@ -245,7 +245,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
         #region ICacheReadOnlySession methods
 
-        public string CacheId => m_cache.CacheId;
+        public CacheId CacheId => m_cache.CacheId;
 
         public string CacheSessionId => m_sessionId;
 
@@ -413,7 +413,7 @@ namespace BuildXL.Cache.BasicFilesystem
                             counter.PinDup();
                         }
 
-                        return eventing.Returns(m_cache.CacheId);
+                        return eventing.Returns(m_cache.CacheId.ToString());
                     }
                 }
             });

@@ -76,7 +76,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// The Id of the cache instance
             /// </summary>
             [DefaultValue("FileSystemCache")]
-            public string CacheId { get; set; }
+            public CacheId CacheId { get; set; }
 
             /// <summary>
             /// Max number of CasEntries entries.
@@ -199,7 +199,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             public Config()
             {
-                CacheId = "FileSystemCache";
+                CacheId = new CacheId("FileSystemCache");
                 MaxStrongFingerprints = 500000;
                 CacheLogPath = null;
 

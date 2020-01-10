@@ -21,7 +21,7 @@ namespace BuildXL.Cache.InputListFilter
             m_session = session;
         }
 
-        public string CacheId => m_session.CacheId;
+        public CacheId CacheId => m_session.CacheId;
 
         public string CacheSessionId => m_session.CacheSessionId;
 

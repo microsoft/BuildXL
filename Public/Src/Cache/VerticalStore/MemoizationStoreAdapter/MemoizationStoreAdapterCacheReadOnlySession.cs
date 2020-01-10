@@ -70,7 +70,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public MemoizationStoreAdapterCacheReadOnlySession(
             IReadOnlyCacheSession readOnlyCacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
-            string cacheId,
+            CacheId cacheId,
             ILogger logger,
             string sessionId = null,
             bool replaceExistingOnPlaceFile = false)
@@ -85,7 +85,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         }
 
         /// <inheritdoc />
-        public string CacheId { get; }
+        public CacheId CacheId { get; }
 
         /// <inheritdoc />
         public string CacheSessionId { get; }

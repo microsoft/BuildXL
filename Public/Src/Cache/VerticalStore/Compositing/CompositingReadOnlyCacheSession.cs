@@ -33,7 +33,7 @@ namespace BuildXL.Cache.Compositing
             PinnedToCas.TryAdd(CasHash.NoItem, 0);
         }
 
-        public string CacheId => Cache.CacheId;
+        public CacheId CacheId => Cache.CacheId;
 
         public string CacheSessionId => m_metadataSession.CacheSessionId;
 

@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Interfaces
         /// The identifier for this cache - used for telemetry
         /// </returns>
         [NotNull]
-        string CacheId { get; }
+        CacheId CacheId { get; }
 
         /// <summary>
         /// This is the unique GUID for the given cache

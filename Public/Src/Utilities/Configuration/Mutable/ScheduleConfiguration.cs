@@ -75,9 +75,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
-
-            // Required minimum available disk space on all drives to keep executing pips 
-            MinimumDiskSpaceForPipsGb = 0;
         }
 
         /// <nodoc />

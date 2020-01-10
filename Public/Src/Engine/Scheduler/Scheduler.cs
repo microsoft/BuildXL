@@ -2150,7 +2150,8 @@ namespace BuildXL.Scheduler
                 // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int> 
                 if (m_writableDrives != null &&
                     !m_scheduleTerminating &&
-                    m_performanceAggregator != null)
+                    m_performanceAggregator != null &&
+                    (m_scheduleConfiguration.MinimumDiskSpaceForPipsGb ?? 0) > 0)
                 {
                     foreach (var disk in m_performanceAggregator.DiskStats)
                     {
@@ -2160,7 +2161,7 @@ namespace BuildXL.Scheduler
                             Logger.Log.WorkerFailedDueToLowDiskSpace(
                                 m_loggingContext,
                                 disk.Drive,
-                                m_scheduleConfiguration.MinimumDiskSpaceForPipsGb,
+                                (int)m_scheduleConfiguration.MinimumDiskSpaceForPipsGb,
                                 (int)disk.AvailableSpaceGb.Latest);
 
                             RequestTermination(cancelQueue: true);

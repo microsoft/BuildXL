@@ -337,7 +337,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public AbsolutePath InputChanges { get; set; }
 
         /// <inheritdoc />
-        public int MinimumDiskSpaceForPipsGb { get; set; }
+        public int? MinimumDiskSpaceForPipsGb { get; set; }
 
         /// <inheritdoc />
         public bool CacheOnly { get; set; }

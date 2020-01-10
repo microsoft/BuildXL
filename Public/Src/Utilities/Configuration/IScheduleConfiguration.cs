@@ -329,7 +329,7 @@ namespace BuildXL.Utilities.Configuration
         /// Required minimum available disk space on all drives to keep executing pips 
         /// Checked every 2 seconds.
         /// </summary>
-        int MinimumDiskSpaceForPipsGb { get; }
+        int? MinimumDiskSpaceForPipsGb { get; }
 
         /// <summary>
         /// Instructs the scheduler to only perform cache lookup and skip execution of pips that are cache misses.

@@ -104,16 +104,16 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         // to determine whether to skip reporting accesses for them
         manifestChildProcessesToBreakAwayFromJob_ = ParseAndAdvancePointer<PManifestChildProcessesToBreakAwayFromJob>(payloadCursor);
         if (HasErrors()) continue;
-        uint32_t manifestChildProcessesToBreakAwayFromJobSize = ParseUint32(payloadCursor);
-        for (uint32_t i = 0; i < manifestChildProcessesToBreakAwayFromJobSize; i++)
+
+        for (uint32_t i = 0; i < manifestChildProcessesToBreakAwayFromJob_->Count ; i++)
         {
             SkipOverCharArray(payloadCursor); // process name
         }
-        
+
         manifestTranslatePathsStrings_ = ParseAndAdvancePointer<PManifestTranslatePathsStrings>(payloadCursor);
         if (HasErrors()) continue;
-        uint32_t manifestTranslatePathsSize = ParseUint32(payloadCursor);
-        for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
+
+        for (uint32_t i = 0; i < manifestTranslatePathsStrings_->Count; i++)
         {
             SkipOverCharArray(payloadCursor); // 'from' path
             SkipOverCharArray(payloadCursor); // 'to' path
@@ -158,7 +158,7 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
 
         error_ = CheckValidUnixManifestTreeRoot(root_);
     } while(false);
-    
+
     return !HasErrors();
 }
 
@@ -171,11 +171,11 @@ void FileAccessManifestParseResult::PrintManifestTree(PCManifestRecord node,
     indentStr[indent] = L'\0';
     for (int i = 0; i < indent; i++) indentStr[i] = L' ';
 
-    printf("| %s [%d] '%s' (cone policy = %#x, node policy = %#x)\n", 
-           indentStr, 
-           index, 
-           node->GetPartialPath(), 
-           node->GetConePolicy() & FileAccessPolicy_ReportAccess, 
+    printf("| %s [%d] '%s' (cone policy = %#x, node policy = %#x)\n",
+           indentStr,
+           index,
+           node->GetPartialPath(),
+           node->GetConePolicy() & FileAccessPolicy_ReportAccess,
            node->GetNodePolicy() & FileAccessPolicy_ReportAccess);
 
     for (int i = 0; i < node->BucketCount; i++)

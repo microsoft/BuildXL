@@ -346,6 +346,30 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
+        public static void Contains(string container, params string[] elems)
+        {
+            foreach (var elem in elems)
+            {
+                if (!container.Contains(elem))
+                {
+                    Fail(I($"Substring '{elem}' not found in string '{container}'"));
+                }
+            }
+        }
+
+        /// <nodoc/>
+        public static void ContainsNot(string container, params string[] elems)
+        {
+            foreach (var elem in elems)
+            {
+                if (container.Contains(elem))
+                {
+                    Fail(I($"Substring '{elem}' found in string '{container}'"));
+                }
+            }
+        }
+
+        /// <nodoc/>
         public static void Contains<T>(IEnumerable<T> container, params T[] elems)
         {
             foreach (var elem in elems)

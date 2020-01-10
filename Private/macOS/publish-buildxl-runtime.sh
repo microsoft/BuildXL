@@ -396,7 +396,7 @@ if [[ -n $(which mono) && -f "$nugetExe" ]]; then
     fi
 
     echo "Building with /phase:Schedule to confirm that the new nuget can be downloaded and to regenerate cg/nuget/cgmanifest.json"
-    ${buildxlDir}/bxl.sh --internal --minimal /phase:Schedule
+    ${buildxlDir}/bxl.sh --internal --minimal --cgmanifest /phase:Schedule
 else
     echo " !!! Must publish $nupkgFile manually to feed: '${nugetFeed}'"
 fi

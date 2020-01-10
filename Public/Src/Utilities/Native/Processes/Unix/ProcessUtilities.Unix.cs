@@ -164,10 +164,6 @@ namespace BuildXL.Native.Processes.Unix
         /// <inheritdoc />
         public bool OSSupportsNestedJobs() => true;
 
-        /// <inheritdoc/>
-        public bool SandboxSupportsProcessBreakaway() => false;
-
-
         /// <inheritdoc />
         public void AttachContainerToJobObject(
             IntPtr hJob,

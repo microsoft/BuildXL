@@ -22,7 +22,7 @@ namespace Test.BuildXL.Processes
         public SandboxedProcessBreakawayTest(ITestOutputHelper output)
             : base(output) { }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void ChildProcessCanBreakawayWhenConfigured(bool letInfiniteWaiterSurvive)
@@ -72,12 +72,12 @@ namespace Test.BuildXL.Processes
                 // Just being protective, let's make sure we are talking about the same process
                 XAssert.AreEqual(infiniteWaiterInfo.processName, dummyWaiter.ProcessName);
 
-                // Now let's kill the surviving process, since we don't want it to linger around unnecesarily
+                // Now let's kill the surviving process, since we don't want it to linger around unnecessarily
                 dummyWaiter.Kill();
             }
         }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void BreakawayProcessIsNotDetoured()
         {
             var fam = new FileAccessManifest(
@@ -105,8 +105,8 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, result.ExitCode);
 
             var observedAccesses = result.FileAccesses
-                .Where(reportedAccess => reportedAccess.Path != null)
-                .Select(reportedAccess => AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Path, out AbsolutePath result) ? result : AbsolutePath.Invalid);
+                .Select(reportedAccess => AbsolutePath.TryCreate(Context.PathTable, reportedAccess.GetPath(Context.PathTable), out AbsolutePath result) ? result : AbsolutePath.Invalid)
+                .ToArray();
 
             // We should see the access that happens on the main test process
             XAssert.Contains(observedAccesses, srcFile1.Path);

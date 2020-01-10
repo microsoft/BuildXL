@@ -484,8 +484,6 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.Length == additionalTempDirectories.Distinct().Count());
             Contract.RequiresForAll(semaphores, s => s.IsValid);
             Contract.Requires(semaphores.Length == semaphores.Distinct().Count());
-            Contract.Requires(!(childProcessesToBreakawayFromSandbox?.Length > 0) || ProcessUtilities.SandboxSupportsProcessBreakaway(), 
-                "A process is only allowed to specify child processes to breakaway if the underlying sandbox allows for it");
 #endif
 
             Provenance = provenance;

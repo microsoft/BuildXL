@@ -1130,7 +1130,7 @@ namespace BuildXL.Processes
         private void AugmentWithTrustedAccessesFromDeclaredArtifacts(SandboxedProcessResult result, Process process, IDirectoryArtifactContext directoryContext)
         {
             // If no ReportedProcess is found it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
-            var reportedProcess = result.Processes.FirstOrDefault() ?? new ReportedProcess(0, string.Empty, string.Empty);
+            var reportedProcess = result.Processes?.FirstOrDefault() ?? new ReportedProcess(0, string.Empty, string.Empty);
 
             HashSet<ReportedFileAccess> trustedAccesses = ComputeDeclaredAccesses(process, directoryContext, reportedProcess);
 
@@ -1160,7 +1160,7 @@ namespace BuildXL.Processes
 
             foreach (var inputArtifact in process.Dependencies)
             {
-                if (TryGetDeclaredReadAccessForFile(reportedProcess, inputArtifact, out var reportedFileAccess))
+                if (TryGetDeclaredAccessForFile(reportedProcess, inputArtifact, isRead: true, isDirectoryMember: false, out var reportedFileAccess))
                 {
                     trustedAccesses.Add(reportedFileAccess);
                 }
@@ -1171,12 +1171,12 @@ namespace BuildXL.Processes
                 // Source seal directories are not supported for now. Discovering them via enumerations
                 // could be a way to do it in the future. This is enforced by the process builder.
                 Contract.Assert(!directoryContext.GetSealDirectoryKind(inputDirectory).IsSourceSeal());
-                
+
                 var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory);
 
                 foreach (var inputArtifact in directoryContent)
                 {
-                    if (TryGetDeclaredReadAccessForFile(reportedProcess, inputArtifact, out var reportedFileAccess))
+                    if (TryGetDeclaredAccessForFile(reportedProcess, inputArtifact, isRead: true, isDirectoryMember: true, out var reportedFileAccess))
                     {
                         trustedAccesses.Add(reportedFileAccess);
                     }
@@ -1186,7 +1186,8 @@ namespace BuildXL.Processes
             foreach (var outputArtifact in process.FileOutputs)
             {
                 // We only add outputs that were actually produced
-                if (TryGetDeclaredWriteAccessForFile(reportedProcess, outputArtifact.Path, out var reportedFileAccess) && FileUtilities.FileExistsNoFollow(outputArtifact.Path.ToString(m_pathTable)))
+                if (TryGetDeclaredAccessForFile(reportedProcess, outputArtifact.Path, isRead: false, isDirectoryMember: false, out var reportedFileAccess) 
+                    && FileUtilities.FileExistsNoFollow(outputArtifact.Path.ToString(m_pathTable)))
                 {
                     trustedAccesses.Add(reportedFileAccess);
                 }
@@ -1195,26 +1196,24 @@ namespace BuildXL.Processes
             return trustedAccesses;
         }
 
-        private bool TryGetDeclaredReadAccessForFile(ReportedProcess process, AbsolutePath path, out ReportedFileAccess reportedFileAccess)
+        private bool TryGetDeclaredAccessForFile(ReportedProcess process, AbsolutePath path, bool isRead, bool isDirectoryMember, out ReportedFileAccess reportedFileAccess)
         {
-            return TryGetDeclaredAccessForFile(process, path, isRead: true, out reportedFileAccess);
-        }
-
-        private bool TryGetDeclaredWriteAccessForFile(ReportedProcess process, AbsolutePath path, out ReportedFileAccess reportedFileAccess)
-        {
-            return TryGetDeclaredAccessForFile(process, path, isRead: false, out reportedFileAccess);
-        }
-
-        private bool TryGetDeclaredAccessForFile(ReportedProcess process, AbsolutePath path, bool isRead, out ReportedFileAccess reportedFileAccess)
-        {
-            var result = m_fileAccessManifest.TryFindManifestPathFor(path, out var manifestPath, out var nodePolicy);
-            Contract.Assert(result);
-
-            bool shouldReportAccess = (nodePolicy & FileAccessPolicy.ReportAccess) != 0;
+            // In some circumstances, to reduce bxl's memory footprint, FileAccessManifest objects are
+            // released as soon as they are serialized and sent to the sandbox.  When that is the case,
+            // we cannot look up the policy for the path because at this time the FAM is empty, i.e., 
+            // we have to decide whether or not this access should be reported explicitly without having
+            // the actual policy: only writes and sealed directory reads are reported explicitly.
+            var reportExplicitly = !isRead || isDirectoryMember;
+            var manifestPath = path;
+            if (m_fileAccessManifest.IsFinalized && m_fileAccessManifest.TryFindManifestPathFor(path, out manifestPath, out var nodePolicy))
+            {
+                reportExplicitly = nodePolicy.HasFlag(FileAccessPolicy.ReportAccess);
+            }
 
             // if the access is flagged to not be reported, and the global manifest flag does not require all accesses
             // to be reported, then we don't create it
-            if (!shouldReportAccess && !m_fileAccessManifest.ReportFileAccesses)
+            var shouldReport = m_fileAccessManifest.ReportFileAccesses || reportExplicitly;
+            if (!shouldReport)
             {
                 reportedFileAccess = default(ReportedFileAccess);
                 return false;
@@ -1225,7 +1224,7 @@ namespace BuildXL.Processes
                 process,
                 isRead ? RequestedAccess.Read: RequestedAccess.Write,
                 FileAccessStatus.Allowed,
-                explicitlyReported: shouldReportAccess,
+                explicitlyReported: reportExplicitly,
                 0,
                 Usn.Zero,
                 isRead ? DesiredAccess.GENERIC_READ : DesiredAccess.GENERIC_WRITE,

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Builders;
@@ -60,7 +61,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(File.Exists(ArtifactToString(outputInSharedOpaque)));
          }
 
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Fact]
         public void TrustedAccessesOnProcessBreakawayAreProperlyReported()
         {
             // One (mandatory) output and one optional output
@@ -99,6 +100,90 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.Contains(result.PathSets[pip.Process.PipId].Value.Paths.Select(pathEntry => pathEntry.Path), sourceInFullySealed);
             // There should be a single produced output (the mandatory one)
             XAssert.IsTrue(EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Single().ToUpperInvariant().Contains(output.Path.ToString(Context.PathTable).ToUpperInvariant()));
+        }
+
+        [Fact]
+        public void BreakawayProcessesAreUntracked()
+        {
+            var outerSourceFile = CreateSourceFileWithPrefix(SourceRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-outer-src");
+            var innerSourceFile = CreateSourceFileWithPrefix(SourceRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-inner-src");
+
+            var outerOutputFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-outer-out");
+            var innerOutputFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-inner-out");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(outerSourceFile),
+                Operation.WriteFile(outerOutputFile),
+
+                Operation.Spawn(Context.PathTable, waitToFinish: true, 
+                    Operation.WriteFile(innerOutputFile, doNotInfer: true),
+                    Operation.ReadFile(innerSourceFile, doNotInfer: true))
+            });
+
+            // Configure the test process itself to escape the sandbox
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+
+            var pip = SchedulePipBuilder(builder);
+
+            // 1st run: success + cache miss
+            var result = RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
+
+            // there should be a single "produced output" message and it should be for the outer output file
+            var producedOutputLogMessage = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Single().ToUpperInvariant();
+            XAssert.Contains(producedOutputLogMessage, ToString(outerOutputFile).ToUpperInvariant());
+            XAssert.ContainsNot(producedOutputLogMessage, ToString(innerOutputFile).ToUpperInvariant());
+
+            // 2nd run (no changes): success + up to date
+            RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
+
+            // 3nd run (change inner source file): success + cache hit (because inner source is untracked)
+            File.WriteAllText(ToString(innerSourceFile), contents: Guid.NewGuid().ToString());
+            RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
+
+            // 4th run (change outer source file): success + cache miss
+            File.WriteAllText(ToString(outerSourceFile), contents: Guid.NewGuid().ToString());
+            RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
+        }
+
+        [Fact]
+        public void BreakawayProcessesCanOutliveThePip()
+        {
+            var pidFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesCanOutliveThePip)}.pid");
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: pidFile, doNotInfer: false,
+                    Operation.Block())
+            });
+
+            // Configure the test process itself to escape the sandbox
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+
+            var pip = SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+
+            var pidFilePath = ToString(pidFile);
+            XAssert.FileExists(pidFilePath);
+
+            var pidFileContent = File.ReadAllText(pidFilePath);
+            XAssert.IsTrue(int.TryParse(pidFileContent, out var pid), $"Cannot convert pid file content '{pidFileContent}' to integer");
+
+            var proc = TryGetProcessById(pid);
+            XAssert.IsNotNull(proc, $"Could not find the process (PID:{pid}) that was supposed to break away");
+
+            proc.Kill();
+        }
+
+        private System.Diagnostics.Process TryGetProcessById(int pid)
+        {
+            try
+            {
+                return System.Diagnostics.Process.GetProcessById(pid);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
         }
     }
 }

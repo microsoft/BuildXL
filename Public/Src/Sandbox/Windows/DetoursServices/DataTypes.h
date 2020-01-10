@@ -349,15 +349,13 @@ typedef struct ManifestTranslatePathsStrings_t
 {
     GENERATE_TAG("ManifestTranslatePathsStrings", 0xABCDEF02)
 
+    typedef uint32_t    CountType;
+    CountType           Count;
+
+    /// There are no variable-length members, so the length of this struct can be determined using sizeof.
     inline size_t GetSize() const
     {
-// This conditional compilation here and in ManifestInternalDetoursErrorNotificationFileString_t are necessary because calling sizeof() on
-// an empty struct yields undefined behaviour according to the C99 standard. The optimized code the compiler produces returns 1, which is obviously wrong!
-#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
-        return 0;
-#else
         return sizeof(ManifestTranslatePathsStrings_t);
-#endif
     }
 } ManifestTranslatePathsStrings_t;
 typedef const ManifestTranslatePathsStrings_t * PManifestTranslatePathsStrings;
@@ -369,15 +367,13 @@ typedef struct ManifestChildProcessesToBreakAwayFromJob_t
 {
     GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF05)
 
-    inline size_t GetSize() const
+    typedef uint32_t    CountType;
+    CountType           Count;
+
+    /// There are no variable-length members, so the length of this struct can be determined using sizeof.
+    size_t GetSize() const
     {
-        // This conditional compilation here and in ManifestInternalDetoursErrorNotificationFileString_t are necessary because calling sizeof() on
-        // an empty struct yields undefined behaviour according to the C99 standard. The optimized code the compiler produces returns 1, which is obviously wrong!
-#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
-        return 0;
-#else
         return sizeof(ManifestChildProcessesToBreakAwayFromJob_t);
-#endif
     }
 } ManifestChildProcessesToBreakAwayFromJob_t;
 typedef const ManifestChildProcessesToBreakAwayFromJob_t* PManifestChildProcessesToBreakAwayFromJob;

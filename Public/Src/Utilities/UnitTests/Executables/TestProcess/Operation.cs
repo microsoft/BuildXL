@@ -716,12 +716,22 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates an operation that spawns a child process executing given <paramref name="childOperations"/>.
         /// </summary>
         /// <param name="pathTable">Needed for rendering child process operations</param>
-        /// <param name="childOperations">Definition of the child process</param>
         /// <param name="waitToFinish">Whether to wait for the child process to finish before continuing</param>
-        public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
+        /// <param name="pidFile">If valid, file to which to write spawned process id</param>
+        /// <param name="doNotInfer">Whether or not to infer dependencies</param>
+        /// <param name="childOperations">Definition of the child process</param>
+        public static Operation SpawnAndWritePidFile(PathTable pathTable, bool waitToFinish, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, params Operation[] childOperations)
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
-            return new Operation(Type.Spawn, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null);
+            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Like <see cref="SpawnAndWritePidFile"/> except it doesn't write out spawned process pid to file.
+        /// </summary>
+        public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
+        {
+            return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, childOperations);
         }
 
         /// <summary>
@@ -1184,6 +1194,12 @@ namespace Test.BuildXL.Executables.TestProcess
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
+            if (PathAsString != null && PathAsString != InvalidPathString)
+            {
+                // write PID to file
+                File.WriteAllText(PathAsString, contents: process.Id.ToString());
+            }
+
             if (waitToFinish)
             {
                 process.WaitForExit();
@@ -1212,13 +1228,17 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 FileName = PathAsString,
                 Arguments = AdditionalArgs,
-                RedirectStandardError = false,
-                RedirectStandardOutput = false,
+                // Important to redirect stdout/stderr because we don't want stdout/stderr
+                // of this child process to go to this process's stdout/stderr; without
+                // this the child process cannot fully break away
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
 
             process.Start();
+
             // Log the the process that was launched with its id so it can be retrieved by bxl tests later
             // This is used when the child process is launched to breakaway from the job object, so we actually
             // don't get its information back as part of a reported process

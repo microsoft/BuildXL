@@ -1160,6 +1160,13 @@ namespace Test.BuildXL.Scheduler
                                 }
                                 break;
 
+                            case Operation.Type.Spawn:
+                                if (op.Path.IsValid && op.Path.IsFile)
+                                {
+                                    dao.Outputs.Add(op.Path.FileArtifact);
+                                }
+                                break;
+
                             default:
                                 break;
                         }
@@ -1230,9 +1237,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             processBuilder.AddCurrentHostOSDirectories();
-
-            PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
-
+            PipGraphBuilder.ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: true);
         }
 
         protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)

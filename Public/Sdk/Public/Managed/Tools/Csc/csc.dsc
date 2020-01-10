@@ -45,6 +45,8 @@ export const defaultArgs: Arguments = {
     ],
 };
 
+const isCurrentHostOsWindows = Context.getCurrentHost().os === "win";
+
 /**
  * Evaluate (i.e. schedule) C# compiler invocation using specified arguments.
  */
@@ -163,15 +165,37 @@ export function compile(inputArgs: Arguments) : Result {
         // If shared compilation is enabled, then we need to allow the compiler service to breakaway. 
         // Additionally, and since this is a trusted process, we use the statically declared accesses to
         // compensate for the unobserved ones.
-        unsafe: args.shared? 
+        unsafe: args.shared ?
             {
-                childProcessesToBreakawayFromSandbox: [a`VBCSCompiler.exe`],
+                childProcessesToBreakawayFromSandbox: isCurrentHostOsWindows
+                    ? [ a`VBCSCompiler.exe` ]
+                    : [ a`dotnet` ],
                 trustStaticallyDeclaredAccesses: true,
             } : undefined,
     };
 
-    if (Context.getCurrentHost().os !== "win") {
+    if (!isCurrentHostOsWindows) {
         cscExecuteArgs = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(cscExecuteArgs);
+        cscExecuteArgs = cscExecuteArgs.merge<Transformer.ExecuteArguments>({
+            tool: { 
+                // Conceptually, we want to set 'dependsOnCurrentHostOSDirectories' to true and not specify 'untrackedDirectoryScopes' here;
+                // when shared compilation is used, however, setting 'dependsOnCurrentHostOSDirectories' causes the engine to create
+                // sealed source directories from some system folders (e.g., /Library, /Applications, etc.) and add them as dependencies,
+                // which, unfortunately, is not allowed for pips declaring 'trustStaticallyDeclaredAccesses'.
+                dependsOnCurrentHostOSDirectories: !args.shared,
+                untrackedDirectoryScopes: addIf(args.shared === true, 
+                    d`/usr`,
+                    d`/var`,
+                    d`/bin`,
+                    d`/tmp`,
+                    d`/dev`,
+                    d`/etc`,
+                    d`/private`,
+                    d`/System`,
+                    d`/Library`,
+                    ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`))
+            }
+        });
     }
     let executeResult = Transformer.execute(cscExecuteArgs);
 

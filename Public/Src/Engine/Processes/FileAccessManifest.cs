@@ -492,6 +492,12 @@ namespace BuildXL.Processes
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
         }
 
+        /// <summary> 
+        /// Looking up a policy for a path is not allowed before this property becomes true
+        /// (which happens once the FAM is serialized)
+        /// </summary>
+        public bool IsFinalized => m_rootNode.IsPolicyFinalized;
+
         /// <summary>
         /// Finds the manifest path (the 'closest' configured path policy) for a given path. 
         /// </summary>

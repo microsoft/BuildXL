@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.MsBuild
         // TODO: it would be better if MSBuild provided the property name
         internal const string s_isGraphBuildProperty = "IsGraphBuild";
 
-        private bool UseSharedCompilation => ProcessUtilities.SandboxSupportsProcessBreakaway() && m_resolverSettings.UseManagedSharedCompilation != false;
+        private bool UseSharedCompilation => m_resolverSettings.UseManagedSharedCompilation != false;
 
         /// <nodoc/>
         public PipConstructor(

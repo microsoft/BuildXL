@@ -369,21 +369,12 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             var arguments = RetrieveProcessArguments(testProj);
 
-            // When supported, we should:
             // - not turn off shared compilation, 
             // - let VBCSCompiler escape the sandbox
             // - attach the VBCSCompiler logger to compensate for missing accesses
-            if (ProcessUtilities.SandboxSupportsProcessBreakaway())
-            {
-                Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
-                Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
-                Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
-            }
-            else
-            {
-                Assert.Contains("/p:UseSharedCompilation=false", arguments);
-                Assert.Empty(testProj.ChildProcessesToBreakawayFromSandbox);
-            }
+            Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
+            Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
+            Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
         }
     }
 }

@@ -59,9 +59,8 @@ namespace BuildXL.Scheduler.Graph
 
             private readonly IConfiguration m_configuration;
 
-            private WindowsOsDefaults m_windowsOsDefaults;
-            private MacOsDefaults m_macOsDefaults;
-            private readonly object m_osDefaultLock = new object();
+            private readonly Lazy<WindowsOsDefaults> m_windowsOsDefaults;
+            private readonly Lazy<MacOsDefaults> m_macOsDefaults;
 
             #region State
 
@@ -208,6 +207,9 @@ namespace BuildXL.Scheduler.Graph
 
                 m_configuration = configuration;
 
+                m_windowsOsDefaults = Lazy.Create(() => new WindowsOsDefaults(Context.PathTable));
+                m_macOsDefaults = Lazy.Create(() => new MacOsDefaults(Context.PathTable, this));
+
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
                     PipFingerprintingVersion.TwoPhaseV2,
@@ -297,39 +299,17 @@ namespace BuildXL.Scheduler.Graph
                 return pipId.ToNodeId();
             }
 
+            internal bool ApplyCurrentOsDefaultsInternal(ProcessBuilder processBuilder, bool untrackInsteadSourceSeal)
+            {
+                return OperatingSystemHelper.IsUnixOS
+                    ? m_macOsDefaults.Value.ProcessDefaults(processBuilder, untrackInsteadSourceSeal)
+                    : m_windowsOsDefaults.Value.ProcessDefaults(processBuilder);
+            }
+
             /// <inheritdoc />
             public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
             {
-                if (OperatingSystemHelper.IsUnixOS)
-                {
-                    if (m_macOsDefaults == null)
-                    {
-                        lock(m_osDefaultLock)
-                        {
-                            if (m_macOsDefaults == null) 
-                            {
-                                m_macOsDefaults = new MacOsDefaults(Context.PathTable, this);
-                            }
-                        }
-                    }
-
-                    return m_macOsDefaults.ProcessDefaults(processBuilder);
-                }
-                else
-                {
-                    if (m_windowsOsDefaults == null)
-                    {
-                        lock(m_osDefaultLock)
-                        {
-                            if (m_windowsOsDefaults == null) 
-                            {
-                                m_windowsOsDefaults = new WindowsOsDefaults(Context.PathTable);
-                            }
-                        }
-                    }
-
-                    return m_windowsOsDefaults.ProcessDefaults(processBuilder);
-                }
+                return ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: false);
             }
 
 

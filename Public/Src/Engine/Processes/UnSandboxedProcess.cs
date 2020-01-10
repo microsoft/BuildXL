@@ -31,7 +31,8 @@ namespace BuildXL.Processes
     /// </summary>
     public class UnsandboxedProcess : ISandboxedProcess
     {
-        private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
+        private ISet<ReportedFileAccess> EmptyFileAccessesSet => new HashSet<ReportedFileAccess>();
+
         private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
@@ -254,7 +255,7 @@ namespace BuildXL.Processes
 
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
-            var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
+            var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? EmptyFileAccessesSet) : null;
 
             return new SandboxedProcessResult
             {
@@ -266,10 +267,10 @@ namespace BuildXL.Processes
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
-                AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? s_emptyFileAccessesSet,
+                AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
                 FileAccesses                        = fileAccesses,
                 DetouringStatuses                   = reports?.ProcessDetoursStatuses,
-                ExplicitlyReportedFileAccesses      = reports?.ExplicitlyReportedFileAccesses,
+                ExplicitlyReportedFileAccesses      = reports?.ExplicitlyReportedFileAccesses ?? EmptyFileAccessesSet,
                 Processes                           = CoalesceProcesses(reports?.Processes),
                 MessageProcessingFailure            = reports?.MessageProcessingFailure,
                 DumpCreationException               = m_dumpCreationException,

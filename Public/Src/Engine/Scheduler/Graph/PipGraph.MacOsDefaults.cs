@@ -33,6 +33,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             private readonly PipProvenance m_provenance;
+            private readonly AbsolutePath[] m_sourceSealDirectoryPaths;
             private readonly Lazy<DefaultSourceSealDirectories> m_lazySourceSealDirectories;
             private readonly FileArtifact[] m_untrackedFiles;
             private readonly DirectoryArtifact[] m_untrackedDirectories;
@@ -49,20 +50,20 @@ namespace BuildXL.Scheduler.Graph
                     QualifierId.Unqualified,
                     PipData.Invalid);
 
-                // Sealed Source inputs
-                // (using Lazy so that these directories are sealed and added to the graph only if explicitly requested by a process)
-                m_lazySourceSealDirectories = Lazy.Create(() =>
-                    new DefaultSourceSealDirectories(new[]
+                m_sourceSealDirectoryPaths =
+                    new[]
                     {
                         MacPaths.Applications,
                         MacPaths.Library,
-                        MacPaths.UserProvisioning,
-                        // consider untracking /usr/bin and /usr/include because they are not writable by default
-                        MacPaths.UsrBin,
-                        MacPaths.UsrInclude,
+                        MacPaths.UserProvisioning
                     }
-                    .Select(p => GetSourceSeal(pathTable, pipGraph, p))
-                    .ToArray()));
+                    .Select(p => AbsolutePath.Create(pathTable, p))
+                    .ToArray();
+
+                // Sealed Source inputs
+                // (using Lazy so that these directories are sealed and added to the graph only if explicitly requested by a process)
+                m_lazySourceSealDirectories = Lazy.Create(() =>
+                    new DefaultSourceSealDirectories(m_sourceSealDirectoryPaths.Select(p => GetSourceSeal(pipGraph, p)).ToArray()));
 
                 m_untrackedFiles =
                     new[]
@@ -86,6 +87,8 @@ namespace BuildXL.Scheduler.Graph
                         MacPaths.Private,
                         MacPaths.Sbin,
                         MacPaths.SystemLibrary,
+                        MacPaths.UsrBin,
+                        MacPaths.UsrInclude,
                         MacPaths.UsrLibexec,
                         MacPaths.UsrShare,
                         MacPaths.UsrStandalone,
@@ -104,28 +107,43 @@ namespace BuildXL.Scheduler.Graph
             }
 
             /// <summary>
-            /// Augments the processBuilder with the OS dependencies
+            /// Augments the processBuilder with the OS dependencies.
             /// </summary>
-            public bool ProcessDefaults(ProcessBuilder processBuilder)
+            /// <param name="processBuilder">builder to use</param>
+            /// <param name="untrackInsteadSourceSeal">when true, directories that are meant to be source sealed are untracked instead</param>
+            public bool ProcessDefaults(ProcessBuilder processBuilder, bool untrackInsteadSourceSeal = false)
             {
-                if ((processBuilder.Options & Process.Options.DependsOnCurrentOs) != 0)
+                if (processBuilder.Options.HasFlag(Process.Options.DependsOnCurrentOs))
                 {
-                    var defaultSourceSealDirs = m_lazySourceSealDirectories.Value;
-                    if (!defaultSourceSealDirs.IsValid)
+                    // process source seal directories: either source seal them or untrack them, depending on 'untrackInsteadSourceSeal'
+                    if (untrackInsteadSourceSeal)
                     {
-                        return false;
+                        foreach (var sourceSealDirPath in m_sourceSealDirectoryPaths)
+                        {
+                            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(sourceSealDirPath));
+                        }
+                    }
+                    else
+                    {
+                        var defaultSourceSealDirs = m_lazySourceSealDirectories.Value;
+                        if (!defaultSourceSealDirs.IsValid)
+                        {
+                            return false;
+                        }
+
+                        foreach (var inputDirectory in defaultSourceSealDirs.Directories)
+                        {
+                            processBuilder.AddInputDirectory(inputDirectory);
+                        }
                     }
 
-                    foreach (var inputDirectory in defaultSourceSealDirs.Directories)
-                    {
-                        processBuilder.AddInputDirectory(inputDirectory);
-                    }
-
+                    // add untracked files
                     foreach (var untrackedFile in m_untrackedFiles)
                     {
                         processBuilder.AddUntrackedFile(untrackedFile);
                     }
 
+                    // add untracked directories
                     foreach (var untrackedDirectory in m_untrackedDirectories)
                     {
                         processBuilder.AddUntrackedDirectoryScope(untrackedDirectory);
@@ -135,10 +153,10 @@ namespace BuildXL.Scheduler.Graph
                 return true;
             }
 
-            private DirectoryArtifact GetSourceSeal(PathTable pathTable, IMutablePipGraph pipGraph, string path)
+            private DirectoryArtifact GetSourceSeal(IMutablePipGraph pipGraph, AbsolutePath path)
             {
                 var sealDirectory = new SealDirectory(
-                    AbsolutePath.Create(pathTable, path),
+                    path,
                     contents: s_emptySealContents,
                     kind: SealDirectoryKind.SourceAllDirectories,
                     provenance: m_provenance,

@@ -104,6 +104,9 @@ public:
     /*! File access manifest flags */
     FileAccessManifestFlag getFamFlags() const    { return fam_.GetFamFlags(); }
 
+    /*! When this returns true, child processes should not be tracked. */
+    bool AllowChildProcessesToBreakAway() const   { return fam_.AllowChildProcessesToBreakAway(); }
+
     /*!
      * Returns the full path of the root process of this pip.
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.

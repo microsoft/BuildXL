@@ -672,12 +672,9 @@ bool ParseFileAccessManifest(
 
     g_manifestChildProcessesToBreakAwayFromJob = reinterpret_cast<const PManifestChildProcessesToBreakAwayFromJob>(&payloadBytes[offset]);
     g_manifestChildProcessesToBreakAwayFromJob->AssertValid();
-#ifdef _DEBUG
-    offset += sizeof(uint32_t);
-#endif
-    uint32_t childProcessesToBreakAwayFromJobSize = ParseUint32(payloadBytes, offset);
+    offset += g_manifestChildProcessesToBreakAwayFromJob->GetSize();
 
-    for (uint32_t i = 0; i < childProcessesToBreakAwayFromJobSize; i++)
+    for (uint32_t i = 0; i < g_manifestChildProcessesToBreakAwayFromJob->Count; i++)
     {
         uint32_t childProcessToBreakAwayFromJobSize = ParseUint32(payloadBytes, offset);
         std::wstring* processName = nullptr;
@@ -695,11 +692,9 @@ bool ParseFileAccessManifest(
 
     g_manifestTranslatePathsStrings = reinterpret_cast<const PManifestTranslatePathsStrings>(&payloadBytes[offset]);
     g_manifestTranslatePathsStrings->AssertValid();
-#ifdef _DEBUG
-    offset += sizeof(uint32_t);
-#endif
-    uint32_t manifestTranslatePathsSize = ParseUint32(payloadBytes, offset);
-    for (uint32_t i = 0; i < manifestTranslatePathsSize; i++)
+    offset += g_manifestTranslatePathsStrings->GetSize();
+
+    for (uint32_t i = 0; i < g_manifestTranslatePathsStrings->Count; i++)
     {
         uint32_t manifestTranslatePathsFromSize = ParseUint32(payloadBytes, offset);
         std::wstring translateFrom;

@@ -634,7 +634,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     // Go through each machine that has this content, and delete async locally on each machine.
-                    if (result.ContentHashesInfo.Count == 1 && result.ContentHashesInfo.ElementAt(0).Locations != null)
+                    if (result.ContentHashesInfo[0].Locations != null)
                     {
                         var machineLocations = result.ContentHashesInfo[0].Locations;
                         return await _distributedCopier.DeleteAsync(operationContext, contentHash, machineLocations);

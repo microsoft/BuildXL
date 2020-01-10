@@ -21,6 +21,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         DatabaseGet,
 
         /// <nodoc />
+        EvictionMinAge,
+
+        /// <nodoc />
         GetBulkLocalHashes,
 
         /// <nodoc />

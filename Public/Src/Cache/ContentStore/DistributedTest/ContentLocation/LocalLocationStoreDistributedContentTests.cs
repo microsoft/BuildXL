@@ -894,6 +894,33 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task TestEvictionBelowMinimumAge()
+        {
+            _enableReconciliation = true;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 1,
+                async context =>
+                {
+                    var master = context.GetMaster();
+                    var hashes = new ContentHashWithLastAccessTimeAndReplicaCount[]
+                                 {
+                                     new ContentHashWithLastAccessTimeAndReplicaCount(ContentHash.Random(), TestClock.UtcNow)
+                                 };
+                    var lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                    master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 0);
+
+                    _configurations[0].EvictionMinAge = TimeSpan.FromHours(1);
+                    lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                    master.LocalLocationStore.Counters[ContentLocationStoreCounters.EvictionMinAge].Value.Should().Be(expected: 1);
+
+                    await Task.Yield();
+                });
+        }
+
+        [Fact]
         public async Task TestGetLruPages()
         {
             _enableReconciliation = true;

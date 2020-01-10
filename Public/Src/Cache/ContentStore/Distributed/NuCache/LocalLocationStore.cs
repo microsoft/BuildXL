@@ -1259,12 +1259,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private bool IsPassEvictionAge(Context context, ContentEvictionInfo candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
         {
-            if (candidate.EffectiveAge >= evictionMinAge)
+            if (candidate.Age >= evictionMinAge)
             {
                 evictionCount++;
                 return true;
             }
-
+            Counters[ContentLocationStoreCounters.EvictionMinAge].Increment();
             context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;

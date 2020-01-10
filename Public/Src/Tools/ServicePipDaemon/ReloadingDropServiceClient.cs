@@ -300,6 +300,15 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
+        public Task<DownloadResult> DownloadManifestToFilePathAsync(string dropName, string filePath, CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                    nameof(IDropServiceClient.DownloadManifestToFilePathAsync),
+                    (client, ct) => client.DownloadManifestToFilePathAsync(dropName, filePath, ct),
+                    cancellationToken);
+        }
+
+        /// <inheritdoc />
         public string GetVersionString()
         {
             return GetCurrentVersionedValue().Value.GetVersionString();

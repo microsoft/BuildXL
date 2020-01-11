@@ -2896,12 +2896,12 @@ namespace BuildXL.Scheduler
                                 metadataHash: maybeParsedDescriptor.MetadataHash,
                                 standardOutput: maybeParsedDescriptor.StandardOutput,
                                 standardError: maybeParsedDescriptor.StandardError,
-                                onContentUnavailable: (i, s) => {
+                                onContentUnavailable: f => {
                                     if (pipCacheMiss.Value.MissedOutputs == null)
                                     {
                                         pipCacheMiss.Value.MissedOutputs = new List<string>();
                                     }
-                                    pipCacheMiss.Value.MissedOutputs.Add(maybeParsedDescriptor.CachedArtifactContentHashes[i].fileArtifact.Path.ToString(environment.Context.PathTable));
+                                    pipCacheMiss.Value.MissedOutputs.Add(f.Path.ToString(environment.Context.PathTable));
                                 });
 
                     if (!isContentAvailable)
@@ -3852,14 +3852,14 @@ namespace BuildXL.Scheduler
             ContentHash metadataHash,
             Tuple<AbsolutePath, ContentHash, string> standardOutput = null,
             Tuple<AbsolutePath, ContentHash, string> standardError = null,
-            Action<int, string> onContentUnavailable = null)
+            Action<FileArtifact> onContentUnavailable = null)
         {
             Contract.Requires(environment != null);
             Contract.Requires(pip != null);
             Contract.Requires(cachedArtifactContentHashes != null);
 
             var allHashes =
-                new List<(FileArtifact, ContentHash)>(
+                new List<(FileArtifact fileArtifact, ContentHash contentHash)>(
                     cachedArtifactContentHashes.Count + (standardError == null ? 0 : 1) + (standardOutput == null ? 0 : 1));
 
             // only check/load "real" files - reparse points are not stored in CAS, they are stored in metadata that we have already obtained
@@ -3902,7 +3902,9 @@ namespace BuildXL.Scheduler
                     operationContext,
                     allHashes,
                     materialize: materializeToVerifyAvailability,
-                    onContentUnavailable: onContentUnavailable);
+                    onContentUnavailable: (i, s) => {
+                        onContentUnavailable?.Invoke(allHashes[i].fileArtifact);
+                    });
 
                 if (materializeToVerifyAvailability || !succeeded)
                 {

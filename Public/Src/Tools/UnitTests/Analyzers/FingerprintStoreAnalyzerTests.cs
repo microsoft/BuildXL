@@ -780,18 +780,26 @@ namespace Test.Tool.Analyzers
 
             FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
             FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            FileArtifact stdOut = CreateOutputFileArtifact(root: dirPath, prefix: "stdOut-file");
+            FileArtifact stdErr = CreateOutputFileArtifact(root: dirPath, prefix: "stdErr-file");
             var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            pipBuilder.SetStandardOutputFile(stdOut.Path);
+            pipBuilder.SetStandardErrorFile(stdErr.Path);
+            
             var pip = SchedulePipBuilder(pipBuilder);
             RunScheduler().AssertCacheMiss(pip.Process.PipId);
 
             ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
 
             DiscardFileContentInArtifactCacheIfExists(output);
+            DiscardFileContentInArtifactCacheIfExists(stdOut);
+            DiscardFileContentInArtifactCacheIfExists(stdErr);
             File.Delete(ArtifactToString(output));
-
+            File.Delete(ArtifactToString(stdOut));
+            File.Delete(ArtifactToString(stdErr));
             ScheduleRunResult cacheMissBuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
 
-            string[] messages = { ArtifactToPrint(output) };
+            string[] messages = { ArtifactToPrint(output), ArtifactToPrint(stdOut), ArtifactToPrint(stdErr) };
 
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForProcessOutputContent, messages);
         }

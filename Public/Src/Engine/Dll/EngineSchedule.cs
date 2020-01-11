@@ -1134,7 +1134,12 @@ namespace BuildXL.Engine
                         // If the implicit filter doesn't start with a '*' wildcard, we specify a wildcard
                         // with a directory separator to make sure the filename prefix is not wildcarded, only the
                         // directory containing the file
-                        sb.AppendFormat(@"output='*{0}{1}' or spec='*{0}{1}'", Path.DirectorySeparatorChar, implicitFilter);
+                        sb.AppendFormat(@"output='*{0}{1}' or spec='*{0}{1}' or tag='{1}'", Path.DirectorySeparatorChar, implicitFilter);
+                    }
+                    
+                    if (FilterParser.TryParsePipId(implicitFilter, out var pipId))
+                    {
+                        sb.AppendFormat(I($" or id='{implicitFilter}'"));
                     }
                 }
 

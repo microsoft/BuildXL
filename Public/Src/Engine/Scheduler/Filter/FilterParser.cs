@@ -366,14 +366,7 @@ namespace BuildXL.Scheduler.Filter
                 case FilterTypeModule:
                     return new ModuleFilter(StringId.Create(m_context.PathTable.StringTable, filterArgument));
                 case FilterTypeId:
-                    // Strip the fixed prefix that we print to the user.
-                    if (filterArgument.StartsWith(Pip.SemiStableHashPrefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        filterArgument = filterArgument.Substring(Pip.SemiStableHashPrefix.Length);
-                    }
-
-                    long pipId;
-                    if (!long.TryParse(filterArgument, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out pipId))
+                    if (!TryParsePipId(filterArgument, out var pipId))
                     {
                         throw CreateException(argumentStart, ErrorMessages.FailedToParsePipId, filterArgument);
                     }
@@ -400,6 +393,18 @@ namespace BuildXL.Scheduler.Filter
 
                     throw CreateException(startFilterType, ErrorMessages.UnknownFilterType, filterType);
             }
+        }
+
+        /// <nodoc />
+        public static bool TryParsePipId(string filterArgument, out long pipId)
+        {
+            // Strip the fixed prefix that we print to the user.
+            if (filterArgument.StartsWith(Pip.SemiStableHashPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                filterArgument = filterArgument.Substring(Pip.SemiStableHashPrefix.Length);
+            }
+
+            return long.TryParse(filterArgument, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out pipId);
         }
         #endregion
 

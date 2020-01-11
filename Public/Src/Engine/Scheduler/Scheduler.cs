@@ -1361,6 +1361,7 @@ namespace BuildXL.Scheduler
             m_chooseWorkerCpu = new ChooseWorkerCpu(
                 loggingContext,
                 m_configuration.Schedule.MaxChooseWorkerCpu,
+                m_configuration.Schedule.EnableSetupCostWhenChoosingWorker,
                 m_workers,
                 m_pipQueue,
                 PipGraph,
@@ -4438,6 +4439,10 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.MaterializeOutputsInBackground => MaterializeOutputsInBackground;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         PipTable IPipExecutionEnvironment.PipTable => m_pipTable;
 
         /// <inheritdoc />
@@ -4643,7 +4648,7 @@ namespace BuildXL.Scheduler
                     Pip pip = PipGraph.GetPipFromPipId(node.pipId);
                     PipRuntimeInfo runtimeInfo = node.pipRunTimeInfo;
 
-                    long pipDurationMs = performance.CalculatePipDurationMs();
+                    long pipDurationMs = performance.CalculatePipDurationMs(this);
                     long pipQueueDurationMs = performance.CalculateQueueDurationMs();
 
                     Logger.Log.CriticalPathPipRecord(m_executePhaseLoggingContext,
@@ -4714,7 +4719,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by Pip Duration (excluding ChooseWorker and Queue durations)"));
                 var topPipDurations =
                     (from a in m_runnablePipPerformance
-                     let i = a.Value.CalculatePipDurationMs()
+                     let i = a.Value.CalculatePipDurationMs(this)
                      where i > 0
                      orderby i descending
                      select a).Take(5);
@@ -4757,8 +4762,8 @@ namespace BuildXL.Scheduler
                 builder.AppendLine("Critical path:");
                 builder.AppendLine(I($"{"Pip Duration(ms)",-16} | {"Exe Duration(ms)",-15}| {"Queue Duration(ms)",-18} | {"Pip Result",-12} | {"Scheduled Time",-14} | {"Completed Time",-14} | Pip"));
 
-                // Total critical path running time is a sum of all steps except ChooseWorker
-                long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime()).Sum();
+                // Total critical path running time is a sum of all steps except ChooseWorker and MaterializeOutput (if it is done in background)
+                long totalCriticalPathRunningTime = totalStepDurations.Where((i, j) => ((PipExecutionStep)j).IncludeInRunningTime(this)).Sum();
                 long totalMasterQueueTime = totalMasterQueueDurations.Sum();
                 long totalRemoteQueueTime = totalRemoteQueueDurations.Sum();
                 long totalSendRequestTime = totalSendRequestDurations.Sum();
@@ -4808,7 +4813,7 @@ namespace BuildXL.Scheduler
                 builder.AppendLine(I($"Total Pip Execution Step Duration (ms) on the Critical Path"));
                 for (int i = 0; i < totalStepDurations.Count; i++)
                 {
-                    if (totalStepDurations[i] != 0 && ((PipExecutionStep)i).IncludeInRunningTime())
+                    if (totalStepDurations[i] != 0 && ((PipExecutionStep)i).IncludeInRunningTime(this))
                     {
                         var step = (PipExecutionStep)i;
                         builder.AppendLine(I($"\t{step,-98}: {totalStepDurations[i],10}"));
@@ -4956,6 +4961,16 @@ namespace BuildXL.Scheduler
                     if (performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                     {
                         stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
+                    }
+                }
+
+                if (stepDuration != 0 && step == PipExecutionStep.MaterializeOutputs)
+                {
+                    stringBuilder.AppendLine(I($"\t\t  {"InBackground",-88}: {MaterializeOutputsInBackground,10}"));
+
+                    if (performanceInfo.QueueWaitDurationForMaterializeOutputsInBackground.TotalMilliseconds != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"Queue.Materialize.InBackground",-88}: {(long)performanceInfo.QueueWaitDurationForMaterializeOutputsInBackground.TotalMilliseconds,10}"));
                     }
                 }
             }

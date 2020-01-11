@@ -240,7 +240,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc />
         public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)
         {
-            if (data.Step.IncludeInRunningTime())
+            if (data.IncludeInRunningTime)
             {
                 var times = m_elapsedTimes[data.PipId.Value];
                 times.WallClockTime = data.Duration > times.WallClockTime ? data.Duration : times.WallClockTime;

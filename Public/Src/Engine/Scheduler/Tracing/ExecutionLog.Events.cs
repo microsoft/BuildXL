@@ -1050,6 +1050,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public WorkDispatcher.DispatcherKind Dispatcher;
 
+        /// <summary>
+        /// Whether include the step duration in running time for the pip,
+        /// </summary>
+        public bool IncludeInRunningTime;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<PipExecutionStepPerformanceEventData> Metadata => ExecutionLogMetadata.PipExecutionStepPerformanceReported;
 
@@ -1061,6 +1066,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(Duration);
             writer.Write((byte)Step);
             writer.Write((byte)Dispatcher);
+            writer.Write(IncludeInRunningTime);
         }
 
         /// <inheritdoc />
@@ -1071,6 +1077,7 @@ namespace BuildXL.Scheduler.Tracing
             Duration = reader.ReadTimeSpan();
             Step = (PipExecutionStep)reader.ReadByte();
             Dispatcher = (WorkDispatcher.DispatcherKind)reader.ReadByte();
+            IncludeInRunningTime = reader.ReadBoolean();
         }
     }
 

@@ -75,6 +75,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
+
+            EnableSetupCostWhenChoosingWorker = true;
         }
 
         /// <nodoc />
@@ -143,6 +145,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
             CacheOnly = template.CacheOnly;
+            EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
         }
 
         /// <inheritdoc />
@@ -338,5 +341,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool CacheOnly { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableSetupCostWhenChoosingWorker { get; set;  }
     }
 }

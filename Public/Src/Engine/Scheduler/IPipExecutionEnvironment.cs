@@ -106,6 +106,11 @@ namespace BuildXL.Scheduler
         PipContentFingerprinter ContentFingerprinter { get; }
 
         /// <summary>
+        /// Indicates if outputs should be materialized in background rather than inline
+        /// </summary>
+        bool MaterializeOutputsInBackground { get; }
+
+        /// <summary>
         /// Returns whether the directory artifact represents a source sealed directory. If that's the case, returns the patterns and type of
         /// the source sealed.
         /// </summary>

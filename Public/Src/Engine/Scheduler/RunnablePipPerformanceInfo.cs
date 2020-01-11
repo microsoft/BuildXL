@@ -46,6 +46,8 @@ namespace BuildXL.Scheduler
 
         internal TimeSpan CacheMissAnalysisDuration { get; private set; }
 
+        internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
+
         internal bool IsExecuted { get; private set; }
 
         internal long InputMaterializationCostMbForBestWorker { get; private set; }
@@ -77,12 +79,21 @@ namespace BuildXL.Scheduler
             m_queueEnterTime = DateTime.UtcNow;
         }
 
-        internal void Dequeued()
+        internal void Dequeued(bool hasWaitedForMaterializeOutputsInBackground)
         {
             if (m_currentQueue != DispatcherKind.None)
             {
                 var duration = DateTime.UtcNow - m_queueEnterTime;
-                QueueDurations.Value[(int)m_currentQueue] += duration;
+
+                if (hasWaitedForMaterializeOutputsInBackground)
+                {
+                    QueueWaitDurationForMaterializeOutputsInBackground = duration;
+                }
+                else
+                {
+                    QueueDurations.Value[(int)m_currentQueue] += duration;
+                }
+
                 m_currentQueue = DispatcherKind.None;
             }
         }
@@ -137,13 +148,13 @@ namespace BuildXL.Scheduler
             m_cacheLookupPerfInfo = info;
         }
 
-        internal long CalculatePipDurationMs()
+        internal long CalculatePipDurationMs(IPipExecutionEnvironment environment)
         {
             long pipDuration = 0;
             for (int i = 0; i < StepDurations.Length; i++)
             {
                 var step = (PipExecutionStep)i;
-                if (step.IncludeInRunningTime())
+                if (step.IncludeInRunningTime(environment))
                 {
                     pipDuration += (long)StepDurations[i].TotalMilliseconds;
                 }

@@ -347,7 +347,8 @@ namespace BuildXL.Scheduler
 
             m_dispatcherReleaser = dispatcherReleaser ?? m_dispatcherReleaser;
 
-            Performance.Dequeued();
+            bool hasWaitedForMaterializeOutputsInBackground = Step == PipExecutionStep.MaterializeOutputs && Environment.MaterializeOutputsInBackground;
+            Performance.Dequeued(hasWaitedForMaterializeOutputsInBackground);
             return m_executionFunc(this);
         }
 
@@ -371,7 +372,7 @@ namespace BuildXL.Scheduler
             DateTime startTime,
             TimeSpan duration)
         {
-            if (step.IncludeInRunningTime())
+            if (step.IncludeInRunningTime(Environment))
             {
                 RunningTime += duration;
             }

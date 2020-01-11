@@ -367,6 +367,9 @@ namespace Test.BuildXL.Scheduler.Utils
         public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer => m_disabledFileMonitoringViolationAnalyzer;
 
         /// <inheritdoc />
+        public bool MaterializeOutputsInBackground => false;
+
+        /// <inheritdoc />
         public DirectoryFingerprint? TryQueryDirectoryFingerprint(AbsolutePath directoryPath)
         {
             try

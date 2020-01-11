@@ -407,6 +407,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "enableLazyOutputs",
                             (opt, sign) => HandleLazyOutputMaterializationOption(opt, sign, schedulingConfiguration)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "enableSetupCostWhenChoosingWorker",
+                            sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
                         OptionHandlerFactory.CreateOption(
                             "engineCacheDirectory",
                             opt => layoutConfiguration.EngineCacheDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),

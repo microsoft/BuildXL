@@ -406,6 +406,9 @@ namespace Test.BuildXL.Scheduler
 
             public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer { get; } = new DisabledFileMonitoringViolationAnalyzer();
 
+            /// <inheritdoc />
+            public bool MaterializeOutputsInBackground => false;
+
             public DirectoryFingerprint? TryComputeDirectoryFingerprint(
                 AbsolutePath directoryPath, 
                 CacheablePipInfo cachePipInfo, 

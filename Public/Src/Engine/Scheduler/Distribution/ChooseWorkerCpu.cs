@@ -17,6 +17,7 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -89,9 +90,12 @@ namespace BuildXL.Scheduler.Distribution
 
         private int m_totalProcessSlots;
 
+        private readonly bool m_enableSetupCost;
+
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
             int maxParallelDegree,
+            bool enableSetupCostWhenChoosingWorker,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             PipGraph pipGraph,
@@ -101,6 +105,7 @@ namespace BuildXL.Scheduler.Distribution
             m_executedProcessOutputs = new ContentTrackingSet(pipGraph);
             m_fileContentManager = fileContentManager;
             m_pipSetupCostPool = new ObjectPool<PipSetupCosts>(() => new PipSetupCosts(this), costs => costs, size: maxParallelDegree);
+            m_enableSetupCost = enableSetupCostWhenChoosingWorker;
         }
 
         /// <summary>
@@ -137,7 +142,14 @@ namespace BuildXL.Scheduler.Distribution
             using (var pooledPipSetupCost = m_pipSetupCostPool.GetInstance())
             {
                 var pipSetupCost = pooledPipSetupCost.Instance;
-                pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip);
+                if (m_enableSetupCost)
+                {
+                    pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip);
+                }
+                else
+                {
+                    pipSetupCost.SortByUsedSlots(runnablePip);
+                }
 
                 using (await m_chooseWorkerMutex.AcquireAsync())
                 {
@@ -270,6 +282,13 @@ namespace BuildXL.Scheduler.Distribution
                 WorkerSetupCosts = new WorkerSetupCost[context.Workers.Count];
             }
 
+            public void SortByUsedSlots(RunnablePip runnablePip)
+            {
+                InitializeWorkerSetupCost(runnablePip.Pip);
+
+                Array.Sort(WorkerSetupCosts);
+            }
+
             /// <summary>
             /// The result contains estimated amount of work for each worker
             /// </summary>
@@ -283,13 +302,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 var pip = runnablePip.Pip;
 
-                for (int i = 0; i < m_context.Workers.Count; i++)
-                {
-                    WorkerSetupCosts[i] = new WorkerSetupCost()
-                    {
-                        Worker = m_context.Workers[i],
-                    };
-                }
+                InitializeWorkerSetupCost(pip);
 
                 // The block below collects process input file artifacts and hashes
                 // Currently there is no logic to keep from sending the same hashes twice
@@ -337,17 +350,22 @@ namespace BuildXL.Scheduler.Distribution
                             }
                         }
                     }
-
-                    if (pip.PipType == PipType.Ipc)
-                    {
-                        for (int idx = 0; idx < m_context.Workers.Count; ++idx)
-                        {
-                            WorkerSetupCosts[idx].AcquiredIpcSlots = m_context.Workers[idx].AcquiredIpcSlots;
-                        }
-                    }
                 }
 
                 Array.Sort(WorkerSetupCosts);
+            }
+
+            private void InitializeWorkerSetupCost(Pip pip)
+            {
+                for (int i = 0; i < m_context.Workers.Count; i++)
+                {
+                    var worker = m_context.Workers[i];
+                    WorkerSetupCosts[i] = new WorkerSetupCost()
+                    {
+                        Worker = worker,
+                        AcquiredSlots = pip.PipType == PipType.Ipc ? worker.AcquiredIpcSlots : worker.AcquiredProcessSlots
+                    };
+                }
             }
         }
 
@@ -362,12 +380,12 @@ namespace BuildXL.Scheduler.Distribution
             public long SetupBytes { get; set; }
 
             /// <summary>
-            /// Number of acquired IPC slots.
+            /// Number of acquired slots
             /// </summary>
             /// <remarks>
-            /// This number is only used for setup cost of IPC pips, and, for process pip, the number is 0.
+            /// For IPC pips, this means acquired IPC slots, and for process pips, it means acquired process slots.
             /// </remarks>
-            public int AcquiredIpcSlots { get; set; }
+            public int AcquiredSlots { get; set; }
 
             /// <summary>
             /// The associated worker
@@ -378,7 +396,7 @@ namespace BuildXL.Scheduler.Distribution
             public int CompareTo(WorkerSetupCost other)
             {
                 var result = SetupBytes.CompareTo(other.SetupBytes);
-                return result == 0 ? AcquiredIpcSlots.CompareTo(other.AcquiredIpcSlots) : result;
+                return result == 0 ? AcquiredSlots.CompareTo(other.AcquiredSlots) : result;
             }
         }
     }

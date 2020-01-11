@@ -335,5 +335,10 @@ namespace BuildXL.Utilities.Configuration
         /// Instructs the scheduler to only perform cache lookup and skip execution of pips that are cache misses.
         /// </summary>
         bool CacheOnly { get; }
+
+        /// <summary>
+        /// Enable estimating the setup cost when choosing worker.
+        /// </summary>
+        bool EnableSetupCostWhenChoosingWorker { get; }
     }
 }

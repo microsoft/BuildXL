@@ -182,7 +182,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         /// <summary>
         /// Indicates if the pip execution step is tracked for the pip running time displayed in critical path printout
         /// </summary>
-        public static bool IncludeInRunningTime(this PipExecutionStep step)
+        public static bool IncludeInRunningTime(this PipExecutionStep step, IPipExecutionEnvironment environment)
         {
             switch (step)
             {
@@ -191,6 +191,9 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.ChooseWorkerCpu:
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     return false;
+                case PipExecutionStep.MaterializeOutputs:
+                    // If we materialize outputs in background, then do not include the duration in running time.
+                    return !environment.MaterializeOutputsInBackground;
                 default:
                     return true;
             }

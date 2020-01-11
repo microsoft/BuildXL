@@ -891,26 +891,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
-        /// fingerprint is not present, then it is inserted.
+        /// Performs an upsert operation on metadata, while ensuring all invariants are kept. If the
+        /// fingerprint is not present, then it is inserted. If fingerprint is present, predicate is used to
+        /// specify whether to perform the update.
         /// </summary>
-        /// <param name="context">
-        ///     Tracing context.
-        /// </param>
-        /// <param name="strongFingerprint">
-        ///     Full key for ContentHashList value.
-        /// </param>
-        /// <param name="expected">
-        ///     Expected value.
-        /// </param>
-        /// <param name="replacement">
-        ///     Value to put in case the expected value matches.
-        /// </param>
         /// <returns>
-        ///     Result providing the call's completion status. True if the replacement was completed successfully,
-        ///     false otherwise.
+        /// Result providing the call's completion status. True if the replacement was completed successfully,
+        /// false otherwise.
         /// </returns>
-        public abstract Possible<bool> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement);
+        public abstract Possible<bool> TryUpsert(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism replacement,
+            Func<MetadataEntry, bool> shouldReplace);
 
         /// <summary>
         /// Load a ContentHashList.

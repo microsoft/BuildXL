@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -91,6 +92,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             {
                 Interlocked.Increment(ref _eventsHandled);
             }
+
+            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            {
+                Interlocked.Increment(ref _eventsHandled);
+            }
         }
 
         private async Task WithContentLocationEventStore(Func<Context, IClock, IAbsFileSystem, ContentLocationEventStore, Task> action, ContentLocationEventStoreConfiguration configuration, IContentLocationEventHandler eventHandler, string localMachineName = "Worker")
@@ -108,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
 
                 {
                     using var eventHubWorkingDirectory = new DisposableDirectory(fileSystem);
-                    var eventStore = CreateEventStore(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory);
+                    var eventStore = CreateEventStore(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory, clock);
 
                     (await eventStore.StartupAsync(tracingContext)).ShouldBeSuccess();
                     await action(tracingContext, clock, fileSystem, eventStore);
@@ -125,14 +131,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
             IContentLocationEventHandler eventHandler,
             string localMachineName,
             LocalDiskCentralStorage centralStorage,
-            DisposableDirectory eventHubWorkingDirectory)
+            DisposableDirectory eventHubWorkingDirectory,
+            IClock clock)
         {
             return configuration switch
             {
                 SlowedContentLocationEventStoreConfiguration _ =>
-                    new SlowedEventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory.Path),
+                    new SlowedEventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory.Path, clock),
                 _ =>
-                    ContentLocationEventStore.Create(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory.Path),
+                    ContentLocationEventStore.Create(configuration, eventHandler, localMachineName, centralStorage, eventHubWorkingDirectory.Path, clock),
             };
         }
 
@@ -155,8 +162,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation
                 IContentLocationEventHandler eventHandler,
                 string localMachineName,
                 CentralStorage centralStorage,
-                AbsolutePath workingDirectory)
-                : base(configuration, eventHandler, localMachineName, centralStorage, workingDirectory)
+                AbsolutePath workingDirectory,
+                IClock clock)
+                : base(configuration, eventHandler, localMachineName, centralStorage, workingDirectory, clock)
             {
                 Contract.Requires(configuration is SlowedContentLocationEventStoreConfiguration);
                 _configuration = (configuration as SlowedContentLocationEventStoreConfiguration)!;

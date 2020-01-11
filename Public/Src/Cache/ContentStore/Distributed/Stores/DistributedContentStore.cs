@@ -539,6 +539,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <summary>
+        /// Attempts to get local location store if enabled
+        /// </summary>
+        public bool TryGetLocalLocationStore(out LocalLocationStore localLocationStore)
+        {
+            if (_contentLocationStore is TransitioningContentLocationStore tcs
+                && tcs.IsLocalLocationStoreEnabled)
+            {
+                localLocationStore = tcs.LocalLocationStore;
+                return true;
+            }
+
+            localLocationStore = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the associated local location store instance
+        /// </summary>
+        public LocalLocationStore LocalLocationStore => (_contentLocationStore as TransitioningContentLocationStore)?.LocalLocationStore;
+
+        /// <summary>
         /// Checks the LLS <see cref="DistributedCentralStorage"/> for the content if available and returns
         /// the storage instance if content is found
         /// </summary>

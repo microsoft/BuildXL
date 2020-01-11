@@ -85,6 +85,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
+        public static Result<TResult> Select<T, TResult>(this Result<T> result, Func<T, TResult> selector)
+        {
+            if (result.Succeeded)
+            {
+                return Result.Success(selector(result.Value));
+            }
+            else
+            {
+                return new Result<TResult>(result);
+            }
+        }
+
+        /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
         /// </summary>
         public static T ThrowIfFailure<T>(this Result<T> result)

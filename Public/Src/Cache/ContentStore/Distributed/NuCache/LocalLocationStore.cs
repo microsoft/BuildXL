@@ -26,6 +26,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -59,6 +60,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public IGlobalLocationStore GlobalStore { get; }
+
+        /// <nodoc />
+        public LocalLocationStoreConfiguration Configuration => _configuration;
 
         /// <nodoc />
         public MachineReputationTracker MachineReputationTracker { get; private set; }
@@ -210,7 +214,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 new ContentLocationDatabaseAdapter(Database, ClusterState),
                 GlobalStore.LocalMachineLocation.ToString(),
                 CentralStorage,
-                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder
+                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
+                _clock
                 );
         }
 
@@ -1606,6 +1611,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }
+            }
+
+            /// <inheritdoc />
+            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            {
+                Analysis.IgnoreResult(_database.TryUpsert(
+                    context,
+                    strongFingerprint,
+                    entry.ContentHashListWithDeterminism,
+
+                    // Update the entry if the current entry is newer
+                    // TODO: Use real versioning scheme for updates to resolve possible race conditions and
+                    // issues with time comparison due to clock skew
+                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc));
             }
         }
 

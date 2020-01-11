@@ -38,7 +38,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             : base(name)
         {
             ContentSessionTracer = new BackingContentStoreTracer(name);
-            MemoizationStoreTracer = new MemoizationStoreTracer(logger, name);
+            MemoizationStoreTracer = new MemoizationStoreTracer(name);
 
             _counters.Add(_prefetchedContentHashListCounter = new Counter(PrefetchedContentHashListCountName));
             _counters.Add(_prefetchedContentHashListUsedCounter = new Counter(PrefetchedContentHashListUsedCountName));

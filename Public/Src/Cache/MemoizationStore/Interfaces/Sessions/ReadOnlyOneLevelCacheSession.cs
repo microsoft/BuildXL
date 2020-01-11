@@ -32,16 +32,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         protected readonly ImplicitPin ImplicitPin;
 
         /// <summary>
-        ///     The content store backing the session.
-        /// </summary>
-        protected readonly IContentStore ContentStore;
-
-        /// <summary>
-        ///     The memoization store backing the session.
-        /// </summary>
-        protected readonly IMemoizationStore MemoizationStore;
-
-        /// <summary>
         ///     The content session backing the session.
         /// </summary>
         protected IReadOnlyContentSession _contentReadOnlySession;

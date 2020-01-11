@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -67,8 +68,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             IContentLocationEventHandler eventHandler,
             string localMachineName,
             CentralStorage centralStorage,
-            Interfaces.FileSystem.AbsolutePath workingDirectory)
-            : base(configuration, nameof(EventHubContentLocationEventStore), eventHandler, centralStorage, workingDirectory)
+            Interfaces.FileSystem.AbsolutePath workingDirectory,
+            IClock clock)
+            : base(configuration, nameof(EventHubContentLocationEventStore), eventHandler, centralStorage, workingDirectory, clock)
         {
             Contract.Requires(configuration.MaxEventProcessingConcurrency >= 1);
 

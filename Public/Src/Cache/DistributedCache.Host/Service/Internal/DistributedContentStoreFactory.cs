@@ -105,6 +105,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                     dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
                 }
 
+                if (_distributedSettings.EnableDistributedCache)
+                {
+                    dbConfig.MetadataGarbageCollectionEnabled = true;
+                    dbConfig.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = _distributedSettings.MaximumNumberOfMetadataEntriesToStore;
+                }
+
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheEnabled, v => dbConfig.ContentCacheEnabled = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism, v => dbConfig.FlushDegreeOfParallelism = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushTransactionSize, v => dbConfig.FlushTransactionSize = v);
@@ -164,7 +170,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             return cacheFactory.CreateMemoizationStore(_logger);
         }
 
-        public IContentStore CreateContentStore(AbsolutePath localCacheRoot)
+        public DistributedContentStore<AbsolutePath> CreateContentStore(AbsolutePath localCacheRoot)
         {
             var redisContentLocationStoreFactory = CreateRedisCacheFactory(localCacheRoot, out var redisContentLocationStoreConfiguration);
 

@@ -23,12 +23,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         ///     Gets the writable content session.
         /// </summary>
-        private IContentSession ContentSession => (IContentSession)_contentReadOnlySession;
+        public IContentSession ContentSession => (IContentSession)_contentReadOnlySession;
 
         /// <summary>
         ///     Gets the writable memoization session.
         /// </summary>
-        private IMemoizationSession MemoizationSession => (IMemoizationSession)_memoizationReadOnlySession;
+        public IMemoizationSession MemoizationSession => (IMemoizationSession)_memoizationReadOnlySession;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="OneLevelCacheSession" /> class.

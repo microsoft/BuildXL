@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -15,6 +16,7 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
@@ -127,7 +129,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var factory = CreateDistributedContentStoreFactory();
 
-            Func<AbsolutePath, IContentStore> contentStoreFactory = path =>
+            Func<AbsolutePath, MultiplexedContentStore> contentStoreFactory = path =>
             {
                 var cacheSettingsByCacheName = cacheConfig.LocalCasSettings.CacheSettingsByCacheName;
                 var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
@@ -143,15 +145,26 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 
-            if (distributedSettings.EnableMetadataStore)
+            if (distributedSettings.EnableMetadataStore || distributedSettings.EnableDistributedCache)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    return new OneLevelCache(
-                        contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
-                        Guid.NewGuid(),
-                        passContentToMemoization: true);
+                    if (distributedSettings.EnableDistributedCache)
+                    {
+                        var contentStore = contentStoreFactory(path);
+                        return new DistributedOneLevelCache(contentStore,
+                            (DistributedContentStore<AbsolutePath>)contentStore.PreferredContentStore,
+                            Guid.NewGuid(),
+                            passContentToMemoization: true);
+                    }
+                    else
+                    {
+                        return new OneLevelCache(
+                            contentStoreFunc: () => contentStoreFactory(path),
+                            memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
+                            Guid.NewGuid(),
+                            passContentToMemoization: true);
+                    }
                 };
 
                 // NOTE(jubayard): When generating the service configuration, we create a single named cache root in

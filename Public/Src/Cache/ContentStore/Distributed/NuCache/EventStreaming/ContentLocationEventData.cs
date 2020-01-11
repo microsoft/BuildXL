@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -31,6 +32,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         AddLocationWithoutTouching,
+
+        /// <nodoc />
+        UpdateMetadataEntry,
     }
 
     /// <summary>
@@ -97,13 +101,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     return new TouchContentLocationEventData(sender, hashes, eventTimeUtc);
                 case EventKind.Reconcile:
                     return new ReconcileContentLocationEventData(sender, reader.ReadString());
+                case EventKind.UpdateMetadataEntry:
+                    return new UpdateMetadataEntryEventData(sender, reader);
                 default:
                     throw new ArgumentOutOfRangeException($"Unknown event kind '{kind}'.");
             }
         }
 
         /// <nodoc />
-        public void Serialize(BuildXLWriter writer)
+        public virtual void Serialize(BuildXLWriter writer)
         {
             writer.Write((byte)SerializationKind);
             Sender.Serialize(writer);
@@ -290,6 +296,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             : base(EventKind.Reconcile, sender, CollectionUtilities.EmptyArray<ShortHash>())
         {
             BlobId = blobId;
+        }
+    }
+
+    /// <nodoc />
+    public sealed class UpdateMetadataEntryEventData : ContentLocationEventData
+    {
+        /// <summary>
+        /// The strong fingerprint key of the content hash list entry
+        /// </summary>
+        public StrongFingerprint StrongFingerprint { get; }
+
+        /// <summary>
+        /// The metadata entry
+        /// </summary>
+        public MetadataEntry Entry { get; }
+
+        /// <nodoc />
+        public UpdateMetadataEntryEventData(MachineId sender, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            : base(EventKind.UpdateMetadataEntry, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        {
+            StrongFingerprint = strongFingerprint;
+            Entry = entry;
+        }
+
+        /// <nodoc />
+        public UpdateMetadataEntryEventData(MachineId sender, BuildXLReader reader)
+            : base(EventKind.UpdateMetadataEntry, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        {
+            StrongFingerprint = StrongFingerprint.Deserialize(reader);
+            Entry = MetadataEntry.Deserialize(reader);
+        }
+
+        /// <inheritdoc />
+        public override void Serialize(BuildXLWriter writer)
+        {
+            base.Serialize(writer);
+            StrongFingerprint.Serialize(writer);
+            Entry.Serialize(writer);
         }
     }
 

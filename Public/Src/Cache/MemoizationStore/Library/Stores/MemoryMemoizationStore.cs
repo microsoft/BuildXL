@@ -47,7 +47,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             Contract.Requires(logger != null);
 
-            _tracer = new MemoizationStoreTracer(logger, nameof(MemoryMemoizationStore));
+            _tracer = new MemoizationStoreTracer(nameof(MemoryMemoizationStore));
         }
 
         /// <inheritdoc />

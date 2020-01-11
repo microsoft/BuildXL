@@ -43,7 +43,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected static readonly CancellationToken Token = CancellationToken.None;
         protected static readonly ContentStoreConfiguration Config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(50);
 
-        protected MemoryClock TestClock { get; } = new MemoryClock();
+        public MemoryClock TestClock { get; } = new MemoryClock();
 
         protected ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
 
@@ -57,21 +57,25 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableRepairHandling,
             object additionalArgs);
 
-        protected class TestContext
+        public class TestContext
         {
             public readonly Context Context;
             public readonly TestFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
-            public readonly IList<IContentSession> Sessions;
+            public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
             public readonly int Iteration;
 
-            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentSession> sessions, IList<IContentStore> stores, int iteration)
+            public TestContext(TestContext other)
+                : this(other.Context, other.FileCopier, other.Directories, other.Stores, other.Iteration)
+            {
+            }
+
+            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentStore> stores, int iteration)
             {
                 Context = context;
                 FileCopier = fileCopier;
                 Directories = directories;
-                Sessions = sessions;
                 Stores = stores;
                 Iteration = iteration;
 
@@ -84,11 +88,73 @@ namespace ContentStoreTest.Distributed.Sessions
                 }
             }
 
+            public virtual async Task StartupAsync(ImplicitPin implicitPin)
+            {
+                var startupResults = await TaskSafetyHelpers.WhenAll(Stores.Select(async store => await store.StartupAsync(Context)));
+
+                Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
+
+                Sessions = Stores.Select((store, id) => store.CreateSession(Context, "store" + id, implicitPin).Session).ToList();
+                await TaskSafetyHelpers.WhenAll(Sessions.Select(async session => await session.StartupAsync(Context)));
+            }
+
+            public virtual async Task ShutdownAsync()
+            {
+                await TaskSafetyHelpers.WhenAll(
+                    Sessions.Select(async session =>
+                    {
+                        if (!session.ShutdownCompleted)
+                        {
+                            await session.ShutdownAsync(Context).ThrowIfFailure();
+                        }
+                    }));
+
+                foreach (var session in Sessions)
+                {
+                    session.Dispose();
+                }
+
+                await LogStatsAsync();
+
+                await ShutdownStoresAsync();
+
+                foreach (var directory in Directories)
+                {
+                    directory.Dispose();
+                }
+            }
+
+            protected virtual async Task ShutdownStoresAsync()
+            {
+                await TaskSafetyHelpers.WhenAll(Stores.Select(async store => await store.ShutdownAsync(Context)));
+
+                foreach (var store in Stores)
+                {
+                    store.Dispose();
+                }
+            }
+
+            protected async Task LogStatsAsync()
+            {
+                for (int storeId = 0; storeId < Stores.Count; storeId++)
+                {
+                    var store = Stores[storeId];
+                    var stats = await store.GetStatsAsync(Context);
+                    if (stats.Succeeded)
+                    {
+                        foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
+                        {
+                            Context.Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
+                        }
+                    }
+                }
+            }
+
             public static implicit operator Context(TestContext context) => context.Context;
 
             public static implicit operator OperationContext(TestContext context) => new OperationContext(context);
 
-            public DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
+            public virtual DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
             {
                 var session = Sessions[idx];
                 return (DistributedContentSession<AbsolutePath>)session;
@@ -109,7 +175,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return store;
             }
 
-            internal int GetMasterIndex()
+            public int GetMasterIndex()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -153,7 +219,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 return localContentStore.Store.SyncAsync(this);
             }
 
-            internal int GetFirstWorkerIndex()
+            public int GetFirstWorkerIndex()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -167,7 +233,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 throw new InvalidOperationException($"Unable to find Worker instance.");
             }
 
-            internal IEnumerable<int> EnumerateWorkersIndices()
+            public IEnumerable<int> EnumerateWorkersIndices()
             {
                 for (int i = 0; i < Sessions.Count; i++)
                 {
@@ -580,7 +646,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact(Skip="Flaky and becoming obselete with LLS.")]
+        [Fact(Skip = "Flaky and becoming obselete with LLS.")]
         public async Task EvictContentBasedOnLastAccessTimeWithPriorityQueue()
         {
             // Use the same context in two sessions when checking for file existence
@@ -942,7 +1008,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected virtual object PrepareAdditionalCreateStoreArgs(int storeCount) => null;
 
-        protected async Task RunTestAsync(
+        public async Task RunTestAsync(
             Context context,
             int storeCount,
             Func<TestContext, Task> testFunc,
@@ -980,47 +1046,19 @@ namespace ContentStoreTest.Distributed.Sessions
                             enableRepairHandling,
                             additionalArgs)).ToList();
 
-                var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));
+                var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
 
-                Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
+                await testContext.StartupAsync(implicitPin);
 
-                var id = 0;
-                var sessions = stores.Select(store => store.CreateSession(context, "store" + id++, implicitPin).Session).ToList();
-                await TaskSafetyHelpers.WhenAll(sessions.Select(async session => await session.StartupAsync(context)));
-
-                var testContext = new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), sessions, stores, iteration);
                 await testFunc(testContext);
 
-                await TaskSafetyHelpers.WhenAll(
-                    sessions.Select(async session =>
-                     {
-                         if (!session.ShutdownCompleted)
-                         {
-                             await session.ShutdownAsync(context).ThrowIfFailure();
-                         }
-                     }));
-                sessions.ForEach(session => session.Dispose());
-
-                await TaskSafetyHelpers.WhenAll(Enumerable.Range(0, storeCount).Select(storeId => LogStats(testContext, storeId)));
-
-                await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.ShutdownAsync(context)));
-                stores.ForEach(store => store.Dispose());
+                await testContext.ShutdownAsync();
             }
-
-            indexedDirectories.ForEach(directory => directory.Directory.Dispose());
         }
 
-        protected async Task LogStats(TestContext context, int storeId)
+        protected virtual TestContext ConfigureTestContext(TestContext context)
         {
-            var store = context.Stores[storeId];
-            var stats = await store.GetStatsAsync(context);
-            if (stats.Succeeded)
-            {
-                foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
-                {
-                    context.Context.Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
-                }
-            }
+            return context;
         }
 
         protected async Task OpenStreamReturnsExpectedFile(

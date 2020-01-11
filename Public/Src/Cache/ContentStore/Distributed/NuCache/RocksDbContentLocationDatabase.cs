@@ -737,7 +737,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // Update the time, only if no one else has changed it in the mean time. We don't
                         // really care if this succeeds or not, because if it doesn't it only means someone
                         // else changed the stored value before this operation but after it was read.
-                        Analysis.IgnoreResult(CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                        Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
 
                         // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                         // hashes exist. Moreover, we can prune content.
@@ -763,11 +763,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly object[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new object()).ToArray();
 
         /// <inheritdoc />
-        public override Possible<bool> CompareExchange(
+        public override Possible<bool> TryUpsert(
             OperationContext context,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithDeterminism expected,
-            ContentHashListWithDeterminism replacement)
+            ContentHashListWithDeterminism replacement,
+            Func<MetadataEntry, bool> shouldReplace)
         {
             return _keyValueStore.Use(
                 store =>
@@ -779,7 +779,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                         {
                             var current = DeserializeMetadataEntry(data);
-                            if (!current.ContentHashListWithDeterminism.Equals(expected))
+                            if (!shouldReplace(current))
                             {
                                 return false;
                             }

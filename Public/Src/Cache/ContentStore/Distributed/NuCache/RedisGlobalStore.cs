@@ -46,6 +46,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private readonly RaidedRedisDatabase _raidedRedis;
 
+        /// <summary>
+        /// Gets the backing primary redis database for the store
+        /// </summary>
+        public RedisDatabaseAdapter RedisDatabase => _raidedRedis.PrimaryRedisDb;
+
         private readonly ReplicatedRedisHashKey _checkpointsKey;
         private readonly ReplicatedRedisHashKey _masterLeaseKey;
         private readonly ReplicatedRedisHashKey _clusterStateKey;

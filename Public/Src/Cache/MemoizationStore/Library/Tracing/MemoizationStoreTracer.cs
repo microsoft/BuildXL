@@ -55,10 +55,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         private readonly Counter _addOrGetContentHashListErrorCounter;
         private readonly Counter _getSelectorsEmptyCounter;
 
-        public MemoizationStoreTracer(ILogger logger, string name)
+        public MemoizationStoreTracer(string name)
             : base(name)
         {
-            Contract.Requires(logger != null);
             Contract.Requires(name != null);
 
             CallCounters.Add(_getStatsCallCounter = new CallCounter(GetStatsCallName));

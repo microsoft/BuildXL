@@ -124,6 +124,7 @@ namespace BuildXL.Engine
             MountsTable mountsTable,
             [CanBeNull] GraphReuseResult reuseResult)
         {
+            var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
             var builder = new PipGraph.Builder(
                 EngineSchedule.CreateEmptyPipTable(Context),
                 Context,
@@ -132,7 +133,7 @@ namespace BuildXL.Engine
                 Configuration,
                 mountsTable.MountPathExpander,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable));
+                searchPathToolsHash: searchPathToolsHash);
 
             PatchablePipGraph patchableGraph = null;
             if (Configuration.FrontEnd.UseGraphPatching() && reuseResult?.IsPartialReuse == true)

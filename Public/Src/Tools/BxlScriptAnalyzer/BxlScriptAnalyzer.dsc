@@ -12,8 +12,10 @@ namespace BxlScriptAnalyzer {
         generateLogs: true,
         references: [
             importFrom("BuildXL.App").ConsoleLogger.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

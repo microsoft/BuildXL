@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
@@ -175,7 +176,7 @@ namespace BuildXL.Scheduler.Graph
                 IConfiguration configuration,
                 SemanticPathExpander semanticPathExpander,
                 string fingerprintSalt = null,
-                DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null)
+                ContentHash? searchPathToolsHash = null)
                 : base(pipTable, context, semanticPathExpander, new MutableDirectedGraph())
             {
                 MutableDataflowGraph = (MutableDirectedGraph)DataflowGraph;
@@ -214,7 +215,7 @@ namespace BuildXL.Scheduler.Graph
                     configuration,
                     PipFingerprintingVersion.TwoPhaseV2,
                     fingerprintSalt ?? string.Empty,
-                    searchPathToolsHash: directoryMembershipFingerprinterRules?.ComputeSearchPathToolsHash());
+                    searchPathToolsHash: searchPathToolsHash);
 
                 m_pipStaticFingerprinter = new PipStaticFingerprinter(
                     context.PathTable,

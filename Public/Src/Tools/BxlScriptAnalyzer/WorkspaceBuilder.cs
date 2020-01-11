@@ -190,6 +190,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             5000,
                             false);
 
+                        var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable).ComputeSearchPathToolsHash();
                         pipGraphBuilder = new PipGraph.Builder(
                             EngineSchedule.CreateEmptyPipTable(engineContext),
                             engineContext,
@@ -198,7 +199,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             config,
                             mountsTable.MountPathExpander,
                             fingerprintSalt: config.Cache.CacheSalt,
-                            directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
+                            searchPathToolsHash: searchPathToolsHash);
 
                         if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
                         {

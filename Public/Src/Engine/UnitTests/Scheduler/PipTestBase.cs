@@ -338,6 +338,7 @@ namespace Test.BuildXL.Scheduler
             Expander = new MountPathExpander(pathTable);
             configuration = configuration ?? new ConfigurationImpl();
 
+            var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable).ComputeSearchPathToolsHash();
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
                 Context,
@@ -346,7 +347,7 @@ namespace Test.BuildXL.Scheduler
                 configuration,
                 Expander,
                 fingerprintSalt: configuration.Cache.CacheSalt,
-                directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(configuration, stringTable));
+                searchPathToolsHash: searchPathToolsHash);
 
             ReadonlyRoot = Path.Combine(ObjectRoot, "readonly");
             NonHashableRoot = Path.Combine(ObjectRoot, "nonhashable");

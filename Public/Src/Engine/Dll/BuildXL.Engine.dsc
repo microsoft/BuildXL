@@ -39,7 +39,6 @@ namespace Engine {
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Ide").Generator.dll,
-            importFrom("BuildXL.Ide").Generator.Old.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

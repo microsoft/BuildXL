@@ -1072,8 +1072,8 @@ namespace BuildXL
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
                             (opt, sign) =>
                             {
-                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign, 
-                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll, 
+                                var value = CommandLineUtilities.ParseBoolEnumOption(opt, sign,
+                                    trueValue: DynamicWriteOnAbsentProbePolicy.IgnoreAll,
                                     falseValue: DynamicWriteOnAbsentProbePolicy.IgnoreNothing);
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes = value;
                             },
@@ -1195,9 +1195,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "vsNew", // temporary undocumented option for enabling new VS solution generation
-                            sign => ideConfiguration.IsNewEnabled = sign),
+                        OptionHandlerFactory.CreateBoolOptionWithValue(
+                            "vsNew", // TODO: remove once new LKG is published
+                            (opt, sign) => { ReportObsoleteOption(opt); }),
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),

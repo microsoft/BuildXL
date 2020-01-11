@@ -144,7 +144,10 @@ export function pack(args: Arguments): PackResult {
 
     let execArgs = <Transformer.ExecuteArguments>{
         tool: args.tool || tool,
-        tags: (args.tags || ["package"]),
+        tags: [
+            "pack",
+            ...(args.tags || []),
+        ],
         arguments: arguments,
         workingDirectory: outDir,
         allowUndeclaredSourceReads: Context.getCurrentHost().os === "macOS",

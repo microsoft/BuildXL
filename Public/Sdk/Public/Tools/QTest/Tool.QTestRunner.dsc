@@ -346,7 +346,10 @@ export function runQTest(args: QTestArguments): Result {
 
         Transformer.execute({
             tool: args.qTestTool ? args.qTestTool : qTestTool,
-            tags: args.tags,
+            tags: [
+                "test", 
+                ...(args.tags || []),
+            ],
             description: "QTest Coverage Upload",
             arguments: commandLineArgsForUploadPip,
             consoleOutput: coverageConsolePath,

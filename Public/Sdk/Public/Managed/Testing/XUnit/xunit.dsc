@@ -58,7 +58,10 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     let execArguments : Transformer.ExecuteArguments = {
         tool: args.tool || tool,
-        tags: args.tags,
+        tags: [
+            "test", 
+            ...(args.tags || [])
+        ],
         arguments: arguments,
         // When test directory is untracked, declare dependencies to individual files instead of the seal directory.
         // Reason: if the same directory is both untracked and declared as a dependency it's not clear which one takes

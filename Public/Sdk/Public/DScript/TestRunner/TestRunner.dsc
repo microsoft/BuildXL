@@ -183,7 +183,8 @@ namespace TestGenerator {
         const result = Transformer.execute({
             tool: args.tool || tool,
             arguments: commandLineArgs,
-            workingDirectory: args.outputFolder
+            workingDirectory: args.outputFolder,
+            tags: ["test"],
         });
 
         return {

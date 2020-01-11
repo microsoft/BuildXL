@@ -38,7 +38,8 @@ export function generate(args: Arguments) : Result {
         outputs: [
             typesFile
         ],
-        dependencies: args.includeFiles
+        dependencies: args.includeFiles,
+        tags: ["codegen"]
     });
 
     return {

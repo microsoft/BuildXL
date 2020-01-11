@@ -60,7 +60,8 @@ namespace CreateZipPackage
             tool: tool, 
             workingDirectory: wd, 
             arguments: cmdLineArguments,
-            dependencies: args.additionalDependencies
+            dependencies: args.additionalDependencies,
+            tags: ["zip"]
         });
 
         return result.getOutputFile(outFile);

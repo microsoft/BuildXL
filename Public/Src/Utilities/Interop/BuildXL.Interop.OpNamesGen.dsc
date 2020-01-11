@@ -110,7 +110,8 @@ namespace BuildXL.Interop.MacOS
                 Cmd.argument(Artifact.input(inputHppFile))
             ],
             workingDirectory: outDir,
-            consoleOutput: consoleOutPath
+            consoleOutput: consoleOutPath,
+            tags: ["codegen"]
         });
 
         return result.getOutputFile(consoleOutPath);

@@ -524,7 +524,10 @@ function evaluateArgs(args: Arguments, midlFile: MidlFile, dllData: File): MidlR
 
     let executeArguments: Transformer.ExecuteArguments = {
         tool: args.tool || defaultTool(),
-        tags: args.tags,
+        tags: [
+            "codegen", 
+            ...(args.tags || [])
+        ],
         arguments: [],
         dependencies: [],
         workingDirectory: Context.getSpecFileDirectory(),

@@ -88,6 +88,7 @@ export function generate(inputArgs: Arguments): File {
             tool: importFrom("BuildXL.Utilities.Instrumentation").LogGen.withQualifier(Managed.TargetFrameworks.MachineQualifier.current).tool,
             arguments: commandLineArgs,
             workingDirectory: outputFolder,
+            tags: ["codegen"]
         }
     );
 

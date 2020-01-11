@@ -98,7 +98,10 @@ export function evaluate(args: Arguments): File {
 
     let outputs = Transformer.execute({
         tool: args.tool || importFrom("VisualCpp").clTool,
-        tags: args.tags,
+        tags: [
+            "codegen",
+            ...(args.tags || []),
+        ],
         workingDirectory: Context.getSpecFileDirectory(),
         dependencies: includes,
         arguments: cmdArgs,

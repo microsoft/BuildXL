@@ -218,6 +218,7 @@ export function compile(args: Arguments): Map<PathAtom, Result> {
                 ...binOutFiles,
                 ...winRTFiles,
             ]),
+            tags: ["codegen"],
         });
 
         let binFiles = Transformer.sealDirectory({

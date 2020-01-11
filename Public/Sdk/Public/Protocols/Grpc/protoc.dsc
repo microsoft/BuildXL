@@ -75,7 +75,7 @@ export function generate(args: Arguments) : Result {
         const result = Transformer.execute({
             tool: args.tool || tool,
             arguments: arguments,
-            tags:["protobufgenerator"],
+            tags:["protobufgenerator", "codegen"],
             workingDirectory: outputDirectory,
             outputs: [
                 mainCsFile,

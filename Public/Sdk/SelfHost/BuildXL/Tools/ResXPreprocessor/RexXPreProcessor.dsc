@@ -34,7 +34,7 @@ export function preProcess(args: Arguments) : Result {
     let result = Transformer.execute({
         tool: tool,
         arguments: arguments,
-        workingDirectory: outputDir
+        workingDirectory: outputDir,
     });
 
     return {

@@ -11,6 +11,7 @@ using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.VerticalAggregator;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

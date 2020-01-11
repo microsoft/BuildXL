@@ -5,6 +5,8 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 
 namespace Test.BuildXL.Scheduler.Utils
 {

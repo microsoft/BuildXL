@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Engine.Cache;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 
 namespace BuildXL.Scheduler.Tracing
 {

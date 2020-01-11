@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.Interfaces

@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Utilities.FormattableStringEx;

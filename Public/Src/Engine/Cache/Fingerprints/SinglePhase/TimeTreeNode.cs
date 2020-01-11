@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 

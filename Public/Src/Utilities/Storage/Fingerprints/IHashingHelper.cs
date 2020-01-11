@@ -4,7 +4,7 @@
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
-namespace BuildXL.Engine.Cache
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// Interface for classes that can compute the BuildXL fingerprint.

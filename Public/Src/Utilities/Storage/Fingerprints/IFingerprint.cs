@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
-namespace BuildXL.Engine.Cache.Fingerprints
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// A fingerprint is a <see cref="Fingerprint" /> of a dependency graph node.

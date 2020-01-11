@@ -8,6 +8,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 

@@ -17,6 +17,7 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;

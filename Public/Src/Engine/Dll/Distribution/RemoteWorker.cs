@@ -20,6 +20,8 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;

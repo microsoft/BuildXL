@@ -7,6 +7,8 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 

@@ -10,6 +10,8 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Distribution

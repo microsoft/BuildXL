@@ -4,7 +4,7 @@
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
-namespace BuildXL.Engine.Cache
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// Extension of <see cref="IFingerprinter"/> that can handle adding unnamed values in collections.

@@ -6,12 +6,14 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
     /// <summary>
-    /// Computes a <see cref="BuildXL.Engine.Cache.Fingerprints.ContentFingerprint" /> for given pips. 
+    /// Computes a <see cref="ContentFingerprint" /> for given pips. 
     /// This fingerprint accounts for the <see cref="BuildXL.Cache.ContentStore.Hashing.ContentHash" /> of declared pip dependencies.
     /// </summary>
     /// <remarks>

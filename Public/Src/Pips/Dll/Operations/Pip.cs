@@ -9,6 +9,7 @@ using System.Text;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 

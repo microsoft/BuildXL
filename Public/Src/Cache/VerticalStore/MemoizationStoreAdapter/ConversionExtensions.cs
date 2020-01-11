@@ -11,6 +11,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using CacheDeterminism = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.CacheDeterminism;
 

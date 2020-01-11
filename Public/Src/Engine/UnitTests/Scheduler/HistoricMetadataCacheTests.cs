@@ -1,28 +1,29 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
-using BuildXL.Scheduler;
-using BuildXL.Utilities;
-using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
-using Xunit.Abstractions;
+using System.IO;
 using System.Threading.Tasks;
-using BuildXL.Scheduler.Cache;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.Artifacts;
-using BuildXL.Pips;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints;
-using System.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
+using BuildXL.Scheduler.Cache;
+using BuildXL.Scheduler.Fingerprints;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using System;
-using BuildXL.Storage;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

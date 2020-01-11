@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Cache.Fingerprints
@@ -108,7 +109,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
         }
 
         /// <summary>
-        /// Returns a generic <see cref="BuildXL.Engine.Cache.Fingerprints.ContentFingerprint"/> (not distinguished as strong or weak).
+        /// Returns a generic <see cref="ContentFingerprint"/> (not distinguished as strong or weak).
         /// TODO: The generic fingerprint type can go away as soon as we *only* do two-phase (weak -> strong) lookups;
         ///       as of writing we are transitioning.
         /// </summary>

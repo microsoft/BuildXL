@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

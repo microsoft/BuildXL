@@ -3,6 +3,7 @@
 
 using System.Diagnostics.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 
 namespace BuildXL.Cache.Interfaces
 {

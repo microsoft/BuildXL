@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 
 namespace BuildXL.Scheduler.IncrementalScheduling
 {

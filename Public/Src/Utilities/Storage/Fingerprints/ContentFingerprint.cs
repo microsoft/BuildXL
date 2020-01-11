@@ -4,10 +4,9 @@
 using System;
 using System.IO;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Storage;
 using BuildXL.Utilities;
 
-namespace BuildXL.Engine.Cache.Fingerprints
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// A recursively-computed fingerprint for a pip that is based on the content of its inputs.

@@ -29,6 +29,7 @@ using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Performance;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

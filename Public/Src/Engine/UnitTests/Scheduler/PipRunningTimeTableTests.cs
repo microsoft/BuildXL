@@ -7,6 +7,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

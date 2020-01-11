@@ -10,7 +10,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
-namespace BuildXL.Storage
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// Fingerprinting constants and utilities.

@@ -3,7 +3,8 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 

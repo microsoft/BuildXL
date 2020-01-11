@@ -3,6 +3,7 @@
 
 using BuildXL.Cache.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using StrongFingerprint = BuildXL.Cache.Interfaces.StrongFingerprint;
 

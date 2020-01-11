@@ -10,6 +10,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;

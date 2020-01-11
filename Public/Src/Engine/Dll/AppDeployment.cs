@@ -17,6 +17,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
 namespace BuildXL.Engine

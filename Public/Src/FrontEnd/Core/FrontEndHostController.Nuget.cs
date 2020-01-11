@@ -15,6 +15,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

@@ -38,6 +38,7 @@ using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

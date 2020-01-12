@@ -2,9 +2,6 @@
 
 set -e
 
-# Make sure we are running in our own working directory
-pushd "$(dirname "$0")"
-
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/Sandbox/MacOs/scripts/env.sh"
 
@@ -145,6 +142,14 @@ function deployBxl { # (fromDir, toDir)
     /usr/bin/rsync -arhq "$fromDir/" "$toDir" --delete
     print_info "Successfully deployed developer build from $fromDir to: $toDir; use it with the '--use-dev' flag now."
 }
+
+# allow this script to be sourced, in which case we shouldn't execute anything
+if [[ "$0" != "${BASH_SOURCE[0]}" ]]; then 
+    return 0
+fi
+
+# Make sure we are running in our own working directory
+pushd "$MY_DIR"
 
 parseArgs "$@"
 

@@ -738,8 +738,7 @@ namespace BuildXL.FrontEnd.Nuget
                         if (packagesToDownload.Count < MaxPackagesToDisplay)
                         {
                             var elapsed = downloadProgress[i].Elapsed();
-                            var now = DateTime.Now;
-                            var elapsedString = FormattingEventListener.TimeToString(now, now - elapsed, TimeDisplay.Seconds);
+                            var elapsedString = FormattingEventListener.TimeSpanToString(TimeDisplay.Seconds, elapsed);
                             var nugetMarker = downloadProgress[i].State == NugetProgressState.DownloadingFromNuget ? " (from nuget)" : " (from cache)";
                             packagesToDownload.Add(Tuple.Create(elapsed, I($"\t{elapsedString} - {packagesOnConfig[i].Id}{nugetMarker}")));
                         }

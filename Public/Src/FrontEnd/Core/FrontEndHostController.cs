@@ -1520,8 +1520,7 @@ namespace BuildXL.FrontEnd.Core
 
         private static string FormatProgressMessage(TimeSpan elapsed, string message)
         {
-            var now = DateTime.Now;
-            var elapsedStr = FormattingEventListener.TimeToString(now, now - elapsed, TimeDisplay.Seconds);
+            var elapsedStr = FormattingEventListener.TimeSpanToString(TimeDisplay.Seconds, elapsed);
             return I($"    {elapsedStr} - {message}");
         }
 

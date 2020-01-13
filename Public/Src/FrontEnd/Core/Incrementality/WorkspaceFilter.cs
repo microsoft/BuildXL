@@ -4,8 +4,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;

@@ -4,10 +4,8 @@
 using System;
 using System.IO;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.Storage;
+using BuildXL.Pips.Filter;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -153,7 +151,7 @@ namespace BuildXL.Engine
             bool filterExists = reader.ReadBoolean();
             if (filterExists)
             {
-                fingerprint.EvaluationFilter = BuildXL.FrontEnd.Sdk.EvaluationFilter.Deserialize(reader);
+                fingerprint.EvaluationFilter = BuildXL.Pips.Filter.EvaluationFilter.Deserialize(reader);
             }
 
             return fingerprint;

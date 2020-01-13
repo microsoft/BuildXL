@@ -2,13 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using BuildXL.Pips;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Filters pips by output file path.

@@ -5,6 +5,7 @@ using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Engine.Tracing;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Pips.Filter;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;

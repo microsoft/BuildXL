@@ -37,11 +37,6 @@ namespace Scheduler {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
         ],
-        embeddedResources: [
-            {
-                resX: f`Filter/ErrorMessages.resx`
-            }
-        ],
         internalsVisibleTo: [
             "bxlanalyzer",
             "BuildXL.Engine",

@@ -8,6 +8,11 @@ export const dll = BuildXLSdk.library({
     assemblyName: "BuildXL.Pips",
     generateLogs: true,
     sources: globR(d`.`, "*.cs"),
+    embeddedResources: [
+        {
+            resX: f`Filter/ErrorMessages.resx`
+        }
+    ],
     references: [
         importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
         importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

@@ -9,7 +9,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Empty pip filter that matches all pips

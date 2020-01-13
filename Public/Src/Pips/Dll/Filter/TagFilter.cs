@@ -8,7 +8,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Filters pips based on whether a pip has or does not have a tag. Tag matching is case sensitive

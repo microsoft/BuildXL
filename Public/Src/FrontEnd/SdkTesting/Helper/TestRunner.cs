@@ -22,6 +22,7 @@ using BuildXL.FrontEnd.Script.Testing.Helper.Ambients;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;

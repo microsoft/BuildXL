@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading.Tasks;
+using BuildXL.Pips.Filter;
 using BuildXL.Processes;
-using BuildXL.Scheduler.Filter;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 

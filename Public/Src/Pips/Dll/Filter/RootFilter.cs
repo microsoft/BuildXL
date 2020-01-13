@@ -4,12 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Sdk;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Root level pip filter

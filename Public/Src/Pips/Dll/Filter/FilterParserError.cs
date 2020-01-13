@@ -5,7 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Error when parsing a filter expression

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Graph;

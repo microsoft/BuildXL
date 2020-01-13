@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Pips;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Dependents filter.

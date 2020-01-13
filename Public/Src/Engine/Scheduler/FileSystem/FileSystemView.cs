@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;

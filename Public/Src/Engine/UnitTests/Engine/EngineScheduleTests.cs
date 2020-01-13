@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using BuildXL.Engine;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration.Mutable;

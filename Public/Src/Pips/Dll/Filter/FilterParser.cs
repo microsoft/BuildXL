@@ -12,7 +12,7 @@ using BuildXL.Utilities;
 
 #pragma warning disable SA1203 // Constant fields should appear before non-constant fields
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Parses filter expressions

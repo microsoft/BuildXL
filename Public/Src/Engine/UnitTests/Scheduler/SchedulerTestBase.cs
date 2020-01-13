@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;

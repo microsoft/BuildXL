@@ -11,6 +11,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Pips.Filter;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Tracing;

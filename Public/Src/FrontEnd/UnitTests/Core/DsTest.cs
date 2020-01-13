@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using BuildXL.Engine;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;

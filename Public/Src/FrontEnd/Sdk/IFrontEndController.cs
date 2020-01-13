@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;

@@ -4,9 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 

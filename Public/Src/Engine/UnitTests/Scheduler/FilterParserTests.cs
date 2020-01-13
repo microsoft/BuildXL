@@ -4,7 +4,7 @@
 using System;
 using System.IO;
 using System.Text;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

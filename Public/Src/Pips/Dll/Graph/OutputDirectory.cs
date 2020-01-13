@@ -4,12 +4,12 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Class for creating output directory artifacts.
     /// </summary>
-    internal static class OutputDirectory
+    public static class OutputDirectory
     {
         /// <summary>
         /// Creates an output directory from a path.

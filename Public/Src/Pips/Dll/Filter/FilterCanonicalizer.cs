@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
     /// Class for canonicalizing <see cref="PipFilter" />.

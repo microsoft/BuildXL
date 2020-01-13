@@ -2,34 +2,33 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
-using System.Linq;
 using BuildXL.Pips;
 
-namespace BuildXL.Scheduler.Filter
+namespace BuildXL.Pips.Filter
 {
     /// <summary>
-    /// Dependents filter which only includes copy pips dependents
+    /// Dependencies filter.
     /// </summary>
-    public class CopyDependentsFilter : ClosureFunctionFilter<CopyDependentsFilter>
+    public class DependenciesFilter : ClosureFunctionFilter<DependenciesFilter>
     {
         /// <summary>
         /// Class constructor
         /// </summary>
-        public CopyDependentsFilter(PipFilter inner)
-            : base(inner)
+        public DependenciesFilter(PipFilter inner, ClosureMode closureMode = ClosureMode.TransitiveIncludingSelf)
+            : base(inner, closureMode)
         {
         }
 
         /// <inheritdoc/>
         protected override IEnumerable<PipId> GetNeighborPips(IPipFilterContext context, PipId pip)
         {
-            return context.GetDependents(pip).Where(p => context.GetPipType(p) == BuildXL.Pips.Operations.PipType.CopyFile);
+            return context.GetDependencies(pip);
         }
 
         /// <inheritdoc/>
-        protected override CopyDependentsFilter CreateFilter(PipFilter inner)
+        protected override DependenciesFilter CreateFilter(PipFilter inner)
         {
-            return new CopyDependentsFilter(inner);
+            return new DependenciesFilter(inner, ClosureMode);
         }
     }
 }

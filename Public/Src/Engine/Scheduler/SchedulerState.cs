@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.DirectedGraph;
-using BuildXL.Scheduler.Filter;
+using BuildXL.Pips.Filter;
 using BuildXL.Scheduler.IncrementalScheduling;
 
 namespace BuildXL.Scheduler

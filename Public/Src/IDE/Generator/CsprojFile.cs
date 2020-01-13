@@ -26,6 +26,8 @@ namespace BuildXL.Ide.Generator
 
         private readonly HashSet<string> m_projectTypeGuids = new HashSet<string>();
 
+        private StringTable StringTable => Context.StringTable;
+
         internal CsprojFile(
             Context context,
             AbsolutePath specFilePath)
@@ -44,12 +46,14 @@ namespace BuildXL.Ide.Generator
         {
             var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
 
-            // only consider processes targeting current os in debug configuration
+            // only consider processes targeting current os;
             // also, additionally exclude projects targeting net451
             var currentRuntime = OperatingSystemHelper.IsMacOS ? "osx-x64" : "win-x64";
-            if (!QualifierPropertyEquals(qualifier, "targetRuntime", currentRuntime)
-                || !QualifierPropertyEquals(qualifier, QualifierConfigurationPropertyName, "debug")
-                || QualifierPropertyEquals(qualifier, QualifierTargetFrameworkPropertyName, "net451"))
+            if (
+                // targetRuntime is defined and is different from current runtime
+                (qualifier.TryGetValue(StringTable, "targetRuntime", out var targetRuntime) && AreNotEqual(targetRuntime, currentRuntime))
+                // OR, targetFramework is defined and is equal to "net451"
+                || (qualifier.TryGetValue(StringTable, QualifierTargetFrameworkPropertyName, out var targetFramework) && AreEqual(targetFramework, "net451")))
             {
                 return;
             }

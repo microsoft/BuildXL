@@ -153,7 +153,7 @@ namespace BuildXL.Ide.Generator
                 Directory.CreateDirectory(m_context.SolutionRootStr);
             }
 
-            WriteCommonImports(m_context.EnlistmentRootStr, m_context.SolutionRootStr);
+            WriteCommonImports(m_context.ProjectsRoot.ToString(m_context.PathTable), m_context.SolutionRootStr);
             WriteSolution(m_context.PathTable, m_context.SolutionFilePathStr);
 
             if (!string.IsNullOrEmpty(m_context.DotSettingsPathStr))
@@ -325,7 +325,7 @@ namespace BuildXL.Ide.Generator
             return m_context.PathTable.ExpandName(path.Value, m_rootExpander);
         }
 
-        private void WriteCommonImports(string enlistmentDir, string ideDir)
+        private void WriteCommonImports(string projectsRoot, string ideDir)
         {
             var rootSettingsPath = Path.Combine(ideDir, "RootSettings.props");
             var rootSettingsFile = new XDocument(
@@ -346,7 +346,7 @@ namespace BuildXL.Ide.Generator
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Common.props", Path.Combine(ideDir, "Common.props"));
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Common.targets", Path.Combine(ideDir, "Common.targets"));
             WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.NuGet.config", Path.Combine(ideDir, "NuGet.config"));
-            WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Directory.Build.props", Path.Combine(enlistmentDir, "Directory.Build.Props"));
+            WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.Directory.Build.props", Path.Combine(projectsRoot, "Directory.Build.Props"));
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202")]

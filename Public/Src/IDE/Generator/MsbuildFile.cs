@@ -6,14 +6,12 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Qualifier;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator
 {
@@ -258,7 +256,17 @@ namespace BuildXL.Ide.Generator
         internal bool QualifierPropertyEquals(Qualifier qualifier, string propertyName, string propertyValue)
         {
             return qualifier.TryGetValue(Context.StringTable, propertyName, out var value)
-                && value.Equals(propertyValue, StringComparison.InvariantCultureIgnoreCase);
+                && AreEqual(value, propertyValue);
+        }
+
+        internal bool AreEqual(string lhs, string rhs)
+        {
+            return StringComparer.InvariantCultureIgnoreCase.Equals(lhs, rhs);
+        }
+
+        internal bool AreNotEqual(string lhs, string rhs)
+        {
+            return !AreEqual(lhs, rhs);
         }
     }
 

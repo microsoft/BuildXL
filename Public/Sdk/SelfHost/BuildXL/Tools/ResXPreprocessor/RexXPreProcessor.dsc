@@ -7,7 +7,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 
 export declare const qualifier: Managed.TargetFrameworks.MachineQualifier.Current;
 
-const exe = BuildXLSdk.nativeExecutable({
+const exe = BuildXLSdk.executable({
     assemblyName: "ResXPreProcessor",
     sources: globR(d`.`,"*.cs"),
 });

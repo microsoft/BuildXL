@@ -79,7 +79,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev[-release]] [--use-dev] [--minimal] [--internal] [--shared-comp] [--cgmanifest] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -124,6 +124,10 @@ function parseArgs() {
         --test-method)
             arg_Positional+=("/p:[UnitTest]Filter.testMethod=$2")
             shift
+            shift
+            ;;
+        --shared-comp)
+            arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
             shift
             ;;
         *)

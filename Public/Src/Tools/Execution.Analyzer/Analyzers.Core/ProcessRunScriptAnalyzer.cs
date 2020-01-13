@@ -148,20 +148,21 @@ namespace BuildXL.Execution.Analyzer
 
         private static void WriteProcessRunScriptAnalyzerHelp(HelpWriter writer)
         {
-            var args = new Args(new String[]{});
+            string scriptName = OperatingSystemHelper.IsUnixOS ? "bash" : "batch";
+            string scriptExtension = OperatingSystemHelper.IsUnixOS ? ".sh" : ".bat";
             writer.WriteBanner("ProcessRunScript Analysis");
-            writer.WriteModeOption(nameof(AnalysisMode.ProcessRunScript), $"Generates {args.ScriptName} script which can run process with appropriate env vars set");
+            writer.WriteModeOption(nameof(AnalysisMode.ProcessRunScript), $"Generates {scriptName} script which can run process with appropriate env vars set");
             writer.WriteOption("pip", "Optional. The semi-stable hash for the pip.", shortName: "p");
             writer.WriteOption("pipInput", "Optional. If pip is not specified, match all process pips that consume this file (either directly or through a sealed directory)");
             writer.WriteOption("pipOutput", "Optional. If pip is not specified, match all process pips that produce this file (either directly or through a sealed directory)");
-            writer.WriteOption("outputFile", $"Optional. The path to the output script file (if using /pip it defaults to PipNNNNNNNNNNNNNNNN{args.ScriptExtension}).", shortName: "o");
-            writer.WriteOption("outputDirectory", $"Optional. The name of directory to put a {args.ScriptName} script per pip ({args.ScriptName} scripts are named PipNNNNNNNNNNNNNNNN{args.ScriptExtension}).");
+            writer.WriteOption("outputFile", $"Optional. The path to the output script file (if using /pip it defaults to PipNNNNNNNNNNNNNNNN{scriptExtension}).", shortName: "o");
+            writer.WriteOption("outputDirectory", $"Optional. The name of directory to put a {scriptName} script per pip ({scriptName} scripts are named PipNNNNNNNNNNNNNNNN{scriptExtension}).");
             writer.WriteOption("echo", @"Optional. Echo commands as they are run");
             writer.WriteOption("saveOutputsRoot", @"Optional. Path of a directory to backup existing outputs.");
             writer.WriteOption("resultOutputsRoot", @"Optional. Path of a directory to put the resulting outputs of running the script.");
             writer.WriteOption("linkReproPath", @"Optional. The directory to store a MSVC Link Repro (i.e. LINK_REPRO) so that the link can be performed on another machine for diagnosing linker issues.");
-            writer.WriteOption("jsonEnvironmentScript", $"Optional. A {args.ScriptName} script which takes a single json file path and sets the environment variables in it (the {args.ScriptName} script version does not handle special characters today which can cause problems).");
-            writer.WriteOption("redirectStreams", $"Optional. Redirect the stdout and stderr of the process to {args.ScriptExtension}.out and {args.ScriptExtension}.err respectively.");
+            writer.WriteOption("jsonEnvironmentScript", $"Optional. A {scriptName} script which takes a single json file path and sets the environment variables in it (the {scriptName} script version does not handle special characters today which can cause problems).");
+            writer.WriteOption("redirectStreams", $"Optional. Redirect the stdout and stderr of the process to {scriptExtension}.out and {scriptExtension}.err respectively.");
         }
     }
 

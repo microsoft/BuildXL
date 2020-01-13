@@ -16,6 +16,7 @@ using BuildXL.FrontEnd.Script.Runtime;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Expression = BuildXL.FrontEnd.Script.Expressions.Expression;
 

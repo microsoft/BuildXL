@@ -7,48 +7,10 @@ using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Storage;
-using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
-#pragma warning disable SA1649 // File name must match first type name
-
-namespace BuildXL.Engine.Cache
+namespace BuildXL.Storage.Fingerprints
 {
-    /// <summary>
-    /// Hash algorithm types that <see cref="HashingHelper"/> supports
-    /// </summary>
-    public enum HashAlgorithmType
-    {
-        /// <summary>
-        /// <see cref="System.Security.Cryptography.SHA1Managed"/>
-        /// </summary>
-        SHA1Managed = 0, 
-
-        /// <summary>
-        /// <see cref="MurmurHashEngine"/>
-        /// </summary>
-        MurmurHash3 = 1
-    }
-
-
-    internal static class HashAlgorithmExtensions
-    {
-        public static HashAlgorithm Create(this HashAlgorithmType type)
-        {
-            switch (type)
-            {
-                case HashAlgorithmType.SHA1Managed:
-                    return new SHA1Managed();
-                case HashAlgorithmType.MurmurHash3:
-                    return new MurmurHashEngine();
-                default:
-                    Contract.Assert(false, $"Unknown hash algorithm type: {type}");
-                    return null;
-            }
-        }
-    }
-
     /// <summary>
     /// Helper class for computing fingerprints.
     /// </summary>
@@ -587,18 +549,6 @@ namespace BuildXL.Engine.Cache
         public void Unindent()
         {
             m_indentCount--;
-        }
-    }
-
-    /// <summary>
-    /// Helper class for computing fingerprints.
-    /// </summary>
-    public sealed class CoreHashingHelper : CoreHashingHelperBase
-    {
-        /// <nodoc />
-        public CoreHashingHelper(bool recordFingerprintString)
-            : base(recordFingerprintString)
-        {
         }
     }
 }

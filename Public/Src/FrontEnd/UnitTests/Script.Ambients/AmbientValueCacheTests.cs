@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.FrontEnd.Script.Ambients;
 using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;

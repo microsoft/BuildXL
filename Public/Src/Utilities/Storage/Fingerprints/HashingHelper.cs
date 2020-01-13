@@ -6,10 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
-namespace BuildXL.Engine.Cache
+namespace BuildXL.Storage.Fingerprints
 {
     /// <summary>
     /// Extends CoreHashingHelper by adding handling for pip data.

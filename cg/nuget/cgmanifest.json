@@ -4182,7 +4182,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.BuildXL",
-          "Version": "3.1.99"
+          "Version": "3.2.2"
         }
       }
     },

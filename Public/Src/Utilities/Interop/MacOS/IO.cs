@@ -340,7 +340,7 @@ namespace BuildXL.Interop.MacOS
             O_NOFOLLOW = 0x0100,  // do not follow symlinks
             O_SYMLINK = 0x200000, // allow open of symlinks
             O_EVTONLY = 0x8000,   // descriptor requested for event notifications only
-            O_CLOEXEX = 0x1000000 // mark as close-on-exec
+            O_CLOEXEC = 0x1000000 // mark as close-on-exec
         }
 
         /// <summary>

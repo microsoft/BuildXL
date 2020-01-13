@@ -129,7 +129,7 @@ function buildBuildXLBinaries() {
     kext="/f:output='*/osx-x64/native/macOS/*'or"
     libs="output='*/osx-x64/libBuildXL*'or"
     monitor="output='*/osx-x64/SandboxMonitor'or"
-    tester="output='*/osx-x64/TestProj/tests/shared_bin/TestProcess/MacOs/CoreDumpTester'"
+    tester="output='*/osx-x64/CoreDumpTester'"
 
     local args=(
         --internal
@@ -366,7 +366,7 @@ do
     copyBinariesForConfiguration                                                                                   \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$ARIA_DYLIB_NAME"                                                       \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$INTEROP_DYLIB_NAME"                                                    \
-        "$buildxlDir/Out/Bin/tests/$conf/osx-x64/TestProj/tests/shared_bin/TestProcess/MacOs/$COREDUMPTESTER_NAME" \
+        "$buildxlDir/Out/Bin/$conf/tools/CoreDumpTester/osx-x64/$COREDUMPTESTER_NAME"                              \
         "$buildxlDir/Out/Bin/$conf/osx-x64/$MONITOR_NAME"                                                          \
         "$buildxlDir/Out/Bin/$conf/osx-x64/native/macOS/$KEXT_NAME"                                                \
         $destDir

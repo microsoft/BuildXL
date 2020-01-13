@@ -464,7 +464,7 @@ namespace BuildXL.Native.IO.Unix
 
         private static OpenFlags CreateOpenFlags(FileDesiredAccess desiredAccess, FileShare fileShare, FileMode fileMode, bool openSymlink)
         {
-            OpenFlags flags = ShouldCreateAndOpen(fileMode) ? OpenFlags.O_CREAT : 0;
+            OpenFlags flags = (ShouldCreateAndOpen(fileMode) ? OpenFlags.O_CREAT : OpenFlags.O_RDONLY) | OpenFlags.O_CLOEXEC;
 
             switch (fileMode)
             {

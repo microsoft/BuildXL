@@ -92,24 +92,25 @@ namespace BuildXL.ViewModel
         }
 
         /// <nodoc />
-        public void WritePreDetails(string summary, string details, int indentPixels = 0)
+        public void WritePreSection(string title, string details, int indentPixels = 0)
         {
-            m_writer.Write("<details");
+            m_writer.Write("<div");
             if (indentPixels > 0)
             {
                 m_writer.Write($" style='margin-left:{indentPixels}px'");
             }
             m_writer.WriteLine(">");
 
-            m_writer.WriteLine("<summary>");
-            m_writer.WriteLine(HtmlEscape(summary));
-            m_writer.WriteLine("</summary>");
+            m_writer.WriteLine("<h3>");
+            m_writer.WriteLine(HtmlEscape(title));
+            m_writer.WriteLine("</h3>");
+            m_writer.WriteLine("<div>");
             m_writer.WriteLine("<pre>");
             m_writer.WriteLine(HtmlEscape(details));
             m_writer.WriteLine("</pre>");
-            m_writer.WriteLine("</summary>");
+            m_writer.WriteLine("</div>");
 
-            m_writer.WriteLine("</details>");
+            m_writer.WriteLine("</div>");
         }
 
         /// <nodoc />

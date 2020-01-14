@@ -42,7 +42,7 @@ namespace BuildXL.ViewModel
 
                 foreach (var entry in Entries)
                 {
-                    writer.WritePreDetails(
+                    writer.WritePreSection(
                         entry.PipDescription + (entry.FromCacheLookup ? " (From Cachelookup)" : null), 
                         entry.Reason,
                         25);
@@ -50,6 +50,7 @@ namespace BuildXL.ViewModel
 
                 writer.EndDetailedTableSummary();
             }
+            
         }
     }
 }

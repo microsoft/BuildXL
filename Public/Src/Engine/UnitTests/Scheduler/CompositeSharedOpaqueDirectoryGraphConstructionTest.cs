@@ -3,8 +3,8 @@
 
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -21,6 +21,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]
@@ -55,7 +56,7 @@ namespace Test.BuildXL.Scheduler
 
                 XAssert.IsFalse(result);
 
-                AssertErrorEventLogged(EventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot);
             }
         }
 
@@ -87,7 +88,7 @@ namespace Test.BuildXL.Scheduler
                     out var composedSharedOpaque);
 
                 XAssert.IsFalse(result);
-                AssertErrorEventLogged(EventId.ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque);
             }
         }
 

@@ -23,9 +23,9 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -46,6 +46,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         private readonly BuildXL.FrontEnd.Core.Tracing.Logger m_tracingLogger;
         private readonly Script.Tracing.Logger m_astLogger;
         private readonly BuildXL.Scheduler.Tracing.Logger m_schedulerLogger;
+        private readonly BuildXL.Pips.Tracing.Logger m_pipLogger;
         private readonly Action<Diagnostic> m_diagnosticHandler;
         private readonly bool m_updateFailedTests;
 
@@ -55,6 +56,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             m_tracingLogger = BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(true);
             m_astLogger = Script.Tracing.Logger.CreateLogger(true);
             m_schedulerLogger = BuildXL.Scheduler.Tracing.Logger.CreateLogger(true);
+            m_pipLogger = BuildXL.Pips.Tracing.Logger.CreateLogger(true);
             m_diagnosticHandler = diagnosticHandler;
             m_updateFailedTests = updateFailedTests;
             BuildXL.Storage.ContentHashingUtilities.SetDefaultHashType();
@@ -167,7 +169,7 @@ export function test(args: TestArguments): TestResult {{
                     var graph = new PipGraph.Builder(
                         pipTable,
                         pipContext,
-                        m_schedulerLogger,
+                        m_pipLogger,
                         frontEndContext.LoggingContext,
                         configuration,
                         mountPathExpander);
@@ -510,6 +512,7 @@ export function test(args: TestArguments): TestResult {{
                     m_astLogger.CapturedDiagnostics,
                     m_tracingLogger.CapturedDiagnostics,
                     m_schedulerLogger.CapturedDiagnostics,
+                    m_pipLogger.CapturedDiagnostics,
                 }.SelectMany(x => x);
         }
 

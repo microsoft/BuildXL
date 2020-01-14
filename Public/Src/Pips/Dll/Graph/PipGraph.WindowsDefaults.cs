@@ -6,7 +6,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     partial class PipGraph
     {

@@ -8,12 +8,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.DirectedGraph
 {
     /// <summary>
     /// Mutable implementation of a DirectedGraph

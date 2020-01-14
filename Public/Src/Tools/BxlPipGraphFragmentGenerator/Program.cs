@@ -90,6 +90,7 @@ namespace BuildXL.PipGraphFragmentGenerator
                                    BuildXL.Engine.Cache.ETWLogger.Log,
                                    BuildXL.Engine.ETWLogger.Log,
                                    BuildXL.Scheduler.ETWLogger.Log,
+                                   BuildXL.Pips.ETWLogger.Log,
                                    BuildXL.Tracing.ETWLogger.Log,
                                    BuildXL.Storage.ETWLogger.Log,
                                }.Concat(FrontEndControllerFactory.GeneratedEventSources);

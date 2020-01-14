@@ -36,6 +36,7 @@ namespace Test.BuildXL.Engine
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
             Scrubber = new DirectoryScrubber(

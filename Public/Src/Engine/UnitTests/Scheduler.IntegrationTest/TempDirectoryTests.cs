@@ -6,6 +6,7 @@ using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -126,9 +127,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <param name="tempArtifactType"></param>
         [Theory]
-        [InlineData(TempArtifactType.AdditionalTempDirectory, EventId.InvalidInputSinceInputIsOutputWithNoProducer)]
-        [InlineData(TempArtifactType.TempDirectory, EventId.InvalidInputSinceInputIsOutputWithNoProducer)]
-        [InlineData(TempArtifactType.TempFile, EventId.InvalidInputSinceCorrespondingOutputIsTemporary)]
+        [InlineData(TempArtifactType.AdditionalTempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
+        [InlineData(TempArtifactType.TempFile, LogEventId.InvalidInputSinceCorrespondingOutputIsTemporary)]
         public void FailOnTempInput(int tempArtifactType, EventId errorEvent)
         {
             // First pip writes a file to its temp directory
@@ -170,7 +171,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(exception != null);
             XAssert.IsTrue(exception.Message.Contains("Failed to add process pip"));
 
-            AssertErrorEventLogged(EventId.InvalidProcessPipDueToNoOutputArtifacts);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.InvalidProcessPipDueToNoOutputArtifacts);
         }
 
         [Theory]
@@ -189,7 +190,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -204,7 +205,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var copyFilePip = CreateAndScheduleCopyFile(srcFile, destFile);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -221,7 +222,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }).Process;
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
 
@@ -241,7 +242,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -262,7 +263,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             tempOut.Path);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -288,7 +289,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -314,7 +315,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pip = SchedulePipBuilder(builder).Process;
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -336,7 +337,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderWithOutputDirectory);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -361,7 +362,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderWithOutputDirectory);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]
@@ -381,7 +382,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut, tempRoot: sealDir.Path);
 
             PipGraphBuilder.Build();
-            AssertErrorEventLogged(EventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
+            AssertErrorEventLogged(LogEventId.InvalidGraphSinceArtifactPathOverlapsTempPath);
         }
 
         [Theory]

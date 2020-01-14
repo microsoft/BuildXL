@@ -30,7 +30,7 @@ namespace BuildXL.Scheduler.Artifacts
         VerifySourceFilesFailed = 3,
 
         /// <summary>
-        /// Deleting files with hashes of <see cref="WellKnownContentHashes.AbsentFile"/> failed.
+        /// Deleting files with hashes of <see cref="BuildXL.Storage.Fingerprints.WellKnownContentHashes.AbsentFile"/> failed.
         /// </summary>
         DeleteFilesRequiredAbsentFailed = 4,
 

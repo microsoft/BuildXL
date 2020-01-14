@@ -87,6 +87,7 @@ namespace Test.BuildXL
             using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, console, DateTime.Now, viewModel, false, null))
             {
                 listener.RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+                listener.RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
                 var procsExecuting = 10;
                 var procsSucceeded = 10;
                 var procsFailed = 10;

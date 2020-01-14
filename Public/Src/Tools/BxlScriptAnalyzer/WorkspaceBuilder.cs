@@ -194,7 +194,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                         pipGraphBuilder = new PipGraph.Builder(
                             EngineSchedule.CreateEmptyPipTable(engineContext),
                             engineContext,
-                            Scheduler.Tracing.Logger.Log,
+                            Pips.Tracing.Logger.Log,
                             loggingContext,
                             config,
                             mountsTable.MountPathExpander,

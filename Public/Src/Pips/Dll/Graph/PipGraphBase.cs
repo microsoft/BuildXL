@@ -6,17 +6,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Pips;
-using BuildXL.Pips.DirectedGraph;
-using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
+    using BuildXL.Pips.DirectedGraph;
+
     /// <summary>
     /// Base class for PipGraph and PipGraph.Builder containing common state which can safely be accessed during graph build (or providing
     /// override functionality to allow locking) and implementing <see cref="IPipScheduleTraversal"/>
@@ -411,16 +412,16 @@ namespace BuildXL.Scheduler.Graph
             switch (pipType)
             {
                 case PipType.WriteFile:
-                {
-                    Pip pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphQueryFileArtifactPipDataWriteFile);
-                    return ((WriteFile)pip).Contents;
-                }
+                    {
+                        Pip pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphQueryFileArtifactPipDataWriteFile);
+                        return ((WriteFile)pip).Contents;
+                    }
 
                 case PipType.CopyFile:
-                {
-                    Pip pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphQueryFileArtifactPipDataCopyFile);
-                    return QueryFileArtifactPipData(((CopyFile)pip).Source);
-                }
+                    {
+                        Pip pip = PipTable.HydratePip(pipId, PipQueryContext.PipGraphQueryFileArtifactPipDataCopyFile);
+                        return QueryFileArtifactPipData(((CopyFile)pip).Source);
+                    }
             }
 
             return PipData.Invalid;
@@ -669,17 +670,5 @@ namespace BuildXL.Scheduler.Graph
         public int PipCount => PipTable.Count;
 
         #endregion
-    }
-
-    /// <summary>
-    /// View of a filesystem based off of a PipGraph
-    /// </summary>
-    public interface IPipGraphFileSystemView
-    {
-        /// <nodoc/>
-        FileArtifact TryGetLatestFileArtifactForPath(AbsolutePath path);
-
-        /// <nodoc/>
-        bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItSharedOpaque);
     }
 }

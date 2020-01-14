@@ -329,7 +329,7 @@ namespace BuildXL
                         (int)EventId.SourceFileHashingStats,
                         (int)EventId.OutputFileHashingStats,
                         (int)EventId.BuildSetCalculatorStats,
-                        (int)EventId.EndFilterApplyTraversal,
+                        (int)Pips.Tracing.LogEventId.EndFilterApplyTraversal,
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
@@ -821,14 +821,14 @@ namespace BuildXL
                             return ExitKind.BuildFailedWithFileMonErrors;
                         case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
-                        case (int)EventId.InvalidOutputDueToSimpleDoubleWrite:
+                        case (int)BuildXL.Pips.Tracing.LogEventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;
                         case (int)EventId.PipProcessError:
                         case (int)EventId.DistributionWorkerForwardedError:
                             return ExitKind.BuildFailedWithPipErrors;
                         case (int)EventId.CancellationRequested:
                             return ExitKind.BuildCancelled;
-                        case (int)EventId.NoPipsMatchedFilter:
+                        case (int)BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter:
                             return ExitKind.NoPipsMatchFilter;
                     }
                 }
@@ -1162,6 +1162,7 @@ namespace BuildXL
                     global::BuildXL.Engine.ETWLogger.Log,
                     global::BuildXL.Scheduler.ETWLogger.Log,
                     global::BuildXL.Tracing.ETWLogger.Log,
+                    global::BuildXL.Pips.ETWLogger.Log,
                     global::BuildXL.Native.ETWLogger.Log,
                     global::BuildXL.Storage.ETWLogger.Log,
                     global::BuildXL.Processes.ETWLogger.Log,

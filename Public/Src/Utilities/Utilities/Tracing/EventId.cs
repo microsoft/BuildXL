@@ -161,26 +161,26 @@ namespace BuildXL.Utilities.Tracing
 
         // Pip validation
         // Outputs
-        InvalidOutputSinceOutputIsSource = 206,
-        InvalidOutputSincePreviousVersionUsedAsInput = 207,
-        InvalidOutputSinceOutputHasUnexpectedlyHighWriteCount = 208,
-        InvalidOutputSinceRewritingOldVersion = 209,
-        InvalidOutputSinceRewrittenOutputMismatchedWithInput = 210,
-        InvalidOutputDueToSimpleDoubleWrite = 211,
-        InvalidOutputDueToMultipleConflictingRewriteCounts = 212,
+        // Elsewhere = 206,
+        // Elsewhere= 207,
+        // Elsewhere = 208,
+        // Elsewhere = 209,
+        // Elsewhere = 210,
+        // Elsewhere = 211,
+        // Elsewhere = 212,
 
         // Inputs
-        InvalidInputSincePathIsWrittenAndThusNotSource = 213,
+        /// Elsewhere = 213,
         BusyOrUnavailableOutputDirectoriesRetry = 214,
-        InvalidInputSinceInputIsRewritten = 215,
-        InvalidInputDueToMultipleConflictingRewriteCounts = 216,
-        InvalidInputSinceInputIsOutputWithNoProducer = 217,
+        // Elsewhere = 215,
+        // Elsewhere = 216,
+        // Elsewhere = 217,
 
         // Pips
-        InvalidProcessPipDueToNoOutputArtifacts = 218,
+        // Elsewhere = 218,
         InvalidProcessPipDueToExplicitArtifactsInOpaqueDirectory = 219,
-        InvalidCopyFilePipDueToSameSourceAndDestinationPath = 220,
-        InvalidWriteFilePipSinceOutputIsRewritten = 221,
+        // Elsewhere = 220,
+        // Elsewhere = 221,
 
         // Input / output hashing
         IgnoringUntrackedSourceFileNotUnderMount = 222,
@@ -217,14 +217,14 @@ namespace BuildXL.Utilities.Tracing
         InputAssertionMissAfterContentFingerprintCacheDescriptorHit = 245,
 
         // More pip dependency errors
-        InvalidOutputSinceDirectoryHasBeenSealed = 246,
-        InvalidSealDirectoryContentSinceNotUnderRoot = 247,
-        InvalidOutputSinceFileHasBeenPartiallySealed = 248,
-        InvalidSharedOpaqueDirectoryDueToOverlap = 14401,
-        ScheduleFailAddPipInvalidComposedSealDirectoryNotUnderRoot = 14402,
-        ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque = 14403,
+        // Elsewhere = 246,
+        // Elsewhere = 247,
+        // Elsewhere = 248,
+        // Elsewhere = 14401,
+        // Elsewhere = 14402,
+        // Elsewhere = 14403,
 
-        PipStaticFingerprint = 14410,
+        // Elsewhere = 14410,
 
         // Reserved = 250,
         // Reserved = 251,
@@ -266,11 +266,10 @@ namespace BuildXL.Utilities.Tracing
         // Scheduler continued
         StartSchedulingPipsWithFilter = 280,
         EndSchedulingPipsWithFilter = 281,
-        StartFilterApplyTraversal = 282,
-        EndFilterApplyTraversal = 283,
-
-        InvalidSealDirectorySourceNotUnderMount = 284,
-        InvalidSealDirectorySourceNotUnderReadableMount = 285,
+        // Elsewhere = 282,
+        // Elsewhere = 283,
+        // Elsewhere = 284,
+        // Elsewhere = 285,
 
         ProcessNotStoredToCachedDueToItsInherentUncacheability = 286,
         FileAccessWhitelistEntryHasInvalidRegex = 287,
@@ -281,7 +280,7 @@ namespace BuildXL.Utilities.Tracing
         // was ScheduleDirectorySourceSealedTopDirectoryOnly = 292,
         ScheduleArtificialCacheMiss = 293,
         CopyingPipInputToLocalStorage = 294,
-        NoPipsMatchedFilter = 295,
+        // Elsewhere = 295,
         InvalidPipDueToInvalidServicePipDependency = 296,
         FileAccessCheckProbeFailed = 297,
         PipQueueConcurrency = 298,
@@ -289,8 +288,8 @@ namespace BuildXL.Utilities.Tracing
         ScheduleProcessConfiguredUncacheable = 300,
 
         ProcessPipProcessWeight = 301,
-        ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist = 302,
-        ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag = 303,
+        // Elsewhere = 302,
+        // Elsewhere = 303,
 
         // Reserved = 306,
         // Reserved = 307,
@@ -298,7 +297,7 @@ namespace BuildXL.Utilities.Tracing
         // Reserved = 309,
 
         // Pip validation Inputs (continued)
-        InvalidInputSinceCorrespondingOutputIsTemporary = 310,
+        // Elsewehre = 310,
         PipProcessMessageParsingError = 311,
 
         CacheMissAnalysis = 312,
@@ -621,12 +620,12 @@ namespace BuildXL.Utilities.Tracing
         SchedulerDidNotConverge = 1515,
 
         // Scheduler Pip Validation
-        InvalidOutputUnderNonWritableRoot = 2000,
-        InvalidInputUnderNonReadableRoot = 2001,
+        /// Elsewhere = 2000,
+        // Elsewhere = 2001,
         CannotAddCreatePipsDuringConfigOrModuleEvaluation = 2002,
-        InvalidTempDirectoryUnderNonWritableRoot = 2003,
-        InvalidTempDirectoryInvalidPath = 2004,
-        RewritingPreservedOutput = 2005,
+        // Elsewhere = 2003,
+        // Elsewhere = 2004,
+        // Elsewhere = 2005,
 
         // FREE SLOT = 2005,
 
@@ -1100,9 +1099,9 @@ namespace BuildXL.Utilities.Tracing
         DeterminismProbeEncounteredNondeterministicDirectoryOutput = 13007,
 
         // Pip validation continued.
-        InvalidOutputSinceDirectoryHasBeenProducedByAnotherPip = 13100,
-        InvalidOutputSinceOutputIsBothSpecifiedAsFileAndDirectory = 13101,
-        SourceDirectoryUsedAsDependency = 13102,
+        // Elsewhere = 13100,
+        // Elsewhere = 13101,
+        // Elsewhere = 13102,
 
         // Cache initialization
         CacheIsStillBeingInitialized = 13200,
@@ -1131,20 +1130,20 @@ namespace BuildXL.Utilities.Tracing
         HitLowMemorySmell = 14015,
 
         // Graph validation.
-        InvalidGraphSinceOutputDirectoryContainsSourceFile = 14100,
-        InvalidGraphSinceOutputDirectoryContainsOutputFile = 14101,
-        InvalidGraphSinceOutputDirectoryContainsSealedDirectory = 14102,
-        InvalidGraphSinceFullySealedDirectoryIncomplete = 14103,
-        InvalidGraphSinceSourceSealedDirectoryContainsOutputFile = 14104,
-        InvalidGraphSinceSourceSealedDirectoryContainsOutputDirectory = 14105,
-        InvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory = 14106,
-        InvalidGraphSinceOutputDirectoryCoincidesSourceFile = 14107,
-        InvalidGraphSinceOutputDirectoryCoincidesOutputFile = 14108,
-        InvalidGraphSinceOutputDirectoryCoincidesSealedDirectory = 14109,
-        InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile = 14110,
-        InvalidGraphSinceSourceSealedDirectoryCoincidesOutputFile = 14111,
-        PreserveOutputsDoNotApplyToSharedOpaques = 14112,
-        InvalidGraphSinceArtifactPathOverlapsTempPath = 14113,
+        // Elsewhere = 14100,
+        // Elsewhere = 14101,
+        // Elsewhere = 14102,
+        // Elsewhere = 14103,
+        // Elsewhere = 14104,
+        // Elsewhere = 14105,
+        // Elsewhere = 14106,
+        // Elsewhere = 14107,
+        // Elsewhere = 14108,
+        // Elsewhere = 14109,
+        // Elsewhere = 14110,
+        // Elsewhere = 14111,
+        // Elsewhere = 14112,
+        // Elsewhere = 14113,
 
         // Dirty build
         DirtyBuildExplicitlyRequestedModules = 14200,

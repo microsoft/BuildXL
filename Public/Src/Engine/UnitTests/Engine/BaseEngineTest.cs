@@ -60,6 +60,7 @@ namespace Test.BuildXL.Engine
             m_ignoreWarnings = OperatingSystemHelper.IsUnixOS; // ignoring /bin/sh is being used as a source file 
 
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);

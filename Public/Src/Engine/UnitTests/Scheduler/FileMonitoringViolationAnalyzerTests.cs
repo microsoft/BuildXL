@@ -39,6 +39,7 @@ namespace Test.BuildXL.Scheduler
             : base(output) 
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]

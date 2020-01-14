@@ -15,7 +15,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using Process = BuildXL.Pips.Operations.Process;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Provides fine-grained read/write (ie shared/exclusive) locking for paths and pips.

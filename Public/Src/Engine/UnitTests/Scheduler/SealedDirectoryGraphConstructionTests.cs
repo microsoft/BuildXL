@@ -5,12 +5,12 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -29,6 +29,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]
@@ -68,7 +69,7 @@ namespace Test.BuildXL.Scheduler
                 FileArtifact elsewhere = FileArtifact.CreateSourceFile(env.Paths.CreateAbsolutePath(env.SourceRoot, "elsewhere"));
 
                 AssertCannotScheduleSealDirectory(env, directoryPath, a, elsewhere);
-                AssertErrorEventLogged(EventId.InvalidSealDirectoryContentSinceNotUnderRoot);
+                AssertErrorEventLogged(LogEventId.InvalidSealDirectoryContentSinceNotUnderRoot);
 
                 ScheduleSealDirectory(env, directoryPath, a);
             }
@@ -118,7 +119,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, a, b);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceFullySealedDirectoryIncomplete, 2);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncomplete, 2);
             }
         }
 
@@ -135,7 +136,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, a2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceFullySealedDirectoryIncomplete);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncomplete);
             }
         }
 
@@ -150,7 +151,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSourceSealDirectory(env, directoryPath, allDirectories: false);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
             }
         }
 
@@ -165,7 +166,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSourceSealDirectory(env, directoryPath, allDirectories: true);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryContainsOutputFile);
             }
         }
 
@@ -189,7 +190,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
             }
         }
 
@@ -213,7 +214,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip1);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesSourceFile);
             }
         }
 
@@ -236,7 +237,7 @@ namespace Test.BuildXL.Scheduler
                 env.PipConstructionHelper.AddProcess(pip2);
 
                 XAssert.IsNull(env.PipGraph.Build());
-                AssertErrorEventLogged(EventId.InvalidGraphSinceSourceSealedDirectoryCoincidesOutputFile);
+                AssertErrorEventLogged(LogEventId.InvalidGraphSinceSourceSealedDirectoryCoincidesOutputFile);
             }
         }
 
@@ -258,7 +259,7 @@ namespace Test.BuildXL.Scheduler
                 pip1.AddOutputFile(path);
                 XAssert.IsFalse(env.PipConstructionHelper.TryAddProcess(pip1));
 
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 
@@ -273,9 +274,9 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealDirectory(env, directoryPath, existing);
 
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, directoryPath, "existing");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, directoryPath, "new");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 
@@ -331,7 +332,7 @@ namespace Test.BuildXL.Scheduler
                 ScheduleSealPartialDirectory(env, directoryPath, a, b);
 
                 AssertCannotScheduleRewrite(env, a, b);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceFileHasBeenPartiallySealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceFileHasBeenPartiallySealed);
             }
         }
 
@@ -349,26 +350,26 @@ namespace Test.BuildXL.Scheduler
 
                 // Can't write partiallySealedFile
                 AssertCannotScheduleRewrite(env, nextFile, partiallySealedFile);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceFileHasBeenPartiallySealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceFileHasBeenPartiallySealed);
 
                 // But can do the reverse (haven't sealed the sibling)
                 FileArtifact rewrittenNextFile = ScheduleRewrite(env, partiallySealedFile, nextFile);
 
                 AssertCannotScheduleSealDirectory(env, outerPath, partiallySealedFile, nextFile);
-                AssertErrorEventLogged(EventId.InvalidInputSinceInputIsRewritten);
+                AssertErrorEventLogged(LogEventId.InvalidInputSinceInputIsRewritten);
                 ScheduleSealDirectory(env, outerPath, partiallySealedFile, rewrittenNextFile);
 
                 // Now both are sealed, and no new files can be added.
 
                 AssertCannotScheduleRewrite(env, partiallySealedFile, rewrittenNextFile);
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
 
                 // What would be a double-write normally is now a seal-related error.
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, innerPath, "newer");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
 
                 AssertCannotScheduleWriteOutputFileUnderDirectory(env, innerPath, "newest");
-                AssertErrorEventLogged(EventId.InvalidOutputSinceDirectoryHasBeenSealed);
+                AssertErrorEventLogged(LogEventId.InvalidOutputSinceDirectoryHasBeenSealed);
             }
         }
 

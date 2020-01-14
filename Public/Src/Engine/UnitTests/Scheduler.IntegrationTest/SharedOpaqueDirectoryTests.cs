@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,6 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
@@ -169,7 +169,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueDir, fileToProduceStatically: FileArtifact.Invalid, sourceFileToRead: FileArtifact.Invalid, CreateOutputFileArtifact(sharedOpaqueDir));
 
             RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(EventId.PreserveOutputsDoNotApplyToSharedOpaques);
+            AssertWarningEventLogged(global::BuildXL.Pips.Tracing.LogEventId.PreserveOutputsDoNotApplyToSharedOpaques);
         }
 
         /// <summary>

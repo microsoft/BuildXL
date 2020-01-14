@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips.DirectedGraph;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage.ChangeTracking;

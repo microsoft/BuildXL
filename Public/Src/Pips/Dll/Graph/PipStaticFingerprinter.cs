@@ -10,7 +10,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
-namespace BuildXL.Scheduler.Fingerprints
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Computes pip static fingerprints.

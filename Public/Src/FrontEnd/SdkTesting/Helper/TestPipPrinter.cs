@@ -7,8 +7,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using TypeScript.Net.Types;
 
@@ -69,7 +71,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// <summary>
         /// Prints a pipGraph. Relies on the TypeScript.Net pretty printer
         /// </summary>
-        public string Print(IPipScheduleTraversal pipGraph)
+        public string Print(PipGraph.Builder pipGraph)
         {
             var sourceFile = Generate(pipGraph);
             return sourceFile.ToDisplayString();
@@ -79,7 +81,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// Generates a SourceFile from a PipGraph
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011")]
-        public ISourceFile Generate(IPipScheduleTraversal pipGraph)
+        public ISourceFile Generate(PipGraph.Builder pipGraph)
         {
             var statements = new List<IStatement>();
             foreach (var pip in pipGraph.RetrieveScheduledPips())

@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,12 +22,14 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
+    using BuildXL.Pips.DirectedGraph;
+
     /// <summary>
     /// Defines graph of pips and allows adding Pips with validation.
     /// </summary>
-    public sealed partial class PipGraph : PipGraphBase, IQueryablePipDependencyGraph
+    public sealed partial class PipGraph : PipGraphBase, IQueryablePipDependencyGraph, IPipScheduleTraversal
     {
         /// <summary>
         /// Envelope for graph serialization
@@ -137,7 +141,7 @@ namespace BuildXL.Scheduler.Graph
         /// TODO: This will not return correct results w.r.t. meta-pips, e.g. spec file pips. Need to get meta-pips ordered correctly (i.e., add them topologically).
         /// Mis-ordering is ignored for now to unblock dependency violation analysis for real pips.
         /// </remarks>
-        internal bool IsReachableFrom(NodeId from, NodeId to)
+        public bool IsReachableFrom(NodeId from, NodeId to)
         {
             if (from == PipId.DummyHashSourceFilePipId.ToNodeId() || to == PipId.DummyHashSourceFilePipId.ToNodeId())
             {
@@ -1026,10 +1030,11 @@ namespace BuildXL.Scheduler.Graph
 
         #region Filtering
 
+
         /// <summary>
         /// Applies the filter to each node in the build graph.
         /// </summary>
-        internal bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
+        public bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
         {
             Contract.Ensures(Contract.ValueAtReturn(out filteredIn) != null);
 
@@ -1042,8 +1047,8 @@ namespace BuildXL.Scheduler.Graph
             using (PerformanceMeasurement.Start(
                 loggingContext,
                 Statistics.ApplyingFilterToPips,
-                BuildXL.Scheduler.Tracing.Logger.Log.StartFilterApplyTraversal,
-                BuildXL.Scheduler.Tracing.Logger.Log.EndFilterApplyTraversal))
+                Tracing.Logger.Log.StartFilterApplyTraversal,
+                Tracing.Logger.Log.EndFilterApplyTraversal))
             {
                 Contract.Assert(
                     !filter.IsEmpty,
@@ -1149,7 +1154,7 @@ namespace BuildXL.Scheduler.Graph
                 if (addAttempts == 0)
                 {
                     Contract.Assume(outputs.Count == 0);
-                    BuildXL.Scheduler.Tracing.Logger.Log.NoPipsMatchedFilter(loggingContext, filter.FilterExpression);
+                    Tracing.Logger.Log.NoPipsMatchedFilter(loggingContext, filter.FilterExpression);
                     return false;
                 }
             }
@@ -1220,7 +1225,7 @@ namespace BuildXL.Scheduler.Graph
             {
                 return m_cachedOutputs.TryGetValue(pipFilter, out outputs);
             }
-
+        
             public void CacheOutputs(PipFilter pipFilter, IReadOnlySet<FileOrDirectoryArtifact> outputs)
             {
                 m_cachedOutputs[pipFilter] = outputs;
@@ -1232,7 +1237,7 @@ namespace BuildXL.Scheduler.Graph
                 {
                     return ReferenceEquals(x, y);
                 }
-
+        
                 public int GetHashCode(PipFilter obj)
                 {
                     // For filter-output cache key, we use the pointer value of the object
@@ -1250,7 +1255,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Gets filtered outputs appropriate for a clean operation
         /// </summary>
-        internal IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter)
+        public IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter)
         {
             var outputs = FilterOutputs(filter);
 

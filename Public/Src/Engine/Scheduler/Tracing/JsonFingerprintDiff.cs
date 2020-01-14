@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using Newtonsoft.Json.Linq;

@@ -4,21 +4,18 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.DirectedGraph;
-using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Performance;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
@@ -28,11 +25,11 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
-using Logger = BuildXL.Scheduler.Tracing.Logger;
+using Logger = BuildXL.Pips.Tracing.Logger;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Defines graph of pips and allows adding Pips with validation.
@@ -156,7 +153,7 @@ namespace BuildXL.Scheduler.Graph
             /// </summary>
             /// <remarks>
             /// Enumerating these mappings can be used to find seals containing particular files.
-            /// Internaly exposes the seal directory table which is used by <see cref="PatchablePipGraph"/> to
+            /// Internaly exposes the seal directory table which is used by BuildXL.Scheduler.Graph.PatchablePipGraph to
             /// mark 'start' and 'finish' of graph patching.
             /// </remarks>
             internal SealedDirectoryTable SealDirectoryTable { get; }
@@ -249,7 +246,7 @@ namespace BuildXL.Scheduler.Graph
                             : StringId.Invalid;
 
                         var semistableProcessFingerprint =
-                            PerformanceDataUtilities.ComputeGraphSemistableFingerprint(LoggingContext, PipTable, Context.PathTable);
+                            ComputeGraphSemistableFingerprint(LoggingContext, PipTable, Context.PathTable);
 
                         var pipGraphState = new SerializedState(
                             values: Values,
@@ -295,6 +292,69 @@ namespace BuildXL.Scheduler.Graph
                 return m_immutablePipGraph;
             }
 
+
+            /// <summary>
+            /// Computes a fingerprint for the graph which highly correlates to graphs representing
+            /// the same or nearly the sames sets of process pips for performance data
+            /// </summary>
+            /// <remarks>
+            /// This is calculated by taking the first N (randomly chosen as 16) process semistable hashes after sorting.
+            /// This provides a stable fingerprint because it is unlikely that modifications to this pip graph
+            /// will change those semistable hashes. Further, it is unlikely that pip graphs of different codebases
+            /// will share these values.
+            /// </remarks>
+            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
+            public static ContentFingerprint ComputeGraphSemistableFingerprint(
+                LoggingContext loggingContext,
+                PipTable pipTable,
+                PathTable pathTable)
+            {
+                var processSemistableHashes = pipTable.StableKeys
+                    .Select(pipId => pipTable.GetMutable(pipId))
+                    .Where(info => info.PipType == PipType.Process)
+                    .Select(info => info.SemiStableHash)
+                    .ToList();
+
+                processSemistableHashes.Sort();
+
+                var indicatorHashes = processSemistableHashes.Take(16).ToArray();
+
+                using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
+                {
+                    hasher.Add("Type", "GraphSemistableFingerprint");
+
+                    foreach (var indicatorHash in indicatorHashes)
+                    {
+                        hasher.Add("IndicatorPipSemistableHash", indicatorHash);
+                    }
+
+                    var fingerprint = new ContentFingerprint(hasher.GenerateHash());
+                    Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Computed graph semistable fingerprint: {fingerprint}"));
+                    return fingerprint;
+                }
+            }
+
+
+            /// <inheritdoc />
+            public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
+            {
+                return ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: false);
+            }
+
+            /// <inheritdoc />
+            public GraphPatchingStatistics PartiallyReloadGraph(HashSet<AbsolutePath> affectedSpecs)
+            {
+                Contract.Requires(affectedSpecs != null);
+
+                throw new InvalidOperationException("This graph builder does not support graph patching. Only PatchablePipGraph does.");
+            }
+
+            /// <inheritdoc />
+            public void SetSpecsToIgnore(IEnumerable<AbsolutePath> specsToIgnore)
+            {
+                throw new InvalidOperationException("This graph builder does not support graph patching. Only PatchablePipGraph does.");
+            }
+
             /// <inheritdoc />
             public override NodeId GetSealedDirectoryNode(DirectoryArtifact directoryArtifact)
             {
@@ -308,13 +368,6 @@ namespace BuildXL.Scheduler.Graph
                     ? m_macOsDefaults.Value.ProcessDefaults(processBuilder, untrackInsteadSourceSeal)
                     : m_windowsOsDefaults.Value.ProcessDefaults(processBuilder);
             }
-
-            /// <inheritdoc />
-            public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
-            {
-                return ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: false);
-            }
-
 
             #region Validation
 
@@ -3321,44 +3374,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             #endregion Event Logging
-
-            #region IPipScheduleTraversal Members
-
-            public override IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip)
-            {
-                // TODO: This lock would no longer be required if pips must be added in dependency first order
-                // since the set of dependencies would not change after adding a pip
-                using (LockManager.AcquireLock(pip.PipId))
-                {
-                    return base.RetrievePipImmediateDependencies(pip);
-                }
-            }
-
-            public override IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip)
-            {
-                // TODO: This lock would no longer be required if pips must be added in dependency first order
-                // since the set of dependencies would not change after adding a pip
-                using (LockManager.AcquireLock(pip.PipId))
-                {
-                    return base.RetrievePipImmediateDependents(pip).ToArray();
-                }
-            }
-
-            /// <inheritdoc />
-            public GraphPatchingStatistics PartiallyReloadGraph(HashSet<AbsolutePath> affectedSpecs)
-            {
-                Contract.Requires(affectedSpecs != null);
-
-                throw new InvalidOperationException("This graph builder does not support graph patching");
-            }
-
-            /// <inheritdoc />
-            public void SetSpecsToIgnore(IEnumerable<AbsolutePath> specsToIgnore)
-            {
-                throw new InvalidOperationException("This graph builder does not support graph patching");
-            }
-
-            #endregion
         }
     }
 }
+ 

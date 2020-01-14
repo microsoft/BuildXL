@@ -14,6 +14,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;

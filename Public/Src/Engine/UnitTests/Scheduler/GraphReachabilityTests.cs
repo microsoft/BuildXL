@@ -3,7 +3,7 @@
 
 using System;
 using BuildXL.Pips.DirectedGraph;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

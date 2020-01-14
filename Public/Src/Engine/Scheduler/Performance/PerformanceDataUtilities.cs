@@ -35,49 +35,8 @@ namespace BuildXL.Scheduler.Performance
         public const int PerformanceDataLookupVersion = 1;
 
         /// <summary>
-        /// Computes a fingerprint for the graph which highly correlates to graphs representing
-        /// the same or nearly the sames sets of process pips for performance data
-        /// </summary>
-        /// <remarks>
-        /// This is calculated by taking the first N (randomly chosen as 16) process semistable hashes after sorting.
-        /// This provides a stable fingerprint because it is unlikely that modifications to this pip graph
-        /// will change those semistable hashes. Further, it is unlikely that pip graphs of different codebases
-        /// will share these values.
-        /// </remarks>
-        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
-        public static ContentFingerprint ComputeGraphSemistableFingerprint(
-            LoggingContext loggingContext,
-            PipTable pipTable,
-            PathTable pathTable)
-        {
-            var processSemistableHashes = pipTable.StableKeys
-                .Select(pipId => pipTable.GetMutable(pipId))
-                .Where(info => info.PipType == PipType.Process)
-                .Select(info => info.SemiStableHash)
-                .ToList();
-
-            processSemistableHashes.Sort();
-
-            var indicatorHashes = processSemistableHashes.Take(16).ToArray();
-
-            using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
-            {
-                hasher.Add("Type", "GraphSemistableFingerprint");
-
-                foreach (var indicatorHash in indicatorHashes)
-                {
-                    hasher.Add("IndicatorPipSemistableHash", indicatorHash);
-                }
-
-                var fingerprint = new ContentFingerprint(hasher.GenerateHash());
-                Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Computed graph semistable fingerprint: {fingerprint}"));
-                return fingerprint;
-            }
-        }
-
-        /// <summary>
         /// Computes based a stable fingerprint for performance data based on the graph semistable fingerprint.
-        /// <see cref="ComputeGraphSemistableFingerprint(LoggingContext, PipTable, PathTable)"/> and <see cref="PipGraph.SemistableFingerprint"/>
+        /// <see cref="BuildXL.Pips.Graph.PipGraph.Builder.ComputeGraphSemistableFingerprint(LoggingContext, PipTable, PathTable)"/> and <see cref="BuildXL.Pips.Graph.PipGraph.SemistableFingerprint"/>
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
         public static ContentFingerprint ComputePerformanceDataFingerprint(

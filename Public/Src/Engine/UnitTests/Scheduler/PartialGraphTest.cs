@@ -246,7 +246,7 @@ namespace Test.BuildXL.Scheduler
             return new PipGraph.Builder(
                 CreatePipTable(),
                 Context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 LoggingContext,
                 new ConfigurationImpl(), 
                 Expander);

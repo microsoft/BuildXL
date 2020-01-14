@@ -193,7 +193,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 XAssert.IsTrue(readOnlyTargetDir);
 
                 // Error for pip declaring output /outA under non-writable mount
-                AssertErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+                AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.InvalidOutputUnderNonWritableRoot);
                 return;
             }
 

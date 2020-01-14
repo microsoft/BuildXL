@@ -10,7 +10,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 
-namespace BuildXL.Scheduler.Fingerprints
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Computes a <see cref="ContentFingerprint" /> for given pips. 

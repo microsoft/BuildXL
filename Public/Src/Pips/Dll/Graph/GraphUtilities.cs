@@ -9,13 +9,21 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Graph traversal and analytics.
     /// </summary>
     public static class GraphUtilities
     {
+        /// <summary>
+        /// Global pool of <see cref="RangedNodeSet" /> instances.
+        /// </summary>
+        public static readonly ObjectPool<RangedNodeSet> RangedNodeSetPool =
+            new ObjectPool<RangedNodeSet>(
+                () => new RangedNodeSet(),
+                s => s.Clear());
+
         /// <summary>
         /// Topologically sorts nodes in a given graph.  If no <paramref name="nodes"/> are specified all nodes in the graph
         /// are used (<see cref="IReadonlyDirectedGraph.Nodes"/>); if <paramref name="nodes"/> are specified, they must all
@@ -66,9 +74,9 @@ namespace BuildXL.Scheduler.Graph
                 return false;
             }
 
-            using (PooledObjectWrapper<RangedNodeSet> pooledSetA = SchedulerPools.RangedNodeSetPool.GetInstance())
-            using (PooledObjectWrapper<RangedNodeSet> pooledSetB = SchedulerPools.RangedNodeSetPool.GetInstance())
-            using (PooledObjectWrapper<RangedNodeSet> pooledSetC = SchedulerPools.RangedNodeSetPool.GetInstance())
+            using (PooledObjectWrapper<RangedNodeSet> pooledSetA = RangedNodeSetPool.GetInstance())
+            using (PooledObjectWrapper<RangedNodeSet> pooledSetB = RangedNodeSetPool.GetInstance())
+            using (PooledObjectWrapper<RangedNodeSet> pooledSetC = RangedNodeSetPool.GetInstance())
             {
                 return IsReachableFromInternal(graph, from, to, pooledSetA.Instance, pooledSetB.Instance, pooledSetC.Instance, skipOutOfOrderNodes);
             }

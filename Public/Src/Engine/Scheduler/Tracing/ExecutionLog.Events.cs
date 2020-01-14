@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Distribution;
 using BuildXL.Scheduler.Fingerprints;

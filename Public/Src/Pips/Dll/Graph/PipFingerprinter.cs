@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Engine.Cache;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
@@ -13,7 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.Scheduler.Fingerprints
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Computes fingerprints of given pips. 

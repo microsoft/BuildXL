@@ -14,7 +14,7 @@ using BuildXL.Utilities.Collections;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
-namespace BuildXL.Scheduler
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Allows storing seal directories and creating matching directory artifacts.

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
@@ -17,14 +16,6 @@ namespace BuildXL.Scheduler
     /// </summary>
     public static class SchedulerPools
     {
-        /// <summary>
-        /// Global pool of <see cref="RangedNodeSet" /> instances.
-        /// </summary>
-        public static readonly ObjectPool<RangedNodeSet> RangedNodeSetPool =
-            new ObjectPool<RangedNodeSet>(
-                () => new RangedNodeSet(),
-                s => s.Clear());
-
         /// <summary>
         /// Pool for pathset fingerprint map.
         /// </summary>

@@ -10,7 +10,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using MacPaths = BuildXL.Interop.MacOS.IO;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     partial class PipGraph
     {

@@ -64,6 +64,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Download.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);

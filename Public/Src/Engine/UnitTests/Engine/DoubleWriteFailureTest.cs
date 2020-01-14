@@ -41,7 +41,7 @@ const step2 = Transformer.execute({
             AddModule("TestModule", ("test.dsc", spec), placeInRoot: true );
             RunEngine(expectSuccess: false);
 
-            AssertErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.InvalidOutputDueToSimpleDoubleWrite);
         }
     }
 }

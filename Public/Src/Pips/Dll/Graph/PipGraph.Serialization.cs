@@ -5,8 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
@@ -14,7 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     public sealed partial class PipGraph
     {

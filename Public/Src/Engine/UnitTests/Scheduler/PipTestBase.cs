@@ -342,7 +342,7 @@ namespace Test.BuildXL.Scheduler
             PipGraphBuilder = new PipGraph.Builder(
                 PipTable,
                 Context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 LoggingContext,
                 configuration,
                 Expander,

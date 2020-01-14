@@ -23,6 +23,7 @@ namespace Test.BuildXL.Scheduler
         public void CleanNonexisting()
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
 
             string baseDir = TemporaryDirectory;
             string dir = Path.Combine(baseDir, "DirDoesntExist");

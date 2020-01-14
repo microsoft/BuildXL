@@ -34,6 +34,7 @@ namespace Test.BuildXL.Scheduler
             m_mountInfo = new MountPathExpander(m_context.PathTable);
 
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
         }
 
         [Fact]

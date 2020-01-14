@@ -65,7 +65,7 @@ namespace Test.BuildXL.EngineTests
 
             RunEngine(expectSuccess: false);
 
-            AssertErrorEventLogged(EventId.NoPipsMatchedFilter);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter);
         }
 
         [Fact]

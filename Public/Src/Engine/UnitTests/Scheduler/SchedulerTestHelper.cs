@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Pips.Builders;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;

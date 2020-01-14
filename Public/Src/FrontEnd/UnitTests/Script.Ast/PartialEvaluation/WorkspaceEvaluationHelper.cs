@@ -166,7 +166,7 @@ namespace Test.DScript.Ast.PartialEvaluation
             var graphBuilder = new PipGraph.Builder(
                 new PipTable(PathTable, SymbolTable, initialBufferSize: 16, maxDegreeOfParallelism: Environment.ProcessorCount, debug: false),
                 new EngineContext(CancellationToken.None, PathTable, SymbolTable, new QualifierTable(PathTable.StringTable), FrontEndContext.FileSystem, new TokenTextTable()),
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 FrontEndContext.LoggingContext,
                 new ConfigurationImpl(),
                 new MountPathExpander(PathTable));

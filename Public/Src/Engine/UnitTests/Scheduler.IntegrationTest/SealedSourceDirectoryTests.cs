@@ -170,7 +170,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.ArgumentsBuilder.Add(sourceDirectory);
             builder.AddInputDirectory(sourceDirectory);
             Assert.Throws<BuildXLTestException>(() => SchedulePipBuilder(builder));
-            AssertErrorEventLogged(EventId.SourceDirectoryUsedAsDependency);
+            AssertErrorEventLogged(global::BuildXL.Pips.Tracing.LogEventId.SourceDirectoryUsedAsDependency);
         }
 
         /// <param name="topOnly">When true, the SourceSealedDirectory will be a topOnly. When false, it will be a recursive SourceSealedDirectory</param>

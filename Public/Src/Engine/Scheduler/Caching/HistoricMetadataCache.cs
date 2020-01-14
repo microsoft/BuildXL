@@ -19,6 +19,7 @@ using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;

@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;

@@ -4,9 +4,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using StringPair = System.Collections.Generic.KeyValuePair<string, string>;

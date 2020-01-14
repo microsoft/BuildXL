@@ -4,6 +4,7 @@
 using System.IO;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;

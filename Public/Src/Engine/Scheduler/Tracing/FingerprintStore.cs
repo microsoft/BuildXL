@@ -15,6 +15,7 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -175,7 +176,7 @@ namespace BuildXL.Scheduler.Tracing
 
             /// <summary>
             /// The version changes whenever the fingerprint store format changes or the 
-            /// <see cref="BuildXL.Scheduler.Fingerprints.PipFingerprintingVersion"/> changes
+            /// <see cref="BuildXL.Pips.Graph.PipFingerprintingVersion"/> changes
             /// since a new fingerprint version inherently changes the contents of a fingerprint and what is stored in the fingerprint entry.
             /// 
             /// IMPORTANT: These identifiers must only always increase and never overlap with a prior value.
@@ -183,7 +184,7 @@ namespace BuildXL.Scheduler.Tracing
             /// <remarks>
             /// A change in the version number will cause the entire previous fingerprint store to be deleted.
             /// </remarks>
-            Version = 8 + Fingerprints.PipFingerprintingVersion.TwoPhaseV2,
+            Version = 8 + PipFingerprintingVersion.TwoPhaseV2,
         }
 
         /// <summary>

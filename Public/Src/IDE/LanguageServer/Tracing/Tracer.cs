@@ -101,6 +101,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
                 BuildXL.Engine.Cache.ETWLogger.Log,
                 BuildXL.Engine.ETWLogger.Log,
                 BuildXL.Scheduler.ETWLogger.Log,
+                BuildXL.Pips.ETWLogger.Log,
                 BuildXL.Tracing.ETWLogger.Log,
                 bxlScriptAnalyzer.ETWLogger.Log,
                 BuildXL.Ide.LanguageServer.ETWLogger.Log,

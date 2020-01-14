@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;

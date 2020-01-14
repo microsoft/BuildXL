@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Graph;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Extends <see cref="IMutablePipGraph"/> to add a method (<see cref="Build"/>) for materializing added pips

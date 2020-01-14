@@ -25,7 +25,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
@@ -42,6 +41,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using PipLogEventId = BuildXL.Pips.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -79,6 +79,7 @@ namespace Test.BuildXL.Scheduler
         public SchedulerTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
         }
 
@@ -190,10 +191,10 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { processDestinationArtifact });
 
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputUnderNonReadableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputUnderNonReadableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputUnderNonReadableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputUnderNonReadableRoot);
 
             return RunScheduler();
         }
@@ -245,13 +246,13 @@ namespace Test.BuildXL.Scheduler
                 outputs: new[] { processDestinationArtifact });
 
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(writeFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process));
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputUnderNonWritableRoot);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputUnderNonWritableRoot);
 
             string workingDirectory = Path.Combine(ReadonlyRoot, "processWorking1");
 
@@ -274,7 +275,7 @@ namespace Test.BuildXL.Scheduler
                             PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, Path.Combine(ReadonlyRoot, "processTemp")))
                     });
                 XAssert.IsFalse(PipGraphBuilder.AddProcess(processWithNonWritableTempDirectory));
-                AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryUnderNonWritableRoot);
+                AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryUnderNonWritableRoot);
 
                 Process processWithInvalidPathTempDirectory = CreateProcess(
                     dependencies: new[] { sourceArtifact },
@@ -291,11 +292,11 @@ namespace Test.BuildXL.Scheduler
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
                     // Test setting TEMP environment variable to invalid path causes an error to be logged on Windows only
-                    AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryInvalidPath);
+                    AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryInvalidPath);
                 }
                 else
                 {
-                    AssertSchedulerErrorEventLogged(EventId.InvalidTempDirectoryUnderNonWritableRoot);
+                    AssertSchedulerErrorEventLogged(PipLogEventId.InvalidTempDirectoryUnderNonWritableRoot);
                 }
             }
 
@@ -1072,7 +1073,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputDueToMultipleConflictingRewriteCounts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputDueToMultipleConflictingRewriteCounts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1091,7 +1092,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidProcessPipDueToNoOutputArtifacts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidProcessPipDueToNoOutputArtifacts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1574,6 +1575,12 @@ namespace Test.BuildXL.Scheduler
             AssertErrorEventLogged(eventId, count);
         }
 
+        private void AssertSchedulerErrorEventLogged(PipLogEventId eventId, int count = 1)
+        {
+            Contract.Requires(count >= 0);
+            AssertErrorEventLogged(eventId, count);
+        }
+
         private void AssertPipDescriptionAndProvenanceLogged(Pip pip)
         {
             Contract.Requires(pip != null);
@@ -1633,7 +1640,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(process);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputIsSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputIsSource);
 
             return RunScheduler();
         }
@@ -1659,7 +1666,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(process2));
 
             AssertPipDescriptionAndProvenanceLogged(process2);
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSincePathIsWrittenAndThusNotSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSincePathIsWrittenAndThusNotSource);
 
             return RunScheduler();
         }
@@ -1688,7 +1695,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
 
             return RunScheduler();
         }
@@ -1721,7 +1728,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewrittenOutputMismatchedWithInput);
 
             return RunScheduler();
         }
@@ -1745,7 +1752,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(process);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputHasUnexpectedlyHighWriteCount);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputHasUnexpectedlyHighWriteCount);
 
             return RunScheduler();
         }
@@ -1766,7 +1773,7 @@ namespace Test.BuildXL.Scheduler
             bool addProcess = PipGraphBuilder.AddProcess(process);
             XAssert.IsFalse(addProcess);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToMultipleConflictingRewriteCounts);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToMultipleConflictingRewriteCounts);
             AssertPipDescriptionAndProvenanceLogged(process);
 
             return RunScheduler();
@@ -1800,7 +1807,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(addProcess);
 
             AssertPipDescriptionAndProvenanceLogged(processToo);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
 
             return RunScheduler();
         }
@@ -1834,7 +1841,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(secondWriter));
 
             AssertPipDescriptionAndProvenanceLogged(secondWriter);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceRewritingOldVersion);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceRewritingOldVersion);
 
             return RunScheduler();
         }
@@ -1865,7 +1872,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(sneakyConsumer));
 
             AssertPipDescriptionAndProvenanceLogged(sneakyConsumer);
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSinceInputIsRewritten);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSinceInputIsRewritten);
 
             return RunScheduler();
         }
@@ -1896,7 +1903,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddProcess(unluckyRewriter));
 
             AssertPipDescriptionAndProvenanceLogged(unluckyRewriter);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSincePreviousVersionUsedAsInput);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSincePreviousVersionUsedAsInput);
 
             return RunScheduler();
         }
@@ -1940,7 +1947,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsFalse(PipGraphBuilder.AddCopyFile(copyFile2));
 
             AssertPipDescriptionAndProvenanceLogged(copyFile2);
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
 
             return RunScheduler();
         }
@@ -1959,7 +1966,7 @@ namespace Test.BuildXL.Scheduler
             WriteFile secondWrite = CreateWriteFile(targetArtifact.CreateNextWrittenVersion(), "\n", new List<string> { "4", "5", "6" });
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(secondWrite));
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidWriteFilePipSinceOutputIsRewritten);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidWriteFilePipSinceOutputIsRewritten);
             AssertPipDescriptionAndProvenanceLogged(secondWrite);
 
             return RunScheduler();
@@ -1977,7 +1984,7 @@ namespace Test.BuildXL.Scheduler
             WriteFile secondWrite = CreateWriteFile(targetArtifact, "\n", new List<string> { "4", "5", "6" });
             XAssert.IsFalse(PipGraphBuilder.AddWriteFile(secondWrite));
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputDueToSimpleDoubleWrite);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputDueToSimpleDoubleWrite);
             AssertPipDescriptionAndProvenanceLogged(secondWrite);
 
             return RunScheduler();
@@ -1995,7 +2002,7 @@ namespace Test.BuildXL.Scheduler
             bool addWriteFile = PipGraphBuilder.AddWriteFile(writeFile);
             XAssert.IsFalse(addWriteFile);
 
-            AssertSchedulerErrorEventLogged(EventId.InvalidOutputSinceOutputIsSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidOutputSinceOutputIsSource);
 
             return RunScheduler();
         }
@@ -2224,7 +2231,7 @@ namespace Test.BuildXL.Scheduler
 
             XAssert.IsTrue(PipGraphBuilder.AddCopyFile(copyPip1));
             XAssert.IsFalse(PipGraphBuilder.AddIpcPip(ipcPip, PipId.Invalid));
-            AssertSchedulerErrorEventLogged(EventId.InvalidInputSincePathIsWrittenAndThusNotSource);
+            AssertSchedulerErrorEventLogged(PipLogEventId.InvalidInputSincePathIsWrittenAndThusNotSource);
         }
 
         private void AssertGraphDirectPrecedence(PipGraph graph, Pip prev, Pip next)
@@ -2571,7 +2578,7 @@ namespace Test.BuildXL.Scheduler
                 .WithPreserveOutputWhitelist(output.Path);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder.Build()));
-            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
+            AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag);
 
             var processPipBuilder2 = NewProcessBuilderWithPreDeterminedArgumentsFactory()
                 .WithOutputs(CreateOutputFileArtifact())
@@ -2579,7 +2586,7 @@ namespace Test.BuildXL.Scheduler
                 .WithPreserveOutputWhitelist(CreateOutputFileArtifact().Path);
 
             XAssert.IsFalse(PipGraphBuilder.AddProcess(processPipBuilder2.Build()));
-            AssertSchedulerErrorEventLogged(EventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist);
+            AssertSchedulerErrorEventLogged(PipLogEventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist);
 
         }
 

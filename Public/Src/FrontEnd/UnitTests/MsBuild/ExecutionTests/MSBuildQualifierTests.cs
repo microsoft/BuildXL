@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
@@ -12,7 +11,6 @@ using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Engine;
-using BuildXL.Scheduler.Graph;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {

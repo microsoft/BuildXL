@@ -2,10 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 
 namespace Test.BuildXL.Scheduler.Utils

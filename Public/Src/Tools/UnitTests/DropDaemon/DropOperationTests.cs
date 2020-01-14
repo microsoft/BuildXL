@@ -14,6 +14,7 @@ using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
@@ -462,7 +463,7 @@ namespace Test.Tool.DropDaemon
                 var file = new SealedDirectoryFile(
                     Path.Combine(directoryPath, "file.txt"),
                     new FileArtifact(new AbsolutePath(1), isSourceFile ? 0 : 1),
-                    FileContentInfo.CreateWithUnknownLength(global::BuildXL.Scheduler.WellKnownContentHashes.AbsentFile));
+                    FileContentInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile));
 
                 return IpcResult.Success(cmd.RenderResult(new List<SealedDirectoryFile> { file }));
             });

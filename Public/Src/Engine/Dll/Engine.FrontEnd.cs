@@ -12,6 +12,7 @@ using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips.Filter;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Tracing;
@@ -129,7 +130,7 @@ namespace BuildXL.Engine
             var builder = new PipGraph.Builder(
                 EngineSchedule.CreateEmptyPipTable(Context),
                 Context,
-                Scheduler.Tracing.Logger.Log,
+                BuildXL.Pips.Tracing.Logger.Log,
                 loggingContext,
                 Configuration,
                 mountsTable.MountPathExpander,

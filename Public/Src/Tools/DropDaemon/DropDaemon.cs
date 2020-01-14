@@ -16,6 +16,7 @@ using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;

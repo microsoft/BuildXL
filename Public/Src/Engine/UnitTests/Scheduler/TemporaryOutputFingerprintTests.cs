@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;

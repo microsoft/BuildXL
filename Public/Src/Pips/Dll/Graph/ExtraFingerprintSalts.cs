@@ -6,13 +6,12 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache;
-using BuildXL.Storage;
+using BuildXL.Pips.Fingerprints;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 
-namespace BuildXL.Scheduler.Fingerprints
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// A wrapper that it wraps around all the different salts we use to calculate the WeakFingerprint.
@@ -22,7 +21,7 @@ namespace BuildXL.Scheduler.Fingerprints
     {
         // For non-Unix platforms, this is an arbitrary fixed value
         private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS 
-            ? Processes.SandboxConnectionKext.RequiredKextVersionNumber
+            ? KextInfo.RequiredKextVersionNumber
             : "0";
 
         private static readonly ExtraFingerprintSalts s_defaultValue = new ExtraFingerprintSalts(

@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
-using BuildXL.Scheduler.Graph;
+using BuildXL.Pips.Graph;
 using BuildXL.Utilities;
 using Xunit;
 using Xunit.Abstractions;

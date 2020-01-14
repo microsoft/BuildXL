@@ -3,7 +3,7 @@
 
 using BuildXL.Utilities.Tracing;
 
-namespace BuildXL.Scheduler.Graph
+namespace BuildXL.Pips.Graph
 {
     /// <summary>
     /// Counters for pip graph building.

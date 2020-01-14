@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -56,6 +55,7 @@ namespace Test.BuildXL.Scheduler
         public PipExecutorTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Engine.Cache.ETWLogger.Log);
         }

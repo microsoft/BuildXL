@@ -49,6 +49,7 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.InputChange;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;

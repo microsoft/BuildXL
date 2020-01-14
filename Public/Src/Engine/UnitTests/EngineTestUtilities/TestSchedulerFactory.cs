@@ -10,9 +10,9 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Pips;
+using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -39,7 +39,7 @@ namespace Test.BuildXL.TestUtilities
             return new PipGraph.Builder(
                 pipTable,
                 context,
-                global::BuildXL.Scheduler.Tracing.Logger.Log,
+                global::BuildXL.Pips.Tracing.Logger.Log,
                 BuildXLTestBase.CreateLoggingContextForTest(),
                 configuration,
                 semanticPathExpander);

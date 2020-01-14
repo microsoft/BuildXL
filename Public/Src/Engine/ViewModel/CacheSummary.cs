@@ -27,11 +27,11 @@ namespace BuildXL.ViewModel
                 cacheHitRate = (int)(100.0 * ProcessPipCacheHit / TotalProcessPips);
             }
 
-            var caseRateMessage = $"Process pip cache hits: {cacheHitRate}% ({ProcessPipCacheHit}/{TotalProcessPips}";
+            var caseRateMessage = $"Process pip cache hits: {cacheHitRate}% ({ProcessPipCacheHit}/{TotalProcessPips})";
 
             if (Entries.Count == 0) 
             {
-                writer.WriteDetailedTableEntry("Cache rages", caseRateMessage);
+                writer.WriteDetailedTableEntry("Cache rates", caseRateMessage);
             }
             else
             {

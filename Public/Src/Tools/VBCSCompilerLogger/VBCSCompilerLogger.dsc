@@ -20,11 +20,37 @@ namespace VBCSCompilerLogger {
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
             importFrom("System.Reflection.Metadata").pkg
         ]
+    });
+
+    // We build here the VBCSCompiler logger with an older version
+    // of the CodeAnalysis libraries in order to be able to exercise
+    // legacy behavior. This is for tests only.
+    @@public
+    export const loggerWithOldCodeAnalysis = BuildXLSdk.library({
+        assemblyName: "VBCSCompilerLoggerOldCodeAnalysis",
+        skipDocumentationGeneration: true,
+        sources: globR(d`.`, "*.cs"),
+        references:[
+            ...MSBuild.msbuildReferences,
+            importFrom("Microsoft.CodeAnalysis.VisualBasic.Old").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp.Old").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common.Old").pkg,
+            importFrom("System.Collections.Immutable").pkg,
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Engine").Processes.dll,
+        ],
+        runtimeContent:[
+            importFrom("System.Reflection.Metadata").pkg
+        ],
+        defineConstants: ["TEST"]
     });
 }

@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.CodeAnalysis;
@@ -30,11 +31,31 @@ namespace VBCSCompilerLogger
         private const string VbcToolName = "vbc.exe";
         private AugmentedManifestReporter m_augmentedReporter;
 
+        private readonly ConcurrentBigSet<Diagnostic> m_badSwitchErrors = new ConcurrentBigSet<Diagnostic>();
+
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
             eventSource.MessageRaised += EventSourceOnMessageRaised;
+            eventSource.BuildFinished += EventSourceOnBuildFinished;
+
             m_augmentedReporter = AugmentedManifestReporter.Instance;
+        }
+
+        private void EventSourceOnBuildFinished(object sender, BuildFinishedEventArgs e)
+        {
+            // The build succedeed, but we couldn't recognize some of the switches passed to the compiler
+            // That means the Roslyn parsing classes we are using are older than the version of the compiler this
+            // build is using.
+            // We have to fail the build in this case, since we could be missing switches that imply file accesses
+            if (e.Succeeded && m_badSwitchErrors.Count > 0)
+            {
+                // Should be safe to retrieve all bad switch errors, the build is done.
+                var allMessages = string.Join(Environment.NewLine, m_badSwitchErrors.UnsafeGetList().Select(diagnostic => $"[{diagnostic.Id}] {diagnostic.GetMessage()}"));
+
+                throw new InvalidOperationException("Unrecognized switch(es) passed to the compiler. Even though the compiler supports it, using shared compilation in a sandboxed process requires the build engine to understand all compiler switches." +
+                    $"This probably means the version of the compiler is newer than the version the build engine is aware of. Disabling shared compilation will likely fix the problem. Details: {allMessages}");
+            }
         }
 
         private void EventSourceOnMessageRaised(object sender, BuildMessageEventArgs e)
@@ -70,6 +91,19 @@ namespace VBCSCompilerLogger
                 }
 
                 var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments, commandLine.ProjectFile);
+
+                // In general we don't care about errors in the command line, since any error there will eventually fail the compiler call.
+                // However, we do care about new switches that may represent file accesses that are introduced to the compiler and this logger 
+                // is not aware of.
+                // This means that if the command line comes back with a bad switch error, but the compiler doesn't fail, we need to fail the call. 
+                // Error 2007 represents a bad switch. Unfortunately there doesn't seem to be any public enumeration that defines it properly.
+                var badSwitchErrors = parsedCommandLine.Errors.Where(diagnostic => diagnostic.Id.Contains("2007")).ToList();
+                foreach (var badSwitch in badSwitchErrors)
+                {
+                    // If we find a bad switch error, delay making a decision until we know if the compiler failed or not.
+                    m_badSwitchErrors.Add(badSwitch);
+                }
+
                 RegisterAccesses(parsedCommandLine);
             }
         }
@@ -95,32 +129,40 @@ namespace VBCSCompilerLogger
 
         private void RegisterAccesses(CommandLineArguments args)
         {
+            // Even thought CommandLineArguments class claims to always report back absolute paths, that's not the case.
+            // Use the base directory to resolve relative paths if needed
+            // The base directory is what CommandLineArgument claims to be resolving all paths against anyway
+            var accessRegister = new AccessRegistrar(m_augmentedReporter, args.BaseDirectory);
+
             // All inputs
-            RegisterInputs(args.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, args.BaseDirectory, args.ReferencePaths)));
-            RegisterInputs(args.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, args.BaseDirectory, args.ReferencePaths)));
-            RegisterInputs(args.SourceFiles.Select(source => source.Path));
-            RegisterInputs(args.EmbeddedFiles.Select(embedded => embedded.Path));
-            RegisterInput(args.Win32ResourceFile);
-            RegisterInput(args.Win32Icon);
-            RegisterInput(args.Win32Manifest);
-            RegisterInputs(args.AdditionalFiles.Select(additional => additional.Path));
-            RegisterInput(args.AppConfigPath);
-            RegisterInput(args.RuleSetPath);
-            RegisterInput(args.SourceLink);
-            RegisterInput(args.CompilationOptions.CryptoKeyFile);
-            RegisterInputs(args.AnalyzerConfigPaths);
+            accessRegister.RegisterInputs(args.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, args.BaseDirectory, args.ReferencePaths)));
+            accessRegister.RegisterInputs(args.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, args.BaseDirectory, args.ReferencePaths)));
+            accessRegister.RegisterInputs(args.SourceFiles.Select(source => source.Path));
+            accessRegister.RegisterInputs(args.EmbeddedFiles.Select(embedded => embedded.Path));
+            accessRegister.RegisterInput(args.Win32ResourceFile);
+            accessRegister.RegisterInput(args.Win32Icon);
+            accessRegister.RegisterInput(args.Win32Manifest);
+            accessRegister.RegisterInputs(args.AdditionalFiles.Select(additional => additional.Path));
+            accessRegister.RegisterInput(args.AppConfigPath);
+            accessRegister.RegisterInput(args.RuleSetPath);
+            accessRegister.RegisterInput(args.SourceLink);
+            accessRegister.RegisterInput(args.CompilationOptions.CryptoKeyFile);
+#if !TEST
+            // When building for tests we intentioally use an older version of CommandLinArguments where this field is not available
+            accessRegister.RegisterInputs(args.AnalyzerConfigPaths);
+#endif
 
             // All outputs
-            RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
-            RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));
-            RegisterOutput(args.DocumentationPath);
-            RegisterOutput(args.ErrorLogPath);
-            RegisterOutput(args.OutputRefFilePath);
+            accessRegister.RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
+            accessRegister.RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));
+            accessRegister.RegisterOutput(args.DocumentationPath);
+            accessRegister.RegisterOutput(args.ErrorLogPath);
+            accessRegister.RegisterOutput(args.OutputRefFilePath);
             var outputFileName = ComputeOutputFileName(args);
-            RegisterOutput(Path.Combine(args.OutputDirectory, outputFileName));
+            accessRegister.RegisterOutput(Path.Combine(args.OutputDirectory, outputFileName));
             if (args.EmitPdb)
             {
-                RegisterOutput(Path.Combine(args.OutputDirectory, args.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
+                accessRegister.RegisterOutput(Path.Combine(args.OutputDirectory, args.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
             }
         }
 
@@ -163,39 +205,6 @@ namespace VBCSCompilerLogger
 
             Contract.Assert(!string.IsNullOrEmpty(outputFileName));
             return outputFileName;
-        }
-
-        private void RegisterOutput(string filePath)
-        {
-            RegisterAccess(filePath, m_augmentedReporter.TryReportFileCreations);
-        }
-
-        private void RegisterInput(string filePath)
-        {
-            RegisterAccess(filePath, m_augmentedReporter.TryReportFileReads);
-        }
-
-        private void RegisterInputs(IEnumerable<string> filePaths)
-        {
-            Contract.Requires(filePaths != null);
-
-            if (!m_augmentedReporter.TryReportFileReads(filePaths))
-            {
-                throw new InvalidOperationException($"Failed at reporting augmented file accesses [${string.Join(", ", filePaths)}]");
-            }
-        }
-
-        private void RegisterAccess(string filePath, Func<IEnumerable<string>, bool> tryReport)
-        {
-            if (string.IsNullOrEmpty(filePath))
-            {
-                return;
-            }
-
-            if (!tryReport(new[] { filePath }))
-            {
-                throw new InvalidOperationException($"Failed at reporting an augmented file access for ${filePath}");
-            }
         }
 
         /// <summary>
@@ -245,6 +254,68 @@ namespace VBCSCompilerLogger
         {
             var result = FileUtilities.FileSystem.TryProbePathExistence(path, followSymlink: false);
             return result.Succeeded && result.Result == PathExistence.ExistsAsFile;
+        }
+
+        /// <summary>
+        /// Resolves all relative path registrations against a base path
+        /// </summary>
+        private sealed class AccessRegistrar
+        {
+            private readonly string m_basePath;
+            private readonly AugmentedManifestReporter m_augmentedReporter;
+
+            public AccessRegistrar(AugmentedManifestReporter reporter, string basePath)
+            {
+                Contract.Requires(!string.IsNullOrEmpty(basePath));
+                Contract.Requires(reporter != null);
+
+                m_basePath = basePath;
+                m_augmentedReporter = reporter;
+            }
+
+            public void RegisterOutput(string filePath)
+            {
+                RegisterAccess(filePath, m_augmentedReporter.TryReportFileCreations);
+            }
+
+            public void RegisterInput(string filePath)
+            {
+                RegisterAccess(filePath, m_augmentedReporter.TryReportFileReads);
+            }
+
+            public void RegisterInputs(IEnumerable<string> filePaths)
+            {
+                Contract.Requires(filePaths != null);
+
+                var finalPaths = filePaths.Where(path => !string.IsNullOrEmpty(path)).Select(path => MakeAbsoluteIfNeeded(path));
+
+                if (!m_augmentedReporter.TryReportFileReads(finalPaths))
+                {
+                    throw new InvalidOperationException($"Failed at reporting augmented file accesses [${string.Join(", ", filePaths)}]");
+                }
+            }
+
+            private void RegisterAccess(string filePath, Func<IEnumerable<string>, bool> tryReport)
+            {
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    return;
+                }
+
+                filePath = MakeAbsoluteIfNeeded(filePath);
+
+                if (!tryReport(new[] { filePath }))
+                {
+                    throw new InvalidOperationException($"Failed at reporting an augmented file access for ${filePath}");
+                }
+            }
+
+            private string MakeAbsoluteIfNeeded(string path)
+            {
+                Contract.Requires(!string.IsNullOrEmpty(path));
+
+                return Path.IsPathRooted(path)? path : Path.Combine(m_basePath, path);
+            }
         }
     }
 }

@@ -21,6 +21,7 @@ using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Test.BuildXL.TestUtilities;
 using BuildXL.Utilities;
+using BuildXL.Native.IO;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -280,18 +281,37 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
+        public void ValidateSharedCompilationWithRelativePathsForReferences()
+        {
+            var collector = RunManagedCompilation(useSharedCompilation: true, absolutePathToReference: out string absolutePathToReference, out _);
+            Assert.True(collector.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant()).Any(input => input.Contains(absolutePathToReference.ToUpperInvariant())));
+        }
+
+        [Fact]
         public void ValidateSharedCompilationWithRelativePaths()
         {
-            var collector = RunManagedCompilation(useSharedCompilation: true, out string absolutePathToReference, out _);
-            Assert.True(collector.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant()).Any(input => input.Contains(absolutePathToReference.ToUpperInvariant())));
+            // An empty manifest should be enough
+            var manifestPath = Path.Combine(SourceRoot, "app.manifest");
+            FileUtilities.CreateDirectory(SourceRoot);
+            File.WriteAllText(manifestPath, string.Empty);
+
+            // Let's pass the manifest as a relative path
+            var collector = RunManagedCompilation(
+                useSharedCompilation: true, 
+                absolutePathToReference: out _, 
+                usedTempDirectory: out _, 
+                additionalArgs: "Win32Manifest='app.manifest'");
+
+            // Verify the access was made against the correct absolute path
+            Assert.True(collector.GetAllFileAccessPaths().Select(path => path.ToUpperInvariant()).Any(input => input.Contains(manifestPath.ToUpperInvariant())));
         }
 
         [Fact]
         public void ValidateSharedCompilationAccessesAgainstNonSharedCompilation()
         {
             // Run the same managed csc call with and without shared compilation
-            var sharedAccessCollector = RunManagedCompilation(useSharedCompilation: true, out _, out _);
-            var nonSharedAccessCollector = RunManagedCompilation(useSharedCompilation: false, out _, out var tempDirectory);
+            var sharedAccessCollector = RunManagedCompilation(useSharedCompilation: true, absolutePathToReference: out _, usedTempDirectory: out _);
+            var nonSharedAccessCollector = RunManagedCompilation(useSharedCompilation: false, absolutePathToReference: out _, usedTempDirectory: out var tempDirectory);
 
             // The non-shared accesses should be a subset of the shared ones. Shared access case could be over-reporting since
             // some predicted artifacts may not be accessed at all. This is anyway a conservative check.
@@ -304,7 +324,11 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             XAssert.IsEmpty(diff);
         }
 
-        private FileAccessDetoursListenerCollector RunManagedCompilation(bool useSharedCompilation, out string absolutePathToReference, out AbsolutePath usedTempDirectory)
+        private FileAccessDetoursListenerCollector RunManagedCompilation(
+            bool useSharedCompilation, 
+            out string absolutePathToReference, 
+            out AbsolutePath usedTempDirectory, 
+            string additionalArgs = null)
         {
             // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
             absolutePathToReference = Assembly.GetExecutingAssembly().Location;
@@ -316,7 +340,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 @$"References='{Path.GetFileName(absolutePathToReference)}' 
                    AdditionalLibPaths='{Path.GetDirectoryName(absolutePathToReference)}'
                    NoStandardLib='false'
-                   NoConfig='false'");
+                   NoConfig='false' 
+                   {additionalArgs ?? string.Empty}");
 
             var program = GetHellowWorldProgram();
 

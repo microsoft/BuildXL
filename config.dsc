@@ -93,6 +93,11 @@ config({
                 { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.4.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "3.4.0" },
 
+                // Old code analysis libraries, for tests only
+                { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0", alias: "Microsoft.CodeAnalysis.Common.Old" },
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
+
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },

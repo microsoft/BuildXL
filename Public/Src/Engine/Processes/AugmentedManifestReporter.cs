@@ -186,7 +186,7 @@ namespace BuildXL.Processes
             var process = Process.GetCurrentProcess();
 
             Contract.Requires(!string.IsNullOrEmpty(path));
-            Contract.Requires(Path.IsPathRooted(path));
+            Contract.Requires(Path.IsPathRooted(path), $"Provided path is expected to be rooted, but found '{path}'.");
 
             // The given path may not be canonicalized (e.g. it may contain '..')
             string fullPath;

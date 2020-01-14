@@ -64,10 +64,9 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         private string KextInstallHelper { get; } = string.Format(KextInstallHelperFormat, s_buildXLBin);
 
         /// <summary>
-        /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
-        /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
+        /// <see cref="BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber"/>
         /// </summary>
-        public const string RequiredKextVersionNumber = "3.1.99";
+        public const string RequiredKextVersionNumber = BuildXL.Pips.Fingerprints.KextInfo.RequiredKextVersionNumber;
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem

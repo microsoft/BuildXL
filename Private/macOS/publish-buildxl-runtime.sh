@@ -109,10 +109,10 @@ function updateBuildXLConfigDscFile() {
 function updateRequiredKextVersion() {
     local _newVersion=$1
 
-    updateSingleLineInFile                                                 \
-        ${buildxlDir}/Public/Src/Engine/Processes/SandboxConnectionKext.cs \
-        "public const string RequiredKextVersionNumber = "                 \
-        ' = ".*"'                                                          \
+    updateSingleLineInFile                                         \
+        ${buildxlDir}/Public/Src/Pips/Dll/Fingerprints/KextInfo.cs \
+        "public const string RequiredKextVersionNumber = "         \
+        ' = ".*"'                                                  \
         ' = "'$_newVersion'"'
 }
 

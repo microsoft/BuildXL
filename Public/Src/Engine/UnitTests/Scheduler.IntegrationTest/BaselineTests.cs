@@ -657,12 +657,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Theory]
-        [InlineData(true, "")]
-        [InlineData(false, "")]
-        [InlineData(true, "*")]
-        [InlineData(false, "*")]
-        public void ValidateCachingDirectoryEnumerationReadOnlyMount(bool topLevelTest, string enumeratePattern)
+        [MemberData(nameof(CrossProduct), 
+            new object[] { true, false }, 
+            new object[] { true, false },
+            new object[] { "", "*" })]
+        public void ValidateCachingDirectoryEnumerationReadOnlyMount(bool logObservedFileAccesses, bool topLevelTest, string enumeratePattern)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             AbsolutePath readonlyRootPath;
             AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyRootPath);
             DirectoryArtifact readonlyRootDir = DirectoryArtifact.CreateWithZeroPartialSealId(readonlyRootPath);
@@ -738,9 +740,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
-        [Fact]
-        public void ValidateCachingDirectoryEnumerationWithFilterReadOnlyMount()
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public void ValidateCachingDirectoryEnumerationWithFilterReadOnlyMount(bool logObservedFileAccesses)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             AbsolutePath readonlyPath;
             AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyPath);
             DirectoryArtifact readonlyDir = DirectoryArtifact.CreateWithZeroPartialSealId(readonlyPath);
@@ -868,10 +873,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Theory]
-        [InlineData("*")]
-        [InlineData("*.txt")]
-        public void ValidateCachingDirectoryEnumerationReadWriteMount(string enumeratePattern)
+        [MemberData(nameof(CrossProduct),
+            new object[] { true, false }, 
+            new object[] { "*", "*.txt" })]
+        public void ValidateCachingDirectoryEnumerationReadWriteMount(bool logObservedFileAccesses, string enumeratePattern)
         {
+            Configuration.Sandbox.LogObservedFileAccesses = logObservedFileAccesses;
+
             var outDir = CreateOutputDirectoryArtifact();
             var outDirStr = ArtifactToString(outDir);
             Directory.CreateDirectory(outDirStr);

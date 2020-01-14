@@ -817,7 +817,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             if ((runnable.Step == PipExecutionStep.PostProcess && !executionResult.Converged) ||
-                (!executionResult.Result.IndicatesFailure() && runnable.Step == PipExecutionStep.ExecuteNonProcessPip))
+                (!executionResult.Result.IndicatesNoOutput() && runnable.Step == PipExecutionStep.ExecuteNonProcessPip))
             {
                 // After post process, if process was not converged (i.e. process execution outputs are used
                 // as results because there was no conflicting cache entry when storing to cache),

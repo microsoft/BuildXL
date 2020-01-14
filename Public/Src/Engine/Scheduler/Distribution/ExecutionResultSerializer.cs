@@ -148,7 +148,7 @@ namespace BuildXL.Scheduler.Distribution
                 cacheLookupCounters = CacheLookupPerfInfo.Deserialize(reader);
             }
 
-            if (!result.IndicatesFailure())
+            if (!result.IndicatesNoOutput())
             {
                 // Successful result needs to be changed to not materialized because
                 // the process outputs are not materialized on the local machine.

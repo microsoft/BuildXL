@@ -3250,7 +3250,7 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (!runnablePip.Result.Value.Status.IndicatesFailure() &&
+            if (!runnablePip.Result.Value.Status.IndicatesNoOutput() &&
                 PipArtifacts.CanProduceOutputs(runnablePip.PipType) &&
                 runnablePip.Step != PipExecutionStep.MaterializeOutputs &&
 

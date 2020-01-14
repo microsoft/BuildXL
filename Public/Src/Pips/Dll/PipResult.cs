@@ -178,6 +178,16 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
+        /// Indicates that a pip has no outputs.
+        /// </summary>
+        /// <remarks>
+        /// The <see cref="PipResultStatus.NotMaterialized"/> status is not included because it indicates that the pip has some output, only that
+        /// the outputs are not materialized. The <see cref="PipResultStatus.NotCachedNotExecuted"/> is not included because it doesn't seem to be
+        /// used anywhere.
+        /// </remarks>
+        public static bool IndicatesNoOutput(this PipResultStatus result) => result.IndicatesFailure() || result == PipResultStatus.Skipped;
+
+        /// <summary>
         /// Indicates if a pip's result indications some level of execution, though possibly just an up-to-date check (i.e., not skipped entirely).
         /// </summary>
         [Pure]

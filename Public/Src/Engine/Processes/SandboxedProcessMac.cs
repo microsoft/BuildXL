@@ -361,7 +361,7 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            // Otherwise, wait if there are any alive processes that are not explicitly allowed to survivie
+            // Otherwise, wait if there are any alive processes that are not explicitly allowed to survive
             var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveChildProcesses()).Select(p => Path.GetFileName(p.Path));
             return aliveProcessesNames
                 .Except(AllowedSurvivingChildProcessNames)
@@ -518,7 +518,7 @@ namespace BuildXL.Processes
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
 
                         m_pendingReports.Complete();
-                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
+                        m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
 
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
@@ -537,7 +537,7 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
-                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
+                            m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }
@@ -684,6 +684,13 @@ namespace BuildXL.Processes
             info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
 
             return stdinFileName;
+        }
+
+        private IReadOnlyList<T> NullIfEmpty<T>(IReadOnlyList<T> list)
+        {
+            return list == null || list.Count == 0
+                ? null
+                : list;
         }
 
         private static readonly int s_maxFileAccessStatus = Enum.GetValues(typeof(FileAccessStatus)).Cast<FileAccessStatus>().Max(e => (int)e);

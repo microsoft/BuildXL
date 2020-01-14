@@ -63,7 +63,13 @@ namespace Test.BuildXL.Processes
             {
                 // If we did let it escape, then nothing should have been killed (nor tried to survive and later killed, from the job object point of view)
                 XAssert.IsFalse(result.Killed);
-                XAssert.IsTrue(result.SurvivingChildProcesses == null);
+                if (result.SurvivingChildProcesses != null)
+                {
+                    var survivors = string.Join(
+                        ", ",
+                        result.SurvivingChildProcesses.Select(p => p?.Path != null ? System.IO.Path.GetFileName(p.Path) : "<unknown>"));
+                    XAssert.Fail($"Unexpected {result.SurvivingChildProcesses.Count()} surviving child processes: {survivors}");
+                }
 
                 // Let's retrieve the child process and confirm it survived
                 var infiniteWaiterInfo = RetrieveChildProcessesCreatedBySpawnExe(result).Single();

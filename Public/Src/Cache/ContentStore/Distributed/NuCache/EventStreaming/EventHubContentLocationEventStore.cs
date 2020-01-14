@@ -36,9 +36,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly ContentLocationEventStoreConfiguration _configuration;
         private readonly string _localMachineName;
 
-        private const string SenderMachineKey = "SenderMachine";
-        private const string EventFilterKey = "Epoch";
-        private const string OperationIdKey = "OperationId";
+        private const string SenderMachineEventKey = "SenderMachine";
+        private const string EpochEventKey = "Epoch";
+        private const string OperationIdEventKey = "OperationId";
 
         private readonly IEventHubClient _eventHubClient;
         private readonly RetryPolicy _extraEventHubClientRetryPolicy;
@@ -172,15 +172,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             for (var eventNumber = 0; eventNumber < eventDatas.Count; eventNumber++)
             {
                 var eventData = eventDatas[eventNumber];
-                eventData.Properties[EventFilterKey] = _configuration.Epoch;
-                eventData.Properties[SenderMachineKey] = _localMachineName;
+                eventData.Properties[EpochEventKey] = _configuration.Epoch;
+                eventData.Properties[SenderMachineEventKey] = _localMachineName;
                 counters[SentEventBatchCount].Increment();
 
                 Tracer.Info(
                     context,
                     $"{Tracer.Name}: Sending {eventNumber}/{events.Length} event. OpId={operationId}, Epoch='{_configuration.Epoch}', Size={eventData.Body.Count}.");
                 counters[SentMessagesTotalSize].Add(eventData.Body.Count);
-                eventData.Properties[OperationIdKey] = operationId.ToString();
+                eventData.Properties[OperationIdEventKey] = operationId.ToString();
 
                 // Even though event hub client has it's own built-in retry strategy, we have to wrap all the calls into a separate
                 // one to cover a few more important cases that the default strategy misses.
@@ -313,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private string? TryGetMessageSender(EventData message)
         {
-            message.Properties.TryGetValue(SenderMachineKey, out var sender);
+            message.Properties.TryGetValue(SenderMachineEventKey, out var sender);
             return sender?.ToString();
         }
 
@@ -341,9 +341,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         foreach (var message in input.Messages)
                         {
                             // Extracting information from the message
-                            var foundEventFilter = message.Properties.TryGetValue(EventFilterKey, out var eventFilter);
+                            var foundEpochFilter = message.Properties.TryGetValue(EpochEventKey, out var eventFilter);
 
-                            message.Properties.TryGetValue(OperationIdKey, out var operationId);
+                            message.Properties.TryGetValue(OperationIdEventKey, out var operationId);
 
                             var sender = TryGetMessageSender(message) ?? "Unknown sender";
 
@@ -360,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             counters[ReceivedMessagesTotalSize].Add(message.Body.Count);
                             counters[ReceivedEventBatchCount].Increment();
 
-                            if (!foundEventFilter || !string.Equals(eventFilter as string, _configuration.Epoch))
+                            if (!foundEpochFilter || !string.Equals(eventFilter as string, _configuration.Epoch))
                             {
                                 counters[FilteredEvents].Increment();
                                 continue;

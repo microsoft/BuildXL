@@ -250,7 +250,7 @@ namespace ContentStoreTest.Distributed.Sessions
             task.Should().BeNull("Task is not set when inline is true");
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test")]
         public async Task SkipRestoreCheckpointTest()
         {
             // CleanOnInitialize must be false when skipping restore checkpoint. Otherwise, db directory will be deleted on startup
@@ -490,7 +490,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky test")]
         public async Task ProactiveReplicationDuringStartupTest()
         {
             EnableProactiveReplication = true;

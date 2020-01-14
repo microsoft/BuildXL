@@ -96,6 +96,11 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
 
         private class CustomResult : BoolResult
         {
+            public CustomResult() { }
+
+            public CustomResult(ResultBase other, string message)
+                : base(other, message)
+            { }
         }
 
         private Exception GetException()

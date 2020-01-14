@@ -601,6 +601,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         [DataMember]
+        public int? SilentOperationDurationThreshold { get; set; }
+
+        [DataMember]
         public bool UseFastHibernationPin { get; set; } = false;
 
         [DataMember]

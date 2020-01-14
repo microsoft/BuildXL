@@ -1,6 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -38,6 +41,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         /// <summary>
+        /// If a file system operation takes longer than this threshold it will be traced regardless of other flags.
+        /// </summary>
+        public TimeSpan SilentOperationDurationThreshold { get; set; } = DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+
+        /// <summary>
         /// Whether to skip touching the content and acquiring a hash lock when PinAsync is called by hibernated session.
         /// </summary>
         public bool SkipTouchAndLockAcquisitionWhenPinningFromHibernation { get; set; } = false;
@@ -47,5 +55,15 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <nodoc />
         public SelfCheckSettings? SelfCheckSettings { get; set; }
+    }
+
+    /// <nodoc />
+    public static class ContentStoreSettingsExtensions
+    {
+        /// <nodoc />
+        public static TimeSpan GetLongOperationDurationThreshold(this ContentStoreSettings? settings)
+        {
+            return settings?.SilentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+        }
     }
 }

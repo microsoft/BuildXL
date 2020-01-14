@@ -12,6 +12,17 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Cache.ContentStore.Tracing.Internal
 {
     /// <summary>
+    /// Configurable defaults for tracing configuration.
+    /// </summary>
+    public static class DefaultTracingConfiguration
+    {
+        /// <summary>
+        /// If an operation takes longer than this threshold it will be traced regardless of other flags or options.
+        /// </summary>
+        public static TimeSpan DefaultSilentOperationDurationThreshold { get; set; } = TimeSpan.FromSeconds(10);
+    }
+
+    /// <summary>
     /// A set of extension methods that create helper builder classes for configuring tracing options for an operation.
     /// </summary>
     public static class OperationContextExtensions
@@ -64,6 +75,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         protected string? _extraStartMessage;
         /// <nodoc />
         protected Func<TResult, string>? _endMessageFactory;
+        /// <nodoc />
+        protected TimeSpan _silentOperationDurationThreshold = DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
         /// <nodoc />
@@ -94,7 +108,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
-            Func<TResult, string>? endMessageFactory = null)
+            Func<TResult, string>? endMessageFactory = null,
+            TimeSpan? silentOperationDurationThreshold = null)
         {
             _counter = counter;
             _traceErrorsOnly = traceErrorsOnly;
@@ -102,6 +117,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             _traceOperationFinished = traceOperationFinished;
             _extraStartMessage = extraStartMessage;
             _endMessageFactory = endMessageFactory;
+            _silentOperationDurationThreshold = silentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
 
             return (TBuilder)this;
         }
@@ -118,11 +134,14 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         /// <nodoc />
         protected void TraceOperationFinished(TResult result, TimeSpan duration, string caller)
         {
-            if (_traceOperationFinished)
+            if (_traceOperationFinished || duration > _silentOperationDurationThreshold)
             {
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
-                _tracer.OperationFinished(_context, traceableResult, duration, message, caller, traceErrorsOnly: _traceErrorsOnly);
+
+                // Ignoring _traceErrorsOnly flag if the operation is too long.
+                bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
+                _tracer.OperationFinished(_context, traceableResult, duration, message, caller, traceErrorsOnly: traceErrorsOnly);
             }
         }
 

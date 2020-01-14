@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
@@ -274,7 +275,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            return new ContentStoreSettings()
+            var result = new ContentStoreSettings()
                    {
                        CheckFiles = settings.CheckLocalFiles,
                        UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
@@ -282,8 +283,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                        OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                        UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
                        TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                       
                        SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
                    };
+
+            ApplyIfNotNull(settings.SilentOperationDurationThreshold, v => result.SilentOperationDurationThreshold = TimeSpan.FromSeconds(v));
+            ApplyIfNotNull(settings.SilentOperationDurationThreshold, v => DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold = TimeSpan.FromSeconds(v));
+            return result;
         }
 
         private static SelfCheckSettings CreateSelfCheckSettings(DistributedContentSettings settings)

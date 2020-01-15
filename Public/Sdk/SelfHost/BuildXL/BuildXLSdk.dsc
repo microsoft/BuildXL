@@ -529,7 +529,6 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && qualifier.targetFramework !== "netcoreapp3.1"      // QTest does not support .net core apps
         && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
 }
 

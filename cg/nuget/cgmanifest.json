@@ -1256,6 +1256,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CodeCoverage",
+          "Version": "15.9.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.CodeQuality.Analyzers",
           "Version": "2.3.0-beta1"
         }
@@ -1679,6 +1688,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NET.Test.Sdk",
+          "Version": "15.9.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
           "Version": "3.1.0"
         }
@@ -1924,6 +1942,24 @@
         "NuGet": {
           "Name": "Microsoft.TeamFoundationServer.Client",
           "Version": "15.122.1-preview"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TestPlatform.ObjectModel",
+          "Version": "16.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TestPlatform.TestHost",
+          "Version": "16.4.0"
         }
       }
     },
@@ -2473,6 +2509,15 @@
         "NuGet": {
           "Name": "NuGet.Commandline",
           "Version": "4.7.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NuGet.Frameworks",
+          "Version": "5.0.0"
         }
       }
     },

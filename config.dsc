@@ -138,6 +138,7 @@ config({
                 // Nuget
                 { id: "NuGet.Commandline", version: "4.7.1" },
                 { id: "NuGet.Versioning", version: "4.6.0" }, // Can't use the latest becuase nuget extracts to folder with metadata which we don't support yet.
+                { id: "NuGet.Frameworks", version: "5.0.0"}, // needed for qtest on .net core
 
                 // Cpp Sdk
                 { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS" ] },
@@ -186,8 +187,13 @@ config({
                 { id: "microsoft.dotnet.xunitconsolerunner", version: "2.5.1-beta.19270.4" },
                 { id: "xunit.runner.reporters", version: "2.4.1-pre.build.4059" },
                 { id: "xunit.runner.utility", version: "2.4.1" },
-                { id: "xunit.runner.visualstudio", version: "2.4.1",
-                    dependentPackageIdsToSkip: ["Microsoft.NET.Test.Sdk"]  },
+                { id: "xunit.runner.visualstudio", version: "2.4.1", dependentPackageIdsToSkip: ["Microsoft.NET.Test.Sdk"]  },
+
+                // microsoft test platform
+                { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
+                { id: "Microsoft.TestPlatform.ObjectModel", version: "16.4.0"},
+                { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
+                { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
                 { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1",
                     dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },

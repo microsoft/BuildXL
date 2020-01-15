@@ -33,11 +33,11 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         args);
 }
 
-const netStandardFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
+const netcoreappFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
 const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
-    netStandardFramework,
+    netcoreappFramework,
     "xunit.console",
-    Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
+    "xunit.console.dll",
     xunitReferences,
     undefined, // runtimeContentToSkip
     undefined, // appconfig
@@ -48,18 +48,18 @@ function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.Depl
     return qualifier.targetFramework !== "netcoreapp3.1" ? [] : [
         // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and pacakge it
         // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
-        ...(args.framework === netStandardFramework
+        ...(args.framework === netcoreappFramework
             ? xunitNetStandardRuntimeConfigFiles
             : Managed.RuntimeConfigFiles.createFiles(
                 args.framework,
                 "xunit.console",
-                Managed.Factory.createBinary(xunitNetCoreConsolePackage, r`/lib/netcoreapp2.0/xunit.console.dll`),
+                "xunit.console.dll",
                 xunitReferences,
                 args.runtimeContentToSkip, 
                 undefined, // appConfig
                 true)),
         xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
-        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`),
+        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
     ];
 }
 

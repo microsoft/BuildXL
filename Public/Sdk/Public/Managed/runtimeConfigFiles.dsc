@@ -17,7 +17,7 @@ namespace RuntimeConfigFiles {
     export function createFiles(
         framework: Shared.Framework,
         assemblyName: string,
-        runtimeBinary: Shared.Binary,
+        runtimeBinaryName: string | PathAtom,
         references: Shared.Reference[],
         runtimeContentToSkip: Deployment.DeployableItem[],
         appConfig: File,
@@ -46,7 +46,7 @@ namespace RuntimeConfigFiles {
                 }
 
                 return [
-                    createDependenciesJson(framework, assemblyName, runtimeBinary, references, runtimeContentToSkip, testRunnerDeployment),
+                    createDependenciesJson(framework, assemblyName, runtimeBinaryName, references, runtimeContentToSkip, testRunnerDeployment),
                     createRuntimeConfigJson(framework, assemblyName, runtimeConfigFolder, testRunnerDeployment),
                 ];
             case "none":
@@ -68,7 +68,7 @@ namespace RuntimeConfigFiles {
     function createDependenciesJson(
         framework: Shared.Framework,
         assemblyName: string,
-        runtimeBinary: Shared.Binary,
+        runtimeBinaryName: string | PathAtom,
         references: Shared.Reference[],
         runtimeContentToSkip: Deployment.DeployableItem[],
         testRunnerDeployment?: boolean
@@ -85,7 +85,7 @@ namespace RuntimeConfigFiles {
         // we seed the target and libraries with the current assembly being compiled
         let targetsSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, <Object>{
             dependencies: createDependencies(references).overrideKey(runtimeName, framework.runtimeConfigVersion),
-            runtime: {}.overrideKey(runtimeBinary.binary.name.toString(), {})
+            runtime: {}.overrideKey(runtimeBinaryName.toString(), {})
         });
 
         let librariesSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, {

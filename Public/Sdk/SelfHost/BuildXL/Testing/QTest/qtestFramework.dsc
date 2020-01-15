@@ -9,6 +9,8 @@ import * as Qtest        from "BuildXL.Tools.QTest";
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
 
+const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp");
+
 @@public
 export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os === "win" && {
     exe: qTestContents.getFile(r`tools/DBS.QTest.exe`),
@@ -30,13 +32,42 @@ export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os
 export interface TestRunArguments extends Managed.TestRunArguments, Qtest.QTestArguments {
 };
 
+const netcoreappFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
+
 @@public
 export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.TestFramework {
+    const netcoreReferences = [
+        importFrom("Microsoft.NET.Test.Sdk").pkg,
+        importFrom("Microsoft.TestPlatform.TestHost").pkg,
+        importFrom("Microsoft.TestPlatform.ObjectModel").pkg,
+        importFrom("NuGet.Frameworks").pkg
+        // importFrom("Microsoft.CodeCoverage").pkg, // TODO: NuGet spec generator fails to realize that this package does support netcoreapp1.0
+    ];
+
     return {
         compileArguments: frameworkToWrap.compileArguments,
-        additionalRuntimeContent: (args) => [ 
+        additionalRuntimeContent: (args: Managed.Arguments) => [ 
             ...(frameworkToWrap.additionalRuntimeContent ? frameworkToWrap.additionalRuntimeContent(args) : []), 
-            f`xunit.runner.json` 
+            ...(isDotNetCore ? [
+                ...netcoreReferences,
+                // hand picking files to avoid collisions with xunit assemblies specified elsewhere
+                ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
+                    r`build/netcoreapp1.0/xunit.runner.reporters.netcoreapp10.dll`,
+                    r`build/netcoreapp1.0/xunit.runner.visualstudio.dotnetcore.testadapter.deps.json`,
+                    r`build/netcoreapp1.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
+                    r`build/netcoreapp1.0/xunit.runner.visualstudio.props`
+                ]),
+                // must create a deps.json file for the test assembly listing all dependencies
+                ...Managed.RuntimeConfigFiles.createFiles(
+                    netcoreappFramework,
+                    args.assemblyName,
+                    args.assemblyName + ".dll",
+                    args.references.concat(netcoreReferences),
+                    args.runtimeContentToSkip,
+                    undefined,
+                    true)
+                ] : []),
+            f`xunit.runner.json`
         ],
         runTest: runTest,
         name: `QTest.${frameworkToWrap.name}`,
@@ -116,7 +147,7 @@ function runTest(args : TestRunArguments) : File[] {
     }       
 
     if(filterArgs.length > 0){
-        additionalOptions = `/testcaseFilter:"${filterArgs.join("&")}"`;      
+        additionalOptions = `/testcaseFilter:"${filterArgs.join("&")}"`;
     }
 
     // We use the log directory only when BuildXL is run in CloudBuild.
@@ -130,6 +161,19 @@ function runTest(args : TestRunArguments) : File[] {
 
     const qtestDllLogDir = args.limitGroups ? p`${qtestLogDir}/${args.limitGroups[0]}` : p`${qtestLogDir}`;
     const logDir = d`${qtestDllLogDir}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
+    
+    let qTestRuntimeDependencies = undefined;
+    let qTestEnvironmentVariables = undefined;
+    if (isDotNetCore)
+    {
+        const dotNetTool = importFrom("Sdk.Managed.Frameworks").Helpers.getDotNetToolTemplate();
+        qTestRuntimeDependencies = [
+            ...dotNetTool.dependencies
+        ];
+        qTestEnvironmentVariables = [
+            ...dotNetTool.environmentVariables,
+            {name: "PATH", value: dotNetTool.tool.exe.parent}];
+    }
 
     let result = Qtest.runQTest({
         testAssembly: args.testDeployment.primaryFile.path,
@@ -146,7 +190,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
         qTestTimeoutSec: 540,
-        useVsTest150:true,
+        useVsTest150: true,
         // Setting file can be passed through vstestSettingsFile or vstestSettingsFileForCoverage.
         // For BuildXL selfhost, ensure that the setting file disable parallelism. QTest by default run unit test methods in sequence,
         // but some of test adapter (our selfhost is using a test adapter) do not respect that, and must be told explicitly
@@ -163,7 +207,9 @@ function runTest(args : TestRunArguments) : File[] {
         privilegeLevel: args.privilegeLevel,
         qTestBuildType: qualifier.configuration,
         testSourceDir: Context.getMount("SourceRoot").path.getRelative(Context.getSpecFileDirectory().path),
-        qTestUnsafeArguments: args.unsafeTestRunArguments ? { doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases } : undefined
+        qTestUnsafeArguments: args.unsafeTestRunArguments ? { doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases } : undefined,
+        qTestRuntimeDependencies: qTestRuntimeDependencies,
+        qTestEnvironmentVariables: qTestEnvironmentVariables
     });
 
     return [

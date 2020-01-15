@@ -216,7 +216,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
     if (targetType === "exe")
     {
-        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary, references, args.runtimeContentToSkip, appConfig);
+        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
         if (framework.applicationDeploymentStyle === "selfContained")
         {
             const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);

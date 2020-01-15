@@ -69,7 +69,7 @@ export const framework : Shared.Framework = {
     conditionalCompileDefines: [
         "NET_CORE",
         "NET_COREAPP",
-        "NET_COREAPP_30"
+        "NET_COREAPP_31",
     ],
 };
 

@@ -3,13 +3,15 @@
 
 // InfiniteWaiter.exe - Executable which launches and blocks forever.
 
+using System.Threading;
+
 namespace Test.BuildXL.Executables.InfiniteWaiter
 {
     class Program
     {
         static void Main(string[] args)
         {
-            while (true) { }
+            Thread.Sleep(Timeout.Infinite);
         }
     }
 }

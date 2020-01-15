@@ -31,7 +31,7 @@ namespace Test {
             Library.dll,
 
             importFrom("BuildXL.Utilities").dll,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,

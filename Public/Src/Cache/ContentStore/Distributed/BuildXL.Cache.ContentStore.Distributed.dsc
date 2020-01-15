@@ -30,7 +30,9 @@ namespace Distributed {
             ...eventHubPackagages,
             // Intentionally using different Azure storage package
             importFrom("WindowsAzure.Storage").pkg,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+
+            ...redisPackages,
+
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             UtilitiesCore.dll,
             Hashing.dll,

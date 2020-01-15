@@ -33,7 +33,7 @@ namespace DistributedTest {
             Library.dll,
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("System.Interactive.Async").pkg,
         ],
         runtimeContent: [

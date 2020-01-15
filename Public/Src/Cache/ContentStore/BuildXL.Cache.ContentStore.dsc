@@ -12,6 +12,26 @@ export {BuildXLSdk};
 
 export const NetFx = BuildXLSdk.NetFx;
 
+@@public
+export const redisPackages = [
+    importFrom("StackExchange.Redis").pkg,
+    ...(BuildXLSdk.isFullFramework 
+        ? [ 
+            // Needed because net472 -> netstandard2.0 translation is not yet supported by the NuGet resolver.
+            importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
+          ] 
+        : [
+            importFrom("System.IO.Pipelines").pkg,
+            importFrom("System.Threading.Channels").pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").pkg
+          ]),
+    // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
+    importFrom("System.Threading.Tasks.Extensions").pkg,
+    importFrom("Pipelines.Sockets.Unofficial").pkg,
+];
+
 namespace Default {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
 

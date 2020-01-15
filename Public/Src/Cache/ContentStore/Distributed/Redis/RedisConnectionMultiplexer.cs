@@ -70,9 +70,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(ConfigurationOptions options)
         {
-            var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(options);
-            connectionMultiplexer.PreserveAsyncOrder = false;
-            return connectionMultiplexer;
+            return await ConnectionMultiplexer.ConnectAsync(options);
         }
 
         private static string AllowAdminIfNeeded(string connectionString)

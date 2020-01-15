@@ -33,7 +33,7 @@ namespace BuildCacheAdapter {
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
 
             BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("WindowsAzure.Storage").pkg,
         ],
         runtimeContentToSkip: [

@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using StackExchange.Redis;
+using StackExchange.Redis.Profiling;
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -37,6 +38,8 @@ namespace ContentStoreTest.Distributed.Redis
 
         public bool IncludeDetailInExceptions { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public int StormLogThreshold { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public bool IsConnecting => throw new NotImplementedException();
 
         public event EventHandler<RedisErrorEventArgs> ErrorMessage { add { } remove { } }
         public event EventHandler<ConnectionFailedEventArgs> ConnectionFailed { add { } remove { } }
@@ -76,6 +79,11 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public void ExportConfiguration(Stream destination, StackExchange.Redis.ExportOptions options = (StackExchange.Redis.ExportOptions)(-1))
+        {
+            throw new NotImplementedException();
+        }
+
         public ProfiledCommandEnumerable FinishProfiling(object forContext, bool allowCleanupSweep = true)
         {
             throw new NotImplementedException();
@@ -108,6 +116,11 @@ namespace ContentStoreTest.Distributed.Redis
         }
 
         public EndPoint[] GetEndPoints(bool configuredOnly = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int GetHashSlot(RedisKey key)
         {
             throw new NotImplementedException();
         }
@@ -167,7 +180,7 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
-        public void RegisterProfiler(IProfiler profiler)
+        public void RegisterProfiler(Func<ProfilingSession> profilingSessionProvider)
         {
             throw new NotImplementedException();
         }

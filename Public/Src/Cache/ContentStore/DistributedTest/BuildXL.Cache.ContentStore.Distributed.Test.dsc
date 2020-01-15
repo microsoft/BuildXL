@@ -43,7 +43,7 @@ namespace DistributedTest {
             importFrom("Grpc.Core").pkg,
             importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
 
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            importFrom("StackExchange.Redis").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
             importFrom("WindowsAzure.Storage").pkg,

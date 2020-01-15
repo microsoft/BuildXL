@@ -84,6 +84,7 @@ export function test(args: TestArguments): Managed.TestResult {
         skipDocumentationGeneration: true,
         references: [
             SdkTesting.Helper.dll,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
             ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences
         ],
         tools: {

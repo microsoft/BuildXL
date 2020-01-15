@@ -30,7 +30,7 @@ namespace VstsTest {
             Vsts.dll,
 
             importFrom("Newtonsoft.Json.v10").pkg,
-            importFrom("StackExchange.Redis.StrongName").pkg,
+            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,

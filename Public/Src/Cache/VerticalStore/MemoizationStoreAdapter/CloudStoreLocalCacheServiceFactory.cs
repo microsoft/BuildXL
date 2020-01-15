@@ -51,7 +51,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <summary>
             /// The Id of the cache instance.
             /// </summary>
-            [DefaultValue("CasServiceCache")]
+            [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
 
             /// <summary>

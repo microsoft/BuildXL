@@ -35,7 +35,7 @@ namespace BuildXL.Cache.BasicFilesystem
             /// <summary>
             /// The Id of the cache instance
             /// </summary>
-            [DefaultValue("BasicFilesystemCache")]
+            [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
 
             /// <summary>

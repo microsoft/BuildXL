@@ -31,7 +31,7 @@ namespace BuildXL.Cache.Compositing
             /// <summary>
             /// The Id of the cache instance
             /// </summary>
-            [DefaultValue("CompositingCache")]
+            [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
 
             /// <summary>

@@ -31,7 +31,7 @@ namespace BuildXL.Cache.InMemory
             /// <summary>
             /// The Id of the cache instance
             /// </summary>
-            [DefaultValue("MemCache")]
+            [DefaultValue(typeof(CacheId))]
             public CacheId CacheId { get; set; }
 
             /// <summary>

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -10,10 +10,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using BuildXL.Utilities.Collections;
 using BuildXL.Ide.JsonRpc;
-using BuildXL.Ide.LanguageServer.Server.Utilities;
-using JetBrains.Annotations;
+using BuildXL.Utilities.Collections;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Binding;
@@ -24,9 +22,7 @@ using TypeScript.Net.Reformatter;
 using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
-using ISymbol = TypeScript.Net.Types.ISymbol;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -446,7 +442,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             throw new NotImplementedException();
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private static List<int> GetPossibleSymbolReferencePositions(
             ISourceFile sourceFile,
             string symbolName,

@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Threading;
-using System.Diagnostics.Tracing;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;

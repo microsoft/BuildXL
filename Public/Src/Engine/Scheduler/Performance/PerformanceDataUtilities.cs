@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
@@ -11,8 +10,6 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.SinglePhase;
 using BuildXL.Pips;
-using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;

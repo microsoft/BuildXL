@@ -1,12 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 
 namespace BuildXL.Cache.ContentStore.Vfs.Provider
 {
-    using Utils = Microsoft.Windows.ProjFS.Utils;
-
     /// <summary>
     /// Represents an active filesystem enumeration of a directory with cursor.
     /// </summary>
@@ -115,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
                 return true;
             }
 
-            return Utils.IsFileNameMatch(name, filter);
+            return Microsoft.Windows.ProjFS.Utils.IsFileNameMatch(name, filter);
         }
 
         private void SaveFilter(

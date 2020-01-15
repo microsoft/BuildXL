@@ -1,5 +1,8 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using BuildXL.Pips;
-using Logger = BuildXL.Scheduler.Tracing.Logger;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;

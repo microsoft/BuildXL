@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,7 +18,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 namespace BuildXL.Cache.ContentStore.Stores
 {
     /// <summary>
-    /// Options to control the behavior of <see cref="IContentStoreInternal.PinAsync(Context, IReadOnlyList{ContentHash}, PinContext, PinBulkOptions)"/>.
+    /// Options to control the behavior of <see cref="IContentStoreInternal.PinAsync(Context, System.Collections.Generic.IReadOnlyList{BuildXL.Cache.ContentStore.Hashing.ContentHash}, PinContext, PinBulkOptions)"/>.
     /// </summary>
     public class PinBulkOptions
     {

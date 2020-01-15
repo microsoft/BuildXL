@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStore.Grpc;
-using static global::ContentStore.Grpc.ContentServer;
 using static BuildXL.Cache.MemoizationStore.Service.GrpcDataConverter;
 
 namespace BuildXL.Cache.MemoizationStore.Service

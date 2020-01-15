@@ -1,20 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing.CloudBuild;

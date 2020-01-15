@@ -1,16 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Native.IO.Windows;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
 
 #pragma warning disable AsyncFixer02
 

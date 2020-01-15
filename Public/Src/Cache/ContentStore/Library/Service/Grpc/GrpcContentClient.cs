@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
+
 // Can't rename ProtoBuf
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc

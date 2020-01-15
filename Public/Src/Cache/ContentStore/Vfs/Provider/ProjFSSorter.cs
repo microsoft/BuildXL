@@ -1,13 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
-using Microsoft.Windows.ProjFS;
 
 namespace BuildXL.Cache.ContentStore.Vfs.Provider
 {
-    using Utils = Microsoft.Windows.ProjFS.Utils;
-
     /// <summary>
     /// Implements IComparer using <see cref="Microsoft.Windows.ProjFS.Utils.FileNameCompare(string, string)"/>.
     /// </summary>
@@ -15,6 +12,6 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
     {
         public static readonly ProjectedFileNameSorter Instance = new ProjectedFileNameSorter();
 
-        public override int Compare(VfsNode x, VfsNode y) => Utils.FileNameCompare(x.Name, y.Name);
+        public override int Compare(VfsNode x, VfsNode y) => Microsoft.Windows.ProjFS.Utils.FileNameCompare(x.Name, y.Name);
     }
 }

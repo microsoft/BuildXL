@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using BuildXL.Interop;
-using BuildXL.Utilities.Collections;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.MacOS.Memory;

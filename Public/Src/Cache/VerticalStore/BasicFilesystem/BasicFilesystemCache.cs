@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -17,11 +17,11 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Newtonsoft.Json;
-using BuildXL.Native.IO;
 
 namespace BuildXL.Cache.BasicFilesystem
 {

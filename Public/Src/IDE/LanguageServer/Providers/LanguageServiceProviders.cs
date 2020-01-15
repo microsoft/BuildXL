@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.JsonRpc;
+using BuildXL.Ide.LanguageServer.Completion;
 using LanguageServer;
 using LanguageServer.Json;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.Ide.LanguageServer.Completion;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace BuildXL.Ide.LanguageServer.Providers

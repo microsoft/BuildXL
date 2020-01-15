@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache

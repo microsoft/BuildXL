@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.SQLite;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
@@ -15,7 +16,6 @@ using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Cache.ContentStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {

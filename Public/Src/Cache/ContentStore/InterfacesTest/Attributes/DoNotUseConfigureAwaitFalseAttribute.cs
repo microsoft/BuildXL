@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 /// <summary>
 /// Special marker attribute used by ErrorProne.NET analyzer to warn when <see cref="System.Threading.Tasks.Task.ConfigureAwait"/> method is used.

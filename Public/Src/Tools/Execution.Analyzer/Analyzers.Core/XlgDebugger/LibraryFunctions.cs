@@ -1,16 +1,14 @@
-﻿
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Execution.Analyzer.JPath;
-
+using BuildXL.FrontEnd.Script.Debugger;
 using IEnum = System.Collections.IEnumerable;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
-using BuildXL.FrontEnd.Script.Debugger;
 
 namespace BuildXL.Execution.Analyzer
 {

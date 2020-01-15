@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+
 #pragma warning disable IDE0044 // Make field readonly
 
 namespace BuildXL.Cache.ContentStore.Service

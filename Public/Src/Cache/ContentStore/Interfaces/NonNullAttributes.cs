@@ -1,4 +1,6 @@
-﻿// The following attributes already defined in System.Runtime for .NET Core APP
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #if !NET_COREAPP
 namespace System.Diagnostics.CodeAnalysis
 {

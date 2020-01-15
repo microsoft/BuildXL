@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Collections.Generic;
 using BuildXL.Engine.Cache;
@@ -11,8 +11,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
-using BuildXL.Scheduler.Fingerprints;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;

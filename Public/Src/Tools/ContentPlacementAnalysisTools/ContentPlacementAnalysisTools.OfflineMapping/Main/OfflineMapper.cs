@@ -1,24 +1,23 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.ToolSupport;
 using ContentPlacementAnalysisTools.Core.ML.Classifier;
 using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.ML.Action;
-using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json;
-using NLog;
 
 namespace ContentPlacementAnalysisTools.OfflineMapping.Main
 {

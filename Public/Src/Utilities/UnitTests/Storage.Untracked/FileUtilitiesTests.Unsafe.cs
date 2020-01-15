@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,11 +14,9 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Native.IO.Windows.FileUtilitiesWin;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 #pragma warning disable AsyncFixer02
 
@@ -164,7 +162,7 @@ namespace Test.BuildXL.Storage
         }
 
         /// <summary>
-        /// Check that <see cref="FileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool})"/> retries
+        /// Check that <see cref="FileUtilities.DeleteDirectoryContents(string, bool, System.Func{string,bool}(string))"/> retries
         /// on ERROR_DIR_NOT_EMPTY when deleting an empty directory immediately after verifying the deletion of that same directories contents
         /// </summary>
         /// <remarks>

@@ -1,29 +1,22 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Threading;
-using Microsoft.Windows.ProjFS;
 using System.Diagnostics;
-using BuildXL.Cache.ContentStore.Logging;
-using System.Threading.Tasks;
-using BuildXL.Utilities.Collections;
-using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Cache.ContentStore.Vfs;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Native.IO;
-using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Utilities.Collections;
+using Microsoft.Windows.ProjFS;
 
 namespace BuildXL.Cache.ContentStore.Vfs.Provider
 {
-    using Utils = Microsoft.Windows.ProjFS.Utils;
-
     /// <summary>
     /// This is a simple file system "reflector" provider.  It projects files and directories from
     /// a directory called the "layer root" into the virtualization root, also called the "scratch root".
@@ -388,7 +381,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             }
 
             // TODO: Check whether this handles long paths appropriately.
-            if (!Utils.DoesNameContainWildCards(relativePath))
+            if (!Microsoft.Windows.ProjFS.Utils.DoesNameContainWildCards(relativePath))
             {
                 // No wildcards and normal lookup failed so file must not exist
                 return HResult.FileNotFound;
@@ -400,7 +393,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             if (Tree.TryGetNode(parentPath, out var parent) && parent is VfsDirectoryNode parentDirectory)
             {
                 string childName = Path.GetFileName(relativePath);
-                if (parentDirectory.EnumerateChildren().Any(child => Utils.IsFileNameMatch(child.Name, childName)))
+                if (parentDirectory.EnumerateChildren().Any(child => Microsoft.Windows.ProjFS.Utils.IsFileNameMatch(child.Name, childName)))
                 {
                     return HResult.Ok;
                 }

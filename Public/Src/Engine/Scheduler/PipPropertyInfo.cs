@@ -1,6 +1,9 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Logger = BuildXL.Scheduler.Tracing.Logger;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Scheduler

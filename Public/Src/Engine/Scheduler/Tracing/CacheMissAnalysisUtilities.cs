@@ -1,12 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.FingerprintStoreReader;

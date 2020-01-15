@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -10,7 +13,6 @@ using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
-using NLog.Config;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {

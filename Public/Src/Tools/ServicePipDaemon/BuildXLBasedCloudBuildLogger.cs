@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System.Diagnostics.Tracing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Tracing;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Instrumentation.Common;
-using System.Diagnostics.Tracing;
 
 namespace Tool.ServicePipDaemon
 {

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 using Xunit;
-
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Test.BuildXL.TestUtilities.Xunit

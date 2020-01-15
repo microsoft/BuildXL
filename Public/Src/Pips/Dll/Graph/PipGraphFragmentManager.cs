@@ -1,12 +1,15 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using BuildXL.Pips.Tracing;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;

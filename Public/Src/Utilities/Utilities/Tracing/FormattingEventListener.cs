@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using System.Diagnostics.Tracing;
 
 namespace BuildXL.Utilities.Tracing
 {

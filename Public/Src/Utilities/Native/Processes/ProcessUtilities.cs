@@ -1,12 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
-using BuildXL.Utilities;
-using Microsoft.Win32.SafeHandles;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using ProcessHandle = System.Runtime.InteropServices.SafeHandle;
 using ProcessPtr = Microsoft.Win32.SafeHandles.SafeProcessHandle;
@@ -15,6 +9,12 @@ using ProcessHandle = System.Runtime.InteropServices.HandleRef;
 using ProcessPtr = System.IntPtr;
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+using BuildXL.Utilities;
+using Microsoft.Win32.SafeHandles;
 
 namespace BuildXL.Native.Processes
 {

@@ -1,5 +1,7 @@
-﻿using System;
-using System.Diagnostics;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 

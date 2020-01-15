@@ -1,6 +1,5 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {

@@ -1,9 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Pips;
 using BuildXL.Pips.Graph;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Xldb.Proto;
@@ -12,9 +14,11 @@ using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using ContentHash = BuildXL.Cache.ContentStore.Hashing.ContentHash;
 using CopyFile = BuildXL.Pips.Operations.CopyFile;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
+using EnvironmentVariable = BuildXL.Xldb.Proto.EnvironmentVariable;
 using FileArtifact = BuildXL.Utilities.FileArtifact;
 using FileOrDirectoryArtifact = BuildXL.Utilities.FileOrDirectoryArtifact;
 using Fingerprint = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint;
+using IpcClientInfo = BuildXL.Xldb.Proto.IpcClientInfo;
 using IpcPip = BuildXL.Pips.Operations.IpcPip;
 using MountPathExpander = BuildXL.Engine.MountPathExpander;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
@@ -22,16 +26,18 @@ using ObservedPathSet = BuildXL.Scheduler.Fingerprints.ObservedPathSet;
 using Pip = BuildXL.Pips.Operations.Pip;
 using PipGraph = BuildXL.Pips.Graph.PipGraph;
 using PipProvenance = BuildXL.Pips.Operations.PipProvenance;
-using PipTable = BuildXL.Pips.PipTable;
 using PipType = BuildXL.Pips.Operations.PipType;
-using Process = BuildXL.Pips.Operations.Process;
 using ProcessPipExecutionPerformance = BuildXL.Pips.ProcessPipExecutionPerformance;
 using ReportedFileAccess = BuildXL.Processes.ReportedFileAccess;
 using ReportedProcess = BuildXL.Processes.ReportedProcess;
 using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
+using SealDirectoryKind = BuildXL.Xldb.Proto.SealDirectoryKind;
 using SemanticPathInfo = BuildXL.Pips.SemanticPathInfo;
+using ServiceInfo = BuildXL.Xldb.Proto.ServiceInfo;
+using ServicePipKind = BuildXL.Xldb.Proto.ServicePipKind;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
+using WriteFileEncoding = BuildXL.Xldb.Proto.WriteFileEncoding;
 
 /// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
 /// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.

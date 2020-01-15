@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -9,7 +9,6 @@ using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using SpecialFolder = System.Environment.SpecialFolder;
 
 namespace Test.BuildXL.ToolSupport
 {
@@ -261,7 +260,7 @@ Arg1");
             if (!OperatingSystemHelper.IsUnixOS)
             {
                 opt.Name = "Switch";
-                opt.Value = SpecialFolderUtilities.GetFolderPath(SpecialFolder.Windows);
+                opt.Value = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows);
                 Assert.Equal(opt.Value, CommandLineUtilities.ParsePathOption(opt));
             }
 
@@ -292,7 +291,7 @@ Arg1");
             if(!OperatingSystemHelper.IsUnixOS)
             {
                 opt.Name = "Switch";
-                opt.Value = SpecialFolderUtilities.GetFolderPath(SpecialFolder.Windows);
+                opt.Value = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows);
                 Assert.Equal(opt.Value, CommandLineUtilities.ParseSingletonPathOption(opt, null));
             }
 

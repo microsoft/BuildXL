@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -15,7 +15,9 @@ using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
+#if PLATFORM_OSX
 using static BuildXL.Interop.MacOS.Sandbox;
+#endif
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {

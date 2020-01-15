@@ -1,13 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Ide.LanguageServer.Utilities;
 using LanguageServer;
@@ -17,7 +14,6 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
-using ISymbol = TypeScript.Net.Types.ISymbol;
 
 namespace BuildXL.Ide.LanguageServer.Completion
 {

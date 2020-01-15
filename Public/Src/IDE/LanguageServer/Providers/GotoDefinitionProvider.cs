@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -15,8 +15,6 @@ using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
-using ISymbol = TypeScript.Net.Types.ISymbol;
-using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -239,7 +237,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return GetDefinitionFromSymbol(typeDeclaration.Symbol, typeDeclaration);
         }
 
-        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([NotNull]ISymbol symbol, INode node)
+        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([JetBrains.Annotations.NotNull]ISymbol symbol, INode node)
         {
             var result = new List<Location>();
             var declarations = symbol.GetDeclarations();

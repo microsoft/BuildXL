@@ -1,20 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Linq;
-using BuildXL.Utilities;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Analyzer.Analyzers;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Ide.JsonRpc;
+using BuildXL.Utilities;
 using JetBrains.Annotations;
 using LanguageServer;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
-using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
+using DScriptUtilities = TypeScript.Net.DScript.Utilities;
 
 namespace BuildXL.Ide.LanguageServer
 {

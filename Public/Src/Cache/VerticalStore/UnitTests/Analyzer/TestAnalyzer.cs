@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -10,9 +10,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.Analyzer;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.InMemory;
 using BuildXL.Cache.Interfaces;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,8 +14,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Utilities.Tracing
 {
     // Using has to be inside namespace due to BuildXL.Utilities.Tasks;
-    using Tasks = BuildXL.Utilities.Instrumentation.Common.Tasks;
-
     /// <summary>
     /// The BuildXL event source
     /// </summary>
@@ -325,7 +323,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.VerboseEvent,
             Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void VerboseEvent(string message)
@@ -336,7 +334,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.DiagnosticEvent,
             Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.Diagnostics,
             Message = "{0}")]
         public void DiagnosticEvent(string message)
@@ -347,7 +345,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.DiagnosticEventInOtherTask,
             Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest2,
+            Task= Instrumentation.Common.Tasks.UnitTest2,
             Keywords = Keywords.Diagnostics,
             Message = "{0}")]
         public void DiagnosticEventInOtherTask(string message)
@@ -358,7 +356,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.InfoEvent,
             Level = EventLevel.Informational,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void InfoEvent(string message)
@@ -369,7 +367,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.WarningEvent,
             Level = EventLevel.Warning,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void WarningEvent(string message)
@@ -380,7 +378,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.ErrorEvent,
             Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void ErrorEvent(string message)
@@ -391,7 +389,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.InfrastructureErrorEvent,
             Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage | Keywords.InfrastructureError,
             Message = "{0}")]
         public void InfrastructureErrorEvent(string message)
@@ -402,7 +400,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.UserErrorEvent,
             Level = EventLevel.Error,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage | Keywords.UserError,
             Message = "{0}")]
         public void UserErrorEvent(string message)
@@ -413,7 +411,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.CriticalEvent,
             Level = EventLevel.Critical,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void CriticalEvent(string message)
@@ -424,7 +422,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.AlwaysEvent,
             Level = EventLevel.LogAlways,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = "{0}")]
         public void AlwaysEvent(string message)
@@ -435,7 +433,7 @@ namespace BuildXL.Utilities.Tracing
         [Event(
             (int)EventId.VerboseEventWithProvenance,
             Level = EventLevel.Verbose,
-            Task= Tasks.UnitTest,
+            Task= Instrumentation.Common.Tasks.UnitTest,
             Keywords = Keywords.UserMessage,
             Message = EventConstants.ProvenancePrefix + "{3}")]
         public void VerboseEventWithProvenance(string file, int line, int column, string message)
@@ -449,7 +447,7 @@ namespace BuildXL.Utilities.Tracing
             (int)EventId.StartViewer,
             Level = EventLevel.Informational,
             Keywords = Keywords.Performance | Keywords.UserMessage,
-            Task= Tasks.Viewer,
+            Task= Instrumentation.Common.Tasks.Viewer,
             Message = EventConstants.PhasePrefix + "Starting viewer @ {0} (async)")]
         public void StartViewer(string address)
         {
@@ -462,7 +460,7 @@ namespace BuildXL.Utilities.Tracing
             (int)EventId.UnableToStartViewer,
             Level = EventLevel.Warning,
             Keywords = Keywords.UserMessage,
-            Task = Tasks.Viewer,
+            Task = Instrumentation.Common.Tasks.Viewer,
             Message = "Unable to start viewer: {0}")]
         public void UnableToStartViewer(string message)
         {
@@ -475,7 +473,7 @@ namespace BuildXL.Utilities.Tracing
             (int)EventId.UnableToLaunchViewer,
             Level = EventLevel.Warning,
             Keywords = Keywords.UserMessage,
-            Task = Tasks.Viewer,
+            Task = Instrumentation.Common.Tasks.Viewer,
             Message = "Unable to launch viewer: {0}")]
         public void UnableToLaunchViewer(string message)
         {

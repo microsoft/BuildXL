@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -19,6 +20,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
@@ -28,13 +30,10 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
-using BuildXL.Utilities;
-using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
-using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

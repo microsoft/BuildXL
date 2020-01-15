@@ -1,4 +1,7 @@
-﻿using BuildXL.Utilities.Tracing;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Tracing
 {

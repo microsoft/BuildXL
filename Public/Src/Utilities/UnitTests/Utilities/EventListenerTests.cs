@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -8,8 +8,8 @@ using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 

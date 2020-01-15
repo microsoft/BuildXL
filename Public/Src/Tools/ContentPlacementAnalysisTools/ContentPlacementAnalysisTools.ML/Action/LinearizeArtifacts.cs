@@ -1,8 +1,9 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using BuildXL.Utilities.Collections;
 using ContentPlacementAnalysisTools.Core.ML;
 using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlamentAnalysisTools.Core.Analyzer;

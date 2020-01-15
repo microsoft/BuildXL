@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier

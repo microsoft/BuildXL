@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,6 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
@@ -19,10 +18,12 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Interop.MacOS.Memory;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
+#if PLATFORM_OSX
+using static BuildXL.Interop.MacOS.Memory;
+#endif
 
 #pragma warning disable SA1649 // File name must match first type name
 

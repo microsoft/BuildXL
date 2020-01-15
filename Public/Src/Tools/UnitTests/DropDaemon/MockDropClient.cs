@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-using Microsoft.VisualStudio.Services.Drop.WebApi;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Tool.DropDaemon;
 
 namespace Test.Tool.DropDaemon

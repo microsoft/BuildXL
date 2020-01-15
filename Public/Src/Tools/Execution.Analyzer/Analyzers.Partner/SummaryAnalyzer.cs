@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Concurrent;
@@ -12,7 +12,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Execution.Analyzer.Analyzers;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;

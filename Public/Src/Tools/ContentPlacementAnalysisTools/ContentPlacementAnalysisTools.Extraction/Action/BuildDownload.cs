@@ -1,9 +1,12 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.Core.Kusto;
+using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.Extraction.Main;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action

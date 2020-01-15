@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,6 @@ using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
@@ -18,7 +17,6 @@ using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
-using FileUtilities = BuildXL.Native.IO.FileUtilities;
 
 #pragma warning disable AsyncFixer02
 

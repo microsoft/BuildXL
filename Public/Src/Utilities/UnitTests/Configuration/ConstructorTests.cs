@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections;
@@ -8,16 +8,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
+using BuildXL.FrontEnd.Script.Util;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Script.Values;
-using BuildXL.FrontEnd.Script.Util;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using Type = System.Type;
 
 namespace Test.BuildXL.Utilities
 {

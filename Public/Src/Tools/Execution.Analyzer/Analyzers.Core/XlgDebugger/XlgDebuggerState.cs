@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;

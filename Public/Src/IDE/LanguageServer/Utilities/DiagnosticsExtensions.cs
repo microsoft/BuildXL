@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -13,7 +13,7 @@ using Range = Microsoft.VisualStudio.LanguageServer.Protocol.Range;
 namespace BuildXL.Ide.LanguageServer
 {
     /// <summary>
-    /// Extensions to use for <see cref="Range"/> class.
+    /// Extensions to use for <see cref="Microsoft.VisualStudio.LanguageServer.Protocol.Range"/> class.
     /// </summary>
     public static class DiagnosticsExtensions
     {

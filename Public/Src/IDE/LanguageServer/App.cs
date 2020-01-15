@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics;
@@ -10,12 +10,12 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Ide.JsonRpc;
 using BuildXL.Ide.LanguageServer.Providers;
 using BuildXL.Ide.LanguageServer.Tracing;
 using BuildXL.Storage;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using LanguageServer;
 using LanguageServer.Json;

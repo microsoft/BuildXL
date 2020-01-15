@@ -1,23 +1,26 @@
-﻿#if NET_FRAMEWORK
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+#if NET_FRAMEWORK
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
+using BuildXL.Pips.Artifacts;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Storage;
-using BuildXL.Pips.Operations;
-using BuildXL.Pips.Artifacts;
-using Newtonsoft.Json;
-using ContentPlamentAnalysisTools.Core.Analyzer;
 using BuildXL.Utilities.Collections;
-using System.Diagnostics;
+using ContentPlamentAnalysisTools.Core.Analyzer;
+using Newtonsoft.Json;
 
 namespace BuildXL.Execution.Analyzer
 {

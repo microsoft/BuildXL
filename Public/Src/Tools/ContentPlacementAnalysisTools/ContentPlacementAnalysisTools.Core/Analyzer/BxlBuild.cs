@@ -1,9 +1,9 @@
-﻿using System;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace ContentPlamentAnalysisTools.Core.Analyzer
 {

@@ -1,13 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+using System;
 using System.Globalization;
 using System.IO;
 using BuildXL.ToolSupport;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using System;
 
 namespace Test.BuildXL.ToolSupport
 {

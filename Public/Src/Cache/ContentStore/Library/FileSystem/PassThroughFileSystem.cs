@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -18,9 +18,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
+using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
-using static BuildXL.Cache.ContentStore.FileSystem.NativeMethods;
 
 namespace BuildXL.Cache.ContentStore.FileSystem
 {

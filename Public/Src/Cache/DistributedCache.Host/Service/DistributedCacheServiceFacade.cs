@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
@@ -7,8 +7,6 @@ using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Service.Internal;
 
 namespace BuildXL.Cache.Host.Service

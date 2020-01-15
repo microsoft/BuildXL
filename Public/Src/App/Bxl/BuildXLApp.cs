@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -17,8 +17,10 @@ using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
+using BuildXL.Engine.Recovery;
 using BuildXL.FrontEnd.Factory;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -26,16 +28,14 @@ using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using BuildXL.ViewModel;
 using Logger = BuildXL.App.Tracing.Logger;
+using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
-using BuildXL.Engine.Recovery;
-using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.ViewModel;
 #pragma warning disable SA1649 // File name must match first type name
 using BuildXL.Utilities.CrashReporting;
 
@@ -435,7 +435,7 @@ namespace BuildXL
                     sendFinalStatistics: () => appLoggers.SendFinalStatistics(),
                     run: (pm) =>
                     {
-                        if (!ProcessUtilities.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory))
+                        if (!ProcessNativeMethods.SetupProcessDumps(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), out var coreDumpDirectory))
                         {
                             Logger.Log.DisplayCoreDumpDirectoryNoPermissionsWarning(pm.LoggingContext, coreDumpDirectory);
                         }
@@ -484,7 +484,7 @@ namespace BuildXL
                             logCleanupThread.Join();
                         }
 
-                        ProcessUtilities.TeardownProcessDumps();
+                        ProcessNativeMethods.TeardownProcessDumps();
 
                         return result;
                     });

@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -7,10 +7,12 @@ using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
+#if NET_CORE
+using Microsoft.VisualStudio.Services.Client;
+#endif
 #else
 using BuildXL.Cache.ContentStore.Exceptions;
 #endif

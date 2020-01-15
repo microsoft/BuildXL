@@ -910,25 +910,28 @@ namespace BuildXL.Scheduler.Tracing
             Contract.Requires(!storePathSet || !string.IsNullOrEmpty(entry.StrongFingerprintEntry.PathSetHashToInputs.Key), "A non-empty path set hash must be provided to store a path set entry.");
             Contract.Requires(!Accessor.ReadOnly);
 
-            Analysis.IgnoreResult(
-                Accessor.Use(store =>
-                {
-                    store.Put(entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value));
-                    store.Put(entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, columnFamilyName: ColumnNames.WeakFingerprints);
-
-                    var sfEntry = entry.StrongFingerprintEntry;
-                    store.Put(entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, columnFamilyName: ColumnNames.StrongFingerprints);
-
-                    if (storePathSet)
+            using (Counters.StartStopwatch(FingerprintStoreCounters.PutFingerprintStoreEntryTime))
+            {
+                Analysis.IgnoreResult(
+                    Accessor.Use(store =>
                     {
-                        Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
-                        store.Put(sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, columnFamilyName: ColumnNames.ContentHashes);
-                    }
-                })
-            );
+                        store.Put(entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value));
+                        store.Put(entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, columnFamilyName: ColumnNames.WeakFingerprints);
 
-            // Renew TTL on entries
-            m_lruEntryTracker?.TrackFingerprintStoreEntry(entry.PipToFingerprintKeys.Key, entry.PipToFingerprintKeys.Value);
+                        var sfEntry = entry.StrongFingerprintEntry;
+                        store.Put(entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, columnFamilyName: ColumnNames.StrongFingerprints);
+
+                        if (storePathSet)
+                        {
+                            Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
+                            store.Put(sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, columnFamilyName: ColumnNames.ContentHashes);
+                        }
+                    })
+                );
+
+                // Renew TTL on entries
+                m_lruEntryTracker?.TrackFingerprintStoreEntry(entry.PipToFingerprintKeys.Key, entry.PipToFingerprintKeys.Value);
+            }
         }
 
         /// <summary>

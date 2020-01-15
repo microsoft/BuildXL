@@ -167,6 +167,48 @@ namespace BuildXL.Scheduler.Tracing
         JsonSerializationTime,
 
         /// <summary>
+        /// The number of ms spent serializing weak fingerprint to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationWeakFingerprintTime,
+
+        /// <summary>
+        /// The number of ms spent serializing strong fingerprint content to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationStrongFingerprintContentTime,
+
+        /// <summary>
+        /// The number of ms spent serializing strong fingerprint input to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationStrongFingerprintInputTime,
+
+        /// <summary>
+        /// The number of ms spent serializing input collection to JSON.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        JsonSerializationInputCollectionTime,
+
+        /// <summary>
+        /// The number of ms spent updating or storing pip unique's output hash into fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        UpdateOrStorePipUniqueOutputHashEntryTime,
+
+        /// <summary>
+        /// The number of ms spent creating fingerpring store entry.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CreateFingerprintStoreEntryTime,
+
+        /// <summary>
+        /// The number of ms spent putting fingerprint store entry into fingerprint store.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PutFingerprintStoreEntryTime,
+
+        /// <summary>
         /// The number of ms spent serializing the cache miss list.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

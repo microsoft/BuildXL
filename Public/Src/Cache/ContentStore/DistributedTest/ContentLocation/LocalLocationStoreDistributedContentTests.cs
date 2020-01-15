@@ -440,7 +440,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 implicitPin: ImplicitPin.None);
         }
 
-        [Theory]
+        [Theory(Skip = "Flaky")]
         [InlineData(true)]
         [InlineData(false)]
         public async Task ProactiveReplicationTest(bool usePreferredLocations)

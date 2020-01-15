@@ -277,10 +277,7 @@ namespace BuildXL.Pips.Graph
             AddFileOutput(fingerprinter, nameof(Process.StandardError), process.StandardError);
             AddFileOutput(fingerprinter, nameof(Process.StandardOutput), process.StandardOutput);
 
-            // Files within untrackedPaths and untrackedScopes are irrelevent to the weak fingerprint and are removed from the fingerprint
-            ReadOnlyArray<FileArtifact> relevantDependencies = process.Dependencies.Where(d => !IsUntracked(process, d.Path)).ToReadOnlyArray<FileArtifact>();
-
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(nameof(Process.Dependencies), relevantDependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+            fingerprinter.AddOrderIndependentCollection<FileArtifact, IEnumerable<FileArtifact>>(nameof(Process.Dependencies), GetRelevantProcessDependencies(process), (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryDependencies), process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>(nameof(Process.FileOutputs), process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
@@ -375,13 +372,6 @@ namespace BuildXL.Pips.Graph
 
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
         }
-
-        /// <summary>
-        /// Checks if path exists in untrackedPath or exists within an untrackedScope
-        /// </summary>
-        private bool IsUntracked(Process process, AbsolutePath path) =>
-            process.UntrackedPaths.Contains(path) ||
-            process.UntrackedScopes.Any(scope => path.IsWithin(m_pathTable, scope));
 
         /// <summary>
         /// Adds pip data (such as a command line or the contents of a response file) to a fingerprint stream.
@@ -491,6 +481,25 @@ namespace BuildXL.Pips.Graph
                 recordFingerprintString: FingerprintTextEnabled,
                 pathExpander: useSemanticPaths ? PathExpander : PathExpander.Default,
                 hashAlgorithmType: hashAlgorithmType);
+        }
+
+        private IEnumerable<FileArtifact> GetRelevantProcessDependencies(Process process)
+        {
+            if (!process.UntrackedPaths.IsValid || process.UntrackedPaths.Length == 0)
+            {
+                return process.Dependencies;
+            }
+
+            var untrackedPaths = new HashSet<AbsolutePath>(process.UntrackedPaths);
+            
+            // Every input files specified as well as untracked paths need to be removed from the dependencies.
+            // This ensures that the content of the input file is not part of weak fingerprint. Also, this is aligned with
+            // file access manifest interpretation, i.e., all operations on untracked paths are allowed and unreported.
+            //
+            // The input files are not filtered out against the set of untracked scopes. Even if the input file is within a scope,
+            // all accesses to the input file will still be reported because the search for access policy in the file access manifest
+            // works bottom up. This setting allows us to untrack some scope but track a few files within that scope.
+            return process.Dependencies.Where(f => !untrackedPaths.Contains(f.Path));
         }
 
         private string GetHashMarker(Pip pip)

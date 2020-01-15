@@ -445,7 +445,7 @@ namespace Test.BuildXL.Scheduler
         [InlineData(false, false, 1, 1, true)] // not untracked in any way + same content hashes => same fingerprint
         [InlineData(false, false, 1, 2, false)] // not untracked in any way + different content hashes => different fingerprints
         [InlineData(true, false, 1, 2, true)] // untracked path + different content hashes => same fingerprint
-        [InlineData(false, true, 1, 2, true)] // untracked scope + different content hashes => same fingerprint
+        [InlineData(false, true, 1, 2, false)] // untracked scope + different content hashes => different fingerprint
         [InlineData(true, true, 1, 2, true)] // untracked as path and as scope + different content hashes => same fingerprint
         public void TestContentHashesOfUntrackedPathsStayOutOfWeakFingerprint(bool untrackPath, bool untrackScope, int contentHash1, int contentHash2, bool expectedEqualityOutcome)
         {

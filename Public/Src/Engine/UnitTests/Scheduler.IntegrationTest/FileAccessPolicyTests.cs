@@ -6,7 +6,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -71,18 +70,29 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Modify untracked input file /dir/nestedFile
             File.WriteAllText(ArtifactToString(nestedFile), "nestedFile");
 
-            RunScheduler().AssertCacheHit(pip.PipId);
+            var runSchedulerResult = RunScheduler();
 
-            // Delete untracked input file /dir/nestedFile
-            File.Delete(ArtifactToString(nestedFile));
-
-            RunScheduler().AssertCacheHit(pip.PipId);
+            if (!declareDependency || !inputUnderUntrackedScope)
+            {
+                runSchedulerResult.AssertCacheHit(pip.PipId);
+            }
+            else
+            {
+                runSchedulerResult.AssertCacheMiss(pip.PipId);
+            }
 
             ResetPipGraphBuilder();
 
             // Validate cache miss if the process removes untracked path declarations
             pip = CreateAndSchedulePipBuilder(ops).Process;
-            RunScheduler().AssertCacheMiss(pip.PipId);
+            runSchedulerResult = RunScheduler().AssertCacheHitWithoutAssertingSuccess();
+
+            if (!declareDependency)
+            {
+                runSchedulerResult.AssertPipResultStatus((pip.PipId, PipResultStatus.Failed));
+                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(EventId.FileMonitoringError);
+            }
         }
 
         [Feature(Features.DirectoryEnumeration)]

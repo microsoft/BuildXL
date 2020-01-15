@@ -104,6 +104,8 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly FingerprintStoreEventProcessor m_fingerprintStoreEventProcessor;
 
+        private bool m_disposed = false;
+
         /// <summary>
         /// Creates a <see cref="FingerprintStoreExecutionLogTarget"/>.
         /// </summary>
@@ -331,21 +333,24 @@ namespace BuildXL.Scheduler.Tracing
             ProcessStrongFingerprintComputationData strongFingerprintData,
             bool mustStorePathEntry = true)
         {
-            return new FingerprintStoreEntry
+            using (Counters.StartStopwatch(FingerprintStoreCounters.CreateFingerprintStoreEntryTime))
             {
-                // { pip formatted semi stable hash : weak fingerprint, strong fingerprint, path set hash }
-                PipToFingerprintKeys = new PipKVP(pip.FormattedSemiStableHash, pipFingerprintKeys),
-                // { weak fingerprint hash : weak fingerprint inputs }
-                WeakFingerprintToInputs = new KVP(pipFingerprintKeys.WeakFingerprint, JsonSerialize(pip)),
-                StrongFingerprintEntry = new StrongFingerprintEntry
+                return new FingerprintStoreEntry
                 {
-                    // { strong fingerprint hash: strong fingerprint inputs }
-                    StrongFingerprintToInputs = new KVP(pipFingerprintKeys.StrongFingerprint, JsonSerialize(weakFingerprint, strongFingerprintData.PathSetHash, strongFingerprintData.ObservedInputs)),
-                    // { path set hash : path set inputs }
-                    // If fingerprint comparison is enabled, the entry should contain the pathset json.
-                    PathSetHashToInputs = mustStorePathEntry ? new KVP(pipFingerprintKeys.FormattedPathSetHash, JsonSerialize(strongFingerprintData)) : default,
-                }
-            };
+                    // { pip formatted semi stable hash : weak fingerprint, strong fingerprint, path set hash }
+                    PipToFingerprintKeys = new PipKVP(pip.FormattedSemiStableHash, pipFingerprintKeys),
+                    // { weak fingerprint hash : weak fingerprint inputs }
+                    WeakFingerprintToInputs = new KVP(pipFingerprintKeys.WeakFingerprint, JsonSerialize(pip)),
+                    StrongFingerprintEntry = new StrongFingerprintEntry
+                    {
+                        // { strong fingerprint hash: strong fingerprint inputs }
+                        StrongFingerprintToInputs = new KVP(pipFingerprintKeys.StrongFingerprint, JsonSerialize(weakFingerprint, strongFingerprintData.PathSetHash, strongFingerprintData.ObservedInputs)),
+                        // { path set hash : path set inputs }
+                        // If fingerprint comparison is enabled, the entry should contain the pathset json.
+                        PathSetHashToInputs = mustStorePathEntry ? new KVP(pipFingerprintKeys.FormattedPathSetHash, JsonSerialize(strongFingerprintData)) : default,
+                    }
+                };
+            }
         }
 
         /// <summary>
@@ -589,14 +594,17 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private void UpdateOrStorePipUniqueOutputHashEntry(FingerprintStore fingerprintStore, Process pip)
         {
-            if (pip.TryComputePipUniqueOutputHash(m_context.PathTable, out var outputHash, PipContentFingerprinter.PathExpander))
+            using (Counters.StartStopwatch(FingerprintStoreCounters.UpdateOrStorePipUniqueOutputHashEntryTime))
             {
-                var entryExists = fingerprintStore.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var oldSemiStableHash);
-                if (!entryExists // missing
-                    || (entryExists && oldSemiStableHash != pip.FormattedSemiStableHash)) // out-of-date
+                if (pip.TryComputePipUniqueOutputHash(m_context.PathTable, out var outputHash, PipContentFingerprinter.PathExpander))
                 {
-                    Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut);
-                    fingerprintStore.PutPipUniqueOutputHash(outputHash, pip.FormattedSemiStableHash);
+                    var entryExists = fingerprintStore.TryGetPipUniqueOutputHashValue(outputHash.ToString(), out var oldSemiStableHash);
+                    if (!entryExists // missing
+                        || (entryExists && oldSemiStableHash != pip.FormattedSemiStableHash)) // out-of-date
+                    {
+                        Counters.IncrementCounter(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesPut);
+                        fingerprintStore.PutPipUniqueOutputHash(outputHash, pip.FormattedSemiStableHash);
+                    }
                 }
             }
         }
@@ -606,12 +614,15 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private string JsonSerialize(Process pip)
         {
-            return JsonSerializeHelper((writer) =>
+            using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationWeakFingerprintTime))
             {
-                // Use same logic as fingerprint computation
-                PipContentFingerprinter.AddWeakFingerprint(writer, pip);
-            },
-            pathExpander: PipContentFingerprinter.PathExpander);
+                return JsonSerializeHelper((writer) =>
+                {
+                    // Use same logic as fingerprint computation
+                    PipContentFingerprinter.AddWeakFingerprint(writer, pip);
+                },
+                pathExpander: PipContentFingerprinter.PathExpander);
+            }
         }
 
         /// <summary>
@@ -619,11 +630,14 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private string JsonSerialize(WeakContentFingerprint weakFingerprint, ContentHash pathSetHash, ReadOnlyArray<ObservedInput> observedInputs)
         {
-            return JsonSerializeHelper((writer) =>
+            using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationStrongFingerprintContentTime))
             {
-                // Use same logic as fingerprint computation
-                ObservedInputProcessingResult.AddStrongFingerprintContent(writer, weakFingerprint, pathSetHash, observedInputs);
-            });
+                return JsonSerializeHelper((writer) =>
+                {
+                    // Use same logic as fingerprint computation
+                    ObservedInputProcessingResult.AddStrongFingerprintContent(writer, weakFingerprint, pathSetHash, observedInputs);
+                });
+            }
         }
 
         /// <summary>
@@ -631,11 +645,14 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private string JsonSerialize(ProcessStrongFingerprintComputationData data)
         {
-            return JsonSerializeHelper((writer) =>
+            using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationStrongFingerprintInputTime))
             {
-                data.WriteFingerprintInputs(writer);
-            },
-            pathExpander: PipContentFingerprinter.PathExpander);
+                return JsonSerializeHelper((writer) =>
+                {
+                    data.WriteFingerprintInputs(writer);
+                },
+                pathExpander: PipContentFingerprinter.PathExpander);
+            }
         }
 
         /// <summary>
@@ -643,10 +660,13 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private string JsonSerialize(IFingerprintInputCollection data)
         {
-            return JsonSerializeHelper((writer) =>
+            using (Counters.StartStopwatch(FingerprintStoreCounters.JsonSerializationInputCollectionTime))
             {
-                data.WriteFingerprintInputs(writer);
-            });
+                return JsonSerializeHelper((writer) =>
+                {
+                    data.WriteFingerprintInputs(writer);
+                });
+            }
         }
 
         /// <summary>
@@ -680,6 +700,11 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public override void Dispose()
         {
+            if (m_disposed)
+            {
+                return;
+            }
+
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
             {
                 // Store the ordered pip cache miss list as one blob
@@ -706,6 +731,8 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             base.Dispose();
+
+            m_disposed = true;
         }
 
         private class FingerprintStoreEventProcessor

@@ -50,7 +50,8 @@ namespace BuildXL.Pips.Graph
         /// 75: Changed the type of <see cref="Utilities.Configuration.IUnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes"/> 
         ///     from <c>bool</c> to <see cref="Utilities.Configuration.DynamicWriteOnAbsentProbePolicy"/>
         /// 76: Put extra salt's options in weakfingerprint instead of ExecutionAndFingerprintOptionsHash.
+        /// 77: Change semantics related to tracking dependencies under untracked scopes.
         /// </remarks>
-        TwoPhaseV2 = 76,
+        TwoPhaseV2 = 77,
     }
 }

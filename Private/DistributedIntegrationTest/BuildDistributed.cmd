@@ -41,14 +41,18 @@ set SOURCE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\inputfile.txt
 set SOURCECHANGE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
 echo %SOURCE_FILE%>%SOURCECHANGE_FILE%
 
+REM The following variable is only used by OutputReplicationTest.
+set OUTPUT_FILENAME_FOR_REPLICATION=replicateMe.txt
+
 @REM disabled warnings:
 @REM   - DX2841: Virus scanning software is enabled for.
 @REM   - DX2200: Failed to clean temp directory. Reason: unable to enumerate the directory or a descendant directory to verify that it has been emptied.
-set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ "/translateDirectory:%TEST_SOLUTION_ROOT%<{sourceRoot}:\\" /inputChanges:%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
+set BUILDXL_COMMON_ARGS=/server- /remoteTelemetry- /enableAsyncLogging /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ "/translateDirectory:%TEST_SOLUTION_ROOT%<{sourceRoot}:\\" /inputChanges:%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
 
-if NOT DEFINED DISABLE_DBD_TESTRUN (
-    %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
-)
+REM Skip the whole test if %DISABLE_DBD_TESTRUN% is defined.
+if DEFINED DISABLE_DBD_TESTRUN goto END
+
+%BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
 
 del %SOURCECHANGE_FILE%
 
@@ -59,19 +63,40 @@ if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )
 
-REM if TF_ROLLING_DROPNAME was not set --> drop was not uploaded so we are done
-if NOT DEFINED TF_ROLLING_DROPNAME (
-    endlocal && exit /b 0
-)
-
 REM if TF_ROLLING_DROPNAME was set --> check if the drop was finalized
 set BUILDXL_STATS_FILE=%TEST_SOLUTION_ROOT%\Out\M00\Logs\BuildXL.stats
-findstr DropDaemon.FinalizeTime %BUILDXL_STATS_FILE% >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
+if DEFINED TF_ROLLING_DROPNAME (
+    findstr DropDaemon.FinalizeTime %BUILDXL_STATS_FILE% >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo.
+        echo ERROR: Drop not finalized.
+        echo.
+        endlocal && exit /b 1
+    )
+)
+
+REM Skip output replication test if %DISABLE_DBD_OUTPUT_REPLICATION_TESTRUN% is defined.
+if DEFINED DISABLE_DBD_OUTPUT_REPLICATION_TESTRUN goto END
+
+set BUILDXL_MASTER_ARGS=/replicateOutputsToWorkers %BUILDXL_MASTER_ARGS%
+set BUILDXL_COMMON_ARGS=/server- /remoteTelemetry- /enableAsyncLogging /nowarn:2841 /nowarn:2200 /f:module='DistributedIntegrationTests.OutputReplicationTest' /p:[Test]FailOutputReplicationTest=1 "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ "/translateDirectory:%TEST_SOLUTION_ROOT%<{sourceRoot}:\\"
+
+%BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*
+if %ERRORLEVEL% EQU 0 (
     echo.
-    echo ERROR: Drop not finalized.
+    echo ERROR: Build is expected to fail.
     echo.
     endlocal && exit /b 1
 )
 
+REM Ensure that the replicated output fail is replicated in all workers and its content is "FAIL"
+for /f "delims=" %%a in ('findstr /SPC:FAIL %OUTPUT_FILENAME_FOR_REPLICATION% ^| find /v /c ""') do set "numOfReplicatedFiles=%%a"
+if %numOfReplicatedFiles% NEQ 3 (
+    echo.
+    echo ERROR: %OUTPUT_FILENAME_FOR_REPLICATION% is expected to be replicated to all workers.
+    echo.
+    endlocal && exit /b 1
+)
+
+:END
 endlocal && exit /b 0

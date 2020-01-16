@@ -2,6 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "DistributedIntegrationTests.Utils",
+    name: "DistributedIntegrationTests.OutputReplicationTest",
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
 });

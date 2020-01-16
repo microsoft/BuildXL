@@ -11,6 +11,9 @@ export const cmdExe: Transformer.ToolDefinition = {
 };
 
 @@public
+export const verifyOutputScript = f`./verifyOutput.cmd`;
+
+@@public
 export function range(start: number, count: number, step?: number): number[] {
     step = step || 1;
     let result = [];

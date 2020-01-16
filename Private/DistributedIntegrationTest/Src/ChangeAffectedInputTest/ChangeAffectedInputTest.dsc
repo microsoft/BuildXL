@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
-import {cmdExe} from "DistributedIntegrationTests.Utils";
+import {cmdExe, verifyOutputScript} from "DistributedIntegrationTests.Utils";
 
 function main() {
     // BuildXL invocation specifies inputfile.txt as source change.
@@ -18,8 +18,9 @@ function main() {
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
-            Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
+            Cmd.argument("type"),
             Cmd.argument(Artifact.input(inputFile)),
+            Cmd.argument(">"),
             Cmd.argument(Artifact.output(outputFile1)),
         ],
         workingDirectory: d`.`
@@ -34,8 +35,9 @@ function main() {
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
-            Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
+            Cmd.argument("type"),
             Cmd.argument(Artifact.input(result.getOutputFile(outputFile1))),
+            Cmd.argument(">"),
             Cmd.argument(Artifact.output(outputFile2)),
         ],
         workingDirectory: d`.`
@@ -71,8 +73,9 @@ function main() {
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
-            Cmd.argument(Artifact.input(f`./readFromAndWriteToFile.cmd`)),
+            Cmd.argument("type"),
             Cmd.argument(Artifact.none(changeAffectedInputListWrittenFile)),
+            Cmd.argument(">"),
             Cmd.argument(Artifact.output(outputFile3)),
         ],
         dependencies: [sealedDir],
@@ -93,7 +96,7 @@ function main() {
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
-            Cmd.argument(Artifact.input(f`../Utils/verifyOutput.cmd`)),
+            Cmd.argument(Artifact.input(verifyOutputScript)),
             Cmd.argument(Artifact.input(expectedChangeAffectedInputListWrittenFile)),
             Cmd.argument(Artifact.input(result.getOutputFile(outputFile3))),
             Cmd.argument(Artifact.output(verificationOutput)),

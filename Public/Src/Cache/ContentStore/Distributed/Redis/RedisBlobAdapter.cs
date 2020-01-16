@@ -55,26 +55,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public async Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
-            var key = GetBlobKey(hash);
-
-            if (await _redis.KeyExistsAsync(context, key, context.Token))
+            const string errorMessage = "Redis value could not be updated to upload blob.";
+            try
             {
+                var key = GetBlobKey(hash);
 
-                _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
-                return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
+                if (await _redis.KeyExistsAsync(context, key, context.Token))
+                {
+
+                    _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
+                    return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
+                }
+
+                var reservationResult = await TryReserveAsync(context, blob.Length, hash);
+                if (!reservationResult)
+                {
+                    _counters[RedisBlobAdapterCounters.FailedReservations].Increment();
+                    return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage!);
+                }
+
+                var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
+
+                return success
+                    ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
+                    : new PutBlobResult(hash, blob.Length, errorMessage);
             }
-
-            var reservationResult = await TryReserveAsync(context, blob.Length, hash);
-            if (!reservationResult)
+            catch (Exception e)
             {
-                _counters[RedisBlobAdapterCounters.FailedReservations].Increment();
-                return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage!);
+                return new PutBlobResult(new ErrorResult(e), errorMessage, hash, blob.Length);
             }
-
-            var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
-            return success
-                ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
-                : new PutBlobResult(hash, blob.Length, "Redis value could not be updated to upload blob.");
         }
 
         /// <summary>
@@ -121,16 +130,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public async Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash hash)
         {
-            byte[] result = await _redis.StringGetAsync(context, GetBlobKey(hash), context.Token);
-
-            if (result == null)
+            try
             {
-                return new GetBlobResult(hash, blob: null);
-            }
+                byte[] result = await _redis.StringGetAsync(context, GetBlobKey(hash), context.Token);
 
-            _counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
-            _counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
-            return new GetBlobResult(hash, result);
+                if (result == null)
+                {
+                    return new GetBlobResult(hash, blob: null);
+                }
+
+                _counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
+                _counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
+                return new GetBlobResult(hash, result);
+            }
+            catch (Exception e)
+            {
+                return new GetBlobResult(new ErrorResult(e), "Blob could not be fetched from redis.", hash);
+            }
         }
 
         public CounterSet GetCounters() => _counters.ToCounterSet();

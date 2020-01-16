@@ -117,6 +117,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
+        public PutBlobResult(ResultBase other, string message, ContentHash hash, long blobSize)
+            : base(other, message)
+        {
+            Hash = hash;
+            BlobSize = blobSize;
+        }
+
+        /// <nodoc />
         public PutBlobResult(ResultBase other, string message)
             : base(other, message)
         {
@@ -172,6 +180,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public GetBlobResult(ResultBase other, string message)
             : base(other, message)
         {
+        }
+
+        /// <nodoc />
+        public GetBlobResult(ResultBase other, string message, ContentHash hash)
+            : base(other, message)
+        {
+            Hash = hash;
         }
 
         /// <inheritdoc />

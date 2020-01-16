@@ -37,6 +37,7 @@ namespace Test {
         runtimeContent: [
             Library.dll,
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
         ],
     });
 }

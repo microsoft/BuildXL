@@ -26,6 +26,7 @@ namespace Library {
             importFrom("System.Interactive.Async").pkg,
 
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").pkg.contents, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],

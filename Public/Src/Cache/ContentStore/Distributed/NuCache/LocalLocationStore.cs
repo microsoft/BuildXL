@@ -323,7 +323,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true));
+                _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true))
+                    .ContinueWith(
+                        t =>
+                        {
+                            var result = t.GetAwaiter().GetResult();
+                            if (!result)
+                            {
+                                // If the heartbeat fails, we want to create a better error message
+                                // because the error produced here can be returned to the clients and even serialized back
+                                // to other systems.
+                                return new BoolResult(result, "Failed initializing Local Location Store");
+                            }
+
+                            return result;
+                        });
             }
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;

@@ -173,6 +173,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Counters[CentralStorageCounters.TryGetFileFromPeerSucceeded].Increment();
                     return Result.Success(new ContentHashWithSize(hash.Value, placeResult.FileSize));
                 }
+                else
+                {
+                    Tracer.OperationDebug(context, $"Falling back to blob storage. Error={putResult}");
+                }
             }
 
             Counters[CentralStorageCounters.TryGetFileFromFallback].Increment();

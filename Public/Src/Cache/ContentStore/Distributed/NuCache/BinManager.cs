@@ -234,14 +234,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _machineAssignmentsSortedByBinCount.Add(machineToResort);
             }
 
-            foreach (var impactedBin in GetImpactedBins(binToMove, oldMachine.MachineId))
-            {
-                // Mark the old assignment as expired
-                _expiredAssignments.GetOrAdd(impactedBin, bin => new Dictionary<MachineId, DateTime>())[oldMachine.MachineId] = _clock.UtcNow + _expiryTime;
-            }
-
             lock (_lockObject)
             {
+                // Accesses to the machine hash set (_machineSetBuffer) are not thread safe.
+                foreach (var impactedBin in GetImpactedBins(binToMove, oldMachine.MachineId))
+                {
+                    // Mark the old assignment as expired
+                    _expiredAssignments.GetOrAdd(impactedBin, bin => new Dictionary<MachineId, DateTime>())[oldMachine.MachineId] = _clock.UtcNow + _expiryTime;
+                }
+
                 // Invalidate bins
                 _bins = null;
             }

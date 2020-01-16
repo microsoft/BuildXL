@@ -137,6 +137,10 @@ export function install(args: Arguments) : Result {
                         ]),
                     ],
                     requireGlobalDependencies: true,
+                    retryExitCodes: [ 
+                        // There are frequent network issues on the hosted VM's that make the yarn install sometimes flacky. This will give it another chance.
+                        1
+                    ],
                 },
             },
             credentialProviderArguments

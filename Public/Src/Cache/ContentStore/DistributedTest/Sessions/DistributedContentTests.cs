@@ -45,7 +45,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public MemoryClock TestClock { get; } = new MemoryClock();
 
-        protected ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
+        protected ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
 
         protected abstract IContentStore CreateStore(
             Context context,
@@ -60,6 +60,7 @@ namespace ContentStoreTest.Distributed.Sessions
         public class TestContext
         {
             public readonly Context Context;
+            public readonly Context[] StoreContexts;
             public readonly TestFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
             public IList<IContentSession> Sessions { get; protected set; }
@@ -74,6 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
             public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentStore> stores, int iteration)
             {
                 Context = context;
+                StoreContexts = stores.Select((s, index) => CreateContext(index, iteration)).ToArray();
                 FileCopier = fileCopier;
                 Directories = directories;
                 Stores = stores;
@@ -88,24 +90,34 @@ namespace ContentStoreTest.Distributed.Sessions
                 }
             }
 
+            private Context CreateContext(int index, int iteration)
+            {
+                var idBytes = Enumerable.Repeat(byte.MaxValue, 16).ToArray();
+                
+                idBytes[0] = (byte)index;
+                idBytes[5] = (byte)iteration;
+
+                return new Context(Context, new Guid(idBytes));
+            }
+
             public virtual async Task StartupAsync(ImplicitPin implicitPin)
             {
-                var startupResults = await TaskSafetyHelpers.WhenAll(Stores.Select(async store => await store.StartupAsync(Context)));
+                var startupResults = await TaskSafetyHelpers.WhenAll(Stores.Select(async (store, index) => await store.StartupAsync(StoreContexts[index])));
 
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
 
                 Sessions = Stores.Select((store, id) => store.CreateSession(Context, "store" + id, implicitPin).Session).ToList();
-                await TaskSafetyHelpers.WhenAll(Sessions.Select(async session => await session.StartupAsync(Context)));
+                await TaskSafetyHelpers.WhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
             }
 
             public virtual async Task ShutdownAsync()
             {
                 await TaskSafetyHelpers.WhenAll(
-                    Sessions.Select(async session =>
+                    Sessions.Select(async (session, index) =>
                     {
                         if (!session.ShutdownCompleted)
                         {
-                            await session.ShutdownAsync(Context).ThrowIfFailure();
+                            await session.ShutdownAsync(StoreContexts[index]).ThrowIfFailure();
                         }
                     }));
 
@@ -117,16 +129,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 await LogStatsAsync();
 
                 await ShutdownStoresAsync();
-
-                foreach (var directory in Directories)
-                {
-                    directory.Dispose();
-                }
             }
 
             protected virtual async Task ShutdownStoresAsync()
             {
-                await TaskSafetyHelpers.WhenAll(Stores.Select(async store => await store.ShutdownAsync(Context)));
+                await TaskSafetyHelpers.WhenAll(Stores.Select(async (store, index) => await store.ShutdownAsync(StoreContexts[index])));
 
                 foreach (var store in Stores)
                 {
@@ -139,12 +146,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 for (int storeId = 0; storeId < Stores.Count; storeId++)
                 {
                     var store = Stores[storeId];
-                    var stats = await store.GetStatsAsync(Context);
+                    var stats = await store.GetStatsAsync(StoreContexts[storeId]);
                     if (stats.Succeeded)
                     {
                         foreach (var counter in stats.CounterSet.ToDictionaryIntegral())
                         {
-                            Context.Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
+                            StoreContexts[storeId].Debug($"Stat: Store{storeId}.{counter.Key}=[{counter.Value}]");
                         }
                     }
                 }
@@ -296,7 +303,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task PinWithRedundantRecordAvailability()
         {
-            ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence;
+            ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence;
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1025,34 +1032,44 @@ namespace ContentStoreTest.Distributed.Sessions
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
                 .ToList();
 
-            for (int iteration = 0; iteration < iterations; iteration++)
+            try
             {
-                var testFileCopier = outerContext?.FileCopier ?? new TestFileCopier()
+                for (int iteration = 0; iteration < iterations; iteration++)
                 {
-                    WorkingDirectory = indexedDirectories[0].Directory.Path
-                };
+                    var testFileCopier = outerContext?.FileCopier ?? new TestFileCopier()
+                    {
+                        WorkingDirectory = indexedDirectories[0].Directory.Path
+                    };
 
-                context.Always($"Starting test iteration {iteration}");
+                    context.Always($"Starting test iteration {iteration}");
 
-                var stores = indexedDirectories.Select(
-                    directory =>
-                        CreateStore(
-                            context,
-                            testFileCopier,
-                            directory.Directory,
-                            directory.Index,
-                            enableDistributedEviction,
-                            replicaCreditInMinutes,
-                            enableRepairHandling,
-                            additionalArgs)).ToList();
+                    var stores = indexedDirectories.Select(
+                        directory =>
+                            CreateStore(
+                                context,
+                                testFileCopier,
+                                directory.Directory,
+                                directory.Index,
+                                enableDistributedEviction,
+                                replicaCreditInMinutes,
+                                enableRepairHandling,
+                                additionalArgs)).ToList();
 
-                var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
+                    var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
 
-                await testContext.StartupAsync(implicitPin);
+                    await testContext.StartupAsync(implicitPin);
 
-                await testFunc(testContext);
+                    await testFunc(testContext);
 
-                await testContext.ShutdownAsync();
+                    await testContext.ShutdownAsync();
+                }
+            }
+            finally
+            {
+                foreach (var directory in indexedDirectories.Select(i => i.Directory))
+                {
+                    directory.Dispose();
+                }
             }
         }
 

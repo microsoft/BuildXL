@@ -38,7 +38,7 @@ namespace BuildXL.Cache.Host.Configuration
             };
 
         [JsonConstructor]
-        private DistributedContentSettings()
+        public DistributedContentSettings()
         {
         }
 

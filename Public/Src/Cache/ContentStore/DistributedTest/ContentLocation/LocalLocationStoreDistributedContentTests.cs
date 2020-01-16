@@ -31,6 +31,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.Host.Service;
+using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Distributed.ContentLocation;
@@ -56,10 +59,15 @@ namespace ContentStoreTest.Distributed.Sessions
         private readonly LocalRedisFixture _redis;
         protected const HashType ContentHashType = HashType.Vso0;
         protected const int ContentByteCount = 100;
+        protected const int SafeToLazilyUpdateMachineCountThreshold = 3;
+        protected const int ReplicaCreditInMinutes = 3;
+        private const int InfiniteHeartbeatMinutes = 10_000;
+
+        protected bool _enableSecondaryRedis = false;
+        protected bool _poolSecondaryRedisDatabase = true;
+
 
         private readonly ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase> _localDatabases = new ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase>();
-
-        protected PinConfiguration PinConfiguration { get; set; }
 
         private readonly Dictionary<int, RedisContentLocationStoreConfiguration> _configurations
             = new Dictionary<int, RedisContentLocationStoreConfiguration>();
@@ -92,6 +100,83 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool EnableProactiveReplication { get; set; } = false;
         protected bool ProactiveCopyUsePreferredLocations { get; set; } = false;
 
+        protected bool UseRealEventHubAndStorage { get; set; } = false;
+
+        private Action<DistributedContentSettings> _overrideDistributed = null;
+        private Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
+
+        private MemoryContentLocationEventStoreConfiguration MemoryEventStoreConfiguration { get; } = new MemoryContentLocationEventStoreConfiguration();
+
+        protected TestHost Host { get; } = new TestHost();
+
+        private class TestHostOverrides : DistributedCacheServiceHostOverrides
+        {
+            private readonly LocalLocationStoreDistributedContentTests _tests;
+            private readonly int _storeIndex;
+
+            public TestHostOverrides(LocalLocationStoreDistributedContentTests tests, int storeIndex)
+            {
+                _tests = tests;
+                _storeIndex = storeIndex;
+            }
+
+            public override IClock Clock => _tests.TestClock;
+
+            public override void Override(RedisContentLocationStoreConfiguration configuration)
+            {
+                configuration.InlineProactiveReplication = true;
+                configuration.InlinePostInitialization = true;
+
+                // Set recompute time to zero to force recomputation on every heartbeat
+                configuration.RecomputeInactiveMachinesExpiry = TimeSpan.Zero;
+
+                if (!_tests.UseRealEventHubAndStorage)
+                {
+                    configuration.CentralStore = new LocalDiskCentralStoreConfiguration(_tests.TestRootDirectoryPath / "centralStore", "checkpoints-key");
+
+                    // Propagate epoch from normal configuration to in-memory configuration
+                    _tests.MemoryEventStoreConfiguration.Epoch = configuration.EventStore.Epoch;
+                    configuration.EventStore = _tests.MemoryEventStoreConfiguration;
+                }
+
+                _tests._overrideRedis?.Invoke(configuration);
+
+                _tests._configurations[_storeIndex] = configuration;
+            }
+
+            public override void Override(DistributedContentStoreSettings settings)
+            {
+                settings.InlinePutBlobs = true;
+                settings.InlineProactiveCopies = true;
+                settings.SetPostInitializationCompletionAfterStartup = true;
+            }
+        }
+
+        protected class TestHost : IDistributedCacheServiceHost
+        {
+            private readonly Dictionary<string, string> _secrets = new Dictionary<string, string>();
+
+            public string StoreSecret(string key, string value)
+            {
+                _secrets[key] = value;
+                return key;
+            }
+
+            public string GetSecretStoreValue(string key)
+            {
+                return _secrets[key];
+            }
+
+            public Task<Dictionary<string, Secret>> RetrieveSecretsAsync(List<RetrieveSecretsRequest> requests, CancellationToken token)
+            {
+                return Task.FromResult(requests.ToDictionary(r => r.Name, r => (Secret)new PlainTextSecret(_secrets[r.Name])));
+            }
+
+            public void OnStartedService() { }
+            public Task OnStartingServiceAsync() => Task.CompletedTask;
+            public void OnTeardownCompleted() { }
+        }
+
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
@@ -103,102 +188,192 @@ namespace ContentStoreTest.Distributed.Sessions
             object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
-            var tempPath = testDirectory.Path / "Temp";
             var configurationModel = new ConfigurationModel(Config);
             var pathTransformer = new TestPathTransformer();
-            var localMachineData = pathTransformer.GetLocalMachineLocation(rootPath);
 
             int dbIndex = 0;
             var localDatabase = GetDatabase(context, ref dbIndex);
             var localMachineDatabase = GetDatabase(context, ref dbIndex);
             _primaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
-
-            if (enableDistributedEviction && replicaCreditInMinutes == null)
-            {
-                // Apparently, replicaCreditInMinutes != null enables distributed eviction,
-                // so make sure replicaCreditInMinutes is set when enableDistributedEviction is
-                // true
-                replicaCreditInMinutes = 0;
-            }
-
-            if (CreateContentLocationStoreConfiguration == null)
-            {
-                // If not configured use the write both, read redis
-                _readMode = ContentLocationMode.Redis;
-                _writeMode = ContentLocationMode.Both;
-                ConfigureRocksDbContentLocationBasedTest(configureInMemoryEventStore: true, configurePin: false);
-            }
-
-            var configuration = CreateContentLocationStoreConfiguration?.Invoke(rootPath, index) ?? new RedisContentLocationStoreConfiguration();
-
-            configuration.RedisGlobalStoreConnectionString = _primaryGlobalStoreDatabase.ConnectionString;
             if (_enableSecondaryRedis)
             {
                 _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
-                configuration.RedisGlobalStoreSecondaryConnectionString = _secondaryGlobalStoreDatabase.ConnectionString;
             }
 
-            configuration.EnableProactiveReplication = EnableProactiveReplication;
-            configuration.InlineProactiveReplication = true;
-
-            configuration.DistributedCentralStore = new DistributedCentralStoreConfiguration(rootPath);
-
-            _configurations[index] = configuration;
-            var testPathTransformer = new TestPathTransformer();
-            var storeFactory = new RedisContentLocationStoreFactory(
-                new LiteralConnectionStringProvider(localDatabase.ConnectionString),
-                new LiteralConnectionStringProvider(localMachineDatabase.ConnectionString),
-                TestClock,
-                contentHashBumpTime: TimeSpan.FromHours(1),
-                keySpace: RedisContentLocationStoreFactory.DefaultKeySpace,
-                fileSystem: null,
-                configuration: configuration);
-
-            var distributedContentStore = new DistributedContentStore<AbsolutePath>(
-                localMachineData,
-                (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
+            var settings = new DistributedContentSettings()
+            {
+                ConnectionSecretNamesMap = new Dictionary<string, RedisContentSecretNames>()
                 {
-                    return new FileSystemContentStore(
-                        FileSystem,
-                        TestClock,
-                        rootPath,
-                        configurationModel,
-                        nagleQueue: nagleBlock,
-                        distributedEvictionSettings: distributedEvictionSettings,
-                        settings: contentStoreSettings,
-                        trimBulkAsync: trimBulkAsync);
+                    {
+                        ".*",
+                        new RedisContentSecretNames(
+                            redisContentSecretName: Host.StoreSecret("ContentRedis", localDatabase.ConnectionString),
+                            redisMachineLocationsSecretName: Host.StoreSecret("MachineRedis", localDatabase.ConnectionString))
+                    }
                 },
-                storeFactory,
-                fileCopier,
+                IsDistributedContentEnabled = true,
+                KeySpacePrefix = "TestPrefix",
+
+                // By default, only first store is master eligible
+                IsMasterEligible = index == 0,
+
+                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", _primaryGlobalStoreDatabase.ConnectionString),
+                SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
+
+                // Specify event hub and storage secrets even thoug they are not used in tests to satisfy DistributedContentStoreFactory
+                EventHubSecretName = Host.StoreSecret("EventHub_Unspecified", "Unused"),
+                AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
+
+                IsContentLocationDatabaseEnabled = true,
+                ContentLocationReadMode = nameof(ContentLocationMode.Redis),
+                ContentLocationWriteMode = nameof(ContentLocationMode.Both),
+                UseDistributedCentralStorage = true,
+                ContentHashBumpTimeMinutes = 60,
+                MachineExpiryMinutes = 10,
+                IsDistributedEvictionEnabled = true,
+
+                SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
+
+                RestoreCheckpointIntervalMinutes = 1,
+                CreateCheckpointIntervalMinutes = 1,
+                HeartbeatIntervalMinutes = InfiniteHeartbeatMinutes,
+
+                RetryIntervalForCopiesMs = DistributedContentSessionTests.DefaultRetryIntervalsForTest.Select(t => (int)t.TotalMilliseconds).ToArray(),
+
+                RedisBatchPageSize = 1,
+                CheckLocalFiles = true,
+
+                // Tests disable reconciliation by default
+                Unsafe_DisableReconciliation = true,
+
+                IsPinBetterEnabled = false,
+                ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.ToString(),
+                PinCacheReplicaCreditRetentionMinutes = 30,
+
+                // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
+                MachineRisk = 0.0000001,
+                FileRisk = 0.0000001,
+                PinRisk = 0.9999,
+                IsPinCachingEnabled = false,
+
+                ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
+                PushProactiveCopies = PushProactiveCopies,
+                EnableProactiveReplication = EnableProactiveReplication,
+                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
+                IsRepairHandlingEnabled = enableRepairHandling
+            };
+
+            _overrideDistributed?.Invoke(settings);
+
+            var localCasSettings = new LocalCasSettings()
+            {
+                CasClientSettings = new LocalCasClientSettings()
+                {
+                    UseCasService = true,
+                    DefaultCacheName = "Default",
+                },
+                CacheSettings = new Dictionary<string, NamedCacheSettings>()
+                {
+                    {
+                        "Default",
+                        new NamedCacheSettings()
+                        {
+                            CacheRootPath = rootPath.Path,
+                            CacheSizeQuotaString = "50MB"
+                        }
+                    }
+                }
+            };
+
+            var configuration = new DistributedCacheServiceConfiguration(localCasSettings, settings);
+
+            var arguments = new DistributedCacheServiceArguments(
+                Logger,
                 fileCopier,
                 pathTransformer,
                 fileCopier,
-                ContentAvailabilityGuarantee,
-                tempPath,
-                FileSystem,
-                locationStoreBatchSize: 1,
-                settings: new DistributedContentStoreSettings()
-                {
-                    RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
-                    PinConfiguration = PinConfiguration,
-                    InlinePutBlobs = true,
-                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.OutsideRing : ProactiveCopyMode.Disabled,
-                    InlineProactiveCopies = true,
-                    PushProactiveCopies = PushProactiveCopies,
-                    ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations
-                },
-                replicaCreditInMinutes: replicaCreditInMinutes,
-                clock: TestClock,
-                enableRepairHandling: enableRepairHandling,
-                contentStoreSettings: new ContentStoreSettings()
-                {
-                    CheckFiles = true,
-                },
-                setPostInitializationCompletionAfterStartup: true
-                );
+                Host,
+                new HostInfo("TestStamp", "TestRing", capabilities: new string[0]),
+                Token,
+                dataRootPath: rootPath.Path,
+                configuration: configuration,
+                keyspace: RedisContentLocationStoreFactory.DefaultKeySpace
+            );
 
-            distributedContentStore.DisposeContentStoreFactory = false;
-            return distributedContentStore;
+            arguments.Overrides = new TestHostOverrides(this, index);
+
+            var factory = new DistributedContentStoreFactory(arguments);
+
+            var store = factory.CreateContentStore(rootPath);
+            store.DisposeContentStoreFactory = true;
+            return store;
+        }
+
+        protected bool ConfigureWithRealEventHubAndStorage(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        {
+            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
+            {
+                return false;
+            }
+
+            UseRealEventHubAndStorage = true;
+
+            ConfigureWithOneMaster(s =>
+                {
+                    overrideDistributed?.Invoke(s);
+                    s.EventHubSecretName = Host.StoreSecret(eventHubName, eventHubConnectionString);
+                    s.AzureStorageSecretName = Host.StoreSecret(storageAccountName, storageAccountKey);
+                },
+                overrideRedis);
+            return true;
+        }
+
+        protected void ConfigureWithOneMaster(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        {
+            _overrideDistributed = s =>
+            {
+                s.IsPinBetterEnabled = true;
+                s.ContentLocationReadMode = nameof(ContentLocationMode.LocalLocationStore);
+                s.ContentLocationWriteMode = nameof(ContentLocationMode.LocalLocationStore);
+                s.ContentAvailabilityGuarantee = nameof(ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence);
+                overrideDistributed?.Invoke(s);
+            };
+            _overrideRedis = overrideRedis;
+        }
+
+        private bool ReadConfiguration(out string storageAccountKey, out string storageAccountName, out string eventHubConnectionString, out string eventHubName)
+        {
+            storageAccountKey = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountKey");
+            storageAccountName = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountName");
+            eventHubConnectionString = Environment.GetEnvironmentVariable("TestEventHub_EventHubConnectionString");
+            eventHubName = Environment.GetEnvironmentVariable("TestEventHub_EventHubName");
+
+            if (storageAccountKey == null)
+            {
+                Output.WriteLine("Please specify 'TestEventHub_StorageAccountKey' to run this test");
+                return false;
+            }
+
+            if (storageAccountName == null)
+            {
+                Output.WriteLine("Please specify 'TestEventHub_StorageAccountName' to run this test");
+                return false;
+            }
+
+            if (eventHubConnectionString == null)
+            {
+                Output.WriteLine("Please specify 'TestEventHub_EventHubConnectionString' to run this test");
+                return false;
+            }
+
+            if (eventHubName == null)
+            {
+                Output.WriteLine("Please specify 'TestEventHub_EventHubName' to run this test");
+                return false;
+            }
+
+            Output.WriteLine("The test is configured correctly.");
+            return true;
         }
 
         [Fact]
@@ -244,7 +419,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     return BoolResult.Success;
                 });
 
-            Task <BoolResult> result = LocalLocationStore.RunOutOfBandAsync(inline: true, ref task, locker, operation, out _);
+            Task<BoolResult> result = LocalLocationStore.RunOutOfBandAsync(inline: true, ref task, locker, operation, out _);
 
             result.IsCompleted.Should().BeFalse("The task should not be completed synchronously.");
             task.Should().BeNull("Task is not set when inline is true");
@@ -253,29 +428,16 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact(Skip = "Flaky test")]
         public async Task SkipRestoreCheckpointTest()
         {
-            // CleanOnInitialize must be false when skipping restore checkpoint. Otherwise, db directory will be deleted on startup
-            // so checkpoint is never skipped.
-            _cleanDbOnInitialize = false;
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
-            var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
-
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            // Ensure master lease is long enough that role doesn't switch between machines
+            var masterLeaseExpiryTime = TimeSpan.FromMinutes(60);
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        /* Set role to null to automatically choose role using master election */
-                        Role = null,
-                        UseIncrementalCheckpointing = true,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime,
-                        RestoreCheckpointAgeThreshold = TimeSpan.FromHours(1),
-                    };
-                    config.CentralStore = centralStoreConfiguration;
+                    s.RestoreCheckpointAgeThresholdMinutes = 60;
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             await RunTestAsync(
@@ -307,6 +469,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
                     else
                     {
+                        if (context.Iteration == 1)
+                        {
+                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Value.Should().Be(1);
+                        }
+
                         workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(0);
                     }
                 });
@@ -344,18 +511,18 @@ namespace ContentStoreTest.Distributed.Sessions
                     foreach (var workerId in context.EnumerateWorkersIndices())
                     {
                         var workerSession = context.Sessions[workerId];
-                        var workerResult= await workerSession.PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token)
+                        var workerResult = await workerSession.PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token)
                             .ShouldBeSuccess();
                     }
 
                     // Create checkpoint on master, and restore checkpoint on workers
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
-                    var masterResult = await masterLocationStore.GetBulkAsync(context, new List<ContentHash>(){ putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                    var masterResult = await masterLocationStore.GetBulkAsync(context, new List<ContentHash>() { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
                     masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(machineCount);
 
                     // Call distributed delete of the content from worker session
-                    var deleteResult = await stores[context.GetFirstWorkerIndex()].DeleteAsync(context, putResult.ContentHash, new DeleteContentOptions(){DeleteLocalOnly = false});
+                    var deleteResult = await stores[context.GetFirstWorkerIndex()].DeleteAsync(context, putResult.ContentHash, new DeleteContentOptions() { DeleteLocalOnly = false });
 
                     // Verify no records of machine having this content from master session
                     masterResult = await masterLocationStore.GetBulkAsync(context, new List<ContentHash>() { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
@@ -375,9 +542,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
             int machineCount = 2;
             ConfigureWithOneMaster();
-
-            // We need pin better to be triggered.
-            PinConfiguration = new PinConfiguration();
 
             await RunTestAsync(
                 loggingContext,
@@ -415,9 +579,6 @@ namespace ContentStoreTest.Distributed.Sessions
             int machineCount = 3;
             ConfigureWithOneMaster();
 
-            // We need pin better to be triggered.
-            PinConfiguration = new PinConfiguration();
-
             await RunTestAsync(
                 loggingContext,
                 machineCount,
@@ -445,8 +606,6 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(false)]
         public async Task ProactiveReplicationTest(bool usePreferredLocations)
         {
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
             EnableProactiveReplication = true;
             EnableProactiveCopy = true;
             PushProactiveCopies = true;
@@ -545,7 +704,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             if (!useDatabasePool)
             {
-                 return LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+                return LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
             }
             index++;
             if (!_localDatabases.TryGetValue((context.Id, index), out var localDatabase))
@@ -563,17 +722,16 @@ namespace ContentStoreTest.Distributed.Sessions
             var startTime = TestClock.UtcNow;
             TimeSpan pinCacheTimeToLive = TimeSpan.FromMinutes(30);
 
-            PinConfiguration = new PinConfiguration()
+            _overrideDistributed = s =>
             {
-                // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
-                MachineRisk = 0.0000001,
-                FileRisk = 0.0000001,
-                PinRisk = 0.9999,
-                PinCachePerReplicaRetentionCreditMinutes = (int)pinCacheTimeToLive.TotalMinutes,
-                IsPinCachingEnabled = true
+                // Enable pin better to ensure pin configuration is passed to distributed store,
+                // but defaults use low risk and high risk tolerance for machine 
+                // or file loss to prevent pin better from kicking in.
+                s.IsPinBetterEnabled = true;
+                s.ContentAvailabilityGuarantee = nameof(ContentAvailabilityGuarantee.FileRecordsExist);
+                s.PinCacheReplicaCreditRetentionMinutes = (int)pinCacheTimeToLive.TotalMinutes;
+                s.IsPinCachingEnabled = true;
             };
-
-            ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
 
             await RunTestAsync(
                 new Context(Logger),
@@ -896,8 +1054,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task TestEvictionBelowMinimumAge()
         {
-            _enableReconciliation = true;
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(s => s.Unsafe_DisableReconciliation = false);
 
             await RunTestAsync(
                 new Context(Logger),
@@ -923,7 +1080,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task TestGetLruPages()
         {
-            _enableReconciliation = true;
+            _overrideDistributed = s => s.Unsafe_DisableReconciliation = false;
             ConfigureWithOneMaster();
 
             await RunTestAsync(
@@ -963,8 +1120,7 @@ namespace ContentStoreTest.Distributed.Sessions
         // [InlineData(ContentLocationEventStore.ReconcileContentCountEventThreshold)] // Flaky test
         public async Task ReconciliationTest(int removeCount)
         {
-            _enableReconciliation = true;
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(s => s.Unsafe_DisableReconciliation = false);
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1037,10 +1193,20 @@ namespace ContentStoreTest.Distributed.Sessions
             var addCount = 10;
             _enableSecondaryRedis = false;
 
-            _enableReconciliation = true;
-            _reconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
-            _reconciliationMaxCycleSize = 50;
-            ConfigureWithOneMaster();
+            var reconciliationMaxCycleSize = 50;
+            ConfigureWithOneMaster(s =>
+            {
+                s.Unsafe_DisableReconciliation = false;
+                s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
+                s.ReconciliationCycleFrequencyMinutes = 1;
+            },
+            r =>
+            {
+                // Verify that configuration propagated and change it to 1ms rather than 1 minute
+                // for the sake of test speed
+                r.ReconciliationCycleFrequency.Should().Be(TimeSpan.FromMinutes(1));
+                r.ReconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
+            });
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1090,7 +1256,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Upload and restore checkpoints to trigger reconciliation
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
 
-                    var expectedCycles = ((removeCount + addCount) / _reconciliationMaxCycleSize) + 1;
+                    var expectedCycles = ((removeCount + addCount) / reconciliationMaxCycleSize) + 1;
                     worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(expectedCycles);
 
                     int removedIndex = 0;
@@ -1295,12 +1461,14 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(false)]
         public async Task MultiLevelContentLocationStoreDatabasePinFailOnEvictedContentTests(bool usePinBulk)
         {
-            ConfigureWithOneMaster();
-            int storeCount = 3;
+            ConfigureWithOneMaster(s =>
+            {
+                // Disable test pin better logic which currently succeeds if there is one replica registered. This will cause the pin
+                // logic to fall back to verifying when the number of replicas is below 3
+                s.IsPinBetterEnabled = false;
+            });
 
-            // Disable test pin better logic which currently succeeds if there is one replica registered. This will cause the pin
-            // logic to fall back to verifying when the number of replicas is below 3
-            PinConfiguration = null;
+            int storeCount = 3;
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1393,8 +1561,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         Token).ShouldBeSuccess();
                 });
         }
-
-
 
         [Fact]
         public async Task MultiLevelContentLocationStorePlaceFileFallbackToGlobalTest()
@@ -1516,26 +1682,19 @@ namespace ContentStoreTest.Distributed.Sessions
         [InlineData(true)]
         public async Task LocalDatabaseReplicationWithMasterSelectionTest(bool useIncrementalCheckpointing)
         {
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
 
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        /* Set role to null to automatically choose role using master election */
-                        Role = null,
-                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime,
-                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
-                    };
-                    config.CentralStore = centralStoreConfiguration;
+                    // Set all machines to master eligible to enable master election 
+                    s.IsMasterEligible = true;
+                    s.UseIncrementalCheckpointing = true;
+                    s.RestoreCheckpointAgeThresholdMinutes = 0;
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             await RunTestAsync(
@@ -1672,28 +1831,19 @@ namespace ContentStoreTest.Distributed.Sessions
             // Set epoch to new value
             // Create checkpoint with data (files should not be reused from prior iteration)
 
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
-
             int iteration = 0;
 
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        Role = index == 0 ? Role.Master : Role.Worker,
-                        UseIncrementalCheckpointing = true,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime,
-                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                    config.EventStore.Epoch = $"Epoch:{iteration}";
+                    s.UseIncrementalCheckpointing = true;
+                    s.RestoreCheckpointAgeThresholdMinutes = 0;
+                    s.EventHubEpoch = $"Epoch:{iteration}";
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
@@ -1737,21 +1887,21 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Content should be available in session 0
                     var masterResult = await masterRedisStore.GetBulkAsync(
-                    context,
-                    new[] { putResult0.ContentHash },
-                    Token,
-                    UrgencyHint.Nominal,
-                    GetBulkOrigin.Local).ShouldBeSuccess();
-                    masterResult.ContentHashesInfo[0].Locations.Should().NotBeEmpty();
+                        context,
+                        new[] { putResult0.ContentHash },
+                        Token,
+                        UrgencyHint.Nominal,
+                        GetBulkOrigin.Local).ShouldBeSuccess();
+                        masterResult.ContentHashesInfo[0].Locations.Should().NotBeEmpty();
 
                     // Making sure that the data exists in the master session but not in the worker
                     var workerResult = await workerRedisStore.GetBulkAsync(
-                    context,
-                    new[] { putResult0.ContentHash },
-                    Token,
-                    UrgencyHint.Nominal,
-                    GetBulkOrigin.Local).ShouldBeSuccess();
-                    workerResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty();
+                        context,
+                        new[] { putResult0.ContentHash },
+                        Token,
+                        UrgencyHint.Nominal,
+                        GetBulkOrigin.Local).ShouldBeSuccess();
+                        workerResult.ContentHashesInfo[0].Locations.Should().BeNullOrEmpty();
 
                     TestClock.UtcNow += TimeSpan.FromMinutes(2);
                     TestClock.UtcNow += TimeSpan.FromMinutes(masterLeaseExpiryTime.TotalMinutes / 2);
@@ -1945,8 +2095,8 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task TestDistributedEviction()
         {
             var testDbPath = new AbsolutePath(@"ADD PATH TO LLS DB HERE");
-            _testDatabasePath = TestRootDirectoryPath / "tempdb";
-            CopyDirectory(testDbPath.Path, _testDatabasePath.Path);
+            //_testDatabasePath = TestRootDirectoryPath / "tempdb";
+            //CopyDirectory(testDbPath.Path, _testDatabasePath.Path);
 
             var contentDirectoryPath = new AbsolutePath(@"ADD PATH TO CONTENT DIRECTORY HERE");
             ConfigureWithOneMaster();
@@ -1996,9 +2146,8 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             // Disable cluster state storage in DB to ensure it doesn't interfere with testing
             // Redis cluster state resiliency
-            _storeClusterStateInDatabase = false;
             _enableSecondaryRedis = true;
-            ConfigureWithOneMaster();
+            ConfigureWithOneMaster(s => s.StoreClusterStateInDatabase = false);
             int machineCount = 3;
 
             await RunTestAsync(
@@ -2123,7 +2272,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult = await masterSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
                     var globalGetBulkResult = await master.GetBulkAsync(
                         context,
-                        new[] {putResult.ContentHash},
+                        new[] { putResult.ContentHash },
                         Token,
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Global).ShouldBeSuccess();
@@ -2137,7 +2286,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(0);
                     globalGetBulkResult = await master.GetBulkAsync(
                         context,
-                        new[] {putResult.ContentHash},
+                        new[] { putResult.ContentHash },
                         Token,
                         UrgencyHint.Nominal,
                         GetBulkOrigin.Global).ShouldBeSuccess();
@@ -2316,22 +2465,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task EventStreamContentLocationStoreEventHubBasicTests()
         {
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
-            if (!ConfigureRocksDbContentLocationBasedTestWithEventHub(
-                (index, testRootDirectory, config, storageConnectionString) =>
-                {
-                    var role = index == 0 ? Role.Master : Role.Worker;
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        Role = role,
-                    };
-
-                    config.CentralStore = centralStoreConfiguration;
-                }))
+            if (!ConfigureWithRealEventHubAndStorage())
             {
                 // Test is misconfigured.
                 Output.WriteLine("The test is skipped.");
@@ -2404,30 +2538,9 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task EventStreamContentLocationStoreEventHubWithBlobStorageBasedCentralStore()
         {
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
             var checkpointsKey = Guid.NewGuid().ToString();
 
-            if (!ConfigureRocksDbContentLocationBasedTestWithEventHub(
-                (index, testRootDirectory, config, storageConnectionString) =>
-                {
-                    var role = index == 0 ? Role.Master : Role.Worker;
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        Role = role,
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-
-                    config.CentralStore = new BlobCentralStoreConfiguration(
-                                              credentials: new AzureBlobStorageCredentials(storageConnectionString),
-                                              containerName: "checkpointscontainer",
-                                              checkpointsKey: checkpointsKey)
-                    {
-                        RetentionTime = TimeSpan.FromMinutes(1)
-                    };
-                }))
+            if (!ConfigureWithRealEventHubAndStorage())
             {
                 // Test is misconfigured.
                 Output.WriteLine("The test is skipped.");
@@ -2576,184 +2689,6 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
-        protected void ConfigureWithOneMaster(CentralStoreConfiguration centralStoreConfiguration = null)
-        {
-            centralStoreConfiguration = centralStoreConfiguration ?? new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
-
-            // Extremely hacky way to make the first redis instance to be a master and the rest to be workers.
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
-                {
-                    var role = index == 0 ? Role.Master : Role.Worker;
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        Role = role,
-                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                });
-        }
-
-        private static readonly TimeSpan LocalDatabaseEntryTimeToLive = TimeSpan.FromMinutes(3);
-        protected const int SafeToLazilyUpdateMachineCountThreshold = 3;
-        protected const int ReplicaCreditInMinutes = 3;
-        protected bool _enableReconciliation;
-        protected TimeSpan _reconciliationCycleFrequency = TimeSpan.FromSeconds(3);
-        protected int _reconciliationMaxCycleSize = 100_000;
-        protected ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
-        protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
-        protected bool _enableSecondaryRedis = false;
-        protected bool _poolSecondaryRedisDatabase = true;
-        protected AbsolutePath _testDatabasePath = null;
-        protected bool _storeClusterStateInDatabase = true;
-        protected bool _cleanDbOnInitialize = true;
-
-        private RedisContentLocationStoreConfiguration CreateRedisContentLocationStoreConfiguration(
-            AbsolutePath storeLocationRoot,
-            ContentLocationEventStoreConfiguration eventStoreConfiguration = null)
-        {
-            return new RedisContentLocationStoreConfiguration()
-            {
-                MachineExpiry = TimeSpan.FromMinutes(10),
-                EnableReconciliation = _enableReconciliation,
-                ReconciliationCycleFrequency = _reconciliationCycleFrequency,
-                ReconciliationMaxCycleSize = _reconciliationMaxCycleSize,
-                InlinePostInitialization = true,
-                ContentLifetime = TimeSpan.FromMinutes(ReplicaCreditInMinutes),
-
-                // Set recompute time to zero to force recomputation on every heartbeat
-                RecomputeInactiveMachinesExpiry = TimeSpan.Zero,
-                Database =
-                           new RocksDbContentLocationDatabaseConfiguration(storeLocationRoot / "rocksdb")
-                           {
-                               // Don't GC
-                               GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
-                               TestInitialCheckpointPath = _testDatabasePath,
-                               StoreClusterState = _storeClusterStateInDatabase,
-                               CleanOnInitialize = _cleanDbOnInitialize
-                           },
-                CentralStore = new LocalDiskCentralStoreConfiguration(storeLocationRoot, "chkpoints"),
-                SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
-                Checkpoint = new CheckpointConfiguration(storeLocationRoot)
-                {
-                    HeartbeatInterval = TimeSpan.FromMinutes(1),
-                },
-                EventStore = eventStoreConfiguration ?? new MemoryContentLocationEventStoreConfiguration(),
-                ReadMode = _readMode,
-                WriteMode = _writeMode,
-            };
-        }
-
-        private void ConfigureRocksDbContentLocationBasedTest(bool configureInMemoryEventStore = false, Action<int, AbsolutePath, RedisContentLocationStoreConfiguration> configurationPostProcessor = null, bool configurePin = true, AbsolutePath overrideContentLocationStoreDirectory = null)
-        {
-            var eventStoreConfiguration = configureInMemoryEventStore ? new MemoryContentLocationEventStoreConfiguration() : null;
-            CreateContentLocationStoreConfiguration = (testRootDirectory, index) =>
-            {
-                var result = CreateRedisContentLocationStoreConfiguration(
-                    overrideContentLocationStoreDirectory ?? testRootDirectory,
-                    eventStoreConfiguration);
-
-                configurationPostProcessor?.Invoke(index, testRootDirectory, result);
-                return result;
-            };
-
-            if (configurePin)
-            {
-                PinConfiguration = new PinConfiguration()
-                {
-                    // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
-                    MachineRisk = 0.0000001,
-                    FileRisk = 0.0000001,
-                    PinRisk = 0.9999,
-                    IsPinCachingEnabled = false
-                };
-
-                ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence;
-            }
-        }
-
-        private bool ConfigureRocksDbContentLocationBasedTestWithEventHub(Action<int, AbsolutePath, RedisContentLocationStoreConfiguration, string> configurationPostProcessor)
-        {
-            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
-            {
-                return false;
-            }
-
-            string storageConnectionString = $"DefaultEndpointsProtocol=https;AccountName={storageAccountName};AccountKey={storageAccountKey}";
-            var eventStoreConfiguration = new EventHubContentLocationEventStoreConfiguration(
-                                              eventHubName: eventHubName,
-                                              eventHubConnectionString:
-                                              eventHubConnectionString,
-                                              consumerGroupName: "$Default",
-                                              epoch: Guid.NewGuid().ToString())
-            {
-                // Send events eagerly as they come in.
-                EventBatchSize = 1,
-                Epoch = null,
-                MaxEventProcessingConcurrency = 2,
-            };
-            CreateContentLocationStoreConfiguration = (testRootDirectory, index) =>
-            {
-                var result = CreateRedisContentLocationStoreConfiguration(
-                    testRootDirectory,
-                    eventStoreConfiguration);
-
-                configurationPostProcessor?.Invoke(index, testRootDirectory, result, storageConnectionString);
-                return result;
-            };
-
-            PinConfiguration = new PinConfiguration()
-            {
-                // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
-                MachineRisk = 0.0000001,
-                FileRisk = 0.0000001,
-                PinRisk = 0.9999,
-                IsPinCachingEnabled = false
-            };
-
-            ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
-            return true;
-        }
-
-        private bool ReadConfiguration(out string storageAccountKey, out string storageAccountName, out string eventHubConnectionString, out string eventHubName)
-        {
-            storageAccountKey = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountKey");
-            storageAccountName = Environment.GetEnvironmentVariable("TestEventHub_StorageAccountName");
-            eventHubConnectionString = Environment.GetEnvironmentVariable("TestEventHub_EventHubConnectionString");
-            eventHubName = Environment.GetEnvironmentVariable("TestEventHub_EventHubName");
-
-            if (storageAccountKey == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_StorageAccountKey' to run this test");
-                return false;
-            }
-
-            if (storageAccountName == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_StorageAccountName' to run this test");
-                return false;
-            }
-
-            if (eventHubConnectionString == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_EventHubConnectionString' to run this test");
-                return false;
-            }
-
-            if (eventHubName == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_EventHubName' to run this test");
-                return false;
-            }
-
-            Output.WriteLine("The test is configured correctly.");
-            return true;
-        }
-
         [Fact(Skip = "For manual testing only. Requires storage account credentials")]
         public async Task BlobCentralStorageCredentialsUpdate()
         {
@@ -2820,26 +2755,17 @@ namespace ContentStoreTest.Distributed.Sessions
             int maximumBatchSize = 1000;
             int warmupBatches = 10000;
 
-            var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
 
-            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        /* Set role to null to automatically choose role using master election */
-                        Role = null,
-                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                    s.UseIncrementalCheckpointing = useIncrementalCheckpointing;
+                    s.RestoreCheckpointAgeThresholdMinutes = 60;
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             var events = GenerateAddEvents(numberOfMachines, addsPerMachine, maximumBatchSize);
@@ -2864,7 +2790,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         stopWatch.Restart();
                         Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
                         {
-                            var eventHub = memoryContentLocationEventStore.Hub;
+                            var eventHub = MemoryEventStoreConfiguration.Hub;
 
                             foreach (var ev in events[machineId])
                             {
@@ -2948,23 +2874,15 @@ namespace ContentStoreTest.Distributed.Sessions
             var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
 
-            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        /* Set role to null to automatically choose role using master election */
-                        Role = null,
-                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                    s.UseIncrementalCheckpointing = useIncrementalCheckpointing;
+                    s.RestoreCheckpointAgeThresholdMinutes = 60;
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             var events = GenerateMixedAddAndDeleteEvents(numberOfMachines, deletesPerMachine, maximumBatchSize);
@@ -2989,7 +2907,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         stopWatch.Restart();
                         Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
                         {
-                            var eventHub = memoryContentLocationEventStore.Hub;
+                            var eventHub = MemoryEventStoreConfiguration.Hub;
 
                             foreach (var ev in events[machineId])
                             {
@@ -3101,23 +3019,16 @@ namespace ContentStoreTest.Distributed.Sessions
             var centralStoreConfiguration = new LocalDiskCentralStoreConfiguration(TestRootDirectoryPath / "centralstore", Guid.NewGuid().ToString());
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(3);
 
-            MemoryContentLocationEventStoreConfiguration memoryContentLocationEventStore = null;
-            ConfigureRocksDbContentLocationBasedTest(
-                configureInMemoryEventStore: true,
-                (index, testRootDirectory, config) =>
+            ConfigureWithOneMaster(
+                s =>
                 {
-                    config.Checkpoint = new CheckpointConfiguration(testRootDirectory)
-                    {
-                        /* Set role to null to automatically choose role using master election */
-                        Role = null,
-                        UseIncrementalCheckpointing = useIncrementalCheckpointing,
-                        CreateCheckpointInterval = TimeSpan.FromMinutes(1),
-                        RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
-                        HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime
-                    };
-                    config.CentralStore = centralStoreConfiguration;
-                    memoryContentLocationEventStore = (MemoryContentLocationEventStoreConfiguration)config.EventStore;
+                    s.IsMasterEligible = true;
+                    s.UseIncrementalCheckpointing = useIncrementalCheckpointing;
+                    s.RestoreCheckpointAgeThresholdMinutes = 60;
+                },
+                r =>
+                {
+                    r.Checkpoint.MasterLeaseExpiryTime = masterLeaseExpiryTime;
                 });
 
             var events = GenerateUniquenessWorkload(numberOfMachines, cacheHitRatio, maximumBatchSize, operationsPerMachine, randomSeedOverride: 42);
@@ -3142,7 +3053,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         stopWatch.Restart();
                         Parallel.ForEach(Enumerable.Range(0, numberOfMachines), machineId =>
                         {
-                            var eventHub = memoryContentLocationEventStore.Hub;
+                            var eventHub = MemoryEventStoreConfiguration.Hub;
 
                             foreach (var ev in events[machineId])
                             {

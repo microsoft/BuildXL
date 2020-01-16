@@ -58,8 +58,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public static PlaceFileResult ShouldBeSuccess(this PlaceFileResult result)
         {
             Assert.NotNull(result);
-            Assert.Null(result.ErrorMessage);
             Assert.True(result.Succeeded, $"Place file operation should succeed, but it failed. Error: {result.ErrorMessage}. Diagnostics: {result.Diagnostics}");
+            Assert.Null(result.ErrorMessage);
 
             return result;
         }

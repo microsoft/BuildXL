@@ -77,7 +77,6 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact(Skip = "For manual testing only")]
         public async Task ReconciliationOverRealStorage()
         {
-            _enableReconciliation = true;
             var checkpointsKey = Guid.NewGuid().ToString();
             // Copy and paste a real connection string here.
             var storageConnectionString = string.Empty;
@@ -91,7 +90,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 containerName: "checkpoints",
                 checkpointsKey: checkpointsKey);
 
-            ConfigureWithOneMaster(blobStoreConfiguration);
+            ConfigureWithOneMaster(s =>
+            {
+                s.Unsafe_DisableReconciliation = false;
+                s.AzureStorageSecretName = Host.StoreSecret("StorageName", storageConnectionString);
+            });
 
             await RunTestAsync(
                 new Context(Logger),

@@ -96,7 +96,7 @@ namespace BuildXL.Cache.Host.Configuration
         public LocalCasServiceSettings ServiceSettings { get; set; }
 
         [DataMember]
-        private Dictionary<string, NamedCacheSettings> CacheSettings { get; set; }
+        public Dictionary<string, NamedCacheSettings> CacheSettings { get; set; }
 
         /// <summary>
         /// Deprecated - Recognized in config, but deprecated in favor of <see cref="DrivePreferenceOrder"/>.

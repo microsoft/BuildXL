@@ -40,13 +40,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly IContentLocationStoreFactory _contentLocationStoreFactory;
         private readonly ContentStoreTracer _tracer = new ContentStoreTracer(nameof(DistributedContentStore<T>));
-        private readonly ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee _contentAvailabilityGuarantee;
         private readonly NagleQueue<ContentHash> _evictionNagleQueue;
         private NagleQueue<ContentHashWithSize> _touchNagleQueue;
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
         private readonly bool _enableDistributedEviction;
         private readonly PinCache _pinCache;
-        private readonly bool _enableRepairHandling;
         private readonly IClock _clock;
 
         /// <summary>
@@ -61,14 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private IContentLocationStore _contentLocationStore;
 
-        private readonly int _locationStoreBatchSize;
-
         private readonly DistributedContentStoreSettings _settings;
-
-        /// <summary>
-        /// If true, _postInitializationCompletion task is set to completion when StartupAsync is done.
-        /// </summary>
-        private readonly bool _setPostInitializationCompletionAfterStartup;
 
         /// <summary>
         /// Task source that is set to completion state when the system is fully initialized.
@@ -90,26 +81,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
             IContentCommunicationManager copyRequester,
-            ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
-            int locationStoreBatchSize,
             DistributedContentStoreSettings settings,
-            int? replicaCreditInMinutes = null,
             IClock clock = null,
-            bool enableRepairHandling = false,
-            TimeSpan? contentHashBumpTime = null,
-            ContentStoreSettings contentStoreSettings = null,
-            bool setPostInitializationCompletionAfterStartup = false)
+            ContentStoreSettings contentStoreSettings = null)
         {
             Contract.Requires(settings != null);
 
-            _setPostInitializationCompletionAfterStartup = setPostInitializationCompletionAfterStartup;
             LocalMachineLocation = new MachineLocation(localMachineLocation);
-            _enableRepairHandling = enableRepairHandling;
             _contentLocationStoreFactory = contentLocationStoreFactory;
-            _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
-            _locationStoreBatchSize = locationStoreBatchSize;
             _clock = clock;
 
             contentStoreSettings = contentStoreSettings ?? ContentStoreSettings.DefaultSettings;
@@ -120,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _evictionNagleQueue = NagleQueue<ContentHash>.CreateUnstarted(
                 Redis.RedisContentLocationStoreConstants.BatchDegreeOfParallelism,
                 Redis.RedisContentLocationStoreConstants.BatchInterval,
-                _locationStoreBatchSize);
+                _settings.LocationStoreBatchSize);
 
             _distributedCopierFactory = (contentLocationStore) =>
             {
@@ -136,13 +117,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     contentLocationStore);
             };
 
-            _enableDistributedEviction = replicaCreditInMinutes != null;
-            var distributedEvictionSettings = _enableDistributedEviction ? SetUpDistributedEviction(replicaCreditInMinutes, locationStoreBatchSize) : null;
+            _enableDistributedEviction = _settings.ReplicaCreditInMinutes != null;
+            var distributedEvictionSettings = _enableDistributedEviction ? SetUpDistributedEviction(_settings.ReplicaCreditInMinutes, _settings.LocationStoreBatchSize) : null;
 
-            var enableTouch = contentHashBumpTime.HasValue;
+            var enableTouch = _settings.ContentHashBumpTime.HasValue;
             if (enableTouch)
             {
-                _contentTrackerUpdater = new ContentTrackerUpdater(ScheduleBulkTouch, contentHashBumpTime.Value, clock: _clock);
+                _contentTrackerUpdater = new ContentTrackerUpdater(ScheduleBulkTouch, _settings.ContentHashBumpTime.Value, clock: _clock);
             }
 
             TrimBulkAsync trimBulkAsync = null;
@@ -177,7 +158,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             ProactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>>(() => CreateCopySession(context));
 
-            if (_setPostInitializationCompletionAfterStartup)
+            if (_settings.SetPostInitializationCompletionAfterStartup)
             {
                 context.Debug("Linking post-initialization completion task with the result of StartupAsync.");
                 _postInitializationCompletion.LinkToTask(startupTask);
@@ -249,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 hashes => TouchBulkAsync(touchContext, hashes),
                 Redis.RedisContentLocationStoreConstants.BatchDegreeOfParallelism,
                 Redis.RedisContentLocationStoreConstants.BatchInterval,
-                batchSize: _locationStoreBatchSize);
+                batchSize: _settings.LocationStoreBatchSize);
 
             return BoolResult.Success;
         }
@@ -354,7 +335,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             name,
                             innerSessionResult.Session,
                             _contentLocationStore,
-                            _contentAvailabilityGuarantee,
                             _distributedCopier,
                             LocalMachineLocation,
                             pinCache: _pinCache,
@@ -380,7 +360,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             name,
                             innerSessionResult.Session,
                             _contentLocationStore,
-                            _contentAvailabilityGuarantee,
                             _distributedCopier,
                             LocalMachineLocation,
                             pinCache: _pinCache,
@@ -425,7 +404,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
         {
-            if (_enableRepairHandling && InnerContentStore is ILocalContentStore localStore)
+            if (_settings.EnableRepairHandling && InnerContentStore is ILocalContentStore localStore)
             {
                 var result = await _contentLocationStore.InvalidateLocalMachineAsync(context, localStore, CancellationToken.None);
                 if (!result)

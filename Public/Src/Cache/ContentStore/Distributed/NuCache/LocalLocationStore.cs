@@ -718,6 +718,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return possibleCheckpointResult;
                     }
 
+                    Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Increment();
                     _lastCheckpointId = checkpointState.CheckpointId;
                 }
                 else

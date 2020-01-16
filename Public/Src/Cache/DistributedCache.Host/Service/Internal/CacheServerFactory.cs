@@ -75,9 +75,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings?.EnableMetadataStore == true)
             {
+                var factory = CreateDistributedContentStoreFactory();
+
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    var factory = CreateDistributedContentStoreFactory();
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
                         memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
@@ -106,27 +107,15 @@ namespace BuildXL.Cache.Host.Service.Internal
         private DistributedContentStoreFactory CreateDistributedContentStoreFactory()
         {
             var cacheConfig = _arguments.Configuration;
-
             var hostInfo = _arguments.HostInfo;
             _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
 
-            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
-
-            return new DistributedContentStoreFactory(
-                _arguments,
-                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
-                secretRetriever);
+            return new DistributedContentStoreFactory(_arguments);
         }
 
         private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
-
-            var hostInfo = _arguments.HostInfo;
-            _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
-
-            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
-
             var factory = CreateDistributedContentStoreFactory();
 
             Func<AbsolutePath, MultiplexedContentStore> contentStoreFactory = path =>

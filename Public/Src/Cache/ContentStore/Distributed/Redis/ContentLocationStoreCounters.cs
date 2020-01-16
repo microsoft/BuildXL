@@ -181,5 +181,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         RestoreCheckpointsSkipped,
+
+        /// <nodoc />
+        RestoreCheckpointsSucceeded,
     }
 }

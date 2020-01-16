@@ -58,22 +58,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private static readonly string PredictionBlobNameFile = "blobName.txt";
 
         /// <summary>
-        /// The content guarantee checks for content locations found.
-        /// </summary>
-        public enum ContentAvailabilityGuarantee
-        {
-            /// <summary>
-            /// The content location cache has locations registered for each hash
-            /// </summary>
-            FileRecordsExist = 0,
-
-            /// <summary>
-            /// The content has locations over a specified threshold of locations or a file existence check passes
-            /// </summary>
-            RedundantFileRecordsOrCheckFileExistence = 1
-        }
-
-        /// <summary>
         /// Caches pin operations
         /// </summary>
         private readonly PinCache _pinCache;
@@ -81,7 +65,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // The method used for remote pins depends on which pin configuraiton is enabled.
         private readonly RemotePinAsync _remotePinner;
 
-        private readonly ContentAvailabilityGuarantee _contentAvailabilityGuarantee;
         private BackgroundTaskTracker _backgroundTaskTracker;
 
         /// <summary>
@@ -127,7 +110,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             string name,
             IContentSession inner,
             IContentLocationStore contentLocationStore,
-            ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
             MachineLocation localMachineLocation,
             PinCache pinCache = null,
@@ -143,7 +125,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Inner = inner;
             ContentLocationStore = contentLocationStore;
             LocalCacheRootMachineLocation = localMachineLocation;
-            _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
             Settings = settings;
 
             _pinCache = pinCache;
@@ -967,11 +948,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (Settings.PinConfiguration == null)
             {
-                if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.FileRecordsExist)
+                if (Settings.ContentAvailabilityGuarantee == ContentAvailabilityGuarantee.FileRecordsExist)
                 {
                     return PinResult.Success;
                 }
-                else if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence)
+                else if (Settings.ContentAvailabilityGuarantee == ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence)
                 {
                     if (locations.Count >= Settings.AssumeAvailableReplicaCount)
                     {
@@ -983,7 +964,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    throw Contract.AssertFailure($"Unknown enum value: {_contentAvailabilityGuarantee}");
+                    throw Contract.AssertFailure($"Unknown enum value: {Settings.ContentAvailabilityGuarantee}");
                 }
             }
 

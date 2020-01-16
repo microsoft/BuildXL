@@ -32,6 +32,9 @@ namespace DistributedTest {
             Interfaces.dll,
             Library.dll,
 
+            importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
+            importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
+
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("System.Interactive.Async").pkg,

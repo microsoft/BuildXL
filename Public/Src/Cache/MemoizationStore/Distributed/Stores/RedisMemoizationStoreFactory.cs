@@ -25,9 +25,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             IClock clock,
             TimeSpan contentHashBumpTime,
             string keySpace,
-            IAbsFileSystem fileSystem = null,
             RedisMemoizationStoreConfiguration configuration = null)
-            : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, fileSystem, configuration)
+            : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, configuration)
         {
             _memoizationExpiryTime = configuration.MemoizationExpiryTime;
         }

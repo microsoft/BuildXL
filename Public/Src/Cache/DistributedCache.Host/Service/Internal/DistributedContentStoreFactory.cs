@@ -45,18 +45,15 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         internal string MachineName { get; set; } = Environment.MachineName;
 
-        public DistributedContentStoreFactory(
-            DistributedCacheServiceArguments arguments,
-            RedisContentSecretNames redisContentSecretNames,
-            DistributedCacheSecretRetriever secretRetriever)
+        public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
             _logger = arguments.Logger;
             _arguments = arguments;
-            _redisContentSecretNames = redisContentSecretNames;
+            _redisContentSecretNames = arguments.Configuration.DistributedContentSettings.GetRedisConnectionSecretNames(arguments.HostInfo.StampId);
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = new PassThroughFileSystem(_logger);
-            _secretRetriever = secretRetriever;
+            _secretRetriever = new DistributedCacheSecretRetriever(arguments);
         }
 
         public RedisMemoizationStoreFactory CreateRedisCacheFactory(AbsolutePath localCacheRoot, out RedisContentLocationStoreConfiguration config)
@@ -151,12 +148,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
             IConnectionStringProvider machineLocationsConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisMachineLocationsSecretName);
 
+            _arguments.Overrides.Override(redisContentLocationStoreConfiguration);
             config = redisContentLocationStoreConfiguration;
 
             return new RedisMemoizationStoreFactory(
                 contentConnectionStringProvider,
                 machineLocationsConnectionStringProvider,
-                SystemClock.Instance,
+                _arguments.Overrides.Clock,
                 contentHashBumpTime,
                 _keySpace,
                 configuration: redisContentLocationStoreConfiguration
@@ -176,12 +174,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
 
-            ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee contentAvailabilityGuarantee;
+           ContentAvailabilityGuarantee contentAvailabilityGuarantee;
             if (string.IsNullOrEmpty(_distributedSettings.ContentAvailabilityGuarantee))
             {
-                contentAvailabilityGuarantee =
-                    ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee
-                        .FileRecordsExist;
+                contentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist;
             }
             else if (!Enum.TryParse(_distributedSettings.ContentAvailabilityGuarantee, true, out contentAvailabilityGuarantee))
             {
@@ -234,11 +230,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                     bandwidthCheckedCopier,
                     _arguments.PathTransformer,
                     _arguments.CopyRequester,
-                    contentAvailabilityGuarantee,
                     localCacheRoot,
                     _fileSystem,
-                    _distributedSettings.RedisBatchPageSize,
-                    new DistributedContentStoreSettings()
+                    Override(new DistributedContentStoreSettings()
                     {
                         CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
                         TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
@@ -255,14 +249,22 @@ namespace BuildXL.Cache.Host.Service.Internal
                         MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
-                    },
-                    replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
-                    enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,
-                    contentHashBumpTime: lazyTouchContentHashBumpTime,
-                    clock: SystemClock.Instance,
+                        ReplicaCreditInMinutes = _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
+                        EnableRepairHandling = _distributedSettings.IsRepairHandlingEnabled,
+                        ContentHashBumpTime = lazyTouchContentHashBumpTime,
+                        LocationStoreBatchSize = _distributedSettings.RedisBatchPageSize,
+                        ContentAvailabilityGuarantee = contentAvailabilityGuarantee
+                    }),
+                    clock: _arguments.Overrides.Clock,
                     contentStoreSettings: contentStoreSettings);
             _logger.Debug("Created Distributed content store.");
             return contentStore;
+        }
+
+        private DistributedContentStoreSettings Override(DistributedContentStoreSettings settings)
+        {
+            _arguments.Overrides.Override(settings);
+            return settings;
         }
 
         private IConnectionStringProvider TryCreateRedisConnectionStringProvider(string secretName)

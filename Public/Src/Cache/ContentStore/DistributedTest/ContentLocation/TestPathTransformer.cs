@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestPathTransformer : IPathTransformer<AbsolutePath>
+    public class TestPathTransformer : IAbsolutePathTransformer, IPathTransformer<AbsolutePath>
     {
         public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot)
         {

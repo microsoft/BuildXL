@@ -18,7 +18,7 @@ using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IContentCommunicationManager
+    public class TestFileCopier : IAbsolutePathFileCopier, IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, IContentCommunicationManager
     {
         public AbsolutePath WorkingDirectory { get; set; }
 

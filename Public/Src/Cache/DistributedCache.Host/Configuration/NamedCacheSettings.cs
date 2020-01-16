@@ -29,15 +29,15 @@ namespace BuildXL.Cache.Host.Configuration
         }
 
         [JsonConstructor]
-        private NamedCacheSettings()
+        public NamedCacheSettings()
         {
         }
 
         [DataMember]
-        public string CacheRootPath { get; private set; }
+        public string CacheRootPath { get; set; }
 
         [DataMember]
-        public string CacheSizeQuotaString { get; private set; }
+        public string CacheSizeQuotaString { get; set; }
 
         [DataMember]
         public bool SupportsSensitiveSessions { get; private set; }

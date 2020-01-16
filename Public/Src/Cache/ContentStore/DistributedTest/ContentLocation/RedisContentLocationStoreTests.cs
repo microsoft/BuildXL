@@ -842,11 +842,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 _clock,
                 TimeSpan.FromDays(4),
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                //"MW_S9PD", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                new PassThroughFileSystem(TestGlobal.Logger),
                 new RedisContentLocationStoreConfiguration()
                 {
-                    Database =  new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
+                    Database = new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
                 }
                 );
 
@@ -880,11 +878,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 _clock,
                 TimeSpan.FromDays(4),
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                //"MW_S9PD", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                new PassThroughFileSystem(TestGlobal.Logger),
                 new RedisContentLocationStoreConfiguration()
                 {
-                    Database =  new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
+                    Database = new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
                 }
                 );
 

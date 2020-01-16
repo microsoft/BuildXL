@@ -133,24 +133,24 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 pathTransformer,
                 fileCopier,
-                ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,
-                RedisContentLocationStoreConstants.DefaultBatchSize,
                 settings: new DistributedContentStoreSettings
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
                     InlinePutBlobs = true,
+                    ReplicaCreditInMinutes = replicaCreditInMinutes,
+                    EnableRepairHandling = enableRepairHandling,
+                    SetPostInitializationCompletionAfterStartup = true,
+                    ContentAvailabilityGuarantee = ContentAvailabilityGuarantee,
+                    LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize
                 },
-                replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
-                enableRepairHandling: enableRepairHandling,
                 contentStoreSettings: new ContentStoreSettings()
                 {
                     CheckFiles = true,
-                },
-                setPostInitializationCompletionAfterStartup: true);
+                });
 
             distributedContentStore.DisposeContentStoreFactory = false;
             return distributedContentStore;
@@ -172,7 +172,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 IsPinCachingEnabled = true
             };
 
-            ContentAvailabilityGuarantee = ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist;
+            ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist;
 
             await RunTestAsync(
                 new Context(Logger),

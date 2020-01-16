@@ -70,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             IClock clock,
             TimeSpan contentHashBumpTime,
             string keySpace,
-            IAbsFileSystem fileSystem = null,
             RedisContentLocationStoreConfiguration configuration = null)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(keySpace));

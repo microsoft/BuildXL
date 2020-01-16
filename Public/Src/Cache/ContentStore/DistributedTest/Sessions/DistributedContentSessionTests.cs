@@ -76,15 +76,15 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 storeFactory.PathTransformer,
                 copyRequester: null,
-                ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist,
                 tempPath,
                 FileSystem,
-                RedisContentLocationStoreConstants.DefaultBatchSize,
                 settings: new DistributedContentStoreSettings
                 {
-                    RetryIntervalForCopies = DefaultRetryIntervalsForTest
-                },
-                setPostInitializationCompletionAfterStartup: true);
+                    ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist,
+                    LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
+                    RetryIntervalForCopies = DefaultRetryIntervalsForTest,
+                    SetPostInitializationCompletionAfterStartup = true
+                });
         }
     }
 }

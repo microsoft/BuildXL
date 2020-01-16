@@ -8,6 +8,22 @@ using BuildXL.Cache.ContentStore.Distributed.Sessions;
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <summary>
+    /// The content guarantee checks for content locations found.
+    /// </summary>
+    public enum ContentAvailabilityGuarantee
+    {
+        /// <summary>
+        /// The content location cache has locations registered for each hash
+        /// </summary>
+        FileRecordsExist = 0,
+
+        /// <summary>
+        /// The content has locations over a specified threshold of locations or a file existence check passes
+        /// </summary>
+        RedundantFileRecordsOrCheckFileExistence = 1
+    }
+
+    /// <summary>
     /// Configuration object for <see cref="DistributedContentCopier{T}"/> and <see cref="DistributedContentStore{T}"/> classes.
     /// </summary>
     public sealed class DistributedContentStoreSettings
@@ -204,5 +220,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Used in tests to inline put blob execution.
         /// </summary>
         public bool InlinePutBlobs { get; set; } = false;
+
+        /// <summary>
+        /// Indicates whether a post initialization task is set to complete after startup to force local eviction to wait
+        /// for distributed store initialization to complete.
+        /// </summary>
+        public bool SetPostInitializationCompletionAfterStartup { get; set; } = true;
+
+        /// <summary>
+        /// Indicates whether repair handling logic is enabled which removes a machine from Redis when a repair operation is triggered.
+        /// </summary>
+        public bool EnableRepairHandling { get; set; } = true;
+
+        /// <summary>
+        /// The amount of time added per replica for distributed eviction effective age computation.
+        /// </summary>
+        public int? ReplicaCreditInMinutes { get; set; }
+
+        /// <summary>
+        /// The batch size used by the location store
+        /// </summary>
+        public int LocationStoreBatchSize { get; set; }
+
+        /// <summary>
+        /// The time to live after last use for content entries in Redis
+        /// </summary>
+        public TimeSpan? ContentHashBumpTime { get; set; }
+
+        /// <summary>
+        /// Specifies the guarantees for determining content availability
+        /// </summary>
+        public ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
     }
 }

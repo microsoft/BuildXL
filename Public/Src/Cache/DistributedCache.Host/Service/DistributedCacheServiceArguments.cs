@@ -4,6 +4,7 @@
 using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Host.Configuration;
 
 namespace BuildXL.Cache.Host.Service
@@ -14,11 +15,15 @@ namespace BuildXL.Cache.Host.Service
     public class DistributedCacheServiceArguments
     {
         /// <nodoc />
+        public DistributedCacheServiceHostOverrides Overrides { get; set; } = DistributedCacheServiceHostOverrides.Default;
+
+        /// <nodoc />
         public ILogger Logger { get; }
 
         /// <nodoc />
         public IAbsolutePathFileCopier Copier { get; }
 
+        /// <nodoc />
         public IContentCommunicationManager CopyRequester { get; }
 
         /// <nodoc />

@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 
 namespace BuildXL.Ide.Generator
 {
@@ -47,9 +49,16 @@ namespace BuildXL.Ide.Generator
             var stringTable = context.StringTable;
 
             var toolName = process.GetToolName(context.PathTable);
-            if (toolName.CaseInsensitiveEquals(stringTable, context.CscExeName))
+            if (toolName.CaseInsensitiveEquals(stringTable, context.CscExeName) ||
+                (toolName.CaseInsensitiveEquals(stringTable, context.DotnetName) &&
+                 FirstArgIsPathWithFileName(context, process, context.CscDllName)))
             {
                 type = ProcessType.Csc;
+            }
+            else if (toolName.CaseInsensitiveEquals(stringTable, context.DotnetName) &&
+                FirstArgIsPathWithFileName(context, process, context.XunitConsoleDllName))
+            {
+                type = ProcessType.XUnit;
             }
             else if (toolName.CaseInsensitiveEquals(stringTable, context.VsTestExeName))
             {
@@ -69,6 +78,29 @@ namespace BuildXL.Ide.Generator
             }
 
             return new ProcessWithType(type, process);
+        }
+
+        private static bool FirstArgIsPathWithFileName(Context context, Process process, PathAtom name)
+        {
+            var arguments = context.GetArgumentsDataFromProcess(process);
+            if (arguments.FragmentCount == 0)
+            {
+                return false;
+            }
+
+            var firstArg = arguments.First();
+            if (firstArg.FragmentType != PipFragmentType.AbsolutePath)
+            {
+                return false;
+            }
+
+            var path = firstArg.GetPathValue();
+            if (!path.IsValid)
+            {
+                return false;
+            }
+
+            return path.GetName(context.PathTable).CaseInsensitiveEquals(context.StringTable, name);
         }
     }
 }

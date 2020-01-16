@@ -69,7 +69,7 @@ namespace BuildXL.Ide.Generator
             switch (pipCategory)
             {
                 case ProcessType.XUnit:
-                    WriteXunitDiscoverPackage();
+                    //WriteXunitDiscoverPackage();
                     ExtractOutputPathFromUnitTest(process, friendlyQualifier, 1);
                     break;
                 case ProcessType.VsTest:
@@ -282,7 +282,8 @@ namespace BuildXL.Ide.Generator
                 {
                     var path = GetPathValue(arg);
                     // paths under the project file are automatically added by the sdk
-                    if (!path.IsWithin(Context.PathTable, Path.GetParent(Context.PathTable)))
+                    if (!path.IsWithin(Context.PathTable, Path.GetParent(Context.PathTable)) 
+                        && path.ToString(Context.PathTable).EndsWith(".cs"))
                     {
                         AddSourceItem(path, project, "Compile");
                     }

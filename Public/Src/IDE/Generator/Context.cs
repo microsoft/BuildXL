@@ -44,10 +44,17 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         internal readonly PathAtom ResourcesExtensionName;
 
-        /// <summary>
-        /// "csc.exe"
-        /// </summary>
+        /// <summary>"csc.exe"</summary>
         internal readonly PathAtom CscExeName;
+
+        /// <summary>"csc.dll"</summary>
+        internal readonly PathAtom CscDllName;
+
+        /// <summary>"xunit.console.dll"</summary>
+        internal readonly PathAtom XunitConsoleDllName;
+
+        /// <summary>"dotnet"</summary>
+        internal readonly PathAtom DotnetName;
 
         /// <summary>
         /// "cl.exe"
@@ -92,7 +99,7 @@ namespace BuildXL.Ide.Generator
 
         internal readonly StringId AssemblyDeploymentTag;
         internal readonly StringId TestDeploymentTag;
-        
+
         public Context(
             PipExecutionContext pipContext,
             PipGraph pipGraph,
@@ -133,6 +140,9 @@ namespace BuildXL.Ide.Generator
 
             ResxExtensionName = PathAtom.Create(StringTable, ".resx");
             CscExeName = PathAtom.Create(StringTable, "csc.exe");
+            CscDllName = PathAtom.Create(StringTable, "csc.dll");
+            XunitConsoleDllName = PathAtom.Create(StringTable, "xunit.console.dll");
+            DotnetName = PathAtom.Create(StringTable, "dotnet");
             ResgenExeName = PathAtom.Create(StringTable, "ResGen.exe");
             ResourcesExtensionName = PathAtom.Create(StringTable, ".resources");
             CsExtensionName = PathAtom.Create(StringTable, ".cs");

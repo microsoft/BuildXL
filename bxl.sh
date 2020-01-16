@@ -79,7 +79,7 @@ function compileWithBxl() {
 }
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev[-release]] [--use-dev] [--minimal] [--internal] [--shared-comp] [--cgmanifest] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev[-release]] [--use-dev] [--minimal] [--internal] [--shared-comp] [--cgmanifest] [--vs] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -128,6 +128,15 @@ function parseArgs() {
             ;;
         --shared-comp)
             arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
+            shift
+            ;;
+        --vs)
+            arg_Positional+=(
+                "/vs"
+                "/vsTargetFramework:netcoreapp3.0"
+                "/vsTargetFramework:netcoreapp3.1"
+                "/vsTargetFramework:netstandard2.0"
+                "/vsTargetFramework:netstandard2.1")
             shift
             ;;
         *)

@@ -24,6 +24,7 @@ namespace BuildXL.Ide.Generator
         private const string CSharpProjectTypeGuid = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}";
         private const string NativeProjectTypeGuid = "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}";
         private const string SolutionItemsGuid = "{11111111-1111-1111-1111-111111111111}";
+        private const string DirSepMoniker = "$(DIR-SEP)";
 
         private static readonly XName ProjectXName = XName.Get("Project");
         private static readonly XName PropertyGroupXName = XName.Get("PropertyGroup");
@@ -528,15 +529,18 @@ namespace BuildXL.Ide.Generator
         {
             return string.Format(
                 CultureInfo.InvariantCulture,
-                @"$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\{0}'))",
-                PathUtilities.Relativize(pathToRelativize, basePath));
+                @"$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory){0}{1}'))",
+                Path.DirectorySeparatorChar,
+                PathUtilities.ToRelativizedUri(new Uri(pathToRelativize), new Uri(basePath)));
         }
 
         internal static void WriteFile(string resourceName, string filePath)
         {
             // TODO: Compare if the file is actually different and only write when different
             // TODO: Handle errors more gracefully in case someone has a 'lock' on the files.
-            File.WriteAllText(filePath, GetEmbeddedResourceFile(resourceName));
+            File.WriteAllText(
+                filePath,
+                GetEmbeddedResourceFile(resourceName).Replace(DirSepMoniker, Path.DirectorySeparatorChar.ToString()));
         }
 
         private string ProcessFolderEntry(

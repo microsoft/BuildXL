@@ -1820,13 +1820,13 @@ namespace BuildXL.Utilities
         /// <remarks>
         /// This assumes the table has been frozen as the data that gets freed when freezing is not counted here.
         /// </remarks>
-        public int SizeInBytes
+        public long SizeInBytes
         {
             get
             {
                 Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
-                int nodeBufferSize = m_nodes.Capacity * 16;
-                int nodeBufferArrayOverhead = m_nodes.NumberOfBuffers * 12;
+                long nodeBufferSize = (long)m_nodes.Capacity * 16;
+                long nodeBufferArrayOverhead = (long)m_nodes.NumberOfBuffers * 12;
 
                 return nodeBufferSize + nodeBufferArrayOverhead;
             }

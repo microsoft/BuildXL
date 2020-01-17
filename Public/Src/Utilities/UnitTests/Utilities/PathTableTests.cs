@@ -39,7 +39,7 @@ namespace Test.BuildXL.Utilities
             int c3 = pt.Count;
             XAssert.IsTrue(c3 > c2);
 
-            int size = pt.SizeInBytes;
+            long size = pt.SizeInBytes;
             XAssert.IsTrue(size > 0);
 
             pt.Freeze();

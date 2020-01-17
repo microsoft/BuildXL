@@ -98,9 +98,9 @@ namespace BuildXL.Utilities
         private const int LargeStringBufferNum = NumByteBuffers;
 
         /// <summary>
-        /// Threshold (4K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
+        /// Threshold (1K bytes) at which strings will be stored in <see cref="LargeStringBuffer"/>.
         /// </summary>
-        private const int LargeStringBufferThreshold = 1 << 12;
+        private const int LargeStringBufferThreshold = 1 << 10;
 
         // the number of items in the table
         private int m_count;
@@ -1096,6 +1096,7 @@ namespace BuildXL.Utilities
             private LargeStringBuffer(BuildXLReader reader)
             {
                 m_indexCursor = reader.ReadInt32();
+                m_size = reader.ReadInt64();
                 m_byteArrays = reader.ReadArray(r =>
                 {
                     var length = r.ReadInt32Compact();
@@ -1112,6 +1113,7 @@ namespace BuildXL.Utilities
             internal void Serialize(BuildXLWriter writer)
             {
                 writer.Write(m_indexCursor);
+                writer.Write(m_size);
 
                 var serializedByteArrays = new ArrayView<byte[]>(m_byteArrays, 0, Count);
 

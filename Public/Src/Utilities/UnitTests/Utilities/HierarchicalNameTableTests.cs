@@ -40,7 +40,7 @@ namespace Test.BuildXL.Utilities
             int c3 = hnt.Count;
             XAssert.IsTrue(c3 > c2);
 
-            int size = hnt.SizeInBytes;
+            long size = hnt.SizeInBytes;
             XAssert.IsTrue(size > 0);
 
             if (OperatingSystemHelper.IsUnixOS)

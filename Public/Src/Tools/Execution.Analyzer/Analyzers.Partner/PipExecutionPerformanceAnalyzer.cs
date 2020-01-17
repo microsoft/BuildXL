@@ -202,6 +202,7 @@ namespace BuildXL.Execution.Analyzer
 
                 DecrementIndent();
                 WriteLineIndented("}" + (i < m_processPerformance.Count - 1 ? "," : string.Empty));
+                i++;
             }
 
             DecrementIndent();

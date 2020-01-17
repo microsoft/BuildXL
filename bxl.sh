@@ -57,8 +57,6 @@ function setInternal() {
             return
         fi
     done
-
-    arg_Positional+=(/sandboxKind:macOsKext)
 }
 
 function compileWithBxl() {

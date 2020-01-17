@@ -934,7 +934,9 @@ namespace BuildXL.FrontEnd.Nuget
             // This file contains some state from the last time the spec file was generated. It includes
             // the fingerprint of the package (name, version, etc) and the version of the spec generator.
             // It is stored next to the primary generated spec file
-            var (fileFormat, fingerprint) = ReadGeneratedSpecStateFile(packageDsc + SpecGenerationVersionFileSuffix);
+            var (fileFormat, packageRestoreFingerprint, generateSpecFingerprint) = ReadGeneratedSpecStateFile(packageDsc + SpecGenerationVersionFileSuffix);
+
+            var expectedGenerateSpecFingerprint  = CreateSpecGenFingerPrint(analyzedPackage.PackageOnDisk.Package);
 
             // We can reuse the already generated spec file if all of the following are true:
             //  * The spec generator is of the same format as when the spec was generated
@@ -942,7 +944,8 @@ namespace BuildXL.FrontEnd.Nuget
             //  * Both the generated spec and package config file exist on disk
             // NOTE: This is not resilient to the specs being modified by other entities than the build engine.
             if (fileFormat == SpecGenerationFormatVersion &&
-                fingerprint != null && fingerprint == analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash && 
+                packageRestoreFingerprint != null && string.Equals(packageRestoreFingerprint, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, StringComparison.Ordinal) &&
+                generateSpecFingerprint != null && string.Equals(generateSpecFingerprint, expectedGenerateSpecFingerprint, StringComparison.OrdinalIgnoreCase) &&
                 File.Exists(packageDsc) &&
                 File.Exists(GetPackageConfigDscFile(analyzedPackage).ToString(PathTable)))
             {
@@ -952,27 +955,28 @@ namespace BuildXL.FrontEnd.Nuget
             return false;
         }
 
-        private static (int fileFormat, string fingerprint) ReadGeneratedSpecStateFile(string path)
+        private static (int fileFormat, string packageRestoreFingerprint, string generateSpecFingerprint) ReadGeneratedSpecStateFile(string path)
         {
             if(File.Exists(path))
             {
                 int fileFormat;
                 string[] lines = File.ReadAllLines(path);
-                if(lines.Length == 2)
+                if(lines.Length == 3)
                 {
                     if (int.TryParse(lines[0], out fileFormat))
                     {
-                        string fingerprint = lines[1];
-                        return (fileFormat, fingerprint);
+                        string packageRestoreFingerprint = lines[1];
+                        string generateSpecFingerprint = lines[2];
+                        return (fileFormat, packageRestoreFingerprint, generateSpecFingerprint);
                     }
                 }
             }
 
             // Error
-            return (-1, null);
+            return (-1, null, null);
         }
 
-        private void WriteGeneratedSpecStateFile(string path, (int fileFormat, string fingerprint) data)
+        private void WriteGeneratedSpecStateFile(string path, (int fileFormat, string packageRestoreFingerprint, string generateSpecFingerprint) data)
         {
             try
             {
@@ -983,7 +987,7 @@ namespace BuildXL.FrontEnd.Nuget
                     File.Delete(path);
                 }
 
-                File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.fingerprint });
+                File.WriteAllLines(path, new string[] { data.fileFormat.ToString(), data.packageRestoreFingerprint, data.generateSpecFingerprint });
             }
             catch (IOException ex)
             {
@@ -1021,7 +1025,15 @@ namespace BuildXL.FrontEnd.Nuget
 
             if (writeResult.Succeeded && possibleProjectFile.Succeeded)
             {
-                WriteGeneratedSpecStateFile(possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, (SpecGenerationFormatVersion, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash));
+                var generateSpecFingerprint = CreateSpecGenFingerPrint(analyzedPackage.PackageOnDisk.Package);
+                WriteGeneratedSpecStateFile(
+                    possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, 
+                    (
+                        SpecGenerationFormatVersion, 
+                        analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, 
+                        generateSpecFingerprint
+                    )
+                );
             }
 
             return writeResult;
@@ -1104,27 +1116,50 @@ namespace BuildXL.FrontEnd.Nuget
             }
         }
 
+
+        private string CreateRestoreFingerPrint(INugetPackage package, IEnumerable<AbsolutePath> credentialProviderPaths)
+        {
+            var fingerprintParams = new List<string>
+                                    {
+                                        "id=" + package.Id,
+                                        "version=" + package.Version,
+                                        "repos=" + UppercaseSortAndJoinStrings(m_repositories.Values),
+                                    };
+            if (credentialProviderPaths != null)
+            {
+                fingerprintParams.Add("cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))));
+            }
+
+            return  "nuget://" + string.Join("&", fingerprintParams);
+        }
+
+        private string CreateSpecGenFingerPrint(INugetPackage package)
+        {
+            var restoreFingerPrint = CreateRestoreFingerPrint(package, null);
+
+            var fingerprintParams = new List<string>
+                                    {
+                                        "pkgDepSkips=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToSkip),
+                                        "pkgDepsIgnore=" + UppercaseSortAndJoinStrings(package.DependentPackageIdsToIgnore),
+                                        "forceFullOnly=" + (package.ForceFullFrameworkQualifiersOnly ? "1" : "0")
+                                    };
+            return  restoreFingerPrint + "&" + string.Join("&", fingerprintParams);
+        }
+
         private async Task<Possible<PackageOnDisk>> TryRestorePackageWithCache(
             INugetPackage package,
             NugetProgress progress,
             NugetPackageOutputLayout layout,
             IEnumerable<AbsolutePath> credentialProviderPaths)
         {
-            var fingerprintParams = new List<string>
-            {
-                "id=" + package.Id,
-                "version=" + package.Version,
-                "repos=" + UppercaseSortAndJoinStrings(m_repositories.Values),
-                "cred=" + UppercaseSortAndJoinStrings(credentialProviderPaths.Select(p => p.ToString(PathTable))),
-            };
-            var weakFingerprint = "nuget://" + string.Join("&", fingerprintParams);
+            var packageRestoreFingerprint = CreateRestoreFingerPrint(package, credentialProviderPaths);
             var identity = PackageIdentity.Nuget(package.Id, package.Version, package.Alias);
 
             var currentOs = Host.Current.CurrentOS.GetDScriptValue();
             var maybePackage = package.OsSkip?.Contains(currentOs) == true
-                ? PackageDownloadResult.EmptyStub(weakFingerprint, identity, layout.PackageFolder)
+                ? PackageDownloadResult.EmptyStub(packageRestoreFingerprint, identity, layout.PackageFolder)
                 : await m_host.DownloadPackage(
-                    weakFingerprint,
+                    packageRestoreFingerprint,
                     identity,
                     layout.PackageFolder,
                     () =>

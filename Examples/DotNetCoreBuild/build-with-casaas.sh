@@ -1,12 +1,95 @@
 #!/bin/bash
 
+set -o nounset 
+set -o errexit
+
 readonly MY_DIR=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)
 
 source ${MY_DIR}/env.sh
-readonly CACHE_ROOT=${MY_DIR}/out/casaas
-readonly CACHE_STDOUT="${CACHE_ROOT}/casaas.stdout"
-readonly CACHE_NAME=example-build-casaas-2
-readonly CACHE_SCENARIO=scenario-$CACHE_NAME
+
+declare arg_Unconsumed=()
+declare arg_BuildScript=""
+declare arg_CacheRoot=""
+declare arg_CacheName=""
+declare arg_CacheScenario=""
+declare arg_RemoteTelemetry=""
+declare arg_BuildxlBin=""
+
+function parseArgs {
+    while [[ $# -gt 0 ]]; do
+        cmd="$1"
+        case $cmd in
+        --build-script)
+            arg_BuildScript="$2"
+            shift
+            shift
+            ;;
+        --cache-root)
+            arg_CacheRoot="$2"
+            shift
+            shift
+            ;;
+        --cache-name)
+            arg_CacheName="$2"
+            shift
+            shift
+            ;;
+        --cache-scenario)
+            arg_CacheScenario="$2"
+            shift
+            shift
+            ;;
+        --remote-telemetry)
+            arg_RemoteTelemetry="1"
+            shift
+            ;;
+        --buildxl-bin)
+            arg_BuildxlBin="$2"
+            shift
+            shift
+            ;;
+        *)
+            arg_Unconsumed+=("$1")
+            shift
+            ;;
+        esac
+    done
+}
+
+function validateAndInit {
+    # check --buildxl-bin
+    if [[ ! -d "$arg_BuildxlBin" ]]; then
+        print_error "--buildxl-bin not a directory: '${arg_BuildxlBin}'"
+        return 1
+    fi
+
+    if [[ ! -f "${arg_BuildxlBin}/ContentStoreApp" ]]; then
+        print_error "$arg_BuildxlBin/ContentStoreApp not found"
+        return 1
+    fi
+
+    # check --cache-root
+    arg_CacheRoot="${arg_CacheRoot:-${MY_DIR}/out/casaas}"
+    if [[ ! -d "${arg_CacheRoot}" ]]; then
+        mkdir -p "${arg_CacheRoot}"
+    fi
+
+    # check --build-script
+    arg_BuildScript="${arg_BuildScript:-${MY_DIR}/build.sh}"
+    if [[ ! -f "${arg_BuildScript}" ]]; then
+        print_error "--build-script is not a file: '${arg_BuildScript}'"
+        return 1
+    fi
+
+    # set readonly vars
+    readonly BUILDXL_BIN="$(cd "${arg_BuildxlBin}" && pwd)"
+    readonly CACHE_ROOT="$(cd "${arg_CacheRoot}" && pwd)"
+    readonly CACHE_STDOUT="${CACHE_ROOT}/casaas.stdout"
+    readonly CACHE_NAME="${arg_CacheName:-bxl-selfhost-example-casaas}"
+    readonly CACHE_SCENARIO="${arg_CacheScenario:-scenario-$CACHE_NAME}"
+    readonly REMOTE_TELEMETRY="${arg_RemoteTelemetry:-}"
+    readonly BUILD_SCRIPT="${arg_BuildScript:-${MY_DIR}/build.sh}"
+}
 
 function printRunningCasaasPid {
     ps -ef | grep ContentStoreApp | grep -v grep | awk '{print $2}'
@@ -124,7 +207,10 @@ EOF
     echo $cacheConfigFile
 }
 
-function startContentStoreApp {
+function startContentStoreApp { # (vstsPAT, redisCS)
+    local vstsPAT="$1"
+    local redisCS="$2"
+    local kustoCS=""
     local settingsFile=$(createContentStoreAppSettingsFile)
     print_info "Generated ContentStoreApp settings file: ${settingsFile}"
 
@@ -139,58 +225,74 @@ function startContentStoreApp {
         /scenario:${CACHE_SCENARIO}
         /useDistributedGrpc:true
         /settingsPath:${settingsFile}
-        /remoteTelemetry
         /logAutoFlush
         /logdirectorypath:${CACHE_ROOT}/logs)
 
+    if [[ -n ${REMOTE_TELEMETRY:-} ]]; then
+        casaasArgs+=(/remoteTelemetry)
+        kustoCS=$(retrieveSecret KustoConnectionString) || return 1
+    fi
+
     pushd "${CACHE_ROOT}" > /dev/null
-    ${BUILDXL_BIN}/ContentStoreApp "${casaasArgs[@]}" 2>&1 > "${CACHE_STDOUT}" &
+    env                                              \
+        KustoConnectionString="${kustoCS:-}"         \
+        VSTSPERSONALACCESSTOKEN="${vstsPAT}"         \
+        CloudStoreRedisConnectionString="${redisCS}" \
+        ${BUILDXL_BIN}/ContentStoreApp "${casaasArgs[@]}" 2>&1 > "${CACHE_STDOUT}" &
     popd > /dev/null
 }
 
-function runBuildXL {
+function runBuildXL { # (redisCS, vstsPAT)
+    local redisCS="$1"; shift
     local cacheConfigFile=$(createCacheConfigJson)
     print_info "Generated BuildXL cache config file: ${cacheConfigFile}"
 
     pushd "${CACHE_ROOT}" > /dev/null
-    ${MY_DIR}/build.sh --cache-config-file "${cacheConfigFile}" "$@"
+    env                                              \
+        VSTSPERSONALACCESSTOKEN="${vstsPAT}"         \
+        CloudStoreRedisConnectionString="${redisCS}" \
+        ${BUILD_SCRIPT} --buildxl-bin "${BUILDXL_BIN}" --cache-config-file "${cacheConfigFile}" ${arg_Unconsumed[@]:-}
     popd > /dev/null
 }
 
 function checkEnvVarExists { # (varName)
     local varName="$1"
     print_info "Checking env var '${varName}'"
-    if [[ -z ${!varName} ]]; then
+    if [[ -z ${!varName:-} ]]; then
         print_error "Env var '${varName}' not defined"
         return 1
     fi
 }
 
-function validateAndInit {
-    checkEnvVarExists "CloudStoreRedisConnectionString"
-    checkEnvVarExists "VSTSPERSONALACCESSTOKEN"
-    checkEnvVarExists "BUILDXL_BIN"
+function retrieveSecret {
+    local secretName="$1"
 
-    if [[ ! -f $BUILDXL_BIN/ContentStoreApp ]]; then
-        print_error "$BUILDXL_BIN/ContentStoreApp not found"
-        return 1
-    fi
-
-    if [[ ! -d "${CACHE_ROOT}" ]]; then
-        mkdir -p "${CACHE_ROOT}"
+    if [[ -n ${!secretName:-} ]]; then
+        print_info "Secret '${secretName}' found in the environment" >&2
+        echo ${!secretName}
+    else
+        print_info "Attempting to fetch secret '${secretName}' as a password in 'login' keychain for account '${USER}'" >&2
+        security find-generic-password -a "${USER}" -s "${secretName}" -w && (
+            print_info "Secret '${secretName}' successfully retrieved from keychain" >&2
+        ) || (
+            print_error "Failed to fetch '${secretName}' from login keychain" >&2
+            return 1
+        )
     fi
 }
 
+parseArgs "$@"
 validateAndInit
 
-set -o nounset 
-set -o errexit
+# retrieve mandatory secrets
+vstsPAT=$(retrieveSecret VSTSPERSONALACCESSTOKEN) || exit 1
+redisCS=$(retrieveSecret CloudStoreRedisConnectionString) || exit 1
 
-# kill any currently running ContentStoreApp proces
+# kill any currently running ContentStoreApp process
 killRunningContentStoreApp
 
 # start ContentStoreApp and remember its PID
-startContentStoreApp
+startContentStoreApp "$vstsPAT" "$redisCS"
 
 # verify that ContentStoreApp process is running and that its PID matches what we have
 sleep 2
@@ -205,7 +307,7 @@ else
 fi
 
 # run the build
-runBuildXL "$@" || print_error "Build failed."
+runBuildXL "$redisCS" "$vstsPAT" || print_error "Build failed."
 
 # in any case, send SIGTERM to ContentStoreApp
 print_info "Shutting down ContentStoreApp..."
@@ -214,8 +316,7 @@ kill -s TERM $casaasPid
 # wait for a while until ContentStoreApp exits
 for i in `seq 1 20`; do
     if [[ -z $(printRunningCasaasPid) ]]; then 
-        print_info "Successfully shut down ContentStoreApp.  ContentStoreApp stdout: "
-        cat "${CACHE_STDOUT}"
+        print_info "Successfully shut down ContentStoreApp.  ContentStoreApp stdout: '${CACHE_STDOUT}'"
         exit 0
     else
         print_warning "Still running, sleeping for 1 second..."

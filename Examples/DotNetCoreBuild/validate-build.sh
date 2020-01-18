@@ -82,7 +82,7 @@ function print_header {
 source "$MY_DIR/env.sh"
 
 readonly bxlOutDir="$MY_DIR/out"
-readonly bxlObjDir="$bxlOutDir/objects"
+readonly bxlObjDir="$bxlOutDir/objects.noindex"
 readonly bxlLogDir="$bxlOutDir/logs"
 readonly bxlLogFile="$bxlLogDir/BuildXL.log"
 
@@ -93,7 +93,7 @@ if [[ ! -f $unusedFilePath ]]; then
 fi
 
 # start with clean Out dir
-rm -rf "$bxlOutDir"
+ls -1 "$bxlOutDir" | grep -v -i casaas | xargs rm -rf 
 
 # 1st run
 print_header "1st run: clean build"
@@ -125,8 +125,8 @@ fi
 echo
 print_header "3rd run: fully cached and graph reloaded (because nothing changed since last run)."
 run_build_and_check_stuff $GRAPH_RELOADED $FULLY_CACHED
-if [[ $status != 0 ]]; then
-    print_error "3nd build failed"
+if [[ $? != 0 ]]; then
+    print_error "3rd build failed"
     exit 2
 fi
 
@@ -136,6 +136,10 @@ echo "${tputBold}${tputGreen}Build Validation Succeeded${tputReset}"
 echo
 print_header "4th run: and check that symlinks are eagerly deleted when running with /exp:LazySODeletion- /phase:Schedule"
 run_build /phase:Schedule /exp:LazySODeletion-
+if [[ $? != 0 ]]; then
+    print_error "4th build failed"
+    exit 2
+fi
 declare producedSymlinkFileName="module.config.dsc"
 declare scrubbedSymlinkFile=$(grep -o "Scrubber deletes file '.*/$producedSymlinkFileName'" $bxlLogFile | grep -o "'.*'")
 if [[ -z $scrubbedSymlinkFile ]]; then

@@ -372,7 +372,8 @@ namespace BuildXL.Scheduler
             DateTime startTime,
             TimeSpan duration)
         {
-            if (step.IncludeInRunningTime(Environment))
+            bool includeInRunningTime = step.IncludeInRunningTime(Environment);
+            if (includeInRunningTime)
             {
                 RunningTime += duration;
             }
@@ -386,6 +387,7 @@ namespace BuildXL.Scheduler
                 Duration = duration,
                 Dispatcher = DispatcherKind,
                 Step = step,
+                IncludeInRunningTime = includeInRunningTime
             });
         }
 

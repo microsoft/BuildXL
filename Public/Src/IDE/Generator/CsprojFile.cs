@@ -379,6 +379,15 @@ namespace BuildXL.Ide.Generator
                                 project.SetProperty("Features", features);
                             };
                             break;
+                        case "/nullable":
+                            action = (obj) =>
+                                     {
+                                         if ((string)obj == "+")
+                                         {
+                                             project.SetProperty("Nullable", "enable");
+                                         }
+                                     };
+                            break;
                         default:
                             const string Target = "/target:";
                             const string Define = "/define:";

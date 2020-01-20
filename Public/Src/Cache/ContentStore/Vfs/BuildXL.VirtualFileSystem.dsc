@@ -28,7 +28,6 @@ namespace VfsApplication {
             importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
 
             importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
 
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

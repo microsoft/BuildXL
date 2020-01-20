@@ -27,7 +27,6 @@ namespace GrpcTest {
             InterfacesTest.dll,
 
             importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],

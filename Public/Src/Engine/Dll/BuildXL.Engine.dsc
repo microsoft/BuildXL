@@ -50,7 +50,6 @@ namespace Engine {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Google.Protobuf").pkg,
             importFrom("Grpc.Core").pkg,
-            importFrom("Grpc.Core.Api").pkg,
             importFrom("Newtonsoft.Json").pkg,
         ],
         internalsVisibleTo: [

@@ -59,14 +59,98 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     }
 
     let name = args.assemblyName || Context.getLastActiveUseNamespace();
-    let rootNamespace = args.rootNamespace || name;
     let compileClosure = Helpers.computeCompileClosure(framework, args.references);
 
     // assemblyinfo
-    let assemblyInfo = generateAssemblyInfoFile(framework, name, args.assemblyInfo);
+    let assemblyInfo = generateAssemblyInfoFile(args.assemblyInfo, name, framework);
 
     // Process resources
-    let resourceSources : File[] = [];
+    let resourceResult = processResources(args, name);
+
+    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    let appConfig = processAppConfigAndBindingRedirects(args, framework);
+
+    // csc
+    let outputFileName = name + targetTypeToFileExtension(targetType, framework.applicationDeploymentStyle);
+    let cscArgs : Csc.Arguments = {
+        sources: [
+            assemblyInfo,
+            ...resourceResult.sources,
+            ...(args.sources || []),
+        ],
+        sourceFolders: args.sourceFolders,
+        references: compileClosure,
+        targetType: targetType,
+        linkResources: resourceResult.linkResources,
+        resourceFiles: resourceResult.resourceFiles,
+        treatWarningsAsErrors: qualifier.configuration === "release",
+        optimize: qualifier.configuration === "release",
+        checked: true,
+        doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
+        out: outputFileName,
+        pdb: name + ".pdb",
+        debugType: framework.requiresPortablePdb ? "portable" : "full",
+        allowUnsafeBlocks: args.allowUnsafeBlocks || false,
+        appConfig: appConfig,
+        implicitSources: args.implicitSources,
+        noConfig: args.noConfig || true,
+        defines: [
+            ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
+            "TRACE",
+            ...framework.conditionalCompileDefines,
+            ...targetRuntimeDefines,
+            ...(args.defineConstants || []),
+        ],
+        nullable: args.nullable,
+        nullabilityContext: args.nullabilityContext,
+    };
+
+    const references = [
+        ...(args.references || []),
+        ...framework.standardReferences,
+    ];
+
+    if (args.tools && args.tools.csc) {
+        cscArgs = Object.merge(args.tools.csc, cscArgs);
+    }
+
+    cscArgs = Object.merge(Helpers.patchReferencesForSystemInteractiveAsync(references), cscArgs);
+
+    let cscResult =  Csc.compile(cscArgs);
+
+    let runtimeConfigFiles = undefined;
+    const compileBinary = cscResult.reference || cscResult.binary;
+    const runtimeBinary = cscResult.binary;
+
+    if (targetType === "exe")
+    {
+        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
+    }
+    else if (targetType === "library")
+    {
+        runtimeConfigFiles = RuntimeConfigFiles.createDllAppConfig(framework, name, appConfig);
+    }
+
+    let deploymentResult = processDeploymentStyle(args, targetType, framework, cscResult);
+
+    // TODO: Add version
+    return {
+        name: a`${name}`,
+        targetFramework: framework.targetFramework,
+        compile: compileBinary,
+        runtime: runtimeBinary,
+        references: references,
+        runtimeConfigFiles: runtimeConfigFiles,
+        runtimeContent: deploymentResult.runtimeContent,
+        runtimeContentToSkip: args.runtimeContentToSkip,
+        deploy: deploymentResult.deployFunction,
+    };
+}
+
+function processResources(args: Arguments, name: string) : { sources: File[], linkResources: Shared.LinkResource[], resourceFiles: File[] }
+{
+    let rootNamespace = args.rootNamespace || name;
+    let sources : File[] = [];
     let resources : Shared.LinkResource[] = args.resources || [];
     if (args.embeddedResources) {
         for (let resource of args.embeddedResources) {
@@ -95,7 +179,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
                 resources = resources.push(result.resourceFile);
                 if (result.sourceFile) {
-                    resourceSources = resourceSources.push(result.sourceFile);
+                    sources = sources.push(result.sourceFile);
                 }
             }
             else if (resource.linkedContent)
@@ -114,7 +198,15 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         }
     }
 
-    // Check if we need to update or create the App.Config file for assembly binding redirects.
+    return {
+        linkResources: resources.filter(r => r.file !== undefined && r.logicalName !== undefined),
+        resourceFiles: resources.filter(r => r.file !== undefined && r.logicalName === undefined).map(r => r.file),
+        sources: sources,
+    };
+}
+
+function processAppConfigAndBindingRedirects(args: Arguments, framework: Shared.Framework) : File
+{
     let appConfig = args.appConfig;
     if (args.assemblyBindingRedirects) {
 
@@ -158,128 +250,66 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         appConfig = Xml.write(updatedAppConfigPath, Xml.doc(patchedConfiguration));
     }
 
-    // csc
-    let outputFileName = name + targetTypeToFileExtension(targetType, framework.applicationDeploymentStyle);
-    let cscArgs : Csc.Arguments = {
-        sources: [
-            assemblyInfo,
-            ...resourceSources,
-            ...(args.sources || []),
-        ],
-        sourceFolders: args.sourceFolders,
-        references: compileClosure,
-        targetType: targetType,
-        linkResources: resources.filter(r => r.file !== undefined && r.logicalName !== undefined),
-        resourceFiles: resources.filter(r => r.file !== undefined && r.logicalName === undefined).map(r => r.file),
-        treatWarningsAsErrors: qualifier.configuration === "release",
-        optimize: qualifier.configuration === "release",
-        checked: true,
-        doc: args.skipDocumentationGeneration === true ? undefined : name + ".xml",
-        out: outputFileName,
-        pdb: name + ".pdb",
-        debugType: framework.requiresPortablePdb ? "portable" : "full",
-        allowUnsafeBlocks: args.allowUnsafeBlocks || false,
-        appConfig: appConfig,
-        implicitSources: args.implicitSources,
-        noConfig: args.noConfig || true,
-        defines: [
-            ...(qualifier.configuration === "debug" ? ["DEBUG"] : []),
-            "TRACE",
-            ...framework.conditionalCompileDefines,
-            ...targetRuntimeDefines,
-            ...(args.defineConstants || []),
-        ],
-        nullable: args.nullable,
-        nullabilityContext: args.nullabilityContext,
-    };
-
-    const references = [
-        ...(args.references || []),
-        ...framework.standardReferences,
-    ];
-
-    if (args.tools && args.tools.csc) {
-        cscArgs = Object.merge(args.tools.csc, cscArgs);
-    }
-
-    cscArgs = Object.merge(Helpers.patchReferencesForSystemInteractiveAsync(references), cscArgs);
-
-    let cscResult =  Csc.compile(cscArgs);
-
-    let runtimeConfigFiles = undefined;
-    let runtimeContent = args.runtimeContent;
-
-    let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
-
-    const compileBinary = cscResult.reference || cscResult.binary;
-    const runtimeBinary = cscResult.binary;
-
-    if (targetType === "exe")
-    {
-        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
-        if (framework.applicationDeploymentStyle === "selfContained")
-        {
-            const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
-            const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
-
-            const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
-                binary: cscResult.binary.binary,
-                targetRuntimeVersion: qualifier.targetRuntime
-            });
-
-            runtimeContent = [
-                ...(runtimeContent || []),
-                // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
-                ...frameworkRuntimeFiles,
-                ...patchResult.contents,
-            ];
-
-            // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
-            // the runtime over the ones that come from nuget. We do so by providing a deploy function that customizes
-            // the handleDuplicate function to prefer the runtime file.
-            deployFunction = (
-                assembly: Shared.Assembly,
-                targetFolder: RelativePath,
-                handleDuplicate: Deployment.HandleDuplicateFileDeployment,
-                currentResult: Deployment.FlattenedResult,
-                deploymentOptions?: Object,
-                provenance?: Deployment.Diagnostics.Provenance): Deployment.FlattenedResult => {
-
-                const customHandleDuplicate : Deployment.HandleDuplicateFileDeployment = (targetFile: RelativePath, sourceA: Deployment.DeployedFileWithProvenance, sourceB: Deployment.DeployedFileWithProvenance, message?: string) : Deployment.DeployedFileAction => {
-                    if (frameworkRuntimeFileSet.contains(sourceA.file)) {
-                        return "takeA";
-                    }
-
-                    if (frameworkRuntimeFileSet.contains(sourceB.file)) {
-                        return "takeB";
-                    }
-
-                    return handleDuplicate(targetFile, sourceA, sourceB, message);
-                };
-
-                return Shared.Deployment.flattenAssembly(assembly, targetFolder, customHandleDuplicate, currentResult, deploymentOptions, provenance);
-            };
-        }
-    }
-    else if (targetType === "library")
-    {
-        runtimeConfigFiles = RuntimeConfigFiles.createDllAppConfig(framework, name, appConfig);
-    }
-
-    // TODO: Add version
-    return {
-        name: a`${name}`,
-        targetFramework: framework.targetFramework,
-        compile: compileBinary,
-        runtime: runtimeBinary,
-        references: references,
-        runtimeConfigFiles: runtimeConfigFiles,
-        runtimeContent: runtimeContent ? { contents: runtimeContent } : undefined,
-        runtimeContentToSkip: args.runtimeContentToSkip,
-        deploy: deployFunction,
-    };
+    return appConfig;
 }
 
+function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework, cscResult: Csc.Result) : {
+    deployFunction: Deployment.FlattenForDeploymentFunction,
+    runtimeContent: Deployment.Definition
+}
+{
+    let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
+    let runtimeContent = args.runtimeContent;
+
+    if (targetType === "exe" && framework.applicationDeploymentStyle === "selfContained")
+    {
+        const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
+        const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
+
+        const patchResult = AppPatcher.withQualifier(Shared.TargetFrameworks.MachineQualifier.current).patchBinary({
+            binary: cscResult.binary.binary,
+            targetRuntimeVersion: qualifier.targetRuntime
+        });
+
+        runtimeContent = [
+            ...(runtimeContent || []),
+            // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
+            ...frameworkRuntimeFiles,
+            ...patchResult.contents,
+        ];
+
+        // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
+        // the runtime over the ones that come from nuget. We do so by providing a deploy function that customizes
+        // the handleDuplicate function to prefer the runtime file.
+        deployFunction = (
+            assembly: Shared.Assembly,
+            targetFolder: RelativePath,
+            handleDuplicate: Deployment.HandleDuplicateFileDeployment,
+            currentResult: Deployment.FlattenedResult,
+            deploymentOptions?: Object,
+            provenance?: Deployment.Diagnostics.Provenance): Deployment.FlattenedResult => {
+
+            const customHandleDuplicate : Deployment.HandleDuplicateFileDeployment = (targetFile: RelativePath, sourceA: Deployment.DeployedFileWithProvenance, sourceB: Deployment.DeployedFileWithProvenance, message?: string) : Deployment.DeployedFileAction => {
+                if (frameworkRuntimeFileSet.contains(sourceA.file)) {
+                    return "takeA";
+                }
+
+                if (frameworkRuntimeFileSet.contains(sourceB.file)) {
+                    return "takeB";
+                }
+
+                return handleDuplicate(targetFile, sourceA, sourceB, message);
+            };
+
+            return Shared.Deployment.flattenAssembly(assembly, targetFolder, customHandleDuplicate, currentResult, deploymentOptions, provenance);
+        };
+    }
+
+    return {
+        deployFunction: deployFunction,
+        runtimeContent: runtimeContent ? { contents: runtimeContent } : undefined,
+    };
+}
 
 @@public
 export interface Result extends Shared.Assembly {

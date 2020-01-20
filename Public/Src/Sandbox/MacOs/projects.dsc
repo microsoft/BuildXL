@@ -1,5 +1,5 @@
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-import {XCode} from "Sdk.MacOS";
+import {Xcode} from "Sdk.MacOS";
 
 namespace Sandbox {
     export declare const qualifier : {
@@ -14,7 +14,8 @@ namespace Sandbox {
         semaphores?: string[],
         xcconfig?: File,
         dependencies?: StaticDirectory[],
-        overrideXcodeBuildPath?: File
+        overrideXcodeBuildPath?: File,
+        headerSearchPaths?: Xcode.HeaderSearchPath[];
     }
 
     interface Result {
@@ -44,7 +45,7 @@ namespace Sandbox {
         const conf = args.configuration || qualifier.configuration;
         const outDir = Context.getNewOutputDirectory(args.scheme);
         const outFilePaths = (args.outFiles || []).map(a => p`${outDir}/Build/Products/${conf}/${a}`);
-        const result = XCode.execute({
+        const result = Xcode.execute({
             project: args.project,
             xcconfig: args.xcconfig,
             scheme: args.scheme,
@@ -58,7 +59,8 @@ namespace Sandbox {
                 ...(args.dependencies || []),
                 ...sourceFileDependencies
             ],
-            overrideXcodeBuildPath: args.overrideXcodeBuildPath
+            overrideXcodeBuildPath: args.overrideXcodeBuildPath,
+            headerSearchPaths: args.headerSearchPaths
         });
 
         return {
@@ -140,10 +142,17 @@ namespace Sandbox {
     }
 
     function buildKext(bundleInfo: File): KextFiles {
+        const kernelHeaders = <Xcode.HeaderSearchPath>{
+            type: "system",
+            directory: importFrom("Apple.Darwin.Xnu").extracted,
+            recursive: true
+        };
+
         const result = build({
             project: sandboxXcodeproj,
             scheme: "BuildXLSandbox",
             xcconfig: bundleInfo || bundleInfoXCConfig,
+            headerSearchPaths: [ kernelHeaders ],
             outFiles: [
                 r`BuildXLSandbox.kext/Contents/Info.plist`,
                 r`BuildXLSandbox.kext/Contents/MacOS/BuildXLSandbox`,
@@ -153,6 +162,9 @@ namespace Sandbox {
                     r`BuildXLSandbox.kext.dSYM/Contents/Info.plist`,
                     r`BuildXLSandbox.kext.dSYM/Contents/Resources/DWARF/BuildXLSandbox`
                 ])
+            ],
+            dependencies: [
+                kernelHeaders.directory
             ],
             // For as long as we support the sandbox kernel extension for macOS 10.14, we have to build it with the
             // 10.3 version of Xcode, obtainable from https://developer.apple.com/download/more/. After downloading,

@@ -1158,6 +1158,7 @@
 				INFOPLIST_FILE = "";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				SYSTEM_HEADER_SEARCH_PATHS = "../../../../../Out/frontend/Download/Apple.Darwin.Xnu/c/darwin-xnu-xnu-4903.221.2/**";
 				USER_HEADER_SEARCH_PATHS = "../../Public/Src/Sandbox/Windows/DetoursServices/**";
 			};
 			name = debug;
@@ -1216,6 +1217,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = "";
 				MTL_ENABLE_DEBUG_INFO = NO;
+				SYSTEM_HEADER_SEARCH_PATHS = "../../../../../Out/frontend/Download/Apple.Darwin.Xnu/c/darwin-xnu-xnu-4903.221.2/**";
 				USER_HEADER_SEARCH_PATHS = "../../Public/Src/Sandbox/Windows/DetoursServices/**";
 			};
 			name = release;
@@ -1236,6 +1238,7 @@
 				MODULE_VERSION = 1.0.0d1;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUILDXL_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SYSTEM_HEADER_SEARCH_PATHS = "../../../../../Out/frontend/Download/Apple.Darwin.Xnu/c/darwin-xnu-xnu-4903.221.2/**";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
 			};
@@ -1257,6 +1260,7 @@
 				MODULE_VERSION = 1.0.0d1;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUILDXL_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SYSTEM_HEADER_SEARCH_PATHS = "../../../../../Out/frontend/Download/Apple.Darwin.Xnu/c/darwin-xnu-xnu-4903.221.2/**";
 				USER_HEADER_SEARCH_PATHS = "../../Windows/DetoursServices/**";
 				WRAPPER_EXTENSION = kext;
 			};
@@ -1279,6 +1283,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				SYSTEM_HEADER_SEARCH_PATHS = "";
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = debug;
@@ -1299,6 +1304,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				SYSTEM_HEADER_SEARCH_PATHS = "";
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = release;

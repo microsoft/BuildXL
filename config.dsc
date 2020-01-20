@@ -546,6 +546,14 @@ config({
                     archiveType: "tgz",
                 },
 
+                // XNU kernel sources
+                {
+                    moduleName: "Apple.Darwin.Xnu",
+                    url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
+                    hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
+                    archiveType: "tgz",
+                },
+
                 // DotNet Core Runtime
                 {
                     moduleName: "DotNet-Runtime.win-x64.3.1.0",

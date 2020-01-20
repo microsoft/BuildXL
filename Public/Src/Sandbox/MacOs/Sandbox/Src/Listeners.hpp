@@ -5,6 +5,7 @@
 #define Listeners_hpp
 
 #include <sys/vnode.h>
+#include <mach/machine.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-W#warnings"

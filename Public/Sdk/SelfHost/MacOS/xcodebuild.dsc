@@ -3,7 +3,7 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 
-export namespace XCode {
+export namespace Xcode {
     const userName = Environment.getStringValue("USER") || "";
 
     @@public
@@ -17,6 +17,18 @@ export namespace XCode {
         | "install"
         | "install-src"
         | "clean";
+
+    @@public
+    export interface HeaderSearchPath {
+        /** Type of header search path location */
+        type: "system" | "user";
+
+        /** Location where the custom headers can be found */
+        directory: StaticDirectory;
+
+        /** Recursively enumrate target location */
+        recursive: boolean;
+    }
 
     @@public
     export interface Arguments {
@@ -62,8 +74,11 @@ export namespace XCode {
         /** override xcconfig */
         xcconfig?: File;
 
-         /** override xcodebuild default location */
+        /** override xcodebuild default location */
         overrideXcodeBuildPath?: File;
+
+        /** allow for a custom header search locations */
+        headerSearchPaths?: HeaderSearchPath[];
     }
 
     @@public
@@ -71,6 +86,9 @@ export namespace XCode {
         Contract.requires(args.derivedDataPath !== undefined);
 
         const wd = Context.getNewOutputDirectory("xcodebuild");
+        
+        const customSystemHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "system").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
+        const customUserHeaderSearchPaths = (args.headerSearchPaths || []).filter(hp => hp.type === "user").map(hp => p`${hp.directory.path}/${hp.recursive ? '**' : ''}`);
 
         const exeArgs: Transformer.ExecuteArguments = {
             tool: args.tool || {
@@ -91,6 +109,10 @@ export namespace XCode {
                 Cmd.option("-arch ", args.arch),
                 Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
                 Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),
+                
+                Cmd.option("SYSTEM_HEADER_SEARCH_PATHS=", Cmd.join(" ", customSystemHeaderSearchPaths)),
+                Cmd.option("HEADER_SEARCH_PATHS=", Cmd.join(" ", customUserHeaderSearchPaths)),
+                
                 Cmd.flag("-allTargets ", args.allTargets),
                 Cmd.args(args.actions)
             ],

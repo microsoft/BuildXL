@@ -25,6 +25,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         void Put(TKey key, TValue value, string columnFamilyName = null);
 
         /// <summary>
+        /// Adds (or overwrite) multiple entries in a batch.
+        /// </summary>
+        /// <param name="entries">Entries, where each entry is a tuple of key, value, and column family name.</param>
+        void PutMultiple(IEnumerable<(TKey key, TValue value, string columnFamilyName)> entries);
+
+        /// <summary>
         /// Removes an entry.
         /// </summary>
         /// <param name="key">

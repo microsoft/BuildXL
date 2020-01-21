@@ -465,11 +465,6 @@ namespace BuildXL.Scheduler.Tracing
         };
 
         /// <summary>
-        /// Date time format when serializing or parsing date times for the fingerprint store.
-        /// </summary>
-        private const string DateTimeFormat = "u";
-
-        /// <summary>
         /// Time-to-live for an entry is 3 days unless otherwise specified (a get or a put renews the TTL).
         /// </summary>
         private readonly TimeSpan m_maxEntryAge = TimeSpan.FromDays(3);
@@ -695,6 +690,8 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         private readonly FingerprintStoreMode m_mode = FingerprintStoreMode.Default;
 
+        private static readonly ObjectPool<List<(string, string, string)>> s_putEntriesPool = Pools.CreateListPool<(string, string, string)>();
+
         /// <summary>
         /// Opens or creates a new fingerprint store.
         /// </summary>
@@ -703,6 +700,9 @@ namespace BuildXL.Scheduler.Tracing
         /// </param>
         /// <param name="readOnly">
         /// Whether the store should be opened read-only.
+        /// </param>
+        /// <param name="bulkLoad">
+        /// Whether the store should be opened with bulk load.
         /// </param>
         /// <param name="maxEntryAge">
         /// Optional max entry age of entries. Any entries older than this age will be garbage collected.
@@ -724,6 +724,7 @@ namespace BuildXL.Scheduler.Tracing
         public static Possible<FingerprintStore> Open(
             string storeDirectory,
             bool readOnly = false,
+            bool bulkLoad = false,
             TimeSpan? maxEntryAge = null,
             LoggingContext loggingContext = null,
             FingerprintStoreMode mode = FingerprintStoreMode.Default,
@@ -766,6 +767,7 @@ namespace BuildXL.Scheduler.Tracing
                 additionalKeyTrackedColumns: s_additionalKeyTrackedColumns,
                 failureHandler: (f) => { failureHandler?.Invoke(f.Failure); },
                 openReadOnly: readOnly,
+                openBulkLoad: bulkLoad,
                 onFailureDeleteExistingStoreAndRetry: true);
 
             if (possibleAccessor.Succeeded)
@@ -946,16 +948,22 @@ namespace BuildXL.Scheduler.Tracing
                 Analysis.IgnoreResult(
                     Accessor.Use(store =>
                     {
-                        store.Put(entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value));
-                        store.Put(entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, columnFamilyName: ColumnNames.WeakFingerprints);
-
-                        var sfEntry = entry.StrongFingerprintEntry;
-                        store.Put(entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, columnFamilyName: ColumnNames.StrongFingerprints);
-
-                        if (storePathSet)
+                        // Batch multiple put operations to speed up writes.
+                        using (var entriesWrapper = s_putEntriesPool.GetInstance())
                         {
-                            Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
-                            store.Put(sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, columnFamilyName: ColumnNames.ContentHashes);
+                            var entries = entriesWrapper.Instance;
+                            entries.Add((entry.PipToFingerprintKeys.Key, JsonSerialize(entry.PipToFingerprintKeys.Value), null));
+                            entries.Add((entry.PipToFingerprintKeys.Key, entry.WeakFingerprintToInputs.Value, ColumnNames.WeakFingerprints));
+                            var sfEntry = entry.StrongFingerprintEntry;
+                            entries.Add((entry.PipToFingerprintKeys.Key, sfEntry.StrongFingerprintToInputs.Value, ColumnNames.StrongFingerprints));
+
+                            if (storePathSet)
+                            {
+                                Counters.IncrementCounter(FingerprintStoreCounters.NumPathSetEntriesPut);
+                                entries.Add((sfEntry.PathSetHashToInputs.Key, sfEntry.PathSetHashToInputs.Value, ColumnNames.ContentHashes));
+                            }
+
+                            store.PutMultiple(entries);
                         }
                     })
                 );

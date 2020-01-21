@@ -436,6 +436,24 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
 
+            /// <inheritdoc />
+            public void PutMultiple(IEnumerable<(string key, string value, string columnFamilyName)> entries) =>
+                PutMultiple(entries.Select(e => (StringToBytes(e.key), StringToBytes(e.value), e.columnFamilyName)));
+
+            /// <inheritdoc />
+            public void PutMultiple(IEnumerable<(byte[] key, byte[] value, string columnFamilyName)> entries)
+            {
+                using (var writeBatch = new WriteBatch())
+                {
+                    foreach (var entry in entries)
+                    {
+                        AddPutOperation(writeBatch, GetColumnFamilyInfo(entry.columnFamilyName), entry.key, entry.value);
+                    }
+
+                    WriteInternal(writeBatch);
+                }
+            }
+
             /// <summary>
             /// Adds a put operation for a key to a <see cref="WriteBatch"/>. These are not written
             /// to the store by this function, just added to the <see cref="WriteBatch"/>.

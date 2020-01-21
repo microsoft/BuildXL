@@ -140,8 +140,12 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             var maxEntryAge = new TimeSpan(hours: 0, minutes: configuration.Logging.FingerprintStoreMaxEntryAgeMinutes, seconds: 0);
+
+            // Most operations performed on the execution fingerprint store are writes.
+            // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
             var possibleExecutionStore = FingerprintStore.Open(
                 fingerprintStorePathString,
+                bulkLoad: true,
                 maxEntryAge: maxEntryAge,
                 mode: configuration.Logging.FingerprintStoreMode,
                 loggingContext: loggingContext,
@@ -161,8 +165,11 @@ namespace BuildXL.Scheduler.Tracing
                     throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
                 }
 
+                // Most operations performed on the execution fingerprint store are writes.
+                // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
                 possibleCacheLookupStore = FingerprintStore.Open(
                     cacheLookupFingerprintStorePathString,
+                    bulkLoad: true,
                     maxEntryAge: maxEntryAge,
                     mode: configuration.Logging.FingerprintStoreMode,
                     loggingContext: loggingContext,

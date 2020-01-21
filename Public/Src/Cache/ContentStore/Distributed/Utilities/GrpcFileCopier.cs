@@ -33,13 +33,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false, int? bufferSize = null)
+        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, bool useCompression = false, int? bufferSize = null)
         {
             _context = context;
             _grpcPort = grpcPort;
             _useCompression = useCompression;
 
-            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize);
+            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, bufferSize);
         }
 
         /// <inheritdoc />

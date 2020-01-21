@@ -71,7 +71,6 @@ namespace BuildXL.Cache.ContentStore.App
                             grpcPort: grpcPort,
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
-                            grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
                             useCompression: useCompressionForCopies);
 
                 var copier = useDistributedGrpc

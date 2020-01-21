@@ -308,12 +308,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int MaxGrpcClientAgeMinutes { get; set; } = 55;
-
-        /// <summary>
-        /// Time between GRPC cache cleanups.
-        /// </summary>
-        [DataMember]
-        public int GrpcClientCleanupDelayMinutes { get; set; } = 17;
         #endregion
 
         #region Distributed Eviction

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -15,9 +16,9 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <typeparam name="TObject">The wrapped type.</typeparam>
     public sealed class ResourceWrapper<TObject> : IDisposable where TObject : IStartupShutdownSlim
     {
-        internal DateTime _lastUseTime;
+        internal DateTime LastUseTime;
         private int _uses;
-        internal readonly Lazy<TObject> _resource;
+        internal readonly Lazy<TObject> Resource;
 
         /// <summary>
         /// Count of ongoing uses of this resource.
@@ -27,20 +28,20 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Whether the resource's underlying lazy wrapper has been evaluated yet.
         /// </summary>
-        internal bool IsValueCreated => _resource.IsValueCreated;
+        internal bool IsValueCreated => Resource.IsValueCreated;
 
         /// <summary>
         /// The contained resource.
         /// </summary>
-        public TObject Value => _resource.Value;
+        public TObject Value => Resource.Value;
 
         /// <summary>
         /// Constructor.
         /// </summary>
         public ResourceWrapper(Func<TObject> resourceFactory, Context context)
         {
-            _lastUseTime = DateTime.MinValue;
-            _resource = new Lazy<TObject>(() => {
+            LastUseTime = DateTime.MinValue;
+            Resource = new Lazy<TObject>(() => {
                 var resource = resourceFactory();
                 var result = resource.StartupAsync(context).ThrowIfFailure().GetAwaiter().GetResult();
                 return resource;
@@ -51,22 +52,23 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Attempt to reserve the resource. Fails if marked for shutdown.
         /// </summary>
         /// <param name="reused">Whether the resource has been used previously.</param>
+        /// <param name="clock">Clock to use</param>
         /// <returns>Whether the resource is approved for use.</returns>
-        public bool TryAcquire(out bool reused)
+        public bool TryAcquire(out bool reused, IClock clock)
         {
             lock (this)
             {
-                if (_resource.IsValueCreated && _resource.Value.ShutdownStarted)
+                if (Resource.IsValueCreated && Resource.Value.ShutdownStarted)
                 {
                     throw Contract.AssertFailure($"Found resource which has already begun shutdown");
                 }
 
                 _uses++;
 
-                reused = _lastUseTime != DateTime.MinValue;
+                reused = LastUseTime != DateTime.MinValue;
                 if (_uses > 0)
                 {
-                    _lastUseTime = DateTime.UtcNow;
+                    LastUseTime = clock.UtcNow;
                     return true;
                 }
             }
@@ -85,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             lock (this)
             {
-                if (_uses == 0 && (force || _lastUseTime < earliestLastUseTime))
+                if (_uses == 0 && (force || LastUseTime <= earliestLastUseTime))
                 {
                     _uses = int.MinValue;
                     return true;

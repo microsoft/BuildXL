@@ -1199,7 +1199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // First check in local location store, then global if failed.
                         var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
-                        if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                        if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count >= Settings.ProactiveCopyLocationsThreshold)
                         {
                             _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
                             return ProactiveCopyResult.CopyNotRequiredResult;

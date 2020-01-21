@@ -45,6 +45,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public IReadOnlyList<ProcessStrongFingerprintComputationData> StrongFingerprintComputations;
 
+        /// <summary>
+        /// SessionId of the build who creates the cache entry corresponding to this fingerprint
+        /// </summary>
+        public string SessionId;
+
+        /// <summary>
+        /// Related sessionId of the build who creates the cache entry corresponding to this fingerprint
+        /// </summary>
+        public string RelatedSessionId;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<ProcessFingerprintComputationEventData> Metadata => ExecutionLogMetadata.ProcessFingerprintComputation;
 

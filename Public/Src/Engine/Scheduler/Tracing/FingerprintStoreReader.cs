@@ -140,6 +140,31 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             /// <summary>
+            /// Session Id of the build who creates the entry
+            /// </summary>
+            public string EntrySessionId
+            {
+                get
+                {
+                    Contract.Assert(EntryExists);
+                    return m_entry.PipToFingerprintKeys.Value.SessionId;
+                }
+            }
+
+
+            /// <summary>
+            /// Related session Id of the build who creates the entry
+            /// </summary>
+            public string EntryRelatedSessionId
+            {
+                get
+                {
+                    Contract.Assert(EntryExists);
+                    return m_entry.PipToFingerprintKeys.Value.RelatedSessionId;
+                }
+            }
+
+            /// <summary>
             /// Strong fingerprint of the entry
             /// </summary>
             public string StrongFingerprint
@@ -215,39 +240,62 @@ namespace BuildXL.Scheduler.Tracing
             /// Diff pathsets.
             /// </summary>
             public JObject DiffPathSet(PipRecordingSession otherSession) =>
-                JsonFingerprintDiff.DiffPathSets(
-                    PathSetHash,
-                    GetPathSetTree(),
-                    GetStrongFingerpintInputTree(),
-                    otherSession.PathSetHash,
-                    otherSession.GetPathSetTree(),
-                    otherSession.GetStrongFingerpintInputTree(),
-                    directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
-                    otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash));
+                AugmentWithSessionInfo(
+                    JsonFingerprintDiff.DiffPathSets(
+                        PathSetHash,
+                        GetPathSetTree(),
+                        GetStrongFingerpintInputTree(),
+                        otherSession.PathSetHash,
+                        otherSession.GetPathSetTree(),
+                        otherSession.GetStrongFingerpintInputTree(),
+                        directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
+                        otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash)));
+
 
             /// <summary>
             /// Diff strong fingerprints.
             /// </summary>
             public JObject DiffStrongFingerprint(PipRecordingSession otherSession) =>
-                JsonFingerprintDiff.DiffStrongFingerprints(
-                    StrongFingerprint,
-                    GetPathSetTree(),
-                    GetStrongFingerpintInputTree(),
-                    otherSession.StrongFingerprint,
-                    otherSession.GetPathSetTree(),
-                    otherSession.GetStrongFingerpintInputTree(),
-                    directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
-                    otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash));
+                AugmentWithSessionInfo(
+                    JsonFingerprintDiff.DiffStrongFingerprints(
+                        StrongFingerprint,
+                        GetPathSetTree(),
+                        GetStrongFingerpintInputTree(),
+                        otherSession.StrongFingerprint,
+                        otherSession.GetPathSetTree(),
+                        otherSession.GetStrongFingerpintInputTree(),
+                        directoryMembershipHash => GetDirectoryMembership(m_store, directoryMembershipHash),
+                        otherDirectoryMembershipHash => GetDirectoryMembership(otherSession.m_store, otherDirectoryMembershipHash)));
 
             /// <summary>
             /// Diff weak fingerprints.
             /// </summary>
             public JObject DiffWeakFingerprint(PipRecordingSession otherSession) =>
-                JsonFingerprintDiff.DiffWeakFingerprints(
-                    WeakFingerprint,
-                    GetWeakFingerprintTree(),
-                    otherSession.WeakFingerprint,
-                    otherSession.GetWeakFingerprintTree());
+                AugmentWithSessionInfo(
+                    JsonFingerprintDiff.DiffWeakFingerprints(
+                        WeakFingerprint,
+                        GetWeakFingerprintTree(),
+                        otherSession.WeakFingerprint,
+                        otherSession.GetWeakFingerprintTree()));
+
+            private JObject AugmentWithSessionInfo(JObject diffResult)
+            {
+                diffResult.Add(GetOldProvenance());
+                return diffResult;
+            }
+
+            /// <summary>
+            /// Get provenance of this (the old) session
+            /// </summary>
+            internal object GetOldProvenance()
+            {
+                return new JProperty(
+                        "OldProvenance:",
+                        new JObject() {
+                            new JProperty("SessionId", EntrySessionId),
+                            new JProperty("RelatedSessionId", EntryRelatedSessionId)
+                        });
+            }
 
             /// <summary>
             /// Path set hash inputs are stored separately from the strong fingerprint inputs.

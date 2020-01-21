@@ -34,13 +34,23 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The label for <see cref="BuildXL.Engine.Cache.Fingerprints.WeakContentFingerprint"/>s.
         /// </summary>
-        public const string WeakFingerprint = "WeakFingerprint";
+        public const string WeakFingerprint = nameof(WeakFingerprint);
 
         /// <summary>
         /// The label for <see cref="BuildXL.Engine.Cache.Fingerprints.StrongContentFingerprint"/>s.
         /// </summary>
-        public const string StrongFingerprint = "StrongFingerprint";
+        public const string StrongFingerprint = nameof(StrongFingerprint);
 
+        /// <summary>
+        /// The label for session Id of a build.
+        /// </summary>
+        public const string SessionId = nameof(SessionId);
+
+        /// <summary>
+        /// The label for related session Id of a build.
+        /// </summary>
+        public const string RelatedSessionId = nameof(RelatedSessionId);
+        
         /// <summary>
         /// The label for <see cref="PipCacheMissInfo.PipId"/>s.
         /// </summary>
@@ -308,6 +318,10 @@ namespace BuildXL.Scheduler.Tracing
             public const string PathSet = ObservedPathEntryConstants.PathSet;
 
             public const string DirectoryEnumeration = ObservedInputConstants.DirectoryEnumeration;
+
+            public const string SessionId = FingerprintStoreConstants.SessionId;
+
+            public const string RelatedSessionId = FingerprintStoreConstants.RelatedSessionId;
         }
 
         /// <summary>
@@ -334,16 +348,32 @@ namespace BuildXL.Scheduler.Tracing
             public string FormattedPathSetHash;
 
             /// <summary>
+            /// Unique ID which will be assigned to a given session who execute the pip.
+            /// This is used only for displaying in analysis result but not validation.
+            /// </summary>
+            public string SessionId;
+
+            /// <summary>
+            /// Related id of the session who execute the pip
+            /// This is used only for displaying in analysis result but not validation.
+            /// </summary>
+            public string RelatedSessionId;
+
+            /// <summary>
             /// Constructor for convenience.
             /// </summary>
             public PipFingerprintKeys(
                 WeakContentFingerprint weakFingerprint,
                 StrongContentFingerprint strongFingerprint,
-                string pathSetHash)
+                string pathSetHash,
+                string sessionId,
+                string relatedSessionId)
             {
                 WeakFingerprint = weakFingerprint.ToString();
                 StrongFingerprint = strongFingerprint.ToString();
                 FormattedPathSetHash = pathSetHash;
+                SessionId = sessionId;
+                RelatedSessionId = relatedSessionId;
             }
 
             /// <inheritdoc />
@@ -355,6 +385,8 @@ namespace BuildXL.Scheduler.Tracing
                     writer.Add(PropertyNames.WeakFingerprint, keys.WeakFingerprint);
                     writer.Add(PropertyNames.StrongFingerprint, keys.StrongFingerprint);
                     writer.Add(PropertyNames.PathSet, keys.FormattedPathSetHash);
+                    writer.Add(PropertyNames.SessionId, keys.SessionId);
+                    writer.Add(PropertyNames.RelatedSessionId, keys.RelatedSessionId);
                 },
                 formatting: Newtonsoft.Json.Formatting.Indented);
             }
@@ -378,23 +410,23 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Column for weak fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
             /// </summary>
-            public const string WeakFingerprints = "WeakFingerprints";
+            public const string WeakFingerprints = nameof(WeakFingerprints);
 
             /// <summary>
             /// Column for strong fingerprints, keyed by <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>.
             /// </summary>
-            public const string StrongFingerprints = "StrongFingerprints";
+            public const string StrongFingerprints = nameof(StrongFingerprints);
 
             /// <summary>
             /// Column for directory membership fingerprint and path set hash inputs, keyed on the respective content hashes.
             /// </summary>
-            public const string ContentHashes = "ContentHashes";
+            public const string ContentHashes = nameof(ContentHashes);
 
             /// <summary>
             /// Column for <see cref="BuildXL.Pips.Operations.Pip.FormattedSemiStableHash"/>es, keyed on the pip unique output hash computed by
             /// <see cref="BuildXL.Pips.Operations.Process.TryComputePipUniqueOutputHash(PathTable, out long, PathExpander)"/>.
             /// </summary>
-            public const string PipUniqueOutputHashes = "PipUniqueOutputHashes";
+            public const string PipUniqueOutputHashes = nameof(PipUniqueOutputHashes);
 
             /// <summary>
             /// Convenience array for iterating through all the columns except the default,
@@ -1112,7 +1144,9 @@ namespace BuildXL.Scheduler.Tracing
             pipFingerprintKeys = new PipFingerprintKeys();
             if (!reader.TryGetPropertyValue(PropertyNames.WeakFingerprint, out pipFingerprintKeys.WeakFingerprint)
                 || !reader.TryGetPropertyValue(PropertyNames.StrongFingerprint, out pipFingerprintKeys.StrongFingerprint)
-                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.FormattedPathSetHash))
+                || !reader.TryGetPropertyValue(PropertyNames.PathSet, out pipFingerprintKeys.FormattedPathSetHash)
+                || !reader.TryGetPropertyValue(PropertyNames.SessionId, out pipFingerprintKeys.SessionId)
+                || !reader.TryGetPropertyValue(PropertyNames.RelatedSessionId, out pipFingerprintKeys.RelatedSessionId))
             {
                 return false;
             }
@@ -1321,6 +1355,8 @@ namespace BuildXL.Scheduler.Tracing
                         writer.Add(FingerprintStoreConstants.WeakFingerprint, pfk.WeakFingerprint);
                         writer.Add(FingerprintStoreConstants.StrongFingerprint, pfk.StrongFingerprint);
                         writer.Add(ObservedPathEntryConstants.PathSet, pfk.FormattedPathSetHash);
+                        writer.Add(FingerprintStoreConstants.SessionId, pfk.SessionId);
+                        writer.Add(FingerprintStoreConstants.RelatedSessionId, pfk.RelatedSessionId);
                     });
             }
         }

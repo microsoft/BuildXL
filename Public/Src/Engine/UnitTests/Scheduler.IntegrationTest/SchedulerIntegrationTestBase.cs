@@ -540,7 +540,8 @@ namespace Test.BuildXL.Scheduler
                     PipExecutorCounters = testScheduler.PipExecutionCounters,
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
-                    SchedulerState = new SchedulerState(testScheduler)
+                    SchedulerState = new SchedulerState(testScheduler),
+                    Session = localLoggingContext.Session,
                 };
 
                 runResult.AssertSuccessMatchesLogging(localLoggingContext);

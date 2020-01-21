@@ -2038,6 +2038,12 @@ namespace BuildXL.Scheduler
                 // Update the strong fingerprint computations list
                 processFingerprintComputationResult.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
 
+                if (result.CanRunFromCache)
+                {
+                    processFingerprintComputationResult.SessionId = result.GetCacheHitData()?.Metadata.SessionId;
+                    processFingerprintComputationResult.RelatedSessionId = result.GetCacheHitData()?.Metadata.RelatedSessionId;
+                }
+
                 using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
                 {
                     environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
@@ -4428,6 +4434,8 @@ namespace BuildXL.Scheduler
                             TotalOutputSize = totalOutputSize,
                             SemiStableHash = process.SemiStableHash,
                             WeakFingerprint = fingerprintComputation.Value.WeakFingerprint.ToString(),
+                            SessionId = operationContext.LoggingContext.Session.Id,
+                            RelatedSessionId = operationContext.LoggingContext.Session.RelatedId,
                         };
 
                     RecordOutputsOnMetadata(metadata, process, allOutputData, outputHashPairs, pathTable);

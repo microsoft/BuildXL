@@ -359,10 +359,13 @@ namespace BuildXL.Scheduler.Tracing
         /// <returns>
         /// True, if the entry was added; false if the entry already exists.
         /// </returns>
-        private bool TryPutExecutionFingerprintStoreEntry(Process pip, WeakContentFingerprint weakFingerprint, ProcessStrongFingerprintComputationData strongFingerprintData)
+        private bool TryPutExecutionFingerprintStoreEntry(Process pip, WeakContentFingerprint weakFingerprint, ProcessStrongFingerprintComputationData strongFingerprintData, string sessionId, string relatedSessionId)
         {
             var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-            var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+
+            // Use the session id and related session id of this build to create pipFingerprintKeys, so when need to CreateAndStoreFingerprintStoreEntry, they will be in the new entry.
+            // The SameValueEntryExists function below doesn't check sessionId and relatedSessionId, so the value of them do not affect the result of SameValueEntryExists()
+            var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), sessionId, relatedSessionId);
 
             // Skip overwriting the same value on cache hits
             if (SameValueEntryExists(ExecutionFingerprintStore, pip, pipFingerprintKeys))
@@ -413,7 +416,7 @@ namespace BuildXL.Scheduler.Tracing
             // Cache hit, update execution fingerprint store entry, if necessary, to match what would have been executed
             if (strongFingerprintData.IsStrongFingerprintHit)
             {
-                if (TryPutExecutionFingerprintStoreEntry(pip, weakFingerprint, maybeStrongFingerprintData.Value))
+                if (TryPutExecutionFingerprintStoreEntry(pip, weakFingerprint, maybeStrongFingerprintData.Value, data.SessionId, data.RelatedSessionId))
                 {
                     Counters.IncrementCounter(FingerprintStoreCounters.NumHitEntriesPut);
                 }
@@ -442,7 +445,7 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), LoggingContext.Session.Id, LoggingContext.Session.RelatedId);
                 FingerprintStoreEntry newEntry = null;
 
                 if (CacheLookupStoreEnabled)
@@ -496,7 +499,7 @@ namespace BuildXL.Scheduler.Tracing
                 var strongFingerprintData = maybeStrongFingerprintData.Value;
                 var weakFingerprint = data.WeakFingerprint;
                 var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash));
+                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), LoggingContext.Session.Id, LoggingContext.Session.RelatedId);
                 newEntry = CreateAndStoreFingerprintStoreEntry(ExecutionFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
             }
 

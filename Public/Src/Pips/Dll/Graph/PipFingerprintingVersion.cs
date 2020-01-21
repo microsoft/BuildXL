@@ -52,7 +52,8 @@ namespace BuildXL.Pips.Graph
         ///     from <c>bool</c> to <see cref="Utilities.Configuration.DynamicWriteOnAbsentProbePolicy"/>
         /// 76: Put extra salt's options in weakfingerprint instead of ExecutionAndFingerprintOptionsHash.
         /// 77: Change semantics related to tracking dependencies under untracked scopes.
+        /// 78: Add session id and related session of the build.
         /// </remarks>
-        TwoPhaseV2 = 77,
+        TwoPhaseV2 = 78,
     }
 }

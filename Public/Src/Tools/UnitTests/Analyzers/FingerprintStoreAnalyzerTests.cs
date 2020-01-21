@@ -113,7 +113,9 @@ namespace Test.Tool.Analyzers
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ArtifactToPrint(absentFile),
                 ObservedInputConstants.AbsentPathProbe,
-                ObservedInputConstants.FileContentRead);
+                ObservedInputConstants.FileContentRead,
+                build1.Session.Id,
+                build1.Session.RelatedId);
         }
 
         [Fact]
@@ -817,7 +819,10 @@ namespace Test.Tool.Analyzers
             var pip = SchedulePipBuilder(pipBuilder);
 
             SetExtraSalts("FirstSalt", true);
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            ScheduleRunResult initialbuild = RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            var oldSessionId = initialbuild.Session.Id;
+            var oldRelatedSessionId = initialbuild.Session.RelatedId;
+
             ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(pip.Process.PipId);
 
             SetExtraSalts("SecondSalt", false);
@@ -829,7 +834,9 @@ namespace Test.Tool.Analyzers
                 nameof(ExtraFingerprintSalts.MaskUntrackedAccesses),
                 nameof(ExtraFingerprintSalts.NormalizeReadTimestamps),
                 nameof(ExtraFingerprintSalts.PipWarningsPromotedToErrors),
-                nameof(ExtraFingerprintSalts.ValidateDistribution)
+                nameof(ExtraFingerprintSalts.ValidateDistribution),
+                oldSessionId,
+                oldRelatedSessionId
             };
 
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);

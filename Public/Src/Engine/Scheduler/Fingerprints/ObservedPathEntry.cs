@@ -29,22 +29,22 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.Path"/>.
         /// </summary>
-        public const string Path = "Path";
+        public const string Path = nameof(Path);
 
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.Flags"/>.
         /// </summary>
-        public const string Flags = "Flags";
+        public const string Flags = nameof(Flags);
 
         /// <summary>
         /// Label for <see cref="ObservedPathEntry.EnumeratePatternRegex"/>.
         /// </summary>
-        public const string EnumeratePatternRegex = "EnumeratePatternRegex";
+        public const string EnumeratePatternRegex = nameof(EnumeratePatternRegex);
 
         /// <summary>
         /// Hashing label for <see cref="ObservedPathSet"/>.
         /// </summary>
-        public const string PathSet = "PathSet";
+        public const string PathSet = nameof(PathSet);
     }
 
     /// <summary>

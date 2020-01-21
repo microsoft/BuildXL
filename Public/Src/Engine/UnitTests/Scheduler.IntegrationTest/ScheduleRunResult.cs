@@ -11,6 +11,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Instrumentation.Common;
+using static BuildXL.Utilities.Instrumentation.Common.LoggingContext;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -38,6 +39,8 @@ namespace Test.BuildXL.Scheduler
         public PipCountersByTelemetryTag ProcessPipCountersByTelemetryTag { get; set; }
 
         public SchedulerState SchedulerState { get; set; }
+
+        public SessionInfo Session { get; set; }
 
         public ScheduleRunResult AssertSuccess()
         {

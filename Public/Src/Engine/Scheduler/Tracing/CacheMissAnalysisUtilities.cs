@@ -220,7 +220,7 @@ namespace BuildXL.Scheduler.Tracing
                     }
                     else
                     {
-                        WriteLine(JsonTree.PrintTreeDiff(oldPipSession.GetWeakFingerprintTree(), newPipSession.GetWeakFingerprintTree()), writer);
+                        WriteLine(PrintTreeDiff(oldPipSession.GetWeakFingerprintTree(), newPipSession.GetWeakFingerprintTree(), oldPipSession), writer);
                     }
                     
                     result = CacheMissAnalysisResult.WeakFingerprintMismatch;
@@ -236,7 +236,7 @@ namespace BuildXL.Scheduler.Tracing
                     else
                     {
                         // JsonPatchDiff does not have pathset comparison.
-                        WriteLine(JsonTree.PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree()), writer);
+                        WriteLine(PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession), writer);
                     }
 
                     result = CacheMissAnalysisResult.PathSetHashMismatch;
@@ -251,7 +251,7 @@ namespace BuildXL.Scheduler.Tracing
                     }
                     else
                     {
-                        WriteLine(JsonTree.PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree()), writer);
+                        WriteLine(PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession), writer);
                     }
 
                     result = CacheMissAnalysisResult.StrongFingerprintMismatch;
@@ -265,6 +265,11 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             return result;
+        }
+
+        private static string PrintTreeDiff(JsonNode oldNode, JsonNode newNode, PipRecordingSession oldPipSession)
+        {
+            return JsonTree.PrintTreeDiff(oldNode, newNode) + oldPipSession.GetOldProvenance().ToString();
         }
 
         private static void WriteLine(string message, TextWriter writer, params TextWriter[] additionalWriters)

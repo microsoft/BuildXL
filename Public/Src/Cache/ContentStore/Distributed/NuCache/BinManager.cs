@@ -47,7 +47,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly Dictionary<uint, Dictionary<MachineId, DateTime>> _expiredAssignments = new Dictionary<uint, Dictionary<MachineId, DateTime>>();
         private readonly TimeSpan _expiryTime;
         private readonly IClock _clock;
-        private readonly object _lockObject = new object();
         private readonly MachineId?[] _binToMachineMap;
         private readonly HashSet<MachineId> _machineSetBuffer = new HashSet<MachineId>();
         private readonly HashSet<uint> _expiredBinSet = new HashSet<uint>();
@@ -55,6 +54,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private MachineId[][]? _bins;
         private DateTime _lastPruneExpiry = DateTime.MinValue;
+
+        // This class takes advantage of the fact that the lock statement is reentrant. Make sure to double check if we are going to use a different synchronization mechanism.
+        private readonly object _lockObject = new object(); 
 
         /// <nodoc />
         public BinManager(int locationsPerBin, IEnumerable<MachineId> startLocations, IClock clock, TimeSpan expiryTime)
@@ -124,17 +126,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void UpdateAll(IReadOnlyList<MachineId> activeMachines, IReadOnlyList<MachineId> inactiveMachines)
         {
-            // Remove active machines that became inactive or disappeared.
-            var machinesToRemove = _machinesToBinsMap.Keys.Except(activeMachines);
-
-            foreach (var machine in activeMachines)
+            lock (_lockObject)
             {
-                AddLocation(machine);
-            }
+                // Remove active machines that became inactive or disappeared.
+                var machinesToRemove = _machinesToBinsMap.Keys.Except(activeMachines);
 
-            foreach (var machine in inactiveMachines.Concat(machinesToRemove))
-            {
-                RemoveLocation(machine);
+                foreach (var machine in activeMachines)
+                {
+                    AddLocation(machine);
+                }
+
+                foreach (var machine in inactiveMachines.Concat(machinesToRemove))
+                {
+                    RemoveLocation(machine);
+                }
             }
         }
 
@@ -143,41 +148,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void AddLocation(MachineId id)
         {
-            var addedMachine = new MachineWithBinAssigments(id);
-            if (!_machinesToBinsMap.TryAdd(id, addedMachine))
+            lock (_lockObject)
             {
-                // Machine already registered. Nothing to do.
-                return;
-            }
-
-            // If only one machine is registered, assign that machine to all bins
-            if (_machinesToBinsMap.Count == 1)
-            {
-                for (uint binNumber = 0; binNumber < NumberOfBins; binNumber++)
+                var addedMachine = new MachineWithBinAssigments(id);
+                if (!_machinesToBinsMap.TryAdd(id, addedMachine))
                 {
-                    _binToMachineMap[binNumber] = id;
-                    addedMachine.BinsAssignedTo.Add(binNumber);
+                    // Machine already registered. Nothing to do.
+                    return;
+                }
+
+                // If only one machine is registered, assign that machine to all bins
+                if (_machinesToBinsMap.Count == 1)
+                {
+                    for (uint binNumber = 0; binNumber < NumberOfBins; binNumber++)
+                    {
+                        _binToMachineMap[binNumber] = id;
+                        addedMachine.BinsAssignedTo.Add(binNumber);
+                    }
+
+                    _machinesToBinsMap[id] = addedMachine;
+                    _machineAssignmentsSortedByBinCount.Add(addedMachine);
+
+                    return;
+                }
+
+                // While the added machine's number of bins is less the the per machine bin count,
+                // move bins from machines with greatest number of assigned bins
+                while (addedMachine.BinsAssignedTo.Count < _machineAssignmentsSortedByBinCount.Max!.BinsAssignedTo.Count - 1)
+                {
+                    var machineWithMaxNumOfBins = _machineAssignmentsSortedByBinCount.Max!;
+                    var binToReassign = machineWithMaxNumOfBins.BinsAssignedTo.First();
+
+                    // Reassign bin from machine with most number of bin assigned to the added machine
+                    MoveBinAssigment(oldMachine: machineWithMaxNumOfBins, newMachine: addedMachine, binToMove: binToReassign, machineToResort: machineWithMaxNumOfBins);
                 }
 
                 _machinesToBinsMap[id] = addedMachine;
                 _machineAssignmentsSortedByBinCount.Add(addedMachine);
-
-                return;
             }
-
-            // While the added machine's number of bins is less the the per machine bin count,
-            // move bins from machines with greatest number of assigned bins
-            while (addedMachine.BinsAssignedTo.Count < _machineAssignmentsSortedByBinCount.Max!.BinsAssignedTo.Count - 1)
-            {
-                var machineWithMaxNumOfBins = _machineAssignmentsSortedByBinCount.Max!;
-                var binToReassign = machineWithMaxNumOfBins.BinsAssignedTo.First();
-
-                // Reassign bin from machine with most number of bin assigned to the added machine
-                MoveBinAssigment(oldMachine: machineWithMaxNumOfBins, newMachine: addedMachine, binToMove: binToReassign, machineToResort: machineWithMaxNumOfBins);
-            }
-
-            _machinesToBinsMap[id] = addedMachine;
-            _machineAssignmentsSortedByBinCount.Add(addedMachine);
         }
 
         /// <summary>
@@ -185,21 +193,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void RemoveLocation(MachineId id)
         {
-            if (!_machinesToBinsMap.ContainsKey(id))
+            lock (_lockObject)
             {
-                return;
-            }
+                if (!_machinesToBinsMap.ContainsKey(id))
+                {
+                    return;
+                }
 
-            var assignments = _machinesToBinsMap[id];
-            _machinesToBinsMap.Remove(id);
-            _machineAssignmentsSortedByBinCount.Remove(assignments);
+                var assignments = _machinesToBinsMap[id];
+                _machinesToBinsMap.Remove(id);
+                _machineAssignmentsSortedByBinCount.Remove(assignments);
 
-            foreach (var assignedBinNumber in assignments.BinsAssignedTo.ToList())
-            {
-                var machineWithMinNumOfBins = _machineAssignmentsSortedByBinCount.Min;
+                foreach (var assignedBinNumber in assignments.BinsAssignedTo.ToList())
+                {
+                    var machineWithMinNumOfBins = _machineAssignmentsSortedByBinCount.Min;
 
-                // Reassign bin from removed machine to machine with least number of bin assigned
-                MoveBinAssigment(oldMachine: assignments, newMachine: machineWithMinNumOfBins, binToMove: assignedBinNumber, machineToResort: machineWithMinNumOfBins);
+                    // Reassign bin from removed machine to machine with least number of bin assigned
+                    MoveBinAssigment(oldMachine: assignments, newMachine: machineWithMinNumOfBins, binToMove: assignedBinNumber, machineToResort: machineWithMinNumOfBins);
+                }
             }
         }
 
@@ -234,18 +245,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _machineAssignmentsSortedByBinCount.Add(machineToResort);
             }
 
-            lock (_lockObject)
+            // Accesses to the machine hash set (_machineSetBuffer) are not thread safe.
+            foreach (var impactedBin in GetImpactedBins(binToMove, oldMachine.MachineId))
             {
-                // Accesses to the machine hash set (_machineSetBuffer) are not thread safe.
-                foreach (var impactedBin in GetImpactedBins(binToMove, oldMachine.MachineId))
-                {
-                    // Mark the old assignment as expired
-                    _expiredAssignments.GetOrAdd(impactedBin, bin => new Dictionary<MachineId, DateTime>())[oldMachine.MachineId] = _clock.UtcNow + _expiryTime;
-                }
-
-                // Invalidate bins
-                _bins = null;
+                // Mark the old assignment as expired
+                _expiredAssignments.GetOrAdd(impactedBin, bin => new Dictionary<MachineId, DateTime>())[oldMachine.MachineId] = _clock.UtcNow + _expiryTime;
             }
+
+            // Invalidate bins
+            _bins = null;
         }
 
         /// <summary>
@@ -311,21 +319,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private uint[] InitializePreviousBinsMappings()
         {
-            var previousBins = _previousBins;
-            if (previousBins == null)
+            lock (_lockObject)
             {
-                // Populate previous bins by querying next bin and adding back pointer
-                previousBins = new uint[NumberOfBins];
-                for (uint bin = 0; bin < NumberOfBins; bin++)
+                var previousBins = _previousBins;
+                if (previousBins == null)
                 {
-                    var nextBin = GetNextBin(bin);
-                    previousBins[nextBin] = bin;
+                    // Populate previous bins by querying next bin and adding back pointer
+                    previousBins = new uint[NumberOfBins];
+                    for (uint bin = 0; bin < NumberOfBins; bin++)
+                    {
+                        var nextBin = GetNextBin(bin);
+                        previousBins[nextBin] = bin;
+                    }
+
+                    _previousBins = previousBins;
                 }
 
-                _previousBins = previousBins;
+                return previousBins;
             }
-
-            return previousBins;
         }
 
         /// <summary>
@@ -429,28 +440,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal MachineId[] GetDesignatedLocations(uint binNumber, bool includeExpired)
         {
-            var result = GetBins()[binNumber];
-
-            if (includeExpired)
+            lock (_lockObject)
             {
-                PruneExpiries(force: false);
+                var result = GetBins()[binNumber];
 
-                var expiredEntriesForBin = _expiredAssignments!.GetOrDefault(binNumber)?.Keys;
-                if (expiredEntriesForBin != null)
+                if (includeExpired)
                 {
-                    return result.Concat(expiredEntriesForBin).Distinct().ToArray();
-                }
-            }
+                    PruneExpiries(force: false);
 
-            return result;
+                    var expiredEntriesForBin = _expiredAssignments!.GetOrDefault(binNumber)?.Keys;
+                    if (expiredEntriesForBin != null)
+                    {
+                        return result.Concat(expiredEntriesForBin).Distinct().ToArray();
+                    }
+                }
+
+                return result;
+            }
         }
 
         /// <nodoc />
         public Dictionary<uint, Dictionary<MachineId, DateTime>> GetExpiredAssignments()
         {
-            PruneExpiries(force: true);
-
-            return _expiredAssignments;
+            lock (_lockObject)
+            {
+                PruneExpiries(force: true);
+                return _expiredAssignments;
+            }
         }
 
         /// <summary>
@@ -501,30 +517,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public byte[] Serialize()
         {
-            PruneExpiries(force: true);
-
-            using var stream = new MemoryStream();
-            using var writer = new BuildXLWriter(false, stream, false, false);
-
-            writer.WriteCompact(_binToMachineMap.Length);
-            foreach (var assignment in _binToMachineMap)
+            lock (_lockObject)
             {
-                writer.WriteCompact(assignment?.Index ?? -1);
-            }
+                PruneExpiries(force: true);
 
-            writer.WriteCompact(_expiredAssignments.Count);
-            foreach (var expiry in _expiredAssignments)
-            {
-                writer.WriteCompact(expiry.Key);
-                writer.WriteCompact(expiry.Value.Count);
-                foreach (var kvp in expiry.Value)
+                using var stream = new MemoryStream();
+                using var writer = new BuildXLWriter(false, stream, false, false);
+
+                writer.WriteCompact(_binToMachineMap.Length);
+                foreach (var assignment in _binToMachineMap)
                 {
-                    writer.WriteCompact(kvp.Key.Index);
-                    writer.Write(kvp.Value);
+                    writer.WriteCompact(assignment?.Index ?? -1);
                 }
-            }
 
-            return stream.ToArray();
+                writer.WriteCompact(_expiredAssignments.Count);
+                foreach (var expiry in _expiredAssignments)
+                {
+                    writer.WriteCompact(expiry.Key);
+                    writer.WriteCompact(expiry.Value.Count);
+                    foreach (var kvp in expiry.Value)
+                    {
+                        writer.WriteCompact(kvp.Key.Index);
+                        writer.Write(kvp.Value);
+                    }
+                }
+
+                return stream.ToArray();
+            }
         }
 
         /// <nodoc />

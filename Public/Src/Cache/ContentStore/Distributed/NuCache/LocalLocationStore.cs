@@ -1541,6 +1541,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     var failed = 0;
                     var scanned = 0;
                     var delayTask = Task.CompletedTask;
+                    var wasPreviousCopyNeeded = true;
                     foreach (var content in contents)
                     {
                         context.Token.ThrowIfCancellationRequested();
@@ -1551,17 +1552,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             if (entry.Locations.Count < _configuration.ProactiveCopyLocationsThreshold)
                             {
-                                await delayTask;
-                                delayTask = Task.Delay(_configuration.DelayForProactiveReplication);
+                                if (wasPreviousCopyNeeded)
+                                {
+                                    await delayTask;
+                                    delayTask = Task.Delay(_configuration.DelayForProactiveReplication);
+                                }
 
                                 var result = await _proactiveCopyTaskFactory(context, content.ContentHash);
 
+                                wasPreviousCopyNeeded = true;
                                 if (result.Succeeded)
                                 {
                                     if (result.WasProactiveCopyNeeded)
                                     {
                                         Counters[ContentLocationStoreCounters.ProactiveReplication_Succeeded].Increment();
                                         succeeded++;
+                                    }
+                                    else
+                                    {
+                                        wasPreviousCopyNeeded = false;
                                     }
                                 }
                                 else

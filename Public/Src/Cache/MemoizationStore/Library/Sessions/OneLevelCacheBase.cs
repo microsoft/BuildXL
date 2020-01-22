@@ -93,12 +93,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                     var r = await ContentStore.ShutdownAsync(context).ConfigureAwait(false);
                     if (!r.Succeeded)
                     {
-                        sb.AppendFormat($"Content store shutdown failed, error=[{r}]");
+                        sb.Append($"Content store shutdown failed, error=[{r}]");
                     }
                 }
                 else
                 {
-                    sb.AppendFormat($"Content store startup failed, error=[{contentStoreResult}]");
+                    sb.Append($"Content store startup failed, error=[{contentStoreResult}]");
                 }
 
                 if (memoizationStoreResult.Succeeded)
@@ -107,13 +107,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                     if (!r.Succeeded)
                     {
                         sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                        sb.AppendFormat($"Memoization store shutdown failed, error=[{memoizationStoreResult}]");
+                        sb.Append($"Memoization store shutdown failed, error=[{memoizationStoreResult}]");
                     }
                 }
                 else
                 {
                     sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                    sb.AppendFormat($"Memoization store startup failed, error=[{memoizationStoreResult}]");
+                    sb.Append($"Memoization store startup failed, error=[{memoizationStoreResult}]");
                 }
 
                 result = new BoolResult(sb.ToString());
@@ -145,13 +145,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 var sb = new StringBuilder();
                 if (!contentStoreResult.Succeeded)
                 {
-                    sb.AppendFormat($"Content store shutdown failed, error=[{contentStoreResult}]");
+                    sb.Append($"Content store shutdown failed, error=[{contentStoreResult}]");
                 }
 
                 if (!memoizationStoreResult.Succeeded)
                 {
                     sb.Append(sb.Length > 0 ? ", " : string.Empty);
-                    sb.AppendFormat($"Memoization store shutdown failed, error=[{memoizationStoreResult}]");
+                    sb.Append($"Memoization store shutdown failed, error=[{memoizationStoreResult}]");
                 }
 
                 result = new BoolResult(sb.ToString());

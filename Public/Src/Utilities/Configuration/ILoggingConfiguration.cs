@@ -95,6 +95,14 @@ namespace BuildXL.Utilities.Configuration
         int FingerprintStoreMaxEntryAgeMinutes { get; }
 
         /// <summary>
+        /// Bulk load fingerprint store to (hopefully) speed up writes.
+        /// </summary>
+        /// <remarks>
+        /// This option is temporary for AB testing.
+        /// </remarks>
+        bool FingerprintStoreBulkLoad { get; }
+
+        /// <summary>
         /// Specifies the path to the fingerprints log directory which contains FingerprintStores.
         /// </summary>
         AbsolutePath FingerprintsLogDirectory { get; }

@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogExecution = true;
             FingerprintStoreMode = FingerprintStoreMode.Default;
             FingerprintStoreMaxEntryAgeMinutes = 4320; // 3 days
+            FingerprintStoreBulkLoad = false;
             EngineCacheLogDirectory = AbsolutePath.Invalid;
             EngineCacheCorruptFilesLogDirectory = AbsolutePath.Invalid;
             FingerprintsLogDirectory = AbsolutePath.Invalid;
@@ -65,6 +66,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             StoreFingerprints = template.StoreFingerprints;
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
+            FingerprintStoreBulkLoad = template.FingerprintStoreBulkLoad;
             FingerprintsLogDirectory = pathRemapper.Remap(template.FingerprintsLogDirectory);
             ExecutionFingerprintStoreLogDirectory = pathRemapper.Remap(template.ExecutionFingerprintStoreLogDirectory);
             CacheLookupFingerprintStoreLogDirectory = pathRemapper.Remap(template.CacheLookupFingerprintStoreLogDirectory);
@@ -176,6 +178,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int FingerprintStoreMaxEntryAgeMinutes { get; set; }
+
+        /// <inheritdoc />
+        public bool FingerprintStoreBulkLoad { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath FingerprintsLogDirectory { get; set; }

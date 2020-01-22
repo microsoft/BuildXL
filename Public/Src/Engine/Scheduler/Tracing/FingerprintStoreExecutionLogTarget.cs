@@ -145,7 +145,7 @@ namespace BuildXL.Scheduler.Tracing
             // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
             var possibleExecutionStore = FingerprintStore.Open(
                 fingerprintStorePathString,
-                bulkLoad: true,
+                bulkLoad: configuration.Logging.FingerprintStoreBulkLoad,
                 maxEntryAge: maxEntryAge,
                 mode: configuration.Logging.FingerprintStoreMode,
                 loggingContext: loggingContext,
@@ -169,7 +169,7 @@ namespace BuildXL.Scheduler.Tracing
                 // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
                 possibleCacheLookupStore = FingerprintStore.Open(
                     cacheLookupFingerprintStorePathString,
-                    bulkLoad: true,
+                    bulkLoad: configuration.Logging.FingerprintStoreBulkLoad,
                     maxEntryAge: maxEntryAge,
                     mode: configuration.Logging.FingerprintStoreMode,
                     loggingContext: loggingContext,

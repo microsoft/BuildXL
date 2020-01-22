@@ -482,9 +482,12 @@ namespace BuildXL
                             "filter",
                             "f",
                             opt => configuration.Filter = CommandLineUtilities.ParseStringOptionalOption(opt)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "fingerprintStoreBulkLoad",
+                            sign => loggingConfiguration.FingerprintStoreBulkLoad = sign),
                         OptionHandlerFactory.CreateOption(
                             "fingerprintStoreMaxEntryAgeMinutes",
-                            opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                            opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "fireForgetMaterializeOutput",
                             sign => distributionConfiguration.FireForgetMaterializeOutput = sign),

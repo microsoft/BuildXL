@@ -159,6 +159,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             {
                 case ResultCode.Error:
                     return GetErrorString();
+                case ResultCode.Success:
+                    return GetSuccessString();
                 default:
                     return $"{Code}";
             }

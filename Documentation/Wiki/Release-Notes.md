@@ -11,8 +11,20 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
-# 0.1.0-20200103.10.2 (Release [51927](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 1/8/2020
+# 0.1.0-20200119.0 (Release [53036](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53036)).  Released 1/22/2020
+- CriticalPath analyzer improvements
+- Improvements to handle larger builds (office multiple architectures)
+- [QTest] Add QTestMock support
+- [QTest] Add dotnetcore support
+- Cache diagnostic improvements  
+- [Mac] Fix handle leak
+- [Hybrid engine] Add support for latest msbuild version
+- [IDE] Add cross platform solution generation support
+- PipGraph api now available in BuildXL.Pips.dll rather than BuildXL.Scheduler.dll
+- Various bugfixes
 
+
+# 0.1.0-20200103.10.2 (Release [51927](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=49574)).  Released 1/8/2020
 - Server GC re-enabled for macOS platform
 - Std err/out files get copied to the log directory upon pip failure
 - Improvements for runtime cache miss analysis accuracy and presentation

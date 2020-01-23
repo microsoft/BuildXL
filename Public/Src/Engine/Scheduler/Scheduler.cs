@@ -2472,7 +2472,7 @@ namespace BuildXL.Scheduler
                     var processRunnablePip = runnablePip as ProcessRunnablePip;
                     if (!processRunnablePip.Process.IsStartOrShutdownKind)
                     {
-                        var processDuration = DateTime.UtcNow - runnablePip.StartTime;
+                        var processDuration = runnablePip.RunningTime;
                         PipExecutionCounters.AddToCounter(PipExecutorCounter.ProcessDuration, processDuration);
                         m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Count);
                         m_groupedPipCounters.AddToCounter(processRunnablePip.Process, PipCountersByGroup.ProcessDuration, processDuration);

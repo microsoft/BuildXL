@@ -63,7 +63,7 @@ export const framework : Shared.Framework = {
     runtimeConfigVersion: "3.1.0",
 
     // Deployment style for .NET Core applications currently defaults to self-contained
-    applicationDeploymentStyle: "selfContained",
+    defaultApplicationDeploymentStyle: "selfContained",
     runtimeContentProvider: runtimeContentProvider,
 
     conditionalCompileDefines: [

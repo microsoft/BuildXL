@@ -58,6 +58,8 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         Contract.fail(`The specified framework does not match the given qualifier. Your project uses targetFramework '${qualifier.targetFramework}' where the specified framework is '${framework.targetFramework}'.`);
     }
 
+    args = processDeploymentDefaults(args, targetType, framework);
+
     let name = args.assemblyName || Context.getLastActiveUseNamespace();
     let compileClosure = Helpers.computeCompileClosure(framework, args.references);
 
@@ -71,7 +73,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let appConfig = processAppConfigAndBindingRedirects(args, framework);
 
     // csc
-    let outputFileName = name + targetTypeToFileExtension(targetType, framework.applicationDeploymentStyle);
+    let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);
     let cscArgs : Csc.Arguments = {
         sources: [
             assemblyInfo,
@@ -122,13 +124,9 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     const compileBinary = cscResult.reference || cscResult.binary;
     const runtimeBinary = cscResult.binary;
 
-    if (targetType === "exe")
+    if (args.deployRuntimeConfigFile)
     {
-        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
-    }
-    else if (targetType === "library")
-    {
-        runtimeConfigFiles = RuntimeConfigFiles.createDllAppConfig(framework, name, appConfig);
+        runtimeConfigFiles = RuntimeConfigFiles.createFiles(framework, args.deploymentStyle, name, runtimeBinary.binary.name, references, args.runtimeContentToSkip, appConfig);
     }
 
     let deploymentResult = processDeploymentStyle(args, targetType, framework, cscResult);
@@ -205,6 +203,37 @@ function processResources(args: Arguments, name: string) : { sources: File[], li
     };
 }
 
+/**
+ * Checks the type of application an sets the deployment option defaults for that
+ * type. We pass the default as the first argument to merge so applications can always override.
+ */
+function processDeploymentDefaults(args: Arguments, targetType: Csc.TargetType, framework: Shared.Framework)
+{
+    switch (targetType)
+    {
+        case "exe":
+            // For executables we set the default deployment options.cscResult
+            return Object.merge<Arguments>(
+                {
+                    deploymentStyle: framework.defaultApplicationDeploymentStyle,
+                    deployRuntimeConfigFile: true,
+                },
+                args
+            );
+        case "library":
+            // For libraries we deploy the runtime config file if we have an explicit appconfig.
+            args = Object.merge<Arguments>(
+                {
+                    deployRuntimeConfigFile: args.appConfig !== undefined,
+                },
+                args
+            );
+        default:
+            return args;
+
+    }
+}
+
 function processAppConfigAndBindingRedirects(args: Arguments, framework: Shared.Framework) : File
 {
     let appConfig = args.appConfig;
@@ -261,7 +290,7 @@ function processDeploymentStyle(args: Arguments, targetType: Csc.TargetType, fra
     let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
     let runtimeContent = args.runtimeContent;
 
-    if (targetType === "exe" && framework.applicationDeploymentStyle === "selfContained")
+    if (args.deploymentStyle === "selfContained")
     {
         const frameworkRuntimeFiles = framework.runtimeContentProvider(qualifier.targetRuntime);
         const frameworkRuntimeFileSet = Set.create<File>(...frameworkRuntimeFiles);
@@ -381,7 +410,13 @@ export interface Arguments {
     assemblyInfo?: AssemblyInfo;
 
     /** Optional set of assembly binding redirects. If there is an existing app.config file, it will be merged with it, else when these are present one will be emitted. */
-    assemblyBindingRedirects?: AssemblyBindingRedirect[],
+    assemblyBindingRedirects?: AssemblyBindingRedirect[];
+
+    /** Whether to create a runtime config file like xxxx.deps.json, runtimesettings.json, xxx.exe.config, etc */
+    deployRuntimeConfigFile?: boolean;
+
+    /** How to deploy this application. This only applies to dotnet core deployments */
+    deploymentStyle?: Shared.ApplicationDeploymentStyle;
 
     /** Settings for nested tools */
     tools?: {
@@ -396,7 +431,7 @@ export interface Arguments {
     };
 
     /** Options that control how this compiled assembly gets deployed */
-    deploymentOptions?: Deployment.DeploymentOptions
+    deploymentOptions?: Deployment.DeploymentOptions;
 }
 
 @@public

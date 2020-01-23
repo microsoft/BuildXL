@@ -208,9 +208,7 @@ export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult
 
     /** Override framework.applicationDeploymentStyle to make sure we don't use apphost */
     args = args.override<Arguments>({
-        framework: (args.framework || Frameworks.framework).override<Shared.Framework>({
-            applicationDeploymentStyle: "frameworkDependent"
-        })
+        deploymentStyle:  "frameworkDependent",
     });
 
     /** Compile to MSIL */

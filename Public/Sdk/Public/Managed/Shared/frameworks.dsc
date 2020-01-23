@@ -39,7 +39,7 @@ export interface Framework {
     runtimeConfigVersion?: string;
 
     /** Whether applications should be deployed framework-dependent or self-contained */
-    applicationDeploymentStyle?: ApplicationDeploymentStyle;
+    defaultApplicationDeploymentStyle?: ApplicationDeploymentStyle;
 
     /** When ApplicationDeploymentStyle is selfContained, runtime files have to be provided for the application execution environment */
     runtimeContentProvider?: (version: RuntimeVersion) => File[];

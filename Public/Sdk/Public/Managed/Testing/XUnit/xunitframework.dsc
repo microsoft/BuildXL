@@ -8,6 +8,8 @@ import * as Deployment   from "Sdk.Deployment";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 
+const isDotNetCore = qualifier.targetFramework.startsWith("netcoreapp");
+
 @@public
 export const framework : Managed.TestFramework = {
     compileArguments: processArguments,
@@ -30,37 +32,36 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
         {
             references: xunitReferences,
         },
+        isDotNetCore
+            ? {
+                deployRuntimeConfigFile: true,
+                deploymentStyle: "selfContained",
+            } 
+            : {},
         args);
 }
 
-const netcoreappFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
-const xunitNetStandardRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
-    netcoreappFramework,
+const xunitConsoleRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.createFiles(
+    importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework,
+    "frameworkDependent",
     "xunit.console",
     "xunit.console.dll",
     xunitReferences,
     undefined, // runtimeContentToSkip
-    undefined, // appconfig
-    true);
+    undefined  // nopappConfig
+);
 
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
-    return qualifier.targetFramework !== "netcoreapp3.1" ? [] : [
-        // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and pacakge it
-        // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
-        ...(args.framework === netcoreappFramework
-            ? xunitNetStandardRuntimeConfigFiles
-            : Managed.RuntimeConfigFiles.createFiles(
-                args.framework,
-                "xunit.console",
-                "xunit.console.dll",
-                xunitReferences,
-                args.runtimeContentToSkip, 
-                undefined, // appConfig
-                true)),
-        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
-        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
-    ];
+    return isDotNetCore 
+        ? [
+            // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
+            // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
+            ...xunitConsoleRuntimeConfigFiles,
+            xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
+            xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
+        ]
+        : [];
 }
 
 function runTest(args : TestRunArguments) : File[] {

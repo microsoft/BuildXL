@@ -32,24 +32,28 @@ export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os
 export interface TestRunArguments extends Managed.TestRunArguments, Qtest.QTestArguments {
 };
 
-const netcoreappFramework = importFrom("Sdk.Managed.Frameworks.NetCoreApp3.1").withQualifier({targetFramework: "netcoreapp3.1"}).framework;
-
 @@public
 export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.TestFramework {
-    const netcoreReferences = [
-        importFrom("Microsoft.NET.Test.Sdk").pkg,
-        importFrom("Microsoft.TestPlatform.TestHost").pkg,
-        importFrom("Microsoft.TestPlatform.ObjectModel").pkg,
-        importFrom("NuGet.Frameworks").pkg
-        // importFrom("Microsoft.CodeCoverage").pkg, // TODO: NuGet spec generator fails to realize that this package does support netcoreapp1.0
-    ];
-
     return {
-        compileArguments: frameworkToWrap.compileArguments,
+        compileArguments: (args: Managed.Arguments) => {
+            if (isDotNetCore) {
+                args = Object.merge<Managed.Arguments>(
+                    args,
+                    {
+                        references: [
+                            importFrom("Microsoft.NET.Test.Sdk").pkg,
+                            importFrom("Microsoft.TestPlatform.TestHost").pkg,
+                            importFrom("Microsoft.TestPlatform.ObjectModel").pkg,
+                            importFrom("NuGet.Frameworks").pkg
+                            // importFrom("Microsoft.CodeCoverage").pkg, // TODO: NuGet spec generator fails to realize that this package does support netcoreapp1.0
+                        ]
+                    });
+            }
+            return frameworkToWrap.compileArguments(args);
+        },
         additionalRuntimeContent: (args: Managed.Arguments) => [ 
             ...(frameworkToWrap.additionalRuntimeContent ? frameworkToWrap.additionalRuntimeContent(args) : []), 
             ...(isDotNetCore ? [
-                ...netcoreReferences,
                 // hand picking files to avoid collisions with xunit assemblies specified elsewhere
                 ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
                     r`build/netcoreapp1.0/xunit.runner.reporters.netcoreapp10.dll`,
@@ -57,15 +61,6 @@ export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.T
                     r`build/netcoreapp1.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
                     r`build/netcoreapp1.0/xunit.runner.visualstudio.props`
                 ]),
-                // must create a deps.json file for the test assembly listing all dependencies
-                ...Managed.RuntimeConfigFiles.createFiles(
-                    netcoreappFramework,
-                    args.assemblyName,
-                    args.assemblyName + ".dll",
-                    args.references.concat(netcoreReferences),
-                    args.runtimeContentToSkip,
-                    undefined,
-                    true)
                 ] : []),
             f`xunit.runner.json`
         ],

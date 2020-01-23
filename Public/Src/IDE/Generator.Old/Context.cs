@@ -1,5 +1,5 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -11,7 +11,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Qualifier;
 
-namespace BuildXL.Ide.Generator
+namespace BuildXL.Ide.Generator.Old
 {
     internal sealed class Context
     {
@@ -44,17 +44,10 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         internal readonly PathAtom ResourcesExtensionName;
 
-        /// <summary>"csc.exe"</summary>
+        /// <summary>
+        /// "csc.exe"
+        /// </summary>
         internal readonly PathAtom CscExeName;
-
-        /// <summary>"csc.dll"</summary>
-        internal readonly PathAtom CscDllName;
-
-        /// <summary>"xunit.console.dll"</summary>
-        internal readonly PathAtom XunitConsoleDllName;
-
-        /// <summary>"dotnet"</summary>
-        internal readonly PathAtom DotnetName;
 
         /// <summary>
         /// "cl.exe"
@@ -82,7 +75,6 @@ namespace BuildXL.Ide.Generator
         internal readonly StringTable StringTable;
         internal readonly SymbolTable SymbolTable;
         internal readonly QualifierTable QualifierTable;
-        internal readonly IIdeConfiguration IdeConfig;
 
         internal readonly AbsolutePath ProjectsRoot;
         internal readonly AbsolutePath EnlistmentRoot;
@@ -99,7 +91,7 @@ namespace BuildXL.Ide.Generator
 
         internal readonly StringId AssemblyDeploymentTag;
         internal readonly StringId TestDeploymentTag;
-
+        
         public Context(
             PipExecutionContext pipContext,
             PipGraph pipGraph,
@@ -113,7 +105,7 @@ namespace BuildXL.Ide.Generator
             Contract.Requires(ideConfig.SolutionRoot.IsValid);
             Contract.Requires(ideConfig.SolutionName.IsValid);
             Contract.Requires(ideConfig.IsEnabled);
-            Contract.Requires(ideConfig.IsNewEnabled);
+            Contract.Requires(!ideConfig.IsNewEnabled);
 
             PipGraph = pipGraph;
             ScheduledGraph = scheduledGraph;
@@ -121,7 +113,6 @@ namespace BuildXL.Ide.Generator
             PathTable = pipContext.PathTable;
             SymbolTable = pipContext.SymbolTable;
             QualifierTable = pipContext.QualifierTable;
-            IdeConfig = ideConfig;
 
             DotSettingsPathStr = ideConfig.DotSettingsFile.IsValid ? ideConfig.DotSettingsFile.ToString(PathTable) : null;
             ConfigFilePathStr = configFilePath.ToString(PathTable);
@@ -141,9 +132,6 @@ namespace BuildXL.Ide.Generator
 
             ResxExtensionName = PathAtom.Create(StringTable, ".resx");
             CscExeName = PathAtom.Create(StringTable, "csc.exe");
-            CscDllName = PathAtom.Create(StringTable, "csc.dll");
-            XunitConsoleDllName = PathAtom.Create(StringTable, "xunit.console.dll");
-            DotnetName = PathAtom.Create(StringTable, "dotnet");
             ResgenExeName = PathAtom.Create(StringTable, "ResGen.exe");
             ResourcesExtensionName = PathAtom.Create(StringTable, ".resources");
             CsExtensionName = PathAtom.Create(StringTable, ".cs");

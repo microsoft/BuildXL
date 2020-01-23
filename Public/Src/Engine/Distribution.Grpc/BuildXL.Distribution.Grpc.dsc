@@ -16,6 +16,7 @@ namespace Distribution.Grpc {
             ),
             
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             importFrom("System.Interactive.Async").pkg,
         ],

@@ -276,7 +276,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf",
-          "Version": "3.7.0"
+          "Version": "3.11.2"
         }
       }
     },
@@ -285,7 +285,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Google.Protobuf.Tools",
-          "Version": "3.7.0"
+          "Version": "3.11.2"
         }
       }
     },
@@ -293,8 +293,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Grpc",
-          "Version": "1.18.0"
+          "Name": "Grpc.AspNetCore",
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.AspNetCore.Server",
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.AspNetCore.Server.ClientFactory",
+          "Version": "2.24.0"
         }
       }
     },
@@ -303,7 +321,43 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Core",
-          "Version": "1.18.0"
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Core.Api",
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Net.Client",
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Net.ClientFactory",
+          "Version": "2.24.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Net.Common",
+          "Version": "2.24.0"
         }
       }
     },
@@ -312,7 +366,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Grpc.Tools",
-          "Version": "1.18.0"
+          "Version": "2.24.0"
         }
       }
     },
@@ -1076,6 +1130,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Bcl.AsyncInterfaces",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Bcl.Build",
           "Version": "1.0.14"
         }
@@ -1510,6 +1573,15 @@
         "NuGet": {
           "Name": "Microsoft.Extensions.Hosting.Abstractions",
           "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Http",
+          "Version": "3.1.0"
         }
       }
     },
@@ -3057,7 +3129,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.FileSystem.AccessControl",
-          "Version": "4.6.0-preview5.19224.8"
+          "Version": "4.6.0"
         }
       }
     },
@@ -3201,7 +3273,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Management",
-          "Version": "4.6.0-preview5.19224.8"
+          "Version": "4.6.0"
         }
       }
     },
@@ -3642,7 +3714,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.AccessControl",
-          "Version": "4.6.0-preview5.19224.8"
+          "Version": "4.6.0"
         }
       }
     },
@@ -3777,7 +3849,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Principal.Windows",
-          "Version": "4.6.0-preview5.19224.8"
+          "Version": "4.6.0"
         }
       }
     },
@@ -3839,6 +3911,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Text.Json",
+          "Version": "4.6.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Text.RegularExpressions",
           "Version": "4.3.0"
         }
@@ -3858,7 +3939,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.AccessControl",
-          "Version": "4.6.0-preview5.19224.8"
+          "Version": "4.6.0"
         }
       }
     },

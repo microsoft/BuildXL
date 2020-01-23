@@ -46,12 +46,16 @@ namespace BuildXL.Ide.LanguageServer.Providers
             {
                 new MarkedString
                 {
-                    Language = "DScript",
+                    Language = DScriptLanguage,
                     Value = snippet,
                 }
             };
 
-            codeSnippets.AddRange(documentation.Select(d => new MarkedString() { Value = d}));
+            codeSnippets.AddRange(documentation.Select(doc => new MarkedString() 
+            {
+                Language = DScriptLanguage,
+                Value = doc,
+            }));
 
             return Result<Hover, ResponseError>.Success(new Hover
             {

@@ -489,7 +489,7 @@ namespace BuildXL.Ide.LanguageServer
             Logger.ReportConfigurationChanged(LoggingContext, paramsObject.Settings.ToString());
 
             var settings = (JObject)paramsObject.Settings;
-            var parsedSettings = settings["DScript"].ToObject<DScriptSettings>();
+            var parsedSettings = settings[IdeProviderBase.DScriptLanguage].ToObject<DScriptSettings>();
 
             UpdateSettings(parsedSettings);
         }

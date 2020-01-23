@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Ide.LanguageServer.Providers;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
@@ -18,7 +19,7 @@ namespace BuildXL.Ide.LanguageServer
     public static class DiagnosticsExtensions
     {
         /// <nodoc />
-        public static Diagnostic ToProtocolDiagnostic(this TypeScript.Net.Diagnostics.Diagnostic semanticDiagnostic, string source = "DScript")
+        public static Diagnostic ToProtocolDiagnostic(this TypeScript.Net.Diagnostics.Diagnostic semanticDiagnostic, string source = IdeProviderBase.DScriptLanguage)
         {
             return new Microsoft.VisualStudio.LanguageServer.Protocol.Diagnostic
             {

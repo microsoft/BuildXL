@@ -23,6 +23,9 @@ namespace BuildXL.Ide.LanguageServer.Providers
     public abstract class IdeProviderBase
     {
         /// <nodoc/>
+        public const string DScriptLanguage = "DScript";
+
+        /// <nodoc/>
         protected PathTable PathTable { get; }
 
         /// <summary>

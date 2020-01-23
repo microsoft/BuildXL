@@ -173,6 +173,11 @@ namespace BuildXL.Scheduler.Tracing
         JsonSerializationWeakFingerprintTime,
 
         /// <summary>
+        /// The number of serializing weak fingerprint to JSON.
+        /// </summary>
+        JsonSerializationWeakFingerprintCount,
+
+        /// <summary>
         /// The number of ms spent serializing strong fingerprint content to JSON.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -201,6 +206,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         CreateFingerprintStoreEntryTime,
+
+        /// <summary>
+        /// The number of creating fingerprint store entries.
+        /// </summary>
+        CreateFingerprintStoreEntryCount,
 
         /// <summary>
         /// The number of ms spent putting fingerprint store entry into fingerprint store.
@@ -277,9 +287,14 @@ namespace BuildXL.Scheduler.Tracing
         InitializeCacheMissAnalysisDuration,
 
         /// <summary>
-        /// How many pips cache miss analysis is performed on.
+        /// How many pips cache miss analysis from cache look-up is performed on.
         /// </summary>
-        CacheMissAnalysisAnalyzeCount,
+        CacheMissAnalysisAnalyzeCacheLookUpCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis from execution is performed on.
+        /// </summary>
+        CacheMissAnalysisAnalyzeExecutionCount,
 
         /// <summary>
         /// How many pips cache miss analysis is performed on during cache-lookup.

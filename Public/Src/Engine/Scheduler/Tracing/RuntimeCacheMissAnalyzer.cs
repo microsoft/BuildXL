@@ -202,7 +202,14 @@ namespace BuildXL.Scheduler.Tracing
                     return;
                 }
 
-                Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisAnalyzeCount);
+                if (fromCacheLookup)
+                {
+                    Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisAnalyzeCacheLookUpCount);
+                }
+                else
+                {
+                    Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisAnalyzeExecutionCount);
+                }
 
                 using (var pool = Pools.StringBuilderPool.GetInstance())
                 using (var writer = new StringWriter(pool.Instance))

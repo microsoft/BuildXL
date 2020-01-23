@@ -104,6 +104,19 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly FingerprintStoreEventProcessor m_fingerprintStoreEventProcessor;
 
+        /// <summary>
+        /// Cache for weak fingerprint serialization.
+        /// </summary>
+        /// <remarks>
+        /// Weak fingerprint serialization can be very expensive when pip specification is huge. When pip has a cache miss, one can
+        /// possibly compute the weak fingerprint twice, one of cache look-up event (if cache look-up store is enabled), and the other
+        /// for execution event. This cache is a transient cache as its entry is short lived, i.e., we only cache the weak fingerprint serialization
+        /// for cache look-up event, and remove it, if any, when the execution event is processed.
+        /// 
+        /// We do not cache strong fingerprint computations because, when cache miss, the cache look-up one and the execution one are different.
+        /// </remarks>
+        private readonly ConcurrentDictionary<PipId, string> m_weakFingerprintSerializationTransientCache;
+
         private bool m_disposed = false;
 
         /// <summary>
@@ -246,8 +259,11 @@ namespace BuildXL.Scheduler.Tracing
                 runnablePipPerformance);
 
             m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
+            m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
 
-            Contract.Assume(FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
+            Contract.Assume(
+                FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, 
+                "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
         }
 
         /// <summary>
@@ -317,7 +333,8 @@ namespace BuildXL.Scheduler.Tracing
             Process pip,
             PipFingerprintKeys pipFingerprintKeys,
             WeakContentFingerprint weakFingerprint,
-            ProcessStrongFingerprintComputationData strongFingerprintData)
+            ProcessStrongFingerprintComputationData strongFingerprintData,
+            bool cacheWeakFingerprintSerialization = false)
         {
             // If we got this far, a new pip is being put in the store
             Counters.IncrementCounter(FingerprintStoreCounters.NumPipFingerprintEntriesPut);
@@ -327,7 +344,13 @@ namespace BuildXL.Scheduler.Tracing
             // A content hash-keyed entry will have the same value as long as the key is the same, so overwriting it is unnecessary
             var mustStorePathEntry = !fingerprintStore.ContainsContentHash(pipFingerprintKeys.FormattedPathSetHash) || CacheMissAnalysisEnabled;
 
-            var entry = CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, mustStorePathEntry);
+            var entry = CreateFingerprintStoreEntry(
+                pip,
+                pipFingerprintKeys,
+                weakFingerprint,
+                strongFingerprintData,
+                mustStorePathEntry: mustStorePathEntry,
+                cacheWeakFingerprintSerialization: cacheWeakFingerprintSerialization);
 
             fingerprintStore.PutFingerprintStoreEntry(entry, storePathSet: mustStorePathEntry);
             return entry;
@@ -338,16 +361,41 @@ namespace BuildXL.Scheduler.Tracing
             PipFingerprintKeys pipFingerprintKeys,
             WeakContentFingerprint weakFingerprint,
             ProcessStrongFingerprintComputationData strongFingerprintData,
-            bool mustStorePathEntry = true)
+            bool mustStorePathEntry = true,
+            bool cacheWeakFingerprintSerialization = false)
         {
+            Counters.IncrementCounter(FingerprintStoreCounters.CreateFingerprintStoreEntryCount);
+
             using (Counters.StartStopwatch(FingerprintStoreCounters.CreateFingerprintStoreEntryTime))
             {
+                string pipSerializedWeakFingerprint = null;
+
+                if (cacheWeakFingerprintSerialization)
+                {
+                    pipSerializedWeakFingerprint = m_weakFingerprintSerializationTransientCache.GetOrAdd(
+                        pip.PipId,
+                        (pipId, p) =>
+                        {
+                            Counters.IncrementCounter(FingerprintStoreCounters.JsonSerializationWeakFingerprintCount);
+                            return JsonSerialize(p);
+                        },
+                        pip);
+                }
+                else
+                {
+                    if (!m_weakFingerprintSerializationTransientCache.TryRemove(pip.PipId, out pipSerializedWeakFingerprint))
+                    {
+                        Counters.IncrementCounter(FingerprintStoreCounters.JsonSerializationWeakFingerprintCount);
+                        pipSerializedWeakFingerprint = JsonSerialize(pip);
+                    }
+                }
+
                 return new FingerprintStoreEntry
                 {
                     // { pip formatted semi stable hash : weak fingerprint, strong fingerprint, path set hash }
                     PipToFingerprintKeys = new PipKVP(pip.FormattedSemiStableHash, pipFingerprintKeys),
                     // { weak fingerprint hash : weak fingerprint inputs }
-                    WeakFingerprintToInputs = new KVP(pipFingerprintKeys.WeakFingerprint, JsonSerialize(pip)),
+                    WeakFingerprintToInputs = new KVP(pipFingerprintKeys.WeakFingerprint, pipSerializedWeakFingerprint),
                     StrongFingerprintEntry = new StrongFingerprintEntry
                     {
                         // { strong fingerprint hash: strong fingerprint inputs }
@@ -472,12 +520,12 @@ namespace BuildXL.Scheduler.Tracing
                     }
 
                     Counters.IncrementCounter(FingerprintStoreCounters.NumCacheLookupFingerprintComputationStored);
-                    newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                    newEntry = CreateAndStoreFingerprintStoreEntry(CacheLookupFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, cacheWeakFingerprintSerialization: true);
                 }
 
                 if (shouldAnalyzeMiss)
                 {
-                    newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                    newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, cacheWeakFingerprintSerialization: true);
                     // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
                     RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(newEntry, pip);
                 }

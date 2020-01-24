@@ -70,6 +70,8 @@ if ($Help) {
     return;
 }
 
+Import-Module (Join-Path $PSScriptRoot Invoke-CBWebRequest.psm1) -Force -DisableNameChecking;
+
 $username = $env:USERNAME;
 $date = $([DateTime]::UtcNow.ToLocalTIme());
 $branchDateFormat = "yyyy_MM_dd_hh_mm_ss";
@@ -183,7 +185,9 @@ $requestBody = "
     'IsBuddyBuild': 'true'
 }
 ";
-$response = Invoke-WebRequest -UseDefaultCredentials -Uri 'https://b/ScheduleBuild/submit' -Method Post -Body $requestBody -ContentType 'application/json'
+
+
+$response = Invoke-CBWebRequest -Uri 'https://cloudbuild.microsoft.com/ScheduleBuild/submit' -Body $requestBody
 
 If ($response.StatusCode -ne 200) {
     Write-Host $response;

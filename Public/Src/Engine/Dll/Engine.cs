@@ -1114,9 +1114,9 @@ namespace BuildXL.Engine
                 // Add additional context to environment fingerprint
                 foreach (var entry in mutableConfig.Logging.TraceInfo)
                 {
-                    if (entry.Key.Equals(TraceInfoExtensions.Branch, StringComparison.OrdinalIgnoreCase))
+                    if (entry.Key.Equals(TraceInfoExtensions.CustomFingerprint, StringComparison.OrdinalIgnoreCase))
                     {
-                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.Branch}:{entry.Value}");
+                        mutableConfig.Schedule.EnvironmentFingerprint += I($"|{TraceInfoExtensions.CustomFingerprint}:{entry.Value}");
                     }
                     else if (entry.Key.Equals(TraceInfoExtensions.CloudBuildQueue, StringComparison.OrdinalIgnoreCase))
                     {

@@ -210,6 +210,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan PreferredLocationsExpiryTime { get; set; } = TimeSpan.FromMinutes(30);
 
         /// <summary>
+        /// Whether to initialize and use the BinManager
+        /// </summary>
+        public bool UseBinManager { get; set; } = false;
+
+        /// <summary>
         /// Whether to enable proactive replication
         /// </summary>
         public bool EnableProactiveReplication { get; set; } = false;

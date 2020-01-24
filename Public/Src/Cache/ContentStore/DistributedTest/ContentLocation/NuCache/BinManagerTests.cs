@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -76,6 +77,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             var deserializedManager = BinManager.CreateFromSerialized(bytes, locationsPerBin, _clock, TimeSpan.FromHours(1));
 
             VerifyMappingsAreEqual(manager, deserializedManager);
+        }
+
+        [Fact]
+        public async Task StressTestForSerializationAsync()
+        {
+            var startLocations = Enumerable.Range(1, 10).Select(i => new MachineId(i)).ToArray();
+            var locationsToRemove = Enumerable.Range(1, 5).Select(i => new MachineId(i)).ToArray();
+            for (var repetition = 0; repetition < 10; repetition++)
+            {
+                var manager = new BinManager(locationsPerBin: 3, startLocations, _clock, expiryTime: TimeSpan.FromSeconds(1));
+
+                var tasks = locationsToRemove.Select(i => Task.Run(() => manager.RemoveLocation(i))).ToArray();
+                var serialized = manager.Serialize();
+                BinManager.CreateFromSerialized(serialized, locationsPerBin: 3, _clock, TimeSpan.FromSeconds(1)); // We want to make sure that deserialization does not fail.
+                await Task.WhenAll(tasks);
+            }
         }
 
         private (BinManager manager, List<MachineId> locations) CreateAndValidate(int locationsPerBin, int amountOfLocations)

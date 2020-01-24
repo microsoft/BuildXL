@@ -71,6 +71,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                UseBinManager = _distributedSettings.UseBinManager,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 DelayForProactiveReplication = TimeSpan.FromSeconds(_distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = _distributedSettings.ProactiveReplicationCopyLimit,

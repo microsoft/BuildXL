@@ -623,7 +623,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Database.UpdateClusterState(context, ClusterState, write: true);
                     }
 
-                    if (CurrentRole == Role.Master)
+                    if (CurrentRole == Role.Master && _configuration.UseBinManager)
                     {
                         ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: _configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: _configuration.PreferredLocationsExpiryTime);
                     }
@@ -756,10 +756,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // Update bin manager in cluster state.
-                if (Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
+                if (_configuration.UseBinManager && Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
                 {
                     var bytes = Convert.FromBase64String(serializedString);
-                    ClusterState.BinManager = BinManager.CreateFromSerialized(bytes, _configuration.ProactiveCopyLocationsThreshold, _clock, _configuration.PreferredLocationsExpiryTime);
+                    try
+                    {
+                        ClusterState.BinManager = BinManager.CreateFromSerialized(bytes, _configuration.ProactiveCopyLocationsThreshold, _clock, _configuration.PreferredLocationsExpiryTime);
+                    }
+                    catch (Exception e)
+                    {
+                        Tracer.Error(context, $"Failed to deserialize the BinManager: {e}");
+                    }
                 }
             }
 

@@ -653,6 +653,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int PreferredLocationsExpiryTimeMinutes { get; set; } = 30;
 
         [DataMember]
+        public bool UseBinManager { get; set; } = false;
+
+        [DataMember]
         public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion

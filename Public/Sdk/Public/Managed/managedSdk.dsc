@@ -9,6 +9,7 @@ import * as Ilc        from "Sdk.Managed.Tools.ILCompiler";
 import * as ResGen     from "Sdk.Managed.Tools.ResGen.Lite";
 import * as AppPatcher from "Sdk.Managed.Tools.AppHostPatcher";
 import * as Xml        from "Sdk.Xml";
+import * as Crossgen   from "Sdk.Managed.Tools.Crossgen";
 
 @@public
 export * from "Sdk.Managed.Shared";
@@ -119,6 +120,27 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     cscArgs = Object.merge(Helpers.patchReferencesForSystemInteractiveAsync(references), cscArgs);
 
     let cscResult =  Csc.compile(cscArgs);
+
+    // Run crossgen if specified and the framework/deployment style allows for it.
+    // An additional condition is that cross-targeting is not supported by ReadyToRun, so we can only compile on the given target, 
+    // see https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#cross-platformarchitecture-restrictions
+    if (args.runCrossgenIfSupported && 
+        Shared.supportsCrossgen(args.deploymentStyle, framework) && 
+        qualifier.targetRuntime === Shared.TargetFrameworks.MachineQualifier.current.targetRuntime) {
+        
+        // crossgen needs the runtime assemblies, not the compile ones
+        const referenceClosure = Helpers.computeTransitiveClosure(args.references, args.runtimeContentToSkip, /*compile*/ false);
+
+        const nativeImage = Crossgen.crossgen({
+            inputBinary: cscResult.binary,
+            references: referenceClosure,
+            targetRuntime: qualifier.targetRuntime,
+            targetFramework: framework,
+        });
+
+        // Replace the binary with the native image. The reference assembly is still the original one
+        cscResult = {binary: nativeImage, reference: cscResult.reference};
+    }
 
     let runtimeConfigFiles = undefined;
     const compileBinary = cscResult.reference || cscResult.binary;
@@ -432,6 +454,9 @@ export interface Arguments {
 
     /** Options that control how this compiled assembly gets deployed */
     deploymentOptions?: Deployment.DeploymentOptions;
+
+    /** Whether to run crossgen tool on the produced assembly (if the target framework allows for it) */
+    runCrossgenIfSupported?: boolean;
 }
 
 @@public

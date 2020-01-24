@@ -11,7 +11,7 @@ namespace Helpers {
 
     /**
      * Helper method that computes the compile closure based on a set of references.
-     * This helper is for tools that gets a set of managed referneces and need to have the list of binaries that are used for compile.
+     * This helper is for tools that gets a set of managed references and need to have the list of binaries that are used for compile.
      * Note that this function explicitly does not recurse on nuget packages where the nuget default is to do so.
      */
     @@public

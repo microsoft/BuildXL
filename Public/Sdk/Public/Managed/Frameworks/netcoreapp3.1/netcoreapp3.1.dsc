@@ -46,6 +46,25 @@ export function runtimeContentProvider(runtimeVersion: Shared.RuntimeVersion): F
     }
 }
 
+export function crossgenProvider(runtimeVersion: Shared.RuntimeVersion): Shared.CrossgenFiles {
+    switch (runtimeVersion)
+    {
+        case "osx-x64":
+            const osxFiles = importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all;
+            return { 
+                crossgenExe: osxFiles.getFile(r`tools/crossgen`),
+                JITPath: osxFiles.getFile(r`runtimes/osx-x64/native/libclrjit.dylib`)
+            };
+        case "win-x64":
+        default:
+            const winFiles = importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all;
+            return {
+                crossgenExe: winFiles.getFile(r`tools/crossgen.exe`),
+                JITPath: winFiles.getFile(r`runtimes/win-x64/native/clrjit.dll`)
+            };
+    }
+}
+
 @@public
 export const framework : Shared.Framework = {
     targetFramework: qualifier.targetFramework,
@@ -65,6 +84,7 @@ export const framework : Shared.Framework = {
     // Deployment style for .NET Core applications currently defaults to self-contained
     defaultApplicationDeploymentStyle: "selfContained",
     runtimeContentProvider: runtimeContentProvider,
+    crossgenProvider: crossgenProvider,
 
     conditionalCompileDefines: [
         "NET_CORE",

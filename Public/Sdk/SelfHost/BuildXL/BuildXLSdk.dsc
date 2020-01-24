@@ -174,6 +174,14 @@ namespace Flags {
      */
     @@public
     export const useManagedSharedCompilation = Environment.getFlag("[Sdk.BuildXL]useManagedSharedCompilation");
+
+    /**
+     * Enable running crossgen (aka ReadyToRun) on managed assemblies when available. This option is only available
+     * when targeting netcoreapp (and the netcoreapp framwors supports it) and for assemblies whose target runtime
+     * matches the current machine runtime. Otherwise ignored.
+     */
+    @@public
+    export const enableCrossgen = Environment.getFlag("[Sdk.BuildXL]enableCrossgen");
 }
 
 @@public
@@ -438,6 +446,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     shared: Flags.useManagedSharedCompilation,
                 }
             },
+            runCrossgenIfSupported: Flags.enableCrossgen,
         },
         args);
 

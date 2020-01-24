@@ -43,6 +43,26 @@ export interface Framework {
 
     /** When ApplicationDeploymentStyle is selfContained, runtime files have to be provided for the application execution environment */
     runtimeContentProvider?: (version: RuntimeVersion) => File[];
+
+    /** Framework-specific files for crossgen tool. Only available for netcore app frameworks.*/
+    crossgenProvider?: (version: RuntimeVersion) => CrossgenFiles;
+
+}
+
+/** Whether the given framework supports crossgen */
+@@public 
+export function supportsCrossgen(deploymentStyle: ApplicationDeploymentStyle, framework: Framework): boolean {
+    // crossgen is supported when the underlying framework sets a provider for it and the application deployment style is
+    // self-contained
+    return deploymentStyle === "selfContained" && framework.crossgenProvider !== undefined;
+}
+
+
+/** Path to crossgen tool and its corresponding JIT compiler. */
+@@public
+export interface CrossgenFiles {
+    crossgenExe: File;
+    JITPath: File;
 }
 
 export type RuntimeConfigStyle = "appConfig" | "runtimeJson" | "none";

@@ -38,7 +38,10 @@ namespace MsBuildGraphBuilder {
         ],
         internalsVisibleTo: [
             "Test.Tool.ProjectGraphBuilder",
-        ]
+        ],
+        // We cannot crossgen this because we'd need the MSBuild runtime assemblies the builder is going to run with (which
+        // we only have at runtime)
+        runCrossgenIfSupported: false,
     });
 
     @@public

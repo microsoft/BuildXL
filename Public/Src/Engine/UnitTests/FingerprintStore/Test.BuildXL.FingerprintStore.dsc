@@ -9,10 +9,12 @@ namespace Test.BuildXL.FingerprintStore {
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.BuildXL.FingerprintStore",
         sources: globR(d`.`, "*.cs"),
         references: [

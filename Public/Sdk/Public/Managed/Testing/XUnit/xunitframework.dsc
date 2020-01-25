@@ -69,6 +69,15 @@ function runTest(args : TestRunArguments) : File[] {
     let logFolder = Context.getNewOutputDirectory('xunit-logs');
     let xmlResultFile = p`${logFolder}/xunit.results.xml`;
 
+    if (Context.getCurrentHost().os === "win" &&
+        args.unsafeTestRunArguments && 
+        args.unsafeTestRunArguments.runWithUntrackedDependencies){
+            args = args.merge({
+                tools: {
+                    wrapExec: wrapInUntrackedCmd,
+                }
+            });
+    }
     args = Object.merge<TestRunArguments>({
         xmlFile: xmlResultFile,
          parallel: "none",
@@ -78,9 +87,55 @@ function runTest(args : TestRunArguments) : File[] {
          noTraits: args.skipGroups && args.skipGroups.map(testGroup => <NameValuePair>{name: "Category", value: testGroup}),
          tags: ["test", "telemetry:xUnit"]
     }, args);
+    
    let testResult = runConsoleTest(args);
     return [
         testResult.xmlFile
     ];
+}
+
+function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Transformer.ExecuteArguments
+{
+    // Since we are going to untrack these processes the sealed directories will not be dynamically tracked
+    // So attempt to statically list all the files for now
+    let  staticDirectoryContents = executeArguments
+        .dependencies
+        .mapMany(dependency =>
+            isStaticDirectory(dependency) ? dependency.contents : []
+        );
+
+    return Object.merge<Transformer.ExecuteArguments>(
+        executeArguments, 
+        {
+            tool: {
+                exe: Environment.getFileValue("COMSPEC"),
+            },
+            unsafe: {
+                hasUntrackedChildProcesses: true
+            },
+            arguments: [
+                Cmd.argument("/D"),
+                Cmd.argument("/C"),
+                Cmd.argument(Artifact.input(executeArguments.tool.exe))
+                ].prependWhenMerged(),
+            dependencies: staticDirectoryContents,
+            tags: ["test", "telemetry:xUnitUntracked"]
+        });
+}
+
+function isStaticDirectory(item: Transformer.InputArtifact) : item is StaticDirectory {
+    const itemType = typeof item;
+    switch (itemType) {
+        case "FullStaticContentDirectory":
+        case "PartialStaticContentDirectory":
+        case "SourceAllDirectory":
+        case "SourceTopDirectory": 
+        case "SharedOpaqueDirectory":
+        case "ExclusiveOpaqueDirectory": 
+        case "StaticDirectory": 
+            return true;
+        default: 
+            false;
+    }
 }
 

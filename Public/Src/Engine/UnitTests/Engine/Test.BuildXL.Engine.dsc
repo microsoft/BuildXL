@@ -37,14 +37,15 @@ namespace Engine {
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
+        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Engine",
         rootNamespace: "Test.BuildXL.EngineTests",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
             parallelGroups: categoriesToRunInParallel,
             testRunData: {
                 MicrosoftNetCompilersSdkLocation: microsoftNetCompilerSpec,

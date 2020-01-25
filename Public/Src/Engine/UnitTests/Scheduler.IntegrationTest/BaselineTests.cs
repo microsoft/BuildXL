@@ -159,7 +159,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             AssertVerboseEventLogged(EventId.LowCommitMemory);
-            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion); 
         }
 
         [Theory]

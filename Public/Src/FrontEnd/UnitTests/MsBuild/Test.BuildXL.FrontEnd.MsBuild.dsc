@@ -8,11 +8,14 @@ import * as Frameworks from "Sdk.Managed.Frameworks";
 namespace Test.MsBuild {
     @@public
     export const dll = BuildXLSdk.test({
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.BuildXL.FrontEnd.MsBuild",
         sources: globR(d`.`, "*.cs"),
-        // These tests are launching detours, so they cannot be run inside detours themselves
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
         references: [
             Script.dll,
             Core.dll,

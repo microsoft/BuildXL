@@ -9,15 +9,27 @@ namespace Scheduler.IntegrationTest {
     
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-                parallelBucketCount: 20,
+            unsafeTestRunArguments: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                runWithUntrackedDependencies: true
             },
+            parallelGroups: [
+                "AllowedUndeclaredReadsTests",
+                "BaselineTests",
+                "FileAccessPolicyTests",
+                "IncrementalSchedulingTests",
+                "LazyMaterializationTests",
+                "NonStandardOptionsTests",
+                "OpaqueDirectoryTests",
+                "PreserveOutputsTests",
+                "SharedOpaqueDirectoryTests",
+                "StoreNoOutputsToCacheTests",
+                "WhitelistTests"
+            ]
+        },
         references: [
             Scheduler.dll,
             EngineTestUtilities.dll,

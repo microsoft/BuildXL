@@ -18,9 +18,12 @@ namespace IntegrationTest.BuildXL.Executable {
     const exampleMountPath = Context.getMount("Example").path;
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
+        runTestArgs: {
+            // These tests require Detours to run itself, so we won't detour the test runner process itself
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "IntegrationTest.BuildXL.Executable",
         sources: globR(d`.`, "*.cs").filter(file =>
         {

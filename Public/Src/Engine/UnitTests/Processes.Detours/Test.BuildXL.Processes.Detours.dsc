@@ -8,17 +8,18 @@ import * as Managed from "Sdk.Managed";
 
 namespace Processes.Detours {
     function test(platform: string) {
-
         const detours = platform === "x64" ? DetoursTest64 : DetoursTest86;
         const assemblyName = "Test.BuildXL.Processes.Detours";
 
         return BuildXLSdk.test({
-            // These tests require Detours to run itself, so we can't detour xunit itself
-            // TODO: QTest
-            testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
-
+            testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+            runTestArgs: {
+                // These tests require Detours to run itself, so we won't detour the test runner process itself
+                unsafeTestRunArguments: {
+                    runWithUntrackedDependencies: true
+                },
+            },
             assemblyName: assemblyName,
-
             sources: [
                 f`PipExecutorDetoursTest.cs`,
                 f`SandboxedProcessPipExecutorTest.cs`,

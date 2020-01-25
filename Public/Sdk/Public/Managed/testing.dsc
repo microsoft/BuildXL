@@ -305,6 +305,9 @@ export interface TestRunArguments {
 export interface UnsafeTestRunArguments {
     /** Allow testing zero test cases. */
     allowForZeroTestCases?: boolean;
+    
+    /** Allow dependencies to go untracked. */
+    runWithUntrackedDependencies?: boolean;
 }
 
 @@public

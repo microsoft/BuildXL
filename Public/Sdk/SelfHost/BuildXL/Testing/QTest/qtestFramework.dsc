@@ -155,7 +155,7 @@ function runTest(args : TestRunArguments) : File[] {
         : d`${Context.getNewOutputDirectory("QTestLog")}`;
 
     const qtestDllLogDir = args.limitGroups ? p`${qtestLogDir}/${args.limitGroups[0]}` : p`${qtestLogDir}`;
-    const logDir = d`${qtestDllLogDir}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
+    const logDir = d`${qtestDllLogDir}/${Context.getLastActiveUseName()}/${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
     
     let qTestRuntimeDependencies = undefined;
     let qTestEnvironmentVariables = undefined;
@@ -202,7 +202,10 @@ function runTest(args : TestRunArguments) : File[] {
         privilegeLevel: args.privilegeLevel,
         qTestBuildType: qualifier.configuration,
         testSourceDir: Context.getMount("SourceRoot").path.getRelative(Context.getSpecFileDirectory().path),
-        qTestUnsafeArguments: args.unsafeTestRunArguments ? { doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases } : undefined,
+        qTestUnsafeArguments: args.unsafeTestRunArguments ? { 
+            doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases, 
+            doNotTrackDependencies: args.unsafeTestRunArguments.runWithUntrackedDependencies 
+        } : undefined,
         qTestRuntimeDependencies: qTestRuntimeDependencies,
         qTestEnvironmentVariables: qTestEnvironmentVariables
     });

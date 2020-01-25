@@ -9,9 +9,12 @@ namespace Test.Tool.Analyzers {
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we can't detour xunit itself
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework,
+        // These tests require Detours to run itself, so we won't detour the test runner process itself
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+        },
         assemblyName: "Test.Tool.Analyzers",
         sources: globR(d`.`, "*.cs"),
         references: [

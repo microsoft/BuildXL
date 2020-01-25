@@ -309,11 +309,12 @@ export function test(args: TestArguments) : TestResult {
             
             let framework = args.testFramework;
 
-            if (!Flags.doNotForceXUnitFrameworkInVm) {
-                const untrackedFramework = importFrom("Sdk.Managed.Testing.XUnit.UnsafeUnDetoured").framework;
-                const trackedFramework = importFrom("Sdk.Managed.Testing.XUnit").framework;
-                const untracked = args.testFramework && args.testFramework.name.endsWith(untrackedFramework.name);
-                framework = untracked ? untrackedFramework : trackedFramework;
+            const executeTestUntracked = 
+                args.runTestArgs
+                && args.runTestArgs.unsafeTestRunArguments 
+                && args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
+            if (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked) {
+                framework = importFrom("Sdk.Managed.Testing.XUnit").framework;
             }
 
             Contract.assert(args.testFramework !== undefined, "testFramework must have been set by processTestArguments");

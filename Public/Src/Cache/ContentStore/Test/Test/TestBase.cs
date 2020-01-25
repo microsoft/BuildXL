@@ -67,7 +67,7 @@ namespace ContentStoreTest.Test
             return null;
         }
 
-        public sealed override void Dispose()
+        public override void Dispose()
         {
             if (_disposed)
             {

@@ -66,7 +66,6 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool _enableSecondaryRedis = false;
         protected bool _poolSecondaryRedisDatabase = true;
 
-
         private readonly ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase> _localDatabases = new ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase>();
 
         private readonly Dictionary<int, RedisContentLocationStoreConfiguration> _configurations
@@ -89,6 +88,11 @@ namespace ContentStoreTest.Distributed.Sessions
             foreach (var database in _localDatabases.Values)
             {
                 database.Dispose();
+            }
+
+            if (!_poolSecondaryRedisDatabase && !_secondaryGlobalStoreDatabase.Closed)
+            {
+                _secondaryGlobalStoreDatabase.Dispose(close: true);
             }
 
             base.Dispose(disposing);
@@ -706,7 +710,9 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 return LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
             }
+
             index++;
+
             if (!_localDatabases.TryGetValue((context.Id, index), out var localDatabase))
             {
                 localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
@@ -2281,7 +2287,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     //Turn off the second redis instance, and set a retry window
                     //The second instance should always fail and resort to timing out in the retry window limit
                     _configurations[0].RetryWindow = TimeSpan.FromSeconds(1);
-                    _secondaryGlobalStoreDatabase.Close();
+                    _secondaryGlobalStoreDatabase.Dispose(close: true);
 
                     masterGlobalStore.RaidedRedis.Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Value.Should().Be(0);
                     globalGetBulkResult = await master.GetBulkAsync(

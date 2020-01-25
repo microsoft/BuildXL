@@ -13,7 +13,7 @@ namespace DistributedTest {
                 untrackTestDirectory: true,
                 parallelBucketCount: 8,
             },
-        skipTestRun: true, // BuildXLSdk.restrictTestRunToSomeQualifiers, -- Temporarily disable test due to surviving redis-server.exe and conhost.exe.
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,

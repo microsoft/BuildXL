@@ -14,11 +14,8 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
-using BuildXL.Utilities;
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
-using Xunit;
-using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -55,6 +52,9 @@ namespace ContentStoreTest.Distributed.Redis
             _clock = clock;
             _redisFixture = redisFixture;
             _disposed = false;
+
+            // The instance is re-initialized, so we need to re-register it for finalization to detect resource leaks.
+            GC.ReRegisterForFinalize(this);
         }
 
         public override string ToString()
@@ -90,6 +90,11 @@ namespace ContentStoreTest.Distributed.Redis
             logger.Debug($"LocalRedisProcessDatabase: got {oldOrNew} instance from the pool.");
 
             var result = instance.Instance;
+            if (result.Closed)
+            {
+                throw new ObjectDisposedException("instance", "The instance is already closed!");
+            }
+
             result.Init(logger, clock, redisFixture);
             try
             {
@@ -105,17 +110,45 @@ namespace ContentStoreTest.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public void Dispose()
+        public void Dispose() => Dispose(close: false);
+
+        /// <nodoc />
+        public void Dispose(bool close = false)
         {
+            GC.SuppressFinalize(this);
+
             if (_disposed)
             {
                 // The type should be safe for double dispose.
                 return;
             }
 
-            _logger.Debug($"Returning database to pool in fixture '{_redisFixture.Id}'");
-            _redisFixture.DatabasePool.PutInstance(this);
-            _disposed = true;
+            if (close)
+            {
+                // Closing the instance and not returning it back to the pool.
+                Close();
+            }
+            else
+            {
+                _logger.Debug($"Returning database to pool in fixture '{_redisFixture.Id}'");
+                _redisFixture.DatabasePool.PutInstance(this);
+                _disposed = true;
+            }
+        }
+
+        ~LocalRedisProcessDatabase()
+        {
+            // If the database is not gracefully closed,
+            // then BuildXL will fail because surviving redis-server.exe instance.
+            // So we're failing fast instead and will print the process Id that caused the issue.
+            // This may happen only if the database is not disposed gracefully.
+            if (Initialized && !Closed)
+            {
+                string message = $"Redis process {_process?.Id} was not closed correctly.";
+
+                _logger.Debug(message);
+                throw new InvalidOperationException(message);
+            }
         }
 
         public void Close()
@@ -125,7 +158,7 @@ namespace ContentStoreTest.Distributed.Redis
 
             if (_process != null)
             {
-                _logger.Debug($"Killing the redis process...");
+                _logger.Debug($"Killing the redis process {_process?.Id}...");
                 SafeKillProcess();
             }
 
@@ -140,10 +173,9 @@ namespace ContentStoreTest.Distributed.Redis
             {
                 if (!_process.HasExited)
                 {
-                    _process?.Kill();
-                    _process?.WaitForExit(5000);
-
-                    _logger.Debug($"The redis process is killed");
+                    _process.Kill();
+                    _process.WaitForExit(5000);
+                    _logger.Debug("The redis process is killed");
                 }
             }
             catch (InvalidOperationException)

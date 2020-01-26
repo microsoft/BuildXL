@@ -537,7 +537,9 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 /** Returns true if test should use QTest framework. */
 function shouldUseQTest(runTestArgs: Managed.TestRunArguments) {
     return Flags.isQTestEnabled                               // Flag to use QTest is enabled.
-        && !(runTestArgs && runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
+        && !(runTestArgs && runTestArgs.parallelBucketCount)  // QTest does not support passing environment variables to the underlying process
+        && !Environment.getStringValue("[UnitTest]Filter.testMethod") // QTest's support on test method seems to be busted.
+        && !Environment.getStringValue("[UnitTest]Filter.testClass"); // QTest's support on test class seems to be busted.
 }
 
 /** Gets test framework. */

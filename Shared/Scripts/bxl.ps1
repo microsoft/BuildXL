@@ -596,7 +596,7 @@ if (!$skipFilter){
         elseif ($CacheNuget) {
             $AdditionalBuildXLArguments += "/f:($CacheNugetFilter)"
         }
-        else {
+        elseif (!$Minimal) {
             $AdditionalBuildXLArguments += "/f:($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and(($CacheOutputFilter)or(tag='test'))"
         }
     }

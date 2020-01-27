@@ -39,7 +39,8 @@ namespace BuildXL.Scheduler.Tracing
             IConfiguration configuration,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
-            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance)
+            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            FingerprintStoreTestHooks testHooks = null)
         {
             using (logTarget.Counters.StartStopwatch(FingerprintStoreCounters.InitializeCacheMissAnalysisDuration))
             {
@@ -104,7 +105,8 @@ namespace BuildXL.Scheduler.Tracing
                         possibleStore.Result,
                         graph,
                         runnablePipPerformance,
-                        configuration.Logging.CacheMissDiffFormat);
+                        configuration.Logging.CacheMissDiffFormat,
+                        testHooks: testHooks);
                 }
 
                 Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Failed to read the fingerprint store to compare. Mode: {option.Mode.ToString()} Failure: {possibleStore.Failure.DescribeIncludingInnerFailures()}"));
@@ -135,6 +137,7 @@ namespace BuildXL.Scheduler.Tracing
         public FingerprintStore PreviousFingerprintStore { get; }
 
         private readonly CacheMissDiffFormat m_cacheMissDiffFormat;
+        private readonly FingerprintStoreTestHooks m_testHooks;
 
         private RuntimeCacheMissAnalyzer(
             FingerprintStoreExecutionLogTarget logTarget,
@@ -143,7 +146,8 @@ namespace BuildXL.Scheduler.Tracing
             FingerprintStore previousFingerprintStore,
             IReadonlyDirectedGraph graph,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
-            CacheMissDiffFormat cacheMissDiffFormat)
+            CacheMissDiffFormat cacheMissDiffFormat,
+            FingerprintStoreTestHooks testHooks = null)
         {
             m_loggingContext = loggingContext;
             m_logTarget = logTarget;
@@ -154,25 +158,20 @@ namespace BuildXL.Scheduler.Tracing
             m_pipCacheMissesDict = new ConcurrentDictionary<PipId, PipCacheMissInfo>();
             m_runnablePipPerformance = runnablePipPerformance;
             m_cacheMissDiffFormat = cacheMissDiffFormat;
+            m_testHooks = testHooks;
+            m_testHooks?.InitRuntimeCacheMisses();
         }
 
-        internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo)
-        {
-            m_pipCacheMissesDict.Add(cacheMissInfo.PipId, cacheMissInfo);
-        }
+        internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo) => m_pipCacheMissesDict.Add(cacheMissInfo.PipId, cacheMissInfo);
 
-        internal void AnalyzeForCacheLookup(FingerprintStoreEntry newEntry, Process pip)
-        {
-            Analyze(newEntry, pip, fromCacheLookup: true);
-        }
+        internal void AnalyzeForCacheLookup(FingerprintStoreEntry newEntry, Process pip) => Analyze(newEntry, pip, fromCacheLookup: true);
 
-        internal void AnalyzeForExecution(FingerprintStoreEntry newEntry, Process pip)
-        {
-            Analyze(newEntry, pip, fromCacheLookup: false);
-        }
+        internal void AnalyzeForExecution(FingerprintStoreEntry newEntry, Process pip) => Analyze(newEntry, pip, fromCacheLookup: false);
 
         private void Analyze(FingerprintStoreEntry newEntry, Process pip, bool fromCacheLookup)
         {
+            Contract.Requires(pip != null);
+
             using (var watch = new CacheMissTimer(pip.PipId, this))
             {
                 if (!IsCacheMissEligible(pip.PipId))
@@ -187,7 +186,9 @@ namespace BuildXL.Scheduler.Tracing
 
         private void PerformCacheMissAnalysis(Process pip, FingerprintStoreEntry oldEntry, FingerprintStoreEntry newEntry, bool fromCacheLookup)
         {
+            Contract.Requires(pip != null);
             string pipDescription = pip.GetDescription(m_context);
+
             try
             {
                 if (!m_pipCacheMissesDict.TryRemove(pip.PipId, out var missInfo))
@@ -215,7 +216,7 @@ namespace BuildXL.Scheduler.Tracing
                 using (var writer = new StringWriter(pool.Instance))
                 using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissAnalysisAnalyzeDuration))
                 {
-                    CacheMissAnalysisUtilities.AnalyzeCacheMiss(
+                    var cacheMissAnalysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                         writer,
                         missInfo,
                         () => new FingerprintStoreReader.PipRecordingSession(PreviousFingerprintStore, oldEntry),
@@ -227,6 +228,15 @@ namespace BuildXL.Scheduler.Tracing
 
                     pipDescription = pip.GetDescription(m_context);
                     Logger.Log.CacheMissAnalysis(m_loggingContext, pipDescription, reason, fromCacheLookup);
+
+                    m_testHooks?.AddCacheMiss(
+                        pip.PipId,
+                        new FingerprintStoreTestHooks.CacheMissData
+                        {
+                            Result = cacheMissAnalysisResult,
+                            Reason = reason,
+                            IsFromCacheLookUp = fromCacheLookup
+                        });
                 }
             }
             catch (Exception ex)
@@ -257,25 +267,22 @@ namespace BuildXL.Scheduler.Tracing
             return true;
         }
 
-        private void MarkPipAsChanged(PipId pipId)
-        {
-            m_visitor.VisitTransitiveDependents(pipId.ToNodeId(), m_changedPips, n => true);
-        }
+        private void MarkPipAsChanged(PipId pipId) => m_visitor.VisitTransitiveDependents(pipId.ToNodeId(), m_changedPips, n => true);
 
         private bool TryGetFingerprintStoreEntry(Process process, out FingerprintStoreEntry entry)
         {
             using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissFindOldEntriesTime))
             {
-                process.TryComputePipUniqueOutputHash(m_context.PathTable, out var pipUniqueOutputHash, m_logTarget.PipContentFingerprinter.PathExpander);
-                return PreviousFingerprintStore.TryGetFingerprintStoreEntry(pipUniqueOutputHash.ToString(), process.FormattedSemiStableHash, out entry);
+                string pipUniqueOutputHashStr = process.TryComputePipUniqueOutputHash(m_context.PathTable, out var pipUniqueOutputHash, m_logTarget.PipContentFingerprinter.PathExpander)
+                    ? pipUniqueOutputHash.ToString()
+                    : null;
+
+                return PreviousFingerprintStore.TryGetFingerprintStoreEntry(pipUniqueOutputHashStr, process.FormattedSemiStableHash, out entry);
             }
         }
 
         /// <nodoc/>
-        public void Dispose()
-        {
-            PreviousFingerprintStore.Dispose();
-        }
+        public void Dispose() => PreviousFingerprintStore.Dispose();
 
         private struct CacheMissTimer : IDisposable
         {

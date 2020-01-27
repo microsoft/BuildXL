@@ -76,7 +76,8 @@ namespace BuildXL.Scheduler.Tracing
 
             switch (missInfo.CacheMissType)
             {
-                // Fingerprint miss
+                // Fingerprint miss.
+                case PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints:
                 case PipCacheMissType.MissForDescriptorsDueToWeakFingerprints:
                 case PipCacheMissType.MissForDescriptorsDueToStrongFingerprints:
                     // Compute the pip unique output hash to use as the primary lookup key for fingerprint store entries
@@ -93,7 +94,7 @@ namespace BuildXL.Scheduler.Tracing
                     return CacheMissAnalysisResult.DataMiss;
 
                 case PipCacheMissType.MissForProcessOutputContent:
-                    WriteLine(new JProperty("MissingOutputs", missInfo.MissedOutputs).ToString(), writer);                 
+                    WriteLine(new JProperty("MissingOutputs", missInfo.MissedOutputs).ToString(), writer);
                     return CacheMissAnalysisResult.OutputMiss;
 
                 case PipCacheMissType.MissDueToInvalidDescriptors:
@@ -104,16 +105,16 @@ namespace BuildXL.Scheduler.Tracing
                     WriteLine($"Cache miss artificially forced by user.", writer);
                     return CacheMissAnalysisResult.ArtificialMiss;
 
-                case PipCacheMissType.Invalid:
-                    WriteLine($"Unexpected condition! No valid changes or cache issues were detected to cause process execution, but a process still executed.", writer);
-                    return CacheMissAnalysisResult.Invalid;
-
                 case PipCacheMissType.Hit:
                     WriteLine($"Pip was a cache hit.", writer);
                     return CacheMissAnalysisResult.NoMiss;
 
+                case PipCacheMissType.Invalid:
+                    WriteLine($"No valid changes or cache issues were detected to cause process execution, but a process still executed.", writer);
+                    return CacheMissAnalysisResult.Invalid;
+
                 default:
-                    WriteLine($"Unexpected condition! Unknown cache miss type.", writer);
+                    WriteLine($"Unhandled cache miss type '{missInfo.CacheMissType}'.", writer);
                     return CacheMissAnalysisResult.Invalid;
             }
         }
@@ -131,7 +132,6 @@ namespace BuildXL.Scheduler.Tracing
             using (var oldPipSession = oldSessionFunc())
             using (var newPipSession = newSessionFunc())
             {
-                bool missingPipEntry = false;
                 if (!oldPipSession.EntryExists)
                 {
                     WriteLine("No fingerprint computation data found from old build.", writer, oldPipSession.PipWriter);
@@ -139,7 +139,6 @@ namespace BuildXL.Scheduler.Tracing
 
                     // Write to just the old pip file
                     WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, oldPipSession.PipWriter);
-                    missingPipEntry = true;
                     result = CacheMissAnalysisResult.MissingFromOldBuild;
 
                     WriteLine(string.Empty, writer, oldPipSession.PipWriter);
@@ -156,13 +155,12 @@ namespace BuildXL.Scheduler.Tracing
 
                     // Write to just the new pip file
                     WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, newPipSession.PipWriter);
-                    missingPipEntry = true;
                     result = CacheMissAnalysisResult.MissingFromNewBuild;
 
                     WriteLine(string.Empty, writer, newPipSession.PipWriter);
                 }
 
-                if (missingPipEntry)
+                if (!oldPipSession.EntryExists || !newPipSession.EntryExists)
                 {
                     // Only write once to the analysis file
                     WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, writer);
@@ -275,6 +273,7 @@ namespace BuildXL.Scheduler.Tracing
         private static void WriteLine(string message, TextWriter writer, params TextWriter[] additionalWriters)
         {
             writer?.WriteLine(message);
+
             foreach (var w in additionalWriters)
             {
                 w?.WriteLine(message);

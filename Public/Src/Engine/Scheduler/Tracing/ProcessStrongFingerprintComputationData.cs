@@ -46,12 +46,12 @@ namespace BuildXL.Scheduler.Tracing
         public IReadOnlyList<ProcessStrongFingerprintComputationData> StrongFingerprintComputations;
 
         /// <summary>
-        /// SessionId of the build who creates the cache entry corresponding to this fingerprint
+        /// Session id of the build who creates the cache entry corresponding to this fingerprint.
         /// </summary>
         public string SessionId;
 
         /// <summary>
-        /// Related sessionId of the build who creates the cache entry corresponding to this fingerprint
+        /// Related session id of the build who creates the cache entry corresponding to this fingerprint.
         /// </summary>
         public string RelatedSessionId;
 
@@ -64,6 +64,8 @@ namespace BuildXL.Scheduler.Tracing
             writer.WriteCompact(PipId.Value);
             writer.WriteCompact((int)Kind);
             writer.Write(WeakFingerprint);
+            writer.WriteNullableString(SessionId);
+            writer.WriteNullableString(RelatedSessionId);
             writer.WriteReadOnlyList(StrongFingerprintComputations, (w, v) => v.Serialize((BinaryLogger.EventWriter)w));
         }
 
@@ -73,6 +75,8 @@ namespace BuildXL.Scheduler.Tracing
             PipId = new PipId(reader.ReadUInt32Compact());
             Kind = (FingerprintComputationKind)reader.ReadInt32Compact();
             WeakFingerprint = reader.ReadWeakFingerprint();
+            SessionId = reader.ReadNullableString();
+            RelatedSessionId = reader.ReadNullableString();
             StrongFingerprintComputations = reader.ReadReadOnlyList(r => new ProcessStrongFingerprintComputationData((BinaryLogReader.EventReader)r));
         }
     }
@@ -152,6 +156,16 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public ReadOnlyArray<ObservedInput> ObservedInputs { get; private set; }
 
+        /// <summary>
+        /// Indicates that this instance of <see cref="ProcessStrongFingerprintComputationData"/> is the result of publishing a new augmented weak fingerprint.
+        /// </summary>
+        public bool IsNewlyPublishedAugmentedWeakFingerprint { get; set; }
+
+        /// <summary>
+        /// Associated augmented weak fingerprint if any.
+        /// </summary>
+        public WeakContentFingerprint? AugmentedWeakFingerprint { get; set; }
+
         /// <nodoc />
         public ProcessStrongFingerprintComputationData(
             ContentHash pathSetHash,
@@ -165,8 +179,10 @@ namespace BuildXL.Scheduler.Tracing
             // Initial defaults
             Succeeded = false;
             IsStrongFingerprintHit = false;
-            ObservedInputs = default(ReadOnlyArray<ObservedInput>);
-            ComputedStrongFingerprint = default(StrongContentFingerprint);
+            ObservedInputs = default;
+            ComputedStrongFingerprint = default;
+            IsNewlyPublishedAugmentedWeakFingerprint = false;
+            AugmentedWeakFingerprint = default;
         }
 
         /// <summary>
@@ -188,6 +204,9 @@ namespace BuildXL.Scheduler.Tracing
             data.IsStrongFingerprintHit = false;
             data.ObservedInputs = observedInputs;
             data.ComputedStrongFingerprint = strongFingerprint;
+            data.IsNewlyPublishedAugmentedWeakFingerprint = false;
+            data.AugmentedWeakFingerprint = default;
+
             return data;
         }
 
@@ -222,12 +241,16 @@ namespace BuildXL.Scheduler.Tracing
                 IsStrongFingerprintHit = reader.ReadBoolean();
                 ObservedInputs = reader.ReadReadOnlyArray(r => ObservedInput.Deserialize(r));
                 ComputedStrongFingerprint = reader.ReadStrongFingerprint();
+                IsNewlyPublishedAugmentedWeakFingerprint = reader.ReadBoolean();
+                AugmentedWeakFingerprint = reader.ReadNullableStruct(r => r.ReadWeakFingerprint());
             }
             else
             {
                 IsStrongFingerprintHit = false;
-                ObservedInputs = default(ReadOnlyArray<ObservedInput>);
-                ComputedStrongFingerprint = default(StrongContentFingerprint);
+                ObservedInputs = default;
+                ComputedStrongFingerprint = default;
+                IsNewlyPublishedAugmentedWeakFingerprint = false;
+                AugmentedWeakFingerprint = default;
             }
         }
 
@@ -249,6 +272,8 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(IsStrongFingerprintHit);
                 writer.Write(ObservedInputs, (w, v) => v.Serialize(w));
                 writer.Write(ComputedStrongFingerprint);
+                writer.Write(IsNewlyPublishedAugmentedWeakFingerprint);
+                writer.Write(AugmentedWeakFingerprint, (w, v) => w.Write(v));
             }
         }
 

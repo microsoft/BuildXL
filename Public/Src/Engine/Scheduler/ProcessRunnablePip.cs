@@ -20,7 +20,6 @@ namespace BuildXL.Scheduler
     {
         /// <nodoc/>
         public Process Process => (Process)Pip;
-
        
         /// <summary>
         /// Process weight
@@ -67,7 +66,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
 
-    private readonly int m_weightBasedOnHistoricCpuUsage;
+        private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,

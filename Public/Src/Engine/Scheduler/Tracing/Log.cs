@@ -525,17 +525,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Weak fingerprint miss: A pip cache descriptor was not found for content fingerprint '{contentFingerprint}'.")]
-        internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
-
-        [GeneratedEvent(
-           (ushort)EventId.CacheDescriptorMissForAugmentedContentFingerprint,
-           EventGenerators = EventGenerators.LocalOnly,
-           EventLevel = Level.Verbose,
-           Keywords = (int)Keywords.Diagnostics,
-           EventTask = (ushort)Tasks.PipExecutor,
-           Message = "[{pipDescription}] Augmented weak fingerprint miss: A pip cache descriptor was not found for content fingerprint '{contentFingerprint}'.")]
-        internal abstract void TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
+            Message = "[{pipDescription}] Weak fingerprint miss: A pip cache descriptor was not found for weak content fingerprint '{contentFingerprint}' (augmented weak fingerprint: {isAugmented}) .")]
+        internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, bool isAugmented);
 
         [GeneratedEvent(
             (ushort)EventId.InvalidCacheDescriptorForContentFingerprint,
@@ -904,8 +895,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Strong fingerprint miss: One or more pip cache descriptor were found for weak fingerprint '{contentFingerprint}'; however, no available strong fingerprints matched.")]
-        internal abstract void TwoPhaseCacheDescriptorMissDueToStrongFingerprints(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
+            Message = "[{pipDescription}] Strong fingerprint miss: One or more pip cache descriptor were found for weak fingerprint '{contentFingerprint}' (augmented: {isAugmentedWeakFingerprint}); however, no available strong fingerprints matched.")]
+        internal abstract void TwoPhaseCacheDescriptorMissDueToStrongFingerprints(LoggingContext loggingContext, string pipDescription, string contentFingerprint, bool isAugmentedWeakFingerprint);
 
         [GeneratedEvent(
             (int)EventId.TwoPhaseStrongFingerprintComputedForPathSet,

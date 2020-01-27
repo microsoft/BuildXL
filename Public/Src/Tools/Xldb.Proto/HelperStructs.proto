@@ -483,6 +483,12 @@ message ProcessStrongFingerprintComputationData{
 
     // The observed inputs
     repeated ObservedInput ObservedInputs = 10;
+
+    // Indicates that this instance of ProcessStrongFingerprintComputationData is the result of publishing a new augmented weak fingerprint.
+    bool IsNewlyPublishedAugmentedWeakFingerprint = 11;
+
+    // Associated augmented weak fingerprint if any.
+    WeakContentFingerprint AugmentedWeakFingerprint = 12;
 }
 
 // DirectoryFingerprint message for the membership of a directory.

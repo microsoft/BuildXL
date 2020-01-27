@@ -319,6 +319,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 pipUniqueOutputHashStr = pipUniqueOutputHash.ToString();
             }
+
             WriteLine(pip.GetDescription(PipGraph.Context));
 
             var analysisResult = CacheMissAnalysisResult.Invalid;
@@ -340,8 +341,8 @@ namespace BuildXL.Execution.Analyzer
                 analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                     m_writer,
                     miss,
-                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
-                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHash.ToString()),
+                    () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
+                    () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     CacheMissDiffFormat);
             }
 

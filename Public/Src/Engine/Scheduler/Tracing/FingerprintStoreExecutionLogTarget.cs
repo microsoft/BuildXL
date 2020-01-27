@@ -96,6 +96,7 @@ namespace BuildXL.Scheduler.Tracing
         public LoggingContext LoggingContext { get; }
 
         private readonly Task<RuntimeCacheMissAnalyzer> m_runtimeCacheMissAnalyzerTask;
+
         private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer => m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
 
         private bool CacheMissAnalysisEnabled => RuntimeCacheMissAnalyzer != null;
@@ -116,6 +117,14 @@ namespace BuildXL.Scheduler.Tracing
         /// We do not cache strong fingerprint computations because, when cache miss, the cache look-up one and the execution one are different.
         /// </remarks>
         private readonly ConcurrentDictionary<PipId, string> m_weakFingerprintSerializationTransientCache;
+
+        /// <summary>
+        /// Mappings from augmented weak fingerprints to original weak fingerprints.
+        /// </summary>
+        /// <remarks>
+        /// Fingerprint store will only stores pip's original weak fingerprints. Thus, we need a mapping from the augmented ones to the original ones.
+        /// </remarks>
+        private readonly ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint> m_augmentedWeakFingerprintsToOriginalWeakFingeprints;
 
         private bool m_disposed = false;
 
@@ -204,7 +213,8 @@ namespace BuildXL.Scheduler.Tracing
                     cache,
                     graph,
                     counters,
-                    runnablePipPerformance);
+                    runnablePipPerformance,
+                    testHooks: testHooks);
             }
             else
             {
@@ -236,7 +246,8 @@ namespace BuildXL.Scheduler.Tracing
             EngineCache cache,
             IReadonlyDirectedGraph graph,
             CounterCollection<FingerprintStoreCounters> counters,
-            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance)
+            IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
+            FingerprintStoreTestHooks testHooks = null)
         {
             m_context = context;
             m_pipTable = pipTable;
@@ -256,10 +267,12 @@ namespace BuildXL.Scheduler.Tracing
                 configuration,
                 cache,
                 graph,
-                runnablePipPerformance);
+                runnablePipPerformance,
+                testHooks: testHooks);
 
             m_fingerprintStoreEventProcessor = new FingerprintStoreEventProcessor(Environment.ProcessorCount);
             m_weakFingerprintSerializationTransientCache = new ConcurrentDictionary<PipId, string>();
+            m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();
 
             Contract.Assume(
                 FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, 
@@ -271,10 +284,7 @@ namespace BuildXL.Scheduler.Tracing
         /// so just use the same object instead of making a new object with the same
         /// underlying store.
         /// </summary>
-        public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
-        {
-            return this;
-        }
+        public override IExecutionLogTarget CreateWorkerTarget(uint workerId) => this;
 
         /// <summary>
         /// Adds an entry to the fingerprint store for { directory fingerprint : directory fingerprint inputs }.
@@ -318,7 +328,45 @@ namespace BuildXL.Scheduler.Tracing
             //
             // Case 2: If processing a strong fingerprint computed for execution (cache miss), 
             // there should only be one strong fingerprint, so the last strong fingerprint is the fingerprint used
-            return data.StrongFingerprintComputations[numStrongFingerprints - 1];
+            //
+            // Find the last strong fingerprint data that has no augmented weak fingerprint. Those that have augmented weak fingerprints
+            // are either part of publishing the augmented weak fingerprints (not used for cache look-up), or have marker as their strong fingeprints.
+            int chosenStrongFingerprintDataIndex = numStrongFingerprints - 1;
+            for (; chosenStrongFingerprintDataIndex >= 0; --chosenStrongFingerprintDataIndex)
+            {
+                if (!data.StrongFingerprintComputations[chosenStrongFingerprintDataIndex].AugmentedWeakFingerprint.HasValue)
+                {
+                    break;
+                }
+            }
+
+            if (chosenStrongFingerprintDataIndex < 0)
+            {
+                return null;
+            }
+
+            return data.StrongFingerprintComputations[chosenStrongFingerprintDataIndex];
+        }
+
+        /// <summary>
+        /// Maps pip's augmented weak fingerprints to its original weak fingerprint.
+        /// </summary>
+        private void MapAugmentedWeakFingerprints(ProcessFingerprintComputationEventData data)
+        {
+            foreach (var sFpComputation in data.StrongFingerprintComputations)
+            {
+                if (sFpComputation.AugmentedWeakFingerprint.HasValue)
+                {
+                    // If the fingerprint computation is part of the publish augmented weak fingerprint, then the computed strong fingerprint is indeed the augmented weak fingerprint.
+                    Contract.Assert(
+                        !sFpComputation.IsNewlyPublishedAugmentedWeakFingerprint 
+                        || sFpComputation.AugmentedWeakFingerprint.Value == new WeakContentFingerprint(sFpComputation.ComputedStrongFingerprint.Hash));
+
+                    m_augmentedWeakFingerprintsToOriginalWeakFingeprints.TryAdd(
+                        (data.PipId, sFpComputation.AugmentedWeakFingerprint.Value),
+                        data.WeakFingerprint);
+                }
+            }
         }
 
         /// <summary>
@@ -418,7 +466,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
 
-            // Use the session id and related session id of this build to create pipFingerprintKeys, so when need to CreateAndStoreFingerprintStoreEntry, they will be in the new entry.
+            // Use the session id and related session id of this build to create pipFingerprintKeys, so when we need to CreateAndStoreFingerprintStoreEntry, they will be in the new entry.
             // The SameValueEntryExists function below doesn't check sessionId and relatedSessionId, so the value of them do not affect the result of SameValueEntryExists()
             var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), sessionId, relatedSessionId);
 
@@ -465,8 +513,11 @@ namespace BuildXL.Scheduler.Tracing
                 return;
             }
 
+            // Maps augmented weak fingerprints, if any, to the original one.
+            MapAugmentedWeakFingerprints(data);
+
             var pip = GetProcess(data.PipId);
-            var weakFingerprint = data.WeakFingerprint;
+            var weakFingerprint = GetOriginalWeakFingerprint(data);
 
             // Cache hit, update execution fingerprint store entry, if necessary, to match what would have been executed
             if (strongFingerprintData.IsStrongFingerprintHit)
@@ -483,24 +534,25 @@ namespace BuildXL.Scheduler.Tracing
             // Strong fingerprint cache miss, store the most relevant fingerprint to the cache lookup fingerprint store
             else if (CacheLookupStoreEnabled || CacheMissAnalysisEnabled)
             {
-                // Try and find the strong fingerprint from the cache that matches the path set stored in the fingerprint store
-                var shouldAnalyzeMiss = false;
-                var storeToUse = RuntimeCacheMissAnalyzer == null ? ExecutionFingerprintStore : RuntimeCacheMissAnalyzer.PreviousFingerprintStore;
-                if (storeToUse.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out var pfk))
+                bool shouldAnalyzeMiss = false;
+                
+                if (tryGetMoreRelevantStrongFingerprintData(out var relevantStrongFingerprintData))
                 {
-                    foreach (var sf in data.StrongFingerprintComputations)
-                    {
-                        if (sf.Succeeded && pfk.FormattedPathSetHash == ContentHashToString(sf.PathSetHash))
-                        {
-                            strongFingerprintData = sf;
-                            shouldAnalyzeMiss = data.WeakFingerprint.ToString() == pfk.WeakFingerprint;
-                            break;
-                        }
-                    }
+                    strongFingerprintData = relevantStrongFingerprintData;
+
+                    // Only perform analysis if there is a relevant strong fingerprint data.
+                    // Otherwise fall back to the analysis after execution.
+                    shouldAnalyzeMiss = true;
                 }
 
                 var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
-                var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), LoggingContext.Session.Id, LoggingContext.Session.RelatedId);
+                var pipFingerprintKeys = new PipFingerprintKeys(
+                    weakFingerprint,
+                    strongFingerprint,
+                    ContentHashToString(strongFingerprintData.PathSetHash),
+                    LoggingContext.Session.Id,
+                    LoggingContext.Session.RelatedId);
+
                 FingerprintStoreEntry newEntry = null;
 
                 if (CacheLookupStoreEnabled)
@@ -525,10 +577,47 @@ namespace BuildXL.Scheduler.Tracing
 
                 if (shouldAnalyzeMiss)
                 {
-                    newEntry = newEntry ?? CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, cacheWeakFingerprintSerialization: true);
+                    newEntry ??= CreateFingerprintStoreEntry(pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData, cacheWeakFingerprintSerialization: true);
+
                     // Strong fingerprint misses need to be analyzed during cache-lookup to get a precise reason.
                     RuntimeCacheMissAnalyzer?.AnalyzeForCacheLookup(newEntry, pip);
                 }
+            }
+
+            // Try to get more relevant strong fingerprint data based on previous fingerprint store.
+            // The fingerprint is relevant if it has the same weak fingerprint and path set hash.
+            // Find the strong fingerprint from the cache that matches the path set stored in the previous fingerprint store.
+            bool tryGetMoreRelevantStrongFingerprintData(out ProcessStrongFingerprintComputationData sFpData)
+            {
+                sFpData = default;
+
+                if (!CacheMissAnalysisEnabled)
+                {
+                    // If cache miss analysis is not enabled, then there is no previous fingerprint store.
+                    return false;
+                }
+
+                // Look up the previous fingerprint store, and consider relevant strong fingerprint data if it comes from the same weak fingerprint.
+                if (RuntimeCacheMissAnalyzer.PreviousFingerprintStore.TryGetPipFingerprintKeys(pip.FormattedSemiStableHash, out var fpKeys)
+                    && fpKeys.WeakFingerprint == weakFingerprint.ToString())
+                {
+                    foreach (var sFpComputation in data.StrongFingerprintComputations)
+                    {
+                        // During cache look-up, we analyze path set, but never say that the cache miss is due to path set mismatched.
+                        // Thus, for more relevant strong fingeprint data, we find the one that has a matching path set.
+                        // Ignore the ones with augmented weak fingerprint because either they are part of publishing the augmented weak fingeprints (not used during cache look-up)
+                        // or theiry associated strong fingerprint is just a marker.
+                        if (sFpComputation.Succeeded
+                            && !sFpComputation.AugmentedWeakFingerprint.HasValue
+                            && fpKeys.FormattedPathSetHash == ContentHashToString(sFpComputation.PathSetHash))
+                        {
+                            sFpData = sFpComputation;
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
             }
         }
 
@@ -552,7 +641,7 @@ namespace BuildXL.Scheduler.Tracing
             else
             {
                 var strongFingerprintData = maybeStrongFingerprintData.Value;
-                var weakFingerprint = data.WeakFingerprint;
+                var weakFingerprint = GetOriginalWeakFingerprint(data);
                 var strongFingerprint = strongFingerprintData.ComputedStrongFingerprint;
                 var pipFingerprintKeys = new PipFingerprintKeys(weakFingerprint, strongFingerprint, ContentHashToString(strongFingerprintData.PathSetHash), LoggingContext.Session.Id, LoggingContext.Session.RelatedId);
                 newEntry = CreateAndStoreFingerprintStoreEntry(ExecutionFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
@@ -730,10 +819,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Hydrates a pip from <see cref="PipId"/>. The pip will still be in-memory at call time.
         /// </summary>
-        internal Process GetProcess(PipId pipId)
-        {
-            return (Process)m_pipTable.HydratePip(pipId, PipQueryContext.FingerprintStore);
-        }
+        internal Process GetProcess(PipId pipId) => (Process)m_pipTable.HydratePip(pipId, PipQueryContext.FingerprintStore);
 
         /// <summary>
         /// Convenience wrapper converting JSON fingerprinting ops to string.
@@ -747,13 +833,15 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// Converts a hash to a string. This should be kept in-sync with <see cref="JsonFingerprinter"/> to allow <see cref="Tracing.FingerprintStore"/> look-ups
+        /// Converts a hash to a string. This should be kept in-sync with <see cref="JsonFingerprinter"/> to allow <see cref="FingerprintStore"/> look-ups
         /// using content hashes parsed from JSON.
         /// </summary>
-        internal static string ContentHashToString(ContentHash hash)
-        {
-            return JsonFingerprinter.ContentHashToString(hash);
-        }
+        internal static string ContentHashToString(ContentHash hash) => JsonFingerprinter.ContentHashToString(hash);
+
+        private WeakContentFingerprint GetOriginalWeakFingerprint(ProcessFingerprintComputationEventData data) => 
+            m_augmentedWeakFingerprintsToOriginalWeakFingeprints.TryGetValue((data.PipId, data.WeakFingerprint), out var originalWeakFingerprint) 
+            ? originalWeakFingerprint
+            : data.WeakFingerprint;
 
         /// <inheritdoc />
         public override void Dispose()

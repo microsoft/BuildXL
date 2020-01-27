@@ -1171,7 +1171,5 @@ namespace BuildXL.Utilities.Tracing
 
         ProcessRetries = 14504,
         ProcessPattern = 14505,
-
-        CacheDescriptorMissForAugmentedContentFingerprint = 14506,
     }
 }

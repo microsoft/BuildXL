@@ -7,6 +7,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
@@ -51,5 +52,10 @@ namespace BuildXL.Scheduler
         /// A synthetic machine perf info to pass it to Scheduler to test various functions related to cancellation.
         /// </summary>
         public PerformanceCollector.MachinePerfInfo SyntheticMachinePerfInfo { get; set; }
+
+        /// <summary>
+        /// Shortcut to get <see cref="CounterCollection{FingerprintStoreCounters}"/>.
+        /// </summary>
+        public CounterCollection<FingerprintStoreCounters> FingerprintStoreCounters => FingerprintStoreTestHooks?.Counters;
     }
 }

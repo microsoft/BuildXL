@@ -372,9 +372,14 @@ namespace Test.BuildXL.Scheduler
 
             m_graphWasModified = false;
 
-            return RunSchedulerSpecific(LastGraph,
-                (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
-                testHooks, schedulerState, filter, constraintExecutionOrder, performanceCollector: performanceCollector);
+            return RunSchedulerSpecific(
+                LastGraph,
+                tempCleaner ?? MoveDeleteCleaner,
+                testHooks,
+                schedulerState,
+                filter,
+                constraintExecutionOrder,
+                performanceCollector: performanceCollector);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -462,8 +467,8 @@ namespace Test.BuildXL.Scheduler
             Contract.Assert(previousOutputsSalt.HasValue);
             // .....................................................................................
 
-            testHooks = testHooks ?? new SchedulerTestHooks();
-            testHooks.FingerprintStoreTestHooks = testHooks.FingerprintStoreTestHooks ?? new FingerprintStoreTestHooks() { MinimalIO = true };
+            testHooks ??= new SchedulerTestHooks();
+            testHooks.FingerprintStoreTestHooks ??= new FingerprintStoreTestHooks();
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
@@ -472,7 +477,7 @@ namespace Test.BuildXL.Scheduler
                 graph: graph,
                 pipQueue: constraintExecutionOrder == null ?
                             testQueue :
-                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue _testQueue, (Pip before, Pip after) constraint) => { _testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return _testQueue; }).Unpause(),
+                            constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue testQueue, (Pip before, Pip after) constraint) => { testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return testQueue; }).Unpause(),
                 context: Context,
                 fileContentTable: FileContentTable,
                 loggingContext: localLoggingContext,

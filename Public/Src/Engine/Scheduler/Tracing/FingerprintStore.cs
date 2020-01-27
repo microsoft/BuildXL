@@ -82,6 +82,66 @@ namespace BuildXL.Scheduler.Tracing
         /// Where minimal IO should be performed. This may omit log files.
         /// </summary>
         public bool MinimalIO;
+
+        /// <summary>
+        /// Runtime cache misses.
+        /// </summary>
+        public ConcurrentDictionary<PipId, CacheMissData> RuntimeCacheMisses;
+
+        /// <summary>
+        /// Creates an instance of <see cref="FingerprintStoreTestHooks"/> with <see cref="MinimalIO"/> defaults to true.
+        /// </summary>
+        public FingerprintStoreTestHooks() => MinimalIO = true;
+
+        /// <summary>
+        /// Inits runtime cache misses data.
+        /// </summary>
+        public void InitRuntimeCacheMisses() => RuntimeCacheMisses = new ConcurrentDictionary<PipId, CacheMissData>();
+
+        /// <summary>
+        /// Adds cache miss data.
+        /// </summary>
+        public void AddCacheMiss(PipId pipId, CacheMissData cacheMiss) => RuntimeCacheMisses?.TryAdd(pipId, cacheMiss);
+
+        /// <summary>
+        /// Gets cache miss data.
+        /// </summary>
+        public bool TryGetCacheMiss(PipId pipId, out CacheMissData cacheMiss)
+        {
+            cacheMiss = default;
+            return RuntimeCacheMisses?.TryGetValue(pipId, out cacheMiss) ?? false;
+        }
+
+        /// <summary>
+        /// Cache miss data.
+        /// </summary>
+        public struct CacheMissData
+        {
+            /// <summary>
+            /// Cache miss classification result.
+            /// </summary>
+            public CacheMissAnalysisResult Result;
+
+            /// <summary>
+            /// Reason.
+            /// </summary>
+            public string Reason;
+
+            /// <summary>
+            /// Indicates if cache miss was performed during cache look-up or post execution.
+            /// </summary>
+            public bool IsFromCacheLookUp;
+
+            /// <summary>
+            /// Creates an instance of <see cref="CacheMissData"/>.
+            /// </summary>
+            public CacheMissData(CacheMissAnalysisResult result, string reason, bool isFromCacheLookUp)
+            {
+                Result = result;
+                Reason = reason;
+                IsFromCacheLookUp = isFromCacheLookUp;
+            }
+        }
     }
 
     /// <summary>
@@ -1069,7 +1129,7 @@ namespace BuildXL.Scheduler.Tracing
             // First attempt to use the pip output hash which is a more reliable way to identify pips across builds
             // than the pip semi stable hash
 
-            return TryGetFingerprintStoreEntryByPipUniqueOutputHash(pipUniqueOutputHash, out entry)
+            return (pipUniqueOutputHash != null && TryGetFingerprintStoreEntryByPipUniqueOutputHash(pipUniqueOutputHash, out entry))
                 || TryGetFingerprintStoreEntryBySemiStableHash(formattedSemiStableHash, out entry);
         }
 

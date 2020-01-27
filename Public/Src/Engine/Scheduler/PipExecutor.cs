@@ -1959,26 +1959,62 @@ namespace BuildXL.Scheduler
                 CacheMissType = PipCacheMissType.Invalid,
             };
 
-            var runnableFromCacheResult = await TryCheckProcessRunnableFromCacheAsync(
-                processRunnable,
-                state,
-                cacheableProcess,
-                computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
-                pipCacheMiss,
-                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
-                isWeakFingerprintAugmented: false);
-
-            if (runnableFromCacheResult != null && !runnableFromCacheResult.CanRunFromCache)
+            BoxRef<ProcessFingerprintComputationEventData> processFingerprintComputationResult = new ProcessFingerprintComputationEventData
             {
-                Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
-                processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
+                Kind = FingerprintComputationKind.CacheCheck,
+                PipId = cacheableProcess.Process.PipId,
+                StrongFingerprintComputations =
+                    CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
+            };
 
-                Logger.Log.ScheduleProcessPipCacheMiss(
-                    processRunnable.OperationContext,
-                    cacheableProcess.Description,
-                    runnableFromCacheResult.Fingerprint.ToString());
+            var operationContext = processRunnable.OperationContext;
 
-                processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
+            RunnableFromCacheResult runnableFromCacheResult = null;
+
+            using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
+            using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
+            {
+                List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList = strongFingerprintComputationListWrapper.Instance;
+
+                runnableFromCacheResult = await TryCheckProcessRunnableFromCacheAsync(
+                    processRunnable,
+                    state,
+                    cacheableProcess,
+                    computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
+                    pipCacheMiss,
+                    processFingerprintComputationResult,
+                    strongFingerprintComputationList,
+                    canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
+                    isWeakFingerprintAugmented: false);
+
+                processFingerprintComputationResult.Value.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
+
+                if (runnableFromCacheResult != null)
+                {
+                    if (runnableFromCacheResult.CanRunFromCache)
+                    {
+                        // Track from which build (by session id and related session id) the cache hit data comes.
+                        processFingerprintComputationResult.Value.SessionId = runnableFromCacheResult.GetCacheHitData().Metadata.SessionId;
+                        processFingerprintComputationResult.Value.RelatedSessionId = runnableFromCacheResult.GetCacheHitData().Metadata.RelatedSessionId;
+                    }
+                    else
+                    {
+                        Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, $"Must have valid cache miss reason");
+                        processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
+
+                        Logger.Log.ScheduleProcessPipCacheMiss(
+                            processRunnable.OperationContext,
+                            cacheableProcess.Description,
+                            runnableFromCacheResult.Fingerprint.ToString());
+
+                        processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
+                    }
+                }
+            }
+
+            using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
+            {
+                processRunnable.Environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult.Value);
             }
 
             return runnableFromCacheResult;
@@ -1990,6 +2026,8 @@ namespace BuildXL.Scheduler
             CacheableProcess cacheableProcess,
             Func<WeakContentFingerprint> computeWeakFingerprint,
             BoxRef<PipCacheMissEventData> pipCacheMiss,
+            BoxRef<ProcessFingerprintComputationEventData> processFingerprintComputationResult,
+            List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList,
             bool canAugmentWeakFingerprint,
             bool isWeakFingerprintAugmented)
         {
@@ -2009,63 +2047,42 @@ namespace BuildXL.Scheduler
 
             var process = cacheableProcess.Process;
 
-            var processFingerprintComputationResult = new ProcessFingerprintComputationEventData
-            {
-                Kind = FingerprintComputationKind.CacheCheck,
-                PipId = process.PipId,
-                StrongFingerprintComputations =
-                    CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
-            };
-
             int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
             WeakContentFingerprint weakFingerprint;
             bool performedLookupForAugmentedWeakFingerprint = false;
 
-            using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
-            using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
+            using (operationContext.StartOperation(PipExecutorCounter.ComputeWeakFingerprintDuration))
             {
-                List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList =
-                    strongFingerprintComputationListWrapper.Instance;
+                weakFingerprint = computeWeakFingerprint();
 
-                using (operationContext.StartOperation(PipExecutorCounter.ComputeWeakFingerprintDuration))
+                if (!isWeakFingerprintAugmented)
                 {
-                    weakFingerprint = computeWeakFingerprint();
-                    processFingerprintComputationResult.WeakFingerprint = weakFingerprint;
+                    // Only set the weak fingerprint if it is not an augmented one.
+                    // The reason for this is we want to hide the fact that the weak fingerprint is augmented.
+                    processFingerprintComputationResult.Value.WeakFingerprint = weakFingerprint;
                 }
-
-                var result = await innerCheckRunnableFromCacheAsync(strongFingerprintComputationList);
-
-                // Update the strong fingerprint computations list
-                processFingerprintComputationResult.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
-
-                if (result.CanRunFromCache)
-                {
-                    processFingerprintComputationResult.SessionId = result.GetCacheHitData()?.Metadata.SessionId;
-                    processFingerprintComputationResult.RelatedSessionId = result.GetCacheHitData()?.Metadata.RelatedSessionId;
-                }
-
-                using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
-                {
-                    environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
-                }
-
-                processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
-
-                Logger.Log.PipCacheLookupStats(
-                    operationContext,
-                    process.FormattedSemiStableHash,
-                    performedLookupForAugmentedWeakFingerprint,
-                    weakFingerprint.ToString(),
-                    numCacheEntriesVisited,
-                    numPathSetsDownloaded);
-
-                return result;
             }
+
+            var result = await innerCheckRunnableFromCacheAsync();
+
+            // Update the strong fingerprint computations list
+            
+            processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
+
+            Logger.Log.PipCacheLookupStats(
+                operationContext,
+                process.FormattedSemiStableHash,
+                performedLookupForAugmentedWeakFingerprint,
+                weakFingerprint.ToString(),
+                numCacheEntriesVisited,
+                numPathSetsDownloaded);
+
+            return result;
 
             // Extracted local function with main logic for performing the cache lookup.
             // This is done to ensure that execution log logging is always done even in cases of early return (namely augmented weak fingerprint cache lookup
             // defers to an inner cache lookup and performs an early return of the result)
-            async Task<RunnableFromCacheResult> innerCheckRunnableFromCacheAsync(List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
+            async Task<RunnableFromCacheResult> innerCheckRunnableFromCacheAsync()
             {
                 // Totally usable descriptor (may additionally require content availability), or null.
                 RunnableFromCacheResult.CacheHitData cacheHitData = null;
@@ -2119,9 +2136,7 @@ namespace BuildXL.Scheduler
                         Dictionary<ContentHash, Tuple<BoxRef<ProcessStrongFingerprintComputationData>, ObservedInputProcessingResult, ObservedPathSet>> strongFingerprintCache =
                             strongFingerprintCacheWrapper.Instance;
 
-                        foreach (
-                            Task<Possible<PublishedEntryRef, Failure>> batchPromise in
-                                cache.ListPublishedEntriesByWeakFingerprint(operationContext, weakFingerprint))
+                        foreach (Task<Possible<PublishedEntryRef, Failure>> batchPromise in cache.ListPublishedEntriesByWeakFingerprint(operationContext, weakFingerprint))
                         {
                             if (environment.Context.CancellationToken.IsCancellationRequested)
                             {
@@ -2185,9 +2200,9 @@ namespace BuildXL.Scheduler
 
                                 // Record the most relevant strong fingerprint information, defaulting to information retrieved from cache
                                 BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = new ProcessStrongFingerprintComputationData(
-                                        pathSet: pathSet,
-                                        pathSetHash: entryRef.PathSetHash,
-                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
+                                    pathSet: pathSet,
+                                    pathSetHash: entryRef.PathSetHash,
+                                    priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
 
                                 strongFingerprintComputationList.Add(strongFingerprintComputationData);
 
@@ -2305,12 +2320,15 @@ namespace BuildXL.Scheduler
                             {
                                 // The strong fingeprint is the marker fingerprint indicating that computing an augmented weak fingerprint is required.
                                 augmentedWeakFingerprint = new WeakContentFingerprint(strongFingerprint.Value.Hash);
+
+                                // We want to give priority to the cache look-up with augmented weak fingerprint, and so we gives a new pip cahe miss event.
                                 augmentedWeakFingerprintMiss = new PipCacheMissEventData
                                 {
                                     PipId = processRunnable.PipId,
                                     CacheMissType = PipCacheMissType.Invalid,
                                 };
                                 performedLookupForAugmentedWeakFingerprint = true;
+                                strongFingerprintComputation.Item1.Value.AugmentedWeakFingerprint = augmentedWeakFingerprint;
 
                                 // Notice this is a recursive call to same method with augmented weak fingerprint but disallowing
                                 // further augmentation
@@ -2320,6 +2338,8 @@ namespace BuildXL.Scheduler
                                     cacheableProcess,
                                     () => augmentedWeakFingerprint.Value,
                                     augmentedWeakFingerprintMiss,
+                                    processFingerprintComputationResult,
+                                    strongFingerprintComputationList,
                                     canAugmentWeakFingerprint: false,
                                     isWeakFingerprintAugmented: true);
 
@@ -2422,28 +2442,24 @@ namespace BuildXL.Scheduler
                             // or a mismatch of strong fingerprints (at least one ref checked).
                             if (numCacheEntriesVisited == 0)
                             {
-                                if (isWeakFingerprintAugmented)
-                                {
-                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints;
-                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(
+                                pipCacheMiss.Value.CacheMissType = isWeakFingerprintAugmented
+                                    ? PipCacheMissType.MissForDescriptorsDueToAugmentedWeakFingerprints
+                                    : PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
+
+                                Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
                                         operationContext,
                                         description,
-                                        weakFingerprint.ToString());
-                                }
-                                else
-                                {
-                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
-                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
-                                        operationContext,
-                                        description,
-                                        weakFingerprint.ToString());
-                                }
+                                        weakFingerprint.ToString(),
+                                        isWeakFingerprintAugmented);
                             }
                             else
                             {
-                                // If we checked an augmented weak fingerprint during cache lookup, use its cache miss classification.                                
                                 if (augmentedWeakFingerprintMiss != null)
                                 {
+                                    // If we ever check augmented weak fingerprint, then we use its miss reason as the miss type.
+                                    // This gives priority to the result from cache look-up with augmented weak fingerprint.
+                                    // This also makes the data align with execution because if we ever check augmented weak fingerprint,
+                                    // then the weak fingerprint for execution is the augmented one.
                                     pipCacheMiss.Value.CacheMissType = augmentedWeakFingerprintMiss.Value.CacheMissType;
                                 }
                                 else
@@ -2452,7 +2468,8 @@ namespace BuildXL.Scheduler
                                     Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
                                         operationContext,
                                         description,
-                                        weakFingerprint.ToString());
+                                        weakFingerprint.ToString(),
+                                        isWeakFingerprintAugmented);
                                 }
                             }
                         }
@@ -2505,22 +2522,28 @@ namespace BuildXL.Scheduler
 
                             // Optional (not currently implemented): If augmenting path set already exists (race condition), we
                             // could compute augmented weak fingerprint and perform the cache lookup as above
-                            (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint)
-                                        = await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
-                                                operationContext,
-                                                environment,
-                                                state,
-                                                cacheableProcess,
-                                                weakFingerprint,
-                                                weakAugmentingPathSet,
-                                                weakAugmentingPathSetHash);
+                            (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint) = 
+                                await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                    operationContext,
+                                    environment,
+                                    state,
+                                    cacheableProcess,
+                                    weakFingerprint,
+                                    weakAugmentingPathSet,
+                                    weakAugmentingPathSetHash);
 
                             BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputation = new ProcessStrongFingerprintComputationData(
                                 weakAugmentingPathSetHash,
                                 new List<StrongContentFingerprint>() { StrongContentFingerprint.AugmentedWeakFingerprintMarker },
                                 weakAugmentingPathSet);
 
-                            // Add the computation of the augmenting weak fingerprint
+                            // Add the computation of the augmenting weak fingerprint.
+                            // This addition is particularly useful for fingerprint store based cache miss analysis. Later, post execution (due to cache miss),
+                            // we will send ProcessStrongFingerprintComputationEventData to the fingerprint store. That event data will have the augmented
+                            // weak fingerprint as its weak fingerprint. However, we only want to store the original weak fingerprint. Thus, we need
+                            // to create a mapping from the augmented weak fingerprint to the original one when the ProcessStrongFingerprintComputationEventData
+                            // is sent for the cache look-up. Since, the augmented weak fingerprint is actually the strong fingerprint of the current
+                            // strongFingerprintComputation, then we need to include the computation into the computation list.
                             strongFingerprintComputationList.Add(strongFingerprintComputation);
 
                             if (observedInputProcessingResult.Status == ObservedInputProcessingStatus.Success)
@@ -2538,10 +2561,12 @@ namespace BuildXL.Scheduler
                                     : addAugmentationResult.Failure.Describe();
 
                                 augmentedWeakFingerprint = new WeakContentFingerprint(computedStrongFingerprint.Hash);
-
                                 strongFingerprintComputation.Value = strongFingerprintComputation.Value.ToSuccessfulResult(
                                     computedStrongFingerprint,
-                                    observedInputProcessingResult.ObservedInputs);
+                                    observedInputProcessingResult.ObservedInputs.BaseArray);
+
+                                strongFingerprintComputation.Value.AugmentedWeakFingerprint = augmentedWeakFingerprint;
+                                strongFingerprintComputation.Value.IsNewlyPublishedAugmentedWeakFingerprint = true;
                             }
                             else
                             {

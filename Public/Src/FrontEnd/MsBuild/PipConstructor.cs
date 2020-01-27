@@ -879,7 +879,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             // We might be adding the same spec file pip more than once when the same project is evaluated
             // under different global properties, but that's fine, the pip graph ignores duplicates
-            m_frontEndHost.PipGraph.AddSpecFile(
+            m_frontEndHost.PipGraph?.AddSpecFile(
                 new SpecFilePip(
                     FileArtifact.CreateSourceFile(pathToProject),
                     new LocationData(pathToProject, 0, 0),

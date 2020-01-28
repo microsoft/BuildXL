@@ -3,17 +3,20 @@
 
 namespace Test {
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = BuildXLSdk.cacheTest({
         assemblyName: "BuildXL.Cache.Host.Test",
         sources: globR(d`.`,"*.cs"),
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
-                NetFx.System.Xml.dll
+                NetFx.System.Xml.dll,
+                NetFx.System.Xml.Linq.dll,
             ]),
             Configuration.dll,
             Service.dll,
+            importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
+            ...BuildXLSdk.fluentAssertionsWorkaround,
         ]
     });
 }

@@ -151,6 +151,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             _arguments.Overrides.Override(redisContentLocationStoreConfiguration);
             config = redisContentLocationStoreConfiguration;
+            ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
 
             return new RedisMemoizationStoreFactory(
                 contentConnectionStringProvider,
@@ -220,6 +221,30 @@ namespace BuildXL.Cache.Host.Service.Internal
             var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
 
             _logger.Debug("Creating a distributed content store for Autopilot");
+            var distributedContentStoreSettings = new DistributedContentStoreSettings() {
+                CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
+                TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
+                ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
+                MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
+                PinConfiguration = pinConfiguration,
+                RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
+                MaxRetryCount = _distributedSettings.MaxRetryCount,
+                TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
+                ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
+                PushProactiveCopies = _distributedSettings.PushProactiveCopies,
+                ProactiveCopyOnPin = _distributedSettings.ProactiveCopyOnPin,
+                ProactiveCopyUsePreferredLocations = _distributedSettings.ProactiveCopyUsePreferredLocations,
+                MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
+                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
+                ReplicaCreditInMinutes = _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
+                EnableRepairHandling = _distributedSettings.IsRepairHandlingEnabled,
+                ContentHashBumpTime = lazyTouchContentHashBumpTime,
+                LocationStoreBatchSize = _distributedSettings.RedisBatchPageSize,
+                ContentAvailabilityGuarantee = contentAvailabilityGuarantee
+            };
+
+            ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, _logger);
             var contentStore =
                 new DistributedContentStore<AbsolutePath>(
                     localMachineLocation,
@@ -233,29 +258,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _arguments.CopyRequester,
                     localCacheRoot,
                     _fileSystem,
-                    Override(new DistributedContentStoreSettings()
-                    {
-                        CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
-                        TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
-                        ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
-                        MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
-                        PinConfiguration = pinConfiguration,
-                        RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
-                        MaxRetryCount = _distributedSettings.MaxRetryCount,
-                        TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
-                        ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
-                        PushProactiveCopies = _distributedSettings.PushProactiveCopies,
-                        ProactiveCopyOnPin = _distributedSettings.ProactiveCopyOnPin,
-                        ProactiveCopyUsePreferredLocations = _distributedSettings.ProactiveCopyUsePreferredLocations,
-                        MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
-                        ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
-                        MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
-                        ReplicaCreditInMinutes = _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
-                        EnableRepairHandling = _distributedSettings.IsRepairHandlingEnabled,
-                        ContentHashBumpTime = lazyTouchContentHashBumpTime,
-                        LocationStoreBatchSize = _distributedSettings.RedisBatchPageSize,
-                        ContentAvailabilityGuarantee = contentAvailabilityGuarantee
-                    }),
+                    Override(distributedContentStoreSettings),
                     clock: _arguments.Overrides.Clock,
                     contentStoreSettings: contentStoreSettings);
             _logger.Debug("Created Distributed content store.");
@@ -358,7 +361,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
             configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
-
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
                 configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret) GetRequiredSecret(

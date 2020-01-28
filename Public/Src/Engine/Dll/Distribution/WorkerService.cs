@@ -234,12 +234,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        /// <summary>
-        /// Connects to the master and enables this node to receive build requests
-        /// </summary>
-        /// <param name="schedule">the engine schedule</param>
-        /// <returns>true if the operation was successful</returns>
-        internal async Task<bool> ConnectToMasterAsync(EngineSchedule schedule)
+        internal void Start(EngineSchedule schedule)
         {
             Contract.Requires(schedule != null);
             Contract.Requires(schedule.Scheduler != null);
@@ -256,6 +251,14 @@ namespace BuildXL.Engine.Distribution
             m_environment.State.PipEnvironment.MasterEnvironmentVariables = BuildStartData.EnvironmentVariables;
             m_resultSerializer = new ExecutionResultSerializer(maxSerializableAbsolutePathIndex: schedule.MaxSerializedAbsolutePath, executionContext: m_scheduler.Context);
             m_forwardingEventListener = new ForwardingEventListener(this);
+        }
+
+        /// <summary>
+        /// Connects to the master and enables this node to receive build requests
+        /// </summary>
+        internal async Task<bool> WhenDoneAsync()
+        {
+            Contract.Assert(AttachCompletion.IsCompleted && AttachCompletion.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
 
             bool success = await SendAttachCompletedAfterProcessBuildRequestStartedAsync();
 

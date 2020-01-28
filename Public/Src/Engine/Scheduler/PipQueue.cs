@@ -250,8 +250,11 @@ namespace BuildXL.Scheduler
             {
                 Contract.Assert(m_hasAnyRunning != null, "If cancellation is requested, the taskcompletionsource to keep track of running items cannot be null");
 
-                // Make sure that all running tasks are completed.
-                m_hasAnyRunning.Task.Wait();
+                if (m_queuesByKind.Sum(a => a.Value.NumRunning) != 0)
+                {
+                    // Make sure that all running tasks are completed.
+                    m_hasAnyRunning.Task.Wait();
+                }
             }
 
             IsDraining = false;

@@ -1409,6 +1409,7 @@ namespace BuildXL.Engine
             LogDiskFreeSpace(loggingContext, executionStart: true);
 
             m_schedulerStartTime = TimestampUtilities.Timestamp;
+            workerService?.Start(this);
             Scheduler.Start(loggingContext);
 
             bool success = true;
@@ -1424,7 +1425,7 @@ namespace BuildXL.Engine
             if (workerService != null)
             {
                 // Remote worker node in a distributed build
-                success &= workerService.ConnectToMasterAsync(this).GetAwaiter().GetResult();
+                success &= workerService.WhenDoneAsync().GetAwaiter().GetResult();
                 Contract.Assert(success || loggingContext.ErrorWasLogged, "WorkerService encountered errors, but none were logged.");
             }
 

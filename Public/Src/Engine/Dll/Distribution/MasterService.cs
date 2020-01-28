@@ -153,6 +153,14 @@ namespace BuildXL.Engine.Distribution
             foreach (var forwardedEvent in notification.ForwardedEvents)
             {
                 EventLevel eventLevel = (EventLevel)forwardedEvent.Level;
+
+                // For some errors, we need to exit the worker.
+                if (await worker.NotifyInfrastructureErrorAsync(forwardedEvent))
+                {
+                    // Disconnect the worker in case 
+                    eventLevel = EventLevel.Warning;
+                }
+
                 switch (eventLevel)
                 {
                     case EventLevel.Error:

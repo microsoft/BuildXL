@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -691,23 +692,15 @@ namespace BuildXL.Engine.Distribution
             }
             catch (InvalidOperationException)
             {
-                // If the connection is lost or the worker is not running at all since the beginning 
-                // (due to ValidateCacheConnection failure), then fail the pips.
-                // Otherwise, it is an unexpected exception, so throw it.
-                if (m_isConnectionLost || !EverAvailable)
-                {
-                    // We cannot send the pip build request as the connection has been lost with the worker. 
+                // We cannot send the pip build request as the connection has been lost with the worker. 
 
-                    // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
-                    // However, if the connection is lost after the worker is choosen 
-                    // and before we add those build requests to blocking collection(m_buildRequests), 
-                    // we will try to add the build request to the blocking colletion which is marked as completed 
-                    // It will throw InvalidOperationException. 
-                    FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {EverAvailable}");
-                    return;
-                }
-
-                throw;
+                // When connection has been lost, the worker gets stopped and scheduler stops choosing that worker. 
+                // However, if the connection is lost after the worker is choosen 
+                // and before we add those build requests to blocking collection(m_buildRequests), 
+                // we will try to add the build request to the blocking colletion which is marked as completed 
+                // It will throw InvalidOperationException. 
+                FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {EverAvailable}");
+                return;
             }
         }
 
@@ -1059,6 +1052,21 @@ namespace BuildXL.Engine.Distribution
 
                 pipCompletionTask.TrySet(result);
             }
+        }
+
+        /// <summary>
+        /// Worker logged an error and disconnect worker in case of specific errors
+        /// </summary>
+        public async Task<bool> NotifyInfrastructureErrorAsync(EventMessage forwardedEvent)
+        {
+            if ((EventLevel)forwardedEvent.Level == EventLevel.Error && 
+                forwardedEvent.EventId == (int)LogEventId.WorkerFailedDueToLowDiskSpace)
+            {
+                await FinishAsync(forwardedEvent.Text);
+                return true;
+            }
+
+            return false;
         }
 
         private bool ChangeStatus(WorkerNodeStatus fromStatus, WorkerNodeStatus toStatus, [CallerMemberName] string callerName = null)

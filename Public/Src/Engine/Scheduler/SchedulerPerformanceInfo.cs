@@ -16,6 +16,9 @@ namespace BuildXL.Scheduler
         public long ExecuteProcessDurationMs;
 
         /// <nodoc/>
+        public long CanceledProcessExecuteDurationMs;
+
+        /// <nodoc/>
         public long MachineMinimumAvailablePhysicalMB;
 
         /// <nodoc/>

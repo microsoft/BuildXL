@@ -354,6 +354,7 @@ export function runQTest(args: QTestArguments): Result {
             tool: args.qTestTool ? args.qTestTool : qTestTool,
             tags: [
                 "test",
+                "telemetry:qtest", 
                 ...(args.tags || []),
             ],
             description: "QTest Coverage Upload",

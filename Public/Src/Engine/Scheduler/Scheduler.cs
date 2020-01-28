@@ -1844,6 +1844,7 @@ namespace BuildXL.Scheduler
             {
                 PipExecutionStepCounters = m_pipExecutionStepCounters,
                 ExecuteProcessDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.ExecuteProcessDuration).TotalMilliseconds),
+                CanceledProcessExecuteDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.CanceledProcessExecuteDuration).TotalMilliseconds),
                 ProcessPipCacheHits = m_numProcessPipsSatisfiedFromCache,
                 ProcessPipIncrementalSchedulingPruned = m_numProcessesIncrementalSchedulingPruned,
                 TotalProcessPips = m_numProcessPipsCompleted,

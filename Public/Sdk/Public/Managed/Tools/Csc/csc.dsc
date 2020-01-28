@@ -160,7 +160,7 @@ export function compile(inputArgs: Arguments) : Result {
         arguments: cscArguments,
         workingDirectory: outputDirectory,
         dependencies: additionalDependencies.filter(f => f !== undefined), //TODO: or additionalInputs???
-        tags: ["compile"],
+        tags: ["compile", "telemetry:csc"],
         errorRegex: "error.*",
         // If shared compilation is enabled, then we need to allow the compiler service to breakaway. 
         // Additionally, and since this is a trusted process, we use the statically declared accesses to

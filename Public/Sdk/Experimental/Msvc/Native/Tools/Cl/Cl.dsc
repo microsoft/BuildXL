@@ -261,7 +261,8 @@ function evaluateOneSourceFile(
         dependencies: [...includes, ...implicitInputs],
         implicitOutputs: implicitOutputs,
         tags: [ 
-            "compile", 
+            "compile",
+            "telemetry:cl", 
             ...(args.tags || [])
         ],
     });

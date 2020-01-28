@@ -147,7 +147,10 @@ export function evaluate(args: Arguments): Result {
     let result = Transformer.execute({
         tool: args.tool || importFrom("VisualCpp").linkTool,
         workingDirectory: outDir,
-        tags: args.tags,
+        tags: [ 
+            "telemetry:link", 
+            ...(args.tags || [])
+        ],
         arguments: cmdArgs,
         dependencies: libSearchPaths,
         implicitOutputs: compact([

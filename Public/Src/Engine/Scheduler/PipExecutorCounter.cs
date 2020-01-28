@@ -46,7 +46,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// The amount of time it took to execute all process pips. This only includes the time spent executing the process.
-        /// It does not include any pre or post processing
+        /// It does not include any pre or post processing. It does not include any processes that were cancelled.
         /// </summary>
         /// <remarks>
         /// In distributed builds, this counter only includes processes executed on one machine, even if the machine

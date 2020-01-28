@@ -308,12 +308,22 @@ namespace BuildXL.App.Tracing
             if (schedulerInfo != null && schedulerInfo.ProcessPipCountersByTelemetryTag != null && schedulerInfo.ExecuteProcessDurationMs > 0)
             {
                 var elapsedTimesByTelemetryTag = schedulerInfo.ProcessPipCountersByTelemetryTag.GetElapsedTimes(PipCountersByGroup.ExecuteProcessDuration);
-                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.Select(elapedTime => string.Format("{0,-12}{1,-39}{2}%", string.Empty, elapedTime.Key, ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, schedulerInfo.ExecuteProcessDurationMs).Item1)));
-                if (elapsedTimesByTelemetryTag.Count > 0)
-                {
-                    var otherTime = ComputeTimePercentage(Math.Max(0, schedulerInfo.ExecuteProcessDurationMs - elapsedTimesByTelemetryTag.Sum(elapedTime => (long)elapedTime.Value.TotalMilliseconds)), schedulerInfo.ExecuteProcessDurationMs);
-                    telemetryTagPerformanceSummary += string.Format("{0}{1,-12}{2,-39}{3}%{0}", Environment.NewLine, string.Empty, "Other:", otherTime.Item1);
-                }
+
+                // TelemetryTag counters get incremented when a pip is cancelled due to ctrl-c or resource exhaustion. Make sure to include the total
+                // cancelled time in the denomenator when calculating the time percentage
+                var executeAndCancelledExecuteDuration = schedulerInfo.ExecuteProcessDurationMs + schedulerInfo.CanceledProcessExecuteDurationMs;
+
+                int percentagesTotal = 0;
+                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.Select(
+                    elapedTime =>
+                    {
+                        var computedPercentages = ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, executeAndCancelledExecuteDuration);
+                        percentagesTotal += computedPercentages.Item1;
+                        return string.Format("{0,-12}{1,-39}{2}%", string.Empty, elapedTime.Key, computedPercentages.Item1);
+                    }));
+
+                // Humans are picky about percentages adding up neatly to 100%. Make sure other accounts for any rounding slop
+                telemetryTagPerformanceSummary += string.Format("{0}{1,-12}{2,-39}{3}%{0}", Environment.NewLine, string.Empty, "Other:", 100 - percentagesTotal);
             }
 
             return telemetryTagPerformanceSummary;

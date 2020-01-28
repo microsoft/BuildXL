@@ -17,7 +17,6 @@ using Xunit;
 
 namespace ContentStoreTest.Sessions
 {
-    [Trait("Category", "Integration")]
     [Trait("Category", "Integration1")]
     [Trait("Category", "QTestSkip")]
     /*public*/ class InProcessServiceClientContentSessionTests : ServiceClientContentSessionTests

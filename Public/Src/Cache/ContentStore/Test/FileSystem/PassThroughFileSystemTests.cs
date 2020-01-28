@@ -18,6 +18,7 @@ using System.Linq;
 
 namespace ContentStoreTest.FileSystem
 {
+    [Trait("Category", "Integration")]
     public sealed class PassThroughFileSystemTests : AbsFileSystemTests
     {
         public PassThroughFileSystemTests()
@@ -34,7 +35,7 @@ namespace ContentStoreTest.FileSystem
             {
                 var path = testDirectory.Path / Guid.NewGuid().ToString();
 
-                int iterations = 1000;
+                int iterations = 100;
 
                 for(var i = 0; i < iterations; i++)
                 {

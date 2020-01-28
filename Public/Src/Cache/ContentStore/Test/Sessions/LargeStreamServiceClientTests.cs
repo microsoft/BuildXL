@@ -135,7 +135,6 @@ namespace ContentStoreTest.Sessions
         protected abstract IContentStore CreateStore(AbsolutePath rootPath, ContentStoreConfiguration configuration);
     }
 
-    [Trait("Category", "Integration")]
     [Trait("Category", "Integration1")]
     [Trait("Category", "QTestSkip")]
     /*public*/ class InProcessLargeStreamServiceClientTests : LargeStreamServiceClientTests
@@ -168,7 +167,6 @@ namespace ContentStoreTest.Sessions
        }
     }
 
-    [Trait("Category", "Integration")]
     [Trait("Category", "Integration1")]
     [Trait("Category", "QTestSkip")]
     /*public*/ class ExternalProcessLargeStreamServiceClientTests : LargeStreamServiceClientTests

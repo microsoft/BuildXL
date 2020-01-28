@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             var capacity = 2;
             var context = new Context(TestGlobal.Logger);
 
-            for (var i = 0; i < 100_000; i++)
+            for (var i = 0; i < 10_000; i++)
             { 
                 var pool = new ResourcePool<Key, Resource>(context, maxResourceCount: capacity, maxAgeMinutes: 1, resourceFactory: _ => new Resource());
 

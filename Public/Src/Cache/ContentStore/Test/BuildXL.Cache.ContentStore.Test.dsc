@@ -3,7 +3,7 @@
 
 namespace Test {
     @@public
-    export const categoriesToRunInParallel = [ "Integration1", "Integration2" ];
+    export const categoriesToRunInParallel = [ "Integration1", "Integration2", "Integration", "Performance" ];
 
     @@public
     export const dll = BuildXLSdk.cacheTest({

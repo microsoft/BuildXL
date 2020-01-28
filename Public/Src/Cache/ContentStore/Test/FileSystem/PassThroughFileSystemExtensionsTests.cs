@@ -11,6 +11,7 @@ using Xunit;
 
 namespace ContentStoreTest.FileSystem
 {
+    [Trait("Category", "Integration")]
     public sealed class PassThroughFileSystemExtensionsTests : FileSystemExtensionsTests
     {
         public PassThroughFileSystemExtensionsTests()

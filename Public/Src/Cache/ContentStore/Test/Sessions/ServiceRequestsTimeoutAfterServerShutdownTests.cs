@@ -96,7 +96,6 @@ namespace ContentStoreTest.Sessions
         }
     }
 
-    [Trait("Category", "Integration")]
     [Trait("Category", "Integration1")]
     [Trait("Category", "WindowsOSOnly")] // These use named event handles, which are not supported in .NET core
     public class InProcessServiceRequestsTimeoutAfterServerShutdownTests : ServiceRequestsTimeoutAfterServerShutdownTests<TestInProcessServiceClientContentStore>
@@ -141,7 +140,6 @@ namespace ContentStoreTest.Sessions
        }
     }
 
-    [Trait("Category", "Integration")]
     [Trait("Category", "Integration1")]
     [Trait("Category", "QTestSkip")]
     /*public*/ class ExternalProcessServiceRequestsTimeoutAfterServerShutdownTests : ServiceRequestsTimeoutAfterServerShutdownTests<TestServiceClientContentStore>

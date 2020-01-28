@@ -7,12 +7,10 @@ using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
@@ -26,6 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
     public class EffectiveLastAccessTimeProviderTests : TestBase
     {
         private static LocalLocationStoreConfiguration Configuration { get; } = new LocalLocationStoreConfiguration() {UseTieredDistributedEviction = true, DesiredReplicaRetention = 3};
+        private static readonly Func<MachineId, ContentHash, bool> DisableDesignatedLocationsFunc = (id, hash) => false;
 
         [Fact]
         public void RareContentShouldBeImportant()
@@ -37,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 contentSize: 42,
                 lastAccessTimeUtc: clock.UtcNow,
                 creationTimeUtc: clock.UtcNow);
-            bool isImportant = EffectiveLastAccessTimeProvider.IsImportantReplica(hash, entry, new MachineId(1), Configuration.DesiredReplicaRetention);
+            bool isImportant = EffectiveLastAccessTimeProvider.IsImportantReplica(hash, entry, new MachineId(1), Configuration.DesiredReplicaRetention, DisableDesignatedLocationsFunc);
             isImportant.Should().BeTrue();
         }
 
@@ -71,7 +70,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                     hash,
                     entry,
                     new MachineId(machineId),
-                    Configuration.DesiredReplicaRetention)).Count(important => important);
+                    Configuration.DesiredReplicaRetention,
+                    DisableDesignatedLocationsFunc)).Count(important => important);
 
             // We should get roughly 'configuration.DesiredReplicaRetention' important replicas.
             // The number is not exact, because when we're computing the importance we're computing a hash of the first bytes of the hash
@@ -138,7 +138,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 [hashes[2]] = entries[2],
             };
 
-            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock);
+            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock, DisableDesignatedLocationsFunc);
+
+            var context = new OperationContext(new Context(Logger));
+
+            // A given machine id index is higher then the max number of locations used in this test.
+            // This will prevent the provider to consider non-important locations randomly important
+            var input = hashes.Select(hash => new ContentHashWithLastAccessTime(hash, mock.Map[hash].LastAccessTimeUtc.ToDateTime())).ToList();
+
+            var result = provider.GetEffectiveLastAccessTimes(context, new MachineId(1024), input).ShouldBeSuccess();
+
+            var output = result.Value.ToList();
+            output.Sort(ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance);
+
+            // We know that the first hash should be the last one, because this is only important hash in the list.
+            output[output.Count - 1].ContentHash.Should().Be(hashes[0]);
+        }
+
+        [Fact]
+        public void TestContentEvictionWithDesignatedLocation()
+        {
+            var clock = new MemoryClock();
+            var entries = new List<ContentLocationEntry>();
+
+            entries.Add(
+                ContentLocationEntry.Create(
+                    locations: CreateWithLocationCount(100),
+                    contentSize: 42,
+                    lastAccessTimeUtc: clock.UtcNow - TimeSpan.FromHours(2),
+                    creationTimeUtc: null));
+
+            entries.Add(
+                ContentLocationEntry.Create(
+                    locations: CreateWithLocationCount(100),
+                    contentSize: 42,
+                    lastAccessTimeUtc: clock.UtcNow - TimeSpan.FromHours(2),
+                    creationTimeUtc: null));
+
+            entries.Add(
+                ContentLocationEntry.Create(
+                    locations: CreateWithLocationCount(100),
+                    contentSize: 42,
+                    lastAccessTimeUtc: clock.UtcNow - TimeSpan.FromHours(2),
+                    creationTimeUtc: null));
+
+            var mock = new EffectiveLastAccessTimeProviderMock();
+            var hashes = new[] { ContentHash.Random(), ContentHash.Random(), ContentHash.Random() };
+            mock.Map = new Dictionary<ContentHash, ContentLocationEntry>()
+            {
+                [hashes[0]] = entries[0],
+                [hashes[1]] = entries[1],
+                [hashes[2]] = entries[2],
+            };
+
+            var provider = new EffectiveLastAccessTimeProvider(
+                Configuration,
+                clock,
+                mock,
+                isDesignatedLocationFunc: (location, hash) => hash == hashes[0]); // The first hash will be designated, and thus important
 
             var context = new OperationContext(new Context(Logger));
 

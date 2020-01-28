@@ -1315,13 +1315,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<IReadOnlyList<ContentEvictionInfo>>(postInitializationResult);
             }
 
-            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this));
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this), isDesignatedLocation);
             return context.PerformOperation(
                     Tracer,
                     () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, LocalMachineId, contentHashes),
                     Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
                     traceOperationStarted: false,
                     traceErrorsOnly: true);
+
+            bool isDesignatedLocation(MachineId machineId, ContentHash hash) => ClusterState.GetDesignatedLocationIds(hash, includeExpired: true).TryGetValue(out var ids) && ids.Contains(machineId);
         }
 
         /// <summary>

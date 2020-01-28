@@ -227,5 +227,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
             return result.Data;
         }
+
+        /// <summary>
+        /// Tries to get the value from the result.
+        /// </summary>
+        /// <returns>Whether the value was gotten successfully.</returns>
+        public static bool TryGetValue<T>(this Result<T> result, out T value)
+        {
+            value = result.Succeeded ? result.Value : default;
+            return result.Succeeded;
+        }
     }
 }

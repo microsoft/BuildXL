@@ -201,6 +201,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Gets the set of location ids designated for a hash. This is relevant for proactive copies and eviction.
+        /// </summary>
+        internal Result<MachineId[]> GetDesignatedLocationIds(ContentHash hash, bool includeExpired)
+        {
+            if (BinManager == null)
+            {
+                return new Result<MachineId[]>("Could not get designated locations because BinManager is null");
+            }
+
+            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
+            return locations
+                .Where(machineId => !_inactiveMachinesSet[machineId])
+                .ToArray();
+        }
+
+        /// <summary>
         /// Initializes the BinManager if it is required.
         /// </summary>
         internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)

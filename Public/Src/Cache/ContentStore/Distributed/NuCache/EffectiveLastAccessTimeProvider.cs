@@ -36,16 +36,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IContentResolver _contentResolver;
         private readonly IClock _clock;
+        private readonly Func<MachineId, ContentHash, bool> _isDesignatedLocationFunc;
 
         /// <nodoc />
         public EffectiveLastAccessTimeProvider(
             LocalLocationStoreConfiguration configuration,
             IClock clock,
-            IContentResolver contentResolver)
+            IContentResolver contentResolver,
+            Func<MachineId, ContentHash, bool> isDesignatedLocationFunc)
         {
             _clock = clock;
             _configuration = configuration;
             _contentResolver = contentResolver;
+            _isDesignatedLocationFunc = isDesignatedLocationFunc;
         }
 
         /// <summary>
@@ -85,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
                     lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                    isImportantReplica = IsImportantReplica(contentHash.Hash, entry, localMachineId, _configuration.DesiredReplicaRetention);
+                    isImportantReplica = IsImportantReplica(contentHash.Hash, entry, localMachineId, _configuration.DesiredReplicaRetention, _isDesignatedLocationFunc);
                     replicaCount = entry.Locations.Count;
 
                     if (size == 0)
@@ -107,8 +110,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns true if a given hash considered to be an important replica for the given machine.
         /// </summary>
-        public static bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, MachineId localMachineId, long desiredReplicaCount)
+        public static bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, MachineId localMachineId, long desiredReplicaCount, Func<MachineId, ContentHash, bool> isDesignatedLocationFunc)
         {
+            if (isDesignatedLocationFunc(localMachineId, hash))
+            {
+                return true;
+            }
+
             var locationsCount = entry.Locations.Count;
             if (locationsCount <= desiredReplicaCount)
             {

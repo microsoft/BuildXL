@@ -113,7 +113,7 @@ namespace ContentStoreTest.Distributed.Redis
         public void Dispose() => Dispose(close: false);
 
         /// <nodoc />
-        public void Dispose(bool close = false)
+        public void Dispose(bool close)
         {
             GC.SuppressFinalize(this);
 

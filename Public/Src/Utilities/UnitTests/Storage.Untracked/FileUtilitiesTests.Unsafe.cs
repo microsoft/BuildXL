@@ -154,11 +154,13 @@ namespace Test.BuildXL.Storage
                 {
                     exception = e;
                 }
-                XAssert.IsTrue(exception != null);
+                XAssert.IsNotNull(exception);
                 XAssert.IsTrue(FileUtilities.Exists(dir));
             }
 
             AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+            FileUtilities.DeleteDirectoryContents(dir, deleteRootDirectory: true);
+            XAssert.IsFalse(FileUtilities.Exists(dir));
         }
 
         /// <summary>
@@ -463,15 +465,16 @@ namespace Test.BuildXL.Storage
         /// This test does not test any BuildXL code, but exists to document the behavior
         /// of Windows deletes.
         /// </remarks>
-        [Theory]
-        public void DeleteDirectoryStressTest(int x)
+        [Theory(Skip = "Long running test")]
+        [InlineData(100000)]
+        public void DeleteDirectoryStressTest(int numDirs)
         {
             string target = Path.Combine(TemporaryDirectory, "loop");
             string nested = Path.Combine(target, "nested");
             Exception exception = null;
             try
             {
-                for (int i = 0; i < 100000; ++i)
+                for (int i = 0; i < numDirs; ++i)
                 {
                     Directory.CreateDirectory(target);
                     Directory.CreateDirectory(nested);
@@ -801,11 +804,14 @@ namespace Test.BuildXL.Storage
             }
 
             // File access successfully removed
-            XAssert.IsTrue(exception != null);
+            XAssert.IsNotNull(exception);
 
             // Both versions will return correctly
             XAssert.IsTrue(FileUtilities.Exists(file));
             XAssert.IsTrue(File.Exists(file));
+
+            // don't leave inaccessible file around
+            FileUtilities.DeleteFile(file, tempDirectoryCleaner: MoveDeleteCleaner);
         }
 
         /// <remarks>
@@ -891,7 +897,8 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void CreateHardlinkSupportsLongPath()
         {
-            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            var rootDir = Path.Combine(TemporaryDirectory, "dir");
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(rootDir, (path, _) => Path.Combine(path, "dir"));
 
             FileUtilities.CreateDirectory(longPath);
 
@@ -913,6 +920,7 @@ namespace Test.BuildXL.Storage
             }
 
             XAssert.IsTrue(CreateHardLinkIfSupported(link: link, linkTarget: file));
+            FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
         }
 
         [Fact]
@@ -925,10 +933,19 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void LongPathAccessControlTest()
         {
-            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(TemporaryDirectory, (path, _) => Path.Combine(path, "dir"));
+            // skip this test if running on .NET Framework with vstest
+            // reason: new FileInfo(longPath) fails with PathTooLongException (interestingly, it works fine when executed by xunit)
+            if (!OperatingSystemHelper.IsDotNetCore &&
+                System.Diagnostics.Process.GetCurrentProcess().ProcessName.Contains("testhost"))
+            {
+                return;
+            }
+
+            var rootDir = Path.Combine(TemporaryDirectory, "dir");
+            var longPath = Enumerable.Range(0, NativeIOConstants.MaxDirectoryPath).Aggregate(rootDir, (path, _) => Path.Combine(path, "dir"));
             var file = Path.Combine(longPath, "fileWithWriteAccess.txt");
 
-            FileUtilities.CreateDirectory(longPath);           
+            FileUtilities.CreateDirectory(longPath);
             SafeFileHandle fileHandle;
             var result = FileUtilities.TryCreateOrOpenFile(
                 file,
@@ -942,11 +959,11 @@ namespace Test.BuildXL.Storage
             FileUtilities.SetFileAccessControl(file, FileSystemRights.WriteAttributes, true);
             XAssert.IsTrue(FileUtilities.HasWritableAccessControl(file));
 
-            //Delete the created directory
+            // Delete the created directory
             fileHandle.Close();
-            FileUtilities.DeleteDirectoryContents(longPath, deleteRootDirectory: true);
+            FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
+            XAssert.FileDoesNotExist(file);
         }
-
 
         private static void SetReadonlyFlag(string path)
         {

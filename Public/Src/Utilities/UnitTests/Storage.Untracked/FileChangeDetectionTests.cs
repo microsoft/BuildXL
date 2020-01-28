@@ -579,6 +579,15 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(LinkTarget, "Target");
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(NewlyPresentAsFile(LinkTarget));
+
+            DeleteSymlink(LinkFrom);
+        }
+
+        private void DeleteSymlink(string link)
+        {
+            var fullPath = GetFullPath(link);
+            FileUtilities.DeleteFile(fullPath);
+            XAssert.FileDoesNotExist(fullPath);
         }
 
         [FactIfSupported(requiresJournalScan: true, requiresSymlinkPermission: true)]
@@ -599,6 +608,7 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(LinkTarget, "Target");
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(NewlyPresentAsFile(LinkTarget));
+            DeleteSymlink(LinkFrom);
         }
 
         [FactIfSupported(requiresJournalScan: true, requiresSymlinkPermission: true)]
@@ -621,6 +631,7 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(LinkTarget, "Target2");
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(DataOrMetadataChanged(LinkTarget));
+            DeleteSymlink(LinkFrom);
         }
 
         #endregion
@@ -787,6 +798,14 @@ namespace Test.BuildXL.Storage.Admin
             // No changes detected because Junction2\file is not tracked.
             DetectedChanges changedPaths = support.ProcessChanges();
             changedPaths.AssertNoChangesDetected();
+
+            DeleteJunction("Junction2");
+            DeleteJunction("Junction1");
+        }
+
+        private void DeleteJunction(string junction)
+        {
+            FileUtilities.DeleteFile(GetFullPath(junction), tempDirectoryCleaner: MoveDeleteCleaner);
         }
 
         [FactIfSupported(requiresJournalScan: true)]

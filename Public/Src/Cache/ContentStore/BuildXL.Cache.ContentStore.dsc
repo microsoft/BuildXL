@@ -133,7 +133,6 @@ export const deploymentForBuildXL: Deployment.Definition = {
         App.exe,
 
         importFrom("Grpc.Core").pkg,
-        importFrom("Grpc.Core.Api").pkg,
         importFrom("Google.Protobuf").pkg,
 
         ...addIf(qualifier.targetRuntime === "win-x64",

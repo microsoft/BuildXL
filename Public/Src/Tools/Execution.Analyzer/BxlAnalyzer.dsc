@@ -16,18 +16,18 @@ namespace Execution.Analyzer {
         sources: globR(d`.`, "*.cs"),
         
         references: [
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                NetFx.Netstandard.dll,
-                NetFx.System.IO.dll,
-                NetFx.System.Web.dll,
-                NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll,
-                NetFx.System.IO.Compression.dll,
-                NetFx.System.Net.Http.dll,
-                NetFx.System.Runtime.Serialization.dll,
-                ContentPlacement.Core.dll,
-                importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg
-            ]),
+            ...addIfLazy(
+                BuildXLSdk.isFullFramework, () => [
+                    NetFx.System.IO.dll,
+                    NetFx.System.Web.dll,
+                    NetFx.System.Xml.dll,
+                    NetFx.System.Xml.Linq.dll,
+                    NetFx.System.IO.Compression.dll,
+                    NetFx.System.Net.Http.dll,
+                    NetFx.System.Runtime.Serialization.dll,
+                    ContentPlacement.Core.dll
+                ]
+            ),
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,
             importFrom("Antlr4.Runtime.Standard").pkg,

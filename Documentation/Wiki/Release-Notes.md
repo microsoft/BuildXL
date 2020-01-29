@@ -11,8 +11,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
-# Upcomming release
+# Upcoming release
 - [VsCode] Add new CodeLens at the top of each spec showing which module it is a part of.
+
+# 0.1.0-20200124.5 (Release [53523](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53523)).  Released 1/29/2020
+-	Add session ID and session related ID to fingerprint store entry
+-	Speed up write operations in fingerprint store
+-	Support running crossgen on produced netcore binaries
+-	DScript managed SDK improvements
+-	Various bug fixes
 
 # 0.1.0-20200119.0 (Release [53036](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=53036)).  Released 1/22/2020
 - CriticalPath analyzer improvements

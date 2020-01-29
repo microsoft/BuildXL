@@ -12,7 +12,6 @@ namespace Processes.Detours {
         const assemblyName = "Test.BuildXL.Processes.Detours";
 
         return BuildXLSdk.test({
-            testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
             runTestArgs: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 unsafeTestRunArguments: {

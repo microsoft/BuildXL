@@ -567,10 +567,30 @@ namespace BuildXL.Processes
         private Task<FilterResult> TryFilterLineByLineAsync(SandboxedProcessOutput output, Predicate<string> filterPredicate, bool appendNewLine = false)
             => TryFilterAsync(output, new OutputFilter(filterPredicate), appendNewLine);
 
+        /// <summary>
+        /// Result of filtering the <see cref="SandboxedProcessOutput"/>.
+        /// </summary>
         private class FilterResult
         {
+            /// <summary>
+            /// The output. May or may not be filtered. Empty string means empty output. Null means there was an error processing the output
+            /// </summary>
             public string FilteredOutput;
+
+            /// <summary>
+            /// Whether the result was filtered
+            /// </summary>
             public bool IsFiltered;
+
+            /// <summary>
+            /// Whether there was an error processing the output
+            /// </summary>
+            public bool HasError => FilteredOutput == null;
+
+            /// <summary>
+            /// FilterResult to use when there is a filtering error
+            /// </summary>
+            public static FilterResult ResultForError = new FilterResult() { FilteredOutput = null, IsFiltered = false };
         }
 
         private async Task<FilterResult> TryFilterAsync(SandboxedProcessOutput output, OutputFilter filter, bool appendNewLine)
@@ -634,13 +654,13 @@ namespace BuildXL.Processes
             catch (IOException ex)
             {
                 PipStandardIOFailed(GetFileName(output.File), ex);
-                return null;
+                return FilterResult.ResultForError;
             }
             catch (AggregateException ex)
             {
                 if (TryLogRootIOException(GetFileName(output.File), ex))
                 {
-                    return null;
+                    return FilterResult.ResultForError;
                 }
 
                 throw;
@@ -648,7 +668,7 @@ namespace BuildXL.Processes
             catch (BuildXLException ex)
             {
                 PipStandardIOFailed(GetFileName(output.File), ex);
-                return null;
+                return FilterResult.ResultForError;
             }
         }
 

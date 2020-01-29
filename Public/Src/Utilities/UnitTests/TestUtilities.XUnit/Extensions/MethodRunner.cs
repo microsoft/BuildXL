@@ -39,6 +39,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
         /// <inheritdoc />
         protected override async Task<RunSummary> RunTestCaseAsync(IXunitTestCase testCase)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             // Tracing test methods invocation gives an ability to see what tests were running when 
             // the console runner crashed with stack overflow or similar unrecoverable error.
             m_logger.LogVerbose($"Starting '{testCase.DisplayName}'... ");
@@ -58,7 +59,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             }
             finally
             {
-                m_logger.LogVerbose($"Finished '{testCase.DisplayName}'");
+                m_logger.LogVerbose($"Finished '{testCase.DisplayName}' in {sw.ElapsedMilliseconds:n0}ms");
             }
         }
     }

@@ -367,11 +367,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // all backups.
                         for (uint bin = 0; bin < NumberOfBins; bin++)
                         {
-                            if (bin == 798)
-                            {
-
-                            }
-
                             var currentBin = bin;
                             while (_machineSetBuffer.Count < LocationsPerBin)
                             {

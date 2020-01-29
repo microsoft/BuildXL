@@ -23,8 +23,6 @@ namespace LanguageService.Server {
         assemblyName: "BuildXL.DScript.LanguageServer.UnitTests",
         sources: globR(d`.`, "*.cs"),
         skipAssemblySigning: true,
-        // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runtimeContent: [
             {
                 subfolder: a`testdata`,

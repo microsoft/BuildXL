@@ -9,7 +9,6 @@ const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 namespace Processes {
     @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test({
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Processes",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),

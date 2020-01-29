@@ -600,6 +600,9 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task ProcessId()
         {
+            var wmic = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wbem", "wmic.exe");
+            var find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "find.exe");
+
             using (var tempFiles = new TempFileStorage(canGetFileNames: false))
             {
                 var pt = new PathTable();
@@ -608,7 +611,7 @@ namespace Test.BuildXL.Processes
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c wmic process get parentprocessid,name|find \"WMIC\"",
+                        Arguments = $"/d /c {wmic} process get parentprocessid,name|{find} \"WMIC\"",
                     };
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 using (ISandboxedProcess process = await StartProcessAsync(info))

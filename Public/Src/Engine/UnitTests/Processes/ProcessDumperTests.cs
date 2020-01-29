@@ -71,16 +71,18 @@ namespace Test.BuildXL.Processes
                     string dumpPath = Path.Combine(TemporaryDirectory, "dumps" + i);
                     Directory.CreateDirectory(dumpPath);
                     var cmd = CmdHelper.CmdX64;
+                    var ping = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.SystemX86), "ping.exe");
                     Process p = null;
                     bool success;
                     Exception failure;
                     try
                     {
-                        p = Process.Start(new ProcessStartInfo(cmd, string.Format(@" /K {0} /K {0} /K ping localhost -t", cmd))
+                        p = Process.Start(new ProcessStartInfo(cmd, string.Format(@$" /K {cmd} /K {cmd} /K {ping} localhost -t"))
                         {
                             CreateNoWindow = true,
                             WindowStyle = ProcessWindowStyle.Hidden,
                             RedirectStandardOutput = true,
+                            RedirectStandardError = true,
                             UseShellExecute = false,
                         });
 
@@ -91,11 +93,14 @@ namespace Test.BuildXL.Processes
                         while (sw.Elapsed.TotalSeconds < 30)
                         {
                             string line = p.StandardOutput.ReadLine();
-                            output.AppendLine(line);
-                            if (line.Contains("Pinging"))
+                            if (line != null)
                             {
-                                found = true;
-                                break;
+                                output.AppendLine(line);
+                                if (line.Contains("Pinging"))
+                                {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
 

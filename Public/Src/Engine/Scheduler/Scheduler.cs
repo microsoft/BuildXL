@@ -55,6 +55,7 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -401,32 +402,15 @@ namespace BuildXL.Scheduler
             int targetProcessSlots = m_scheduleConfiguration.MaxProcesses;
             int targetCacheLookupSlots = m_scheduleConfiguration.MaxCacheLookup;
 
-            double cpuMultiplier, cacheLookupMultiplier;
 
-            // If the user passes masterCpuMultiplier, it should be used only when
-            // there is at least one available remote worker (meaning at least two available workers).
-            if (m_scheduleConfiguration.MasterCpuMultiplier.HasValue)
-            {
-                cpuMultiplier = availableWorkersCount > 1 ? m_scheduleConfiguration.MasterCpuMultiplier.Value : 1;
-            }
-            else
-            {
-                // If the user does not pass masterCpuMultiplier, then the local worker slots are configured
-                // based on the number of available workers.
-                // If only local worker is available, then the multiplier would be 1.
-                // If there is one available remote worker, then the multiplier would be 0.5; meaning that
-                //  the local worker will do the half work.
-                cpuMultiplier = (double)1 / availableWorkersCount;
-            }
+            // If the user does not pass masterCpuMultiplier, then the local worker slots are configured
+            // based on the number of available workers.
+            // If only local worker is available, then the multiplier would be 1.
+            // If there is one available remote worker, then the multiplier would be 0.5; meaning that
+            //  the local worker will do the half work.
+            double cpuMultiplier = m_scheduleConfiguration.MasterCpuMultiplier ?? (double)1 / availableWorkersCount;
 
-            if (m_scheduleConfiguration.MasterCacheLookupMultiplier.HasValue)
-            {
-                cacheLookupMultiplier = availableWorkersCount > 1 ? m_scheduleConfiguration.MasterCacheLookupMultiplier.Value : 1;
-            }
-            else
-            {
-                cacheLookupMultiplier = (double)1 / availableWorkersCount;
-            }
+            double cacheLookupMultiplier = m_scheduleConfiguration.MasterCacheLookupMultiplier ?? (double)1 / availableWorkersCount;
 
             int newProcessSlots = (int)(targetProcessSlots * cpuMultiplier);
             int newCacheLookupSlots = (int)(targetCacheLookupSlots * cacheLookupMultiplier);
@@ -985,6 +969,11 @@ namespace BuildXL.Scheduler
         private readonly CounterCollection<PipExecutionStep> m_pipExecutionStepCounters = new CounterCollection<PipExecutionStep>();
         private readonly CounterCollection<FingerprintStoreCounters> m_fingerprintStoreCounters = new CounterCollection<FingerprintStoreCounters>();
 
+        /// <summary>
+        /// Counts the number of Pips failing 0 times, 1 time, 2 times, etc. upto Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker
+        /// </summary>
+        private int[] m_pipRetryCounters;
+
         private sealed class CriticalPathStats
         {
             /// <summary>
@@ -1267,6 +1256,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
+            m_pipRetryCounters = new int[m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker + 1];
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
@@ -1696,6 +1686,13 @@ namespace BuildXL.Scheduler
             statistics.Add("DirectoryMembershipFingerprinter.RegexObjectCacheHits", RegexDirectoryMembershipFilter.RegexCache.Hits);
             statistics.Add("DirectoryMembershipFingerprinter.DirectoryContentCacheMisses", m_directoryMembershipFingerprinter.CachedDirectoryContents.Misses);
             statistics.Add("DirectoryMembershipFingerprinter.DirectoryContentCacheHits", m_directoryMembershipFingerprinter.CachedDirectoryContents.Hits);
+
+            int numOfRetires = 0;
+            foreach (int retryCount in m_pipRetryCounters)
+            {
+                statistics.Add("NumPipsRetry_" + numOfRetires, retryCount);
+                numOfRetires++;
+            }
 
             Logger.Log.CacheFingerprintHitSources(loggingContext, m_cacheIdHits);
 
@@ -2443,6 +2440,8 @@ namespace BuildXL.Scheduler
                 return;
             }
 
+            m_pipRetryCounters[runnablePip.RetryCount]++;
+
             using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.OnPipCompletedDuration))
             {
                 var result = runnablePip.Result.Value;
@@ -3044,7 +3043,8 @@ namespace BuildXL.Scheduler
                 pipType,
                 priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
-                cpuUsageInPercent);
+                cpuUsageInPercent,
+                maxRetryLimit: m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker);
 
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
@@ -3498,14 +3498,14 @@ namespace BuildXL.Scheduler
                 }
 
                 case PipExecutionStep.Skip:
-                    {
-                        // We report skipped pips when all dependencies (failed or otherwise) complete.
-                        // This has the side-effect that stack depth is bounded when a pip fails; ReportSkippedPip
-                        // reports failure which is then handled in OnPipCompleted as part of the normal queue processing
-                        // (rather than recursively abandoning dependents here).
-                        LogEventWithPipProvenance(runnablePip, Logger.Log.SchedulePipFailedDueToFailedPrerequisite);
-                        return runnablePip.SetPipResult(PipResult.Skipped);
-                    }
+                {
+                    // We report skipped pips when all dependencies (failed or otherwise) complete.
+                    // This has the side-effect that stack depth is bounded when a pip fails; ReportSkippedPip
+                    // reports failure which is then handled in OnPipCompleted as part of the normal queue processing
+                    // (rather than recursively abandoning dependents here).
+                    LogEventWithPipProvenance(runnablePip, Logger.Log.SchedulePipFailedDueToFailedPrerequisite);
+                    return runnablePip.SetPipResult(PipResult.Skipped);
+                }
 
                 case PipExecutionStep.MaterializeOutputs:
                 {
@@ -3695,15 +3695,16 @@ namespace BuildXL.Scheduler
                     var pipScope = State.GetScope(process);
                     var cacheableProcess = pipScope.GetCacheableProcess(process, environment);
 
-                    var cacheResult = await worker.CacheLookupAsync(
+                    var tupleResult = await worker.CacheLookupAsync(
                         processRunnable,
                         pipScope,
                         cacheableProcess);
 
+                    var cacheResult = tupleResult.Item1;
                     if (cacheResult == null)
                     {
                         Contract.Assert(loggingContext.ErrorWasLogged, "Error should have been logged for dependency pip.");
-                        return processRunnable.SetPipResult(ExecutionResult.GetFailureNotRunResult(loggingContext));
+                        return processRunnable.SetPipResult(tupleResult.Item2);
                     }
 
                     HandleDeterminismProbe(loggingContext, environment, cacheResult, runnablePip.Description);
@@ -3807,10 +3808,6 @@ namespace BuildXL.Scheduler
                     // The pip was canceled
                     if (executionResult.Result == PipResultStatus.Canceled && !IsTerminating)
                     {
-                        // The pip was canceled on the worker (i.e. exceeded RAM utilization)
-                        // reschedule and choose worker again after adjusting expected RAM utilization
-                        processRunnable.SetWorker(null);
-
                         if (worker.IsLocal)
                         {
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
@@ -3826,7 +3823,7 @@ namespace BuildXL.Scheduler
                             peakWorkingSetMb: Math.Max(expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0),
                             peakCommitUsageMb: Math.Max(expectedCounters.PeakCommitUsageMb, actualCounters?.PeakCommitUsageMb ?? 0));
 
-                        return PipExecutionStep.ChooseWorkerCpu;
+                        return processRunnable.SetPipResult(executionResult.Result);
                     }
 
                     m_pipPropertyInfo.UpdatePipPropertyInfo(processRunnable, executionResult);
@@ -4442,6 +4439,10 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.MaterializeOutputsInBackground => MaterializeOutputsInBackground;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.IsTerminating => IsTerminating;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

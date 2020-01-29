@@ -12,6 +12,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -57,6 +58,16 @@ namespace BuildXL.Scheduler
         /// Execution environment
         /// </summary>
         public IPipExecutionEnvironment Environment { get; }
+
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        public int RetryCount { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        public readonly int MaxRetryLimit;
 
         /// <summary>
         /// The underlying pip
@@ -177,6 +188,7 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
+            int maxRetryLimit,
             Pip pip = null)
         {
             Contract.Requires(phaseLoggingContext != null);
@@ -192,6 +204,8 @@ namespace BuildXL.Scheduler
             ScheduleTime = DateTime.UtcNow;
             Performance = new RunnablePipPerformanceInfo(ScheduleTime);
             m_pip = pip;
+            RetryCount = 0;
+            MaxRetryLimit = maxRetryLimit;
         }
 
         /// <summary>
@@ -276,6 +290,14 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipExecutionStep SetPipResult(in PipResult result)
         {
+            if (result.Status == PipResultStatus.Canceled &&
+                !Environment.IsTerminating)
+            {
+                SetWorker(null);
+                RetryCount++;
+                return DecideNextStepForRetry();
+            }
+
             if (result.Status.IndicatesFailure())
             {
                 Contract.Assert(LoggingContext.ErrorWasLogged, "Error was not logged for pip marked as failure");
@@ -283,6 +305,25 @@ namespace BuildXL.Scheduler
 
             Result = result;
             return PipExecutionStep.HandleResult;
+        }
+
+        private PipExecutionStep DecideNextStepForRetry()
+        {
+            switch (Step)
+            {
+                case PipExecutionStep.CacheLookup:
+                    return PipExecutionStep.ChooseWorkerCacheLookup;
+                default:
+                    return PipExecutionStep.ChooseWorkerCpu;
+            }
+        }
+
+        /// <summary>
+        /// Returns if the failed pip should be retired on a different worker
+        /// </summary>
+        public bool ShouldRetry()
+        {
+            return MaxRetryLimit > RetryCount;
         }
 
         /// <summary>
@@ -415,14 +456,15 @@ namespace BuildXL.Scheduler
             PipType type,
             int priority,
             Func<RunnablePip, Task> executionFunc,
-            ushort cpuUsageInPercent)
+            ushort cpuUsageInPercent,
+            int maxRetryLimit = 0)
         {
             switch (type)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, cpuUsageInPercent);
+                    return new ProcessRunnablePip(loggingContext, pipId, priority, executionFunc, environment, maxRetryLimit, cpuUsageInPercent);
                 default:
-                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment);
+                    return new RunnablePip(loggingContext, pipId, type, priority, executionFunc, environment, maxRetryLimit);
             }
         }
 
@@ -434,14 +476,15 @@ namespace BuildXL.Scheduler
             IPipExecutionEnvironment environment,
             Pip pip,
             int priority,
-            Func<RunnablePip, Task> executionFunc)
+            Func<RunnablePip, Task> executionFunc,
+            int maxRetryLimit = 0)
         {
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, pip: pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, maxRetryLimit, pip: pip);
                 default:
-                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, pip);
+                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, maxRetryLimit, pip);
             }
         }
 

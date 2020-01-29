@@ -39,6 +39,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
+            NumRetryFailedPipsOnAnotherWorker = template.NumRetryFailedPipsOnAnotherWorker;
         }
 
         /// <inhertidoc />
@@ -77,5 +78,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool FireForgetMaterializeOutput { get; set; }
+
+        /// <inheritdoc />
+        public int NumRetryFailedPipsOnAnotherWorker { get; set; }
     }
 }

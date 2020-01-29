@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -149,14 +150,16 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task<RunnableFromCacheResult> CacheLookupAsync(
+        public override async Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
         {
             using (OnPipExecutionStarted(runnablePip))
             {
-                return await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess);
+                var cacheResult = await PipExecutor.TryCheckProcessRunnableFromCacheAsync(runnablePip, state, cacheableProcess);
+
+                return ValueTuple.Create(cacheResult, cacheResult == null ? PipResultStatus.Failed : PipResultStatus.Succeeded);
             }
         }
     }

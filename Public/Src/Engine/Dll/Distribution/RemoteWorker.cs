@@ -16,6 +16,7 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -27,6 +28,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -330,14 +332,14 @@ namespace BuildXL.Engine.Distribution
 
         private async void OnConnectionTimeOutAsync(object sender, EventArgs e)
         {           
-            // Unblock caller to make it a fire&forget event handler.
-            await Task.Yield();
-
             await LostConnectionAsync();
         }
 
-        public Task LostConnectionAsync()
+        public async Task LostConnectionAsync()
         {
+            // Unblock the caller to make it a fire&forget event handler.
+            await Task.Yield();
+
             m_isConnectionLost = true;
 
             // Connection is lost. As the worker might have pending tasks, 
@@ -345,7 +347,7 @@ namespace BuildXL.Engine.Distribution
             // In that case, we wait for DrainCompletion task source when releasing the worker.
             // We need to finish DrainCompletion task here to prevent hanging.
             DrainCompletion.TrySetResult(false);
-            return FinishAsync(null);
+            await FinishAsync(null);
         }
 
         private void OnDeactivateConnection(object sender, EventArgs e)
@@ -590,7 +592,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <inheritdoc />
-        public override async Task<RunnableFromCacheResult> CacheLookupAsync(
+        public override async Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
@@ -598,15 +600,17 @@ namespace BuildXL.Engine.Distribution
             ExecutionResult result = await ExecutePipRemotelyAsync(runnablePip);
             if (result.Result.IndicatesFailure())
             {
-                return null;
+                return ValueTuple.Create<RunnableFromCacheResult, PipResultStatus>(null, result.Result);
             }
 
-            return PipExecutor.TryConvertToRunnableFromCacheResult(
-                runnablePip.OperationContext,
-                runnablePip.Environment,
-                state,
-                cacheableProcess,
-                result);
+            return ValueTuple.Create<RunnableFromCacheResult, PipResultStatus>(
+                PipExecutor.TryConvertToRunnableFromCacheResult(
+                    runnablePip.OperationContext,
+                    runnablePip.Environment,
+                    state,
+                    cacheableProcess,
+                    result),
+                result.Result);
         }
 
         /// <inheritdoc />
@@ -658,6 +662,16 @@ namespace BuildXL.Engine.Distribution
             var pipCompletionTask = new PipCompletionTask(runnable.OperationContext, runnable);
 
             m_pipCompletionTasks.Add(pipId, pipCompletionTask);
+
+            var pip = runnable.Pip;
+            if (pip.Tags.Any(a => a.ToString(runnable.Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
+                runnable.RetryCount == 0)
+            {
+                // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
+                // It is expected to lose the connection with the worker, so that we force the pips 
+                // assigned to that worker to retry on different workers.
+                OnConnectionTimeOutAsync(null, null);
+            }
 
             if (firstCompletedTask == m_attachCompletion.Task)
             {
@@ -798,6 +812,8 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private void FailRemotePip(PipCompletionTask pipCompletionTask, string errorMessage, [CallerMemberName] string callerName = null)
         {
+            Contract.Requires(errorMessage != null);
+
             if (pipCompletionTask.Completion.Task.IsCompleted)
             {
                 // If we already set the result for the given completionTask, do nothing.
@@ -834,11 +850,27 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
+            if (runnablePip.ShouldRetry())
+            {
+                Logger.Log.DistributionExecutePipFailedNetworkFailureWarning(
+                    operationContext,
+                    runnablePip.Description,
+                    Name,
+                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCount + " out of " + runnablePip.MaxRetryLimit,
+                    step: runnablePip.Step.AsString(),
+                    callerName: callerName);
+
+                result = ExecutionResult.GetCanceledNotRunResult(operationContext);
+
+                pipCompletionTask.TrySet(result);
+                return;
+            }
+
             Logger.Log.DistributionExecutePipFailedNetworkFailure(
                     operationContext,
                     runnablePip.Description,
                     Name,
-                    errorMessage: errorMessage,
+                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCount + " out of " + runnablePip.MaxRetryLimit,
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
@@ -905,6 +937,11 @@ namespace BuildXL.Engine.Distribution
             var pip = runnable.Pip;
             var pipType = runnable.PipType;
             bool isExecuteStep = runnable.Step == PipExecutionStep.ExecuteProcess || runnable.Step == PipExecutionStep.ExecuteNonProcessPip;
+
+            if (executionResult.Result == PipResultStatus.Canceled)
+            {
+                return;
+            }
 
             if (runnable.Step == PipExecutionStep.CacheLookup && executionResult.CacheLookupPerfInfo != null)
             {
@@ -1035,6 +1072,12 @@ namespace BuildXL.Engine.Distribution
                 {
                     // Step does not match the current step of the pip
                     // This can happen in the case of RPC retries for completion notification
+                    return;
+                }
+
+                if (pipCompletionTask.Completion.Task.IsCompleted)
+                {
+                    // If we already set the result for the given completionTask, do nothing.
                     return;
                 }
 

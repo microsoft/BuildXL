@@ -463,7 +463,7 @@ namespace BuildXL.Scheduler
                     m_pathSet = pathSet,
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
-                    m_hasUserRetries = hasUserRetries,
+                    m_hasUserRetries = hasUserRetries
                 };
             return processExecutionResult;
         }
@@ -632,6 +632,18 @@ namespace BuildXL.Scheduler
         {
             var result = new ExecutionResult();
             result.SetResult(loggingContext, PipResultStatus.Failed);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets a canceled result without run information.
+        /// </summary>
+        public static ExecutionResult GetCanceledNotRunResult(LoggingContext loggingContext)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Canceled);
             result.Seal();
 
             return result;

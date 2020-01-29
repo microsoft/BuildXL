@@ -68,5 +68,11 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether the master should wait for the results of materializeoutput step on remote workers.
         /// </summary>
         bool FireForgetMaterializeOutput { get; }
+
+        /// <summary>
+        /// Indicates number of times the master should retry failing pips on a different worker.
+        /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
+        /// </summary>
+        int NumRetryFailedPipsOnAnotherWorker { get; }
     }
 }

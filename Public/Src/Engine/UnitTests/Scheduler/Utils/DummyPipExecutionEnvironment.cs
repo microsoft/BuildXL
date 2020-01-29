@@ -370,6 +370,9 @@ namespace Test.BuildXL.Scheduler.Utils
         public bool MaterializeOutputsInBackground => false;
 
         /// <inheritdoc />
+        public bool IsTerminating => false;
+
+        /// <inheritdoc />
         public DirectoryFingerprint? TryQueryDirectoryFingerprint(AbsolutePath directoryPath)
         {
             try

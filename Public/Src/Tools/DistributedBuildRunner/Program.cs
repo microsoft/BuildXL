@@ -30,6 +30,7 @@ namespace Tool.DistributedBuildRunner
 
         private static object s_processCreationLock = new object();
         private static bool s_ignoreErrorMessages = false;
+        private static bool s_ignoreWorkerResults = false; 
         private static bool s_killSurvivingProcessesAfterTimeout = true;
 
         /// <param name="args">
@@ -106,7 +107,18 @@ namespace Tool.DistributedBuildRunner
                     TaskCreationOptions.LongRunning));
             }
 
-            success &= Task.WhenAll(tasks.ToArray()).Result.All(succeeded => succeeded);
+            Task.WhenAll(tasks.ToArray()).GetAwaiter().GetResult();
+
+            if (s_ignoreWorkerResults)
+            {
+                // Only master result matters.
+                success &= tasks[0].Result;
+            }
+            else
+            {
+                success &= tasks.All(t => t.Result);
+            }
+            
 
             messages.CompleteAdding();
             success &= messageTask.Result;
@@ -135,6 +147,8 @@ namespace Tool.DistributedBuildRunner
             string workerArgs = Environment.GetEnvironmentVariable("BUILDXL_WORKER_ARGS");
             string masterArgs = Environment.GetEnvironmentVariable("BUILDXL_MASTER_ARGS");
             s_killSurvivingProcessesAfterTimeout = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISABLE_DBD_TEST_KILL"));
+            s_ignoreErrorMessages = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IGNORE_ERROR_MESSAGES"));
+            s_ignoreWorkerResults = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IGNORE_WORKER_RESULTS"));
 
             if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
             {

@@ -410,6 +410,9 @@ namespace Test.BuildXL.Scheduler
             /// <inheritdoc />
             public bool MaterializeOutputsInBackground => false;
 
+            /// <inheritdoc />
+            public bool IsTerminating => false;
+
             public DirectoryFingerprint? TryComputeDirectoryFingerprint(
                 AbsolutePath directoryPath, 
                 CacheablePipInfo cachePipInfo, 

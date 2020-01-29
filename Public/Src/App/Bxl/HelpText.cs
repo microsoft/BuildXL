@@ -1162,6 +1162,9 @@ namespace BuildXL
             hw.WriteOption("/minimumDiskSpaceForPipsGb:<int representing disk space in Gigabyte>",
                 Strings.HelpText_DisplayHelp_DiskSpaceForPip);
 
+            hw.WriteOption("/numRetryFailedPipsOnAnotherWorker:<int>",
+               Strings.HelpText_DisplayHelp_NumberofFailedPipRetry);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

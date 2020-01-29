@@ -736,7 +736,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Performs a cache lookup for the process on the worker
         /// </summary>
-        public virtual Task<RunnableFromCacheResult> CacheLookupAsync(
+        public virtual Task<(RunnableFromCacheResult, PipResultStatus)> CacheLookupAsync(
             ProcessRunnablePip runnablePip,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)

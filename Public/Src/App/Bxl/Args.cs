@@ -721,6 +721,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "noWarn",
                             opt => ParseInt32ListOption(opt, loggingConfiguration.NoWarnings)),
+                        OptionHandlerFactory.CreateOption(
+                            "numRetryFailedPipsOnAnotherWorker",
+                            opt => distributionConfiguration.NumRetryFailedPipsOnAnotherWorker = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption2(
                             "objectDirectory",
                             "o",

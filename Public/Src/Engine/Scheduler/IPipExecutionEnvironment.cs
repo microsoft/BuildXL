@@ -110,6 +110,11 @@ namespace BuildXL.Scheduler
         bool MaterializeOutputsInBackground { get; }
 
         /// <summary>
+        /// Returns a Boolean indicating if the scheduler has received a request for cancellation.
+        /// </summary>
+        bool IsTerminating { get; }
+
+        /// <summary>
         /// Returns whether the directory artifact represents a source sealed directory. If that's the case, returns the patterns and type of
         /// the source sealed.
         /// </summary>

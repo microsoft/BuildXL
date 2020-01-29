@@ -234,6 +234,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.CacheLookup:
                     return toStep == PipExecutionStep.RunFromCache
                          || toStep == PipExecutionStep.ChooseWorkerCpu
+                         || toStep == PipExecutionStep.ChooseWorkerCacheLookup
                          || toStep == PipExecutionStep.HandleResult
                          || toStep == PipExecutionStep.Skip;
 
@@ -246,11 +247,15 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.ExecuteProcess:
                     return toStep == PipExecutionStep.PostProcess
                         || toStep == PipExecutionStep.ChooseWorkerCpu /* retry */
-                        || toStep == PipExecutionStep.RunFromCache; /* determinism probe - deploy outputs from cache after executing process to enable downstream determinism */
+                        || toStep == PipExecutionStep.RunFromCache;   /* determinism probe - deploy outputs from cache after executing process to enable downstream determinism */
 
                 case PipExecutionStep.ExecuteNonProcessPip:
                 case PipExecutionStep.PostProcess:
-                    // May need to materialize outputs due to cache convergence
+                    return toStep == PipExecutionStep.MaterializeOutputs /* lazy materialization off */
+                        || toStep == PipExecutionStep.HandleResult       /* lazy materialization on */
+                        || toStep == PipExecutionStep.ChooseWorkerCpu;   /* retry */
+
+                // May need to materialize outputs due to cache convergence
                 case PipExecutionStep.RunFromCache:
                     return toStep == PipExecutionStep.MaterializeOutputs /* lazy materialization off */
                         || toStep == PipExecutionStep.HandleResult;      /* lazy materialization on */
@@ -258,6 +263,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.MaterializeInputs:
                     return toStep == PipExecutionStep.ExecuteProcess
                         || toStep == PipExecutionStep.ExecuteNonProcessPip
+                        || toStep == PipExecutionStep.ChooseWorkerCpu       /* retry */
                         || toStep == PipExecutionStep.HandleResult;         /* failure */
 
                 case PipExecutionStep.Cancel:

@@ -207,7 +207,8 @@ function runTest(args : TestRunArguments) : File[] {
             doNotTrackDependencies: args.unsafeTestRunArguments.runWithUntrackedDependencies 
         } : undefined,
         qTestRuntimeDependencies: qTestRuntimeDependencies,
-        qTestEnvironmentVariables: qTestEnvironmentVariables
+        qTestEnvironmentVariables: qTestEnvironmentVariables,
+        qTestAcquireSemaphores: args.tools && args.tools.exec && args.tools.exec.acquireSemaphores,
     });
 
     return [

@@ -328,6 +328,7 @@ export function runQTest(args: QTestArguments): Result {
             ],
             unsafe: unsafeOptions,
             retryExitCodes: [2],
+            acquireSemaphores: args.qTestAcquireSemaphores,
         },
         changeAffectedInputListWrittenFileArg
     ));
@@ -484,6 +485,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestFlakySuppressionFile? : File;
     /** Unsafe arguments for QTest. */
     qTestUnsafeArguments?: QTestUnsafeArguments;
+    /** Semaphores to acquire */
+    qTestAcquireSemaphores?: Transformer.SemaphoreInfo[];
 }
 
 /**

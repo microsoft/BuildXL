@@ -571,9 +571,6 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
             // TODO: When BuildXL has proper threadsafe logging infrastructure we can go back to the default or parallel.
             parallel: "none",
             tools: {
-                acquireSemaphores: [
-                    {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}
-                ],
                 exec: {
                     acquireSemaphores: [
                         {name: "BuildXL.xunit_semaphore", incrementBy: 1, limit: xunitSemaphoreLimit}

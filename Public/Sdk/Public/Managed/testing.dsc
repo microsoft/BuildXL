@@ -250,6 +250,8 @@ export interface TestRunArguments {
             unsafe?: Transformer.UnsafeExecuteArguments;
             /** Mutexes to avoid running certain tests simultaneously */
             acquireMutexes?: string[];
+            /** Semaphores to acquire when running tests */
+            acquireSemaphores?: Transformer.SemaphoreInfo[];
         };
 
         /**

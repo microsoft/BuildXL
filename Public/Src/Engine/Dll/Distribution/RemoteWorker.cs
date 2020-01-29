@@ -1059,8 +1059,26 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public async Task<bool> NotifyInfrastructureErrorAsync(EventMessage forwardedEvent)
         {
-            if ((EventLevel)forwardedEvent.Level == EventLevel.Error && 
-                forwardedEvent.EventId == (int)LogEventId.WorkerFailedDueToLowDiskSpace)
+            if ((EventLevel)forwardedEvent.Level != EventLevel.Error)
+            {
+                return false;
+            }
+
+            bool isInfraError = false;
+            int eventId = forwardedEvent.EventId;
+
+            if (eventId == (int)LogEventId.WorkerFailedDueToLowDiskSpace)
+            {
+                isInfraError = true;
+            }
+
+            if (eventId == (int)EventId.PipFailedToMaterializeItsOutputs &&
+                m_masterService.Environment.MaterializeOutputsInBackground)
+            {
+                isInfraError = true;
+            }
+
+            if (isInfraError)
             {
                 await FinishAsync(forwardedEvent.Text);
                 return true;

@@ -155,9 +155,10 @@ namespace BuildXL.Engine.Distribution
                 EventLevel eventLevel = (EventLevel)forwardedEvent.Level;
 
                 // For some errors, we need to exit the worker.
+                // Those errors should not make the master fail, 
+                // so we override the level with Warning.
                 if (await worker.NotifyInfrastructureErrorAsync(forwardedEvent))
                 {
-                    // Disconnect the worker in case 
                     eventLevel = EventLevel.Warning;
                 }
 

@@ -24,7 +24,7 @@ namespace BuildXL.Utilities
         /// for a value type to participate in generic collections without boxing.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Equals<T>(T left, object right) where T : struct, IEquatable<T>
+        public static bool Equals<T>(T left, object? right) where T : struct, IEquatable<T>
         {
             if (!(right is T))
             {

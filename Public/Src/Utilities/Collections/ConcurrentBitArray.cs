@@ -29,7 +29,7 @@ namespace BuildXL.Utilities.Collections
 
         private ConcurrentBitArray(int[] array, int length)
         {
-            Contract.Requires(array != null, "array != null");
+            Contract.RequiresNotNull(array, "array != null");
             Contract.Requires(length > 0, "length > 0");
 
             m_array = array;
@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public static ConcurrentBitArray UnsafeCreateFrom(int[] array, int length)
         {
-            Contract.Requires(array != null, "array != null");
+            Contract.RequiresNotNull(array, "array != null");
             Contract.Requires(array.Length * 32 >= length, "Given length should not exceed the array capacity");
 
             return new ConcurrentBitArray(array, length);
@@ -139,7 +139,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the current modified bit array</returns>
         public ConcurrentBitArray Or(ConcurrentBitArray other)
         {
-            Contract.Requires(other != null && other.Length == Length);
+            Contract.RequiresNotNull(other);
+            Contract.Requires(other.Length == Length);
 
             var array = m_array;
 
@@ -166,7 +167,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the current modified bit array</returns>
         public ConcurrentBitArray And(ConcurrentBitArray other)
         {
-            Contract.Requires(other != null && other.Length == Length);
+            Contract.RequiresNotNull(other);
+            Contract.Requires(other.Length == Length);
 
             var array = m_array;
 

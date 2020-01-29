@@ -3,6 +3,8 @@
 
 using System.Diagnostics.CodeAnalysis;
 
+#nullable disable // Generic collection
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

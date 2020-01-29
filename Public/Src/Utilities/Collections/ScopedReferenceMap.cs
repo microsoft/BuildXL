@@ -46,7 +46,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Class constructor
         /// </summary>
-        protected ScopedReferenceMap(IEqualityComparer<TKey> keyComparer = null)
+        protected ScopedReferenceMap(IEqualityComparer<TKey>? keyComparer = null)
         {
             m_keyComparer = keyComparer ?? EqualityComparer<TKey>.Default;
             m_backingSet = new ConcurrentBigSet<ScopedReferenceEntry>();
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.Collections
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
         public struct Scope : IDisposable
         {
-            private ScopedReferenceMap<TKey, TValue> m_map;
+            private ScopedReferenceMap<TKey, TValue>? m_map;
 
             /// <summary>
             /// The key for the scope

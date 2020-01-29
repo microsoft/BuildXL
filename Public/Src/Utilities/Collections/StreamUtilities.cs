@@ -15,9 +15,9 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Reads an array of 32-bit integers
         /// </summary>
-        public static int[] ReadInt32Array(this BinaryReader reader, ref byte[] buffer, int count)
+        public static int[] ReadInt32Array(this BinaryReader reader, ref byte[]? buffer, int count)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Contract.Requires(count >= 0);
             Array.Resize(ref buffer, count * sizeof(int));
 

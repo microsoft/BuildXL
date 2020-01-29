@@ -57,7 +57,7 @@ namespace BuildXL.Utilities.Collections
         /// <summary>
         /// Indicates if a given object is a ItemResources equal to this one. See <see cref="Equals(ItemResources)" />.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

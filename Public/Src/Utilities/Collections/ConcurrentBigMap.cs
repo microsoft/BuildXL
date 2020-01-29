@@ -8,6 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 
+#nullable disable // Disabling nullability for generic type
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>
@@ -41,7 +43,7 @@ namespace BuildXL.Utilities.Collections
         /// <param name="valueComparer">the comparer for values used in compare exchange operations</param>
         public ConcurrentBigMap(ConcurrentBigSet<KeyValuePair<TKey, TValue>> backingSet, IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null)
         {
-            Contract.Requires(backingSet != null);
+            Contract.RequiresNotNull(backingSet);
 
             BackingSet = backingSet;
             m_keyComparer = keyComparer ?? EqualityComparer<TKey>.Default;
@@ -99,7 +101,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>The set with converted map</returns>
         public ConcurrentBigMap<TKey, TNewValue> ConvertUnsafe<TNewValue>(Func<TValue, TNewValue> convert, IEqualityComparer<TNewValue> valueComparer = null)
         {
-            Contract.Requires(convert != null);
+            Contract.RequiresNotNull(convert);
 
             return new ConcurrentBigMap<TKey, TNewValue>(BackingSet.ConvertUnsafe(kvp => new KeyValuePair<TKey, TNewValue>(kvp.Key, convert(kvp.Value))), m_keyComparer, valueComparer);
         }
@@ -112,8 +114,8 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public void Serialize(BinaryWriter writer, Action<KeyValuePair<TKey, TValue>> itemWriter)
         {
-            Contract.Requires(writer != null);
-            Contract.Requires(itemWriter != null);
+            Contract.RequiresNotNull(writer);
+            Contract.RequiresNotNull(itemWriter);
             BackingSet.Serialize(writer, itemWriter);
         }
 
@@ -132,8 +134,6 @@ namespace BuildXL.Utilities.Collections
             IEqualityComparer<TKey> keyComparer = null,
             IEqualityComparer<TValue> valueComparer = null)
         {
-            Contract.Ensures(Contract.Result<ConcurrentBigMap<TKey, TValue>>() != null);
-
             var set = ConcurrentBigSet<KeyValuePair<TKey, TValue>>.Deserialize(
                 reader,
                 itemReader,

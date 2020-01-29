@@ -449,7 +449,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private sealed class GuardedHashAlgorithm : IDisposable
             {
                 private readonly HasherToken _hasherToken;
-                private HashingStreamImpl _ownerStream;
+                private readonly HashingStreamImpl _ownerStream;
                 public bool Finalized { get; private set; }
 
                 public GuardedHashAlgorithm(HashingStreamImpl ownerStream, ContentHasher<T> hasher)

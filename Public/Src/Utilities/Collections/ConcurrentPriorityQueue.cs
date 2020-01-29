@@ -8,6 +8,8 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 
+#nullable disable // This class is not used.
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

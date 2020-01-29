@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public RecursiveActionBlock(Func<TInput, Task> action, int maxDegreeOfParallelism)
         {
-            Contract.Requires(action != null);
+            Contract.RequiresNotNull(action);
             Contract.Requires(maxDegreeOfParallelism >= 1);
 
             m_actionBlock = new ActionBlock<TInput>(

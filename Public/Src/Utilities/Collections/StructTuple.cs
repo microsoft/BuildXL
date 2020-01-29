@@ -132,7 +132,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -226,7 +226,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -309,7 +309,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -380,7 +380,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -459,7 +459,7 @@ namespace BuildXL.Utilities
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

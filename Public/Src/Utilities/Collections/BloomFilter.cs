@@ -21,7 +21,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public BloomFilter(Parameters parameters)
         {
-            Contract.Requires(parameters != null);
+            Contract.RequiresNotNull(parameters);
 
             m_bits = new ConcurrentBitArray(parameters.NumberOfBits);
             m_parameters = parameters;
@@ -131,8 +131,8 @@ namespace BuildXL.Utilities.Collections
         public BloomFilter(Parameters parameters, Func<T, MurmurHash3> hasher)
             : base(parameters)
         {
-            Contract.Requires(hasher != null);
-            Contract.Requires(parameters != null);
+            Contract.RequiresNotNull(hasher);
+            Contract.RequiresNotNull(parameters);
 
             m_hasher = hasher;
         }

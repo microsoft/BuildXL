@@ -14,7 +14,7 @@ namespace BuildXL.Utilities.Collections
         private readonly ReaderWriterLockSlim[] m_locks;
 
         /// <inheritdoc/>
-        public ObjectCacheExperimental(int capacity, IEqualityComparer<TKey> comparer = null)
+        public ObjectCacheExperimental(int capacity, IEqualityComparer<TKey>? comparer = null)
             : base(capacity, comparer)
         {
             var locks = new ReaderWriterLockSlim[HashCodeHelper.GetGreaterOrEqualPrime(Math.Min(Environment.ProcessorCount * 4, capacity))];

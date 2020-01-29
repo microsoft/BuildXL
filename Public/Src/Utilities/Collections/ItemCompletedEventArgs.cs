@@ -18,7 +18,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public ItemCompletedEventArgs(TItem item, TTask task)
         {
-            Contract.Requires(task != null);
+            Contract.RequiresNotNull(task);
             Contract.Requires(task.IsCompleted);
             Item = item;
             Task = task;

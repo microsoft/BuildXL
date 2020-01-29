@@ -9,6 +9,7 @@ namespace Collections {
         assemblyName: "BuildXL.Utilities.Collections",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
+        nullable: true,
         internalsVisibleTo: [
             "Test.BuildXL.Utilities.Collections",
         ],

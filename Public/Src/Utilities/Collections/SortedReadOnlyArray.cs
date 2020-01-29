@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Collections
         private SortedReadOnlyArray(ReadOnlyArray<TValue> array, TComparer comparer)
         {
             Contract.Requires(array.IsValid);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(comparer);
 
             m_array = array;
             Comparer = comparer;
@@ -105,7 +105,7 @@ namespace BuildXL.Utilities.Collections
         public SortedReadOnlyArray<TValue, TComparer> ExceptWith(params SortedReadOnlyArray<TValue, TComparer>[] others)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(others != null);
+            Contract.RequiresNotNull(others);
 
             int size = ExceptWithVisitor(others, visit: null);
 
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities.Collections
             return FromSortedArrayUnsafe(ReadOnlyArray<TValue>.FromWithoutCopy(result), Comparer);
         }
 
-        private int ExceptWithVisitor(SortedReadOnlyArray<TValue, TComparer>[] others, Action<int, TValue> visit = null)
+        private int ExceptWithVisitor(SortedReadOnlyArray<TValue, TComparer>[] others, Action<int, TValue>? visit = null)
         {
             // Number of non-excepted items seen so far (returned at the end)
             int size = 0;
@@ -186,10 +186,7 @@ namespace BuildXL.Utilities.Collections
 
                 if (!found)
                 {
-                    if (visit != null)
-                    {
-                        visit(size, thisCurrent);
-                    }
+                    visit?.Invoke(size, thisCurrent);
 
                     size++;
                 }
@@ -217,7 +214,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }
@@ -298,7 +295,7 @@ namespace BuildXL.Utilities.Collections
         public SortedReadOnlyArray<TValue, TNewComparer> WithCompatibleComparer<TNewComparer>(TNewComparer comparer)
             where TNewComparer : class, ICompatibleComparer<TValue, TComparer>, IComparer<TValue>
         {
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(comparer);
 
             return new SortedReadOnlyArray<TValue, TNewComparer>(m_array, comparer);
         }
@@ -310,7 +307,7 @@ namespace BuildXL.Utilities.Collections
         public static SortedReadOnlyArray<TValue, TComparer> FromSortedArrayUnsafe(ReadOnlyArray<TValue> array, TComparer comparer)
         {
             Contract.Requires(array.IsValid);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(comparer);
 
             return new SortedReadOnlyArray<TValue, TComparer>(array, comparer);
         }
@@ -322,8 +319,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static SortedReadOnlyArray<TValue, TComparer> SortUnsafe(TValue[] array, TComparer comparer)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(array);
+            Contract.RequiresNotNull(comparer);
 
             Array.Sort(array, comparer);
             return new SortedReadOnlyArray<TValue, TComparer>(ReadOnlyArray<TValue>.FromWithoutCopy(array), comparer);
@@ -336,7 +333,7 @@ namespace BuildXL.Utilities.Collections
         public static SortedReadOnlyArray<TValue, TComparer> CloneAndSort(ReadOnlyArray<TValue> array, TComparer comparer)
         {
             Contract.Requires(array.IsValid);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(comparer);
 
             if (array.Length == 0)
             {
@@ -354,8 +351,8 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public static SortedReadOnlyArray<TValue, TComparer> CloneAndSort(IEnumerable<TValue> enumerable, TComparer comparer)
         {
-            Contract.Requires(enumerable != null);
-            Contract.Requires(comparer != null);
+            Contract.RequiresNotNull(enumerable);
+            Contract.RequiresNotNull(comparer);
 
             var array = enumerable as ReadOnlyArray<TValue>?;
             if (array != null)

@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 
+#nullable disable // Generic collection
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>

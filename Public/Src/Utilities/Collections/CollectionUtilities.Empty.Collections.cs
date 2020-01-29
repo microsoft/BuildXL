@@ -23,7 +23,7 @@ namespace BuildXL.Utilities.Collections
 #pragma warning restore CA1825 // Avoid unncecessary zero-length array allocations.
             }
 
-            internal static class Dictionary<TKey,TValue>
+            internal static class Dictionary<TKey,TValue> where TKey : notnull
             {
 #pragma warning disable CA1825 // Avoid unncecessary zero-length array allocations.
                 public static readonly IReadOnlyDictionary<TKey, TValue> Instance = new System.Collections.Generic.Dictionary<TKey, TValue>(0);

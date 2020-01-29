@@ -54,7 +54,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         private BitSet(long[] entries)
         {
-            Contract.Requires(entries != null);
+            Contract.RequiresNotNull(entries);
             m_lengthInEntries = entries.Length;
             m_entries = entries;
         }
@@ -320,7 +320,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public struct Enumerator : IEnumerator<int>
         {
-            private long[] m_entries;
+            private long[]? m_entries;
             private readonly int m_lengthInEntries;
 
             private int m_entryIndexPlusOne; // PlusOne so that zero (default) is invalid.
@@ -329,7 +329,7 @@ namespace BuildXL.Utilities.Collections
 
             internal Enumerator(long[] entries, int lengthInEntries)
             {
-                Contract.Requires(entries != null);
+                Contract.RequiresNotNull(entries);
                 Contract.Requires(lengthInEntries >= 0);
 
                 m_entries = entries;
@@ -436,7 +436,7 @@ namespace BuildXL.Utilities.Collections
 
                 for (; m_entryIndexPlusOne <= m_lengthInEntries; m_entryIndexPlusOne++)
                 {
-                    ulong entry = unchecked((ulong)m_entries[m_entryIndexPlusOne - 1]);
+                    ulong entry = unchecked((ulong)m_entries![m_entryIndexPlusOne - 1]);
 
                     // Here we reap the benefits of 64-bit entries; we can skip empty entries very quickly (good for sparse sets).
                     if (entry != 0)
@@ -453,7 +453,7 @@ namespace BuildXL.Utilities.Collections
             /// <inheritdoc />
             public void Reset()
             {
-                this = new Enumerator(m_entries, m_lengthInEntries);
+                this = new Enumerator(m_entries!, m_lengthInEntries);
             }
         }
     }

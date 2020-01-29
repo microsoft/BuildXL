@@ -4,6 +4,8 @@
 using System;
 using System.Diagnostics.ContractsLight;
 
+#nullable disable // Disable nullability for generics
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>
@@ -117,7 +119,7 @@ namespace BuildXL.Utilities.Collections
                     }
                 }
 
-                Contract.Assume(value != null, "Value ");
+                Contract.AssertNotNull(value, "Value ");
                 m_array[index] = value;
             }
         }

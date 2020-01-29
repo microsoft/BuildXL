@@ -223,7 +223,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int BitCount(byte[] data, int offset = 0)
         {
-            Contract.Requires(data != null);
+            Contract.RequiresNotNull(data);
             Contract.Requires(offset <= data.Length);
 
             int result = 0;

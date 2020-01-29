@@ -14,7 +14,7 @@ namespace BuildXL.Utilities.Collections
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
-    public sealed class MultiValueDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, IReadOnlyList<TValue>>
+    public sealed class MultiValueDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, IReadOnlyList<TValue>> where TKey : notnull
     {
         private readonly Dictionary<TKey, List<TValue>> m_backingDictionary;
 
@@ -60,7 +60,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(TKey key, TValue value)
         {
-            if (!m_backingDictionary.TryGetValue(key, out List<TValue> multiValues))
+            if (!m_backingDictionary.TryGetValue(key, out List<TValue>? multiValues))
             {
                 multiValues = new List<TValue>();
                 m_backingDictionary.Add(key, multiValues);
@@ -74,7 +74,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(TKey key, params TValue[] values)
         {
-            if (!m_backingDictionary.TryGetValue(key, out List<TValue> multiValues))
+            if (!m_backingDictionary.TryGetValue(key, out List<TValue>? multiValues))
             {
                 multiValues = new List<TValue>();
                 m_backingDictionary.Add(key, multiValues);
@@ -126,9 +126,11 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-        public bool TryGetValue(TKey key, out IReadOnlyList<TValue> multiValues)
+#pragma warning disable CS8614 // Nullability of reference types in type of parameter doesn't match implicitly implemented member.
+        public bool TryGetValue(TKey key, [NotNullWhen(false)]out IReadOnlyList<TValue>? multiValues)
+#pragma warning restore CS8614 // Nullability of reference types in type of parameter doesn't match implicitly implemented member.
         {
-            if (m_backingDictionary.TryGetValue(key, out List<TValue> mutableMultiValues))
+            if (m_backingDictionary.TryGetValue(key, out List<TValue>? mutableMultiValues))
             {
                 multiValues = mutableMultiValues;
                 return true;
@@ -162,7 +164,7 @@ namespace BuildXL.Utilities.Collections
         /// Creates a multi-value dictionary from an enumeration of pairs.
         /// </summary>
         public static MultiValueDictionary<TKey, TValue> ToMultiValueDictionary<TKey, TValue>(
-            this IEnumerable<KeyValuePair<TKey, IReadOnlyList<TValue>>> enumerable)
+            this IEnumerable<KeyValuePair<TKey, IReadOnlyList<TValue>>> enumerable) where TKey : notnull
         {
             var result = new MultiValueDictionary<TKey, TValue>();
             foreach (var pair in enumerable)
@@ -179,7 +181,7 @@ namespace BuildXL.Utilities.Collections
         public static MultiValueDictionary<TKey, TValue> ToMultiValueDictionary<TSource, TKey, TValue>(
             this IEnumerable<TSource> enumerable,
             Func<TSource, TKey> keySelector,
-            Func<TSource, TValue> elementSelector)
+            Func<TSource, TValue> elementSelector) where TKey : notnull
         {
             var result = new MultiValueDictionary<TKey, TValue>();
             foreach (var element in enumerable)

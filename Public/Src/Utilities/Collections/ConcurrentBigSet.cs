@@ -9,6 +9,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable disable // Disabling nullability for generic type
+
 namespace BuildXL.Utilities.Collections
 {
     /// <summary>
@@ -212,7 +214,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>The set with converted item set</returns>
         public ConcurrentBigSet<TNewItem> ConvertUnsafe<TNewItem>(Func<TItem, TNewItem> convert)
         {
-            Contract.Requires(convert != null);
+            Contract.RequiresNotNull(convert);
 
             var newItemsBuffer = new BigBuffer<TNewItem>(m_items.EntriesPerBufferBitWidth);
             var itemsCount = m_count;
@@ -252,8 +254,8 @@ namespace BuildXL.Utilities.Collections
         /// </remarks>
         public void Serialize(BinaryWriter writer, Action<TItem> itemWriter)
         {
-            Contract.Requires(writer != null);
-            Contract.Requires(itemWriter != null);
+            Contract.RequiresNotNull(writer);
+            Contract.RequiresNotNull(itemWriter);
 
             writer.Write(m_count);
             writer.Write(m_nodeLength);

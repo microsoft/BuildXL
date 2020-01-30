@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
+import * as Xml from "Sdk.Xml";
 
 namespace Engine {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
@@ -37,7 +38,6 @@ namespace Engine {
 
     @@public
     export const dll = BuildXLSdk.test({
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         assemblyName: "Test.BuildXL.Engine",
         rootNamespace: "Test.BuildXL.EngineTests",
         sources: globR(d`.`, "*.cs"),

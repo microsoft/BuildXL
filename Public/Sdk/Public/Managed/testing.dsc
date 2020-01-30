@@ -5,6 +5,9 @@ import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import * as Xml from "Sdk.Xml";
 
+const TestRunDataXmlFileName = a`testRunData.xml`;
+const TestRunDataElementName = "TestRunData";
+
 /**
  * Compiles an assembly using some of the given test frameworks defaults,
  * deploys the assembly and its closure to a testRun folder and then
@@ -38,6 +41,7 @@ export function test(args: TestArguments) : TestResult {
         definition: {
             contents: [
                 assembly,
+                generateTestDataXmlFile(args.runTestArgs) // can be undefined, but that's fine
             ],
         },
         targetDirectory: testDeployFolder,
@@ -63,13 +67,12 @@ export function runTestOnly(args: TestArguments, compileArguments: boolean, test
     if (!testFramework) {
         Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
     }
-    
+
     if (testFramework.compileArguments && compileArguments) {
         args = testFramework.compileArguments(args);
     }
 
     let testRunArgs = Object.merge(args.runTestArgs, {testDeployment: testDeployment});
-    testRunArgs = prepareForTestData(testRunArgs);
 
     let testResults = [];
 
@@ -129,16 +132,12 @@ namespace TestHelpers {
     }
 }
 
-function prepareForTestData(testRunArgs: TestRunArguments) : TestRunArguments
-{
-    const testRunData = testRunArgs.testRunData;
-
-    if (!testRunData)
+function generateTestDataXmlFile(testRunArgs: TestRunArguments): File {
+    if (!testRunArgs || !testRunArgs.testRunData)
     {
-        // No rundata so no need to do anything
-        return testRunArgs;
+        return undefined;
     }
-
+    const testRunData = testRunArgs.testRunData;
     const entries = testRunData
         .keys()
         .map(key => Xml.elem("Entry", 
@@ -147,29 +146,12 @@ function prepareForTestData(testRunArgs: TestRunArguments) : TestRunArguments
         );
 
     const doc = Xml.doc(
-        Xml.elem("TestRunData",
+        Xml.elem(TestRunDataElementName,
             ...entries
         )
     );
 
-    const testDataXmlFile = Xml.write(p`${Context.getNewOutputDirectory("testRunData")}/testRunData.xml`, doc);
-    return testRunArgs.merge({
-        tools: {
-            exec: {
-                // Set the environment variable so the test logic can find the data file
-                environmentVariables: [
-                    {
-                        name: "TestRunData",
-                        value: testDataXmlFile,
-                    }
-                ],
-                // Add it to the dependencies so tests can read it.
-                dependencies: [
-                    testDataXmlFile,
-                ]
-            }
-        }
-    });
+    return Xml.write(p`${Context.getNewOutputDirectory("testRunData")}/${TestRunDataXmlFileName}`, doc);
 }
 
 @@public

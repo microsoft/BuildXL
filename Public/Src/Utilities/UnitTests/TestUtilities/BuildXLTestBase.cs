@@ -27,6 +27,10 @@ namespace Test.BuildXL.TestUtilities
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class BuildXLTestBase
     {
+        // CODESYNC: Public\Sdk\Public\Managed\testing.dsc
+        private const string TestRunDataXmlFileName = "testRunData.xml";
+        private const string TestRunDataElementName = "TestRunData";
+
         private Dictionary<string, string> m_testData;
 
         /// <nodoc/>
@@ -516,6 +520,15 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Returns the directory where the running test assembly is deployed.
+        /// </summary>
+        protected static string GetTestAssemblyDirectory()
+        {
+            var asmLocation = AssemblyHelper.GetAssemblyLocation(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly());
+            return Path.GetDirectoryName(asmLocation);
+        }
+
+        /// <summary>
         /// Gets a testData value that is specified in the build specification
         /// </summary>
         /// <remarks>
@@ -547,8 +560,12 @@ namespace Test.BuildXL.TestUtilities
                 return m_testData;
             }
 
-            var testDataFile = Environment.GetEnvironmentVariable("TestRunData");
-            AssertTrue(!string.IsNullOrEmpty(testDataFile), "This test requires TestData, no testData environment variable was found");
+            var testDataFile = Path.Combine(GetTestAssemblyDirectory(), TestRunDataXmlFileName);
+            return ReadTestDataFromXml(testDataFile);
+        }
+
+        private Dictionary<string, string> ReadTestDataFromXml(string testDataFile)
+        { 
             AssertTrue(File.Exists(testDataFile), "This testData file at '{0}' does not exist", testDataFile);
             XDocument testDataXml = null;
             try
@@ -569,7 +586,7 @@ namespace Test.BuildXL.TestUtilities
             }
 
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var rootElement = testDataXml.Element("TestRunData");
+            var rootElement = testDataXml.Element(TestRunDataElementName);
             AssertTrue(rootElement != null, "Unexpected xml content");
 
             foreach (var entry in rootElement.Elements("Entry"))

@@ -29,6 +29,19 @@ namespace Test.BuildXL.Storage
             RegisterEventSource(global::BuildXL.Native.ETWLogger.Log);
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Why clean up the temp directory:
+                //   - these tests leave all kinds of files in there (junctions, symlinks, broken junctions, etc.)
+                //   - qtest might attempt to robocopy that folder, and robocopy will fail if it encounters any of those
+                FileUtilities.DeleteDirectoryContents(TemporaryDirectory);
+            }
+
+            base.Dispose(disposing);
+        }
+
         [Fact]
         public void TestEnumerateDirectoryWithPattern()
         {
@@ -538,7 +551,7 @@ namespace Test.BuildXL.Storage
             string symlinkPath = GetFullPath("symlink");
             // the length of the target path must be at least 128 chars, so we could properly test the parsing
             // of the struct returned from DeviceIoControl.
-            string symlinkTarget = PathGeneratorUtilities.GetAbsolutePath("Z", Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), $"{Guid.NewGuid().ToString()}.txt");
+            string symlinkTarget = PathGeneratorUtilities.GetAbsolutePath(TemporaryDirectory, Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), $"{Guid.NewGuid().ToString()}.txt");
 
             XAssert.IsTrue(symlinkTarget.Length >= 128);
 
@@ -965,7 +978,7 @@ namespace Test.BuildXL.Storage
         public void TestDeleteDirectorySymlink(bool useFileDelete)
         {
             string directoryPath = GetFullPath(nameof(TestDeleteDirectorySymlink));
-            string fileInDirectoryPath = Path.Combine(directoryPath, "file");
+            string fileInDirectoryPath = Path.Combine(directoryPath, "ffile");
             string directorySymlinkPath = directoryPath + ".lnk";
 
             FileUtilities.CreateDirectory(directoryPath);

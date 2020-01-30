@@ -12,7 +12,6 @@ namespace Test.Tool.VBCSCompilerLogger {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.VBCSCompilerLogger",
         sources: globR(d`.`, "*.cs"),
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         references:[
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
         ],

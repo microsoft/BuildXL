@@ -310,6 +310,9 @@ export interface UnsafeTestRunArguments {
     
     /** Allow dependencies to go untracked. */
     runWithUntrackedDependencies?: boolean;
+
+    /** When set, XUnit test framework is used for running admin tests irrespective of any other settings */
+    forceXunitForAdminTests?: boolean;
 }
 
 @@public

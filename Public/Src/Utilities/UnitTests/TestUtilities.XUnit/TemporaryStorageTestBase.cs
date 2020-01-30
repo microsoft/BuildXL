@@ -139,12 +139,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <summary>
         /// Returns an absolute path to the given file under <see cref="TemporaryDirectory" />.
         /// </summary>
-        protected string GetFullPath(string relativePath)
+        protected string GetFullPath(string path)
         {
-            Contract.Requires(!string.IsNullOrEmpty(relativePath));
+            Contract.Requires(!string.IsNullOrEmpty(path));
 
-            Contract.Assume(!Path.IsPathRooted(relativePath));
-            return Path.Combine(m_tempBase, relativePath);
+            return Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(m_tempBase, path);
         }
 
         /// <summary>
@@ -205,6 +206,25 @@ namespace Test.BuildXL.TestUtilities.Xunit
         protected bool TryGetSubstSourceAndTarget(out string substSource, out string substTarget)
         {
             return FileUtilities.TryGetSubstSourceAndTarget(TemporaryDirectory, out substSource, out substTarget);
+        }
+
+        /// <summary>
+        /// Deletes the symlink at location <paramref name="link"/>.  Return value indicates success.
+        /// </summary>
+        protected bool TryDeleteSymlink(string link)
+        {
+            try
+            {
+                var fullPath = GetFullPath(link);
+                FileUtilities.DeleteFile(fullPath);
+                return true;
+            }
+            catch
+            {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                return false;
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            }
         }
     }
 }

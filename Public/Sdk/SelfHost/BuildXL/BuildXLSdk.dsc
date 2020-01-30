@@ -309,11 +309,13 @@ export function test(args: TestArguments) : TestResult {
             
             let framework = args.testFramework;
 
-            const executeTestUntracked = 
-                args.runTestArgs
-                && args.runTestArgs.unsafeTestRunArguments 
-                && args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
-            if (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked) {
+            let executeTestUntracked = false;
+            let forceXunitForAdminTests = false;
+            if (args.runTestArgs && args.runTestArgs.unsafeTestRunArguments) {
+                executeTestUntracked = args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
+                forceXunitForAdminTests = args.runTestArgs.unsafeTestRunArguments.forceXunitForAdminTests;
+            }
+            if (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked || forceXunitForAdminTests) {
                 framework = importFrom("Sdk.Managed.Testing.XUnit").framework;
             }
 

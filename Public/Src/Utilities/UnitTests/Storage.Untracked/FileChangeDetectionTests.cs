@@ -580,14 +580,7 @@ namespace Test.BuildXL.Storage.Admin
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(NewlyPresentAsFile(LinkTarget));
 
-            DeleteSymlink(LinkFrom);
-        }
-
-        private void DeleteSymlink(string link)
-        {
-            var fullPath = GetFullPath(link);
-            FileUtilities.DeleteFile(fullPath);
-            XAssert.FileDoesNotExist(fullPath);
+            TryDeleteSymlink(LinkFrom);
         }
 
         [FactIfSupported(requiresJournalScan: true, requiresSymlinkPermission: true)]
@@ -608,7 +601,7 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(LinkTarget, "Target");
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(NewlyPresentAsFile(LinkTarget));
-            DeleteSymlink(LinkFrom);
+            TryDeleteSymlink(LinkFrom);
         }
 
         [FactIfSupported(requiresJournalScan: true, requiresSymlinkPermission: true)]
@@ -631,7 +624,7 @@ namespace Test.BuildXL.Storage.Admin
             WriteFile(LinkTarget, "Target2");
             changedPaths = support.ProcessChanges();
             changedPaths.AssertChangedExactly(DataOrMetadataChanged(LinkTarget));
-            DeleteSymlink(LinkFrom);
+            TryDeleteSymlink(LinkFrom);
         }
 
         #endregion

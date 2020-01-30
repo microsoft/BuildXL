@@ -12,7 +12,6 @@ namespace Test.Tool.MsBuildGraphBuilder {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.ProjectGraphBuilder",
         sources: globR(d`.`, "*.cs"),
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         references:[
             importFrom("BuildXL.Tools").MsBuildGraphBuilder.exe,
             importFrom("Microsoft.Build.Prediction").pkg,

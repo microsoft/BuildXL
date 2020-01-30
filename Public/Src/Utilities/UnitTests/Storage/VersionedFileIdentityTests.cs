@@ -157,33 +157,41 @@ namespace Test.BuildXL.Storage
             string symlinkPath2 = Path.Combine(Path.GetDirectoryName(fullPath), "sym2.link");
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkPath2, fullPath, true));
 
-            var openResult1 = FileUtilities.TryCreateOrOpenFile(
-                symlinkPath1, 
-                FileDesiredAccess.GenericRead, 
-                FileShare.Delete | FileShare.Read, 
-                FileMode.Open, 
-                FileFlagsAndAttributes.FileFlagOpenReparsePoint, 
-                out SafeFileHandle symlink1Handle);
-            XAssert.IsTrue(openResult1.Succeeded);
-
-            var openResult2 = FileUtilities.TryCreateOrOpenFile(
-                symlinkPath2,
-                FileDesiredAccess.GenericRead,
-                FileShare.Delete | FileShare.Read,
-                FileMode.Open,
-                FileFlagsAndAttributes.FileFlagOpenReparsePoint,
-                out SafeFileHandle symlink2Handle);
-            XAssert.IsTrue(openResult2.Succeeded);
-
-            using (symlink1Handle)
-            using (symlink2Handle)
+            try
             {
-                var id1 = VersionedFileIdentity.TryQuery(symlink1Handle);
-                var id2 = VersionedFileIdentity.TryQuery(symlink2Handle);
+                var openResult1 = FileUtilities.TryCreateOrOpenFile(
+                    symlinkPath1,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.Delete | FileShare.Read,
+                    FileMode.Open,
+                    FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    out SafeFileHandle symlink1Handle);
+                XAssert.IsTrue(openResult1.Succeeded);
 
-                XAssert.IsTrue(id1.Succeeded);
-                XAssert.IsTrue(id2.Succeeded);
-                XAssert.AreNotEqual(id1.Result.FileId, id2.Result.FileId);
+                var openResult2 = FileUtilities.TryCreateOrOpenFile(
+                    symlinkPath2,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.Delete | FileShare.Read,
+                    FileMode.Open,
+                    FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    out SafeFileHandle symlink2Handle);
+                XAssert.IsTrue(openResult2.Succeeded);
+
+                using (symlink1Handle)
+                using (symlink2Handle)
+                {
+                    var id1 = VersionedFileIdentity.TryQuery(symlink1Handle);
+                    var id2 = VersionedFileIdentity.TryQuery(symlink2Handle);
+
+                    XAssert.IsTrue(id1.Succeeded);
+                    XAssert.IsTrue(id2.Succeeded);
+                    XAssert.AreNotEqual(id1.Result.FileId, id2.Result.FileId);
+                }
+            }
+            finally
+            {
+                TryDeleteSymlink(symlinkPath1);
+                TryDeleteSymlink(symlinkPath2);
             }
         }
     }

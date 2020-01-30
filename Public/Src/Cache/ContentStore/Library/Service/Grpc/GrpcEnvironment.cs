@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Grpc.Core;
@@ -36,6 +37,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             if (Interlocked.CompareExchange(ref _isInitialized, 1, 0) == 0)
             {
+                // Setting GRPC_DNS_RESOLVER=native to bypass ares DNS resolver which seems to cause
+                // temporary long delays (2 minutes) while failing to resolve DNS using ares in some environments
+                Environment.SetEnvironmentVariable("GRPC_DNS_RESOLVER", "native");
+
                 if (handlerInliningEnabled)
                 {
                     global::Grpc.Core.GrpcEnvironment.SetThreadPoolSize(numThreads);

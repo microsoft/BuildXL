@@ -37,6 +37,7 @@ namespace App {
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
 
             importFrom("Grpc.Core").pkg,
+            importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
             importFrom("Newtonsoft.Json").pkg,

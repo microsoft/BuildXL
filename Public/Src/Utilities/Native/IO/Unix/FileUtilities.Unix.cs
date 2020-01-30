@@ -105,9 +105,7 @@ namespace BuildXL.Native.IO.Unix
 
             if (deleteRootDirectory && remainingChildCount == 0)
             {
-                bool success = false;
-
-                success = Helpers.RetryOnFailure(
+                bool success = Helpers.RetryOnFailure(
                     finalRound =>
                     {
                         // An exception will be thrown on failure, which will trigger a retry, this deletes the path itself
@@ -118,9 +116,10 @@ namespace BuildXL.Native.IO.Unix
                         return true;
                     });
 
-                if (!success)
+                if (!success && Directory.Exists(path))
                 {
-                    throw new BuildXLException(path);
+                    var code = (int)Tracing.LogEventId.RetryOnFailureException;
+                    throw new BuildXLException($"Failed to delete directory: {path}.  Search for DX{code:0000} log messages to see why.");
                 }
             }
 

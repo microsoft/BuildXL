@@ -242,15 +242,6 @@ if ($DeployDev) {
     $Minimal = $true;
 }
 
-if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
-{
-    $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
-}
-if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
-{
-    $AdditionalDominoArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
-}
-
 $BuildXLExeName = "bxl.exe";
 $BuildXLRunnerExeName = "RunInSubst.exe";
 
@@ -629,6 +620,11 @@ if (!$skipFilter){
 if ($Analyze) {
     $AdditionalBuildXLArguments = @()
     $DominoArguments.RemoveAt(0);
+}
+
+if ($env:BUILDXL_ADDITIONAL_DEFAULTS)
+{
+    $AdditionalBuildXLArguments += $env:BUILDXL_ADDITIONAL_DEFAULTS
 }
 
 [string[]]$DominoArguments = @($DominoArguments |% { $_.Replace("#singlequote#", "'").Replace("#openparens#", "(").Replace("#closeparens#", ")"); })

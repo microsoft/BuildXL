@@ -24,6 +24,7 @@ using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.TestEnv;
+using Test.BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
 {
@@ -41,6 +42,11 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         private readonly ModuleDefinition m_testModule;
         private readonly AbsolutePath m_configFilePath;
         protected string BogusExecutable = Path.GetTempFileName();
+
+        /// <summary>
+        /// <see cref="CmdHelper.CmdX64"/>
+        /// </summary>
+        protected string CMD => CmdHelper.CmdX64;
 
         protected AbsolutePath TestPath { get; }
 
@@ -103,7 +109,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
         {
             return new NinjaNode(
                     rule ?? "",
-                    command ?? @"cmd.exe /C ""cd .""",
+                    command ?? $@"{CMD} /C ""cd .""",
                     inputs ?? new ReadOnlyHashSet<AbsolutePath>(),
                     outputs ?? new ReadOnlyHashSet<AbsolutePath>(),
                     dependencies ?? CollectionUtilities.EmptySet<NinjaNode>()

@@ -14,6 +14,7 @@ using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
+using Test.BuildXL.Processes;
 
 namespace Test.BuildXL.FrontEnd.Ninja
 {
@@ -27,6 +28,11 @@ namespace Test.BuildXL.FrontEnd.Ninja
         protected const string DefaultSpecFileName = "build.ninja";
         protected const string DefaultProjectRoot = "ninjabuild";
         private string DefaultSpecFileLocation => $"{DefaultProjectRoot}/{DefaultSpecFileName}";
+
+        /// <summary>
+        /// <see cref="CmdHelper.CmdX64"/>
+        /// </summary>
+        protected string CMD => CmdHelper.CmdX64;
 
         /// <summary>
         /// Root to the source enlistment root
@@ -87,7 +93,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         {
             var content =
 $@"rule r
-    command = cmd /C ""echo Hello World > $out""
+    command = {CMD} /C ""echo Hello World > $out""
 build {outputFileName}: r
 build all: phony {outputFileName}
 ";
@@ -98,10 +104,10 @@ build all: phony {outputFileName}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo r > $out""
+    command = {CMD} /C ""echo r > $out""
 
 rule ruleB
-    command = cmd /C ""COPY $in {secondOutput}""
+    command = {CMD} /C ""COPY $in {secondOutput}""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB {firstOutput}
@@ -115,10 +121,10 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo r > $out""
+    command = {CMD} /C ""echo r > $out""
 
 rule ruleB
-    command = cmd /C ""COPY $in {secondOutput} && DEL /f $in""
+    command = {CMD} /C ""COPY $in {secondOutput} && DEL /f $in""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB {firstOutput}
@@ -132,10 +138,10 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule ruleA
-    command = cmd /C ""echo hola > {firstOutput}""
+    command = {CMD} /C ""echo hola > {firstOutput}""
 
 rule ruleB
-    command = cmd /C ""COPY {firstOutput} $out""
+    command = {CMD} /C ""COPY {firstOutput} $out""
 
 build {firstOutput}: ruleA
 build {secondOutput} : ruleB || {firstOutput}
@@ -150,7 +156,7 @@ build all: phony {secondOutput}
         {
             var content =
                 $@"rule copy_respfile
-  command = cmd.exe /C ""COPY {responseFile} {output}""
+  command = {CMD} /C ""COPY {responseFile} {output}""
   rspfile = {responseFile}
   rspfile_content = {responseFileContent}
 
@@ -169,7 +175,7 @@ build all: phony {output}
   description = $DESC
 
 rule WRITE_TEST
-    command = cmd /C ""echo test > $out""
+    command = {CMD} /C ""echo test > $out""
 
 build {phonyOutputFile1}: WRITE_TEST
 
@@ -178,7 +184,7 @@ build {phonyOutputFile2}: WRITE_TEST
 build all: phony {phonyOutputFile1} {phonyOutputFile2}
 
 build {dummyFile}: CUSTOM_COMMAND all
-  COMMAND = cmd.exe /C ""echo works > {effectiveFile}""
+  COMMAND = {CMD} /C ""echo works > {effectiveFile}""
   DESC = Install the project...
   pool = console
   restat = 1

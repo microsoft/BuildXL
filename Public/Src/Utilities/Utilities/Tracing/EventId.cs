@@ -1171,5 +1171,24 @@ namespace BuildXL.Utilities.Tracing
 
         ProcessRetries = 14504,
         ProcessPattern = 14505,
+
+        /*
+         *********************************************
+         * README:
+         *********************************************
+         *
+         * Please do not add any new events in this class. 
+         *
+         * New events should be added to LogEvent.cs next to the Log.cs file that
+         * uses the identifier. 
+         *
+         * The events are here only when we started small. This causes too much of the
+         * build graph to be reevaluated if one updates a single file at the bottom of the stack.
+         * It is more effecient to keep the constants near the usagage.
+         *
+         * A unittest is guaranteeing global eventid uniqueness so you don't have to worry about that.
+         *
+         *********************************************
+         */
     }
 }

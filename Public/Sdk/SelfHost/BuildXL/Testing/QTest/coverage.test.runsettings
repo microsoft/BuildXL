@@ -17,6 +17,7 @@
                 <ModulePath>.*\\google.protobuf.dll</ModulePath>
                 <ModulePath>.*\\icsharpcode.sharpziplib.dll</ModulePath>
                 <ModulePath>.*\\dummywaiter.exe</ModulePath>
+                <ModulePath>.*\\microsoft.build.dll</ModulePath>
               </Exclude>
             </ModulePaths>
             <!--Lots of BuildXL tests launch child test processes. The coverage of those processes does not matter.-->

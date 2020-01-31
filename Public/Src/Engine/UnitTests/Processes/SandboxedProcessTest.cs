@@ -292,7 +292,7 @@ namespace Test.BuildXL.Processes
                 return;
             }
 
-            var testProcessName = TestProcessExecutable.Path.GetName(Context.PathTable);
+            var testProcessName = TestProcessExecutable.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
 
             var info = ToProcessInfo(ToProcess(
                 Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.Echo("hi")),
@@ -306,7 +306,7 @@ namespace Test.BuildXL.Processes
             {
                 info.AllowedSurvivingChildProcessNames = new[]
                 {
-                    testProcessName.ToString(Context.PathTable.StringTable),
+                    testProcessName,
                     Path.GetFileName(CmdHelper.Conhost)
                 };
             }
@@ -326,29 +326,24 @@ namespace Test.BuildXL.Processes
 
             if (includeAllowedSurvivingChildren)
             {
-                var allowedSurvivingChildProcessNames = new HashSet<PathAtom>(info.AllowedSurvivingChildProcessNames.Select(n => PathAtom.Create(Context.StringTable, n)));
-
                 // Note that one of the spawned process is blocked indefinitely.
                 // However, when surviving children are included, then that process should be killed right-away without waiting.
                 if (sw.ElapsedMilliseconds >= info.NestedProcessTerminationTimeout.TotalMilliseconds)
                 {
                     // If process is not killed, then there are surviving children that are not allowed.
                     XAssert.IsTrue(
-                        survivorProcessNames.IsProperSupersetOf(allowedSurvivingChildProcessNames),
+                        survivorProcessNames.IsProperSupersetOf(info.AllowedSurvivingChildProcessNames),
                         "Survivors: {0}, Allowed survivors: {1}",
                         survivorNamesJoined,
-                        string.Join(" ; ", allowedSurvivingChildProcessNames.Select(n => n.ToString(Context.StringTable))));
+                        string.Join(" ; ", info.AllowedSurvivingChildProcessNames));
                 }
             }
 
             // TestProcess must have survived
-            XAssert.IsTrue(
-                survivorProcessNames.Contains(testProcessName),
-                "expected to find '{0}' in '{1}'",
-                testProcessName.ToString(Context.StringTable), survivorNamesJoined);
+            XAssert.Contains(survivorProcessNames, testProcessName);
 
             // conhost.exe may also have been alive. Win10 changed conhost to longer be excluded from job objects.
-            var conhostName = PathAtom.Create(Context.StringTable, Path.GetFileName(CmdHelper.Conhost));
+            var conhostName = Path.GetFileName(CmdHelper.Conhost);
             if (survivorProcessNames.Contains(conhostName))
             {
                 // With new Win10, there can be multiple surviving conhost.
@@ -363,33 +358,19 @@ namespace Test.BuildXL.Processes
                     1,
                     result.SurvivingChildProcesses.Count(),
                     "Unexpected survivors: {0}",
-                    string.Join(", ", survivorProcessNames.Except(new[] { testProcessName }).Select(PathAtomToString)));
+                    string.Join(", ", survivorProcessNames.Except(new[] { testProcessName })));
             }
 
             // We ignore the Conhost process when checking if all survivors got reported, as Conhost seems very special
             foreach (var survivor in survivorProcessNames.Except(new[] { conhostName }))
             {
-                XAssert.IsTrue(
-                    reportedProcessNames.Contains(survivor),
-                    "Survivor was not reported: {0}, reported: {1}",
-                    survivor.ToString(Context.StringTable),
-                    reportedNamesJoined);
+                XAssert.Contains(reportedProcessNames, survivor);
             }
 
-            void ToFileNames(IEnumerable<ReportedProcess> processes, out HashSet<PathAtom> set, out string joined)
+            void ToFileNames(IEnumerable<ReportedProcess> processes, out HashSet<string> set, out string joined)
             {
-                set = new HashSet<PathAtom>(processes
-                    .Select(p => p.Path)
-                    .Select(Path.GetFileName)
-                    .Select(a => PathAtom.Create(Context.StringTable, a)));
-                joined = string.Join(" ; ", processes
-                    .Select(p => p.Path)
-                    .Select(Path.GetFileName));
-            }
-
-            string PathAtomToString(PathAtom a)
-            {
-                return a.ToString(Context.StringTable);
+                set = new HashSet<string>(processes.Select(p => p.Path).Select(Path.GetFileName), StringComparer.OrdinalIgnoreCase);
+                joined = string.Join(" ; ", set);
             }
         }
 
@@ -1095,13 +1076,14 @@ namespace Test.BuildXL.Processes
             await CheckEchoProcessResult(result, echoMessage);
 
             // validate the results: we are expecting 1 process with command line args
-            XAssert.AreEqual(1, result.Processes.Count, "The number of processes launched is not correct");
+            var launchedProcesses = ExcludeInjectedOnes(result.Processes).ToList();
+            XAssert.AreEqual(1, launchedProcesses.Count, "The number of processes launched is not correct");
             var expectedReportedArgs = reportProcessArgs
                 ? TestProcessExecutable.Path.ToString(Context.PathTable) + " " + echoOp.ToCommandLine(Context.PathTable)
                 : string.Empty;
             XAssert.AreEqual(
                 expectedReportedArgs,
-                result.Processes[0].ProcessArgs,
+                launchedProcesses[0].ProcessArgs,
                 "The captured processes arguments are incorrect");
         }
 

@@ -17,8 +17,6 @@ namespace Processes {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: true
             },
-            // Coverage doesn't play nicely with the tests in SandboxedProcessBreakawayTest.cs and SandboxedProcessTest.cs
-            disableCodeCoverage: true,
             parallelGroups: ["FileAccessExplicitReportingTest", "DetoursCrossBitnessTest"]
         },
         references: [

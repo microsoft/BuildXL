@@ -418,6 +418,14 @@ namespace Test.BuildXL.TestUtilities
             AssertLogWithContainmentExpectation(caseSensitive, false, requiredLogMessages);
         }
 
+        /// <summary>
+        /// Returns if this process is running inside the VsTest's TestHost.exe process
+        /// </summary>
+        protected bool IsRunningInVsTestTestHost()
+        {
+            return System.Diagnostics.Process.GetCurrentProcess().ProcessName.ToUpperInvariant().Contains("TESTHOST");
+        }
+
         private void AssertLogWithContainmentExpectation(bool caseSensitive, bool expectToContain, params string[] requiredLogMessages)
         {
             Contract.Requires(requiredLogMessages != null);

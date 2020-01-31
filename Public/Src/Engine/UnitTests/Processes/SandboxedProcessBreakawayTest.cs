@@ -27,6 +27,14 @@ namespace Test.BuildXL.Processes
         [InlineData(false)]
         public void ChildProcessCanBreakawayWhenConfigured(bool letInfiniteWaiterSurvive)
         {
+            // Skip this test if running on .NET Framework with vstest
+            // Reason: when this is the case and code coverage is turned on, launching breakaway 
+            //         processes here causes the code coverage monitoring process to hang.
+            if (!OperatingSystemHelper.IsDotNetCore && IsRunningInVsTestTestHost())
+            {
+                return;
+            }
+
             // We use InfiniteWaiter (a process that waits forever) as a long-living process that we can actually check it can
             // escape the job object
             var fam = new FileAccessManifest(
@@ -120,8 +128,8 @@ namespace Test.BuildXL.Processes
             XAssert.ContainsNot(observedAccesses, srcFile2.Path);
 
             // Only a single process should be reported: the parent one
-            var testProcess = result.Processes.Single();
-            XAssert.AreEqual(TestProcessToolName.ToLowerInvariant(), System.IO.Path.GetFileName(testProcess.Path).ToLowerInvariant());
+            var testProcess = ExcludeInjectedOnes(result.Processes).Single();
+            XAssert.AreEqual(TestProcessToolName.ToLowerInvariant(), Path.GetFileName(testProcess.Path).ToLowerInvariant());
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -190,7 +198,7 @@ namespace Test.BuildXL.Processes
                 ReportUnexpectedFileAccesses = true,
                 ReportFileAccesses = true
             };
-            
+
             var basePath = TestBinRootPath.Combine(Context.PathTable, "foo");
 
             var output = CreateOutputFileArtifact(basePath);

@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
@@ -15,6 +17,14 @@ namespace Test.BuildXL.Processes
 {
     public class SandboxedProcessTestBase : PipTestBase, ISandboxedProcessFileStorage
     {
+        protected static readonly HashSet<string> PotentiallyExternallyInjectedChildProcesses = new HashSet<string>(
+            new[]
+            {
+                "IntelliTrace.exe",
+                CmdHelper.Conhost,
+            }, 
+            StringComparer.OrdinalIgnoreCase);
+
         public SandboxedProcessTestBase(ITestOutputHelper output) : base(output)
         {
         }
@@ -92,6 +102,15 @@ namespace Test.BuildXL.Processes
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Filters out those processes that were likely externally injected 
+        /// (as defined in <see cref="PotentiallyExternallyInjectedChildProcesses"/>).
+        /// </summary>
+        protected IEnumerable<ReportedProcess> ExcludeInjectedOnes(IEnumerable<ReportedProcess> processes)
+        {
+            return processes.Where(pr => !PotentiallyExternallyInjectedChildProcesses.Contains(Path.GetFileName(pr.Path)));
         }
 
         protected Process EchoProcess(string message = "Success", bool useStdErr = false)

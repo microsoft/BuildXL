@@ -933,10 +933,9 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void LongPathAccessControlTest()
         {
-            // skip this test if running on .NET Framework with vstest
-            // reason: new FileInfo(longPath) fails with PathTooLongException (interestingly, it works fine when executed by xunit)
-            if (!OperatingSystemHelper.IsDotNetCore &&
-                System.Diagnostics.Process.GetCurrentProcess().ProcessName.Contains("testhost"))
+            // Skip this test if running on .NET Framework with vstest
+            // Reason: new FileInfo(longPath) fails with PathTooLongException (interestingly, it works fine when executed by xunit)
+            if (!OperatingSystemHelper.IsDotNetCore && IsRunningInVsTestTestHost())
             {
                 return;
             }

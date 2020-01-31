@@ -81,6 +81,8 @@ namespace Test.BuildXL.Storage
                 m_process.Kill();
                 throw new BuildXLException("DummyWaiter.exe did not exit when expected.");
             }
+
+            m_process.Dispose();
         }
     }
 }

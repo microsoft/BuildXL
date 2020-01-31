@@ -41,14 +41,17 @@ const enum CoverageOptions {
 }
 
 function getCodeCoverageOption(args: QTestArguments): CoverageOptions {
-    // Disabling code coverage for tests that run detoured processes because the instrumentation
-    // needed for code coverage to work may interfere with our own detouring.
-    if (args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies) return CoverageOptions.None;
-
     // With admin privilege, currently we cannot upload test result.
     // Dynamic code coverage may include uploading coverage result. So, to be on the safe side,
     // currently we force the coverage option to none when admin privilege is required.
     if (args.privilegeLevel === "admin") return CoverageOptions.None;
+
+    // Allow disabling code coverage collection to override the global value
+    if (args.qTestDisableCodeCoverage === true)
+    {
+        //Debug.writeLine("Coverage Disabled");
+         return CoverageOptions.None;
+    }
 
     if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
         switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
@@ -487,6 +490,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestUnsafeArguments?: QTestUnsafeArguments;
     /** Semaphores to acquire */
     qTestAcquireSemaphores?: Transformer.SemaphoreInfo[];
+    /** Overrides global setting to disable code coverage collection on this test binary */
+    qTestDisableCodeCoverage?: boolean;
 }
 
 /**

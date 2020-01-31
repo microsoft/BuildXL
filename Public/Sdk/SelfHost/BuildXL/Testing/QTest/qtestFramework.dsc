@@ -209,6 +209,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestRuntimeDependencies: qTestRuntimeDependencies,
         qTestEnvironmentVariables: qTestEnvironmentVariables,
         qTestAcquireSemaphores: args.tools && args.tools.exec && args.tools.exec.acquireSemaphores,
+        qTestDisableCodeCoverage : args.disableCodeCoverage
     });
 
     return [

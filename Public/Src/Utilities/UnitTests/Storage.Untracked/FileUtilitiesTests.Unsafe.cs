@@ -532,7 +532,7 @@ namespace Test.BuildXL.Storage
             }
 
             // Should succeed when the executable is no longer running.
-            File.Delete(exeLink);
+            FileUtilities.DeleteFile(exeLink);
         }
 
         /// <remarks>

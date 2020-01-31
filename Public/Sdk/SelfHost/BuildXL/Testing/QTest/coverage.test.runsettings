@@ -10,12 +10,17 @@
       <DataCollector friendlyName="Code Coverage" uri="datacollector://Microsoft/CodeCoverage/2.0" assemblyQualifiedName="Microsoft.VisualStudio.Coverage.DynamicCoverageDataCollector, Microsoft.VisualStudio.TraceCollector, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
         <Configuration>
           <CodeCoverage>
-            <Functions>
-              <Exclude>      
-                <Function>^bond::.*</Function>
-                <Function>^grpc::.*</Function>
+            <ModulePaths>
+              <Exclude>
+                <ModulePath>.*\\grpc.*</ModulePath>
+                <ModulePath>.*\\bond.*</ModulePath>
+                <ModulePath>.*\\google.protobuf.dll</ModulePath>
+                <ModulePath>.*\\icsharpcode.sharpziplib.dll</ModulePath>
+                <ModulePath>.*\\dummywaiter.exe</ModulePath>
               </Exclude>
-            </Functions>
+            </ModulePaths>
+            <!--Lots of BuildXL tests launch child test processes. The coverage of those processes does not matter.-->
+            <CollectFromChildProcesses>False</CollectFromChildProcesses>
           </CodeCoverage>
         </Configuration>
       </DataCollector>

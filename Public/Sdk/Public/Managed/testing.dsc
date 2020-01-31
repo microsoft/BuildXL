@@ -283,6 +283,9 @@ export interface TestRunArguments {
 
     /** Unsafe arguments for running unit tests. */
     unsafeTestRunArguments?: UnsafeTestRunArguments;
+
+    /** Disables code coverage. */
+    disableCodeCoverage? : boolean;
 }
 
 @@public

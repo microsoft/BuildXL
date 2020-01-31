@@ -1239,6 +1239,17 @@ namespace Test.BuildXL.Scheduler
 
             processBuilder.AddCurrentHostOSDirectories();
             PipGraphBuilder.ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: true);
+
+            // Code coverage runs cause some side effect accesses under the QTest toolchain. Add these by default
+            // so they don't interrupt with test results.
+            // Technically this shouldn't be necessary because we also have configured the coverage.test.runsettings file
+            // to not collect coverage information for child processes. But leaving this here as a catchall and a
+            // breadcrumb in case this issue pops up again.
+            string qbitsPath = Environment.GetEnvironmentVariable("QBITSPATH");
+            if (!string.IsNullOrWhiteSpace(qbitsPath))
+            {
+                processBuilder.AddUntrackedDirectoryScope(Context.PathTable, qbitsPath);
+            }
         }
 
         protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)

@@ -10,8 +10,6 @@ export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
 export {BuildXLSdk};
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
-
     @@public
     export const deployment: Deployment.Definition =
     {

@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+#if !NET_STANDARD_20
 
 using System;
 using System.Diagnostics.ContractsLight;
@@ -80,3 +81,5 @@ namespace BuildXL.Utilities.Collections
         }
     }
 }
+
+#endif

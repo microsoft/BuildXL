@@ -422,9 +422,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                         NetFx.System.Threading.Tasks.dll,
                         importFrom("System.Threading.Tasks.Dataflow").pkg,
                     ]),
-                    ...(qualifier.targetFramework === "netstandard2.0" ? [] : [
-                        importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
-                    ]),
+                    importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
                     ...(args.generateLogs ? [
                         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll
                     ] : []),
@@ -587,7 +585,7 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.
-            importFrom("BuildXL.Utilities").Branding.brandingManifest,
+            importFrom("BuildXL.Utilities").Branding.Manifest.file,
         ]
     }, args);
 

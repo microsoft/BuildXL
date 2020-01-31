@@ -53,7 +53,7 @@ namespace PrivatePackages {
                     contents: [
                         DetoursServices.Deployment.detours,
                         DetoursServices.Deployment.natives,
-                        importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
+                        importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.Manifest.file
                     ]
                 },
                 {
@@ -61,7 +61,7 @@ namespace PrivatePackages {
                     contents: [
                         DetoursServices.Deployment.detours,
                         DetoursServices.Deployment.natives,
-                        importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
+                        importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.Manifest.file
                     ]
                 },
                 

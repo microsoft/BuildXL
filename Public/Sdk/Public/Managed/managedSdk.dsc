@@ -157,6 +157,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     return {
         name: a`${name}`,
         targetFramework: framework.targetFramework,
+        targetRuntime: qualifier.targetRuntime,
         compile: compileBinary,
         runtime: runtimeBinary,
         references: references,
@@ -423,7 +424,7 @@ export interface Arguments {
 
     /**
      * List of deployable items to skip when deploying the dependencies of this assembly.
-     * This is usefull for when you take a dependency on an assembly or a package but it comes with files or nuget packages
+     * This is useful for when you take a dependency on an assembly or a package but it comes with files or nuget packages
      * that conflict with other dependencies.
      */
     runtimeContentToSkip?: Deployment.DeployableItem[];

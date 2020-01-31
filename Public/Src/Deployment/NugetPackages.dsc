@@ -15,11 +15,26 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
+    const netcoreApp31PackageQualifer = {
+        targetFramework: "netcoreapp3.1",
+        targetRuntime: "win-x64"
+    };
+
+    const netstandard20PackageQualifer = {
+        targetFramework: "netstandard2.0",
+        targetRuntime: "win-x64"
+    };
+
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
 
     const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
         ? "BuildXL"
         : "Microsoft.BuildXL";
+
+    const buildXLUtilitiesIdentity = { id: `${packageNamePrefix}.Utilities`, version: Branding.Nuget.packageVersion};
+    const buildXLPipsIdentity = { id: `${packageNamePrefix}.Pips`, version: Branding.Nuget.packageVersion};
+    const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion};
+    const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion};
 
     const packageTargetFolder = BuildXLSdk.Flags.isMicrosoftInternal
         ? r`${qualifier.configuration}/pkgs`
@@ -53,6 +68,103 @@ namespace NugetPackages {
         deployment: Sdks.deployment,
     });
 
+    const utilities = packAssemblies({
+        id: buildXLUtilitiesIdentity.id,
+        assemblies: [
+            // BuildXL.Utilities
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).dll,
+
+            // BuildXL.Utilities.Branding
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Branding.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Branding.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Branding.dll,
+
+            // BuildXL.Collections
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Collections.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Collections.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Collections.dll,
+
+            // BuildXL.Interop
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Interop.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Interop.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Interop.dll,
+
+            // BuildXL.KeyValueStore
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).KeyValueStore.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).KeyValueStore.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).KeyValueStore.dll,
+
+            // BuildXL.Native
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Native.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.dll,
+
+            // BuildXL.Configuration
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Configuration.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Configuration.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Configuration.dll,
+
+            // BuildXL.Instrumentation.Common
+            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netstandard20PackageQualifer).dll,
+
+            // BuildXL.Instrumentation.Tracing
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net472PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netcoreApp31PackageQualifer).dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netstandard20PackageQualifer).dll,
+        ],
+        dependencies: [
+            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
+            // Therefore for now we manually declare these.
+            buildXLCacheHashingIdentity,
+        ],
+        deploymentOptions: reducedDeploymentOptions,
+    });
+
+    const pips = packAssemblies({
+        id: buildXLPipsIdentity.id,
+        assemblies: [
+            // BuildXL.Utilities
+            importFrom("BuildXL.Pips").withQualifier(net472PackageQualifer).dll,
+            importFrom("BuildXL.Pips").withQualifier(netcoreApp31PackageQualifer).dll,
+
+            // BuildXL.Ipc
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Ipc.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Ipc.dll,
+
+            // BuildXL.Storage
+            importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Storage.dll,
+            importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Storage.dll,
+        ],
+        dependencies: [
+            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
+            // Therefore for now we manually declare these.
+            buildXLUtilitiesIdentity,
+            buildXLCacheHashingIdentity,
+            buildXLCacheInterfacesIdentity,
+        ],
+        deploymentOptions: reducedDeploymentOptions,
+    });
+
+    const processes = packAssemblies({
+        id: `${packageNamePrefix}.Processes`,
+        assemblies: [
+            // BuildXL.Processes
+            importFrom("BuildXL.Engine").withQualifier(net472PackageQualifer).Processes.dll,
+            importFrom("BuildXL.Engine").withQualifier(netcoreApp31PackageQualifer).Processes.dll,
+        ],
+        dependencies: [
+            // The package gen does not automatically handle locally build dependencies since we don't know in which package they go yet
+            // Therefore for now we manually declare these.
+            buildXLUtilitiesIdentity,
+            buildXLPipsIdentity,
+        ],
+        deploymentOptions: reducedDeploymentOptions,
+    });
+
     const cacheTools = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Tools`,
         deployment: Cache.NugetPackages.tools,
@@ -62,7 +174,7 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Cache.Libraries`,
         deployment: Cache.NugetPackages.libraries,
         dependencies: [
-            { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion},
+            buildXLCacheInterfacesIdentity,
 
             importFrom("Microsoft.Tpl.Dataflow").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
@@ -75,10 +187,10 @@ namespace NugetPackages {
     });
 
     const cacheInterfaces = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.Cache.Interfaces`,
+        id: buildXLCacheInterfacesIdentity.id,
         deployment: Cache.NugetPackages.interfaces,
         dependencies: [
-            { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion},
+            buildXLCacheHashingIdentity,
 
             importFrom("Microsoft.Tpl.Dataflow").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
@@ -86,7 +198,7 @@ namespace NugetPackages {
     });
 
     const cacheHashing = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.Cache.Hashing`,
+        id: buildXLCacheHashingIdentity.id,
         deployment: Cache.NugetPackages.hashing
     });
 
@@ -168,6 +280,9 @@ namespace NugetPackages {
                 cacheInterfaces,
                 cacheHashing,
                 xldblibrary,
+                utilities,
+                pips,
+                processes
             ]),
             sdks,
             ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
@@ -180,6 +295,69 @@ namespace NugetPackages {
         definition: deployment,
         targetLocation: packageTargetFolder,
     });
+
+    /**
+     * Helper to pack assemblies. 
+     * We'll keep it in the BuildXL side for now. 
+     * If useful we should move it to the Nuget sdk.
+     */
+    function packAssemblies(args: {
+        id: string,
+        assemblies: Managed.Assembly[],
+        dependencies?: Nuget.Dependency[],
+        deploymentOptions?: Managed.Deployment.FlattenOptions,
+    }) : File
+    {
+        let dependencies : Nuget.Dependency[] = args
+            .assemblies
+            .mapMany(asm => asm
+                .references
+                .filter(ref => Managed.isManagedPackage(ref))
+                .map(ref => <Managed.ManagedNugetPackage>ref)
+                .map(ref => { return {id: ref.name, version: ref.version, targetFramework: asm.targetFramework}; })
+                .concat( (args.dependencies || []).map(dep => { return {id: dep.id, version: dep.version, targetFramework: asm.targetFramework }; }) )
+            );
+        
+        // If we ever add support for Mac pacakges here, we will have a problem because nuget does not
+        // support our scenario as of Jan 2020.
+        //  * We can't use contentFiles/any/{tfm} pattern because it doesn't support {rid}
+        //  * We can't place stuff in runtimes/{rid}/lib/{tfm}/xxxx nor in runtimes/{rid}/native/xxxx beause:
+        //        a) packages.config projects don't support the runtimes folder
+        //        b) nuget does not copy files on build. So F5 and unittests are broken. One has to hit 'publish'
+        //        c) nuget does not copy subfolders under those
+        // So the only solution is to include a custom targets file, which is hard to write because now that
+        // targets file is responsible for doing the {rid} graph resolution between win10-x64, win10, win-x64 etc.
+        // Therefore we will stick to only supporting windows platform and using contentFiles pattern
+        let contentFiles : Deployment.DeployableItem[] = args
+            .assemblies
+            .filter(asm => asm.runtimeContent !== undefined)
+            .map(asm => <Deployment.NestedDefinition>{
+                // Note since all windows tfms have the same content, we are manually
+                // if we ever create differences between tmfs, we will have to change the second 
+                // any to ${asm.targetFramework}
+                subfolder: r`contentFiles/any/any`,
+                contents: [
+                    asm.runtimeContent
+                ]
+            });
+
+        return Nuget.pack({
+            metadata:  createMetaData({
+                id: args.id, 
+                dependencies: dependencies, 
+                copyContentFiles: contentFiles.length > 0,
+            }),
+            deployment: {
+                contents: [
+                    ...args.assemblies.map(asm => Nuget.createAssemblyLayout(asm)),
+                    ...contentFiles,
+                ]
+            },
+            deploymentOptions: args.deploymentOptions,
+            noPackageAnalysis: true,
+            noDefaultExcludes: true,
+        }).nuPkg;
+    }
 
     export function pack(args: {
         id: string,
@@ -199,28 +377,37 @@ namespace NugetPackages {
             });
 
         return Nuget.pack({
-            metadata:  {
-                id: args.id,
-                version: Branding.Nuget.packageVersion,
-                authors: Branding.Nuget.packageAuthors,
-                owners: Branding.Nuget.packageOwners,
-                copyright: Branding.Nuget.pacakgeCopyright,
-                tags: `${Branding.company} ${Branding.shortProductName} MSBuild Build`,
-                description: `${Branding.shortProductName} is a build engine that comes with a new build automation language. ${Branding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
-                dependencies: dependencies,
-                contentFiles: args.copyContentFiles
-                    ? [{
-                        include: "**",
-                        copyToOutput: true,
-                        buildAction: "None",
-                      }]
-                    : undefined,
-            },
+            metadata:  createMetaData({id: args.id, dependencies: dependencies,copyContentFiles: args.copyContentFiles}),
             deployment: args.deployment,
             deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
         }).nuPkg;
+    }
+
+    export function createMetaData(args: {
+        id: string,
+        dependencies: Nuget.Dependency[],
+        copyContentFiles?: boolean,
+    }) : Nuget.PackageMetadata
+    {
+        return {
+            id: args.id,
+            version: Branding.Nuget.packageVersion,
+            authors: Branding.Nuget.packageAuthors,
+            owners: Branding.Nuget.packageOwners,
+            copyright: Branding.Nuget.pacakgeCopyright,
+            tags: `${Branding.company} ${Branding.shortProductName} MSBuild Build`,
+            description: `${Branding.shortProductName} is a build engine that comes with a new build automation language. ${Branding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
+            dependencies: args.dependencies,
+            contentFiles: args.copyContentFiles
+                ? [{
+                    include: "**",
+                    copyToOutput: true,
+                    buildAction: "None",
+                    }]
+                : undefined,
+        };
     }
 
     export function isManagedPackage(item: Nuget.Dependency | Managed.ManagedNugetPackage) : item is Managed.ManagedNugetPackage {

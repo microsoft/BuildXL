@@ -97,6 +97,9 @@ export interface Dependency {
 
     /** Version number of the dependency. */
     version: string;
+
+    /** Target framework */
+    targetFramework?: string;
 }
 
 export interface ContentFile {
@@ -216,6 +219,27 @@ function createNuSpecFile(
         );
     }
 
+    const groupedDependencies = (metaData.dependencies || [])
+        .groupBy(dep => dep.targetFramework);
+
+    let packageDependencies : Xml.Element[] = [];
+    if (groupedDependencies.length > 0)
+    {
+        packageDependencies = groupedDependencies.map(group =>
+            Xml.elem("group",
+                group.key 
+                    ? Xml.attr("targetFramework", group.key)
+                    : undefined,
+                ...group.values.map(d => 
+                    Xml.elem("dependency",
+                        Xml.attr("id", d.id),
+                        Xml.attr("version", d.version)
+                    )
+                )
+            )
+        );
+    }
+
     const nuSpecDoc = Xml.doc(
         Xml.elem({ local: "package", namespace: "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd" },
             Xml.elem("metadata",
@@ -231,14 +255,7 @@ function createNuSpecFile(
                 optionalElement("copyright", metaData.copyright),
                 optionalElement("tags", metaData.tags),
                 optionalElement("requireLicenseAcceptance", metaData.requireLicenseAcceptance ? "true": "false"),
-                Xml.elem("dependencies",
-                    ...(metaData.dependencies || []).map(d =>
-                        Xml.elem("dependency",
-                            Xml.attr("id", d.id),
-                            Xml.attr("version", d.version)
-                        )
-                    )
-                ),
+                Xml.elem("dependencies", ...packageDependencies),
                 metaData.contentFiles 
                     ? Xml.elem("contentFiles",
                         ...metaData.contentFiles.map(c =>
@@ -282,29 +299,62 @@ const emptyFile = Transformer.writeAllText({
 });
 
 @@public
-export function createAssemblyLayout(assembly: Managed.Assembly) : Deployment.Definition {
+export function createAssemblyLayout(assembly: Managed.Assembly, useRuntime?: boolean) : Deployment.Definition {
     // When the assembly is undefined, return empty deployment.
     if (assembly === undefined) {
         return {
             contents: []
         };
     }
+    
+    let contents = [];
 
-    return {
-        contents: [
-            {
-                subfolder: r`lib/${assembly.targetFramework}`,
-                contents: [
-                    assembly.runtime || emptyFile,
-                ]
-            },
-            {
+    // TODO: have to figure out how to check targetruntime when we add more windows versions.
+    if (!useRuntime || assembly.targetRuntime === "win-x64")
+    {
+        // The default is lib. but if we deplyo for multiple targetruntimes
+        // we have to use rumtimes/{rid}/lib/{tfm} pattern. Unfortunately this
+        // doesn't work in the old c++ C# project system. So we still have to
+        // populate the lib folder. Since the c++ project system doesn't support
+        // mac we hae to filter to windows only to ensure no double-writes.
+        contents = contents.push({
+            subfolder: r`lib/${assembly.targetFramework}`,
+            contents: [
+                assembly.runtime || emptyFile,
+            ]
+        });
+    }
+
+    if (useRuntime && assembly.targetRuntime)
+    {
+        // For target runtime specialization we have to use the runtimes pattern.
+        // Unfortunatley we often still have to double deploy the windows, see comment above
+        // for details.
+        contents = contents.push({
+            subfolder: r`runtimes/${assembly.targetRuntime}/lib/${assembly.targetFramework}`,
+            contents: [
+                assembly.runtime || emptyFile,
+            ]
+        });
+    }
+
+    // if we have a ref assembly
+    if (assembly.runtime !== assembly.compile)
+    {
+        // nuget does not support ref assemblies per runtime, so hack by only doing windows
+        if (!useRuntime || assembly.targetRuntime === "win-x64")
+        {
+            contents = contents.push({
                 subfolder: r`ref/${assembly.targetFramework}`,
                 contents: [
                     assembly.compile || emptyFile,
                 ]
-            }
-        ]
+            });
+        }
+    }
+
+    return {
+        contents: contents
     };
 }
 

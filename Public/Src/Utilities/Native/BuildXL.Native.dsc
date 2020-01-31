@@ -41,8 +41,6 @@ namespace Native {
     export const nativeMac = [
         ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () =>
         [
-            MacServices.Deployment.sandboxMonitor,
-            MacServices.Deployment.ariaLibrary,
             MacServices.Deployment.interopLibrary,
         ]),
     ];

@@ -32,11 +32,6 @@ namespace Tools {
 
         export const deployment : Deployment.Definition = {
             contents: [
-                ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                    MacServices.Deployment.kext,
-                    MacServices.Deployment.sandboxMonitor,
-                    MacServices.Deployment.sandboxLoadScripts
-                ]),
                 importFrom("BuildXL.Tools").SandboxExec.exe
             ]
         };

@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: {
-    targetFramework: "netcoreapp3.1" | "net472";
+    targetFramework: "netcoreapp3.1" | "net472" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64";
 };
 
@@ -13,13 +13,19 @@ const nativePackage = importFrom("RocksDbNative").pkg;
 const managedPackage = importFrom("RocksDbSharpSigned").pkg;
 
 @@public
-export const pkg = managedPackage.override<Managed.ManagedNugetPackage>({
-    name: "RocksDbSharp",
-    version: nativePackage.version,
-    runtimeContent: {
-        contents: [ <Deployment.NestedDefinition>{
-            subfolder: r`native`,
-            contents: [ Deployment.createFromFilteredStaticDirectory(nativePackage.contents, r`build/native`) ] }
-        ]
-    },
-});
+export const pkgs = [
+    managedPackage.override<Managed.ManagedNugetPackage>({
+        // Rename the package so that we declare the proper nuget dependency.
+        name: "RocksDbSharp",
+    }),
+
+    nativePackage.override<Managed.ManagedNugetPackage>({
+        // Mimic the custom msbuild targets to copy bits.
+        runtimeContent: {
+            contents: [ <Deployment.NestedDefinition>{
+                subfolder: r`native`,
+                contents: [ Deployment.createFromFilteredStaticDirectory(nativePackage.contents, r`build/native`) ] }
+            ]
+        }
+    }),
+];

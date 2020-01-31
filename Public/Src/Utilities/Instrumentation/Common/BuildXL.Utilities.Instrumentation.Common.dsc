@@ -6,6 +6,7 @@ import * as Managed from "Sdk.Managed";
 import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace Common {
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
     @@public
     export const dll = BuildXLSdk.library({
         allowUnsafeBlocks: true,
@@ -14,7 +15,9 @@ namespace Common {
         skipDefaultReferences: true,
         references: [],
         runtimeContent: [
-            AriaNative.deployment,
+            ...addIf(qualifier.targetRuntime === "win-x64",
+                AriaNative.deployment
+            ),
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
                 MacServices.Deployment.ariaLibrary
             ]),

@@ -792,13 +792,14 @@ namespace BuildXL.Native.IO.Windows
             // It is possible that TakeOwn fails, but ICACLS will still succeed, so do not return false on failure
             StartProcess("takeown", I($"/F \"{path}\""));
 
+#if !NET_STANDARD_20
             string userSid = WindowsIdentity.GetCurrent().User?.Value;
             if (userSid != null)
             {
                 // SID must be prefixed with '*' char
                 return StartProcess("icacls", I($"\"{path}\" /grant *{userSid}:(F)"));
             }
-
+#endif
             // could not get user's SID -> fall back to using username
             return StartProcess("icacls", I($"\"{path}\" /grant {Environment.UserName}:(F)"));
 

@@ -44,7 +44,7 @@ namespace DistributedTest {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("Grpc.Core").pkg,
             importFrom("Grpc.Core.Api").pkg,
-            importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
             importFrom("StackExchange.Redis").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,

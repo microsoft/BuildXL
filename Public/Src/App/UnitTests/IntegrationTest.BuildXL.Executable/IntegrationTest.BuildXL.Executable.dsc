@@ -11,7 +11,7 @@ namespace IntegrationTest.BuildXL.Executable {
 
     export declare const qualifier : {
         configuration: "debug" | "release",
-        targetFramework: "netcoreapp3.1" | "netstandard2.0",
+        targetFramework: "netcoreapp3.1",
         targetRuntime: "win-x64"
     };
 

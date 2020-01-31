@@ -33,7 +33,7 @@ export const redisPackages = [
 ];
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNetStandard20;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const deployment: Deployment.Definition =

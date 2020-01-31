@@ -51,7 +51,7 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Distributed.Test",

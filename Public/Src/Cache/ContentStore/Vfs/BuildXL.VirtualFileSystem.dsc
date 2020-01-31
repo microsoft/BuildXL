@@ -25,7 +25,7 @@ namespace VfsApplication {
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
-            importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
+            ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
             importFrom("Grpc.Core").pkg,
             importFrom("Grpc.Core.Api").pkg,

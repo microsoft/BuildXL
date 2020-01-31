@@ -37,12 +37,7 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
             ]),
 
             ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.kext,
-                MacServices.Deployment.sandboxMonitor,
-                MacServices.Deployment.ariaLibrary,
-                MacServices.Deployment.interopLibrary,
                 MacServices.Deployment.buildXLScripts,
-                MacServices.Deployment.sandboxLoadScripts
             ]),
 
             isServerDeployment ? inBoxServerSdks : inBoxSdks

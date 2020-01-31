@@ -8,9 +8,9 @@ namespace UnitTests.Bxl {
         sources: globR(d`.`, "*.cs"),
          references: [
                 ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll
-            ),
+                    NetFx.System.Xml.dll,
+                    NetFx.System.Xml.Linq.dll
+                ),
             Main.exe,
             ConsoleLogger.dll,
             importFrom("BuildXL.Utilities").dll,

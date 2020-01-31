@@ -71,6 +71,8 @@ function qTestTypeToString(args: QTestArguments) {
     switch (args.qTestType) {
         case QTestType.msTest_latest:
             return args.useVsTest150 ? "MsTest_150" : "MsTest_Latest";
+        case QTestType.Gradle:
+            return "Gradle";
         default:
             Contract.fail("Invalid value specified for macro QTestType");
     };
@@ -385,6 +387,8 @@ export const enum QTestType {
     /** Uses VsTest 12.0 to execute tests */
     @@Tool.option("--runner MsTest_Latest")
     msTest_latest = 1,
+    @@Tool.option("--runner Gradle")
+    Gradle = 2
 }
 
 /**

@@ -576,8 +576,9 @@ typedef struct ManifestSubstituteProcessExecutionShim_t
     // or whether to shim all except the matches.
     uint32_t ShimAllProcesses;
 
-    // Followed by WriteChars string and a custom collection consisting of N
-    // entries where each entry is 2 WriteChars strings.
+    // Followed by 3 WriteChars string, for substitute process shim path, 32-bit plugin path,
+    // and 64-bit plugin path. Then, followed by a custom collection consisting of N entries where each entry
+    // is 2 WriteChars strings.
 
     /// GetSize
     ///

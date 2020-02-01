@@ -236,10 +236,6 @@ bool g_BreakOnAccessDenied;
 LPCSTR g_lpDllNameX86;
 LPCSTR g_lpDllNameX64;
 
-wchar_t *g_substituteProcessExecutionShimPath = nullptr;
-bool g_ProcessExecutionShimAllProcesses;
-vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
-
 DetouredProcessInjector* g_pDetouredProcessInjector = nullptr;
 
 HANDLE g_hPrivateHeap = nullptr;
@@ -258,6 +254,16 @@ volatile LONG64 g_detoursMaxHandleHeapEntries = 0;
 
 // Currently allocated entries in the HandleHeapMap hash table. Allocated in private heap.
 volatile LONG64 g_detoursHandleHeapEntries = 0;\
+
+//
+// Substitute process execution shim.
+//
+wchar_t* g_SubstituteProcessExecutionShimPath = nullptr;
+bool g_ProcessExecutionShimAllProcesses;
+wchar_t* g_SubstituteProcessExecutionPluginDllPath = nullptr;
+HMODULE g_SubstituteProcessExecutionPluginDllHandle;
+SubstituteProcessExecutionPluginFunc g_SubstituteProcessExecutionPluginFunc;
+vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
 
 //
 // Real Windows API function pointers

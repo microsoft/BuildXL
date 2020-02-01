@@ -531,35 +531,6 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private void WriteAnyBuildShimBlock(BinaryWriter writer)
-        {
-#if DEBUG
-            writer.Write(0xABCDEF04); // "ABCDEF04"
-#endif
-
-            if (SubstituteProcessExecutionInfo == null)
-            {
-                writer.Write((uint)0);  // ShimAllProcesses false value.
-
-                // Emit a zero-length substituteProcessExecShimPath when substitution is turned off.
-                WriteChars(writer, null);
-                return;
-            }
-
-            writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
-            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(PathTable));
-            writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
-
-            if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
-            {
-                foreach (ShimProcessMatch match in SubstituteProcessExecutionInfo.ShimProcessMatches)
-                {
-                    WriteChars(writer, match.ProcessName.ToString(PathTable.StringTable));
-                    WriteChars(writer, match.ArgumentMatch.IsValid ? match.ArgumentMatch.ToString(PathTable.StringTable) : null);
-                }
-            }
-        }
-        
         // See unmanaged decoder at DetoursHelpers.cpp :: CreateStringFromWriteChars()
         private static void WriteChars(BinaryWriter writer, string str)
         {
@@ -567,9 +538,14 @@ namespace BuildXL.Processes
             writer.Write(strLen);
             for (var i = 0; i < strLen; i++)
             {
-                writer.Write((char)str[i]);
+                writer.Write(str[i]);
             }
         }
+
+        private void WritePath(BinaryWriter writer, AbsolutePath path) => WriteChars(writer, path.IsValid ? path.ToString(PathTable) : null);
+
+        private void WritePathAtom(BinaryWriter writer, PathAtom pathAtom) => WriteChars(writer, pathAtom.IsValid ? pathAtom.ToString(PathTable.StringTable) : null);
+
 
         private static string ReadChars(BinaryReader reader)
         {
@@ -597,20 +573,36 @@ namespace BuildXL.Processes
 
         private static void WriteInjectionTimeoutBlock(BinaryWriter writer, uint timeoutInMins)
         {
-            writer.Write((uint)timeoutInMins);
+            writer.Write(timeoutInMins);
         }
 
-        private const uint ErrorDumpLocationCheckedCode = 0xABCDEF03;
-        private const uint TranslationPathStringCheckedCode = 0xABCDEF02;
-        private const uint ChildProcessesBreakAwayStringCheckedCode = 0xABCDEF05;
-        private const uint FlagsCheckedCode = 0xF1A6B10C; // Flag block
-        private const uint PipIdCheckedCode = 0xF1A6B10E;
+        private static class CheckedCode
+        {
+            // CODESYNC: DataTypes.h.
+            public const uint TranslationPathString         = 0xABCDEF02;
+            public const uint ErrorDumpLocation             = 0xABCDEF03;
+            public const uint SubstituteProcessShim         = 0xABCDEF04;
+            public const uint ChildProcessesBreakAwayString = 0xABCDEF05;
+            public const uint Flags                         = 0xF1A6B10C;
+            public const uint PipId                         = 0xF1A6B10E;
+            public const uint DebugOn                       = 0xDB600001;
+            public const uint DebugOff                      = 0xDB600000;
+            public const uint ExtraFlags                    = 0xF1A6B10D;
+            public const uint ReportBlock                   = 0xFEEDF00D; // feed food.
+            public const uint DllBlock                      = 0xD11B10CC;
+
+            public static void EnsureRead(BinaryReader reader, uint checkCode)
+            {
+                uint code = reader.ReadUInt32();
+                Contract.Assert(code == checkCode);
+            }
+        }
 
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
         private static void WriteErrorDumpLocation(BinaryWriter writer, string internalDetoursErrorNotificationFile)
         {
 #if DEBUG
-            writer.Write(ErrorDumpLocationCheckedCode);
+            writer.Write(CheckedCode.ErrorDumpLocation);
 #endif
             WriteChars(writer, internalDetoursErrorNotificationFile);
         }
@@ -618,8 +610,7 @@ namespace BuildXL.Processes
         private static string ReadErrorDumpLocation(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32();
-            Contract.Assert(ErrorDumpLocationCheckedCode == code);
+            CheckedCode.EnsureRead(reader, CheckedCode.ErrorDumpLocation);
 #endif
             return ReadChars(reader);
         }
@@ -628,7 +619,7 @@ namespace BuildXL.Processes
         private static void WriteTranslationPathStrings(BinaryWriter writer, DirectoryTranslator translatePaths)
         {
 #if DEBUG
-            writer.Write(TranslationPathStringCheckedCode);
+            writer.Write(CheckedCode.TranslationPathString);
 #endif
 
             // Write the number of translation paths.
@@ -650,8 +641,7 @@ namespace BuildXL.Processes
         private static DirectoryTranslator ReadTranslationPathStrings(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32();
-            Contract.Assert(TranslationPathStringCheckedCode == code);
+            CheckedCode.EnsureRead(reader, CheckedCode.TranslationPathString);
 #endif
 
             uint length = reader.ReadUInt32();
@@ -679,7 +669,7 @@ namespace BuildXL.Processes
         private static void WriteChildProcessesToBreakAwayFromSandbox(BinaryWriter writer, IReadOnlyCollection<string> processNames)
         {
 #if DEBUG
-            writer.Write(ChildProcessesBreakAwayStringCheckedCode);
+            writer.Write(CheckedCode.ChildProcessesBreakAwayString);
 #endif
 
             // Write the number of process names
@@ -698,8 +688,7 @@ namespace BuildXL.Processes
         private static IReadOnlyCollection<string> ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32();
-            Contract.Assert(ChildProcessesBreakAwayStringCheckedCode == code);
+            CheckedCode.EnsureRead(reader, CheckedCode.ChildProcessesBreakAwayString);
 #endif
 
             uint length = reader.ReadUInt32();
@@ -725,18 +714,18 @@ namespace BuildXL.Processes
             debugFlagsMatch = true;
 #if DEBUG
             // "debug 1 (on)"
-            writer.Write((uint)0xDB600001);
+            writer.Write(CheckedCode.DebugOn);
             if (!ProcessUtilities.IsNativeInDebugConfiguration())
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(BuildXL.Utilities.Tracing.Events.StaticContext);
+                Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(Utilities.Tracing.Events.StaticContext);
                 debugFlagsMatch = false;
             }
 #else
             // "debug 0 (off)"
-            writer.Write((uint)0xDB600000);
+            writer.Write(CheckedCode.DebugOff);
             if (ProcessUtilities.IsNativeInDebugConfiguration())
             {
-                BuildXL.Processes.Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(BuildXL.Utilities.Tracing.Events.StaticContext);
+                Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(Utilities.Tracing.Events.StaticContext);
                 debugFlagsMatch = false;
             }
 #endif
@@ -745,7 +734,7 @@ namespace BuildXL.Processes
         private static void WriteFlagsBlock(BinaryWriter writer, FileAccessManifestFlag flags)
         {
 #if DEBUG
-            writer.Write(FlagsCheckedCode);
+            writer.Write(CheckedCode.Flags);
 #endif
 
             writer.Write((uint)flags);
@@ -754,8 +743,7 @@ namespace BuildXL.Processes
         private static FileAccessManifestFlag ReadFlagsBlock(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32();
-            Contract.Assert(FlagsCheckedCode == code);
+            CheckedCode.EnsureRead(reader, CheckedCode.Flags);
 #endif
 
             return (FileAccessManifestFlag)reader.ReadUInt32();
@@ -765,7 +753,7 @@ namespace BuildXL.Processes
         private static void WriteExtraFlagsBlock(BinaryWriter writer, FileAccessManifestExtraFlag extraFlags)
         {
 #if DEBUG
-            writer.Write((uint)0xF1A6B10D); // "extra flags block"
+            writer.Write(CheckedCode.ExtraFlags);
 #endif
             writer.Write((uint)extraFlags);
         }
@@ -773,7 +761,7 @@ namespace BuildXL.Processes
         private static void WritePipId(BinaryWriter writer, long pipId)
         {
 #if DEBUG
-            writer.Write(PipIdCheckedCode);
+            writer.Write(CheckedCode.PipId);
             writer.Write(0); // Padding. Needed to keep the data properly aligned for the C/C++ compiler.
 #endif
             // The PipId is needed for reporting purposes on non Windows OSs. Write it here.
@@ -783,8 +771,7 @@ namespace BuildXL.Processes
         private static long ReadPipId(BinaryReader reader)
         {
 #if DEBUG
-            uint code = reader.ReadUInt32();
-            Contract.Assert(PipIdCheckedCode == code);
+            CheckedCode.EnsureRead(reader, CheckedCode.PipId);
 
             int zero = reader.ReadInt32();
             Contract.Assert(0 == zero);
@@ -795,7 +782,7 @@ namespace BuildXL.Processes
         private static void WriteReportBlock(BinaryWriter writer, FileAccessSetup setup)
         {
 #if DEBUG
-            writer.Write((uint)0xFEEDF00D); // "feed food"
+            writer.Write(CheckedCode.ReportBlock);
 #endif
             // since the number of bytes in this block is always going to be even, use the bottom bit
             // to indicate whether it is a handle number (1) or a path (0)
@@ -817,8 +804,8 @@ namespace BuildXL.Processes
 
                     size |= 0x01; // set bottom bit to indicate that the value is an integer
 
-                    writer.Write((uint)size);
-                    writer.Write((int)handleValue32bit);
+                    writer.Write(size);
+                    writer.Write(handleValue32bit);
                 }
                 else
                 {
@@ -841,7 +828,7 @@ namespace BuildXL.Processes
         private static void WriteDllBlock(BinaryWriter writer, FileAccessSetup setup)
         {
 #if DEBUG
-            writer.Write((uint)0xD11B10CC); // "dll block"
+            writer.Write(CheckedCode.DllBlock);
 #endif
 
             // order has to match order in DetoursServices.cpp / ParseFileAccessManifest.
@@ -872,6 +859,38 @@ namespace BuildXL.Processes
             foreach (PaddedByteString dll in dlls)
             {
                 dll.Serialize(writer);
+            }
+        }
+
+        private void WriteSubstituteProcessShimBlock(BinaryWriter writer)
+        {
+#if DEBUG
+            writer.Write(CheckedCode.SubstituteProcessShim);
+#endif
+
+            if (SubstituteProcessExecutionInfo == null)
+            {
+                writer.Write(0U);  // ShimAllProcesses false value.
+
+                // Emit a zero-length substituteProcessExecShimPath when substitution is turned off.
+                WriteChars(writer, null);
+                return;
+            }
+
+            writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? 1U : 0U);
+            WritePath(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath);
+            WritePath(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionPluginDll32Path);
+            WritePath(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionPluginDll64Path);
+
+            writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
+
+            if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
+            {
+                foreach (ShimProcessMatch match in SubstituteProcessExecutionInfo.ShimProcessMatches)
+                {
+                    WritePathAtom(writer, match.ProcessName);
+                    WritePathAtom(writer, match.ArgumentMatch);
+                }
             }
         }
 
@@ -909,7 +928,7 @@ namespace BuildXL.Processes
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
-                WriteAnyBuildShimBlock(writer);
+                WriteSubstituteProcessShimBlock(writer);
                 WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);
@@ -968,7 +987,7 @@ namespace BuildXL.Processes
         /// </summary>
         /// <remarks>
         /// This method does not perform a full fidelity deserialization, since the node tree is left as a byte array, available
-        /// via <see cref="GetManifestTreeBytes"/>. To get the full fidelity manifest back, call HydrateTreeNode
+        /// via <see cref="GetManifestTreeBytes"/>. To get the full fidelity manifest back, call HydrateTreeNode.
         /// </remarks>
         public static FileAccessManifest Deserialize(Stream stream)
         {
@@ -1054,7 +1073,7 @@ namespace BuildXL.Processes
             return m_rootNode.Describe();
         }
 
-        // Keep this in sync with the C++ version declared in DataTypes.h
+        // CODESYNC: DataTypes.h
         [Flags]
         internal enum FileAccessManifestFlag
         {
@@ -1090,7 +1109,7 @@ namespace BuildXL.Processes
             EnforceAccessPoliciesOnDirectoryCreation = 0x10000000
         }
 
-        // Keep this in sync with the C++ version declared in DataTypes.h
+        // CODESYNC: DataTypes.h
         [Flags]
         private enum FileAccessManifestExtraFlag
         {
@@ -1490,7 +1509,7 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            // Keep this in sync with the C++ version declared in DataTypes.h
+            // CODESYNC: DataTypes.h
             [Flags]
             private enum FileAccessBucketOffsetFlag : uint
             {

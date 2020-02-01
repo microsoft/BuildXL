@@ -2,9 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
+import * as Managed from "Sdk.Managed";
+
 const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 const DetoursTest86 = DetoursTest.withQualifier({platform: "x86"});
-import * as Managed from "Sdk.Managed";
+const SubstitutePlugin64 = Processes.TestPrograms.SubstituteProcessExecutionPlugin.withQualifier({platform: "x64"});
+const SubstitutePlugin86 = Processes.TestPrograms.SubstituteProcessExecutionPlugin.withQualifier({platform: "x86"});
 
 namespace Processes.Detours {
     function test(platform: string) {
@@ -50,8 +53,16 @@ namespace Processes.Detours {
                             detours.inputFile,
                             detours.exe.binaryFile
                         ]
+                    },
+                    {
+                        subfolder: r`SubstitutePlugin/x64`,
+                        contents: [ SubstitutePlugin64.dll.binaryFile ]
+                    },
+                    {
+                        subfolder: r`SubstitutePlugin/x86`,
+                        contents: [ SubstitutePlugin86.dll.binaryFile ]
                     }
-                ])
+                ]),
             ],
             defineConstants: platform === "x64"
                 ? ["TEST_PLATFORM_X64"]

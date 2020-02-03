@@ -13,11 +13,16 @@ namespace BuildXL.Ipc.ExternalApi
     public static class FileId
     {
         /// <summary>
+        /// Used for separating rendered values in <see cref="ToString(FileArtifact)"/>
+        /// </summary>
+        internal const char Separator = ':';
+
+        /// <summary>
         /// Serializes a file artifact into a string identifier.
         /// </summary>
         public static string ToString(FileArtifact file)
         {
-            return I($"{file.Path.RawValue}:{file.RewriteCount}");
+            return I($"{file.Path.RawValue}{Separator}{file.RewriteCount}");
         }
 
         /// <summary>
@@ -46,14 +51,14 @@ namespace BuildXL.Ipc.ExternalApi
         {
             file = FileArtifact.Invalid;
 
-            string[] splits = value.Split(':');
+            string[] splits = value.Split(Separator);
             if (splits.Length != 2)
             {
                 return false;
             }
 
             int pathId;
-            if (!int.TryParse(splits[0], out pathId) || pathId <= 0)
+            if (!int.TryParse(splits[0], out pathId))
             {
                 return false;
             }

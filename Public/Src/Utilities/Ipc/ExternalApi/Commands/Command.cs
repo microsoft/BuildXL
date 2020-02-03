@@ -71,8 +71,7 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                     case nameof(LogMessageCommand):
                         return LogMessageCommand.InternalDeserialize(reader);
                     default:
-                        Contract.Assert(false, "unrecognized command type name: " + typeName);
-                        return null;
+                        throw new ArgumentException("unrecognized command type name: " + typeName);
                 }
             }
         }

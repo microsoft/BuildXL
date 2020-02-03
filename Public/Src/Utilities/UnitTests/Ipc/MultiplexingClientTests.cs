@@ -217,7 +217,7 @@ namespace Test.BuildXL.Ipc
                         req.Operation.Payload == hiOp.Payload ? Tuple.Create(hiTask, helloTask) :
                         req.Operation.Payload == helloOp.Payload ? Tuple.Create(helloTask, hiTask) :
                         null;
-                    Assert.NotNull(match);
+                    XAssert.IsNotNull(match, $"No match found for request: {req}");
 
                     var matchedTask = match.Item1;
                     var otherTask = match.Item2;

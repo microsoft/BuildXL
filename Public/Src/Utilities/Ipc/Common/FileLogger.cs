@@ -32,6 +32,9 @@ namespace BuildXL.Ipc.Common
         /// <nodoc />
         public string Prefix { get; }
 
+        /// <summary>Full path to the log file</summary>
+        public string LogFilePath { get; }
+
         /// <nodoc />
         public FileLogger(string logDirectory, string logFileName, string monikerId, bool logVerbose, string prefix = null)
         {
@@ -39,14 +42,15 @@ namespace BuildXL.Ipc.Common
             Prefix = prefix ?? string.Empty;
             int i = 1;
             string originalLogFileName = logFileName;
-            string daemonLog;
+            string logFullPath;
 
-            while (File.Exists(daemonLog = Path.Combine(logDirectory, $"{logFileName}-{monikerId}.log")))
+            while (File.Exists(logFullPath = Path.Combine(logDirectory, $"{logFileName}-{monikerId}.log")))
             {
                 logFileName = $"{originalLogFileName}{i++}";
             }
 
-            LazilyCreatedStream stream = new LazilyCreatedStream(daemonLog);
+            LogFilePath = logFullPath;
+            LazilyCreatedStream stream = new LazilyCreatedStream(logFullPath);
 
             // Occasionally we see things logged that aren't valid unicode characters.
             // Emitting gibberish for these peculiar characters isn't a big deal
@@ -69,6 +73,12 @@ namespace BuildXL.Ipc.Common
 
             var message = Prefix + LoggerExtensions.Format(level, format, args);
             m_writer.WriteLine(message);
+        }
+
+        /// <nodoc />
+        public void Flush()
+        {
+            FlushLog(null);
         }
 
         private void FlushLog(object obj)

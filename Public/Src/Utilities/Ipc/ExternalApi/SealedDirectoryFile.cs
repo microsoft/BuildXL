@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -56,7 +55,10 @@ namespace BuildXL.Ipc.ExternalApi
             sealedDirectoryFile = default(SealedDirectoryFile);
 
             string[] splits = value.Split(new[] { RenderSeparator }, StringSplitOptions.None);
-            Contract.Assert(splits.Length == 3);
+            if (splits.Length != 3)
+            {
+                return false;
+            }
 
             if (splits[0] == string.Empty)
             {

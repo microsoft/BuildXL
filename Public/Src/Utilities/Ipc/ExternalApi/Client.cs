@@ -18,6 +18,8 @@ namespace BuildXL.Ipc.ExternalApi
     {
         private readonly IClient m_client;
 
+        internal const string ErrorCannotParseIpcResultMessage = "Cannot parse IPC result";
+
         #region Constructors and Factory Methods
 
         /// <nodoc/>
@@ -29,10 +31,10 @@ namespace BuildXL.Ipc.ExternalApi
         /// <summary>
         /// Convenient factory method.
         /// </summary>
-        public static Client Create(string moniker, IClientConfig config = null)
+        public static Client Create(string connectionString, IClientConfig config = null)
         {
             var provider = IpcFactory.GetProvider();
-            return new Client(provider.GetClient(moniker, config ?? new ClientConfig()));
+            return new Client(provider.GetClient(connectionString, config ?? new ClientConfig()));
         }
         #endregion
 
@@ -81,20 +83,27 @@ namespace BuildXL.Ipc.ExternalApi
 
         private async Task<Possible<T>> ExecuteCommand<T>(Command<T> command)
         {
-            IIpcOperation ipcOperation = new IpcOperation(Command.Serialize(command), waitForServerAck: true);
-            IIpcResult ipcResult = await m_client.Send(ipcOperation);
-            if (!ipcResult.Succeeded)
+            try
             {
-                return new Failure<string>(ipcResult.ToString());
-            }
+                IIpcOperation ipcOperation = new IpcOperation(Command.Serialize(command), waitForServerAck: true);
+                IIpcResult ipcResult = await m_client.Send(ipcOperation);
+                if (!ipcResult.Succeeded)
+                {
+                    return new Failure<string>(ipcResult.ToString());
+                }
 
-            T cmdResult;
-            if (!command.TryParseResult(ipcResult.Payload, out cmdResult))
+                T cmdResult;
+                if (!command.TryParseResult(ipcResult.Payload, out cmdResult))
+                {
+                    return new Failure<string>($"{ErrorCannotParseIpcResultMessage}: {ipcResult}");
+                }
+
+                return cmdResult;
+            }
+            catch (Exception ex)
             {
-                return new Failure<string>("Cannot parse IPC result: " + ipcResult.ToString());
+                return new Failure<Exception>(ex).Annotate($"Executing {command.GetType().Name} command threw exception.");
             }
-
-            return cmdResult;
         }
     }
 }

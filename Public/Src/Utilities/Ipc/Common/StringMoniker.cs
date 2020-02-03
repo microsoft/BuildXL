@@ -43,11 +43,5 @@ namespace BuildXL.Ipc.Common
         bool IEquatable<StringMoniker>.Equals(StringMoniker other) => Equals(other);
 
         bool IEquatable<IIpcMoniker>.Equals(IIpcMoniker other) => Equals(other);
-
-        /// <nodoc />
-        public static bool operator ==(StringMoniker a, StringMoniker b) => a.Equals(b);
-
-        /// <nodoc />
-        public static bool operator !=(StringMoniker a, StringMoniker b) => !(a == b);
     }
 }

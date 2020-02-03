@@ -125,7 +125,7 @@ function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
     {
         preReleaseSeq = Number.parseInt(parts[1]);
         if (!preReleaseSeq || preReleaseSeq > 20) {
-            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where seq is a number not expected to go beyond 20");
+            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where seq is a number not expected to go beyond 20. Encountered prerelease tag of:'" + prereleaseTag + "' with seq of:'" + parts[1] + "'");
         }
     }
 
@@ -133,7 +133,7 @@ function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
     {
         preReleasePatch = Number.parseInt(parts[2]);
         if (!preReleasePatch || preReleasePatch > 5) {
-            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5");
+            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5. Encountered prerelease tag of:'" + prereleaseTag + "' with patch of:'" + parts[2] + "'");
         }
     }
 

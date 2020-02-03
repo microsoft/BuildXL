@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Calls a central store and updates <paramref name="state"/> based on the result.
         /// </summary>
-        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state);
+        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state, bool updateBinManager);
 
         /// <summary>
         /// Notifies a central store that another machine should be selected as a master.

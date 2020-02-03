@@ -614,7 +614,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         postDbMaxMachineId = ClusterState.MaxMachineId;
                     }
 
-                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState);
+                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, updateBinManager: CurrentRole == Role.Master);
                     postGlobalMaxMachineId = ClusterState.MaxMachineId;
 
                     // Update the local database with new machines if the cluster state was updated from the global store

@@ -2181,7 +2181,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterClusterState = master.LocalLocationStore.ClusterState;
 
                     var clusterState = new ClusterState();
-                    await worker.LocalLocationStore.GlobalStore.UpdateClusterStateAsync(context, clusterState).ShouldBeSuccess();
+                    await worker.LocalLocationStore.GlobalStore.UpdateClusterStateAsync(context, clusterState, updateBinManager: false).ShouldBeSuccess();
 
                     clusterState.MaxMachineId.Should().Be(machineCount);
 

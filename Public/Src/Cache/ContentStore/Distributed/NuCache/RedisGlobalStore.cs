@@ -454,15 +454,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #endregion Role Management
 
         /// <inheritdoc />
-        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState)
+        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, bool updateBinManager)
         {
             return context.PerformOperationAsync(
                 Tracer,
-                () => UpdateLocalClusterStateAsync(context, clusterState),
+                () => UpdateLocalClusterStateAsync(context, clusterState, updateBinManager),
                 Counters[GlobalStoreCounters.UpdateClusterState]);
         }
 
-        private async Task<BoolResult> UpdateLocalClusterStateAsync(OperationContext context, ClusterState clusterState)
+        private async Task<BoolResult> UpdateLocalClusterStateAsync(OperationContext context, ClusterState clusterState, bool updateBinManager)
         {
             (var heartbeatResult, var getUnknownMachinesResult) = await _clusterStateKey.UseReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
             {
@@ -500,7 +500,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             clusterState.AddUnknownMachines(getUnknownMachinesResult.maxMachineId, getUnknownMachinesResult.unknownMachines);
-            clusterState.SetInactiveMachines(heartbeatResult.inactiveMachineIdSet);
+            clusterState.SetInactiveMachines(heartbeatResult.inactiveMachineIdSet, updateBinManager);
             Tracer.Debug(context, $"Inactive machines: Count={heartbeatResult.inactiveMachineIdSet.Count}, [{string.Join(", ", heartbeatResult.inactiveMachineIdSet)}]");
             Tracer.TrackMetric(context, "InactiveMachineCount", heartbeatResult.inactiveMachineIdSet.Count);
             return BoolResult.Success;

@@ -71,12 +71,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
+        public void SetInactiveMachines(BitMachineIdSet inactiveMachines, bool updateBinManager)
         {
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
 
-            if (BinManager != null)
+            if (updateBinManager && BinManager != null)
             {
                 var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
                 BinManager.UpdateAll(activeMachines, InactiveMachines);
@@ -90,9 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (_inactiveMachinesSet[machineId.Index])
             {
-                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
-
-                BinManager?.AddLocation(machineId);
+                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId), updateBinManager: false);
             }
         }
 
@@ -127,8 +125,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             _idByLocationMap[machineLocation] = machineId;
-
-            BinManager?.AddLocation(machineId);
         }
 
         /// <summary>

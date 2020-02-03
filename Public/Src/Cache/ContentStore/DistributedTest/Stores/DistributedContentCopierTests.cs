@@ -160,26 +160,59 @@ namespace ContentStoreTest.Distributed.Stores
             }
         }
 
-        private async Task<(DistributedContentCopier<AbsolutePath>, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory, TimeSpan retryInterval, int retries = 1)
+        [Fact]
+        public async Task CopyWithDesignatedLocations()
+        {
+            var context = new Context(Logger);
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var machineLocations = new MachineLocation[] { new MachineLocation("Non-designated"), new MachineLocation("Designated") };
+                var (distributedCopier, mockFileCopier) = await CreateAsync(context, directory.Path, TimeSpan.FromMilliseconds((10)), designatedLocations: new MachineLocation[] { machineLocations[1] });
+                mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(99);
+
+                var hash = ContentHash.Random();
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 99,
+                    machineLocations);
+                var destinationResult = await distributedCopier.TryCopyAndPutAsync(
+                    new OperationContext(context),
+                    hashWithLocations,
+                    handleCopyAsync: tpl => Task.FromResult(new PutResult(hash, 99)));
+
+                destinationResult.ShouldBeSuccess();
+                mockFileCopier.CopyAttempts.Should().Be(1);
+                ((TestDistributedContentCopier)distributedCopier).PathTransformer.LastContentLocation.Should().BeEquivalentTo(machineLocations[1].Data);
+            }
+        }
+
+        private async Task<(DistributedContentCopier<AbsolutePath>, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory, TimeSpan retryInterval, int retries = 1, MachineLocation[] designatedLocations = null)
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
             var contentCopier = new TestDistributedContentCopier(
                 rootDirectory,
                 // Need to use exactly one retry.
-                new DistributedContentStoreSettings() { RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => retryInterval).ToArray() },
+                new DistributedContentStoreSettings()
+                {
+                    RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => retryInterval).ToArray(),
+                    PrioritizeDesignatedLocationsOnCopies = designatedLocations != null,
+                    TrustedHashFileSizeBoundary = long.MaxValue // Disable trusted hash because we never actually move bytes and thus the hasher thinks there is a mismatch.
+                },
                 FileSystem,
                 mockFileCopier,
                 existenceChecker,
                 copyRequester: null,
                 new NoOpPathTransformer(rootDirectory),
-                new MockContentLocationStore());
+                new MockContentLocationStore(designatedLocations));
             await contentCopier.StartupAsync(context).ThrowIfFailure();
             return (contentCopier, mockFileCopier);
         }
 
         private class TestDistributedContentCopier : DistributedContentCopier<AbsolutePath>
         {
+            public readonly NoOpPathTransformer PathTransformer;
+
             public TestDistributedContentCopier(
             AbsolutePath workingDirectory,
             DistributedContentStoreSettings settings,
@@ -191,6 +224,7 @@ namespace ContentStoreTest.Distributed.Stores
             IContentLocationStore contentLocationStore)
                 : base(workingDirectory, settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance, contentLocationStore)
             {
+                PathTransformer = pathTransformer as NoOpPathTransformer;
             }
 
             protected override Task<CopyFileResult> CopyFileAsync(IFileCopier<AbsolutePath> copier, AbsolutePath sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
@@ -203,18 +237,28 @@ namespace ContentStoreTest.Distributed.Stores
         {
             private readonly AbsolutePath _root;
 
+            public byte[] LastContentLocation { get; set; }
+
             public NoOpPathTransformer(AbsolutePath root)
             {
                 _root = root;
             }
             public override AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)
             {
+                LastContentLocation = contentLocationIdContent;
                 return _root;
             }
         }
 
         private class MockContentLocationStore : IContentLocationStore
         {
+            private readonly MachineLocation[] _designatedLocations;
+
+            public MockContentLocationStore(MachineLocation[] designatedLocations)
+            {
+                _designatedLocations = designatedLocations;
+            }
+
             /// <inheritdoc />
             public bool StartupCompleted => false;
 
@@ -297,7 +341,7 @@ namespace ContentStoreTest.Distributed.Stores
 
             public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
             {
-                throw new NotImplementedException();
+                return new Result<MachineLocation[]>(_designatedLocations);
             }
 
             /// <inheritdoc />
@@ -305,18 +349,6 @@ namespace ContentStoreTest.Distributed.Stores
 
             /// <inheritdoc />
             public long MaxBlobSize => 0;
-        }
-
-        private class MockPathTransformer : IPathTransformer
-        {
-            /// <inheritdoc />
-            public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot) => new byte[] { };
-
-            /// <inheritdoc />
-            public PathBase GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent) => null;
-
-            /// <inheritdoc />
-            public byte[] GetPathLocation(PathBase path) => new byte[] { };
         }
 
         private class MockFileCopier : IFileCopier

@@ -194,6 +194,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
 
         /// <summary>
+        /// Whether to prioritize designated locations when copying.
+        /// </summary>
+        public bool PrioritizeDesignatedLocationsOnCopies { get; set; } = false;
+
+        /// <summary>
+        /// Number of copy attempts which should be restricted in its number or replicas.
+        /// </summary>
+        public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
+
+        /// <summary>
+        /// Number of replicas to attempt when a copy is being restricted.
+        /// </summary>
+        public int RestrictedCopyReplicaCount { get; set; } = 3;
+
+        /// <summary>
         /// Time before a proactive copy times out.
         /// </summary>
         public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);

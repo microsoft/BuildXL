@@ -241,7 +241,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EnableRepairHandling = _distributedSettings.IsRepairHandlingEnabled,
                 ContentHashBumpTime = lazyTouchContentHashBumpTime,
                 LocationStoreBatchSize = _distributedSettings.RedisBatchPageSize,
-                ContentAvailabilityGuarantee = contentAvailabilityGuarantee
+                ContentAvailabilityGuarantee = contentAvailabilityGuarantee,
+                PrioritizeDesignatedLocationsOnCopies = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
+                RestrictedCopyReplicaCount = _distributedSettings.RestrictedCopyReplicaCount,
+                CopyAttemptsWithRestrictedReplicas = _distributedSettings.CopyAttemptsWithRestrictedReplicas,
             };
 
             ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, _logger);

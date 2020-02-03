@@ -242,6 +242,15 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseTieredDistributedEviction { get; set; } = false;
 
+        [DataMember]
+        public bool PrioritizeDesignatedLocationsOnCopies { get; set; } = false;
+
+        [DataMember]
+        public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;
+
+        [DataMember]
+        public int RestrictedCopyReplicaCount { get; set; } = 3;
+
         /// <summary>
         /// After the first raided redis instance completes, the second instance is given a window of time to complete before the retries are cancelled.
         /// Default to always wait for both instances to complete.

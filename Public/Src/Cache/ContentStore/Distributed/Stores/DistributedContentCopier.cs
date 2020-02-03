@@ -145,6 +145,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 int attemptCount = 0;
                 TimeSpan waitDelay = TimeSpan.Zero;
 
+                if (_settings.PrioritizeDesignatedLocationsOnCopies)
+                {
+                    hashInfo = PrioritizeDesignatedLocations(hashInfo);
+                }
+
                 //DateTime defaults to 01/01/0001 when we initialize the array.
                 //This forloop initializes each element to the current time relative to the passed clock instance
                 //We use the time from a clock instance in case future tests try to simulate the progression of time.
@@ -159,6 +164,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     bool retry;
 
+                    // Limit the number of replicas that we will go though if this is one of the first n restricted attempts.
+                    var maxReplicaCount = attemptCount < _settings.CopyAttemptsWithRestrictedReplicas
+                        ? _settings.RestrictedCopyReplicaCount
+                        : int.MaxValue;
+
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
                         _workingDirectory,
@@ -168,6 +178,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         lastFailureTimes,
                         attemptCount,
                         waitDelay,
+                        maxReplicaCount,
                         handleCopyAsync);
 
                     if (putResult || cts.IsCancellationRequested)
@@ -249,6 +260,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
+
+        /// <summary>
+        /// Moves designated locations to the front of the hash info locations.
+        /// </summary>
+        private ContentHashWithSizeAndLocations PrioritizeDesignatedLocations(ContentHashWithSizeAndLocations hashInfo)
+        {
+            if (_contentLocationStore.GetDesignatedLocations(hashInfo.ContentHash).TryGetValue(out var designatedLocations))
+            {
+                var newLocations = new MachineLocation[hashInfo.Locations.Count];
+                var currentNonDesignated = newLocations.Length - 1;
+                var currentDesignated = 0;
+
+                // Traverse locations back to front to preserve order other than designated locations put at the beggining.
+                for (var i = newLocations.Length - 1; i >= 0; i--)
+                {
+                    var location = hashInfo.Locations[i];
+                    var index = designatedLocations.Contains(location) ? currentDesignated++ : currentNonDesignated--;
+                    newLocations[index] = location;
+                }
+
+                return new ContentHashWithSizeAndLocations(hashInfo.ContentHash, hashInfo.Size, newLocations);
+            }
+
+            return hashInfo;
+        }
+
         /// <summary>
         /// Requests another machine to copy from the current machine.
         /// </summary>
@@ -320,6 +357,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             DateTime[] lastFailureTimes,
             int attemptCount,
             TimeSpan waitDelay,
+            int maxReplicaCount,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             var cts = context.Token;
@@ -329,7 +367,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string lastErrorMessage = null;
 
-            for (int replicaIndex = 0; replicaIndex < hashInfo.Locations.Count; replicaIndex++)
+            var maxReplica = Math.Min(maxReplicaCount, hashInfo.Locations.Count);
+            for (int replicaIndex = 0; replicaIndex < maxReplica; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
 

@@ -1036,4 +1036,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_NumberofFailedPipRetry" xml:space="preserve">
     <value>Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled).</value>
   </data>
+  <data name="HelpText_DisplayHelp_PathSetAugmentationMonitoring" xml:space="preserve">
+    <value>Check that the paths used in creating an augmented pathset/weak fingerprint are used during the execution of a pip. If a path is not used it's logged together with its hash. The argument controls the max number of paths logged per executed pip. If the value is set to 0, the monitoring is disabled.</value>
+  </data>
 </root>

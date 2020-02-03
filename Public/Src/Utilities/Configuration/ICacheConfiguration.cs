@@ -146,5 +146,11 @@ namespace BuildXL.Utilities.Configuration
         /// this path.
         /// </remarks>
         AbsolutePath VfsCasRoot { get; }
+
+        /// <summary>
+        /// Controls the max number of logged suspicious paths (i.e., paths used in an augmented pathset, but not observed during pip execution) for each pip. 
+        /// The value of 0 means that the monitoring is disabled.
+        /// </summary>
+        int MonitorAugmentedPathSets { get; }
     }
 }

@@ -499,6 +499,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/pathSetAugmentationMonitoring",
+                Strings.HelpText_DisplayHelp_PathSetAugmentationMonitoring,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/vfsCasRoot<vfs cas root directory>",
                 Strings.HelpText_DisplayHelp_VfsCasRoot,
                 HelpLevel.Verbose);

@@ -118,7 +118,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public bool Equals(ObservedPathEntry other)
         {
-            return other.Path == Path && other.Flags == Flags;
+            return other.Path == Path && other.Flags == Flags && other.EnumeratePatternRegex == EnumeratePatternRegex;
         }
 
         /// <inheritdoc />
@@ -130,7 +130,10 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Path.GetHashCode(), Flags.GetHashCode());
+            return HashCodeHelper.Combine(
+                Path.GetHashCode(), 
+                Flags.GetHashCode(), 
+                EnumeratePatternRegex == null ? 0 : EnumeratePatternRegex.GetHashCode());
         }
 
         public void Serialize(BuildXLWriter writer)

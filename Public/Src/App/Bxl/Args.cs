@@ -755,6 +755,9 @@ namespace BuildXL
                             "augmentingPathSetCommonalityFactor",
                             opt =>  cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
+                            "pathSetAugmentationMonitoring",
+                            opt => cacheConfiguration.MonitorAugmentedPathSets = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
                         OptionHandlerFactory.CreateBoolOption(

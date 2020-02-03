@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ReplaceExistingFileOnMaterialization = false;
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
+            MonitorAugmentedPathSets = 0;
         }
 
         /// <nodoc />
@@ -60,6 +61,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
             AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
+            MonitorAugmentedPathSets = template.MonitorAugmentedPathSets;
         }
 
         /// <nodoc />
@@ -151,5 +153,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; set; }
+
+        /// <inheritdoc />
+        public int MonitorAugmentedPathSets { get; set; }
     }
 }

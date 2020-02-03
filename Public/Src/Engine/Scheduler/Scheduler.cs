@@ -1224,17 +1224,26 @@ namespace BuildXL.Scheduler
             FileUtilities.CreateDirectoryWithRetry(configuration.Layout.SharedOpaqueSidebandDirectory.ToString(Context.PathTable));
 
             MasterSpecificExecutionLogTarget masterTarget = null;
+            WeakFingerprintAugmentationExecutionLogTarget fingerprintAugmentationTarget = null;
 
             if (!IsDistributedWorker)
             {
                 masterTarget = new MasterSpecificExecutionLogTarget(loggingContext, this);
+
+                // Fingerprint augmentation monitoring must be running only on the master (it's the only worker that will observe
+                // both ProcessFingerprintComputed events for the same pip).
+                if (configuration.Cache.MonitorAugmentedPathSets > 0)
+                {
+                    fingerprintAugmentationTarget = new WeakFingerprintAugmentationExecutionLogTarget(loggingContext, this, configuration.Cache.MonitorAugmentedPathSets);
+                }
             }
 
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
                 m_executionLogFileTarget,
                 m_fingerprintStoreTarget,
                 new ObservedInputAnomalyAnalyzer(graph),
-                masterTarget);
+                masterTarget,
+                fingerprintAugmentationTarget);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(

@@ -160,9 +160,20 @@ namespace Test.BuildXL.TestUtilities
         /// </remarks>
         public ReadOnlyArray<string> GetLogMessagesForEventId(EventId id)
         {
+            return GetLogMessagesForEventId((int)id);            
+        }
+
+        /// <summary>
+        /// Returns all the logs received for a given event id
+        /// </summary>
+        /// <remarks>
+        /// Returns an empty array if no logs were received for a given event id
+        /// </remarks>
+        public ReadOnlyArray<string> GetLogMessagesForEventId(int eventId)
+        {
             lock (m_logMessagesLock)
             {
-                if (m_logMessagesPerEventId.TryGetValue((int)id, out var values))
+                if (m_logMessagesPerEventId.TryGetValue(eventId, out var values))
                 {
                     return values.ToReadOnlyArray();
                 }

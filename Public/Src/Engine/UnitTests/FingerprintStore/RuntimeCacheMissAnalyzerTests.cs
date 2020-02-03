@@ -153,27 +153,11 @@ namespace Test.BuildXL.FingerprintStore
             var process = SchedulePipBuilder(builder).Process;
 
             RunScheduler().AssertCacheMiss(process.PipId);
-            //string pathSet1 = null;
-            //FingerprintStoreSession(
-            //    ResultToStoreDirectory(result),
-            //    store =>
-            //    {
-            //        XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(process.FormattedSemiStableHash, out var entry));
-            //        pathSet1 = JObject.Parse(entry.StrongFingerprintEntry.PathSetHashToInputs.Value).ToString();
-            //    });
 
             // Modify read file to readFileB to force different pathset.
             File.WriteAllText(ArtifactToString(sourceFile), ArtifactToString(readFileB));
 
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
-            //string pathSet2 = null;
-            //FingerprintStoreSession(
-            //    ResultToStoreDirectory(result),
-            //    store =>
-            //    {
-            //        XAssert.IsTrue(store.TryGetFingerprintStoreEntryBySemiStableHash(process.FormattedSemiStableHash, out var entry));
-            //        pathSet2 = JObject.Parse(entry.StrongFingerprintEntry.PathSetHashToInputs.Value).ToString();
-            //    });
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
 

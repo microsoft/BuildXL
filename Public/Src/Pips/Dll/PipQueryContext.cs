@@ -92,6 +92,7 @@ namespace BuildXL.Pips
         CacheMaterializationError,
         VisualStudioDebugView,
         End,
+        PathSetAugmentation,
 #pragma warning restore 1591
     }
 }

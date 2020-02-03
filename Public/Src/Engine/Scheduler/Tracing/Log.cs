@@ -3643,6 +3643,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = EventConstants.PhasePrefix + "Skipped {processPipsSkippedDueToCacheOnly} processes due to /CacheOnly mode.")]
         internal abstract void CacheOnlyStatistics(LoggingContext loggingContext, long processPipsSkippedDueToCacheOnly);
+
+        [GeneratedEvent(
+           (ushort)LogEventId.SuspiciousPathsInAugmentedPathSet,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.UserMessage,
+           EventTask = (ushort)Tasks.Storage,
+           Message = "[{pipDescription}] Some path(s) in the augmented path set were not entries not encountered during pip execution. If these paths keep changing, it might lead to artificial cache misses. The first {cntLoggedPaths} of {totalSuspiciousPaths} paths:{paths}")]
+        internal abstract void SuspiciousPathsInAugmentedPathSet(LoggingContext loggingContext, string pipDescription, int cntLoggedPaths, int totalSuspiciousPaths, string paths);
     }
 }
 #pragma warning restore CA1823 // Unused field

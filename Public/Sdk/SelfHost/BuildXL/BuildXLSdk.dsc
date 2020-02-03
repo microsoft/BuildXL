@@ -93,9 +93,13 @@ export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 @@public
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
 
-
 @@public
 export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
+
+@@public
+export const targetFrameworkMatchesCurrentHost = 
+    (qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win")
+ || (qualifier.targetRuntime === "osx-x64" && Context.getCurrentHost().os === "macOS");
 
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */
 @@public
@@ -103,7 +107,7 @@ export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0 and 4.7.2 frameworks only.
     (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net472") ||
-    (Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64");
+    !targetFrameworkMatchesCurrentHost;
 
 @@public
 /***
@@ -566,7 +570,7 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),
         ],
-        skipTestRun: Context.isWindowsOS() && qualifier.targetRuntime === "osx-x64",
+        skipTestRun: !targetFrameworkMatchesCurrentHost,
         runTestArgs: {
             // TODO: When BuildXL has proper threadsafe logging infrastructure we can go back to the default or parallel.
             parallel: "none",
@@ -587,7 +591,9 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.
             importFrom("BuildXL.Utilities").Branding.Manifest.file,
         ]
-    }, args);
+    }, 
+    args);
+
 
     return args;
 }

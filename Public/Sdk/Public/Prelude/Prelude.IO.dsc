@@ -536,7 +536,7 @@ namespace Path {
      * to ensure you don't accidentally introduce unexpected path constructions. Using strings to contain paths
      * are strongly discouraged. If you use Path's your build specification will be safe, understandable, performent
      * and cross platform.
-     * Note: The caller is responsible for handeling cross platform (windows/mac/etc) path formats in the string.
+     * Note: The caller is responsible for handling cross platform (windows/mac/etc) path formats in the string.
      **/
     export declare function createFromAbsolutePathString(absPath: string) : Path;
 }

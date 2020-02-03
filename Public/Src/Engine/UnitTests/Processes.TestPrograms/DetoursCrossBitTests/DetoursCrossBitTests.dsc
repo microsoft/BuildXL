@@ -9,6 +9,9 @@ namespace Processes.TestPrograms.DetoursCrossBitTests {
         platform: "x86" | "x64";
     }
 
+    // This has to remain in net472 because buildxl.processes test uses this
+    // and it doesn't deploy it to a subfolder, so since that test has to run in
+    // net472 it would collide with nuget dependencies.
     export declare const qualifier: PlatformSpecificManagedCode;
 
     @@public

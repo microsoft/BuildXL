@@ -2,24 +2,29 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as BuildXLSdk from "Sdk.BuildXL";
-import { NetFx } from "Sdk.BuildXL";
 
-export {BuildXLSdk, NetFx};
-export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+export {BuildXLSdk};
+
+export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
 namespace DetoursCrossBitTests
 {
-    @@public
-    export const x64 = qualifier.targetRuntime === "win-x64" ?
-        Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
-            platform: "x64",
-            targetRuntime: "win-x64"
-        }).exe : undefined;
+    export declare const qualifier: {
+        configuration: "debug" | "release",
+        targetRuntime: "win-x64",
+    };
 
     @@public
-    export const x86 = qualifier.targetRuntime === "win-x64" ?
-        Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
-            platform: "x86",
-            targetRuntime: "win-x64"
-        }).exe : undefined;
+    export const x64 = Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
+        platform: "x64",
+        targetFramework: "netcoreapp3.1",
+        targetRuntime: "win-x64"
+    }).exe;
+
+    @@public
+    export const x86 =Processes.TestPrograms.DetoursCrossBitTests.withQualifier({
+        platform: "x86",
+        targetFramework: "netcoreapp3.1",
+        targetRuntime: "win-x64"
+    }).exe;
 }

@@ -7,6 +7,10 @@ import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
 const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
 namespace Processes {
+    
+    // BuildXL.Processes is still used as Net472 by Cloudbuild. So maintain the tests for net472
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+
     @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Processes",

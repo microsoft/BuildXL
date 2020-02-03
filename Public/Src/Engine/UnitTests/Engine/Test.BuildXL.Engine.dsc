@@ -5,7 +5,6 @@ import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Xml from "Sdk.Xml";
 
 namespace Engine {
-    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     const sdkRoot = Context.getMount("SdkRoot").path;
 

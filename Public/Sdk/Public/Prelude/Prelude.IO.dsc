@@ -529,6 +529,16 @@ namespace Directory {
 
 namespace Path {
     export declare function interpolate(root: Path | Directory | StaticDirectory, ...rest: PathFragment[]): Path;
+
+    /** 
+     * A helper for when you dynamically read paths from a file and you need to create absolute paths.withQualifier 
+     * Usage of this api is not recommended. You should use the p`...` patterns to maintain good readability and
+     * to ensure you don't accidentally introduce unexpected path constructions. Using strings to contain paths
+     * are strongly discouraged. If you use Path's your build specification will be safe, understandable, performent
+     * and cross platform.
+     * Note: The caller is responsible for handeling cross platform (windows/mac/etc) path formats in the string.
+     **/
+    export declare function createFromAbsolutePathString(absPath: string) : Path;
 }
 
 /** Creates an absolute path from a string. */

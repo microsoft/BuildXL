@@ -50,7 +50,7 @@ namespace BuildXL.FrontEnd.Nuget
         /// The generated format is:
         /// [optional] import of managed sdk core
         /// [optional] qualifier declaration
-        /// const packageRoot = d`absoulte path to the package roo`;
+        /// const packageRoot = d`absolute path to the package roo`;
         /// @@public
         /// export const contents: StaticDirectory = Transformer.sealDirectory(
         ///    packageRoot,

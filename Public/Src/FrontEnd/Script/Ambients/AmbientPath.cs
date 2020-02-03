@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -45,6 +46,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 new[]
                 {
                     Function("interpolate", Interpolate, InterpolateSignature),
+                    Function("createFromAbsolutePathString", CreateFromAbsolutePathString, CreateFromAbsolutePathStringSignature)
                 });
         }
 
@@ -152,6 +154,39 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return EvaluationResult.Create(result);
         }
 
+
+        /// <summary>
+        /// Implements path interpolation
+        /// </summary>
+        public static EvaluationResult CreateFromAbsolutePathString(ImmutableContextBase context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            var absolutePath = Args.AsString(args, 0);
+
+            var result = AbsolutePath.TryCreate(context.PathTable, absolutePath, out var resultPath, out var characterWithError);
+            if (result == AbsolutePath.ParseResult.Success)
+            {
+                return EvaluationResult.Create(resultPath);
+            }
+
+            string message = string.Format(CultureInfo.CurrentCulture, $"Invalid Absolute path at character: {characterWithError}. ");
+            switch (result)
+            {
+                case AbsolutePath.ParseResult.DevicePathsNotSupported:
+                    message += "Device Paths are not supported.";
+                    break;
+                case AbsolutePath.ParseResult.FailureDueToInvalidCharacter:
+                    message += "Character is not a valid path character.";
+                    break;
+                case AbsolutePath.ParseResult.UnknownPathStyle:
+                    message += "This is not an absolute path.";
+                    break;
+                default:
+                    throw Contract.AssertFailure("Unexpected path tryparse result type");
+            }
+
+            throw new InvalidPathOperationException(message, new ErrorContext(pos: 1));
+        }
+        
         /// <summary>
         /// Signature for path interpolation
         /// </summary>
@@ -164,6 +199,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     AmbientTypes.DirectoryType,
                     AmbientTypes.StaticDirectoryType)),
             restParameterType: UnionType(AmbientTypes.StringType, AmbientTypes.PathAtomType, AmbientTypes.RelativePathType),
+            returnType: AmbientTypes.PathType);
+
+        /// <summary>
+        /// Signature for path creation from absolute path string
+        /// </summary>
+        private CallSignature CreateFromAbsolutePathStringSignature => CreateSignature(
+            required: RequiredParameters(AmbientTypes.StringType),
             returnType: AmbientTypes.PathType);
     }
 }

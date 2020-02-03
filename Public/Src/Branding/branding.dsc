@@ -36,17 +36,28 @@ export const copyright = "© Microsoft Corporation. All rights reserved.";
 
 const devBuildPreReleaseTag = "devBuild";
 
+// When running from within the context of Azure DevOps, the semantic version and prerelease tag may already
+// be encoded into the BuildID. When this is the case, parse them out and use them. But only do this when
+// they are set with the expected format.
+const specifiedBuildId = Environment.getStringValue("Build.BuildId");
+const semanticVersionFromBuildId = specifiedBuildId && specifiedBuildId.contains("-") ? specifiedBuildId.split("-")[0] : undefined;
+const prereleaseTagFromBuildId = specifiedBuildId && specifiedBuildId.contains("-") ? specifiedBuildId.split("-")[1] : undefined;
+
 @@public 
 export const semanticVersion = Environment.hasVariable("[BuildXL.Branding]SemanticVersion")
     ? Environment.getStringValue("[BuildXL.Branding]SemanticVersion")
-    : explicitSemanticVersion;
+    : semanticVersionFromBuildId 
+        ? semanticVersionFromBuildId
+        : explicitSemanticVersion;
 
 @@public
 export const prereleaseTag = Environment.hasVariable("[BuildXL.Branding]PrereleaseTag")
     ? Environment.getStringValue("[BuildXL.Branding]PrereleaseTag")
-    : Environment.hasVariable("[BuildXL.Branding]SourceIdentification")
-        ? undefined
-        : devBuildPreReleaseTag;
+    : prereleaseTagFromBuildId 
+        ? prereleaseTagFromBuildId
+        : Environment.hasVariable("[BuildXL.Branding]SourceIdentification")
+            ? undefined
+            : devBuildPreReleaseTag;
 
 @@public
 export const version = prereleaseTag

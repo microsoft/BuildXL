@@ -1256,7 +1256,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
-            m_pipRetryCounters = new int[m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker + 1];
+            m_pipRetryCounters = new int[m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker];
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
@@ -2440,7 +2440,10 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            m_pipRetryCounters[runnablePip.RetryCount]++;
+            if (runnablePip.RetryCount < m_pipRetryCounters.Length)
+            {
+                m_pipRetryCounters[runnablePip.RetryCount]++;
+            }
 
             using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.OnPipCompletedDuration))
             {

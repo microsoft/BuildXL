@@ -73,8 +73,10 @@ namespace BuildXL.Utilities.Tasks
             }
             catch
             {
-                Contract.Assume(whenAllTask.Exception != null);
-                throw whenAllTask.Exception;
+                if (whenAllTask.Exception != null)
+                    throw whenAllTask.Exception;
+                else
+                    throw;
             }
         }
 

@@ -1265,7 +1265,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
-            m_pipRetryCounters = new int[m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker];
+            m_pipRetryCounters = new int[m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker + 1];
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;

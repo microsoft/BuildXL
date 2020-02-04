@@ -183,6 +183,11 @@ namespace BuildXL.Cache.ContentStore.Stores
             SelfCheckState selfCheckState,
             SelfCheckStatus status)
         {
+            // Detaching from the current thread to run this method asynhronously.
+            // This is important, because directory enumeration that happens in ReadSnapshotFromDisk can take
+            // tens of minutes on a machine with HDD drives.
+            await Task.Yield();
+
             _tracer.Always(context, "Starting self check.");
             // Self checking procedure validates that in-memory content directory
             // is valid in respect to the state on disk.

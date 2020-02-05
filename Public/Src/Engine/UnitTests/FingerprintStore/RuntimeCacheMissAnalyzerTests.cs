@@ -2,13 +2,18 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using Newtonsoft.Json.Linq;
+using BuildXL.Utilities.Tracing;
+using Newtonsoft.Json;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -65,7 +70,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsFalse(cacheMiss.IsFromCacheLookUp);
         }
 
@@ -90,7 +95,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsTrue(cacheMiss.IsFromCacheLookUp);
         }
 
@@ -120,7 +125,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process1.PipId, process2.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process1.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsFalse(cacheMiss.IsFromCacheLookUp);
 
             // Process2's cache miss is not analyzed as it is not a frontier pip.
@@ -163,7 +168,7 @@ namespace Test.BuildXL.FingerprintStore
 
             // The pathset used during the cache look-up exists in the fingerprint store due to the first build.
             // So, the cache miss analysis is performed during the cache look-up.
-            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsTrue(cacheMiss.IsFromCacheLookUp);
         }
 
@@ -207,7 +212,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsTrue(cacheMiss.IsFromCacheLookUp);
         }
 
@@ -262,7 +267,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.PathSetHashMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.PathSetHashMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsFalse(cacheMiss.IsFromCacheLookUp);
         }
 
@@ -338,12 +343,12 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.StrongFingerprintMismatch, cacheMiss.DetailAndResult.Result);
             XAssert.IsTrue(cacheMiss.IsFromCacheLookUp);
 
             // Ensure that the diff contains file C because the fingerprint store uses the most relevant cache entry for
             // cache miss analysis, i.e., (#{source, C}, sp3)
-            XAssert.Contains(cacheMiss.Reason.ToUpperInvariant(), ArtifactToString(readFileC).Replace("\\", "\\\\").ToUpperInvariant());
+            XAssert.Contains(JsonConvert.SerializeObject(cacheMiss.DetailAndResult.Detail.Info).ToUpperInvariant(), ArtifactToString(readFileC).Replace("\\", "\\\\").ToUpperInvariant());
         }
 
         [Fact]
@@ -398,7 +403,7 @@ namespace Test.BuildXL.FingerprintStore
             RunScheduler(m_testHooks).AssertCacheMiss(process.PipId);
 
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(process.PipId, out var cacheMiss));
-            XAssert.AreEqual(CacheMissAnalysisResult.PathSetHashMismatch, cacheMiss.Result);
+            XAssert.AreEqual(CacheMissAnalysisResult.PathSetHashMismatch, cacheMiss.DetailAndResult.Result);
 
             // Cache miss analysis wasn't performed post cache look-up because at that time
             // fingerprint store has "pip => (wp, #{source, C}, sp3)" mapping, and none of
@@ -406,6 +411,58 @@ namespace Test.BuildXL.FingerprintStore
             // Note that the list of strong fingerprint computation data won't include #{source, C}
             // form aug_wp1 mapping because of miss augmented weak fingerprint.
             XAssert.IsFalse(cacheMiss.IsFromCacheLookUp);
+        }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, false)]
+        public void CacheMissesOfMultiplePipsTest(bool cacheMissBatch, bool exceedMaxLogSize)
+        {
+            Configuration.Logging.CacheMissBatch = cacheMissBatch;
+            Configuration.Logging.OptimizeConsoleOutputForAzureDevOps = true;
+
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            var pipNumber = 102;
+
+            var processes = new List<Process>();
+            for (var i = 0; i < pipNumber; i++)
+            {
+                FileArtifact input = CreateSourceFile(root: dirPath);
+                FileArtifact output = CreateOutputFileArtifact(root: dirPath);
+                var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+                if (exceedMaxLogSize)
+                {
+                    pipBuilder.ToolDescription = StringId.Create(Context.StringTable, new string('*', 2000));
+                }
+
+                var pip = SchedulePipBuilder(pipBuilder);
+                processes.Add(pip.Process);
+            }
+
+            SetExtraSalts("FirstSalt", true);
+            ScheduleRunResult initialbuild = RunScheduler().AssertCacheMiss(processes.Select(p => p.PipId).ToArray());
+            ScheduleRunResult cacheHitBuild = RunScheduler().AssertCacheHit(processes.Select(p => p.PipId).ToArray());
+
+            SetExtraSalts("SecondSalt", false);
+            ScheduleRunResult cacheMissBuild = RunScheduler(m_testHooks).AssertCacheMiss(processes.Select(p => p.PipId).ToArray());
+
+            for (var i = 0; i < pipNumber; i++)
+            {
+                XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(processes[i].PipId, out var cacheMiss));
+                XAssert.AreEqual(CacheMissAnalysisResult.WeakFingerprintMismatch, cacheMiss.DetailAndResult.Result);
+            }
+
+            if (cacheMissBatch)
+            {
+                AssertVerboseEventLogged(EventId.CacheMissAnalysisBatchResults, allowMore: true);
+            }
+            else
+            {
+                AssertVerboseEventLogged(EventId.CacheMissAnalysis, allowMore: true);
+            }
+
         }
 
         private void MakeTwoPhaseCacheForgetEverything()

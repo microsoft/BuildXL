@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
 namespace BuildXL.ViewModel
@@ -19,6 +19,9 @@ namespace BuildXL.ViewModel
         public List<CacheMissSummaryEntry> Entries { get; } = new List<CacheMissSummaryEntry>();
 
         /// <nodoc />
+        public List<string> BatchEntries { get; } = new List<string>();
+
+        /// <nodoc />
         internal void RenderMarkdown(MarkDownWriter writer)
         {
             int cacheHitRate = 0;
@@ -29,7 +32,7 @@ namespace BuildXL.ViewModel
 
             var caseRateMessage = $"Process pip cache hits: {cacheHitRate}% ({ProcessPipCacheHit}/{TotalProcessPips})";
 
-            if (Entries.Count == 0) 
+            if (Entries.Count == 0 && BatchEntries == null) 
             {
                 writer.WriteDetailedTableEntry("Cache rates", caseRateMessage);
             }
@@ -48,6 +51,10 @@ namespace BuildXL.ViewModel
                         25);
                 }
 
+                foreach (var entry in BatchEntries)
+                {
+                    writer.WriteLineRaw(entry);
+                }
                 writer.EndDetailedTableSummary();
             }
             

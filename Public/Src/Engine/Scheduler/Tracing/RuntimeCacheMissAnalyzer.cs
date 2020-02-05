@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Engine.Cache;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
@@ -17,7 +18,10 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -106,6 +110,7 @@ namespace BuildXL.Scheduler.Tracing
                         graph,
                         runnablePipPerformance,
                         configuration.Logging.CacheMissDiffFormat,
+                        configuration.Logging.CacheMissBatch,
                         testHooks: testHooks);
                 }
 
@@ -122,13 +127,23 @@ namespace BuildXL.Scheduler.Tracing
         private readonly IDictionary<PipId, RunnablePipPerformanceInfo> m_runnablePipPerformance;
         private readonly PipExecutionContext m_context;
 
-        private static readonly int s_maxCacheMissCanPerform = EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
+        private readonly int m_maxCacheMissCanPerform = EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
         private int m_numCacheMissPerformed = 0;
 
         /// <summary>
         /// Dictionary of cache misses for runtime cache miss analysis.
         /// </summary>
         private readonly ConcurrentDictionary<PipId, PipCacheMissInfo> m_pipCacheMissesDict;
+
+        private readonly NagleQueue<JProperty> m_batchLoggingQueue;
+
+        // According to https://www.aria.ms/developers/deep-dives/input-constraints/, 
+        // the event size limit is 2.5MB. Each charater in a string take 2 bytes. 
+        // So the maximum length of an event can be set up to 2.5*1024*1024/2.
+        // However, we don't want to send an event hit this limit. 
+        // The number we set here is big enough for a batch reporting but still far away from hitting the limit.
+        private const int MaxLogSizeValue = 800000;
+        internal static int MaxLogSize = MaxLogSizeValue;
 
         /// <summary>
         /// A previous build's <see cref="FingerprintStore"/> that can be used for cache miss comparison.
@@ -147,6 +162,7 @@ namespace BuildXL.Scheduler.Tracing
             IReadonlyDirectedGraph graph,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
             CacheMissDiffFormat cacheMissDiffFormat,
+            bool cacheMissBatch,
             FingerprintStoreTestHooks testHooks = null)
         {
             m_loggingContext = loggingContext;
@@ -158,8 +174,114 @@ namespace BuildXL.Scheduler.Tracing
             m_pipCacheMissesDict = new ConcurrentDictionary<PipId, PipCacheMissInfo>();
             m_runnablePipPerformance = runnablePipPerformance;
             m_cacheMissDiffFormat = cacheMissDiffFormat;
+            m_maxCacheMissCanPerform = cacheMissBatch ? EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value * EngineEnvironmentSettings.MaxMessagesPerBatch : EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
+
+            m_batchLoggingQueue = cacheMissBatch ? NagleQueue<JProperty>.Create(
+                BatchLogging,
+                maxDegreeOfParallelism: 1,
+                interval: TimeSpan.FromMinutes(1),
+                batchSize: EngineEnvironmentSettings.MaxMessagesPerBatch) : null;
+
+
             m_testHooks = testHooks;
             m_testHooks?.InitRuntimeCacheMisses();
+        }
+
+
+        /// <summary>
+        /// The batch log payload example: 
+        /// {"CacheMissAnalysisResults":
+        ///     {
+        ///         Pip123: {
+        ///             Description:
+        ///             FromCacheLookUp:
+        ///             Detail: {
+        ///                Type: ...
+        ///                Reason: ...
+        ///                Info: ...
+        ///             }
+        ///         },
+        ///         Pip345: {
+        ///             Description:
+        ///             FromCacheLookUp:
+        ///             Detail: {
+        ///                Type: ...
+        ///                Reason: ...
+        ///                Info: ...
+        ///             }
+        ///         },
+        ///     }
+        ///}
+        /// </summary>
+        private Task<Unit> BatchLogging(JProperty[] results)
+        {
+            // Use JsonTextWritter for 2 reasons:
+            // 1. easily control when to start a new log event and when to end it.
+            // 2. according to some research, manually serialization with JsonTextWritter can improve performance.
+            using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))                
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                var sb = sbPool.Instance;
+                var sw = new StringWriter(sb);
+                var writer = new JsonTextWriter(sw);
+                var logStarted = false;
+                var haslogValue = false;
+                var lenSum = 0;
+                for (int i = 0; i < results.Length;)
+                {
+                    if (!logStarted)
+                    {
+                        writer.WriteStartObject();
+                        writer.WritePropertyName("CacheMissAnalysisResults");
+                        writer.WriteStartObject();
+                        logStarted = true;
+                    }
+
+                    var name = results[i].Name.ToString();
+                    var value = results[i].Value.ToString();
+                    lenSum += name.Length + value.Length;
+                    if (lenSum < MaxLogSize)
+                    {
+                        writeProperty(name, value);
+                        i++;
+                    }
+                    else
+                    {
+                        // Give warning instead of a single result if max length exceeded, 
+                        // otherwise finish this batch without i++. 
+                        // So this item will go to next batch.
+                        if ((name.Length + value.Length) > MaxLogSize)
+                        {
+                            writeProperty(name, "Warning: The actual cache miss analysis result is too long to present.");
+                            i++;
+                        }
+                        lenSum = 0;
+                        logStarted = false;
+                        endLogging();
+                    }
+                }
+
+                endLogging();
+                return Unit.VoidTask;
+
+                void writeProperty(string name, string value)
+                {
+                    writer.WritePropertyName(name);
+                    writer.WriteRawValue(value);
+                    haslogValue = true;
+                }
+
+                void endLogging()
+                {                   
+                    // Only log when at least one result has been written to the Json string
+                    if (haslogValue)
+                    {
+                        writer.WriteEndObject();
+                        writer.WriteEndObject();
+                        Logger.Log.CacheMissAnalysisBatchResults(m_loggingContext, sw.ToString());
+                    }
+                }
+            }
         }
 
         internal void AddCacheMiss(PipCacheMissInfo cacheMissInfo) => m_pipCacheMissesDict.Add(cacheMissInfo.PipId, cacheMissInfo);
@@ -198,11 +320,6 @@ namespace BuildXL.Scheduler.Tracing
 
                 MarkPipAsChanged(pip.PipId);
 
-                if (Interlocked.Increment(ref m_numCacheMissPerformed) >= s_maxCacheMissCanPerform)
-                {
-                    return;
-                }
-
                 if (fromCacheLookup)
                 {
                     Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisAnalyzeCacheLookUpCount);
@@ -213,28 +330,30 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 using (var pool = Pools.StringBuilderPool.GetInstance())
-                using (var writer = new StringWriter(pool.Instance))
                 using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissAnalysisAnalyzeDuration))
                 {
-                    var cacheMissAnalysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                        writer,
+                    var resultAndDetail = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                         missInfo,
                         () => new FingerprintStoreReader.PipRecordingSession(PreviousFingerprintStore, oldEntry),
                         () => new FingerprintStoreReader.PipRecordingSession(m_logTarget.ExecutionFingerprintStore, newEntry),
                         m_cacheMissDiffFormat);
 
-                    // The diff sometimes contains several empty new lines at the end.
-                    var reason = writer.ToString().TrimEnd(Environment.NewLine.ToCharArray());
-
                     pipDescription = pip.GetDescription(m_context);
-                    Logger.Log.CacheMissAnalysis(m_loggingContext, pipDescription, reason, fromCacheLookup);
+
+                    if (m_batchLoggingQueue != null)
+                    {
+                        m_batchLoggingQueue.Enqueue(resultAndDetail.Detail.ToJObjectWithPipInfo(pip.FormattedSemiStableHash, pipDescription, fromCacheLookup));
+                    }
+                    else
+                    {
+                        Logger.Log.CacheMissAnalysis(m_loggingContext, pipDescription, JsonConvert.SerializeObject(resultAndDetail.Detail), fromCacheLookup);
+                    }                  
 
                     m_testHooks?.AddCacheMiss(
                         pip.PipId,
                         new FingerprintStoreTestHooks.CacheMissData
                         {
-                            Result = cacheMissAnalysisResult,
-                            Reason = reason,
+                            DetailAndResult = resultAndDetail,
                             IsFromCacheLookUp = fromCacheLookup
                         });
                 }
@@ -248,8 +367,9 @@ namespace BuildXL.Scheduler.Tracing
 
         private bool IsCacheMissEligible(PipId pipId)
         {
-            if (m_numCacheMissPerformed >= s_maxCacheMissCanPerform)
+            if (Interlocked.Increment(ref m_numCacheMissPerformed) >= m_maxCacheMissCanPerform)
             {
+                Counters.IncrementCounter(FingerprintStoreCounters.CacheMissAnalysisExceedMaxNumAndCannotPerformCount);
                 return false;
             }
 
@@ -282,7 +402,14 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <nodoc/>
-        public void Dispose() => PreviousFingerprintStore.Dispose();
+        public void Dispose()
+        {
+            PreviousFingerprintStore.Dispose();
+            using (Counters.StartStopwatch(FingerprintStoreCounters.RuntimeCacheMissBatchLoggingQueueDisposeDuration))
+            {
+                m_batchLoggingQueue?.Dispose();
+            }
+        }      
 
         private struct CacheMissTimer : IDisposable
         {

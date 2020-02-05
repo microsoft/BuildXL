@@ -317,7 +317,7 @@ namespace BuildXL.Utilities.Tracing
         // Reserved = 323,
         // Reserved = 324,
 
-        // Free slot 325,
+        CacheMissAnalysisBatchResults = 325,
         // Reserved = 326,
 
         // Reserved = 327,

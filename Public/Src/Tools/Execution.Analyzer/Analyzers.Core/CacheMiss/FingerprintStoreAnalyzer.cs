@@ -13,6 +13,8 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using Newtonsoft.Json;
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -329,23 +331,25 @@ namespace BuildXL.Execution.Analyzer
             {
                 // Strong fingerprint miss analysis is most accurate when compared to the fingerprints computed at cache lookup time
                 // because those fingerprints capture the state of the disk at cache lookup time, including dynamic observations
-                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                    writer,
+                var resultAndDetail = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                     miss,
                     () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     () => m_newCacheLookupReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     CacheMissDiffFormat);
+                analysisResult = resultAndDetail.Result;
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
             }
             else
             {
-                analysisResult = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
-                    m_writer,
+                var resultAndDetail = CacheMissAnalysisUtilities.AnalyzeCacheMiss(
                     miss,
                     () => m_oldReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     () => m_newReader.StartPipRecordingSession(pip, pipUniqueOutputHashStr),
                     CacheMissDiffFormat);
+                analysisResult = resultAndDetail.Result;
+                m_writer?.WriteLine(JsonConvert.SerializeObject(resultAndDetail.Detail));
             }
-
+          
             if (analysisResult == CacheMissAnalysisResult.MissingFromOldBuild)
             {
                 Tracing.Logger.Log.FingerprintStorePipMissingFromOldBuild(LoggingContext);

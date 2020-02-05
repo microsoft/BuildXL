@@ -249,6 +249,7 @@ namespace BuildXL
                 (new[]
                 {
                     (int)EventId.CacheMissAnalysis,
+                    (int)EventId.CacheMissAnalysisBatchResults,
                     (int)EventId.MissingKeyWhenSavingFingerprintStore,
                     (int)EventId.FingerprintStoreSavingFailed,
                     (int)EventId.FingerprintStoreToCompareTrace,

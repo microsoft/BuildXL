@@ -61,8 +61,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Analyzes the cache miss for a specific pip.
         /// </summary>
-        public static CacheMissAnalysisResult AnalyzeCacheMiss(
-            TextWriter writer,
+        public static CacheMissAnalysisDetailAndResult AnalyzeCacheMiss(
             PipCacheMissInfo missInfo,
             Func<PipRecordingSession> oldSessionFunc,
             Func<PipRecordingSession> newSessionFunc,
@@ -71,8 +70,8 @@ namespace BuildXL.Scheduler.Tracing
             Contract.Requires(oldSessionFunc != null);
             Contract.Requires(newSessionFunc != null);
 
-            WriteLine($"Cache miss type: {missInfo.CacheMissType}", writer);
-            WriteLine(string.Empty, writer);
+            var cacheMissType = missInfo.CacheMissType.ToString();
+            var cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType);
 
             switch (missInfo.CacheMissType)
             {
@@ -81,51 +80,173 @@ namespace BuildXL.Scheduler.Tracing
                 case PipCacheMissType.MissForDescriptorsDueToWeakFingerprints:
                 case PipCacheMissType.MissForDescriptorsDueToStrongFingerprints:
                     // Compute the pip unique output hash to use as the primary lookup key for fingerprint store entries
-                    return AnalyzeFingerprints(oldSessionFunc, newSessionFunc, writer, diffFormat);
+                    cacheMissAnalysisDetailAndResult = AnalyzeFingerprints(oldSessionFunc, newSessionFunc, diffFormat, cacheMissType);
+                    break;
 
                 // We had a weak and strong fingerprint match, but couldn't retrieve correct data from the cache
                 case PipCacheMissType.MissForCacheEntry:
-                    WriteLine($"Cache entry missing from the cache.", writer);
-                    return CacheMissAnalysisResult.DataMiss;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.DataMiss, "Cache entry missing from the cache.");
+                    break;
 
                 case PipCacheMissType.MissForProcessMetadata:
                 case PipCacheMissType.MissForProcessMetadataFromHistoricMetadata:
-                    WriteLine($"MetaData missing from the cache.", writer);
-                    return CacheMissAnalysisResult.DataMiss;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.DataMiss, "MetaData missing from the cache.");
+                    break;
 
                 case PipCacheMissType.MissForProcessOutputContent:
-                    WriteLine(new JProperty("MissingOutputs", missInfo.MissedOutputs).ToString(), writer);
-                    return CacheMissAnalysisResult.OutputMiss;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.OutputMiss, "Outputs missing from the cache.", new JObject(new JProperty("MissingOutputs", missInfo.MissedOutputs)));
+                    break;
 
                 case PipCacheMissType.MissDueToInvalidDescriptors:
-                    WriteLine($"Cache returned invalid data.", writer);
-                    return CacheMissAnalysisResult.InvalidDescriptors;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.InvalidDescriptors, "Cache returned invalid data.");
+                    break;
 
                 case PipCacheMissType.MissForDescriptorsDueToArtificialMissOptions:
-                    WriteLine($"Cache miss artificially forced by user.", writer);
-                    return CacheMissAnalysisResult.ArtificialMiss;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.ArtificialMiss, "Cache miss artificially forced by user.");
+                    break;
 
                 case PipCacheMissType.Hit:
-                    WriteLine($"Pip was a cache hit.", writer);
-                    return CacheMissAnalysisResult.NoMiss;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.NoMiss, "Pip was a cache hit.");
+                    break;
 
                 case PipCacheMissType.Invalid:
-                    WriteLine($"No valid changes or cache issues were detected to cause process execution, but a process still executed.", writer);
-                    return CacheMissAnalysisResult.Invalid;
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.Invalid, "No valid changes or cache issues were detected to cause process execution, but a process still executed.");
+                    break;
 
                 default:
-                    WriteLine($"Unhandled cache miss type '{missInfo.CacheMissType}'.", writer);
-                    return CacheMissAnalysisResult.Invalid;
+                    break;
+            }
+
+            return cacheMissAnalysisDetailAndResult;
+        }
+
+        /// <summary>
+        /// A struct used to store the detail and result of a cache miss analysis
+        /// </summary>
+        public class CacheMissAnalysisDetailAndResult
+        {
+            /// <summary>
+            /// Pip Cache Miss Analysis Result
+            /// </summary>
+            public CacheMissAnalysisResult Result;
+
+            /// <summary>
+            /// Pip Cache Miss Analysis Detail
+            /// </summary>
+            public CacheMissAnalysisDetail Detail;
+
+            /// <summary>
+            /// Constructor.
+            /// </summary>
+            public CacheMissAnalysisDetailAndResult(string cacheMissType, CacheMissAnalysisResult cacheMissAnalysisResult = CacheMissAnalysisResult.Invalid, string cacheMissReason = "Unhandled cache miss type.", JObject cacheMissInfo = null)
+            {
+                Result = cacheMissAnalysisResult;
+                Detail = new CacheMissAnalysisDetail(cacheMissType, cacheMissReason, cacheMissInfo);                  
+            }
+
+        }
+
+        /// <summary>
+        /// A struct used to store the detail of a cache miss analysis detail
+        /// </summary>
+        /// <remarks>
+        /// Cache miss analysis result in the log looks like:
+        /// {
+        ///     PipSemiStableHash: {
+        ///         Description:
+        ///         FromCacheLookUp:
+        ///         Detail: {
+        ///            Type: ...
+        ///            Reason: ...
+        ///            Info: ...
+        ///         }
+        ///     }
+        /// }
+        /// This struct would be put in the log Json as the value of "Detail".
+        /// </remarks>
+        public struct CacheMissAnalysisDetail
+        {
+            /// <summary>
+            /// Type property in the Json
+            /// </summary>
+            public string Type;
+
+            /// <summary>
+            /// Reason property in the Json
+            /// </summary>
+            public string Reason;
+
+            /// <summary>
+            /// Info property in the Json
+            /// </summary>
+            /// <remark>
+            /// This property can be absent in the Json.
+            /// </remark>
+            public JObject Info;
+
+            /// <summary>
+            /// Constructor
+            /// </summary>
+            public CacheMissAnalysisDetail(string cacheMissType, string cacheMissReason, JObject cacheMissInfo)
+            {
+                Type = cacheMissType;
+                Reason = cacheMissReason;
+                Info = cacheMissInfo;
+            }
+
+            /// <summary> 
+            /// Add cache miss info property
+            /// </summary>
+            public void AddPropertyToCacheMissInfo(string propertyName, object propertyValue)
+            {
+                if (Info == null)
+                {
+                    Info = new JObject();
+                }
+
+                Info.Add(new JProperty(propertyName, propertyValue));
+            }
+
+            /// <summary>
+            /// Construct the JPropety in the below format with this cache miss analysis detail 
+            ///     PipSemiStableHash: {
+            ///         Description:
+            ///         FromCacheLookUp:
+            ///         Detail: {
+            ///            Type: ...
+            ///            Reason: ...
+            ///            Info: ...
+            ///         }
+            ///     }
+            /// </summary>
+            public JProperty ToJObjectWithPipInfo(string pipFormattedSemiStableHash, string pipDescription, bool fromCacheLookup)
+            {
+                var result = new JObject();
+                result.Add(new JProperty("Description", pipDescription));
+                result.Add(new JProperty("FromCacheLookup", fromCacheLookup));
+
+                var detail = new JObject(
+                        new JProperty(nameof(Type), Type),
+                        new JProperty(nameof(Reason), Reason));
+
+                if (Info != null)
+                {
+                    detail.Add(new JProperty(nameof(Info), Info));
+                }
+
+                result.Add(new JProperty("Detail", detail));
+
+                return new JProperty(pipFormattedSemiStableHash, result);
             }
         }
 
-        private static CacheMissAnalysisResult AnalyzeFingerprints(
+        private static CacheMissAnalysisDetailAndResult AnalyzeFingerprints(
             Func<PipRecordingSession> oldSessionFunc,
             Func<PipRecordingSession> newSessionFunc,
-            TextWriter writer,
-            CacheMissDiffFormat diffFormat)
+            CacheMissDiffFormat diffFormat,
+            string cacheMissType)
         {
-            var result = CacheMissAnalysisResult.Invalid;
+            var cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType);
 
             // While a PipRecordingSession is in scope, any pip information retrieved from the fingerprint store is
             // automatically written out to per-pip files.
@@ -134,14 +255,13 @@ namespace BuildXL.Scheduler.Tracing
             {
                 if (!oldPipSession.EntryExists)
                 {
-                    WriteLine("No fingerprint computation data found from old build.", writer, oldPipSession.PipWriter);
-                    WriteLine("This may be the first execution where pip outputs were stored to the cache.", writer, oldPipSession.PipWriter);
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.MissingFromOldBuild, $"No fingerprint computation data found from old build. This may be the first execution where pip outputs were stored to the cache. {RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching}");
 
                     // Write to just the old pip file
                     WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, oldPipSession.PipWriter);
-                    result = CacheMissAnalysisResult.MissingFromOldBuild;
+                    WriteLine(string.Empty, oldPipSession.PipWriter);
 
-                    WriteLine(string.Empty, writer, oldPipSession.PipWriter);
+                    return cacheMissAnalysisDetailAndResult;
                 }
 
                 if (!newPipSession.EntryExists)
@@ -151,34 +271,24 @@ namespace BuildXL.Scheduler.Tracing
                     // 2. ScheduleProcessNotStoredDueToMissingOutputs
                     // 3. ScheduleProcessNotStoredToWarningsUnderWarnAsError
                     // 4. ScheduleProcessNotStoredToCacheDueToInherentUncacheability
-                    WriteLine("No fingerprint computation data found from new build.", writer, newPipSession.PipWriter);
-
+                    cacheMissAnalysisDetailAndResult = new CacheMissAnalysisDetailAndResult(cacheMissType, CacheMissAnalysisResult.MissingFromNewBuild, $"No fingerprint computation data found from new build. {RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching}");
                     // Write to just the new pip file
                     WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, newPipSession.PipWriter);
-                    result = CacheMissAnalysisResult.MissingFromNewBuild;
+                    WriteLine(string.Empty, newPipSession.PipWriter);
 
-                    WriteLine(string.Empty, writer, newPipSession.PipWriter);
-                }
-
-                if (!oldPipSession.EntryExists || !newPipSession.EntryExists)
-                {
-                    // Only write once to the analysis file
-                    WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, writer);
-
-                    // Nothing to compare if an entry is missing
-                    return result;
+                    return cacheMissAnalysisDetailAndResult;
                 }
 
                 if (oldPipSession.FormattedSemiStableHash != newPipSession.FormattedSemiStableHash)
                 {
+                    cacheMissAnalysisDetailAndResult.Detail.Reason = "SemiStableHashs of the builds are different.";
                     // Make trivial json so the print looks like the rest of the diff
                     if (diffFormat == CacheMissDiffFormat.CustomJsonDiff)
                     {
-                        var diff = new JProperty("SemiStableHash",
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("SemiStableHash",
                             new JObject(
                                 new JProperty("Old", oldPipSession.FormattedSemiStableHash),
                                 new JProperty("New", newPipSession.FormattedSemiStableHash)));
-                        WriteLine(new JObject(diff).ToString(), writer);
                     }
                     else
                     {
@@ -193,8 +303,7 @@ namespace BuildXL.Scheduler.Tracing
                             Name = RepeatedStrings.FormattedSemiStableHashChanged
                         };
                         newNode.Values.Add(newPipSession.FormattedSemiStableHash);
-
-                        WriteLine(JsonTree.PrintTreeDiff(oldNode, newNode), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("SemiStableHash", JsonTree.PrintTreeDiff(oldNode, newNode));
                     }
                 }
 
@@ -210,59 +319,55 @@ namespace BuildXL.Scheduler.Tracing
                 // remote cache's, so we diff based off what we have in the fingerprint store.
                 if (oldPipSession.WeakFingerprint != newPipSession.WeakFingerprint)
                 {
-                    WriteLine("WeakFingerprint", writer);
-                    
+                    cacheMissAnalysisDetailAndResult.Detail.Reason = "WeakFingerprints of the builds are different.";
                     if (diffFormat == CacheMissDiffFormat.CustomJsonDiff)
                     {
-                        WriteLine(oldPipSession.DiffWeakFingerprint(newPipSession).ToString(), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("WeakFingerprintMismatchResult", oldPipSession.DiffWeakFingerprint(newPipSession));
                     }
                     else
                     {
-                        WriteLine(PrintTreeDiff(oldPipSession.GetWeakFingerprintTree(), newPipSession.GetWeakFingerprintTree(), oldPipSession), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("WeakFingerprintMismatchResult", PrintTreeDiff(oldPipSession.GetWeakFingerprintTree(), newPipSession.GetWeakFingerprintTree(), oldPipSession));
                     }
-                    
-                    result = CacheMissAnalysisResult.WeakFingerprintMismatch;
+
+                    cacheMissAnalysisDetailAndResult.Result = CacheMissAnalysisResult.WeakFingerprintMismatch;
                 }
                 else if (oldPipSession.PathSetHash != newPipSession.PathSetHash)
                 {
-                    WriteLine($"PathSet", writer);
-
+                    cacheMissAnalysisDetailAndResult.Detail.Reason = "PathSets of the builds are different.";
                     if (diffFormat == CacheMissDiffFormat.CustomJsonDiff)
                     {
-                        WriteLine(oldPipSession.DiffPathSet(newPipSession).ToString(), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("PathSetMismatchResult", oldPipSession.DiffPathSet(newPipSession));
                     }
                     else
                     {
-                        // JsonPatchDiff does not have pathset comparison.
-                        WriteLine(PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("PathSetMismatchResult", PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession));
                     }
 
-                    result = CacheMissAnalysisResult.PathSetHashMismatch;
+                    cacheMissAnalysisDetailAndResult.Result = CacheMissAnalysisResult.PathSetHashMismatch;
                 }
                 else if (oldPipSession.StrongFingerprint != newPipSession.StrongFingerprint)
                 {
-                    WriteLine("StrongFingerprint", writer);
-
+                    cacheMissAnalysisDetailAndResult.Detail.Reason = "StrongFingerprints of the builds are different.";
                     if (diffFormat == CacheMissDiffFormat.CustomJsonDiff)
                     {
-                        WriteLine(oldPipSession.DiffStrongFingerprint(newPipSession).ToString(), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("StrongFingerprintMismatchResult", oldPipSession.DiffStrongFingerprint(newPipSession));
                     }
                     else
                     {
-                        WriteLine(PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession), writer);
+                        cacheMissAnalysisDetailAndResult.Detail.AddPropertyToCacheMissInfo("StrongFingerprintMismatchResult", PrintTreeDiff(oldPipSession.GetStrongFingerprintTree(), newPipSession.GetStrongFingerprintTree(), oldPipSession));
                     }
 
-                    result = CacheMissAnalysisResult.StrongFingerprintMismatch;
+                    cacheMissAnalysisDetailAndResult.Result = CacheMissAnalysisResult.StrongFingerprintMismatch;
                 }
                 else
                 {
-                    WriteLine("The fingerprints from both builds matched and no cache retrieval errors occurred.", writer);
-                    WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, writer, oldPipSession.PipWriter, newPipSession.PipWriter);
-                    result = CacheMissAnalysisResult.UncacheablePip;
+                    cacheMissAnalysisDetailAndResult.Detail.Reason = $"The fingerprints from both builds matched and no cache retrieval errors occurred. {RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching}";
+                    WriteLine(RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching, oldPipSession.PipWriter, newPipSession.PipWriter);
+                    cacheMissAnalysisDetailAndResult.Result = CacheMissAnalysisResult.UncacheablePip;
                 }
             }
 
-            return result;
+            return cacheMissAnalysisDetailAndResult;
         }
 
         private static string PrintTreeDiff(JsonNode oldNode, JsonNode newNode, PipRecordingSession oldPipSession)

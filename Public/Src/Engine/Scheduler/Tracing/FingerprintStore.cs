@@ -21,6 +21,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using KVP = System.Collections.Generic.KeyValuePair<string, string>;
 using PipKVP = System.Collections.Generic.KeyValuePair<string, BuildXL.Scheduler.Tracing.FingerprintStore.PipFingerprintKeys>;
 
@@ -118,28 +119,22 @@ namespace BuildXL.Scheduler.Tracing
         public struct CacheMissData
         {
             /// <summary>
-            /// Cache miss classification result.
-            /// </summary>
-            public CacheMissAnalysisResult Result;
-
-            /// <summary>
-            /// Reason.
-            /// </summary>
-            public string Reason;
-
-            /// <summary>
             /// Indicates if cache miss was performed during cache look-up or post execution.
             /// </summary>
             public bool IsFromCacheLookUp;
 
             /// <summary>
+            /// Cache miss analysis result and detail
+            /// </summary>
+            public CacheMissAnalysisDetailAndResult DetailAndResult;
+
+            /// <summary>
             /// Creates an instance of <see cref="CacheMissData"/>.
             /// </summary>
-            public CacheMissData(CacheMissAnalysisResult result, string reason, bool isFromCacheLookUp)
+            public CacheMissData(bool isFromCacheLookUp, CacheMissAnalysisDetailAndResult detailAndResult)
             {
-                Result = result;
-                Reason = reason;
                 IsFromCacheLookUp = isFromCacheLookUp;
+                DetailAndResult = detailAndResult;
             }
         }
     }

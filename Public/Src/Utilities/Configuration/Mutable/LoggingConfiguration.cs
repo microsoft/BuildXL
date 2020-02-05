@@ -45,6 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
+            CacheMissBatch = false;
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 
@@ -128,6 +129,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 new List<string>(template.CacheMissAnalysisOption.Keys),
                 pathRemapper.Remap(template.CacheMissAnalysisOption.CustomPath));
             CacheMissDiffFormat = template.CacheMissDiffFormat;
+            CacheMissBatch = template.CacheMissBatch;
             OptimizeConsoleOutputForAzureDevOps = template.OptimizeConsoleOutputForAzureDevOps;
             InvocationExpandedCommandLineArguments = template.InvocationExpandedCommandLineArguments;
             OptimizeProgressUpdatingForAzureDevOps = template.OptimizeProgressUpdatingForAzureDevOps;
@@ -323,6 +325,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public CacheMissDiffFormat CacheMissDiffFormat { get; set; }
+
+        /// <inheritdoc />
+        public bool CacheMissBatch { get; set; }
 
         /// <inheritdoc />
         public bool OptimizeConsoleOutputForAzureDevOps { get; set; }

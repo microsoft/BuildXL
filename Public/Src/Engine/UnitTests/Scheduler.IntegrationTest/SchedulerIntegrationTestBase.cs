@@ -728,6 +728,15 @@ namespace Test.BuildXL.Scheduler
                 .ToArray();
         }
 
+        protected void SetExtraSalts(string salt, bool booleanOptionValues)
+        {
+            Configuration.Cache.CacheSalt = salt;
+            Configuration.Sandbox.MaskUntrackedAccesses = booleanOptionValues;
+            Configuration.Sandbox.NormalizeReadTimestamps = booleanOptionValues;
+            Configuration.Logging.TreatWarningsAsErrors = booleanOptionValues;
+            Configuration.Distribution.ValidateDistribution = booleanOptionValues;
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (m_expectedErrorCount > 0 // protect from lazy loading ErrorsLoggedById in success cases

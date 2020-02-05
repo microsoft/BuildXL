@@ -323,6 +323,11 @@ namespace BuildXL.Utilities.Configuration
         CacheMissDiffFormat CacheMissDiffFormat { get; }
 
         /// <summary>
+        /// Whether cache miss analysis results should be batched when reporting to telemetry
+        /// </summary>
+        bool CacheMissBatch { get; }
+
+        /// <summary>
         /// Whether console output should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeConsoleOutputForAzureDevOps { get; }

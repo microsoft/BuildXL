@@ -254,6 +254,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
                             (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "cacheMissBatch",
+                            sign => loggingConfiguration.CacheMissBatch = sign),
                         OptionHandlerFactory.CreateOption(
                             "cacheMissDiffFormat",
                             opt => CommandLineUtilities.ParseEnumOption<CacheMissDiffFormat>(opt)),

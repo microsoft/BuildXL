@@ -3508,6 +3508,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void CacheMissAnalysis(LoggingContext loggingContext, string pipDescription, string reason, bool fromCacheLookup);
 
         [GeneratedEvent(
+            (ushort)EventId.CacheMissAnalysisBatchResults,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "{cacheMissAnalysisResults}")]
+        public abstract void CacheMissAnalysisBatchResults(LoggingContext loggingContext, string cacheMissAnalysisResults);
+
+        [GeneratedEvent(
             (ushort)EventId.CacheMissAnalysisException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

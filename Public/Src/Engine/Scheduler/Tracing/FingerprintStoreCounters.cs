@@ -302,9 +302,26 @@ namespace BuildXL.Scheduler.Tracing
         CacheMissAnalysisCacheLookupAnalyzeCount,
 
         /// <summary>
+        /// How many pips cache miss analysis can't be performed due to max number reach.
+        /// </summary>
+        CacheMissAnalysisExceedMaxNumAndCannotPerformCount,
+
+        /// <summary>
         /// The number of ms spent for analyzing (e.g., diff-ing fingerprints) cache misses.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         CacheMissAnalysisAnalyzeDuration,
+
+        /// <summary>
+        /// The number of ms spent for analysis result batch logging 
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        CacheMissBatchLoggingTime,
+
+        /// <summary>
+        /// The number of ms spent for disposing analysis result batch logging queue
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RuntimeCacheMissBatchLoggingQueueDisposeDuration,
     }
 }

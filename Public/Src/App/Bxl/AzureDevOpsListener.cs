@@ -13,6 +13,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using JetBrains.Annotations;
+using Newtonsoft.Json.Linq;
 
 namespace BuildXL
 {
@@ -119,11 +120,15 @@ namespace BuildXL
                                 PipDescription = (string)payload[0],
                                 Reason = (string)payload[1],
                                 FromCacheLookup = (bool)payload[2],
-
                             }
                         );
                     }
                     break;
+                case (int)EventId.CacheMissAnalysisBatchResults:
+                {
+                    m_buildViewModel.BuildSummary.CacheSummary.BatchEntries.Add((string)eventData.Payload[0]);
+                }
+                break;
             }
         }
 

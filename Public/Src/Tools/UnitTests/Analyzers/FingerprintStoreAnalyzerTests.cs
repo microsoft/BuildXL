@@ -24,6 +24,7 @@ using BuildXLConfiguration = BuildXL.Utilities.Configuration;
 using System;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Test.Tool.Analyzers
 {
@@ -38,6 +39,7 @@ namespace Test.Tool.Analyzers
         {
             Configuration.Logging.CacheMissAnalysisOption = BuildXLConfiguration.CacheMissAnalysisOption.LocalMode();
             Configuration.Logging.StoreFingerprints = true;
+            
             AnalysisMode = AnalysisMode.CacheMiss;
 
             string outputDirectory = Path.Combine(TemporaryDirectory, "cachemiss");
@@ -840,15 +842,6 @@ namespace Test.Tool.Analyzers
             };
 
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
-        }
-
-        private void SetExtraSalts(string salt, bool booleanOptionValues)
-        {
-            Configuration.Cache.CacheSalt = salt;
-            Configuration.Sandbox.MaskUntrackedAccesses = booleanOptionValues;
-            Configuration.Sandbox.NormalizeReadTimestamps = booleanOptionValues;
-            Configuration.Logging.TreatWarningsAsErrors = booleanOptionValues;
-            Configuration.Distribution.ValidateDistribution = booleanOptionValues;
         }
 
     /// <summary>

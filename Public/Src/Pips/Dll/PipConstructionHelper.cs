@@ -4,7 +4,9 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.Text;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -487,8 +489,8 @@ namespace BuildXL.Pips
 
         private static string Hash(string content)
         {
-            var hashedBlob = FingerprintUtilities.Hash(content);
-            return FingerprintUtilities.FingerprintToFileName(hashedBlob);
+            var murmurHash = MurmurHash3.Create(Encoding.UTF8.GetBytes(content));
+            return FingerprintUtilities.FingerprintToFileName(murmurHash.ToByteArray());
         }
 
         /// <summary>

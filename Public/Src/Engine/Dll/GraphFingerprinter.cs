@@ -39,7 +39,7 @@ namespace BuildXL.Engine
     /// </remarks>
     public static class GraphFingerprinter
     {
-        internal const int GraphFingerprintVersion = 8;
+        internal const int GraphFingerprintVersion = 9;
 
         /// <summary>
         /// Computes a fingerprint for looking up a reloadable build graph. Null indicates failure

@@ -41,7 +41,6 @@ namespace BuildXL {
                     //         ]
                     //     }
                     // ),
-                    importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment,
                     {
                         subfolder: r`CMakeNinja`,
                         contents: [

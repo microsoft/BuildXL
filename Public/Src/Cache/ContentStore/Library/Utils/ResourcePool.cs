@@ -33,6 +33,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         private readonly IClock _clock;
 
         private readonly Tracer _tracer = new Tracer(nameof(ResourcePool<TKey, TObject>));
+        private bool _disposed;
 
         internal CounterCollection<ResourcePoolCounters> Counter { get; } = new CounterCollection<ResourcePoolCounters>();
 
@@ -174,6 +175,13 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <inheritdoc />
         public void Dispose()
         {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
             _tracer.Debug(_context, string.Join(Environment.NewLine, Counter.AsStatistics(nameof(ResourcePool<TKey, TObject>)).Select(kvp => $"{kvp.Key} : {kvp.Value}")));
 
             if (_semaphore.CurrentCount == 0)
@@ -201,6 +209,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                 _tracer.Error(_context, $"Shutdown of unused resources failed after removal from resource cache. {allTasks.Exception}");
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            
+            _semaphore.Dispose();
         }
     }
 }

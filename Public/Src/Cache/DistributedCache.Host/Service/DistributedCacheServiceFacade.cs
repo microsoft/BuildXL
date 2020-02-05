@@ -32,6 +32,9 @@ namespace BuildXL.Cache.Host.Service
 
             await host.OnStartingServiceAsync();
 
+            // Technically, this method doesn't own the file copier, but no one actually owns it.
+            // So to clean up the resources (and print some stats) we dispose it here.
+            using (arguments.Copier as IDisposable)
             using (var server = factory.Create())
             {
                 var context = new Context(logger);

@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
-    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, IContentCommunicationManager
+    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, IContentCommunicationManager, IDisposable
     {
         private readonly Context _context;
         private readonly int _grpcPort;
@@ -40,6 +40,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _useCompression = useCompression;
 
             _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, bufferSize);
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            _clientCache.Dispose();
         }
 
         /// <inheritdoc />

@@ -66,6 +66,7 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
                 }
 
+                // We don't have to dispose the copier here. RunAsync will take care of that.
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
                             grpcPort: grpcPort,

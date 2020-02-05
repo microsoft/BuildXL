@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -37,13 +36,19 @@ namespace ContentStoreTest.Distributed.Stores
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
         private readonly Context _context;
-        private GrpcCopyClientCache _clientCache;
+        private readonly GrpcCopyClientCache _clientCache;
 
         public GrpcCopyContentTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
             _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
+        }
+
+        /// <inheritdoc />
+        public override void Dispose()
+        {
+            _clientCache.Dispose();
         }
 
         [Fact]

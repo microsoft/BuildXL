@@ -216,7 +216,9 @@ config({
                 { id: "System.Interactive.Async", version: "3.1.1" },
                 { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
                 { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS" ] },
-                { id: "Redis-osx-x64", version: "1.0.0", osSkip: [ "win" ] },
+                { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
+                    ? [ "win" ]
+                    : [ "win", "macOS" ] },
 
                 // Testing
                 { id: "System.Security.Cryptography.ProtectedData", version: "4.4.0"},

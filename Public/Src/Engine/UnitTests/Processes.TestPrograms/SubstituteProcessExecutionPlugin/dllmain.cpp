@@ -50,16 +50,22 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 // workingDirectory: The working directory for the command.
 //
 // modifiedArguments: Pointer to null-terminated wide char array allocated using HeapAlloc on the default process' heap.
-// This value may be nullptr in which case the original arguments are used
+// This value may be nullptr in which case the original arguments are used.
+//
+// logFunc: Function for logging messages from the plugin back to the Detours. This function is Detours' Dbg function.
+// Dbg function automatically appends a new line at the end of the string format.
 extern "C" __declspec(dllexport) BOOL WINAPI CommandMatches(
     const wchar_t* command,
     const wchar_t* arguments,
     LPVOID environmentBlock,
     const wchar_t* workingDirectory,
-    wchar_t** modifiedArguments)
+    wchar_t** modifiedArguments,
+    void(__stdcall * logFunc)(PCWSTR format, ...))
 {
     UNREFERENCED_PARAMETER(environmentBlock);
     UNREFERENCED_PARAMETER(workingDirectory);
+
+    logFunc(L"Entering %s", L"CommandMatches");
 
     std::wstring marker(L"DoNotShimMe");
 

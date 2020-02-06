@@ -31,6 +31,7 @@ namespace Test.BuildXL.Processes.Detours
             : base(output)
         {
             m_output = output;
+            RegisterEventSource(ETWLogger.Log);
         }
 
         /// <summary>
@@ -331,7 +332,13 @@ namespace Test.BuildXL.Processes.Detours
                 await SandboxedProcessFactory.StartAsync(sandboxedProcessInfo, forceSandboxing: true)
                     .ConfigureAwait(false);
 
-            return await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
+            SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
+
+            // When plugin is entered, expect to see "Entering CommandMatches" text in the log.
+            // CODESYNC: Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
+            AssertLogContains(true, "Entering CommandMatches");
+            
+            return result;
         }
 
         /// <summary>

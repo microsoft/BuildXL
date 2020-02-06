@@ -202,7 +202,8 @@ static bool CallPluginFunc(
         commandArgs.c_str(),
         lpEnvironment,
         lpWorkingDirectory,
-        modifiedArguments) != 0;
+        modifiedArguments,
+        Dbg) != 0;
 }
 
 static bool ShouldSubstituteShim(

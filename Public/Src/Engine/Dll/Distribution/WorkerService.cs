@@ -505,10 +505,9 @@ namespace BuildXL.Engine.Distribution
                 if (!reportInputsResult.Succeeded)
                 {
                     // Could not report inputs due to input mismatch. Fail the pip
-                    BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureUnrelatedToCache(
+                    BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
                         m_appLoggingContext,
                         pipInfo.Description,
-                        ArtifactMaterializationResult.VerifySourceFilesFailed.ToString(),
                         reportInputsResult.Failure.DescribeIncludingInnerFailures());
 
                     ReportResult(

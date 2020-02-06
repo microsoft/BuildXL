@@ -688,7 +688,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 buildStorageDirectory: outputDirectory,
                 fileAccessManifest: GenerateFileAccessManifest(toolDirectory, outputFile),
                 arguments: toolArguments,
-                workingDirectory: outputDirectory,
+                workingDirectory: m_configuration.Layout.SourceDirectory.ToString(m_context.PathTable),
                 description: "MsBuild graph builder",
                 buildParameters,
                 beforeLaunch: () => ConnectToServerPipeAndLogProgress(outputFileString));

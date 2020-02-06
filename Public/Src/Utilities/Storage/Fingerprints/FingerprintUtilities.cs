@@ -143,11 +143,31 @@ namespace BuildXL.Storage.Fingerprints
 
         private static readonly char[] s_safeFileNameChars =
         {
-            // numbers
+            // numbers (10)
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 
-            // letters (only lowercase as windows is case sensitive) Some letters removed to reduce the chance of offensive words occurring.
+            // letters (22) (only lowercase as windows is case sensitive) Some letters removed to reduce the chance of offensive words occurring.
             'a', 'b', 'c', 'd', 'e', /*'f',*/ 'g', 'h', /*'i',*/ 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', /*'s',*/ 't', /*'u',*/ 'v', 'w', 'x', 'y', 'z',
+        };
+
+        /// <summary>
+        /// Set of legal characters for identifiers in most common languages.
+        /// There are 64 chars to use 6-bit encoding.
+        /// Make sure that alphanumeric are the lowest values. As to generate valid identifiers, they typically can only start with alphanumeric
+        /// </summary>
+        private static readonly char[] s_identifierChars =
+        {
+            // lower case letters (26)
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+
+            // upper case letters (26)
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+
+            // numbers (10)
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+
+            // extra chars (2)
+            'µ', '_', 
         };
 
         /// <nodoc />
@@ -234,6 +254,35 @@ namespace BuildXL.Storage.Fingerprints
 
             // Return the final base32 string.
             return output.ToString();
+        }
+
+        /// <summary>
+        /// Converts a 32-bit value into a 6 character string that contains valid identifiers
+        /// </summary>
+        /// <remarks>
+        /// The first character only uses 2 bits, this leaves 4 bits for extra data to encode.
+        /// If we add the option to encoded extra bits in the future
+        /// </remarks>
+        public static string ToIdentifier(uint x, byte additionalBits = 0)
+        {
+            // we only have space for 4 extra bits to encode
+            Contract.Assert(additionalBits >= 0 && additionalBits <= 7);
+
+            var b1 = (x >> 30) | (uint)(additionalBits << 2); 
+            var b2 = (x >> 24) & 0b111111;
+            var b3 = (x >> 18) & 0b111111;
+            var b4 = (x >> 12) & 0b111111;
+            var b5 = (x >> 6)  & 0b111111;
+            var b6 =  x        & 0b111111;
+
+            return new String(new [] {
+                s_identifierChars[b1],
+                s_identifierChars[b2],
+                s_identifierChars[b3],
+                s_identifierChars[b4],
+                s_identifierChars[b5],
+                s_identifierChars[b6],
+            });
         }
     }
 }

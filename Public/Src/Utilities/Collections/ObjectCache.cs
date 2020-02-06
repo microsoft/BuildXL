@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Utilities.Threading;
 
 #nullable disable // Disabling nullability for generic type
 
@@ -23,24 +22,20 @@ namespace BuildXL.Utilities.Collections
     /// </remarks>
     /// <typeparam name="TKey">the key type</typeparam>
     /// <typeparam name="TValue">the value type</typeparam>
-    public class ObjectCache<TKey, TValue>
+    public sealed class ObjectCache<TKey, TValue>
     {
-        /// <nodoc/>
-        protected struct Entry
+        private struct Entry
         {
             /// <summary>
             /// 0 means not present
             /// </summary>
             public int ModifiedHashCode;
-            /// <nodoc/>
             public TKey Key;
-            /// <nodoc/>
             public TValue Value;
         }
 
-        /// <nodoc/>
-        protected readonly Entry[] m_slots;
-        private readonly ReadWriteLock[] m_locks;
+        private readonly Entry[] m_slots;
+        private readonly ReaderWriterLockSlim[] m_locks;
         private readonly IEqualityComparer<TKey> m_comparer;
 
         private long m_hits;
@@ -71,10 +66,10 @@ namespace BuildXL.Utilities.Collections
             Contract.Requires(capacity > 0);
 
             m_slots = new Entry[capacity];
-            var locks = new ReadWriteLock[HashCodeHelper.GetGreaterOrEqualPrime(Math.Min(Environment.ProcessorCount * 4, capacity))];
+            var locks = new ReaderWriterLockSlim[HashCodeHelper.GetGreaterOrEqualPrime(Math.Min(Environment.ProcessorCount * 4, capacity))];
             for (int i = 0; i < locks.Length; i++)
             {
-                locks[i] = ReadWriteLock.Create();
+                locks[i] = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
             }
 
             m_locks = locks;
@@ -141,8 +136,7 @@ namespace BuildXL.Utilities.Collections
             GetEntry(ref modifiedHashCode, out index, out entry);
         }
 
-        /// <nodoc/>
-        protected virtual void GetEntry(ref int modifiedHashCode, out uint index, out Entry entry)
+        private void GetEntry(ref int modifiedHashCode, out uint index, out Entry entry)
         {
             Contract.Ensures(Contract.ValueAtReturn<int>(out modifiedHashCode) != 0);
 
@@ -155,24 +149,43 @@ namespace BuildXL.Utilities.Collections
             unchecked
             {
                 index = (uint)modifiedHashCode % (uint)m_slots.Length;
+                uint lockIndex = (uint)index % (uint)m_locks.Length;
 
                 // Note: A global lock here gets a ton of contention (1.2% of all execution of BuildXL time is spent waiting here), so we use many locks
-                using (m_locks[(uint)index % (uint)m_locks.Length].AcquireReadLock())
+                // The note was made when we used BuildXL.Utilities.Threading.ReadWriteLock. The switch to ReaderWriterLockSlim is unlikely to invalidate the note.
+                try
                 {
+                    m_locks[lockIndex].EnterReadLock();
                     entry = m_slots[index];
+                }
+                finally
+                {
+                    m_locks[lockIndex].ExitReadLock();
                 }
             }
         }
 
-        /// <nodoc/>
-        protected virtual void SetEntry(uint index, Entry entry)
+        private void SetEntry(uint index, Entry entry)
         {
-            using (var writeLock = m_locks[(uint)index % (uint)m_locks.Length].TryAcquireWriteLock())
+            uint lockIndex = (uint)index % (uint)m_locks.Length;
+            bool lockAcquired = false;
+
+            try
             {
-                // Only write if we acquire the write lock
-                if (writeLock.IsValid)
+                // Try to get a write lock, but do not wait for the lock to become available.
+                lockAcquired = m_locks[lockIndex].TryEnterWriteLock(TimeSpan.Zero);
+
+                // Only write if we successfully acquired the write lock.
+                if (lockAcquired)
                 {
                     m_slots[index] = entry;
+                }
+            }
+            finally
+            {
+                if (lockAcquired)
+                {
+                    m_locks[lockIndex].ExitWriteLock();
                 }
             }
         }

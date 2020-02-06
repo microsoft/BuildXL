@@ -28,31 +28,22 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        private ObjectCache<T, K> CreateObjectCache<T, K>(int capacity, bool experimental)
-        {
-            return experimental ? new ObjectCacheExperimental<T, K>(capacity) : new ObjectCache<T, K>(capacity);
-        }
-
         public ObjectCacheTests(ITestOutputHelper output)
             : base(output) { }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void TestCacheNotPresent(bool experimental)
+        [Fact]
+        public void TestCacheNotPresent()
         {
-            var cache = CreateObjectCache<HashedKey, int>(capacity: 16, experimental);
+            var cache = new ObjectCache<HashedKey, int>(16);
             int value;
             XAssert.IsFalse(cache.TryGetValue(default(HashedKey), out value));
             XAssert.IsFalse(cache.TryGetValue(new HashedKey { Hash = int.MaxValue }, out value));
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void TestCacheAddGet(bool experimental)
+        [Fact]
+        public void TestCacheAddGet()
         {
-            var cache = CreateObjectCache<HashedKey, int>(capacity: 16, experimental);
+            var cache = new ObjectCache<HashedKey, int>(16);
 
             long hits = 0;
             long misses = 0;
@@ -90,12 +81,10 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void TestParallelCacheAddGet(bool experimental)
+        [Fact]
+        public void TestParallelCacheAddGet()
         {
-            var cache = CreateObjectCache<HashedKey, int>(capacity: 17, experimental);
+            var cache = new ObjectCache<HashedKey, int>(16);
             var random = new Random(0);
 
             var expectedValues = new int[16 * 1024];

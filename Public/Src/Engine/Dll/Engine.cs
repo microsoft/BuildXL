@@ -416,10 +416,6 @@ namespace BuildXL.Engine
                 return null;
             }
 
-            var envVarValue = Environment.GetEnvironmentVariable("BUILDXL_EXPERIMENTAL_STRINGTABLE_BCLOBJECTCACHE");
-            bool.TryParse(envVarValue, out var useExperimentalObjectCache);
-            Logger.Log.StringTableConfiguration(loggingContext, useExperimentalObjectCache);
-
             return new BuildXLEngine(
                 loggingContext,
                 context,

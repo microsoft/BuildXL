@@ -2816,15 +2816,6 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Tasks.Engine,
             Message = "Initializing VM: {message}")]
         internal abstract void InitializingVm(LoggingContext context, string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.StringTableConfiguration,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.Engine,
-            Message = "StringTable is configured to use ObjectCacheExperimental: {usingExperimentalObjectCache}.",
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void StringTableConfiguration(LoggingContext context, bool usingExperimentalObjectCache);
     }
 
     /// <summary>

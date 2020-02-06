@@ -33,7 +33,6 @@ namespace ContentStoreTest.Distributed.Sessions
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class RedisDistributedContentTests : DistributedContentTests
     {
         private readonly LocalRedisFixture _redis;

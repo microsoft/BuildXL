@@ -29,7 +29,6 @@ using Xunit;
 
 namespace ContentStoreTest.Distributed.Stores
 {
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class GrpcCopyContentTests : TestBase
     {
         private const int FileSize = 1000;

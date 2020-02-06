@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
-using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -31,16 +30,17 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using StackExchange.Redis;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using System.IO;
 using Test.BuildXL.TestUtilities.Xunit;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public abstract class RedisContentLocationStoreTests : TestWithOutput
     {
         private const string DefaultKeySpace = RedisContentLocationStoreFactory.DefaultKeySpace;
 
-        private static readonly AbsolutePath DefaultTempRoot = new AbsolutePath(@"Z:\TempRoot");
+        private static readonly AbsolutePath DefaultTempRoot = new AbsolutePath(XunitBuildXLTest.X("/Z/TempRoot"));
         private readonly IContentHasher _contentHasher = HashInfoLookup.Find(HashType.SHA256).CreateContentHasher();
         protected readonly MemoryClock _clock = new MemoryClock();
 
@@ -836,6 +836,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
             _ = CreatePaths(1);
             var context = new Context(TestGlobal.Logger);
 
+            var path = new AbsolutePath(XunitBuildXLTest.X("/D/Dumps/CacheDump"));
+
             var storeFactory = new RedisContentLocationStoreFactory(
                 new EnvironmentConnectionStringProvider("TestConnectionString"),
                 new EnvironmentConnectionStringProvider("TestConnectionString2"),
@@ -844,9 +846,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
                 new RedisContentLocationStoreConfiguration()
                 {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
-                }
-                );
+                    Database = new RocksDbContentLocationDatabaseConfiguration(path)
+                });
 
             var r = await storeFactory.StartupAsync(context);
             r.ShouldBeSuccess();
@@ -872,6 +873,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
             _ = CreatePaths(1);
             var context = new Context(TestGlobal.Logger);
 
+            var path = new AbsolutePath(XunitBuildXLTest.X("/D/Dumps/CacheDump"));
+
             var storeFactory = new RedisContentLocationStoreFactory(
                 new EnvironmentConnectionStringProvider("TestConnectionString"),
                 new EnvironmentConnectionStringProvider("TestConnectionString2"),
@@ -880,7 +883,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
                 new RedisContentLocationStoreConfiguration()
                 {
-                    Database = new RocksDbContentLocationDatabaseConfiguration(new AbsolutePath(@"D:\Dumps\CacheDump2"))
+                    Database = new RocksDbContentLocationDatabaseConfiguration(path)
                 }
                 );
 
@@ -1087,7 +1090,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         protected string[] CreatePaths(int replicaCount)
         {
-            string pathPrefix = @"Z:\Temp";
+            string pathPrefix = XunitBuildXLTest.X("/Z/Temp");
             string[] paths = new string[replicaCount];
 
             for (int i = 0; i < replicaCount; i++)

@@ -25,7 +25,6 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     [Collection("Redis-based tests")]
     [Trait("Category", "LongRunningTest")]
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // needs local redis-server.exe
     public class PinBetterDistributedContentSessionTests : ContentSessionTests
     {
         private readonly LocalRedisFixture _redis;

@@ -2633,6 +2633,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Redis-osx-x64",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "RocksDbNative",
           "Version": "6.0.1-b20191119.3"
         }

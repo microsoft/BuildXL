@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace ContentStoreTest.Distributed.Redis
 {
@@ -270,11 +271,13 @@ namespace ContentStoreTest.Distributed.Redis
                 throw;
             }
 
-            string redisServerPath = Path.GetFullPath("redis-server.exe");
+            var redisName = OperatingSystemHelper.IsWindowsOS ? "redis-server.exe" : "redis-server";
+
+            string redisServerPath = Path.GetFullPath(Path.Combine("redisServer", redisName));
 
             if (!File.Exists(redisServerPath))
             {
-                throw new InvalidOperationException("Could not find redis-server.exe at " + redisServerPath);
+                throw new InvalidOperationException($"Could not find {redisName} at {redisServerPath}");
             }
 
             int portNumber = 0;
@@ -306,7 +309,7 @@ port {portNumber}";
                 }
 
                 const bool createNoWindow = true;
-                _process = new ProcessUtility(redisServerPath, args, createNoWindow);
+                _process = new ProcessUtility(redisServerPath, args, createNoWindow, workingDirectory: Path.GetDirectoryName(redisServerPath));
 
                 _process.Start();
 

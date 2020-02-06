@@ -52,7 +52,14 @@ namespace DistributedTest {
             importFrom("WindowsAzure.Storage").pkg,
         ],
         runtimeContent: [
-            ...importFrom("Redis-64").Contents.all.contents,
+            {
+                subfolder: r`redisServer`,
+                contents: [
+                    ...BuildXLSdk.isTargetRuntimeOsx 
+                        ? importFrom("Redis-osx-x64").Contents.all.contents 
+                        : importFrom("Redis-64").Contents.all.contents,
+                ]
+            },
         ],
     });
 }

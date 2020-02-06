@@ -92,7 +92,15 @@ extern DetouredProcessInjector* g_pDetouredProcessInjector;
 // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
 //
 // workingDirectory: The working directory for the command.
-typedef BOOL(__stdcall* SubstituteProcessExecutionPluginFunc)(const wchar_t* command, const wchar_t* arguments, LPVOID environmentBlock, const wchar_t* workingDirectory);
+//
+// modifiedArguments: Pointer to null-terminated wide char array allocated using HeapAlloc on the default process' heap.
+// This value may be nullptr in which case the original arguments are used
+typedef BOOL(__stdcall* SubstituteProcessExecutionPluginFunc)(
+    const wchar_t* command,
+    const wchar_t* arguments,
+    LPVOID environmentBlock,
+    const wchar_t* workingDirectory,
+    wchar_t** modifiedArguments);
 
 extern wchar_t* g_SubstituteProcessExecutionShimPath;
 extern bool g_ProcessExecutionShimAllProcesses;

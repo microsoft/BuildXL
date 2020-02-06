@@ -176,7 +176,12 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
     return wcsstr(commandArgs, argMatch) != nullptr;
 }
 
-static bool CallPluginFunc(const wstring& command, const wchar_t* commandArgs, LPVOID lpEnvironment, LPCWSTR lpWorkingDirectory)
+static bool CallPluginFunc(
+    const wstring& command,
+    const wstring& commandArgs,
+    LPVOID lpEnvironment,
+    LPCWSTR lpWorkingDirectory,
+    LPWSTR* modifiedArguments)
 {
     assert(g_SubstituteProcessExecutionPluginFunc != nullptr);
 
@@ -192,10 +197,20 @@ static bool CallPluginFunc(const wstring& command, const wchar_t* commandArgs, L
         lpWorkingDirectory = curDir;
     }
 
-    return g_SubstituteProcessExecutionPluginFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
+    return g_SubstituteProcessExecutionPluginFunc(
+        command.c_str(),
+        commandArgs.c_str(),
+        lpEnvironment,
+        lpWorkingDirectory,
+        modifiedArguments) != 0;
 }
 
-static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs, LPVOID lpEnvironment, LPCWSTR lpWorkingDirectory)
+static bool ShouldSubstituteShim(
+    const wstring &command,
+    const wstring& commandArgs,
+    LPVOID lpEnvironment,
+    LPCWSTR lpWorkingDirectory,
+    LPWSTR* modifiedArguments)
 {
     assert(g_SubstituteProcessExecutionShimPath != nullptr);
 
@@ -205,8 +220,8 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         if (g_SubstituteProcessExecutionPluginFunc != nullptr)
         {
             // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
-            bool filterMatch = CallPluginFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory);
-            return (filterMatch && !g_ProcessExecutionShimAllProcesses) || (!filterMatch && g_ProcessExecutionShimAllProcesses);
+            bool filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments);
+            return filterMatch != g_ProcessExecutionShimAllProcesses;
         }
 
         // Shim everything or shim nothing if there are no matches to compare and no filter DLL.
@@ -230,7 +245,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
             if (command[commandLen - processLen - 1] == L'\\' &&
                 _wcsicmp(command.c_str() + commandLen - processLen, processName) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
+                if (CommandArgsContainMatch(commandArgs.c_str(), pMatch->ArgumentMatch.get()))
                 {
                     foundMatch = true;
                     break;
@@ -244,7 +259,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         {
             if (_wcsicmp(processName, command.c_str()) == 0)
             {
-                if (CommandArgsContainMatch(commandArgs, pMatch->ArgumentMatch.get()))
+                if (CommandArgsContainMatch(commandArgs.c_str(), pMatch->ArgumentMatch.get()))
                 {
                     foundMatch = true;
                     break;
@@ -257,7 +272,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     bool filterMatch = g_ProcessExecutionShimAllProcesses;
     if (g_SubstituteProcessExecutionPluginFunc != nullptr)
     {
-        filterMatch = CallPluginFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
+        filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments) != 0;
     }
 
     if (g_ProcessExecutionShimAllProcesses)
@@ -295,10 +310,28 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
         FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
         Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
 
-        if (ShouldSubstituteShim(command, commandArgs.c_str(), lpEnvironment, lpCurrentDirectory))
+        LPWSTR modifiedArguments = nullptr;
+
+        if (ShouldSubstituteShim(command, commandArgs, lpEnvironment, lpCurrentDirectory, &modifiedArguments))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
+
+            if (modifiedArguments != nullptr)
+            {
+                commandArgs.assign(modifiedArguments);
+                HANDLE hDefaultProcessHeap = GetProcessHeap();
+
+                if (hDefaultProcessHeap == NULL) 
+                {
+                    Dbg(L"Shim: Failed to retrieve the default process heap with LastError %d", GetLastError());
+                }
+                else if (HeapFree(hDefaultProcessHeap, 0, (LPVOID)modifiedArguments) == FALSE)
+                {
+                    Dbg(L"Shim: Failed to free allocation of modified arguments from default process heap");
+                }
+            }
+
             injectedShim = true;
             return InjectShim(
                 command,

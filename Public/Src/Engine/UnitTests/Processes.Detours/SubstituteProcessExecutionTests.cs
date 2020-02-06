@@ -54,20 +54,14 @@ namespace Test.BuildXL.Processes.Detours
             {
                 childExecutable = quotedExecutable;
             }
-           
-            var fam =
-                new FileAccessManifest(context.PathTable)
-                {
-                    FailUnexpectedFileAccesses = false,
-                    IgnoreCodeCoverage = false,
-                    ReportFileAccesses = false,
-                    ReportUnexpectedFileAccesses = false,
-                    MonitorChildProcesses = false,
-                    SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
-                        shimProgramPath,
-                        shimAllProcesses: processMatch == null,  // When we have a process to match, make the shim list opt-in to ensure a match
-                        processMatch == null ? new ShimProcessMatch[0] : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
-                };
+
+            var fam = CreateCommonFileAccessManifest(context.PathTable);
+            fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                shimProgramPath,
+                shimAllProcesses: processMatch == null,  // When we have a process to match, make the shim list opt-in to ensure a match
+                processMatches: processMatch == null 
+                    ? new ShimProcessMatch[0] 
+                    : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) });
 
             string childOutput = "Child cmd that should be shimmed";
             string childArgs = $"{childExecutable} /D /C @echo {childOutput}";
@@ -117,19 +111,11 @@ namespace Test.BuildXL.Processes.Detours
             var context = BuildXLContext.CreateInstanceForTesting();
             var shimProgramPath = GetShimProgramPath(context);
 
-            var fam =
-                new FileAccessManifest(context.PathTable)
-                {
-                    FailUnexpectedFileAccesses = false,
-                    IgnoreCodeCoverage = false,
-                    ReportFileAccesses = false,
-                    ReportUnexpectedFileAccesses = false,
-                    MonitorChildProcesses = false,
-                    SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
-                        shimProgramPath,
-                        shimAllProcesses: true,
-                        new ShimProcessMatch[0])
-                };
+            var fam = CreateCommonFileAccessManifest(context.PathTable);
+            fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                shimProgramPath,
+                shimAllProcesses: true,
+                processMatches: new ShimProcessMatch[0]);
 
             string executable = CmdHelper.CmdX64;
             string childExecutable = '"' + executable;  // Only an open quote
@@ -177,19 +163,13 @@ namespace Test.BuildXL.Processes.Detours
 
             string executable = CmdHelper.CmdX64;
 
-            var fam =
-                new FileAccessManifest(context.PathTable)
-                {
-                    FailUnexpectedFileAccesses = false,
-                    IgnoreCodeCoverage = false,
-                    ReportFileAccesses = false,
-                    ReportUnexpectedFileAccesses = false,
-                    MonitorChildProcesses = false,
-                    SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
-                        shimProgramPath,
-                        shimAllProcesses: false,
-                        processMatch == null ? new ShimProcessMatch[0] : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
-                };
+            var fam = CreateCommonFileAccessManifest(context.PathTable);
+            fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                shimProgramPath,
+                shimAllProcesses: false,
+                processMatches: processMatch == null 
+                    ? new ShimProcessMatch[0]
+                    : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) });
 
             string childOutput = "Child cmd that should not be shimmed";
             string childArgs = $"{executable} /D /C @echo {childOutput}";
@@ -281,12 +261,41 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.Contains(stdOut, GetChildOutputForPluginTest(shouldBeShimmed));
         }
 
+        [Fact]
+        public async Task TestShimChildProcessWithPluginWithModifiedArgumentAsync()
+        {
+            var stdOutSb = new StringBuilder(128);
+            var stdErrSb = new StringBuilder();
+
+            SandboxedProcessResult result = await RunWithPluginAsync(
+                false,
+                true,
+                null, // No process match.
+                stdOutSb,
+                stdErrSb,
+                shimmedText: "@responseFile");
+
+            string stdOut = stdOutSb.ToString();
+            string stdErr = stdErrSb.ToString();
+
+            m_output.WriteLine($"stdout: {stdOut}");
+            m_output.WriteLine($"stderr: {stdErr}");
+
+            AssertSuccess(result, stdErr);
+            AssertShimmed(stdOut);
+
+            // Since shimmedText has '@', it will be replaced by "Content".
+            // CODESYNC: Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
+            XAssert.Contains(stdOut, GetChildOutputForPluginTest(true, "Content"));
+        }
+
         private async Task<SandboxedProcessResult> RunWithPluginAsync(
             bool shimAllProcesses,
             bool shouldBeShimmed,
             string processMatch,
             StringBuilder stdOutSb,
-            StringBuilder stdErrSb)
+            StringBuilder stdErrSb,
+            string shimmedText = null)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var shimProgramPath = GetShimProgramPath(context);
@@ -294,28 +303,20 @@ namespace Test.BuildXL.Processes.Detours
 
             string executable = CmdHelper.CmdX64;
 
-            var fam =
-                new FileAccessManifest(context.PathTable)
-                {
-                    FailUnexpectedFileAccesses = false,
-                    IgnoreCodeCoverage = false,
-                    ReportFileAccesses = false,
-                    ReportUnexpectedFileAccesses = false,
-                    MonitorChildProcesses = false,
-                    SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
-                        shimProgramPath,
-                        shimAllProcesses: shimAllProcesses,
-                        processMatches: string.IsNullOrEmpty(processMatch) 
-                            ? new ShimProcessMatch[0]
-                            : new ShimProcessMatch[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
-                    {
-                        SubstituteProcessExecutionPluginDll32Path = pluginDlls.x86Dll,
-                        SubstituteProcessExecutionPluginDll64Path = pluginDlls.x64Dll
-                    }
-                };
+            var fam = CreateCommonFileAccessManifest(context.PathTable);
+            fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
+                shimProgramPath,
+                shimAllProcesses: shimAllProcesses,
+                processMatches: string.IsNullOrEmpty(processMatch)
+                    ? new ShimProcessMatch[0]
+                    : new ShimProcessMatch[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
+            {
+                SubstituteProcessExecutionPluginDll32Path = pluginDlls.x86Dll,
+                SubstituteProcessExecutionPluginDll64Path = pluginDlls.x64Dll
+            };
 
-            string childOutput = GetChildOutputForPluginTest(shouldBeShimmed);
-            string childArgs = $"{executable} /D /C @echo {childOutput}";
+            string childOutput = GetChildOutputForPluginTest(shouldBeShimmed, shimmedText);
+            string childArgs = $"{executable} /D /C echo {childOutput}";
             string args = $"/D /C echo Top-level cmd. Running child process && {childArgs}";
 
             SandboxedProcessInfo sandboxedProcessInfo = CreateCommonSandboxedProcessInfo(
@@ -334,10 +335,10 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         /// <summary>
-        /// The plugin in Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
-        /// will match if the command line does not contain "DoNotShimMe".
+        /// The plugin will match if the command line does not contain "DoNotShimMe".
+        /// CODESYNC: Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
         /// </summary>
-        private static string GetChildOutputForPluginTest(bool shouldBeShimmed) => shouldBeShimmed ? "Whatever" : "DoNotShimMe";
+        private static string GetChildOutputForPluginTest(bool shouldBeShimmed, string shimmedText = null) => shouldBeShimmed ? (shimmedText ?? "Whatever") : "DoNotShimMe";
 
         private static void AssertShimmedIf(string output, bool shimed)
         {
@@ -410,6 +411,19 @@ namespace Test.BuildXL.Processes.Detours
             string sessionIdStr = sessionId.ToString("N");
             return new LoggingContext(sessionId, nameof(SubstituteProcessExecutionTests), new LoggingContext.SessionInfo(sessionIdStr, "TestEnv", sessionId));
         }
+
+        /// <summary>
+        /// Creates a common file access manifest for this test.
+        /// </summary>
+        private static FileAccessManifest CreateCommonFileAccessManifest(PathTable pathTable) =>
+            new FileAccessManifest(pathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                IgnoreCodeCoverage = false,
+                ReportFileAccesses = false,
+                ReportUnexpectedFileAccesses = false,
+                MonitorChildProcesses = false
+            };
 
         /// <summary>
         /// Creates a common sandboxed process info for tests in this class.

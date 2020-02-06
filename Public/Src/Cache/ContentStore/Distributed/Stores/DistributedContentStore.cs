@@ -195,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var sessionResult = await ProactiveCopySession.Value;
                     if (sessionResult)
                     {
-                        return await sessionResult.Value.ProactiveCopyIfNeededAsync(operationContext, hash, tryBuildRing: false);
+                        return await sessionResult.Value.ProactiveCopyIfNeededAsync(operationContext, hash, tryBuildRing: false, ProactiveCopyReason.Replication);
                     }
 
                     return new ProactiveCopyResult(new BoolResult("Failed to retrieve session for proactive copies."));

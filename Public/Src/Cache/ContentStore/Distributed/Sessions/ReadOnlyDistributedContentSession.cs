@@ -1043,7 +1043,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var proactiveCopyTask = WithOperationContext(
                             operationContext,
                             CancellationToken.None,
-                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash, tryBuildRing: true));
+                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash, tryBuildRing: true, ProactiveCopyReason.Pin));
 
                         if (Settings.InlineProactiveCopies)
                         {
@@ -1179,7 +1179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return UpdateContentTrackerWithNewReplicaAsync(context, hashesToEagerUpdate, cts, urgencyHint);
         }
 
-        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, bool tryBuildRing, string path = null)
+        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, bool tryBuildRing, ProactiveCopyReason reason, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -1232,7 +1232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 if (candidates.Length > 0)
                                 {
                                     var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                                    insideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true);
+                                    insideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true, reason);
                                 }
                                 else
                                 {
@@ -1295,7 +1295,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             if (getLocationResult.Succeeded)
                             {
                                 var candidate = getLocationResult.Value;
-                                outsideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false);
+                                outsideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false, reason);
                             }
                             else
                             {
@@ -1316,7 +1316,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 });
         }
 
-        private async Task<BoolResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing)
+        private async Task<BoolResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason)
         {
             if (Settings.PushProactiveCopies)
             {
@@ -1333,8 +1333,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         }
 
                         return null;
-                    }
-                    , isInsideRing);
+                    },
+                    isInsideRing,
+                    reason);
             }
             else
             {

@@ -363,6 +363,16 @@ namespace BuildXL.Ide.Generator.Old
                                 project.SetProperty("Features", features);
                             };
                             break;
+                        case "/nullable":
+                            action = (obj) =>
+                                     {
+                                         if ((string)obj == "+")
+                                         {
+                                             project.SetProperty("Nullable", "enable");
+                                         }
+                                     };
+                            break;
+
                         default:
                             if (strValue.StartsWith("/target:", StringComparison.OrdinalIgnoreCase))
                             {

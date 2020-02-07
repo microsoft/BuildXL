@@ -2083,12 +2083,17 @@ namespace BuildXL.Scheduler.Artifacts
                                 }
                                 else
                                 {
-                                    Logger.Log.StorageCacheGetContentWarning(
-                                        operationContext,
-                                        pipDescription: pipInfo.Description,
-                                        contentHash: hash.ToHex(),
-                                        destinationPath: file.Path.ToString(pathTable),
-                                        errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                    // Keep the console tidy by not logging log warnings for materializations that fail due to ctrl-c cancellation
+                                    if (possiblyPlaced.Failure.GetType() != typeof(CtrlCCancellationFailure) &&
+                                        possiblyPlaced.Failure.InnerFailure?.GetType() != typeof(CtrlCCancellationFailure))
+                                    {
+                                        Logger.Log.StorageCacheGetContentWarning(
+                                            operationContext,
+                                            pipDescription: pipInfo.Description,
+                                            contentHash: hash.ToHex(),
+                                            destinationPath: file.Path.ToString(pathTable),
+                                            errorMessage: possiblyPlaced.Failure.DescribeIncludingInnerFailures());
+                                    }
 
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
@@ -2148,6 +2153,14 @@ namespace BuildXL.Scheduler.Artifacts
             using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
             using (await m_materializationSemaphore.AcquireAsync())
             {
+                
+                // Quickily fail pending placements when cancellation is requested
+                if (Context.CancellationToken.IsCancellationRequested)
+                {
+                    var possiblyPlaced = new Possible<ContentMaterializationResult>(new CtrlCCancellationFailure());
+                    return WithLineInfo(possiblyPlaced);
+                }
+                
                 if (m_host.CanMaterializeFile(file))
                 {
                     using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
@@ -3956,6 +3969,32 @@ namespace BuildXL.Scheduler.Artifacts
             public void RemoveCompletedMaterializations()
             {
                 MaterializationFiles.RemoveAll(file => file.MaterializationCompletion.Task.IsCompleted);
+            }
+        }
+
+        /// <summary>
+        /// Failure returned by operations that are not performed due to ctrl-c cancellation of the build
+        /// </summary>
+        public class CtrlCCancellationFailure : Failure
+        {
+            private const string Message = "Operation failed because build was cancelled";
+
+            /// <inheritdoc/>
+            public override BuildXLException CreateException()
+            {
+                return new BuildXLException(Message);
+            }
+
+            /// <inheritdoc/>
+            public override string Describe()
+            {
+                return Message;
+            }
+
+            /// <inheritdoc/>
+            public override BuildXLException Throw()
+            {
+                throw new BuildXLException(Message);
             }
         }
     }

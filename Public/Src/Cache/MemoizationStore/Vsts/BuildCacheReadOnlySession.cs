@@ -539,7 +539,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             }
             finally
             {
-                Tracer.MemoizationStoreTracer.GetSelectorsStop(context, sw.Elapsed);
+                Tracer.MemoizationStoreTracer.GetSelectorsStop(context, sw.Elapsed, weakFingerprint);
             }
         }
 

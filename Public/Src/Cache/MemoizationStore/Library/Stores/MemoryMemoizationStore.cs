@@ -132,7 +132,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             finally
             {
                 stopwatch.Stop();
-                _tracer.GetSelectorsStop(context, stopwatch.Elapsed);
+                _tracer.GetSelectorsStop(context, stopwatch.Elapsed, weakFingerprint);
             }
         }
 

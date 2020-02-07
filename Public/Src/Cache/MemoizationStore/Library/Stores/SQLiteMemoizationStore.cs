@@ -433,7 +433,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             finally
             {
                 stopwatch.Stop();
-                Tracer.GetSelectorsStop(context, stopwatch.Elapsed);
+                Tracer.GetSelectorsStop(context, stopwatch.Elapsed, weakFingerprint);
             }
         }
 
@@ -476,7 +476,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 }
 
                 _currentRowCount = await GetRowCountAsync();
-                Tracer.PurgeStop(context, (int)_currentRowCount, stopwatch.Elapsed);
+                Tracer.PurgeStop(context, (int)rowsToPurge, (int)_currentRowCount, stopwatch.Elapsed);
             }).ConfigureAwait(false);
         }
 
@@ -783,8 +783,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         private async Task TouchAsync(Context context, List<TouchMessage> list)
         {
+            int originalCount = list.Count;
             var stopwatch = Stopwatch.StartNew();
-            Tracer.TouchStart(context, list.Count);
+            Tracer.TouchStart(context, originalCount);
 
             while (list.Count > 0)
             {
@@ -830,7 +831,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 }
             }
 
-            Tracer.TouchStop(context, stopwatch.Elapsed);
+            Tracer.TouchStop(context, stopwatch.Elapsed, originalCount);
         }
 
         private class BackgroundWorker : BackgroundWorkerBase

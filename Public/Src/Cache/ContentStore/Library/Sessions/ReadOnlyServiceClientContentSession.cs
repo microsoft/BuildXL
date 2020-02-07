@@ -218,7 +218,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 var sw = Stopwatch.StartNew();
                 try
                 {
-                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk({contentHashes.Count}) start for hashes:[{string.Join(",", contentHashes)}]");
                     fileCounter.Add(contentHashes.Count);
 
                     if (retry > 0)
@@ -230,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 }
                 finally
                 {
-                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk() stop {sw.Elapsed.TotalMilliseconds}ms");
+                    Tracer.Debug(operationContext, $"{Tracer.Name}.PinBulk({contentHashes.Count}) stop {sw.Elapsed.TotalMilliseconds}ms. Hashes: [{string.Join(",", contentHashes)}]");
                 }
             }
         }

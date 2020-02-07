@@ -67,6 +67,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => OpenStreamCoreAsync(operationContext, contentHash, urgencyHint, BaseCounters[ContentSessionBaseCounters.OpenStreamRetries]),
+                    traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.OpenStream]));
         }

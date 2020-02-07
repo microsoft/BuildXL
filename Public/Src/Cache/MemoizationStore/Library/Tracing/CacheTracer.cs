@@ -16,10 +16,17 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
     public class CacheTracer : Tracer
     {
         private readonly CallCounter _statsCounter = new CallCounter("CacheTracer.Stats");
+        private readonly CallCounter _sessionCounter = new CallCounter("CacheTracer.CreateSession");
+        private readonly CallCounter _readSessionCounter = new CallCounter("CacheTracer.CreateReadOnlySession");
 
         public CacheTracer(string name)
             : base(name)
         {
+        }
+
+        public override void GetStatsStart(Context context)
+        {
+            _statsCounter.Started();
         }
 
         public override void GetStatsStop(Context context, GetStatsResult result)
@@ -30,6 +37,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
         public void CreateReadOnlySessionStart(Context context, string name)
         {
+            _readSessionCounter.Started();
             if (context.IsEnabled)
             {
                 Debug(context, $"{Name}.CreateReadOnlySession({name}) start");
@@ -38,6 +46,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
         public void CreateReadOnlySessionStop(Context context, CreateSessionResult<IReadOnlyCacheSession> result)
         {
+            _readSessionCounter.Completed(result.Duration.Ticks);
             if (context.IsEnabled)
             {
                 Debug(context, $"{Name}.CreateReadOnlySession() stop {result.DurationMs}ms result=[{result}]");
@@ -46,6 +55,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
         public void CreateSessionStart(Context context, string name)
         {
+            _sessionCounter.Started();
             if (context.IsEnabled)
             {
                 Debug(context, $"{Name}.CreateSession({name}) start");
@@ -54,6 +64,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
         public void CreateSessionStop(Context context, CreateSessionResult<ICacheSession> result)
         {
+            _sessionCounter.Completed(result.Duration.Ticks);
             if (context.IsEnabled)
             {
                 Debug(context, $"{Name}.CreateSession() stop {result.DurationMs}ms result=[{result}]");

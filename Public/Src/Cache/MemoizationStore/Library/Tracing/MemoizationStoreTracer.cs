@@ -166,8 +166,6 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             }
 
             _getStatsCallCounter.Started();
-
-            base.GetStatsStart(context);
         }
 
         public override void GetStatsStop(Context context, GetStatsResult result)
@@ -190,11 +188,6 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             }
 
             _getSelectorsCallCounter.Started();
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.GetSelectors({fingerprint}) start");
-            }
         }
 
         public void GetSelectorsCount(Context context, Fingerprint fingerprint, long count)
@@ -206,7 +199,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             }
         }
 
-        public void GetSelectorsStop(Context context, TimeSpan duration)
+        public void GetSelectorsStop(Context context, TimeSpan duration, Fingerprint fingerprint)
         {
             if (_eventSource.IsEnabled())
             {
@@ -220,7 +213,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            Debug(context, $"{Name}.GetSelectors() stop {duration.TotalMilliseconds}ms");
+            Debug(context, $"{Name}.GetSelectors() stop {duration.TotalMilliseconds}ms. Fingerprint: {fingerprint}");
         }
 
         public void GetContentHashListStart(Context context, StrongFingerprint fingerprint)
@@ -234,14 +227,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             }
 
             _getContentHashListCallCounter.Started();
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.GetContentHashList({fingerprint}) start");
-            }
         }
 
-        public void GetContentHashListStop(Context context, GetContentHashListResult result)
+        public void GetContentHashListStop(Context context, GetContentHashListResult result, StrongFingerprint fingerprint)
         {
             if (_eventSource.IsEnabled())
             {
@@ -268,7 +256,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.GetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}]");
+                Debug(context, $"{Name}.GetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}], fingerprint=[{fingerprint}]");
             }
         }
 
@@ -283,14 +271,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             }
 
             _addOrGetContentHashListCallCounter.Started();
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.AddOrGetContentHashList({fingerprint}) start");
-            }
         }
 
-        public void AddOrGetContentHashListStop(Context context, AddOrGetContentHashListResult result)
+        public void AddOrGetContentHashListStop(Context context, AddOrGetContentHashListResult result, StrongFingerprint fingerprint)
         {
             if (_eventSource.IsEnabled())
             {
@@ -317,7 +300,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
 
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.AddOrGetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}]");
+                Debug(context, $"{Name}.AddOrGetContentHashList() stop {result.Duration.TotalMilliseconds}ms result=[{result}], fingerprint=[{fingerprint}]");
             }
         }
 
@@ -357,14 +340,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             {
                 _eventSource.TouchStart(context.Id.ToString(), count);
             }
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.Touch({count}) start");
-            }
         }
 
-        public void TouchStop(Context context, TimeSpan duration)
+        public void TouchStop(Context context, TimeSpan duration, int count)
         {
             if (_eventSource.IsEnabled())
             {
@@ -376,7 +354,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            Debug(context, $"{Name}.Touch() stop {duration.TotalMilliseconds}ms");
+            Debug(context, $"{Name}.Touch() stop {duration.TotalMilliseconds}ms count={count}");
         }
 
         public void PurgeStart(Context context, int count)
@@ -385,14 +363,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
             {
                 _eventSource.PurgeStart(context.Id.ToString(), count);
             }
-
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.Purge({count}) start");
-            }
         }
 
-        public void PurgeStop(Context context, int count, TimeSpan duration)
+        public void PurgeStop(Context context, int rowsPurged, int currentRows, TimeSpan duration)
         {
             if (_eventSource.IsEnabled())
             {
@@ -404,7 +377,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
                 return;
             }
 
-            Debug(context, $"{Name}.Purge({count}) stop {duration.TotalMilliseconds}ms");
+            Debug(context, $"{Name}.Purge() stop {duration.TotalMilliseconds}ms rowsPurged={rowsPurged}, currentRows={currentRows}");
         }
 
         private void Trace(Severity severity, Context context, string message)

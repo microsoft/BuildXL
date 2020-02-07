@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -31,7 +32,13 @@ namespace BuildXL.Cache.Host.Service
             {
                 return JsonConvert.SerializeObject(config, Formatting.Indented);
             }
-            return JsonConvert.SerializeObject(config, Formatting.Indented, new JsonSerializerSettings() { ContractResolver = new MaskPropertiesResolver(CheckSensitiveProperties) });
+
+            var jsonSettings = new JsonSerializerSettings()
+                               {
+                                   ContractResolver = new MaskPropertiesResolver(CheckSensitiveProperties),
+                                   Converters = new[] {new AbsolutePathConverter()}
+                               };
+            return JsonConvert.SerializeObject(config, Formatting.Indented, jsonSettings);
         }
 
         /// <nodoc />
@@ -57,7 +64,6 @@ namespace BuildXL.Cache.Host.Service
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             JsonProperty property = base.CreateProperty(member, memberSerialization);
-
             PropertyInfo propValue = member as PropertyInfo;
             foreach (string sensitiveProperty in _propsToMask)
             {
@@ -92,6 +98,30 @@ namespace BuildXL.Cache.Host.Service
         public object GetValue(object target)
         {
             return _maskValue;
+        }
+    }
+
+    internal class AbsolutePathConverter : JsonConverter
+    {
+        /// <summary>
+        /// For AbsolutePath type objects we only want to print the path value and no other properties
+        /// </summary>
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var path = (AbsolutePath) value ;
+            serializer.Serialize(writer, path.ToString());
+        }
+
+        /// <nodoc />
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <nodoc />
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(AbsolutePath);
         }
     }
 }

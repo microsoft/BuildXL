@@ -17,6 +17,7 @@ namespace Test {
             Service.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ]
     });

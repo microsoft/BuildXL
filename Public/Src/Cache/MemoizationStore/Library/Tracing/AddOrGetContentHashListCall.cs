@@ -15,6 +15,8 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
     /// </summary>
     public sealed class AddOrGetContentHashListCall : TracedCall<MemoizationStoreTracer, AddOrGetContentHashListResult>, IDisposable
     {
+        private readonly StrongFingerprint _fingerprint;
+
         /// <summary>
         ///     Run the call.
         /// </summary>
@@ -33,7 +35,8 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         private AddOrGetContentHashListCall(MemoizationStoreTracer tracer, OperationContext context, StrongFingerprint fingerprint)
             : base(tracer, context)
         {
-            Tracer.AddOrGetContentHashListStart(Context, fingerprint);
+            _fingerprint = fingerprint;
+            Tracer.AddOrGetContentHashListStart(Context, _fingerprint);
         }
 
         /// <inheritdoc />
@@ -45,7 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         /// <inheritdoc />
         public void Dispose()
         {
-            Tracer.AddOrGetContentHashListStop(Context, Result);
+            Tracer.AddOrGetContentHashListStop(Context, Result, _fingerprint);
         }
     }
 }

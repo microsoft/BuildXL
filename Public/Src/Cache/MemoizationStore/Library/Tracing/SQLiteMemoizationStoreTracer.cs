@@ -125,10 +125,6 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         public void SQLiteIntegrityCheckStart(Context context)
         {
             _sqliteIntegrityCheckCallCounter.Started();
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.{SQLiteIntegrityCheckCallName} start");
-            }
         }
 
         /// <inheritdoc />

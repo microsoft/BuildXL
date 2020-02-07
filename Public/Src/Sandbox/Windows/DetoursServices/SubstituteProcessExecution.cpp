@@ -222,8 +222,13 @@ static bool ShouldSubstituteShim(
         {
             // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
             bool filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments);
+
+            Dbg(L"Shim: Empty matches command='%s', args='%s', filterMatch=%d, g_ProcessExecutionShimAllProcesses=%d", command.c_str(), commandArgs.c_str(), filterMatch, g_ProcessExecutionShimAllProcesses);
+
             return filterMatch != g_ProcessExecutionShimAllProcesses;
         }
+
+        Dbg(L"Shim: Empty matches command='%s', args='%s', g_ProcessExecutionShimAllProcesses=%d", command.c_str(), commandArgs.c_str(), g_ProcessExecutionShimAllProcesses);
 
         // Shim everything or shim nothing if there are no matches to compare and no filter DLL.
         return g_ProcessExecutionShimAllProcesses;
@@ -270,11 +275,18 @@ static bool ShouldSubstituteShim(
     }
 
     // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
-    bool filterMatch = g_ProcessExecutionShimAllProcesses;
+    bool filterMatch = false;
     if (g_SubstituteProcessExecutionPluginFunc != nullptr)
     {
         filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments) != 0;
     }
+
+    Dbg(L"Shim: Non-empty matches command='%s', args='%s', foundMatch=%d, filterMatch=%d, g_ProcessExecutionShimAllProcesses=%d",
+        command.c_str(),
+        commandArgs.c_str(),
+        foundMatch,
+        filterMatch,
+        g_ProcessExecutionShimAllProcesses);
 
     if (g_ProcessExecutionShimAllProcesses)
     {
@@ -317,10 +329,13 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.
-
+            
             if (modifiedArguments != nullptr)
             {
+                Dbg(L"Shim: Modified arguments command='%s', args='%s', modifedArgs:'%s'", command.c_str(), commandArgs.c_str(), modifiedArguments);
+
                 commandArgs.assign(modifiedArguments);
+
                 HANDLE hDefaultProcessHeap = GetProcessHeap();
 
                 if (hDefaultProcessHeap == NULL) 
@@ -332,6 +347,8 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
                     Dbg(L"Shim: Failed to free allocation of modified arguments from default process heap");
                 }
             }
+
+            Dbg(L"Shim: Inject shim command='%s', args='%s'", command.c_str(), commandArgs.c_str());
 
             injectedShim = true;
             return InjectShim(
@@ -349,5 +366,6 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     }
 
     injectedShim = false;
+
     return FALSE;
 }

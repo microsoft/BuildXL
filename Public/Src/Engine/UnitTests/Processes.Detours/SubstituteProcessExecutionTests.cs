@@ -152,27 +152,28 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         /// <summary>
-        /// Shim no top-level processes and ensure the child is not shimmed.
+        /// Shim no top-level processes and ensure the child is shimmed if all processes are instructed to be shimmed.
         /// </summary>
         [Theory]
-        [InlineData(null)]
-        [InlineData("foo.exe")]  // Filter should not match
-        public async Task CmdWithTestShim_ShimNothingRunsChildProcessWithoutShimAsync(string processMatch)
+        [MemberData(nameof(TruthTable.GetTable), 2, MemberType = typeof(TruthTable))]
+        public async Task CmdWithTestShim_ShimNothingRunsChildProcessWithoutShimAsync(bool shimAllProcess, bool filterMatch)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var shimProgramPath = GetShimProgramPath(context);
 
             string executable = CmdHelper.CmdX64;
+            string processMatch = filterMatch ? null : "foo.exe"; // Filter should never match foo.exe.
 
             var fam = CreateCommonFileAccessManifest(context.PathTable);
             fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
                 shimProgramPath,
-                shimAllProcesses: false,
+                shimAllProcesses: shimAllProcess,
                 processMatches: processMatch == null 
                     ? new ShimProcessMatch[0]
                     : new[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) });
 
-            string childOutput = "Child cmd that should not be shimmed";
+            string predicate = shimAllProcess ? string.Empty : "not ";
+            string childOutput = $"Child cmd that should {predicate}be shimmed";
             string childArgs = $"{executable} /D /C @echo {childOutput}";
             string args = "/D /C echo Top-level cmd. Running child process && " + childArgs;
 
@@ -199,7 +200,7 @@ namespace Test.BuildXL.Processes.Detours
             m_output.WriteLine($"stderr: {stdErr}");
 
             AssertSuccess(result, stdErr);
-            AssertNotShimmed(stdOut);
+            AssertShimmedIf(stdOut, shimAllProcess);
             XAssert.Contains(stdOut, childOutput);
         }
 
@@ -347,9 +348,9 @@ namespace Test.BuildXL.Processes.Detours
         /// </summary>
         private static string GetChildOutputForPluginTest(bool shouldBeShimmed, string shimmedText = null) => shouldBeShimmed ? (shimmedText ?? "Whatever") : "DoNotShimMe";
 
-        private static void AssertShimmedIf(string output, bool shimed)
+        private static void AssertShimmedIf(string output, bool shimmedCondition)
         {
-            if (shimed)
+            if (shimmedCondition)
             {
                 XAssert.Contains(output, ShimOutput);
             }

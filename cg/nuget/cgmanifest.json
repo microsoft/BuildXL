@@ -2526,7 +2526,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "NLog",
-          "Version": "4.6.6"
+          "Version": "4.6.8"
         }
       }
     },

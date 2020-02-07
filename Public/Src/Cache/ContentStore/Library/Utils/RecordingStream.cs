@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// <summary>
     /// Stream capable of recording the bytes read from or written to its inner stream.
     /// </summary>
-    internal class RecordingStream : Stream
+    public class RecordingStream : Stream
     {
         private enum RecordingType
         {

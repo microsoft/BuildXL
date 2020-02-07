@@ -7,10 +7,12 @@ namespace BuildXL.Cache.Host.Configuration
     {
         public DistributedCacheServiceConfiguration(
             LocalCasSettings localCasSettings,
-            DistributedContentSettings distributedCacheSettings)
+            DistributedContentSettings distributedCacheSettings,
+            LoggingSettings loggingSettings = null)
         {
             LocalCasSettings = localCasSettings;
             DistributedContentSettings = distributedCacheSettings;
+            LoggingSettings = loggingSettings;
         }
 
         public DistributedContentSettings DistributedContentSettings { get; private set; }
@@ -24,5 +26,10 @@ namespace BuildXL.Cache.Host.Configuration
         /// Use a per stamp isolation for cache.
         /// </summary>
         public bool UseStampBasedIsolation { get; set; } = true;
+
+        /// <summary>
+        /// Configure the logging behavior for the service
+        /// </summary>
+        public LoggingSettings LoggingSettings { get; private set; }
     }
 }

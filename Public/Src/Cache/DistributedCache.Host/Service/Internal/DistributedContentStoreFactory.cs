@@ -19,6 +19,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
@@ -448,32 +449,18 @@ namespace BuildXL.Cache.Host.Service.Internal
                     var updatingSasToken = secret as UpdatingSasToken;
                     Contract.Assert(!(updatingSasToken is null));
 
-                    credentials.Add(CreateAzureBlobCredentialsFromSasToken(secretName, updatingSasToken));
+                    credentials.Add(new AzureBlobStorageCredentials(updatingSasToken));
                 }
                 else
                 {
                     var plainTextSecret = secret as PlainTextSecret;
                     Contract.Assert(!(plainTextSecret is null));
 
-                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret.Secret));
+                    credentials.Add(new AzureBlobStorageCredentials(plainTextSecret));
                 }
             }
 
             return credentials.ToArray();
-        }
-
-        private AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(string secretName, UpdatingSasToken updatingSasToken)
-        {
-            var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-            updatingSasToken.TokenUpdated += (_, sasToken) =>
-            {
-                _logger.Debug($"Updating SAS token for Azure Storage secret {secretName}");
-                storageCredentials.UpdateSASToken(sasToken.Token);
-            };
-
-            // The account name should never actually be updated, so its OK to take it from the initial token
-            var azureCredentials = new AzureBlobStorageCredentials(storageCredentials, updatingSasToken.Token.StorageAccount);
-            return azureCredentials;
         }
 
         private List<string> GetAzureStorageSecretNames(StringBuilder errorBuilder)

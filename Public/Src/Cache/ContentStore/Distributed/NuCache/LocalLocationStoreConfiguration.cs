@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -345,74 +346,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// fallback storage.
         /// </summary>
         public TimeSpan PeerToPeerCopyTimeout { get; set; } = TimeSpan.Zero;
-    }
-
-    /// <summary>
-    /// Provides Azure Storage authentication options for <see cref="BlobCentralStorage"/>
-    /// </summary>
-    public class AzureBlobStorageCredentials
-    {
-        /// <nodoc />
-        private string ConnectionString { get; }
-
-        /// <summary>
-        /// <see cref="StorageCredentials"/> can be updated from the outside, so it is a way to in fact change the way
-        /// we authenticate with Azure Blob Storage over time. Changes are accepted only within the same authentication
-        /// mode.
-        /// </summary>
-        private StorageCredentials StorageCredentials { get; }
-
-        /// <nodoc />
-        private string AccountName { get; }
-
-        /// <nodoc />
-        private string EndpointSuffix { get; }
-
-        /// <summary>
-        /// Creates a fixed credential; this is our default mode of authentication.
-        /// </summary>
-        public AzureBlobStorageCredentials(string connectionString)
-        {
-            Contract.Requires(!string.IsNullOrEmpty(connectionString));
-            ConnectionString = connectionString;
-        }
-
-        /// <summary>
-        /// Uses Azure Blob's storage credentials. This allows us to use SAS tokens, and to update shared secrets
-        /// without restarting the service.
-        /// </summary>
-        public AzureBlobStorageCredentials(StorageCredentials storageCredentials, string accountName, string endpointSuffix = null)
-        {
-            // Unfortunately, even though you can't generate a storage credentials without an account name, it isn't
-            // stored inside object unless a shared secret is being used. Hence, we are forced to keep it here.
-            Contract.Requires(storageCredentials != null);
-            Contract.Requires(!string.IsNullOrEmpty(accountName));
-            StorageCredentials = storageCredentials;
-            AccountName = accountName;
-            EndpointSuffix = endpointSuffix;
-        }
-
-        /// <nodoc />
-        private CloudStorageAccount CreateCloudStorageAccount()
-        {
-            if (!string.IsNullOrEmpty(ConnectionString))
-            {
-                return CloudStorageAccount.Parse(ConnectionString);
-            }
-
-            if (StorageCredentials != null)
-            {
-                return new CloudStorageAccount(StorageCredentials, AccountName, EndpointSuffix, useHttps: true);
-            }
-
-            throw new ArgumentException("Invalid credentials");
-        }
-
-        /// <nodoc />
-        public CloudBlobClient CreateCloudBlobClient()
-        {
-            return CreateCloudStorageAccount().CreateCloudBlobClient();
-        }
     }
 
     /// <summary>

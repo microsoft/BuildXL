@@ -25,6 +25,7 @@ namespace Interfaces {
                 importFrom("System.Threading.Tasks.Dataflow").pkg,
             ]),
             importFrom("System.Interactive.Async").pkg,
+            importFrom("WindowsAzure.Storage").pkg,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

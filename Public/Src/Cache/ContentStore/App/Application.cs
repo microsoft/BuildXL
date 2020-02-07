@@ -611,7 +611,9 @@ namespace BuildXL.Cache.ContentStore.App
             string dataRootPath,
             CancellationToken ct,
             int? bufferSizeForGrpcCopies,
-            int? gzipBarrierSizeForGrpcCopies)
+            int? gzipBarrierSizeForGrpcCopies,
+            LoggingSettings loggingSettings,
+            ITelemetryFieldsProvider telemetryFieldsProvider)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -625,9 +627,11 @@ namespace BuildXL.Cache.ContentStore.App
             localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
                 grpcThreadPoolSize: null);
 
-            var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
+            var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs, loggingSettings);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
+            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null) {
+                TelemetryFieldsProvider = telemetryFieldsProvider,
+            };
         }
     }
 }

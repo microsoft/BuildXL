@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 namespace BuildXL.Cache.Host.Service
 {

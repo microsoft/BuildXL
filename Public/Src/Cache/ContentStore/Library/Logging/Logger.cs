@@ -19,6 +19,14 @@ namespace BuildXL.Cache.ContentStore.Logging
     /// <summary>
     ///     A simple ILogger that supports multiple ILog instances and messages to them all.
     /// </summary>
+    /// <remarks>
+    ///     This is used only when CASaaS works standalone. Concretely, this means:
+    ///       - ContentStoreApp
+    ///       - Utilities
+    ///       - Monitor
+    ///       - ...
+    ///     Clients usually provide their own logging infrastructure via <see cref="ILogger"/>
+    /// </remarks>
     public sealed class Logger : ILogger
     {
         private readonly bool _synchronous;

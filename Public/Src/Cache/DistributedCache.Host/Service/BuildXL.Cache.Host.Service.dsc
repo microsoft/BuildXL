@@ -22,8 +22,17 @@ namespace Service {
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
 
-            importFrom("WindowsAzure.Storage").pkg,
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Branding.dll,
+
             importFrom("Newtonsoft.Json").pkg,
+
+            importFrom("BuildXL.Cache.Logging").Library.dll,
+            importFrom("WindowsAzure.Storage").pkg,
+            importFrom("NLog").pkg,
+            ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Xml.dll
+            ),
         ],
         allowUnsafeBlocks: false
     });

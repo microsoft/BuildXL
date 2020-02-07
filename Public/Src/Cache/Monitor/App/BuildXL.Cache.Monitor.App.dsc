@@ -13,21 +13,13 @@ namespace App {
         appConfig: f`App.config`,
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [
-                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-                importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
-
-                importFrom("Microsoft.IO.RecyclableMemoryStream").pkg,
-
                 importFrom("CLAP-DotNetCore").pkg,
             ] : [
                 NetFx.System.Data.dll,
-                importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
                 importFrom("CLAP").pkg,
             ]
             ),
+            ...importFrom("BuildXL.Cache.ContentStore").kustoPackages,
 
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,
@@ -36,11 +28,7 @@ namespace App {
             ContentStore.Library.dll,
             ContentStore.Interfaces.dll,
 
-            importFrom("Microsoft.Azure.Management.Kusto").pkg,
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("WindowsAzure.Storage").pkg
         ],
         tools: {
             csc: {

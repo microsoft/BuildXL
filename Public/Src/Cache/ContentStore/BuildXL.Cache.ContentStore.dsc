@@ -32,6 +32,23 @@ export const redisPackages = [
     importFrom("Pipelines.Sockets.Unofficial").pkg,
 ];
 
+@@public
+export const kustoPackages = [
+    ...(BuildXLSdk.isDotNetCoreBuild ? [
+        importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
+        importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
+        importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
+        importFrom("Microsoft.IO.RecyclableMemoryStream").pkg,
+    ] : [
+        importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+    ]),
+    importFrom("Microsoft.Azure.Management.Kusto").pkg,
+    importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
+    importFrom("WindowsAzure.Storage").pkg
+];
+
 namespace Default {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 

@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Adds items for asynchronous processing.
         /// </summary>
-        public void EnqueueAll(IReadOnlyList<T> items)
+        public void EnqueueAll(IEnumerable<T> items)
         {
             Contract.Requires(items != null);
 

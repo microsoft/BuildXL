@@ -15,6 +15,7 @@ namespace Test {
             ]),
             Configuration.dll,
             Service.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ]

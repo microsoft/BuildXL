@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
+﻿using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.Host.Service;
 using FluentAssertions;
 using Xunit;

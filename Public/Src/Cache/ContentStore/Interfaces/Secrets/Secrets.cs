@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 
-namespace BuildXL.Cache.ContentStore.Distributed
+namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
 {
     /// <nodoc />
     public enum SecretKind

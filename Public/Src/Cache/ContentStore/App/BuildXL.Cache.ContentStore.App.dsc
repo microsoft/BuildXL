@@ -15,17 +15,12 @@ namespace App {
         appConfig: f`App.Config`,
         references: [
             ...(BuildXLSdk.isDotNetCoreBuild ? [
-                importFrom("Microsoft.Azure.Kusto.Data.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Ingest.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard").pkg,
-                importFrom("Microsoft.Azure.Kusto.Cloud.Platform.NETStandard").pkg,
-                importFrom("Microsoft.Extensions.PlatformAbstractions").pkg,
                 importFrom("CLAP-DotNetCore").pkg,
             ] : [
-                importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
                 importFrom("CLAP").pkg,
             ]
             ),
+            ...kustoPackages,
             UtilitiesCore.dll,
             Grpc.dll,
             Hashing.dll,

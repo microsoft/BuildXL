@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.Host.Configuration;
 using Microsoft.Practices.TransientFaultHandling;
 

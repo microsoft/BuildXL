@@ -11,7 +11,9 @@ namespace BuildXL.Cache.Host.Service
     public class HostInfo
     {
         public string StampId { get; }
+
         public string RingId { get; }
+
         public IEnumerable<string> Capabilities { get; }
 
         public HostInfo(string stampId, string ringId, IEnumerable<string> capabilities)

@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 
 namespace BuildXL.Cache.Host.Service
 {

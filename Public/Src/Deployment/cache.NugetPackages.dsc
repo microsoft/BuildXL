@@ -20,6 +20,10 @@ namespace Cache.NugetPackages {
     const WinX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
     const OsxX64DistributedCacheHost = importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
 
+    const Net472CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" });
+    const WinX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" });
+    const OsxX64CacheLogging = importFrom("BuildXL.Cache.Logging").Library.withQualifier({ targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" });
+
     export const tools : Deployment.Definition = {
         contents: [
             {
@@ -87,6 +91,11 @@ namespace Cache.NugetPackages {
             Nuget.createAssemblyLayout(Net472DistributedCacheHost.Configuration.dll),
             Nuget.createAssemblyLayoutWithSpecificRuntime(WinX64DistributedCacheHost.Configuration.dll, "win-x64", true),
             Nuget.createAssemblyLayoutWithSpecificRuntime(OsxX64DistributedCacheHost.Configuration.dll, "osx-x64", false),
+
+            // BuildXL.Cache.Logging
+            Nuget.createAssemblyLayout(Net472CacheLogging.dll),
+            Nuget.createAssemblyLayoutWithSpecificRuntime(WinX64CacheLogging.dll, "win-x64", true),
+            Nuget.createAssemblyLayoutWithSpecificRuntime(OsxX64CacheLogging.dll, "osx-x64", false),
         ]
     };
 

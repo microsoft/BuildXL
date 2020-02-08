@@ -378,7 +378,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Returns if true if the worker holds a remote node; false otherwise.
         /// </summary>
-        public bool IsRemote => !IsLocal;
+        public bool IsRemote => !IsLocal && WorkerId != AllWorker.Id;
 
         /// <summary>
         /// Whether the worker is available to acquire work items

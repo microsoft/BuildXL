@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using BuildXL.Interop;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Dispatch;
 using static BuildXL.Interop.MacOS.Memory;
@@ -36,6 +37,7 @@ namespace BuildXL.Utilities
         private readonly object m_collectLock = new object();
         private readonly TimeSpan m_collectionFrequency;
         private readonly bool m_collectHeldBytesFromGC;
+        private readonly bool m_isUnitTest;
 
         // Objects that aggregate performance info during their lifetime
         private readonly HashSet<Aggregator> m_aggregators = new HashSet<Aggregator>();
@@ -76,11 +78,12 @@ namespace BuildXL.Utilities
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, bool isUnitTest = false)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
             m_collectHeldBytesFromGC = collectBytesHeld;
+            m_isUnitTest = isUnitTest;
 
             // Figure out which drives we want to get counters for
             List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>> drives = new List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>>();
@@ -363,8 +366,15 @@ namespace BuildXL.Utilities
                     catch (ObjectDisposedException)
                     {
                         // Occasionally the handle is disposed even though it's checked against being closed and valid
-                        // above. In those cases, just catch the failure and continue on to avoid crashes
+                        // above. In those cases, just catch the failure and continue on to avoid crashes.
                     }
+                }
+
+                if (m_isUnitTest && !diskStats[i].AvailableSpaceGb.HasValue)
+                {
+                    // If it is running under QTest VM, we fail to get the handle for the drives.
+                    // To test the functionality of cancelling the build in case of unavailable space, we set AvailableSpace to 0.
+                    diskStats[i].AvailableSpaceGb = 0;
                 }
             }
 

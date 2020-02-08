@@ -2165,6 +2165,7 @@ namespace BuildXL.Scheduler
                     foreach (var disk in m_performanceAggregator.DiskStats)
                     {
                         if (m_writableDrives.Contains(disk.Drive)
+                            && disk.AvailableSpaceGb.Count != 0 // If we ever have a successful collection of the disk space
                             && disk.AvailableSpaceGb.Latest < (double)m_scheduleConfiguration.MinimumDiskSpaceForPipsGb)
                         {
                             Logger.Log.WorkerFailedDueToLowDiskSpace(
@@ -3155,7 +3156,10 @@ namespace BuildXL.Scheduler
                 runnablePip.SetDispatcherKind(nextQueue);
                 m_chooseWorkerCpu?.UnpauseChooseWorkerQueueIfEnqueuingNewPip(runnablePip, nextQueue);
 
-                m_pipQueue.Enqueue(runnablePip);
+                using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.PipQueueEnqueueDuration))
+                {
+                    m_pipQueue.Enqueue(runnablePip);
+                }
             }
         }
 
@@ -3314,13 +3318,13 @@ namespace BuildXL.Scheduler
                         case PipType.SpecFile:
                         case PipType.Module:
                         case PipType.Value:
-                        case PipType.SealDirectory:
                             // These are fast to execute. They are inlined when they are scheduled during draining.
                             // However, if the queue has not been started draining, we should add them to the queue.
                             // SchedulePip is called as a part of 'schedule' phase.
                             // That's why, we should not inline executions of fast pips when the queue is not draining.
                             return m_pipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
 
+                        case PipType.SealDirectory:
                         case PipType.WriteFile:
                         case PipType.CopyFile:
                         case PipType.Ipc:

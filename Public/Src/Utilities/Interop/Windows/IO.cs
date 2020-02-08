@@ -258,7 +258,7 @@ namespace BuildXL.Interop.Windows
             /// <summary>
             /// Available Disk Space in GigaBytes
             /// </summary>
-            public double AvailableSpaceGb;
+            public double? AvailableSpaceGb;
 
             /// <summary>
             /// DISK_PERFORMANCE from DeviceIoControl

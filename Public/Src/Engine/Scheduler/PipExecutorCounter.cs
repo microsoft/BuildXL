@@ -1154,6 +1154,10 @@ namespace BuildXL.Scheduler
         /// but they are not included in this counter because no cache lookup was performed.
         /// </summary>
         ProcessPipsSkippedExecutionDueToCacheOnly,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        PipQueueEnqueueDuration,
     }
 
     /// <summary>

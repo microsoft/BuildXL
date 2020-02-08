@@ -245,7 +245,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(operations);
             SchedulePipBuilder(builder);
 
-            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10)))
+            using (PerformanceCollector performanceCollector = new PerformanceCollector(System.TimeSpan.FromMilliseconds(10), isUnitTest: true))
             {
                 RunScheduler(performanceCollector: performanceCollector).AssertFailure();
                 IgnoreWarnings();

@@ -560,24 +560,86 @@ static inline void SkipWriteCharsString(const byte* payloadBytes, size_t& offset
     offset += sizeof(wchar_t) * len;
 }
 
+static SubstituteProcessExecutionPluginFunc GetSubstituteProcessExecutionPluginFunc()
+{
+    assert(g_SubstituteProcessExecutionPluginDllHandle != nullptr);
+
+    // Different compiler or different compiler settings can result in different function name variants.
+    //
+    // X64 version typically has:
+    //     ordinal hint RVA      name
+    //
+    //     1    0 00011069 CommandMatches = @ILT + 100(CommandMatches)
+    //
+    // X86 version can have:
+    //     ordinal hint RVA      name
+    //
+    //     1    0 00011276 _CommandMatches@24 = @ILT + 625(_CommandMatches@24)
+
+
+    // (1) Check for CommandMatches.
+    std::string winApiProcName("CommandMatches");
+
+    SubstituteProcessExecutionPluginFunc substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    Dbg(L"Unable to find 'CommandMatches' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
+
+    // (2) Check for CommandMatches@<param_size> based on platform.
+
+#if defined(_WIN64)
+    winApiProcName.append("@48"); // 6 64-bit parameters
+#elif defined(_WIN32)
+    winApiProcName.append("@24"); // 6 32-bit parameters
+#endif
+
+    substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    Dbg(L"Unable to find 'CommandMatches@<param_size>' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
+
+    // (2) Check for _CommandMatches@<param_size>.
+
+    winApiProcName.insert(0, 1, '_');
+
+    substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
+        reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
+
+    if (substituteProcessExecutionPluginFunc != nullptr)
+    {
+        return substituteProcessExecutionPluginFunc;
+    }
+
+    Dbg(L"Unable to find '_CommandMatches@<param_size>' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
+
+    return nullptr;
+}
+
 static void LoadSubstituteProcessExecutionPluginDll()
 {
     assert(g_SubstituteProcessExecutionPluginDllPath != nullptr);
 
-    Dbg(L"Loading substitute process plugin DLL at %s", g_SubstituteProcessExecutionPluginDllPath);
+    Dbg(L"Loading substitute process plugin DLL at '%s'", g_SubstituteProcessExecutionPluginDllPath);
     
     g_SubstituteProcessExecutionPluginDllHandle = LoadLibraryW(g_SubstituteProcessExecutionPluginDllPath);
 
     if (g_SubstituteProcessExecutionPluginDllHandle != nullptr)
     {
-        const char* const WinapiProcName = "CommandMatches";
+        g_SubstituteProcessExecutionPluginFunc = GetSubstituteProcessExecutionPluginFunc();
 
-        g_SubstituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
-            reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, WinapiProcName)));
-        if (g_SubstituteProcessExecutionPluginFunc == nullptr)
+        if (g_SubstituteProcessExecutionPluginFunc == nullptr) 
         {
             FreeLibrary(g_SubstituteProcessExecutionPluginDllHandle);
-            Dbg(L"Unable to find %s function in SubstituteProcessExecutionPluginFunc %s, lasterr=%d", WinapiProcName, g_SubstituteProcessExecutionPluginDllPath, GetLastError());
         }
     }
     else

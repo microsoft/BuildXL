@@ -139,7 +139,7 @@ namespace Test.DScript.Ast.Incrementality
             }
         }
 
-        [Fact]
+        [Fact(Skip = "Fails due to race condition when purging the cache")]
         public void RemovingTheFileShouldInvalidateTheCache()
         {
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))

@@ -8,7 +8,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
-
     /// <summary>
     /// Represents a 32-bit *non-cryptographic* hash that is well-distributed in all bits.
     /// </summary>

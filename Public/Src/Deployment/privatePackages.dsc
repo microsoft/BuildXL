@@ -93,6 +93,20 @@ namespace PrivatePackages {
         },
     });
 
+    const vbCsCompilerLoggerToolNet472 = NugetPackages.pack({
+        id: "BuildXL.VbCsCompilerLogger.Tool.Net472",
+        deployment: {
+            contents: [
+                {
+                    subfolder: r`tools`,
+                    contents: [
+                        importFrom("BuildXL.Tools").withQualifier(net472Qualifier).VBCSCompilerLogger.dll,
+                    ]
+                }
+            ]
+        }
+    });
+
     const azDevOpslibrary = NugetPackages.pack({
         id: "BuildXL.library.forAzDev",
         deployment: {
@@ -145,6 +159,7 @@ namespace PrivatePackages {
     const deployment : Deployment.Definition = {
         contents: [
             cloudBuildlibrary,
+            vbCsCompilerLoggerToolNet472,
             azDevOpslibrary
         ]
     };

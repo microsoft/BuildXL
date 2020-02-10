@@ -32,7 +32,7 @@ export const includes = Transformer.sealPartialDirectory(
  * For production this should be extended to support all languages and multiple platforms
  */
 @@public
-export function generate(args: Arguments) : Result {
+export function generateCSharp(args: ArgumentsCSharp) : Result {
 
     let resultSources : File[] = [];
 
@@ -98,7 +98,7 @@ export function generate(args: Arguments) : Result {
 }
 
 @@public
-export interface Arguments extends Transformer.RunnerArguments{
+export interface ArgumentsCSharp extends Transformer.RunnerArguments{
     proto?: File[],
     rpc?: File[],
     includes?: StaticDirectory[],

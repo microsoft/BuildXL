@@ -83,9 +83,6 @@ namespace BuildXL.Cache.Logging
         /// <nodoc />
         public AzureBlobStorageLog(AzureBlobStorageLogConfiguration configuration, OperationContext context, IClock clock, IAbsFileSystem fileSystem, ITelemetryFieldsProvider telemetryFieldsProvider, AzureBlobStorageCredentials credentials)
         {
-            Contract.Requires(configuration.ContainerName.All(char.IsLower),
-                "Azure Blob Storage container names must be all lowercase letters");
-
             _configuration = configuration;
 
             _context = context;

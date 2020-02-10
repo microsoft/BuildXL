@@ -130,6 +130,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Set both start and limit to null to force compaction of the entire key space.
         /// 
         /// Compaction may happen in parallel with other operations, no exclusive usage is required.
+        /// 
+        /// Compaction will run in the background, and can not corrupt the database if the process crashes.
+        /// 
+        /// Start and Limit parameters are prefixes to the key range. A few examples:
+        ///     - start="a" end="b" will match all files that have keys starting with those values. For example, 
+        ///       anything overlapping with the range ["aa", "bz"] will be covered.
+        ///     - start="z" end="null" will match all keys starting with "z" (from the left) until the end of the 
+        ///       family. For example, "za", "zz", "zzfffff".
+        ///  For details, see: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/534147
         /// </remarks>
         void CompactRange(TKey start, TKey limit, string columnFamilyName = null);
     }

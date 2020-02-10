@@ -483,6 +483,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? FullRangeCompactionIntervalMinutes { get; set; }
 
+        [DataMember]
+        public string FullRangeCompactionVariant { get; set; }
+
+        [DataMember]
+        public byte? FullRangeCompactionByteIncrementStep { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }

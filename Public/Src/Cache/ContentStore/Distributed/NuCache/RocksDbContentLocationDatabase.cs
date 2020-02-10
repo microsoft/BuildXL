@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
@@ -17,6 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -76,7 +78,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ///
             /// This serves all of CaChaaS' needs for storage, modulo garbage collection.
             /// </summary>
-            Metadata
+            Metadata,
+            DatabaseManagement,
         }
 
         private enum ClusterStateKeys
@@ -149,46 +152,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             base.SetDatabaseMode(isDatabaseWriteable);
         }
 
-        private void FullRangeCompaction(OperationContext context)
-        {
-            if (ShutdownStarted)
-            {
-                return;
-            }
-
-            context.PerformOperation(Tracer, () =>
-                _keyValueStore.Use(store =>
-                {
-                    foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
-                    {
-                        if (context.Token.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        var result = context.PerformOperation(Tracer, () =>
-                        {
-                            store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
-                            return BoolResult.Success;
-                        }, messageFactory: _ => $"ColumnFamily={columnFamilyName}");
-
-                        if (!result.Succeeded)
-                        {
-                            break;
-                        }
-                    }
-                }).ToBoolResult()).IgnoreFailure();
-
-            if (!ShutdownStarted)
-            {
-                lock (TimerChangeLock)
-                {
-                    // No try-catch required here.
-                    _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
-                }
-            }
-        }
-
         private BoolResult InitialLoad(OperationContext context, StoreSlot activeSlot)
         {
             var clean = _configuration.CleanOnInitialize;
@@ -232,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     new KeyValueStoreAccessor.RocksDbStoreArguments()
                     {
                         StoreDirectory = storeLocation,
-                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                        AdditionalColumns = new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata), nameof(Columns.DatabaseManagement) },
                         RotateLogsMaxFileSizeBytes = _configuration.LogsKeepLongTerm ? 0ul : ((ulong)"1MB".ToSize()),
                         RotateLogsNumFiles = _configuration.LogsKeepLongTerm ? 60ul : 1,
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
@@ -972,6 +935,145 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return long.Parse(store.GetProperty("rocksdb.live-sst-files-size"));
             }).ToResult();
+        }
+
+        private void FullRangeCompaction(OperationContext context)
+        {
+            if (ShutdownStarted)
+            {
+                return;
+            }
+
+            context.PerformOperation<BoolResult>(Tracer, () =>
+                PossibleExtensions.ToBoolResult(_keyValueStore.Use(store =>
+                {
+                    foreach (var columnFamily in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+                    {
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var result = CompactColumnFamily(context, store, columnFamily);
+                        if (!result.Succeeded)
+                        {
+                            break;
+                        }
+                    }
+                }))).IgnoreFailure();
+
+            if (!ShutdownStarted)
+            {
+                lock (TimerChangeLock)
+                {
+                    // No try-catch required here.
+                    _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
+                }
+            }
+        }
+
+        private BoolResult CompactColumnFamily(OperationContext context, IBuildXLKeyValueStore store, string columnFamilyName)
+        {
+            byte? startByte = null;
+            byte? endByte = null;
+
+            return context.PerformOperation(Tracer, () =>
+            {
+                switch (_configuration.FullRangeCompactionVariant)
+                {
+                    case FullRangeCompactionVariant.EntireRange:
+                    {
+                        store.CompactRange((byte[])null, null, columnFamilyName);
+                        break;
+                    }
+                    case FullRangeCompactionVariant.ByteIncrements:
+                    {
+                        var info = GetCompactionInfo(store, columnFamilyName);
+
+                        var compactionEndPrefix = unchecked((byte)(info.LastCompactionEndPrefix + _configuration.FullRangeCompactionByteIncrementStep));
+
+                        startByte = info.LastCompactionEndPrefix;
+                        endByte = compactionEndPrefix;
+
+                        var start = new byte[] { info.LastCompactionEndPrefix };
+                        var limit = new byte[] { compactionEndPrefix };
+                        if (info.LastCompactionEndPrefix > compactionEndPrefix)
+                        {
+                            // We'll wrap around when we add the increment step at the end of the range; hence, we produce two compactions.
+                            store.CompactRange(start, null, columnFamilyName);
+                            store.CompactRange(null, limit, columnFamilyName);
+                        }
+                        else
+                        {
+                            store.CompactRange(start, limit, columnFamilyName);
+                        }
+
+                        StoreCompactionInfo(
+                            store,
+                            new CompactionInfo
+                            {
+                                LastCompactionEndPrefix = compactionEndPrefix,
+                            },
+                            columnFamilyName);
+                        break;
+                    }
+                }
+
+                return BoolResult.Success;
+            }, messageFactory: _ => $"ColumnFamily=[{columnFamilyName}] Variant=[{_configuration.FullRangeCompactionVariant}] Start=[{startByte?.ToString() ?? "NULL"}] End=[{endByte?.ToString() ?? "NULL"}]");
+        }
+
+        private void StoreCompactionInfo(IBuildXLKeyValueStore store, CompactionInfo compactionInfo, string columnFamilyName)
+        {
+            Contract.RequiresNotNull(store);
+            Contract.RequiresNotNullOrEmpty(columnFamilyName);
+
+            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfo");
+            var value = SerializeCompactionInfo(compactionInfo);
+            store.Put(key, value, columnFamilyName: nameof(Columns.DatabaseManagement));
+        }
+
+        private CompactionInfo GetCompactionInfo(IBuildXLKeyValueStore store, string columnFamilyName)
+        {
+            Contract.RequiresNotNull(store);
+            Contract.RequiresNotNullOrEmpty(columnFamilyName);
+
+            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfo");
+            if (store.TryGetValue(key, out var value, columnFamilyName: nameof(Columns.DatabaseManagement)))
+            {
+                return DeserializeCompactionInfo(value);
+            }
+
+            return new CompactionInfo();
+        }
+
+        private byte[] SerializeCompactionInfo(CompactionInfo strongFingerprint)
+        {
+            return SerializeCore(strongFingerprint, (instance, writer) => instance.Serialize(writer));
+        }
+
+        private CompactionInfo DeserializeCompactionInfo(byte[] bytes)
+        {
+            return DeserializeCore(bytes, reader => CompactionInfo.Deserialize(reader));
+        }
+
+        private struct CompactionInfo
+        {
+            public byte LastCompactionEndPrefix { get; set; }
+
+            public void Serialize(BuildXLWriter writer)
+            {
+                writer.Write(LastCompactionEndPrefix);
+            }
+
+            public static CompactionInfo Deserialize(BuildXLReader reader)
+            {
+                var lastCompactionEndPrefix = reader.ReadByte();
+                return new CompactionInfo()
+                {
+                    LastCompactionEndPrefix = lastCompactionEndPrefix,
+                };
+            }
         }
 
         private class KeyValueStoreGuard : IDisposable

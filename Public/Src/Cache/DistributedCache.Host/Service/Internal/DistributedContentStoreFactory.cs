@@ -121,6 +121,21 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionIntervalMinutes,
                     v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
+                ApplyIfNotNull(
+                    _distributedSettings.FullRangeCompactionVariant,
+                    v => {
+                        if (Enum.TryParse<FullRangeCompactionVariant>(v, out var variant))
+                        {
+                            dbConfig.FullRangeCompactionVariant = variant;
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"Failed to parse `{nameof(_distributedSettings.FullRangeCompactionVariant)}` setting with value `{_distributedSettings.FullRangeCompactionVariant}` into type `{nameof(FullRangeCompactionVariant)}`");
+                        }
+                    });
+                ApplyIfNotNull(
+                    _distributedSettings.FullRangeCompactionByteIncrementStep,
+                    v => dbConfig.FullRangeCompactionByteIncrementStep = v);
 
                 if (_distributedSettings.ContentLocationDatabaseLogsBackupEnabled)
                 {

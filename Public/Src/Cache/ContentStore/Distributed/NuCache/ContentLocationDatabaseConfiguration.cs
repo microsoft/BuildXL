@@ -112,6 +112,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     }
 
     /// <summary>
+    /// Supported heuristics for full range compaction
+    /// </summary>
+    public enum FullRangeCompactionVariant
+    {
+        /// <summary>
+        /// Compacts the entire key range at once
+        /// </summary>
+        EntireRange = 0,
+        /// <summary>
+        /// Splits the key range on byte increments, performs compaction on each range at a specified time period
+        /// </summary>
+        ByteIncrements = 1,
+    }
+
+    /// <summary>
     /// Configuration type for <see cref="RocksDbContentLocationDatabase"/>.
     /// </summary>
     public sealed class RocksDbContentLocationDatabaseConfiguration : ContentLocationDatabaseConfiguration
@@ -145,6 +160,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// levels of the RocksDB LSM tree.
         /// </summary>
         public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
+
+        /// <summary>
+        /// When <see cref="FullRangeCompactionInterval"/> is enabled, this tunes compactions so that they happen on
+        /// small parts of the range instead of the whole thing at once.
+        ///
+        /// This makes compactions change small subsets of SST files instead of all at once. By doing this, we help
+        /// the incremental checkpointing system by not forcing it to transfer a lot of data at once.
+        /// </summary>
+        public FullRangeCompactionVariant FullRangeCompactionVariant { get; set; } = FullRangeCompactionVariant.EntireRange;
+
+        /// <summary>
+        /// When doing <see cref="FullRangeCompactionVariant.ByteIncrements"/>, how much to increment per compaction.
+        /// </summary>
+        public byte FullRangeCompactionByteIncrementStep { get; set; } = 1;
 
         /// <summary>
         /// Whether to enable long-term log keeping. Should only be true for servers, where we can keep a lot of logs.

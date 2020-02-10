@@ -269,20 +269,14 @@ if ($TestClass -ne "") {
     $AdditionalBuildXLArguments += "/p:[UnitTest]Filter.testClass=$TestClass";
 }
 
-if ($Vs) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
-}
-
-if ($VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
+if ($Vs -or $VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
     $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
-    if ($VsNewNetCore) {
-        $AdditionalBuildXLArguments += "/q:DebugDotNetCore /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1";
-    } elseif ($VsNewNet472) {
+    if ($VsNewNet472) {
         $AdditionalBuildXLArguments += "/q:DebugNet472 /vsTargetFramework:net472";
     } elseif ($VsNewAll) {
         $AdditionalBuildXLArguments += "/q:DebugNet472 /q:DebugDotNetCore";
     } else {
-        $AdditionalBuildXLArguments += "/q:DebugNet472"; # same as before, for compat reasons
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1";
     }
 }
 

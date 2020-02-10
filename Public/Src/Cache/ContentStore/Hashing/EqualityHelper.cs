@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
-
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Hashing
 {
     /// <summary>
@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Gets a hash code for a given sequence.
         /// </summary>
-        public static int SequenceHashCode<TSource>(this IEnumerable<TSource> sequence, IEqualityComparer<TSource> comparer = null)
+        public static int SequenceHashCode<TSource>(this IEnumerable<TSource>? sequence, IEqualityComparer<TSource>? comparer = null)
         {
             if (sequence == null)
             {
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Returns true if two sequences are equal.
         /// </summary>
-        public static bool SequenceEqual<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer = null)
+        public static bool SequenceEqual<TSource>(this IEnumerable<TSource>? first, IEnumerable<TSource>? second, IEqualityComparer<TSource>? comparer = null)
         {
             if (comparer == null)
             {

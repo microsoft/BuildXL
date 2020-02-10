@@ -21,7 +21,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     {
         private readonly MemoizationDatabase _localDatabase;
         private readonly MemoizationDatabase _sharedDatabase;
-        private LocalLocationStore _localLocationStore;
+        private readonly LocalLocationStore _localLocationStore;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedMemoizationDatabase));

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
@@ -22,7 +23,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
-
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
@@ -81,11 +82,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 new ConfigurationModel(
                     new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
                     ConfigurationSelection.RequireAndUseInProcessConfiguration));
+            
+            // Suppressing the nullability warning. The field is technically nullable, but the instance is not usable unless the startup is called (where the field is initialized).
+            _locationStore = null!;
         }
 
-        /// <inheritdoc />
+        /// <nodoc />
         public Task<BoolResult> StartupAsync(OperationContext context, ILocationStore locationStore)
         {
+            Contract.RequiresNotNull(locationStore);
+
             _locationStore = locationStore;
             return StartupAsync(context);
         }
@@ -210,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private async Task<PutResult> CopyLocalAndPutAsync(OperationContext operationContext, ContentHash hash)
         {
             var context = operationContext;
-            CancellationTokenSource copyCancellationTokenSource = null;
+            CancellationTokenSource? copyCancellationTokenSource = null;
             if (_configuration.PeerToPeerCopyTimeout > TimeSpan.Zero)
             {
                 // We need to construct a new one because we just want to cancel this copy. Tracing will happen under
@@ -233,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     int machineNumber = GetMachineNumber();
                     var requiredReplicas = ComputeRequiredReplicas(machineNumber);
 
-                    var actualReplicas = hashInfo.Locations.Count;
+                    var actualReplicas = hashInfo.Locations?.Count ?? 0;
 
                     // Copy from peers if:
                     // The number of pending copies is known to be less that the max allowed copies
@@ -306,7 +312,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var finishedCopyLocations = info.Locations;
             var pendingCopies = startedCopyLocations.Except(finishedCopyLocations).Count();
 
-            return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, TranslateLocations(info.Locations)), pendingCopies);
+            return (new ContentHashWithSizeAndLocations(info.ContentHash, info.Size, TranslateLocations(info.Locations!)), pendingCopies);
         }
 
         private ContentHash ComputeStartedCopyHash(ContentHash hash)

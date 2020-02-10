@@ -212,7 +212,7 @@ namespace BuildXL.Utilities
             }
 
             Possible<FileEnvelopeId> getErrorResult() => new Failure<string>(firstError);
-            Possible<FileEnvelopeId> error(string err) => new Failure<string>(err);
+            static Possible<FileEnvelopeId> error(string err) => new Failure<string>(err);
 
             try
             {

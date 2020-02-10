@@ -17,7 +17,6 @@ using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.RetryPolicies;
-using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -64,6 +63,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _containers.Shuffle();
 
             _containersCreated = new bool[_configuration.Credentials.Count];
+        }
+
+        /// <inheritdoc />
+        protected override void DisposeCore()
+        {
+            _fileSystem.Dispose();
         }
 
         /// <inheritdoc />

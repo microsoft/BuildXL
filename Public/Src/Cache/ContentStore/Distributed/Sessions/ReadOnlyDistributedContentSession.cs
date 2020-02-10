@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return MultiLevelUtilities.RunMultiLevelAsync(
                     fetchedContentInfo,
-                    runFirstLevelAsync: args => FetchFromMultiLevelContentLocationStoreThenPutAsync(operationContext, args, operationContext.Token, urgencyHint),
+                    runFirstLevelAsync: args => FetchFromMultiLevelContentLocationStoreThenPutAsync(operationContext, args, urgencyHint, operationContext.Token),
                     runSecondLevelAsync: args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
                     // NOTE: We just use the first level result if the the fetch using content location store fails because the place cannot succeed since the
                     // content will not have been put into the local CAS
@@ -520,8 +520,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromMultiLevelContentLocationStoreThenPutAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-            CancellationToken cts,
-            UrgencyHint urgencyHint)
+            UrgencyHint urgencyHint,
+            CancellationToken token)
         {
             // First try to place file by fetching files based on locally stored locations for the hash
             // Then fallback to fetching file based on global locations  (i.e. Redis) minus the locally stored locations which were already checked
@@ -533,15 +533,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 initialFunc: async args =>
                 {
                     var contentHashes = args.Select(p => p.Hash).ToList();
-                    localGetBulkResult.Value = await ContentLocationStore.GetBulkAsync(context, contentHashes, cts, urgencyHint, GetBulkOrigin.Local);
-                    return await FetchFromContentLocationStoreThenPutAsync(context, args, cts, urgencyHint, localGetBulkResult.Value);
+                    localGetBulkResult.Value = await ContentLocationStore.GetBulkAsync(context, contentHashes, token, urgencyHint, GetBulkOrigin.Local);
+                    return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: true, urgencyHint, localGetBulkResult.Value, token);
                 },
                 fallbackFunc: async args =>
                 {
                     var contentHashes = args.Select(p => p.Hash).ToList();
-                    var globalGetBulkResult = await ContentLocationStore.GetBulkAsync(context, contentHashes, cts, urgencyHint, GetBulkOrigin.Global);
+                    var globalGetBulkResult = await ContentLocationStore.GetBulkAsync(context, contentHashes, token, urgencyHint, GetBulkOrigin.Global);
                     globalGetBulkResult = globalGetBulkResult.Subtract(localGetBulkResult.Value);
-                    return await FetchFromContentLocationStoreThenPutAsync(context, args, cts, urgencyHint, globalGetBulkResult);
+                    return await FetchFromContentLocationStoreThenPutAsync(context, args, isLocal: false, urgencyHint, globalGetBulkResult, token);
                 },
                 isSuccessFunc: result => IsPlaceFileSuccess(result));
         }
@@ -549,9 +549,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromContentLocationStoreThenPutAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
-            CancellationToken cts,
+            bool isLocal,
             UrgencyHint urgencyHint,
-            GetBulkLocationsResult getBulkResult)
+            GetBulkLocationsResult getBulkResult,
+            CancellationToken token)
         {
             try
             {
@@ -578,24 +579,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             PlaceFileResult result;
                             if (contentHashWithSizeAndLocations.Locations == null)
                             {
-                                Tracer.Warning(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
-                                result = new PlaceFileResult(
-                                    PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                                    $"No replicas ever registered for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
+                                var message = $"No replicas ever registered for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}";
+                                
+                                if (isLocal)
+                                {
+                                    // Trace only for locations obtained from the local store.
+                                    Tracer.Warning(context, message);
+                                }
+
+                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, message);
                             }
                             else if (contentHashWithSizeAndLocations.Locations.Count == 0)
                             {
-                                Tracer.Warning(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
-                                result = new PlaceFileResult(
-                                    PlaceFileResult.ResultCode.NotPlacedContentNotFound,
-                                    $"No remaining replicas for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
+                                var message = $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}";
+
+                                if (isLocal)
+                                {
+                                    // Trace only for locations obtained from the local store.
+                                    Tracer.Warning(context, message);
+                                }
+
+                                result = new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedContentNotFound, message);
                             }
                             else
                             {
                                 var putResult = await TryCopyAndPutAsync(
                                     OperationContext(context),
                                     contentHashWithSizeAndLocations,
-                                    cts,
+                                    token,
                                     urgencyHint,
                                     // We just traced all the hashes as a result of GetBulk call, no need to trace each individual hash.
                                     trace: false);
@@ -618,13 +629,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
                 Indexed<PlaceFileResult>[] copyFilesLocally =
                     await Task.WhenAll(
-                        Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(i => copyFilesLocallyBlock.ReceiveAsync(cts)));
+                        Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(i => copyFilesLocallyBlock.ReceiveAsync(token)));
                 copyFilesLocallyBlock.Complete();
 
                 var updateResults = await UpdateContentTrackerWithNewReplicaAsync(
                     context,
                     copyFilesLocally.Where(r => r.Item.Succeeded).Select(r => new ContentHashWithSize(hashesWithPaths[r.Index].Hash, r.Item.FileSize)).ToList(),
-                    cts,
+                    token,
                     urgencyHint);
 
                 if (!updateResults.Succeeded)
@@ -1000,7 +1011,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
                 }
 
-                if (verify.Present.Count == 0 && verify.Unknown.Count == 0)
+                if (verify.Present.Count == 0 && verify.Unknown.Count == 0 && isLocal)
                 {
                     Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
                     return PinResult.ContentNotFound;

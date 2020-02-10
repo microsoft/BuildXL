@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed
 {
@@ -16,22 +17,28 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Locations where the content hash will be found. A null list means the only location is the local machine and a populated list holds remote locations.
         /// </summary>
         /// TODO: change the comment. It is stale. (bug 1365340)
-        public readonly IReadOnlyList<MachineLocation> Locations;
+        /// <remarks>Can be null only for non-LLS case.</remarks>
+        public IReadOnlyList<MachineLocation>? Locations { get; }
 
         /// <summary>
         /// The content hash for the specified locations.
         /// </summary>
-        public readonly ContentHash ContentHash;
+        public ContentHash ContentHash { get; }
 
         /// <summary>
         /// The size of the content hash's file.
         /// </summary>
-        public readonly long Size;
+        public long Size { get; }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ContentHashWithSizeAndLocations"/> class.
-        /// </summary>
-        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size = -1, IReadOnlyList<MachineLocation> locations = null)
+        /// <nodoc />
+        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size = -1)
+        {
+            ContentHash = contentHash;
+            Size = size;
+        }
+
+        /// <nodoc />
+        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations)
         {
             ContentHash = contentHash;
             Size = size;
@@ -57,11 +64,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
                 return true;
             }
 
-            return Locations.SequenceEqual(other.Locations) == true && ContentHash.Equals(other.ContentHash) && Size == other.Size;
+            return Locations.SequenceEqual(other.Locations) && ContentHash.Equals(other.ContentHash) && Size == other.Size;
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null)
             {
@@ -84,13 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            unchecked
-            {
-                var hashCode = Locations.SequenceHashCode();
-                hashCode = (hashCode * 397) ^ ContentHash.GetHashCode();
-                hashCode = (hashCode * 397) ^ Size.GetHashCode();
-                return hashCode;
-            }
+            return (Locations.SequenceHashCode(), ContentHash, Size).GetHashCode();
         }
 
         /// <nodoc />

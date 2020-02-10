@@ -50,7 +50,7 @@ namespace BuildXL.Cache.Host.Service
 
     internal class MaskPropertiesResolver : DefaultContractResolver
     {
-        private IEnumerable<string> _propsToMask;
+        private readonly IEnumerable<string> _propsToMask;
 
         /// <nodoc />
         public MaskPropertiesResolver(IEnumerable<string> propNamesToMask)

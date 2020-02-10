@@ -665,7 +665,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return BoolResult.SuccessTask;
 
-            bool pendingTaskIsNullOrCompleted(Task task)
+            static bool pendingTaskIsNullOrCompleted(Task task)
             {
                 return task == null || task.IsCompleted;
             }

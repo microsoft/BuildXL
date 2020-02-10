@@ -55,8 +55,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             VstsDownloadUriFetchedInMemory
         }
 
-        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<Counters> _blobCounters { get; } = new CounterCollection<Counters>();
+        private readonly CounterCollection<BackingContentStore.SessionCounters> _counters;
+        private readonly CounterCollection<Counters> _blobCounters;
 
         /// <summary>
         ///     The only HashType recognizable by the server.
@@ -163,7 +163,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         DefaultMaxSegmentDownloadRetries.ToString()));
 
             TempDirectory = new DisposableDirectory(fileSystem);
-            Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
 
             _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
             _blobCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);

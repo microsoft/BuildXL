@@ -268,7 +268,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
                 if (!mayBeDelete.Succeeded)
                 {
-                    return mayBeDelete.Failure;
+                    return mayBeDelete.Failure.Annotate(LocalDiskContentStore.ExistingFileDeletionFailure);
                 }
             }
 

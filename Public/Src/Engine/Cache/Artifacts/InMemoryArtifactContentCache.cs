@@ -233,7 +233,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                             if (!mayBeDelete.Succeeded)
                             {
-                                return mayBeDelete.Failure;
+                                return mayBeDelete.Failure.Annotate(LocalDiskContentStore.ExistingFileDeletionFailure);
                             }
 
                             try

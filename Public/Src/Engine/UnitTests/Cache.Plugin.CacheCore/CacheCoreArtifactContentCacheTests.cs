@@ -15,6 +15,7 @@ using Xunit;
 using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System;
 
 namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -143,6 +144,23 @@ namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
             XAssert.IsTrue(maybeMaterialized.Succeeded);
 
             XAssert.AreEqual(TargetContent, File.ReadAllText(targetPath));
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                // Test materialization failure due to open file handle
+                // Disabled on Mac because on unix file systems opening a file doesn't prevent it from being deleted by a different process
+                using (var fs = new FileStream(targetPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    maybeMaterialized = await ContentCache.TryMaterializeAsync(
+                        FileRealizationMode.Copy,
+                        AbsolutePath.Create(Context.PathTable, targetPath).Expand(Context.PathTable),
+                        availableHash);
+
+                    XAssert.IsFalse(maybeMaterialized.Succeeded, "Expected materialization failure due to open file handle, but it succeed");
+
+                    XAssert.Contains(maybeMaterialized.Failure.DescribeIncludingInnerFailures(), LocalDiskContentStore.ExistingFileDeletionFailure);
+                }
+            }
         }
 
         [Fact]

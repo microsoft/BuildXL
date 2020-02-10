@@ -358,6 +358,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed materialize pip dependencies from cache due to failure to delete file. Typically this happens when the file in question is whitelisted and another pip is concurrently accessing the file. Deletion failure: {errorMessage}")]
+        internal abstract void PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
             (ushort)EventId.DetailedPipMaterializeDependenciesFromCacheFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

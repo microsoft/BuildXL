@@ -34,19 +34,25 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         public readonly string SourceCache;
 
+        /// <summary>
+        /// Type of failure when ContentAvailabilityResult is unavailable
+        /// </summary>
+        public readonly string FailureType;
+
         /// <nodoc />
-        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache)
+        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache, string failureType = null)
         {
             Hash = hash;
             IsAvailable = isAvailable;
             BytesTransferred = bytesTransferred;
             SourceCache = sourceCache;
+            FailureType = failureType;
         }
 
         /// <inherit />
         public override string ToString()
         {
-            return $"({Hash.ToString()}: is{(IsAvailable ? "" : " not")} available, {BytesTransferred}B transferred from {SourceCache})";
+            return $"({Hash.ToString()}: is{(IsAvailable ? "" : " not")} available, {BytesTransferred}B transferred from {SourceCache}){(FailureType != null ? " due to Failure: " + FailureType : "")}";
         }
     }
 }

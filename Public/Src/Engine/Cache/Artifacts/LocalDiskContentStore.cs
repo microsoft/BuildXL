@@ -63,6 +63,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         private readonly string m_vfsCasRoot;
 
         /// <summary>
+        /// String used to identify existing file deletion failures
+        /// </summary>
+        public const string ExistingFileDeletionFailure = "Try materialize file from cache failed due to file deletion failure";
+
+        /// <summary>
         /// Creates a store which tracks files and content with the provided <paramref name="fileContentTable"/> and <paramref name="fileChangeTracker"/>.
         /// The change tracker is allowed to fail each tracking operation, so long as it can record that tracking is incomplete (<see cref="FileChangeTracker.CreateDisabledTracker"/> is sufficient).
         /// The caller retains ownership of both structures and is expected to save and reload them later as needed.

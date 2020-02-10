@@ -38,5 +38,10 @@ namespace BuildXL.Scheduler.Artifacts
         /// Placing the file from cache failed (cache target miss in setup).
         /// </summary>
         PlaceFileFailed = 5,
+
+        /// <summary>
+        /// Placing the file from cache failed due to exisiting file deletion failure.
+        /// </summary>
+        PlaceFileFailedDueToDeletionFailure = 6,
     }
 }

@@ -3935,7 +3935,7 @@ namespace BuildXL.Scheduler
                     operationContext,
                     allHashes,
                     materialize: materializeToVerifyAvailability,
-                    onContentUnavailable: (i, s) => {
+                    onContentUnavailable: (i, s, f) => {
                         onContentUnavailable?.Invoke(allHashes[i].fileArtifact);
                     });
 

@@ -243,6 +243,8 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public SourceChangeAffectedInputs SourceChangeAffectedInputs { get; }
 
+        private enum PlaceFile { Success, UserError, InternalError }
+
         #endregion
 
         /// <summary>
@@ -455,6 +457,15 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public async Task<bool> TryMaterializeDependenciesAsync(Pip pip, OperationContext operationContext)
         {
+            var result = await TryMaterializeDependenciesInternalAsync(pip, operationContext);
+            return result == ArtifactMaterializationResult.Succeeded;
+        }
+
+        /// <summary>
+        /// Ensures pip inputs are materialized and returns ArtifactMaterializationResult
+        /// </summary>
+        internal async Task<ArtifactMaterializationResult> TryMaterializeDependenciesInternalAsync(Pip pip, OperationContext operationContext)
+        {
             using (PipArtifactsState state = GetPipArtifactsState())
             {
                 // Get inputs
@@ -467,26 +478,27 @@ namespace BuildXL.Scheduler.Artifacts
                 switch (result)
                 {
                     case ArtifactMaterializationResult.Succeeded:
-                        return true;
+                        break;
                     case ArtifactMaterializationResult.PlaceFileFailed:
                         Logger.Log.PipMaterializeDependenciesFromCacheFailure(
                             operationContext,
                             pip.GetDescription(Context),
                             state.GetFailure().DescribeIncludingInnerFailures());
-
-                        ExecutionLog?.CacheMaterializationError(new CacheMaterializationErrorEventData()
-                        {
-                            PipId = pip.PipId,
-                            FailedFiles = state.FailedFiles.ToReadOnlyArray()
-                        });
-
-                        return false;
+                        cacheMaterializationErrorLog(state);
+                        break;
+                    case ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure:
+                        Logger.Log.PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure(
+                            operationContext,
+                            pip.GetDescription(Context),
+                            state.GetFailure().DescribeIncludingInnerFailures());
+                        cacheMaterializationErrorLog(state);
+                        break;
                     case ArtifactMaterializationResult.VerifySourceFilesFailed:
                         Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
                             operationContext,
                             pip.GetDescription(Context),
                             state.GetFailure().DescribeIncludingInnerFailures());
-                        return false; 
+                        break;
                     default:
                         // Catch-all error for non-cache dependency materialization failures
                         Logger.Log.PipMaterializeDependenciesFailureUnrelatedToCache(
@@ -494,8 +506,19 @@ namespace BuildXL.Scheduler.Artifacts
                             pip.GetDescription(Context),
                             result.ToString(),
                             state.GetFailure().DescribeIncludingInnerFailures());
-                        return false;
+                        break;
                 }
+
+                return result;
+            }
+
+            void cacheMaterializationErrorLog(PipArtifactsState state)
+            {
+                ExecutionLog?.CacheMaterializationError(new CacheMaterializationErrorEventData()
+                {
+                    PipId = pip.PipId,
+                    FailedFiles = state.FailedFiles.ToReadOnlyArray()
+                });
             }
         }
 
@@ -551,7 +574,7 @@ namespace BuildXL.Scheduler.Artifacts
             OperationContext operationContext,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash)> filesAndContentHashes,
             Action onFailure = null,
-            Action<int, string> onContentUnavailable = null,
+            Action<int, string, string> onContentUnavailable = null,
             bool materialize = false)
         {
             Logger.Log.ScheduleTryBringContentToLocalCache(operationContext, pipInfo.Description);
@@ -567,7 +590,7 @@ namespace BuildXL.Scheduler.Artifacts
                     onlyLogUnavailableContent: true,
                     filesAndContentHashes: filesAndContentHashes.SelectList((tuple, index) => (tuple.fileArtifact, tuple.contentHash, index)),
                     onFailure: failure => { onFailure?.Invoke(); },
-                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr) => { /* Do nothing. Callee already logs the failure */ }));
+                    onContentUnavailable: onContentUnavailable ?? ((index, hashLogStr, failureType) => { /* Do nothing. Callee already logs the failure */ }));
 
                 return result;
             }
@@ -590,7 +613,8 @@ namespace BuildXL.Scheduler.Artifacts
                             symlinkTarget: AbsolutePath.Invalid);
                     }
 
-                    return await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    var placeResult = await PlaceFilesAsync(operationContext, pipInfo, state, materialize: true);
+                    return placeResult == PlaceFile.Success;
                 }
             }
         }
@@ -1613,9 +1637,12 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             // Place Files:
-            if (!await PlaceFilesAsync(operationContext, pipInfo, state))
+            var possiblyPlaced = await PlaceFilesAsync(operationContext, pipInfo, state);
+            if (possiblyPlaced != PlaceFile.Success)
             {
-                return ArtifactMaterializationResult.PlaceFileFailed;
+                return possiblyPlaced == PlaceFile.UserError 
+                    ? ArtifactMaterializationResult.PlaceFileFailedDueToDeletionFailure 
+                    : ArtifactMaterializationResult.PlaceFileFailed;
             }
 
             // Mark directories as materialized so that the full set of files in the directory will
@@ -2010,13 +2037,14 @@ namespace BuildXL.Scheduler.Artifacts
         /// <remarks>
         /// Logs warnings when a file placement fails; does not log errors.
         /// </remarks>
-        private async Task<bool> PlaceFilesAsync(
+        private async Task<PlaceFile> PlaceFilesAsync(
             OperationContext operationContext,
             PipInfo pipInfo,
             PipArtifactsState state,
             bool materialize = true)
         {
             bool success = true;
+            bool userError = false;
 
             if (state.MaterializationFiles.Count != 0)
             {
@@ -2034,7 +2062,14 @@ namespace BuildXL.Scheduler.Artifacts
 
                 if (!materialize)
                 {
-                    return success;
+                    return success ? PlaceFile.Success : PlaceFile.InternalError;
+                }
+
+                if (!success &&
+                    state.InnerFailure != null &&
+                    state.InnerFailure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                {
+                    userError = true;
                 }
 
                 // Remove the failures
@@ -2097,6 +2132,11 @@ namespace BuildXL.Scheduler.Artifacts
 
                                     state.SetMaterializationFailure(fileIndex: materializationFileIndex);
 
+                                    if (possiblyPlaced.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure))
+                                    {
+                                        userError = true;
+                                    }
+
                                     // Latch overall success (across all placements) to false.
                                     success = false;
                                 }
@@ -2135,7 +2175,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
             }
 
-            return success;
+            return success ? PlaceFile.Success : (userError ? PlaceFile.UserError : PlaceFile.InternalError);
         }
 
         private async Task<Possible<ContentMaterializationResult>> PlaceSingleFileAsync(
@@ -2264,7 +2304,7 @@ namespace BuildXL.Scheduler.Artifacts
 
                     state.InnerFailure = failure;
                 },
-                onContentUnavailable: (index, hashLogStr) =>
+                onContentUnavailable: (index, hashLogStr, failureType) =>
                 {
                     state.SetMaterializationFailure(index);
 
@@ -2276,6 +2316,12 @@ namespace BuildXL.Scheduler.Artifacts
                             pipInfo.Description,
                             hashLogStr,
                             state.MaterializationFiles[index].Artifact.Path.ToString(Context.PathTable));
+
+                        if (failureType == LocalDiskContentStore.ExistingFileDeletionFailure)
+                        {
+                            state.InnerFailure = new Failure<string>(LocalDiskContentStore.ExistingFileDeletionFailure);
+                        }
+                        
                     }
                 },
                 state: state);
@@ -2293,7 +2339,7 @@ namespace BuildXL.Scheduler.Artifacts
             bool materializingOutputs,
             IReadOnlyList<(FileArtifact fileArtifact, ContentHash contentHash, int fileIndex)> filesAndContentHashes,
             Action<Failure> onFailure,
-            Action<int, string> onContentUnavailable,
+            Action<int, string, string> onContentUnavailable,
             bool onlyLogUnavailableContent = false,
             PipArtifactsState state = null)
         {
@@ -2574,7 +2620,7 @@ namespace BuildXL.Scheduler.Artifacts
                             if (!isAvailable)
                             {
                                 success = false;
-                                onContentUnavailable(currentFileIndex, hashLogStr);
+                                onContentUnavailable(currentFileIndex, hashLogStr, result.FailureType);
                             }
                         }
                     }
@@ -2611,7 +2657,10 @@ namespace BuildXL.Scheduler.Artifacts
                     else
                     {
                         allContentAvailable = false;
-                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss");
+                        string failureType = result.Failure.DescribeIncludingInnerFailures().Contains(LocalDiskContentStore.ExistingFileDeletionFailure)
+                                        ? LocalDiskContentStore.ExistingFileDeletionFailure
+                                        : null;
+                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss", failureType);
                     }
                 };
 

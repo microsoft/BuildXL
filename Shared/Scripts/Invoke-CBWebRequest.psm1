@@ -88,7 +88,7 @@ function Invoke-CBWebRequest
         $params["ContentType"] = $ContentType
     }
     
-    Write-Host "Sending $Method request to $Uri..."
+    Write-Host "Sending $Method request to $Uri with body $Body"
     
     return Invoke-WebRequest @params
 }

@@ -305,18 +305,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc />
         public void WriteFingerprintInputs(IFingerprinter writer)
         {
-            using (var stream = new MemoryStream())
-            {
-                using (var buildXLWriter = new BuildXLWriter(
-                    debug: false,
-                    stream: stream,
-                    leaveOpen: false,
-                    logStats: false))
-                {
-                    UnsafeOptions.Serialize(buildXLWriter);
-                    writer.Add(ObservedPathSet.Labels.UnsafeOptions, System.BitConverter.ToString(stream.ToArray()));
-                }
-            }
+            writer.AddNested(ObservedPathSet.Labels.UnsafeOptions, UnsafeOptions.ComputeFingerprint);
 
             var thisRef = this;
             writer.AddNested(ObservedPathSet.Labels.Paths, w =>

@@ -24,7 +24,6 @@ using BuildXLConfiguration = BuildXL.Utilities.Configuration;
 using System;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace Test.Tool.Analyzers
 {
@@ -668,25 +667,48 @@ namespace Test.Tool.Analyzers
         public void TestUnsafeConfigurationDiffsCorrectly()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = !UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
-
-            var pip = CreateAndSchedulePipBuilder(new Operation[]
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = !UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
+            var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact())
-            }).Process;
+            });
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            var pip = SchedulePipBuilder(builder).Process;
 
+            // First build with UnexpectedFileAccessesAreErrors = false, IgnorePreloadedDlls = false, PreserveOutputs = disable
             var build1 = RunScheduler().AssertCacheMiss(pip.PipId);
 
-            // Go from unsafe -> safe to cause cache miss (it's possible to get a hit on different, but safer configurations)
+
+            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = false, PreserveOutputs = enable with PreserveOutputsTrustLevel = 1
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
-
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             var build2 = RunScheduler().AssertCacheMiss(pip.PipId);
-
             var result = RunAnalyzer(build1, build2);
 
+            // Difference between build1 and build2 will has UnexpectedFileAccessesAreErrors, PreserveOutputInfo with PreserveOutputTrustLevel in it
             result.AssertPipMiss(
                 pip,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
-                "UnsafeOptions");
+                ObservedPathSet.Labels.UnsafeOptions,
+                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors),
+                nameof(PreserveOutputsInfo),
+                nameof(PreserveOutputsInfo.PreserveOutputTrustLevel));
+
+            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = true, PreserveOutputs = enable with PreserveOutputsTrustLevel = 0
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 0;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
+            var build3 = RunScheduler().AssertCacheMiss(pip.PipId);
+            result = RunAnalyzer(build2, build3);
+
+            // Difference between build1 and build2 will has IgnorePreloadedDlls, PreserveOutputInfo with PreserveOutputTrustLevel in it
+            result.AssertPipMiss(
+                pip,
+                PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
+                ObservedPathSet.Labels.UnsafeOptions,
+                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls),
+                nameof(PreserveOutputsInfo),
+                nameof(PreserveOutputsInfo.PreserveOutputTrustLevel));
         }
 
         /// <summary>

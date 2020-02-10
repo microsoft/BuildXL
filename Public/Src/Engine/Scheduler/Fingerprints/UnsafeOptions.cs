@@ -164,7 +164,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
             if (m_preservedOutputInfo.HasValue)
             {
-                fingerprinter.AddNested("PreserveOutputInfo", fp => m_preservedOutputInfo.Value.ComputeFingerprint(fp));
+                fingerprinter.AddNested(nameof(PreserveOutputsInfo), fp => m_preservedOutputInfo.Value.ComputeFingerprint(fp));
             }
 
             static string getBoolString(bool value) => value ? "1" : "0";

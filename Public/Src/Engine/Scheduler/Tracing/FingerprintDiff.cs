@@ -255,7 +255,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// Environment variable data.
+        /// Name value pair data.
         /// </summary>
         internal struct NameValuePairData : IEquatable<NameValuePairData>
         {

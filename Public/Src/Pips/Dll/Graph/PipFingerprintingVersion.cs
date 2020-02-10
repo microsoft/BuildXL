@@ -53,7 +53,8 @@ namespace BuildXL.Pips.Graph
         /// 76: Put extra salt's options in weakfingerprint instead of ExecutionAndFingerprintOptionsHash.
         /// 77: Change semantics related to tracking dependencies under untracked scopes.
         /// 78: Add session id and related session of the build.
+        /// 79: Change the field name in unsafe option from "PreserveOutputInfo" to nameof(PreserveOutputsInfo)
         /// </remarks>
-        TwoPhaseV2 = 78,
+        TwoPhaseV2 = 79,
     }
 }

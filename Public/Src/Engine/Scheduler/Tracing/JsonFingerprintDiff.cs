@@ -181,12 +181,24 @@ namespace BuildXL.Scheduler.Tracing
             JsonNode unsafeOptionsNode = JsonTree.FindNodeByName(pathSetTree, ObservedPathSet.Labels.UnsafeOptions);
             JsonNode otherUnsafeOptionsNode = JsonTree.FindNodeByName(otherPathSetTree, ObservedPathSet.Labels.UnsafeOptions);
 
-            // This is less ideal because we can't see the difference.
-            // TODO: dump unsafe option data to the fingerprint store so that we can analyze the content.
             // {
-            //   UnsafeOptions: { Old: old_bits, New: new_bits: }
-            // }
-            AddPropertyIfNotNull(result, RenderSingleValueDiff(ObservedPathSet.Labels.UnsafeOptions, unsafeOptionsNode.Values[0], otherUnsafeOptionsNode.Values[0]));
+            //   UnsafeOptions: 
+            //   { 
+            //        <property_Name>:
+            //        {
+            //           Old: old_value, 
+            //           New: new_value
+            //        }
+            //        PreserveOutputInfo:
+            //        {
+            //            <property_Name>:
+            //            {
+            //               Old: old_value, 
+            //               New: new_value
+            //            }
+            //        }
+            //   }
+            AddPropertyIfNotNull(result, DiffUnsafeOptions(unsafeOptionsNode, otherUnsafeOptionsNode));
 
             AddPropertyIfNotNull(
                 result,
@@ -282,31 +294,9 @@ namespace BuildXL.Scheduler.Tracing
                 case nameof(PipFingerprintField.ExecutionAndFingerprintOptions):
                 case nameof(Process.EnvironmentVariables):
                 {
-                    using (var nameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
-                    using (var othernameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
-                    {
-                        var nameValuePairData = nameValuePairDataPool.Instance;
-                        var othernameValuePairData = othernameValuePairDataPool.Instance;
-                        populateNameValuePairData(fieldNode, nameValuePairData);
-                        populateNameValuePairData(otherFieldNode, othernameValuePairData);
-                        return ExtractUnorderedMapDiff(
-                            nameValuePairData,
-                            othernameValuePairData,
-                            (dOld, dNew) => dOld.Equals(dNew),
-                            out var added,
-                            out var removed,
-                            out var changed)
-                            ? new JProperty(fieldNode.Name, RenderUnorderedMapDiff(
-                                nameValuePairData,
-                                othernameValuePairData,
-                                added,
-                                removed,
-                                changed,
-                                k => k,
-                                (dataA, dataB) => dataA.Value))
-                            : null;
-                    }
-                }              
+                    var result = DiffNameValuePairs(fieldNode, otherFieldNode);
+                    return result != null ? new JProperty(fieldNode.Name, result) : null;
+                }
 
                 case nameof(Process.DirectoryDependencies):
                 case nameof(Process.DirectoryOutputs):
@@ -329,9 +319,9 @@ namespace BuildXL.Scheduler.Tracing
             }
 
             string getSingleValueNode(JsonNode node) =>
-                node.Values.Count > 0
-                ? node.Values[0]
-                : CacheMissAnalysisUtilities.RepeatedStrings.MissingValue;
+                    node.Values.Count > 0
+                    ? node.Values[0]
+                    : CacheMissAnalysisUtilities.RepeatedStrings.MissingValue;
 
             void populateInputFileData(JsonNode dependencyNode, Dictionary<string, InputFileData> inputFileData)
             {
@@ -374,19 +364,75 @@ namespace BuildXL.Scheduler.Tracing
                     },
                     recurse: false);
             }
+        }
 
-            void populateNameValuePairData(JsonNode nameValuePairNode, Dictionary<string, NameValuePairData> nameValuePairData)
+        private static JObject DiffNameValuePairs(JsonNode fieldNode, JsonNode otherFieldNode)
+        {
+            using (var nameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
+            using (var othernameValuePairDataPool = NameValuePairDataMapPool.GetInstance())
             {
-                JsonTree.VisitTree(
-                    nameValuePairNode,
-                    node =>
-                    {
-                        nameValuePairData[node.Name] = new NameValuePairData(
-                            node.Name,
-                            node.Values.Count > 0 ? node.Values[0] : CacheMissAnalysisUtilities.RepeatedStrings.MissingValue);
-                    },
-                    recurse: false);
+                var nameValuePairData = nameValuePairDataPool.Instance;
+                var othernameValuePairData = othernameValuePairDataPool.Instance;
+                PopulateNameValuePairData(fieldNode, nameValuePairData);
+                PopulateNameValuePairData(otherFieldNode, othernameValuePairData);
+                return ExtractUnorderedMapDiff(
+                    nameValuePairData,
+                    othernameValuePairData,
+                    (dOld, dNew) => dOld.Equals(dNew),
+                    out var added,
+                    out var removed,
+                    out var changed)
+                    ? RenderUnorderedMapDiff(
+                        nameValuePairData,
+                        othernameValuePairData,
+                        added,
+                        removed,
+                        changed,
+                        k => k,
+                        (dataA, dataB) => dataA.Value)
+                    : null;
             }
+        }
+
+        private static void PopulateNameValuePairData(JsonNode nameValuePairNode, Dictionary<string, NameValuePairData> nameValuePairData)
+        {
+            JsonTree.VisitTree(
+                nameValuePairNode,
+                node =>
+                {
+                    nameValuePairData[node.Name] = new NameValuePairData(
+                        node.Name,
+                        node.Values.Count > 0 ? node.Values[0] : CacheMissAnalysisUtilities.RepeatedStrings.MissingValue);
+                },
+                recurse: false);
+        }
+
+        private static JProperty DiffUnsafeOptions(JsonNode unsafeOptionsNode, JsonNode otherUnsafeOptionsNode)
+        {
+            Contract.Requires(unsafeOptionsNode != null);
+            Contract.Requires(otherUnsafeOptionsNode != null);
+            Contract.Requires(unsafeOptionsNode.Name == otherUnsafeOptionsNode.Name);
+
+            // Get the diff result of the single values in unsafeUnsafeOptions
+            JObject result = DiffNameValuePairs(unsafeOptionsNode, otherUnsafeOptionsNode);
+
+            // Deal with the preserveOutputInfo struct in unsafeUnsafeOptions
+            JsonNode preserveOutputInfoNode = JsonTree.FindNodeByName(unsafeOptionsNode, nameof(PreserveOutputsInfo));
+            JsonNode otherpreserveOutputInfoNode = JsonTree.FindNodeByName(otherUnsafeOptionsNode, nameof(PreserveOutputsInfo));
+            if (preserveOutputInfoNode != null || otherpreserveOutputInfoNode != null)
+            {
+                JObject preserveOutputInfoResult = DiffNameValuePairs(
+                    preserveOutputInfoNode ?? new JsonNode() { Name = nameof(PreserveOutputsInfo) }, 
+                    otherpreserveOutputInfoNode ?? new JsonNode() { Name = nameof(PreserveOutputsInfo) });
+
+                if (preserveOutputInfoResult != null)
+                {
+                    result = result ?? new JObject();
+                    AddPropertyIfNotNull(result,new JProperty(nameof(PreserveOutputsInfo), preserveOutputInfoResult));
+                }
+            }
+
+            return result != null ? new JProperty(unsafeOptionsNode.Name, result) : null;
         }
 
         private static JProperty DiffObservedPaths(

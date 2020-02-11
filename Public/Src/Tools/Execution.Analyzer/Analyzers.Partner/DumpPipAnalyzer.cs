@@ -49,11 +49,6 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            if (string.IsNullOrEmpty(outputFilePath))
-            {
-                throw Error("/outputFile parameter is required");
-            }
-
             if (semiStableHash == 0)
             {
                 throw Error("/pip parameter is required");
@@ -91,6 +86,12 @@ namespace BuildXL.Execution.Analyzer
         public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, bool useOriginalPaths, bool logProgress = false)
             : base(input)
         {
+             if (string.IsNullOrEmpty(outputFilePath))
+            {
+                outputFilePath = Path.Combine(Path.GetDirectoryName(input.ExecutionLogPath), $"Pip{semiStableHash:X16}.html");
+                Console.WriteLine($"Missing option /outputFilePath using: {outputFilePath}");
+            }
+
             m_outputFilePath = outputFilePath;
             m_useOriginalPaths = useOriginalPaths;
 

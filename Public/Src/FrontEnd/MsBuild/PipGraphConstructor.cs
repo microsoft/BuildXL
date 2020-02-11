@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -59,18 +61,20 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Creates a pip graph that corresponds to all the specified projects in the graph
         /// </summary>
-        public async Task<bool> TrySchedulePipsForFilesAsync(IReadOnlySet<ProjectWithPredictions> projectsToEvaluate, QualifierId qualifierId)
+        /// <returns>A tuple indicating whether scheduling succeeded, plus all the processes scheduled by project</returns>
+        public async Task<(bool, IReadOnlyDictionary<ProjectWithPredictions, Process>)> TrySchedulePipsForFilesAsync(IReadOnlySet<ProjectWithPredictions> projectsToEvaluate, QualifierId qualifierId)
         {
             Contract.Requires(qualifierId.IsValid);
-
+        
             if (!TryTopoSortProjectsAndComputeClosure(projectsToEvaluate, out PriorityQueue<(ProjectWithPredictions, int tier)> topoSortedQueue, out IEnumerable<ProjectWithPredictions> cycle))
             {
                 var cycleDescription = string.Join(" -> ", cycle.Select(project => project.FullPath.ToString(m_context.PathTable)));
                 Tracing.Logger.Log.CycleInBuildTargets(m_context.LoggingContext, cycleDescription);
-                return false;
+                return (false, CollectionUtilities.EmptyDictionary<ProjectWithPredictions, Process>());
             }
 
             bool success = true;
+            var processes = new ConcurrentDictionary<ProjectWithPredictions, Process>();
 
             ActionBlock<ProjectWithPredictions> CreateActionBlockForTier()
             {
@@ -80,11 +84,13 @@ namespace BuildXL.FrontEnd.MsBuild
                         // We only schedule the project if predicted target collection is non-empty
                         if (project.PredictedTargetsToExecute.Targets.Count != 0)
                         {
-                            if (!m_pipConstructor.TrySchedulePipForFile(project, qualifierId, out _, out _))
+                            if (!m_pipConstructor.TrySchedulePipForFile(project, qualifierId, out _, out var process))
                             {
                                 // Error is already logged
                                 success = false;
                             }
+
+                            processes.TryAdd(project, process);
                         }
                         else
                         {
@@ -126,7 +132,7 @@ namespace BuildXL.FrontEnd.MsBuild
             perTierParallelPipCreator.Complete();
             await perTierParallelPipCreator.Completion;
 
-            return success;
+            return (success, processes);
         }
 
         private static bool TryTopoSortProjectsAndComputeClosure(

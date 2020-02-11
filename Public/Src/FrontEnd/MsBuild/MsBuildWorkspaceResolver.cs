@@ -252,14 +252,48 @@ namespace BuildXL.FrontEnd.MsBuild
                 return sourceFile;
             }
 
-            // This is the interop point for MSBuild to advertise values to other DScript specs
-            // For now we just return an empty SourceFile
-
-            // TODO: Add the qualifier space to the (empty now) generated ISourceFile for future interop
             sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
+
+            string projectIdentifier = GetIdentifierForProject(path, m_context.PathTable);
+
+            // TODO: factor out common logic into utility functions, we are duplicating
+            // code that can be found on the download resolver
+
+            // A value representing all output directories of the project
+            // TODO: No MSBuild-specific logic
+            var outputDeclaration = new VariableDeclaration(projectIdentifier, Identifier.CreateUndefined(), new ArrayTypeNode { ElementType = new TypeReferenceNode("SharedOpaqueDirectory") });
+            outputDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
+            outputDeclaration.Pos = 1;
+            outputDeclaration.End = 2;
+
+            // Final source file looks like
+            //   @@public export outputs: SharedOpaqueDirectory[] = undefined;
+            // The 'undefined' part is not really important here. The value at runtime has its own special handling in the resolver.
+            sourceFile.Statements.Add(new VariableStatement()
+            {
+                DeclarationList = new VariableDeclarationList(
+                        NodeFlags.Const,
+                        outputDeclaration)
+            });
+
+            // Needed for the binder to recurse.
+            sourceFile.ExternalModuleIndicator = sourceFile;
+            sourceFile.SetLineMap(new[] { 0, 2 });
+            sourceFile.OverrideIsScriptFile = true;
+
             m_createdSourceFiles.Add(path, sourceFile);
 
             return sourceFile;
+        }
+
+        /// <summary>
+        /// Returns a DScript identifier to be used to represent the outputs of a project
+        /// </summary>
+        internal static string GetIdentifierForProject(AbsolutePath path, PathTable pathTable)
+        {
+            // TODO: For now this will fail if there are two projects with the same name in the same repo
+            string shortName = path.GetName(pathTable).RemoveExtension(pathTable.StringTable).ToString(pathTable.StringTable);
+            return shortName.Replace(".", "_");
         }
 
         private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphIfNeededAsync()

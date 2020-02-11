@@ -2382,6 +2382,9 @@ namespace TypeScript.Net.Types
 
             m_parseDiagnostics.Add(diagnostic);
         }
+
+        /// <inheritdoc/>
+        public bool OverrideIsScriptFile { get; set; } = false;
     }
 
     /// <nodoc/>

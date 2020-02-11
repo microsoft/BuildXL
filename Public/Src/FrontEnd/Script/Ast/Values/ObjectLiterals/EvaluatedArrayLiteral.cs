@@ -18,7 +18,8 @@ namespace BuildXL.FrontEnd.Script.Values
     {
         private readonly EvaluationResult[] m_data;
 
-        internal EvaluatedArrayLiteral(EvaluationResult[] data, LineInfo location, AbsolutePath path)
+        /// <nodoc/>
+        public EvaluatedArrayLiteral(EvaluationResult[] data, LineInfo location, AbsolutePath path)
             : base(location, path)
         {
             m_data = data;

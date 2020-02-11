@@ -2099,5 +2099,15 @@ namespace TypeScript.Net.Types
         /// Computes a binding symbols and keeps it in the file.
         /// </summary>
         void ComputeBindingFingerprint([NotNull]BuildXL.Utilities.SymbolTable symbolTable);
+
+        /// <summary>
+        /// DScript-specific. Whether to override if the file is a DScript file. 
+        /// </summary>
+        /// <remarks>
+        /// Under normal circumstances, a DScript file is determined by its extension. However, some
+        /// resolvers might decide to expose DScript values to other resolvers in files whose extensions are not DScript-specific.
+        /// For those cases, they can decide to override the extension based decision by setting this to true.
+        /// </remarks>
+        bool OverrideIsScriptFile { get; }
     }
 }

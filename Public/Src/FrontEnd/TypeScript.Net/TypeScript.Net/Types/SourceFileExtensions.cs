@@ -21,7 +21,7 @@ namespace TypeScript.Net.Types
         {
             Contract.Requires(sourceFile != null);
 
-            return ExtensionUtilities.IsScriptExtension(Path.GetExtension(sourceFile.FileName)) || sourceFile.FileName.StartsWith("Prelude.");
+            return sourceFile.OverrideIsScriptFile || ExtensionUtilities.IsScriptExtension(Path.GetExtension(sourceFile.FileName)) || sourceFile.FileName.StartsWith("Prelude.");
         }
 
         /// <nodoc />

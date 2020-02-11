@@ -335,8 +335,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         $"ContentHash={hash.ToShortString()} " +
                         $"TargetLocation=[{targetLocation}] " +
                         $"InsideRing={isInsideRing} " +
-                        $"CopyReason={reason}" +
-                        $"LocationSource={source}" +
+                        $"CopyReason={reason} " +
+                        $"LocationSource={source} " +
                         $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                         $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
                         $"Timeout={_timeoutForProactiveCopies} " +

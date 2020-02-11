@@ -90,7 +90,7 @@ namespace VBCSCompilerLogger
                     throw new ArgumentException(error);
                 }
 
-                var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments, commandLine.ProjectFile);
+                var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments, commandLine.ProjectFile, out string[] args);
 
                 // In general we don't care about errors in the command line, since any error there will eventually fail the compiler call.
                 // However, we do care about new switches that may represent file accesses that are introduced to the compiler and this logger 
@@ -104,7 +104,32 @@ namespace VBCSCompilerLogger
                     m_badSwitchErrors.Add(badSwitch);
                 }
 
-                RegisterAccesses(parsedCommandLine);
+                string[] embeddedResourceFilePaths = Array.Empty<string>();
+
+                // Determine the paths to the embedded resources. /resource: parameters end up in CommandLineArguments.ManifestResources,
+                // but the returned class drops the file path (and is currently internal anyway).
+                // We should be able to remove this if/when this gets resolved: https://github.com/dotnet/roslyn/issues/41372.
+                if (parsedCommandLine.ManifestResources.Length > 0)
+                {
+                    IEnumerable<string> embeddedResourcesArgs = args.Where(
+                        a =>
+                            a.StartsWith("/resource:", StringComparison.OrdinalIgnoreCase)
+                            || a.StartsWith("/res:", StringComparison.Ordinal)
+                            || a.StartsWith("/linkresource:", StringComparison.Ordinal)
+                            || a.StartsWith("/linkres:", StringComparison.Ordinal));
+
+                    embeddedResourceFilePaths = CompilerUtilities.GetEmbeddedResourceFilePaths(
+                        embeddedResourcesArgs,
+                        parsedCommandLine.BaseDirectory);
+                }
+
+                var result = new ParseResult()
+                {
+                    ParsedArguments = parsedCommandLine,
+                    EmbeddedResourcePaths = embeddedResourceFilePaths
+                };
+
+                RegisterAccesses(result);
             }
         }
 
@@ -127,42 +152,45 @@ namespace VBCSCompilerLogger
             return true;
         }
 
-        private void RegisterAccesses(CommandLineArguments args)
+        private void RegisterAccesses(ParseResult results)
         {
             // Even thought CommandLineArguments class claims to always report back absolute paths, that's not the case.
             // Use the base directory to resolve relative paths if needed
             // The base directory is what CommandLineArgument claims to be resolving all paths against anyway
-            var accessRegister = new AccessRegistrar(m_augmentedReporter, args.BaseDirectory);
+            var accessRegister = new AccessRegistrar(m_augmentedReporter, results.ParsedArguments.BaseDirectory);
 
             // All inputs
-            accessRegister.RegisterInputs(args.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, args.BaseDirectory, args.ReferencePaths)));
-            accessRegister.RegisterInputs(args.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, args.BaseDirectory, args.ReferencePaths)));
-            accessRegister.RegisterInputs(args.SourceFiles.Select(source => source.Path));
-            accessRegister.RegisterInputs(args.EmbeddedFiles.Select(embedded => embedded.Path));
-            accessRegister.RegisterInput(args.Win32ResourceFile);
-            accessRegister.RegisterInput(args.Win32Icon);
-            accessRegister.RegisterInput(args.Win32Manifest);
-            accessRegister.RegisterInputs(args.AdditionalFiles.Select(additional => additional.Path));
-            accessRegister.RegisterInput(args.AppConfigPath);
-            accessRegister.RegisterInput(args.RuleSetPath);
-            accessRegister.RegisterInput(args.SourceLink);
-            accessRegister.RegisterInput(args.CompilationOptions.CryptoKeyFile);
+            accessRegister.RegisterInputs(results.ParsedArguments.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, results.ParsedArguments.BaseDirectory, results.ParsedArguments.ReferencePaths)));
+            accessRegister.RegisterInputs(results.ParsedArguments.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, results.ParsedArguments.BaseDirectory, results.ParsedArguments.ReferencePaths)));
+            accessRegister.RegisterInputs(results.ParsedArguments.SourceFiles.Select(source => source.Path));
+            accessRegister.RegisterInputs(results.ParsedArguments.EmbeddedFiles.Select(embedded => embedded.Path));
+            accessRegister.RegisterInput(results.ParsedArguments.Win32ResourceFile);
+            accessRegister.RegisterInput(results.ParsedArguments.Win32Icon);
+            accessRegister.RegisterInput(results.ParsedArguments.Win32Manifest);
+            accessRegister.RegisterInputs(results.ParsedArguments.AdditionalFiles.Select(additional => additional.Path));
+            accessRegister.RegisterInput(results.ParsedArguments.AppConfigPath);
+            accessRegister.RegisterInput(results.ParsedArguments.RuleSetPath);
+            accessRegister.RegisterInput(results.ParsedArguments.SourceLink);
+            accessRegister.RegisterInput(results.ParsedArguments.CompilationOptions.CryptoKeyFile);
 #if !TEST
-            // When building for tests we intentioally use an older version of CommandLinArguments where this field is not available
-            accessRegister.RegisterInputs(args.AnalyzerConfigPaths);
+            // When building for tests we intentionally use an older version of CommandLineArguments where this field is not available
+            accessRegister.RegisterInputs(results.ParsedArguments.AnalyzerConfigPaths);
 #endif
+            // /resource: parameters end up in ParsedArguments.ManifestResources, but the returned class drops the file path. We'll have to get them explicitly.
+            // We might be able to simply use ParsedArguments.ManifestResources if this gets resolved: https://github.com/dotnet/roslyn/issues/41372
+            accessRegister.RegisterInputs(results.EmbeddedResourcePaths);
 
             // All outputs
-            accessRegister.RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
-            accessRegister.RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));
-            accessRegister.RegisterOutput(args.DocumentationPath);
-            accessRegister.RegisterOutput(args.ErrorLogPath);
-            accessRegister.RegisterOutput(args.OutputRefFilePath);
-            var outputFileName = ComputeOutputFileName(args);
-            accessRegister.RegisterOutput(Path.Combine(args.OutputDirectory, outputFileName));
-            if (args.EmitPdb)
+            accessRegister.RegisterOutput(results.ParsedArguments.TouchedFilesPath?.Insert(results.ParsedArguments.TouchedFilesPath.Length - 1, ".read"));
+            accessRegister.RegisterOutput(results.ParsedArguments.TouchedFilesPath?.Insert(results.ParsedArguments.TouchedFilesPath.Length - 1, ".write"));
+            accessRegister.RegisterOutput(results.ParsedArguments.DocumentationPath);
+            accessRegister.RegisterOutput(results.ParsedArguments.ErrorLogPath);
+            accessRegister.RegisterOutput(results.ParsedArguments.OutputRefFilePath);
+            var outputFileName = ComputeOutputFileName(results.ParsedArguments);
+            accessRegister.RegisterOutput(Path.Combine(results.ParsedArguments.OutputDirectory, outputFileName));
+            if (results.ParsedArguments.EmitPdb)
             {
-                accessRegister.RegisterOutput(Path.Combine(args.OutputDirectory, args.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
+                accessRegister.RegisterOutput(Path.Combine(results.ParsedArguments.OutputDirectory, results.ParsedArguments.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
             }
         }
 
@@ -316,6 +344,15 @@ namespace VBCSCompilerLogger
 
                 return Path.IsPathRooted(path)? path : Path.Combine(m_basePath, path);
             }
+        }
+
+        /// <summary>
+        /// Encapsulates the results of all parsing.
+        /// </summary>
+        private sealed class ParseResult
+        {
+            public CommandLineArguments ParsedArguments { get; set; }
+            public string[] EmbeddedResourcePaths { get; set; }
         }
     }
 }

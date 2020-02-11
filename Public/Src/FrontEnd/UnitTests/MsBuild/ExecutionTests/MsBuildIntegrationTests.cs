@@ -249,7 +249,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         public void ValidateSharedCompilation(string sourceFilename, [CanBeNull]string targetType, [CanBeNull] string outputAssembly)
         {
             var managedProject = GetCscProject(sourceFilename, targetType, outputAssembly);
-            var program = GetHellowWorldProgram();
+            var program = GetHelloWorldProgram();
 
             var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
                 .AddSpec(R("ManagedProject.csproj"), managedProject)
@@ -313,15 +313,35 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var sharedAccessCollector = RunManagedCompilation(useSharedCompilation: true, absolutePathToReference: out _, usedTempDirectory: out _);
             var nonSharedAccessCollector = RunManagedCompilation(useSharedCompilation: false, absolutePathToReference: out _, usedTempDirectory: out var tempDirectory);
 
+            AbsolutePath appDataDirectory = AbsolutePath.Create(PathTable, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+
             // The non-shared accesses should be a subset of the shared ones. Shared access case could be over-reporting since
             // some predicted artifacts may not be accessed at all. This is anyway a conservative check.
             // Observe there might be some differences under the temp directory, since MSBuild generates there some files with random names, so they are different on each execution. We exclude those.
             var diff = nonSharedAccessCollector.GetFileAccessPaths()
-                        .Except(sharedAccessCollector.GetFileAccessPaths())
-                        .Where(path => !path.IsWithin(PathTable, tempDirectory));
+                .Except(sharedAccessCollector.GetFileAccessPaths())
+                .Where(path => !path.IsWithin(PathTable, tempDirectory) && !path.IsWithin(PathTable, appDataDirectory));
 
             // There shouldn't be non shared accesses that were not predicted
             XAssert.IsEmpty(diff);
+        }
+
+        [Fact]
+        public void ValidateResourcesAreReportedWithSharedCompilation()
+        {
+            string embeddedFilePath = Path.Combine(SourceRoot, "dummy.txt");
+            FileUtilities.CreateDirectory(SourceRoot);
+            File.WriteAllText(embeddedFilePath, "-");
+
+            var collector = RunManagedCompilation(
+                useSharedCompilation: true, 
+                out string _, 
+                out AbsolutePath _, 
+                additionalArgs: $"Resources='{embeddedFilePath}'");
+
+            AbsolutePath dummyPath = AbsolutePath.Create(PathTable, embeddedFilePath);
+            var resourceAccesses = collector.GetFileAccessPaths().Where(p => p.Equals(dummyPath));
+            XAssert.IsTrue(resourceAccesses.Any());
         }
 
         private FileAccessDetoursListenerCollector RunManagedCompilation(
@@ -337,13 +357,13 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 "Program.cs", 
                 "exe", 
                 "Out.exe", 
-                @$"References='{Path.GetFileName(absolutePathToReference)}' 
+                $@"References='{Path.GetFileName(absolutePathToReference)}'
                    AdditionalLibPaths='{Path.GetDirectoryName(absolutePathToReference)}'
                    NoStandardLib='false'
                    NoConfig='false' 
                    {additionalArgs ?? string.Empty}");
 
-            var program = GetHellowWorldProgram();
+            var program = GetHelloWorldProgram();
 
             var config = (CommandLineConfiguration)Build(useSharedCompilation: useSharedCompilation)
                 .AddSpec(R("ManagedProject.csproj"), managedProject)
@@ -385,7 +405,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 </Project>";
         }
 
-        private static string GetHellowWorldProgram()
+        private static string GetHelloWorldProgram()
         {
             // A simple hello world program
             return @"

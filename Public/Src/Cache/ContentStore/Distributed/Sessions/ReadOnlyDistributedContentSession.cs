@@ -1243,7 +1243,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 if (candidates.Length > 0)
                                 {
                                     var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                                    insideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true, reason);
+                                    insideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
                                 }
                                 else
                                 {
@@ -1266,6 +1266,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
                         {
                             Result<MachineLocation> getLocationResult = null;
+                            var source = ProactiveCopyLocationSource.Random;
 
                             // Try to select machine from prediction store.
                             if (_predictionStore != null && path != null)
@@ -1275,6 +1276,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 {
                                     var index = ThreadSafeRandom.Generator.Next(0, machines.Count);
                                     getLocationResult = new MachineLocation(machines[index]);
+                                    source = ProactiveCopyLocationSource.PredictionStore;
                                 }
                             }
 
@@ -1290,6 +1292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     if (candidates.Length > 0)
                                     {
                                         getLocationResult = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
+                                        source = ProactiveCopyLocationSource.DesignatedLocation;
                                         _counters[Counters.ProactiveCopy_OutsideRingFromPreferredLocations].Increment();
                                     }
                                 }
@@ -1301,12 +1304,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 // Make sure that the machine is not in the build ring and does not already have the content.
                                 var machinesToSkip = getLocationsResult.ContentHashesInfo[0].Locations.Concat(buildRingMachines).ToArray();
                                 getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: machinesToSkip);
+                                source = ProactiveCopyLocationSource.Random;
                             }
 
                             if (getLocationResult.Succeeded)
                             {
                                 var candidate = getLocationResult.Value;
-                                outsideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false, reason);
+                                outsideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false, reason, source);
                             }
                             else
                             {
@@ -1327,7 +1331,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 });
         }
 
-        private async Task<BoolResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason)
+        private async Task<BoolResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
         {
             if (Settings.PushProactiveCopies)
             {
@@ -1346,7 +1350,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         return null;
                     },
                     isInsideRing,
-                    reason);
+                    reason,
+                    source);
             }
             else
             {

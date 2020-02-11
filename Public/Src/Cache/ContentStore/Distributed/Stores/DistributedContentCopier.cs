@@ -318,7 +318,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Stream>> streamFactory, bool isInsideRing, ProactiveCopyReason reason)
+        public Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Stream>> streamFactory, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
         {
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
             {
@@ -336,6 +336,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         $"TargetLocation=[{targetLocation}] " +
                         $"InsideRing={isInsideRing} " +
                         $"CopyReason={reason}" +
+                        $"LocationSource={source}" +
                         $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                         $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
                         $"Timeout={_timeoutForProactiveCopies} " +

@@ -275,10 +275,15 @@ static bool ShouldSubstituteShim(
     }
 
     // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
-    bool filterMatch = false;
-    if (g_SubstituteProcessExecutionPluginFunc != nullptr)
+    bool filterMatch = !g_ProcessExecutionShimAllProcesses;
+
+    if (foundMatch)
     {
-        filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments) != 0;
+        // Refine match by calling plugin.
+        if (g_SubstituteProcessExecutionPluginFunc != nullptr)
+        {
+            filterMatch = CallPluginFunc(command, commandArgs, lpEnvironment, lpWorkingDirectory, modifiedArguments) != 0;
+        }
     }
 
     Dbg(L"Shim: Non-empty matches command='%s', args='%s', foundMatch=%d, filterMatch=%d, g_ProcessExecutionShimAllProcesses=%d",
@@ -288,15 +293,14 @@ static bool ShouldSubstituteShim(
         filterMatch,
         g_ProcessExecutionShimAllProcesses);
 
-    if (g_ProcessExecutionShimAllProcesses)
-    {
-        // A process or filter match mean we don't want to shim - an opt-out list.
-        return !foundMatch && !filterMatch;
-    }
-
-    // An opt-in list, shim if matching.
-    return foundMatch || filterMatch;
-}
+    // When ShimAllProcesses is false,
+    //     shim a process if a match is found, and the match is filtered in (filterMatch: true) by the plugin, when the plugin exists.
+    // When ShimAllProecsses is true,
+    //     shim a process if no match is found, or, if a match is found, it is filtered out (filterMatch: false) by the plugin, when the plugin exists.
+    return !g_ProcessExecutionShimAllProcesses
+        ? foundMatch && filterMatch
+        : !foundMatch || !filterMatch;
+ }
 
 BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _In_opt_    LPCWSTR               lpApplicationName,

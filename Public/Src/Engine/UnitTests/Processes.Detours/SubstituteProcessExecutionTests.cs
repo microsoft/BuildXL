@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -212,11 +213,12 @@ namespace Test.BuildXL.Processes.Detours
             var stdErrSb = new StringBuilder();
             
             SandboxedProcessResult result = await RunWithPluginAsync(
-                shimAllProcesses,
-                shouldBeShimmed,
-                null, // No process match.
-                stdOutSb,
-                stdErrSb);
+                shimAllProcesses: shimAllProcesses,
+                shouldBeShimmed: shouldBeShimmed,
+                shouldFindMatch: false,
+                processMatches: new string[0],
+                stdOutSb: stdOutSb,
+                stdErrSb: stdErrSb);
 
             string stdOut = stdOutSb.ToString();
             string stdErr = stdErrSb.ToString();
@@ -237,11 +239,12 @@ namespace Test.BuildXL.Processes.Detours
             var stdErrSb = new StringBuilder();
 
             SandboxedProcessResult result = await RunWithPluginAsync(
-                shimAllProcesses,
-                shouldBeShimmed,
-                shouldFindMatch ? "cmd.exe" : "foo.exe",
-                stdOutSb,
-                stdErrSb);
+                shimAllProcesses: shimAllProcesses,
+                shouldBeShimmed: shouldBeShimmed,
+                shouldFindMatch: shouldFindMatch,
+                processMatches: shouldFindMatch ? new[] { "cmd.exe" } : new[] { "foo.exe" },
+                stdOutSb: stdOutSb,
+                stdErrSb: stdErrSb);
 
             string stdOut = stdOutSb.ToString();
             string stdErr = stdErrSb.ToString();
@@ -253,11 +256,11 @@ namespace Test.BuildXL.Processes.Detours
 
             if (shimAllProcesses)
             {
-                AssertShimmedIf(stdOut, !shouldFindMatch && !shouldBeShimmed);
+                AssertShimmedIf(stdOut, !shouldFindMatch || !shouldBeShimmed);
             }
             else
             {
-                AssertShimmedIf(stdOut, shouldFindMatch || shouldBeShimmed);
+                AssertShimmedIf(stdOut, shouldFindMatch && shouldBeShimmed);
             }
 
             XAssert.Contains(stdOut, GetChildOutputForPluginTest(shouldBeShimmed));
@@ -270,11 +273,12 @@ namespace Test.BuildXL.Processes.Detours
             var stdErrSb = new StringBuilder();
 
             SandboxedProcessResult result = await RunWithPluginAsync(
-                false,
-                true,
-                null, // No process match.
-                stdOutSb,
-                stdErrSb,
+                shimAllProcesses: false,
+                shouldBeShimmed: true,
+                shouldFindMatch: false,
+                processMatches: new string[0],
+                stdOutSb: stdOutSb,
+                stdErrSb: stdErrSb,
                 shimmedText: "@responseFile");
 
             string stdOut = stdOutSb.ToString();
@@ -294,7 +298,8 @@ namespace Test.BuildXL.Processes.Detours
         private async Task<SandboxedProcessResult> RunWithPluginAsync(
             bool shimAllProcesses,
             bool shouldBeShimmed,
-            string processMatch,
+            bool shouldFindMatch,
+            string[] processMatches,
             StringBuilder stdOutSb,
             StringBuilder stdErrSb,
             string shimmedText = null)
@@ -309,9 +314,7 @@ namespace Test.BuildXL.Processes.Detours
             fam.SubstituteProcessExecutionInfo = new SubstituteProcessExecutionInfo(
                 shimProgramPath,
                 shimAllProcesses: shimAllProcesses,
-                processMatches: string.IsNullOrEmpty(processMatch)
-                    ? new ShimProcessMatch[0]
-                    : new ShimProcessMatch[] { new ShimProcessMatch(PathAtom.Create(context.StringTable, processMatch), PathAtom.Invalid) })
+                processMatches: processMatches.Select(pm => new ShimProcessMatch(PathAtom.Create(context.StringTable, pm), PathAtom.Invalid)).ToArray())
             {
                 SubstituteProcessExecutionPluginDll32Path = pluginDlls.x86Dll,
                 SubstituteProcessExecutionPluginDll64Path = pluginDlls.x64Dll
@@ -335,10 +338,15 @@ namespace Test.BuildXL.Processes.Detours
 
             SandboxedProcessResult result = await sandboxedProcess.GetResultAsync().ConfigureAwait(false);
 
-            // When plugin is entered, expect to see "Entering CommandMatches" text in the log.
-            // CODESYNC: Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
-            AssertLogContains(true, "Entering CommandMatches");
-            
+            if (shouldFindMatch || processMatches.Length == 0)
+            {
+                // Plugin should be called when a match is found or no process match is specified.
+
+                // When plugin is entered, expect to see "Entering CommandMatches" text in the log.
+                // CODESYNC: Public\Src\Engine\UnitTests\Processes.TestPrograms\SubstituteProcessExecutionPlugin\dllmain.cpp
+                AssertLogContains(true, "Entering CommandMatches");
+            }
+
             return result;
         }
 

@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 const protoVersion = "3.11.2";
-const grpcVersion = "2.24.0";
+const grpcVersion = "2.26.0";
 
 export const pkgs = [
     // grpc

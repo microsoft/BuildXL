@@ -152,8 +152,8 @@ namespace BuildXL.FrontEnd.MsBuild
                     moduleRegistry,
                     package,
                     sourceFile.LineMap);
-
-                string shortName = MsBuildWorkspaceResolver.GetIdentifierForProject(sourceFilePath, m_context.PathTable);
+                
+                string shortName = m_msBuildWorkspaceResolver.GetIdentifierForProject(sourceFilePath);
 
                 // All shared opaques produced by this project constitute its outputs
                 var outputSymbol = FullSymbol.Create(m_context.SymbolTable, shortName);

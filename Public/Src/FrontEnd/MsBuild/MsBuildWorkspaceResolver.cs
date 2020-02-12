@@ -254,7 +254,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
 
-            string projectIdentifier = GetIdentifierForProject(path, m_context.PathTable);
+            string projectIdentifier = GetIdentifierForProject(path);
 
             // TODO: factor out common logic into utility functions, we are duplicating
             // code that can be found on the download resolver
@@ -289,11 +289,22 @@ namespace BuildXL.FrontEnd.MsBuild
         /// <summary>
         /// Returns a DScript identifier to be used to represent the outputs of a project
         /// </summary>
-        internal static string GetIdentifierForProject(AbsolutePath path, PathTable pathTable)
+        /// <remarks>
+        /// TODO: for now we just return an underscore flattened name that is built using the relative path of the project
+        /// from the root. Consider returning a more human-readable name that avoids duplicates.
+        /// </remarks>
+        internal string GetIdentifierForProject(AbsolutePath projectPath)
         {
-            // TODO: For now this will fail if there are two projects with the same name in the same repo
-            string shortName = path.GetName(pathTable).RemoveExtension(pathTable.StringTable).ToString(pathTable.StringTable);
-            return shortName.Replace(".", "_");
+            var success = m_resolverSettings.RootTraversal.TryGetRelative(m_context.PathTable, projectPath, out RelativePath path);
+            Contract.Assert(success);
+
+            string shortName = path.RemoveExtension(m_context.StringTable).ToString(m_context.StringTable);
+            
+            return shortName
+                .Replace('.', '_')
+                .Replace('/', '_')
+                .Replace('\\', '_')
+                .Replace('-', '_');
         }
 
         private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphIfNeededAsync()

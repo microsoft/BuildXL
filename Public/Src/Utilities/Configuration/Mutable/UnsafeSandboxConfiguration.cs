@@ -13,7 +13,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorNtCreateFile = true;
             UnexpectedFileAccessesAreErrors = true;
             IgnoreReparsePoints = false;
-            IgnorePreloadedDlls = true; // TODO: Make this false when onboarded by users.
+            IgnorePreloadedDlls = false;
             SandboxKind = SandboxKind.Default;
 
             // TODO: this is a temporarily flag. Take it out in few weeks.

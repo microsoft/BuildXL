@@ -304,6 +304,11 @@ export function runQTest(args: QTestArguments): Result {
         requireGlobalDependencies: true
     };
 
+    let envVars = [
+        ...(args.qTestEnvironmentVariables || []),
+        ...(Environment.hasVariable("__CLOUDBUILD_DOTNETCORE_DEPLOYMENT_PATH__") ? [{name: "__CLOUDBUILD_DOTNETCORE_DEPLOYMENT_PATH__", value: Environment.getStringValue("__CLOUDBUILD_DOTNETCORE_DEPLOYMENT_PATH__")}] : [])
+    ];
+
     let result = Transformer.execute(
         Object.merge<Transformer.ExecuteArguments>(
         {
@@ -315,9 +320,7 @@ export function runQTest(args: QTestArguments): Result {
             workingDirectory: sandboxDir,
             tempDirectory: qtestRunTempDirectory,
             weight: args.weight,
-            environmentVariables: [
-                ...(args.qTestEnvironmentVariables || [])
-            ],
+            environmentVariables: envVars,
             disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
             additionalTempDirectories : [sandboxDir],
             privilegeLevel: args.privilegeLevel,

@@ -3719,7 +3719,7 @@ namespace BuildXL.Scheduler
                     var cacheResult = tupleResult.Item1;
                     if (cacheResult == null)
                     {
-                        Contract.Assert(loggingContext.ErrorWasLogged, "Error should have been logged for dependency pip.");
+                        Contract.Assert(tupleResult.Item2 == PipResultStatus.Canceled || loggingContext.ErrorWasLogged, "Error should have been logged for dependency pip.");
                         return processRunnable.SetPipResult(tupleResult.Item2);
                     }
 

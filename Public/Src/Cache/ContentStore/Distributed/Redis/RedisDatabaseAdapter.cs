@@ -490,6 +490,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));
                 }
 
+                if (ex is RedisTimeoutException)
+                {
+                    return true;
+                }
+
                 return false;
             }
         }

@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             // We had seen case, when the following call was blocked effectively forever.
             // Adding external timeout to force a failure instead of waiting forever.
-            await _channel.ShutdownAsync().WithTimeoutAsync(TimeSpan.FromMinutes(5));
+            await _channel.ShutdownAsync().WithTimeoutAsync(TimeSpan.FromSeconds(30));
             return BoolResult.Success;
         }
 

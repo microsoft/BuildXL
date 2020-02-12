@@ -35,7 +35,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token);
 
         /// <nodoc />
-        bool HasContentLocally(Context context, ContentHash hash);
+        bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason);
+    }
+
+    /// <nodoc />
+    public enum RejectionReason
+    {
+        /// <nodoc />   
+        Accepted,
+
+        /// <nodoc />
+        ContentAvailableLocally,
+
+        /// <nodoc />
+        OlderThanLastEvictedContent,
+
+        /// <nodoc />
+        NotSupported
     }
 
     /// <summary>

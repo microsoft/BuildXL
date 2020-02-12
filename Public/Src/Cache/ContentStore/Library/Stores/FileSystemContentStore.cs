@@ -260,9 +260,16 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        public bool HasContentLocally(Context context, ContentHash hash)
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
         {
-            return Store.Contains(hash);
+            if (Store.Contains(hash))
+            {
+                rejectionReason = RejectionReason.ContentAvailableLocally;
+                return false;
+            }
+
+            rejectionReason = RejectionReason.Accepted;
+            return true;
         }
     }
 }

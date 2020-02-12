@@ -28,7 +28,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
         private readonly string _preferredCacheDrive;
 
-        internal IContentStore PreferredContentStore { get; }
+        public IContentStore PreferredContentStore { get; }
 
         /// <summary>
         /// Execution tracer for the session.
@@ -295,34 +295,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             TResult result = null;
 
-            // Check primary content store
-            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is TStore store)
+            foreach (var store in GetStoresInOrder<TStore>())
             {
                 result = await executeAsync(store);
 
                 if (result.Succeeded)
                 {
                     return result;
-                }
-            }
-
-            foreach (var kvp in _drivesWithContentStore)
-            {
-                if (preferredCacheStore == kvp.Value)
-                {
-                    // Already checked the preferred cache
-                    continue;
-                }
-
-                if (kvp.Value is TStore otherStore)
-                {
-                    result = await executeAsync(otherStore);
-
-                    if (result.Succeeded)
-                    {
-                        return result;
-                    }
                 }
             }
 
@@ -333,9 +312,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var result = false;
 
-            // Check primary content store
-            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is TStore store)
+            foreach (var store in GetStoresInOrder<TStore>())
             {
                 result = executeAsync(store);
 
@@ -345,26 +322,29 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
             }
 
+            return result;
+        }
+
+        private IEnumerable<TStore> GetStoresInOrder<TStore>()
+        {
+            if (_drivesWithContentStore[_preferredCacheDrive] is TStore store)
+            {
+                yield return store;
+            }
+
             foreach (var kvp in _drivesWithContentStore)
             {
                 if (kvp.Key == _preferredCacheDrive)
                 {
-                    // Already checked the preferred cache
+                    // Already yielded the preferred cache
                     continue;
                 }
 
                 if (kvp.Value is TStore otherStore)
                 {
-                    result = executeAsync(otherStore);
-
-                    if (result)
-                    {
-                        return result;
-                    }
+                    yield return otherStore;
                 }
             }
-
-            return result;
         }
 
         /// <inheritdoc />
@@ -408,9 +388,20 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public bool HasContentLocally(Context context, ContentHash hash)
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
         {
-            return PerformStoreOperation<IPushFileHandler>(store => store.HasContentLocally(context, hash));
+            // Rejection reason will be whatever we called last, or NotSupported if no stores implement IPushFileHandler.
+            rejectionReason = RejectionReason.NotSupported;
+
+            foreach (var store in GetStoresInOrder<IPushFileHandler>())
+            {
+                if (store.CanAcceptContent(context, hash, out rejectionReason))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

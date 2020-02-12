@@ -286,7 +286,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool CanComputeLru => _configuration.HasReadMode(ContentLocationMode.LocalLocationStore);
 
         /// <inheritdoc />
-        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token)
+        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token, TimeSpan? minEffectiveAge = null)
         {
             return TrimBulkAsync(context, contentHashes, token, UrgencyHint.Nominal);
         }

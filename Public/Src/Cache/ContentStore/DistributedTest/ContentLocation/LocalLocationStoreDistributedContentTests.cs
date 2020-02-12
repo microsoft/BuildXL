@@ -102,6 +102,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool EnableProactiveCopy { get; set; } = false;
         protected bool PushProactiveCopies { get; set; } = false;
         protected bool EnableProactiveReplication { get; set; } = false;
+        protected bool ProactiveCopyOnPuts { get; set; } = true;
+        protected bool ProactiveCopyOnPins { get; set; } = false;
         protected bool ProactiveCopyUsePreferredLocations { get; set; } = false;
 
         protected bool UseRealEventHubAndStorage { get; set; } = false;
@@ -181,14 +183,15 @@ namespace ContentStoreTest.Distributed.Sessions
             public void OnTeardownCompleted() { }
         }
 
-        protected override IContentStore CreateStore(
+        protected override (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            TestFileCopier fileCopier,
+            IAbsolutePathFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
+            uint grpcPort,
             object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
@@ -263,8 +266,11 @@ namespace ContentStoreTest.Distributed.Sessions
                 ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = PushProactiveCopies,
                 EnableProactiveReplication = EnableProactiveReplication,
+                ProactiveCopyRejectOldContent = true,
+                ProactiveCopyOnPut = ProactiveCopyOnPuts,
+                ProactiveCopyOnPin = ProactiveCopyOnPins,
                 ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
-                IsRepairHandlingEnabled = enableRepairHandling
+                IsRepairHandlingEnabled = enableRepairHandling,
             };
 
             _overrideDistributed?.Invoke(settings);
@@ -276,6 +282,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     UseCasService = true,
                     DefaultCacheName = "Default",
                 },
+                PreferredCacheDrive = Path.GetPathRoot(rootPath.Path),
                 CacheSettings = new Dictionary<string, NamedCacheSettings>()
                 {
                     {
@@ -286,6 +293,12 @@ namespace ContentStoreTest.Distributed.Sessions
                             CacheSizeQuotaString = "50MB"
                         }
                     }
+                },
+                ServiceSettings = new LocalCasServiceSettings()
+                {
+                    GrpcPort = grpcPort,
+                    GrpcPortFileName = Guid.NewGuid().ToString(),
+                    ScenarioName = Guid.NewGuid().ToString(),
                 }
             };
 
@@ -295,7 +308,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Logger,
                 fileCopier,
                 pathTransformer,
-                fileCopier,
+                (IContentCommunicationManager)fileCopier,
                 Host,
                 new HostInfo("TestStamp", "TestRing", capabilities: new string[0]),
                 Token,
@@ -306,11 +319,19 @@ namespace ContentStoreTest.Distributed.Sessions
 
             arguments.Overrides = new TestHostOverrides(this, index);
 
-            var factory = new DistributedContentStoreFactory(arguments);
-
-            var store = factory.CreateContentStore(rootPath);
-            store.DisposeContentStoreFactory = true;
-            return store;
+            if (UseGrpcServer)
+            {
+                var server = (ILocalContentServer<IContentStore>)new CacheServerFactory(arguments).Create();
+                var store = ((MultiplexedContentStore)server.StoresByName["Default"]).PreferredContentStore;
+                return (store, server);
+            }
+            else
+            {
+                var factory = new DistributedContentStoreFactory(arguments);
+                var store = factory.CreateContentStore(rootPath);
+                store.DisposeContentStoreFactory = true;
+                return (store, null);
+            }
         }
 
         protected bool ConfigureWithRealEventHubAndStorage(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
@@ -704,6 +725,64 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        [Fact]
+        public async Task ProactiveCopyEvictionRejectionTest()
+        {
+            EnableProactiveReplication = false;
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
+            ProactiveCopyOnPuts = false;
+            UseGrpcServer = true;
+
+            ConfigureWithOneMaster(dcs => dcs.TouchFrequencyMinutes = 1);
+
+            var largeFileSize = Config.MaxSizeQuota.Hard / 2 + 1;
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 2,
+                iterations: 1,
+                implicitPin: ImplicitPin.None,
+                testFunc: async context =>
+                {
+                    var session0 = context.GetDistributedSession(0);
+                    var store0 = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(0);
+
+                    var session1 = context.GetDistributedSession(1);
+                    var store1 = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(1);
+
+                    var putResult0 = await session0.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
+                    var oldHash = putResult0.ContentHash;
+
+                    TestClock.Increment();
+
+                    // Put a large file.
+                    var putResult = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    // Put another large file, which should trigger eviction.
+                    // Last eviction should be newer than last access time of the old hash.
+                    var putResult2 = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
+
+                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
+                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication).ShouldBeSuccessAsync();
+                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+
+                    TestClock.UtcNow += TimeSpan.FromMinutes(2); // Need to increase to make checkpoints happen.
+
+                    // Bump last access time.
+                    await session0.PinAsync(context, oldHash, CancellationToken.None).ShouldBeSuccess();
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    // Copy should not be rejected.
+                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication).ShouldBeSuccessAsync();
+                    store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
+                });
+        }
+
         private LocalRedisProcessDatabase GetDatabase(Context context, ref int index, bool useDatabasePool = true)
         {
             if (!useDatabasePool)
@@ -1083,8 +1162,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        [Fact]
-        public async Task TestGetLruPages()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestGetHashesInEvictionOrder(bool reverse)
         {
             _overrideDistributed = s => s.Unsafe_DisableReconciliation = false;
             ConfigureWithOneMaster();
@@ -1104,17 +1185,48 @@ namespace ContentStoreTest.Distributed.Sessions
                                 DateTime.Now + TimeSpan.FromSeconds(2 * c.delay)))
                         .ToList();
 
-                    var lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
+                    if (reverse)
+                    {
+                        hashes = hashes.OrderBy(h => h.LastAccessTime).ToList();
+                    }
+
+                    var orderedHashes = master.LocalLocationStore.GetHashesInEvictionOrder(context, hashes, reverse).ToList();
 
                     var visitedHashes = new HashSet<ContentHash>();
+                    TimeSpan? lastAge = null;
+                    var ascendingAges = 0;
+                    var descendingAges = 0;
                     // All the hashes should be unique
-                    foreach (var hash in lruHashes)
+                    foreach (var hash in orderedHashes)
                     {
+                        if (lastAge != null)
+                        {
+                            if (lastAge < hash.EffectiveAge)
+                            {
+                                ascendingAges++;
+                            }
+                            else
+                            {
+                                descendingAges++;
+                            }
+                        }
+
+                        lastAge = hash.EffectiveAge;
                         visitedHashes.Add(hash.ContentHash).Should().BeTrue();
                     }
 
                     // GetLruPages returns not a fully ordered entries. Instead, it sporadically shufles some of them.
                     // This makes impossible to assert here that the result is fully sorted.
+                    // Because of this, we allow for some error.
+                    var threshold = (int)(count * 0.99);
+                    if (reverse)
+                    {
+                        ascendingAges.Should().BeGreaterThan(threshold);
+                    }
+                    else
+                    {
+                        descendingAges.Should().BeGreaterThan(threshold);
+                    }
 
                     await Task.Yield();
                 });

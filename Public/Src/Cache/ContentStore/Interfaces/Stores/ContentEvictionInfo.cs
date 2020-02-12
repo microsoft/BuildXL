@@ -82,6 +82,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             /// <nodoc />
             public static readonly AgeBucketingPrecedenceComparer Instance = new AgeBucketingPrecedenceComparer();
 
+            /// <nodoc />
+            public static readonly IComparer<ContentEvictionInfo> ReverseInstance = Comparer<ContentEvictionInfo>.Create((c1, c2) => Instance.Compare(c2, c1));
+
             /// <inheritdoc />
             public int Compare(ContentEvictionInfo x, ContentEvictionInfo y)
             {

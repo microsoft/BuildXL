@@ -32,6 +32,13 @@ using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 
 namespace BuildXL.Cache.ContentStore.Service
 {
+    /// <nodoc />
+    public interface ILocalContentServer<TStore> : IStartupShutdown
+    {
+        /// <nodoc />
+        IReadOnlyDictionary<string, TStore> StoresByName { get; }
+    }
+
     /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
@@ -42,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <typeparam name="TSession">
     ///     Type of sessions that will be created. Must match the store.
     /// </typeparam>
-    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>
+    public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>, ILocalContentServer<TStore>
         where TSession : IContentSession
         where TStore : IStartupShutdown
     {
@@ -85,10 +92,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        /// <remarks>
-        /// This is only supposed to be used by this class and inheritors, do not make internal or public.
-        /// </remarks>
-        protected readonly IReadOnlyDictionary<string, TStore> StoresByName;
+        public IReadOnlyDictionary<string, TStore> StoresByName { get; }
 
         /// <nodoc />
         protected LocalContentServerBase(

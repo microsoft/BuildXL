@@ -1256,7 +1256,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
             // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
 
-            var comparer = ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance;
+            var comparer = reverse
+                ? ContentEvictionInfo.AgeBucketingPrecedenceComparer.ReverseInstance
+                : ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance;
 
             IEnumerable<ContentEvictionInfo> getContentEvictionInfos(List<ContentHashWithLastAccessTimeAndReplicaCount> page) =>
                 GetEffectiveLastAccessTimes(

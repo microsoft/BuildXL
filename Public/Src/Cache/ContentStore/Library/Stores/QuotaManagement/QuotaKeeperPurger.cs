@@ -110,6 +110,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             var evictedContent = new List<ContentHash>();
             var distributedStore = _distributedEvictionSettings.DistributedStore;
+            TimeSpan? minEffectiveAge = null;
 
             foreach (var contentHashInfo in distributedStore.GetHashesInEvictionOrder(_context, _contentHashesWithInfo))
             {
@@ -129,12 +130,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 if (evictionResult.SuccessfullyEvictedHash)
                 {
                     evictedContent.Add(contentHashInfo.ContentHash);
+                    minEffectiveAge = minEffectiveAge < contentHashInfo.EffectiveAge ? minEffectiveAge : contentHashInfo.EffectiveAge;
                 }
 
                 _purgeResult.Merge(evictionResult);
             }
 
-            var unregisterResult = await distributedStore.UnregisterAsync(_context, evictedContent, _token);
+            var unregisterResult = await distributedStore.UnregisterAsync(_context, evictedContent, _token, minEffectiveAge);
             if (!unregisterResult)
             {
                 return unregisterResult;

@@ -647,6 +647,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool PushProactiveCopies { get; set; } = false;
 
         [DataMember]
+        public bool ProactiveCopyOnPut { get; set; } = true;
+
+        [DataMember]
         public bool ProactiveCopyOnPin { get; set; } = false;
 
         [DataMember]
@@ -654,6 +657,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
+
+        [DataMember]
+        public bool ProactiveCopyRejectOldContent { get; set; } = false;
 
         [DataMember]
         public int ProactiveReplicationCopyLimit { get; set; } = 5;

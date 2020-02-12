@@ -391,9 +391,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return;
             }
 
-            if (store.HasContentLocally(cacheContext, hash))
+            if (!store.CanAcceptContent(cacheContext, hash, out var rejectionReason))
             {
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
+                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped: {rejectionReason}");
                 await callContext.WriteResponseHeadersAsync(PushResponse.DontCopy.Metadata);
                 return;
             }

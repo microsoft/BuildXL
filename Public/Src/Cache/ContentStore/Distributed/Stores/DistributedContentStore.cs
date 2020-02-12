@@ -23,6 +23,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
@@ -33,6 +34,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler, IDeleteFileHandler
         where T : PathBase
     {
+        // Used for testing.
+        internal enum Counters
+        {
+            RejectedPushCopyCount_OlderThanEvicted
+        }
+
+        internal CounterCollection<Counters> CounterCollection { get; } = new CounterCollection<Counters>();
+
         /// <summary>
         /// The location of the local cache root
         /// </summary>
@@ -46,6 +55,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly bool _enableDistributedEviction;
         private readonly PinCache _pinCache;
         private readonly IClock _clock;
+
+        private DateTime? _lastEvictedEffectiveLastAccessTime;
 
         /// <summary>
         /// Flag for testing using local Redis instance.
@@ -464,7 +475,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool CanComputeLru => (_contentLocationStore as IDistributedLocationStore)?.CanComputeLru ?? false;
 
         /// <nodoc />
-        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token)
+        public Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token, TimeSpan? minEffectiveAge = null)
         {
             if (InnerContentStore is ILocalContentStore localContentStore)
             {
@@ -475,6 +486,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     Tracer.OperationDebug(context, $"Hashes not unregistered because they are still present in local store: [{string.Join(",", contentHashes.Except(filteredHashes))}]");
                     contentHashes = filteredHashes;
                 }
+            }
+
+            if (_settings.ProactiveCopyRejectOldContent && minEffectiveAge != null)
+            {
+                _lastEvictedEffectiveLastAccessTime = _clock.UtcNow - minEffectiveAge;
             }
 
             return _contentLocationStore.TrimBulkAsync(context, contentHashes, token, UrgencyHint.Nominal);
@@ -686,14 +702,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public bool HasContentLocally(Context context, ContentHash hash)
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
         {
             if (InnerContentStore is IPushFileHandler inner)
             {
-                return inner.HasContentLocally(context, hash);
+                if (!inner.CanAcceptContent(context, hash, out rejectionReason))
+                {
+                    return false;
+                }
             }
 
-            return false;
+            if (_settings.ProactiveCopyRejectOldContent)
+            {
+                var operationContext = OperationContext(context);
+                if (TryGetLocalLocationStore(out var lls))
+                {
+                    if (lls.Database.TryGetEntry(operationContext, hash, out var entry))
+                    {
+                        var effectiveLastAccessTimeResult =
+                            lls.GetEffectiveLastAccessTimes(operationContext, new ContentHashWithLastAccessTime[] { new ContentHashWithLastAccessTime(hash, entry.LastAccessTimeUtc.ToDateTime()) });
+                        if (effectiveLastAccessTimeResult)
+                        {
+                            var effectiveAge = effectiveLastAccessTimeResult.Value[0].EffectiveAge;
+                            var effectiveLastAccessTime = _clock.UtcNow - effectiveAge;
+                            if (_lastEvictedEffectiveLastAccessTime > effectiveLastAccessTime == true)
+                            {
+                                CounterCollection[Counters.RejectedPushCopyCount_OlderThanEvicted].Increment();
+                                rejectionReason = RejectionReason.OlderThanLastEvictedContent;
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            rejectionReason = RejectionReason.Accepted;
+            return true;
         }
     }
 }

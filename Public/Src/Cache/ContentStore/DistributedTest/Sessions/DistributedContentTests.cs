@@ -33,8 +33,9 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using ContentStoreTest.Stores;
-using ContentStoreTest.Sessions;
+using ContentStoreTest.Extensions;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
+using System.Diagnostics.ContractsLight;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -42,51 +43,61 @@ namespace ContentStoreTest.Distributed.Sessions
     {
         protected static readonly CancellationToken Token = CancellationToken.None;
         protected static readonly ContentStoreConfiguration Config = ContentStoreConfiguration.CreateWithMaxSizeQuotaMB(50);
+        protected bool UseGrpcServer;
 
         public MemoryClock TestClock { get; } = new MemoryClock();
 
         protected ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
 
-        protected abstract IContentStore CreateStore(
+        protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
-            TestFileCopier fileCopier,
+            IAbsolutePathFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
+            uint grpcPort,
             object additionalArgs);
 
         public class TestContext
         {
             public readonly Context Context;
             public readonly Context[] StoreContexts;
-            public readonly TestFileCopier FileCopier;
+            public readonly TestFileCopier TestFileCopier;
+            public readonly IAbsolutePathFileCopier FileCopier;
             public readonly IList<DisposableDirectory> Directories;
             public IList<IContentSession> Sessions { get; protected set; }
             public readonly IList<IContentStore> Stores;
+            public readonly IList<IStartupShutdown> Servers;
             public readonly int Iteration;
 
             public TestContext(TestContext other)
-                : this(other.Context, other.FileCopier, other.Directories, other.Stores, other.Iteration)
+                : this(other.Context, other.FileCopier, other.Directories, other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(), other.Iteration)
             {
             }
 
-            public TestContext(Context context, TestFileCopier fileCopier, IList<DisposableDirectory> directories, IList<IContentStore> stores, int iteration)
+            public TestContext(Context context, IAbsolutePathFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration)
             {
                 Context = context;
                 StoreContexts = stores.Select((s, index) => CreateContext(index, iteration)).ToArray();
+                TestFileCopier = fileCopier as TestFileCopier;
                 FileCopier = fileCopier;
                 Directories = directories;
-                Stores = stores;
+                Stores = stores.Select(s => s.store).ToList();
+                Servers = stores.Select(s => s.server ?? s.store).ToList();
                 Iteration = iteration;
 
-                for (int i = 0; i < Stores.Count; i++)
+                if (TestFileCopier != null)
                 {
-                    var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
-                    fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
-                    fileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
-                    fileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    for (int i = 0; i < Stores.Count; i++)
+                    {
+                        var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
+                        TestFileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                        TestFileCopier.DeleteHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    }
+
                 }
             }
 
@@ -102,7 +113,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public virtual async Task StartupAsync(ImplicitPin implicitPin)
             {
-                var startupResults = await TaskSafetyHelpers.WhenAll(Stores.Select(async (store, index) => await store.StartupAsync(StoreContexts[index])));
+                var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) => await server.StartupAsync(StoreContexts[index])));
 
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
 
@@ -133,11 +144,11 @@ namespace ContentStoreTest.Distributed.Sessions
 
             protected virtual async Task ShutdownStoresAsync()
             {
-                await TaskSafetyHelpers.WhenAll(Stores.Select(async (store, index) => await store.ShutdownAsync(StoreContexts[index])));
+                await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) => await server.ShutdownAsync(StoreContexts[index])));
 
-                foreach (var store in Stores)
+                foreach (var server in Servers)
                 {
-                    store.Dispose();
+                    server.Dispose();
                 }
             }
 
@@ -319,12 +330,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.True(putResult1.Succeeded);
 
                     // Case 1: Underreplicated file exists
-                    context.FileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileExists);
+                    context.TestFileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileExists);
                     var pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
                     Assert.Equal(PinResult.ResultCode.Success, pinResult.Code);
 
                     // Case 2: Underreplicated file does not exist
-                    context.FileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileNotFound);
+                    context.TestFileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileNotFound);
                     pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
                     Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Code);
 
@@ -334,12 +345,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.True(putResult2.Succeeded);
 
                     // Ensure both files don't exist from file copier's point of view to verify that existence isn't checked
-                    var priorExistenceCheckCount1 = context.FileCopier.GetExistenceCheckCount(localContentPath1);
+                    var priorExistenceCheckCount1 = context.TestFileCopier.GetExistenceCheckCount(localContentPath1);
 
                     // Should have checked existence already for content in session0 for Case1 and Case 2
                     Assert.Equal(2, priorExistenceCheckCount1);
 
-                    var priorExistenceCheckCount2 = context.FileCopier.GetExistenceCheckCount(localContentPath2);
+                    var priorExistenceCheckCount2 = context.TestFileCopier.GetExistenceCheckCount(localContentPath2);
                     Assert.Equal(0, priorExistenceCheckCount2);
 
                     pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
@@ -462,8 +473,8 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Delete file from local content store 0
                 var localContentPath = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult0.ContentHash);
                 File.Delete(localContentPath.Path);
-                context.FileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
-                context.FileCopier.FileExistenceByReturnCode.GetOrAdd(
+                context.TestFileCopier.FilesCopied.TryAdd(localContentPath, localContentPath);
+                context.TestFileCopier.FileExistenceByReturnCode.GetOrAdd(
                     localContentPath,
                     (_) =>
                     {
@@ -962,7 +973,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         openStreamResult.ShouldBeSuccess();
                         Assert.Equal(0, openStreamResult.Stream.Length);
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
                 });
         }
@@ -981,7 +992,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         await context.GetDistributedSession(0).PinAsync(context, VsoHashInfo.Instance.EmptyHash, Token).ShouldBeSuccess();
 
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
                 });
         }
@@ -1008,7 +1019,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         placeFileResult.ShouldBeSuccess();
                         Assert.Equal(0, placeFileResult.FileSize);
-                        Assert.Equal(0, context.FileCopier.FilesCopied.Count);
+                        Assert.Equal(0, context.TestFileCopier.FilesCopied.Count);
                     }
                 });
         }
@@ -1036,23 +1047,36 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 for (int iteration = 0; iteration < iterations; iteration++)
                 {
-                    var testFileCopier = outerContext?.FileCopier ?? new TestFileCopier()
+                    var testFileCopier = outerContext?.TestFileCopier ?? new TestFileCopier()
                     {
                         WorkingDirectory = indexedDirectories[0].Directory.Path
                     };
 
                     context.Always($"Starting test iteration {iteration}");
 
+                    var ports = UseGrpcServer ? Enumerable.Range(0, storeCount).Select(n => PortExtensions.GetNextAvailablePort()).ToArray() : new int[storeCount];
+                    IAbsolutePathFileCopier[] testFileCopiers;
+                    if (UseGrpcServer)
+                    {
+                        Contract.Assert(storeCount == 2, "Currently we can only handle two stores while using gRPC, because of copiers.");
+                        testFileCopiers = Enumerable.Range(0, 2).Select(i => new GrpcFileCopier(context, ports[i == 1 ? 0 : 1], maxGrpcClientCount: 1, maxGrpcClientAgeMinutes: 1)).ToArray();
+                    }
+                    else
+                    {
+                        testFileCopiers = Enumerable.Range(0, storeCount).Select(i => testFileCopier).ToArray();
+                    }
+
                     var stores = indexedDirectories.Select(
                         directory =>
                             CreateStore(
                                 context,
-                                testFileCopier,
+                                testFileCopiers[directory.Index],
                                 directory.Directory,
                                 directory.Index,
                                 enableDistributedEviction,
                                 replicaCreditInMinutes,
                                 enableRepairHandling,
+                                (uint)ports[directory.Index],
                                 additionalArgs)).ToList();
 
                     var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));

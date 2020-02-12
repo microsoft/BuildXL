@@ -169,6 +169,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
+        /// Whether to perform a proactive copy after putting a file.
+        /// </summary>
+        public bool ProactiveCopyOnPut { get; set; } = true;
+
+        /// <summary>
         /// Whether to perform a proactive copy after copying because of a pin.
         /// </summary>
         public bool ProactiveCopyOnPin { get; set; } = false;
@@ -192,6 +197,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
+
+        /// <summary>
+        /// Whether to reject push copies based on whether we've evicted something youger recently.
+        /// </summary>
+        public bool ProactiveCopyRejectOldContent { get; set; } = false;
 
         /// <summary>
         /// Whether to prioritize designated locations when copying.

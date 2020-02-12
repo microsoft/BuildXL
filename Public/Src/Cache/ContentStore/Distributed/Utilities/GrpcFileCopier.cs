@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             var segments = sourcePath.GetSegments();
             Contract.Assert(segments.Count >= 4);
 
-            var host = segments.First();
+            var host = sourcePath.IsLocal ? "localhost" : segments.First();
             var hashLiteral = segments.Last();
             if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension, StringComparison.OrdinalIgnoreCase))
             {

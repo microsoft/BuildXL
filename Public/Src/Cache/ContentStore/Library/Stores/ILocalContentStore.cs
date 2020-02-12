@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Unregisters <paramref name="contentHashes"/> for the current machine.
         /// </summary>
-        Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token);
+        Task<BoolResult> UnregisterAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken token, TimeSpan? minEffectiveAge = null);
 
         /// <summary>
         /// Computes content hashes with effective last access time sorted in LRU manner.

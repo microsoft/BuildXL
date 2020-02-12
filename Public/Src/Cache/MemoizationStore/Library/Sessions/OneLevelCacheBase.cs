@@ -334,13 +334,14 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public bool HasContentLocally(Context context, ContentHash hash)
+        public bool CanAcceptContent(Context context, ContentHash hash, out RejectionReason rejectionReason)
         {
             if (ContentStore is IPushFileHandler handler)
             {
-                return handler.HasContentLocally(context, hash);
+                return handler.CanAcceptContent(context, hash, out rejectionReason);
             }
 
+            rejectionReason = RejectionReason.NotSupported;
             return false;
         }
     }

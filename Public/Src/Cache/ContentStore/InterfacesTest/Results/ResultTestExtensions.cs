@@ -109,6 +109,15 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             return result;
         }
 
+        public static async Task<TResult> ShouldBeSuccessAsync<TResult>(this Task<TResult> task)
+            where TResult : ResultBase
+        {
+            var result = await task;
+            Assert.NotNull(result);
+            Assert.True(result.Succeeded, $"{typeof(TResult).Name} operation should succeed, but it failed. Error: {result.ErrorMessage}. Diagnostics: {result.Diagnostics}");
+            return result;
+        }
+
         public static async Task<TOut> SelectResult<TIn, TOut>(this Task<TIn> task, Func<TIn, TOut> select)
         {
             var input = await task;

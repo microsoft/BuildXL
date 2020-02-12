@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -54,7 +55,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            await _channel.ShutdownAsync();
+            // We had seen case, when the following call was blocked effectively forever.
+            // Adding external timeout to force a failure instead of waiting forever.
+            await _channel.ShutdownAsync().WithTimeoutAsync(TimeSpan.FromMinutes(5));
             return BoolResult.Success;
         }
 

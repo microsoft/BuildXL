@@ -13,6 +13,14 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 
 # Upcoming release
 
+# 0.1.0-20200207.4.1 (Release [55353](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55353)).  Released 2/13/2020
+- Detours plugin for substitute process execution
+- Plumb ctrl-c through to PlaceFilesAsync
+- Add unsafe options detail to cache miss analysis result
+- Add batch cache miss analysis kusto query 
+- Track paths used for weak fingerprint augmentation
+- Add new Dscript Api to Path: Path.createFromAbsolutePathString
+
 # 0.1.0-20200131.5.1 (Release [54373](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=54373)).  Released 2/05/2020
  - Re-enable `-TestMethod` and `-TestClass` in BuildXL selfhost
  - Make MSBuild resolver more robust

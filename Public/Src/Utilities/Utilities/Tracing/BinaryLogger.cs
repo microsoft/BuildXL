@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Utilities.Tracing
@@ -40,9 +42,10 @@ namespace BuildXL.Utilities.Tracing
         private readonly ConcurrentBigMap<AbsolutePath, bool> m_capturedPaths;
         private readonly ConcurrentBigMap<StringId, bool> m_capturedStrings;
         private readonly PipExecutionContext m_context;
+        private readonly Action m_onEventWritten;
 
         // Pending events queue.
-        private readonly BlockingCollection<PooledObjectWrapper<EventWriter>> m_pendingEvents = new BlockingCollection<PooledObjectWrapper<EventWriter>>();
+        private readonly BlockingCollection<IQueuedAction> m_pendingEvents = new BlockingCollection<IQueuedAction>();
         private readonly Thread m_pendingEventsDrainingThread;
 
         // RW lock that allows for safe disposal of pending events queue.
@@ -76,6 +79,7 @@ namespace BuildXL.Utilities.Tracing
             m_writerPool = new ObjectPool<EventWriter>(
                 () => new EventWriter(this),
                 writer => { writer.Seek(0, SeekOrigin.Begin); return writer; });
+            m_onEventWritten = onEventWritten;
 
             var logIdBytes = logId.ToByteArray();
             Contract.Assert(logIdBytes.Length == LogIdByteLength);
@@ -87,12 +91,9 @@ namespace BuildXL.Utilities.Tracing
                 {
                     try
                     {
-                        foreach (PooledObjectWrapper<EventWriter> wrapper in m_pendingEvents.GetConsumingEnumerable())
+                        foreach (IQueuedAction action in m_pendingEvents.GetConsumingEnumerable())
                         {
-                            var eventWriter = wrapper.Instance;
-                            WriteEventData(eventWriter);
-                            m_writerPool.PutInstance(wrapper);
-                            onEventWritten?.Invoke();
+                            action.Run();
                         }
                     }
                     catch (InvalidOperationException)
@@ -109,7 +110,7 @@ namespace BuildXL.Utilities.Tracing
             m_pendingEventsDrainingThread.Start();
         }
 
-        private void WriteEventData(EventWriter eventWriter)
+        private void WriteEventDataAndReturnWriter(EventWriter eventWriter)
         {
             m_logStreamWriter.WriteCompact(eventWriter.EventId);
             m_logStreamWriter.WriteCompact(eventWriter.WorkerId);
@@ -118,6 +119,23 @@ namespace BuildXL.Utilities.Tracing
             var eventPayloadStream = (MemoryStream)eventWriter.BaseStream;
             m_logStreamWriter.WriteCompact((int)eventPayloadStream.Position);
             m_logStreamWriter.Write(eventPayloadStream.GetBuffer(), 0, (int)eventPayloadStream.Position);
+
+            m_writerPool.PutInstance(eventWriter);
+            m_onEventWritten?.Invoke();
+        }
+
+        /// <summary>
+        /// Waits for flush of all pending events to the underlying stream
+        /// </summary>
+        public Task FlushAsync()
+        {
+            // There are event still being processed. Ensure they are all sent 
+            // before flushing the underlying stream, by adding a flush event
+            // which will be trigger when current pending events are processed
+            // and the underlying stream has been flushed.
+            var flushAction = new FlushAction(this);
+            QueueAction(flushAction);
+            return flushAction.Completion;
         }
 
         /// <summary>
@@ -136,29 +154,29 @@ namespace BuildXL.Utilities.Tracing
             return new EventScope(GetEventWriterWrapper((uint)eventId, workerId: 0));
         }
 
-        private PooledObjectWrapper<EventWriter> GetEventWriterWrapper(uint eventId, uint workerId)
+        private EventWriter GetEventWriterWrapper(uint eventId, uint workerId)
         {
-            var writerWrapper = m_writerPool.GetInstance();
-            writerWrapper.Instance.EventId = eventId;
-            writerWrapper.Instance.WorkerId = workerId;
-            writerWrapper.Instance.Timestamp = m_watch.Elapsed.Ticks;
-            return writerWrapper;
+            var writer = m_writerPool.GetInstance().Instance;
+            writer.EventId = eventId;
+            writer.WorkerId = workerId;
+            writer.Timestamp = m_watch.Elapsed.Ticks;
+            return writer;
         }
 
-        private void ReturnEventWriteWrapper(PooledObjectWrapper<EventWriter> writerWrapper)
+        private void QueueAction(IQueuedAction action)
         {
             using (m_eventQueueLock.AcquireReadLock())
             {
                 // Event queue is not disposed yet, so we can safely use it.
                 if (!m_eventQueueDisposed)
                 {
-                    m_pendingEvents.Add(writerWrapper);
+                    m_pendingEvents.Add(action);
                 }
                 else
                 {
                     // Event writer's stream is disposed at this point, so this event can't be logged.
                     // We can only return writer to its pool here.
-                    writerWrapper.Dispose();
+                    action.Dispose();
                 }
             }
         }
@@ -250,19 +268,17 @@ namespace BuildXL.Utilities.Tracing
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
         public struct EventScope : IDisposable
         {
-            private readonly PooledObjectWrapper<EventWriter> m_writerWrapper;
-
             /// <summary>
             /// The writer for writing event data
             /// </summary>
-            public EventWriter Writer => m_writerWrapper.Instance;
+            public EventWriter Writer { get; }
 
             /// <summary>
             /// Class constructor. INTERNAL USE ONLY.
             /// </summary>
-            internal EventScope(PooledObjectWrapper<EventWriter> writerWrapper)
+            internal EventScope(EventWriter writer)
             {
-                m_writerWrapper = writerWrapper;
+                Writer = writer;
             }
 
             /// <summary>
@@ -270,14 +286,47 @@ namespace BuildXL.Utilities.Tracing
             /// </summary>
             public void Dispose()
             {
-                Writer.Logger.ReturnEventWriteWrapper(m_writerWrapper);
+                Writer.Logger.QueueAction(Writer);
+            }
+        }
+
+        private interface IQueuedAction : IDisposable
+        {
+            void Run();
+        }
+
+        private class FlushAction : IQueuedAction
+        {
+            private readonly TaskSourceSlim<Unit> m_taskSource = TaskSourceSlim.Create<Unit>();
+            private readonly BinaryLogger m_binaryLogger;
+
+            public FlushAction(BinaryLogger binaryLogger)
+            {
+                m_binaryLogger = binaryLogger;
+            }
+
+            public Task Completion => m_taskSource.Task;
+
+            public void Run()
+            {
+                // Flush the base stream as a part of running this action
+                m_binaryLogger.m_logStreamWriter.BaseStream.Flush();
+
+                // Then signal completion
+                m_taskSource.TrySetResult(Unit.Void);
+            }
+
+            public void Dispose()
+            {
+                // Also complete the action on Dispose()
+                Run();
             }
         }
 
         /// <summary>
         /// An extended BuildXL writer that can write primitive BuildXL values.
         /// </summary>
-        public sealed class EventWriter : BuildXLWriter
+        public sealed class EventWriter : BuildXLWriter, IQueuedAction
         {
             internal uint EventId;
             internal long Timestamp;
@@ -361,7 +410,11 @@ namespace BuildXL.Utilities.Tracing
 
                 WriteCompact(result.Index);
             }
-            
+
+            void IQueuedAction.Run()
+            {
+                m_logWriter.WriteEventDataAndReturnWriter(this);
+            }
         }
     }
 }

@@ -137,7 +137,7 @@ namespace BuildXL.Engine.Distribution
         /// Handler for the 'work completion' notification from worker.
         /// </summary>
         [SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid", Justification = "This is eventhandler so fire&forget is understandable")]
-        public async void ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
+        public async Task ReceivedWorkerNotificationAsync(WorkerNotificationArgs notification)
         {
             var worker = GetWorkerById(notification.WorkerId);
 

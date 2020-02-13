@@ -1061,6 +1061,14 @@ namespace BuildXL.Scheduler
         RemoteWorker_AwaitExecutionBlobCompletionDuration,
 
         /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ProcessExecutionLogDuration,
+
+        /// <nodoc/>
+        [CounterType(CounterType.Stopwatch)]
+        RemoteWorker_ProcessExecutionLogWaitDuration,
+
+        /// <nodoc/>
         RemoteWorker_EarlyReleaseDrainDurationMs,
 
         /// <nodoc/>

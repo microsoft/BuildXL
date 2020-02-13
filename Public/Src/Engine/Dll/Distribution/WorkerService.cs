@@ -44,7 +44,7 @@ namespace BuildXL.Engine.Distribution
     /// </remarks>
     public sealed partial class WorkerService : IDistributionService
     {
-#region Writer Pool
+        #region Writer Pool
 
         private readonly ObjectPool<BuildXLWriter> m_writerPool = new ObjectPool<BuildXLWriter>(CreateWriter, (Action<BuildXLWriter>)CleanupWriter);
 
@@ -63,7 +63,7 @@ namespace BuildXL.Engine.Distribution
                 logStats: false);
         }
 
-#endregion Writer Pool
+        #endregion Writer Pool
 
         private readonly List<ExtendedPipCompletionData> m_executionResultList = new List<ExtendedPipCompletionData>();
 
@@ -104,7 +104,7 @@ namespace BuildXL.Engine.Distribution
         public uint WorkerId { get; private set; }
 
         private volatile bool m_hasFailures = false;
-        private volatile string m_masterFailureMessage; 
+        private volatile string m_masterFailureMessage;
 
         /// <summary>
         /// Whether master is done with the worker by sending a message to worker.
@@ -127,7 +127,7 @@ namespace BuildXL.Engine.Distribution
         private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
 
         private readonly Thread m_sendThread;
-        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
+        private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData>();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
         private IMasterClient m_masterClient;
@@ -180,9 +180,23 @@ namespace BuildXL.Engine.Distribution
                     m_executionResultList.Add(item);
                 }
 
+                // Ensure all execution log events are flushed before reporting pip results to master
+                // to ensure dependency ordering constraints between pips are maintained inside combined
+                // execution log on master.
+                // NOTE: Actual wait for result is below to allow other serialization of execution results
+                // to run in parallel with flush.
+                var flushExecutionLogTask = EngineEnvironmentSettings.InlineWorkerXLGHandling
+                    ? m_notifyMasterExecutionLogTarget.FlushAsync()
+                    : Task.CompletedTask;
+
                 using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerServiceResultSerializationDuration))
                 {
                     Parallel.ForEach(m_executionResultList, a => SerializeExecutionResult(a));
+                }
+
+                using (m_services.Counters.StartStopwatch(DistributionCounter.WorkerFlushExecutionLogDuration))
+                {
+                    flushExecutionLogTask.GetAwaiter().GetResult();
                 }
 
                 using (m_services.Counters.StartStopwatch(DistributionCounter.ReportPipsCompletedDuration))
@@ -391,7 +405,7 @@ namespace BuildXL.Engine.Distribution
                 m_appLoggingContext);
 
             m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
-            
+
             WorkerId = BuildStartData.WorkerId;
 
             m_attachCompletionSource.TrySetResult(true);
@@ -730,7 +744,7 @@ namespace BuildXL.Engine.Distribution
                             new AbsolutePath(bondDirectoryArtifact.DirectoryPathValue),
                             bondDirectoryArtifact.DirectorySealId,
                             bondDirectoryArtifact.IsDirectorySharedOpaque);
-                        
+
                         if (!dynamicDirectoryMap.TryGetValue(directory, out var files))
                         {
                             files = new List<FileArtifact>();
@@ -934,14 +948,14 @@ namespace BuildXL.Engine.Distribution
                 }
             }
 
-#region IDisposable Members
+            #region IDisposable Members
 
             public void Dispose()
             {
                 m_statusReporter.Dispose();
             }
 
-#endregion
+            #endregion
         }
     }
 }

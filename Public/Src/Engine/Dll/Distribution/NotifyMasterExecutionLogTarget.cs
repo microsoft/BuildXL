@@ -3,9 +3,12 @@
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine.Distribution
@@ -16,15 +19,33 @@ namespace BuildXL.Engine.Distribution
     public class NotifyMasterExecutionLogTarget : ExecutionLogFileTarget
     {
         private volatile bool m_isDisposed = false;
+        private readonly BinaryLogger m_logger;
 
         internal NotifyMasterExecutionLogTarget(uint workerId, IMasterClient masterClient, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex, DistributionServices services)
-            : this(new NotifyStream(workerId, masterClient, services), context, logId, lastStaticAbsolutePathIndex)
+            : this(CreateBinaryLogger(new NotifyStream(workerId, masterClient, services), context, logId, lastStaticAbsolutePathIndex))
         {
         }
 
-        private NotifyMasterExecutionLogTarget(NotifyStream stream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
-            : base(new BinaryLogger(stream, context, logId, lastStaticAbsolutePathIndex, closeStreamOnDispose: true, onEventWritten: () => stream.FlushIfNeeded()), closeLogFileOnDispose: true)
+        private NotifyMasterExecutionLogTarget(BinaryLogger logger)
+            : base(logger, closeLogFileOnDispose: true)
         {
+            m_logger = logger;
+        }
+
+        private static BinaryLogger CreateBinaryLogger(NotifyStream stream, PipExecutionContext context, Guid logId, int lastStaticAbsolutePathIndex)
+        {
+            return new BinaryLogger(
+                stream,
+                context,
+                logId,
+                lastStaticAbsolutePathIndex,
+                closeStreamOnDispose: true,
+                onEventWritten: () => stream.FlushIfNeeded());
+        }
+
+        internal Task FlushAsync()
+        {
+            return m_logger.FlushAsync();
         }
 
         /// <inheritdoc />
@@ -64,7 +85,7 @@ namespace BuildXL.Engine.Distribution
             /// <summary>
             /// If deactivated, functions stop writing or flushing <see cref="m_eventDataBuffer"/>.
             /// </summary>
-            private bool IsDeactivated = false;
+            private bool m_isDeactivated = false;
 
             public override bool CanRead => false;
 
@@ -89,7 +110,7 @@ namespace BuildXL.Engine.Distribution
 
             public override void Flush()
             {
-                if (IsDeactivated)
+                if (m_isDeactivated || m_eventDataBuffer.Length == 0)
                 {
                     return;
                 }
@@ -113,7 +134,7 @@ namespace BuildXL.Engine.Distribution
                     if (!callResult.Succeeded)
                     {
                         // Deactivate so that no further writes are sent to the master.
-                        IsDeactivated = true;
+                        m_isDeactivated = true;
                     }
                 }
             }
@@ -147,7 +168,7 @@ namespace BuildXL.Engine.Distribution
 
             public override void Write(byte[] buffer, int offset, int count)
             {
-                if (IsDeactivated)
+                if (m_isDeactivated)
                 {
                     return;
                 }

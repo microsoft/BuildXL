@@ -54,6 +54,12 @@ namespace BuildXL.Engine.Distribution
         [CounterType(CounterType.Stopwatch)]
         WorkerServiceResultSerializationDuration,
 
+        /// <summary>
+        /// Time spent flushing the execution log before sending pip results
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        WorkerFlushExecutionLogDuration,
+
         /// <nodoc/>
         BuildResultBatchesSentToMaster,
 

@@ -117,6 +117,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> SkipExtraneousPins = CreateSetting("BuildXLSkipExtraneousPins", value => value == "1");
 
         /// <summary>
+        /// Specifies whether remote workers should inline and block waiting for execution log notification messages sent to master to be processed.
+        /// </summary>
+        public static readonly Setting<bool> InlineWorkerXLGHandling = CreateSetting("BuildXLInlineWorkerXLGHandling", value => value == "1");
+
+        /// <summary>
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities 
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.

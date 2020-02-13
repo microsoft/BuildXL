@@ -37,6 +37,8 @@ namespace MsBuild {
             "Test.BuildXL.FrontEnd.MsBuild",
         ],
         runtimeContent: [
+            // CODESYNC: \Public\Src\IDE\VsCode\BuildXL.IDE.VsCode.dsc 
+            // We exclude the VbCsCompiler from the VsCode extension to save space.
             {
                 subfolder: r`tools/vbcslogger/net472`,
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger

@@ -1247,7 +1247,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 }
                                 else
                                 {
-                                    insideRingCopyTask = Task.FromResult(new BoolResult("Could not find any machines belonging to the build ring."));
+                                    insideRingCopyTask = Task.FromResult(new BoolResult($"Could not find any machines belonging to the build ring for build {_buildId}."));
                                 }
                             }
                             else

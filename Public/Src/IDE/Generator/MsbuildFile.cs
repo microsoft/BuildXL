@@ -165,7 +165,7 @@ namespace BuildXL.Ide.Generator
 
         internal abstract void VisitProcess(Process process, ProcessType pipCategory);
 
-        internal void AddSourceItem(AbsolutePath path, Project project, string tag)
+        internal void AddSourceItem(AbsolutePath path, Project project, string tag, bool linkToGeneratedFolder = false)
         {
             var item = project.AddItem(tag, path);
             if (!Context.CanWriteToSrc)
@@ -177,6 +177,10 @@ namespace BuildXL.Ide.Generator
                 {
                     item.SetMetadata("Link", relativePath.ToString(Context.StringTable));
                 }
+            }
+            else if (linkToGeneratedFolder)
+            {
+                item.SetMetadata("Link", System.IO.Path.Combine(".generated", path.GetName(Context.PathTable).ToString(Context.StringTable)));
             }
         }
 

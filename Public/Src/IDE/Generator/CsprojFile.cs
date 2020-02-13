@@ -285,7 +285,9 @@ namespace BuildXL.Ide.Generator
                     if (!path.IsWithin(Context.PathTable, Path.GetParent(Context.PathTable)) 
                         && path.ToString(Context.PathTable).EndsWith(".cs"))
                     {
-                        AddSourceItem(path, project, "Compile");
+                        // Assume these files are generated. We could pass the pip and check the inputs to be sure
+                        // but this is a good enough approximation for now.
+                        AddSourceItem(path, project, "Compile", linkToGeneratedFolder: true);
                     }
                 }
                 else if (type == PipFragmentType.StringLiteral)

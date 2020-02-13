@@ -16,7 +16,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\t\\t\\tc#NUM#w#NUM#tm#NUM#zwwmwva#NUM#ye#NUM#grpcn#NUM#yz#NUM#\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
           ],
           "SessionUri": "https://b/build/893bd151-fbb7-1bc0-c5e1-0f28f4f657e2",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2020-03-14T19:01:03.0632939Z"
         }
       },
       "Metadata": {

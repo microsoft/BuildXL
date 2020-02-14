@@ -120,7 +120,7 @@ function runTest(args : TestRunArguments) : File[] {
         // user can add "." at the end of the testclass to get the exact match.
         let methodAndClassfilterArgs = [
             ...(testMethod ? ["FullyQualifiedName="+testMethod,] : []),
-            ...(testClass ? ["FullyQualifiedName="+testClass,] : []),
+            ...(testClass ? ["DisplayName~"+testClass,] : []),
         ];
         filterArgs = [methodAndClassfilterArgs.join("|")];
     } else if (args.parallelGroups && args.parallelGroups.length > 0) {

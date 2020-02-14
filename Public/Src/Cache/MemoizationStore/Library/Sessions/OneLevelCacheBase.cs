@@ -225,11 +225,23 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             return GetStatsCall<Tracer>.RunAsync(Tracer, new OperationContext(context), () => StatsAsync(context));
         }
 
+        private Task<GetStatsResult> GetStatsResultCoreAsync<T>(T source, Func<T, Task<GetStatsResult>> getStats) where T : class
+        {
+            if (source is null)
+            {
+                return Task.FromResult(new GetStatsResult(new CounterSet()));
+            }
+
+            return getStats(source);
+        }
+
         private async Task<GetStatsResult> StatsAsync(Context context)
         {
             var counters = new CounterSet();
 
-            var statsResult = await ContentStore.GetStatsAsync(context).ConfigureAwait(false);
+            // Both ContentStore and MemoizationStore may be null if startup failed.
+            // Using a helper function to avoid NRE.
+            var statsResult = await GetStatsResultCoreAsync(ContentStore, store => store.GetStatsAsync(context)).ConfigureAwait(false);
 
             if (!statsResult.Succeeded)
             {
@@ -238,7 +250,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
             counters.Merge(statsResult.CounterSet);
 
-            statsResult = await MemoizationStore.GetStatsAsync(context).ConfigureAwait(false);
+            statsResult = await GetStatsResultCoreAsync(MemoizationStore, store => store.GetStatsAsync(context)).ConfigureAwait(false);
 
             if (!statsResult.Succeeded)
             {

@@ -282,10 +282,41 @@ namespace BuildXL.Execution.Analyzer
                     writer.WriteEndObject();
                 }
 
+                writer.WritePropertyName("TopFilesConsumedByFailedPips");
+                {
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("FailedPipsConsumedDirectly");
+                    WriteConsumerMap(writer, failedPipDirectDepsOnly: true);
+
+                    writer.WritePropertyName("ConsumedByFailedAndFailedDependencies");
+                    WriteConsumerMap(writer, failedPipDirectDepsOnly: false);
+                    writer.WriteEndObject();
+                }
+
                 writer.WriteEndObject();
             }
 
             return 0;
+        }
+
+        private void WriteConsumerMap(JsonWriter writer, bool failedPipDirectDepsOnly)
+        {
+            writer.WriteStartArray();
+
+            foreach (var item in m_fileToConsumerMap
+                                    .Select(kvp => new KeyValuePair<AbsolutePath, int>(kvp.Key, failedPipDirectDepsOnly ? kvp.Value.Intersect(m_failedPips).Count() : kvp.Value.Count))
+                                    .OrderByDescending(kvp => kvp.Value)
+                                    .Take(50))
+            {
+                writer.WriteStartObject();
+                writer.WritePropertyName("ConsumerCount");
+                writer.WriteValue(item.Value);
+                writer.WritePropertyName("Path");
+                writer.WriteValue(item.Key.ToString(PathTable));
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
         }
 
         private string ToDisplayString(PipId pipId)

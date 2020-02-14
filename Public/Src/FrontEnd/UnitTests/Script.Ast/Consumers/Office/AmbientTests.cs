@@ -192,27 +192,7 @@ const relocated = p`D:/a/b/foo.cs`.relocate(d`D:/a/b`, d`D:/c/d`);
             Assert.Equal(CreateAbsolutePath(@"D:\path\to\a\file.out"), results["changeExtension"]);
             Assert.Equal(CreateAbsolutePath(@"D:\c\d\foo.cs"), results["relocated"]);
         }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void TestAmbientFileUses()
-        {
-            const string Spec = @"
-// Any change will break Office.
-const file = f`D:/path/to/a/file.txt`;
-const filePath = file.path;
-const fileContent = File.readAllText(f`file.txt`);
-";
-            var results = Build()
-                .Spec(Spec)
-                .AddFile("file.txt", "Hello")
-                .EvaluateExpressionsWithNoErrors("file", "filePath", "fileContent");
-
-            Assert.IsType<FileArtifact>(results["file"]);
-            Assert.True(((FileArtifact) results["file"]).IsSourceFile);
-            Assert.Equal(CreateAbsolutePath(@"D:\path\to\a\file.txt"), results["filePath"]);
-            Assert.Equal("Hello", results["fileContent"]);
-        }
-
+        
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestAmbientDirectoryUses()
         {

@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
@@ -336,6 +337,41 @@ namespace BuildXL.Engine
             m_snapshotCollector?.RecordFile(path);
 
             return RetrieveAndTrackFileAsync(physicalPath);
+        }
+
+        /// <inheritdoc />
+        public override Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path)
+        {
+            // There is a big problem with the logic in this file.
+            // It is not using the IFileSystem to access the file because that doesn't have any way to get file handles,
+            // so there wouldn't be a way to synchroneously track files for graph caching without massive refactorings.
+            // Therefore any code dpeendent on this can't use the memory filesystem of unittests.
+
+            try
+            {
+                var physicalPath = path.ToString(PathTable, PathFormat.HostOs);
+                using (
+                    FileStream fs = FileUtilities.CreateFileStream(
+                        physicalPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Delete | FileShare.Read))
+                using (var reader = new BinaryReader(fs))
+                {
+
+                    var bytes = reader.ReadBytes((int)fs.Length);
+                    var contentHash = ContentHashingUtilities.HashBytes(bytes);
+
+                    m_snapshotCollector?.RecordFile(path);
+                    m_inputTracker.RegisterAccessAndTrackFile(fs.SafeFileHandle, physicalPath, contentHash);
+
+                    return Encoding.UTF8.GetString(bytes); // File.ReadAllText defaults to UTF8 too.
+                }
+            }
+            catch (Exception e)
+            {
+                return new RecoverableExceptionFailure(new BuildXLException(e.Message, e));
+            }
         }
 
         /// <inheritdoc />

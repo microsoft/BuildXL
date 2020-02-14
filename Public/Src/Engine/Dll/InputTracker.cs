@@ -14,10 +14,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Tracing;
 using BuildXL.Native.IO;
-using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Fingerprints;
@@ -467,6 +465,15 @@ namespace BuildXL.Engine
                 m_unchangedPaths != null && m_unchangedPaths.ContainsKey(path),
                 "File was not already tracked. It may not be registered with this method");
 
+            RegisterFile(path, hash);
+        }
+
+        /// <summary>
+        /// Registers access to a file and trakcs the access.
+        /// </summary>
+        public void RegisterAccessAndTrackFile(SafeFileHandle handle, string path, ContentHash hash)
+        {
+            Analysis.IgnoreResult(FileChangeTracker.TryTrackChangesToFile(handle, path));
             RegisterFile(path, hash);
         }
 

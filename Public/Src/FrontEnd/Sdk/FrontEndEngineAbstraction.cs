@@ -83,6 +83,11 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract Task<Possible<FileContent, RecoverableExceptionFailure>> GetFileContentAsync(AbsolutePath path);
 
         /// <summary>
+        /// Reads file in a synchronously. Only use in cases where really needed.
+        /// </summary>
+        public abstract Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path);
+
+        /// <summary>
         /// Determines whether the specified file exists
         /// </summary>
         public abstract bool FileExists(AbsolutePath path);

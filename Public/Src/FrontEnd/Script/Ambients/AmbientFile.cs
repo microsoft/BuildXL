@@ -67,10 +67,22 @@ namespace BuildXL.FrontEnd.Script.Ambients
                         I($"Failed reading '{file.Path.ToString(context.PathTable)}' because the file is not a source file")));
             }
 
-            var possibleContent = context.FrontEndHost.Engine.GetFileContentAsync(file.Path).GetAwaiter().GetResult();
+            // This is a total HACK.
+            // Unfortunately we are forced to use synchronous IO here and blast a hack through to the engine to ensure this file is
+            // tracked for graph caching. The reason is that we use Task.Run to spawn frontend threads and for larger builds we can have
+            // saturated the threadpool. So when during evaluation we perform IO there is no thread available to continue the work once the
+            // OS returns the data. We have a mode where do use an ActionBlock ActionBlock to schedule the work. This can be turned on via `/enableEvaluationThrottling+`
+            // but this was never made the default because measuring at the time resulted in about a 2x slowdown for the office build.
+            // Since AB testing will take a long time since we need to get averages of metabuild duration now that most evaluation happens there.
+            // So to unblock for now we will perform synchronous IO :(
+
+            // There is also another small problem with this change. It is not using the IFileSystem to access the file because that doesn't have any way to get
+            // file handles, so the memory filesystem of unittests won't function.
+
+            var possibleContent = context.FrontEndHost.Engine.GetFileContentSynchronous(file.Path);
             if (possibleContent.Succeeded)
             {
-                return EvaluationResult.Create(possibleContent.Result.GetContentAsString());
+                return EvaluationResult.Create(possibleContent.Result);
             }
 
             throw new FileOperationException(

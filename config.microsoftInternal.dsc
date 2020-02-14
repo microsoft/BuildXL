@@ -56,7 +56,7 @@ export const pkgs = isMicrosoftInternal ? [
 
 ];
 
-// This contains facade modules for the packages that are only availalbe internally
+// This contains facade modules for the packages that are only available internally
 export const resolver = {
     kind: "SourceResolver",
     modules: [

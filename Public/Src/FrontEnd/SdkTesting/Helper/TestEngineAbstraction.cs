@@ -81,6 +81,12 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         }
 
         /// <inheritdoc />
+        public override Possible<string, RecoverableExceptionFailure> GetFileContentSynchronous(AbsolutePath path)
+        {
+            return File.ReadAllText(path.ToString(m_pathTable));
+        }
+
+        /// <inheritdoc />
         public override bool FileExists(AbsolutePath path)
         {
             return m_fileSystem.Exists(path);

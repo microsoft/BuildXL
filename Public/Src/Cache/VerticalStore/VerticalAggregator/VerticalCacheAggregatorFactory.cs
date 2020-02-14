@@ -82,6 +82,12 @@ namespace BuildXL.Cache.VerticalAggregator
             /// </summary>
             [DefaultValue(false)]
             public bool RemoteContentIsReadOnly { get; set; }
+
+            /// <summary>
+            /// Create only the local cache.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool UseLocalOnly { get; set; }
         }
 
         /// <inheritdoc />
@@ -121,6 +127,11 @@ namespace BuildXL.Cache.VerticalAggregator
                 {
                     Analysis.IgnoreResult(await local.ShutdownAsync(), justification: "Okay to ignore shutdown status");
                     return eventing.StopFailure(new VerticalCacheAggregatorNeedsWriteableLocalFailure(local.CacheId));
+                }
+
+                if (cacheAggregatorConfig.UseLocalOnly)
+                {
+                    return eventing.Returns(Possible.Create(local));
                 }
 
                 maybeCache = await CacheFactory.InitializeCacheAsync(cacheAggregatorConfig.RemoteCache, activityId);

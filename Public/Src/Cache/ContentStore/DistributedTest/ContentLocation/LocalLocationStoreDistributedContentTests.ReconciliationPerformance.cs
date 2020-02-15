@@ -24,17 +24,8 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace ContentStoreTest.Distributed.Sessions
 {
-    [Trait("Category", "Integration")]
-    [Trait("Category", "LongRunningTest")]
-    [Collection("Redis-based tests")]
-    public class ReconciliationPerformanceTests : LocalLocationStoreDistributedContentTests
+    public partial class LocalLocationStoreDistributedContentTests
     {
-        /// <nodoc />
-        public ReconciliationPerformanceTests(LocalRedisFixture redis, ITestOutputHelper output)
-            : base(redis, output)
-        {
-        }
-
         [Fact(Skip = "For manual testing only")]
         public async Task MimicReconciliationWithFullDatabaseEnumerationByKeys()
         {
@@ -104,7 +95,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     var master = context.GetMaster();
                     var worker = context.GetFirstWorker();
-                    var workerId = worker.LocalLocationStore.LocalMachineId;
+                    var workerId = worker.LocalLocationStore.ClusterState.PrimaryMachineId;
 
                     var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
 
@@ -115,7 +106,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         DateTime.Now);
                     // Next heartbeat workers to restore checkpoint
                     await worker.LocalLocationStore.ProcessStateAsync(new OperationContext(context), checkpointState, inline: true, forceRestore: true).ShouldBeSuccess();
-                    var reconcileResult = await worker.LocalLocationStore.ReconcileAsync(context).ShouldBeSuccess();
+                    var reconcileResult = await worker.ReconcileAsync(context).ShouldBeSuccess();
                     Output.WriteLine($"Reconcile result: {reconcileResult}");
                 });
         }

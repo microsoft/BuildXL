@@ -847,14 +847,14 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 new RedisContentLocationStoreConfiguration()
                 {
                     Database = new RocksDbContentLocationDatabaseConfiguration(path)
-                });
+                },
+                copier: null // NOT USED
+                );
 
-            var r = await storeFactory.StartupAsync(context);
-            r.ShouldBeSuccess();
+            await storeFactory.StartupAsync(context).ShouldBeSuccess();
 
-            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"));
-            r = await store.StartupAsync(context);
-            r.ShouldBeSuccess();
+            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"), localContentStore: null /* Not used */);
+            await store.StartupAsync(context).ShouldBeSuccess();
 
             await store.GarbageCollectAsync(new OperationContext(context)).ShouldBeSuccess();
 
@@ -875,6 +875,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             var path = new AbsolutePath(XunitBuildXLTest.X("/D/Dumps/CacheDump"));
 
+            // copier should not be used by this test.
+            BuildXL.Cache.ContentStore.Distributed.Stores.IDistributedContentCopier copier = null;
             var storeFactory = new RedisContentLocationStoreFactory(
                 new EnvironmentConnectionStringProvider("TestConnectionString"),
                 new EnvironmentConnectionStringProvider("TestConnectionString2"),
@@ -884,15 +886,14 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 new RedisContentLocationStoreConfiguration()
                 {
                     Database = new RocksDbContentLocationDatabaseConfiguration(path)
-                }
-                );
+                },
+                copier: copier);
 
-            var r = await storeFactory.StartupAsync(context);
-            r.ShouldBeSuccess();
+            await storeFactory.StartupAsync(context).ShouldBeSuccess();
 
-            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"));
-            r = await store.StartupAsync(context);
-            r.ShouldBeSuccess();
+            // localContentStore should not be used by this test.
+            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"), localContentStore: null);
+            await store.StartupAsync(context).ShouldBeSuccess();
 
             await store.GetRedisInfoAsync(new OperationContext(context)).ShouldBeSuccess();
 
@@ -1044,7 +1045,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                     using (var hasher = HashInfoLookup.Find(HashType.SHA256).CreateContentHasher())
                     {
                         string expectedLocalMachineDataHash =
-                            Convert.ToBase64String(hasher.GetContentHash(expectedLocalMachineData).ToHashByteArray());
+                            Convert.ToBase64String(hasher.GetContentHash(expectedLocalMachineData.Data).ToHashByteArray());
                         RedisValue redisValue = await storeFactory.MachineLocationRedisDatabase.StringGetAsync(
                                 GetKey($"{RedisContentLocationStoreConstants.ContentLocationKeyPrefix}{expectedLocalMachineDataHash}"));
 
@@ -1057,7 +1058,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                         redisValue.Should().NotBe(RedisValue.Null);
 
                         byte[] foundMachineLocation = redisValue;
-                        foundMachineLocation.Should().Equal(expectedLocalMachineData);
+                        foundMachineLocation.Should().Equal(expectedLocalMachineData.Data);
                     }
                 });
         }

@@ -111,11 +111,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <summary>
-        /// Clean random files at root
-        /// </summary>
-        public bool CleanRandomFilesAtRoot { get; set; } = false;
-
-        /// <summary>
         /// Files smaller than this should use the untrusted hash.
         /// </summary>
         public long TrustedHashFileSizeBoundary { get; set; } = -1;
@@ -224,6 +219,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
+        /// Whether to enable proactive replication
+        /// </summary>
+        public bool EnableProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// Whether to inline proactive replication
+        /// </summary>
+        public bool InlineProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// The interval between proactive replication interations
+        /// </summary>
+        public TimeSpan ProactiveReplicationInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Minimum delay between individual content proactive replications.
+        /// </summary>
+        public TimeSpan DelayForProactiveReplication { get; set; } = TimeSpan.FromMinutes(0.5);
+
+        /// <summary>
+        /// The maximum amount of copies allowed per proactive replication invocation.
+        /// </summary>
+        public int ProactiveReplicationCopyLimit { get; set; } = 5;
+
+        /// <summary>
         /// Defines pinning behavior
         /// </summary>
         public PinConfiguration PinConfiguration { get; set; } // Can be null.
@@ -276,5 +296,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Specifies the guarantees for determining content availability
         /// </summary>
         public ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
+
+        /// <summary>
+        /// Max size for storing blobs in the ContentLocationStore
+        /// </summary>
+        public long MaxBlobSize { get; set; }
+
+        /// <summary>
+        /// Returns true if Redis can be used for storing small files.
+        /// </summary>
+        public bool AreBlobsSupported { get; set; }
     }
 }

@@ -20,19 +20,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public interface IGlobalLocationStore : ICheckpointRegistry, IStartupShutdownSlim
     {
         /// <summary>
-        /// Machine id for the current machine as represented in the global cluster state.
+        /// The cluster state containing global and machine-specific information registered in the global cluster state
         /// </summary>
-        MachineId LocalMachineId { get; }
-
-        /// <summary>
-        /// Machine location for the current machine as represented in the global cluster state.
-        /// </summary>
-        MachineLocation LocalMachineLocation { get; }
+        ClusterState ClusterState { get; }
 
         /// <summary>
         /// Calls a central store and updates <paramref name="state"/> based on the result.
         /// </summary>
-        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state, bool updateBinManager);
+        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state);
 
         /// <summary>
         /// Notifies a central store that another machine should be selected as a master.
@@ -41,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         Task<Role?> ReleaseRoleIfNecessaryAsync(OperationContext context);
 
         /// <summary>
-        /// Notifies a central store that the current machine is about to be repaired and will be inactive.
+        /// Notifies a central store that the current machine (and all associated machine ids) is about to be repaired and will be inactive.
         /// </summary>
         Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context);
 
@@ -56,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes);
+        Task<BoolResult> RegisterLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes);
 
         /// <summary>
         /// Puts a blob into the content location store.

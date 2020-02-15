@@ -43,6 +43,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         }
 
         /// <summary>
+        /// When you want to call an <c>async</c> method but don't want to <c>await</c> it based on a flag. In the case where the task is fire
+        /// and forget, a successful result is always returned.
+        /// </summary>
+        public static async Task<BoolResult> FireAndForgetOrInlineAsync<T>(this Task<T> task, Context context, bool inline, [CallerMemberName]string operation = null, Severity severityOnException = Severity.Warning)
+            where T : BoolResult
+        {
+            if (inline)
+            {
+                return await task;
+            }
+            else
+            {
+                task.FireAndForget(context, operation, severityOnException);
+                return BoolResult.Success;
+            }
+        }
+
+        /// <summary>
         /// When you want to call an <c>async</c> method which returns a <see cref="BoolResult"/> but only want to log error rather than propagating.
         /// </summary>
         /// <remarks>
@@ -158,83 +176,21 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         }
 
         /// <summary>
-        ///     Task composition that allows for asynchronously executing the next operation.
+        /// Transforms the result of a task
         /// </summary>
-        /// <typeparam name="T1">
-        ///     Resulting type of the first task.
-        /// </typeparam>
-        /// <typeparam name="T2">
-        ///     Resulting type of the next task.
-        /// </typeparam>
-        /// <param name="first">
-        ///     First task.
-        /// </param>
-        /// <param name="next">
-        ///     Function to run the next task.
-        /// </param>
-        /// <returns>
-        ///     Next task.
-        /// </returns>
-        [Obsolete("Please use async/await for task composition.")]
-        public static Task<T2> Then<T1, T2>(this Task<T1> first, Func<T1, Task<T2>> next)
+        public static async Task<T2> ThenAsync<T1, T2>(this Task<T1> first, Func<T1, T2> next)
         {
-            Contract.Requires(first != null);
-            Contract.Requires(next != null);
+            var result = await first;
+            return next(result);
+        }
 
-            var tcs = new TaskCompletionSource<T2>();
-            first.ContinueWith(
-                antecedent =>
-                {
-                    if (antecedent.IsFaulted)
-                    {
-                        Contract.Assume(antecedent.Exception != null);
-                        tcs.TrySetException(antecedent.Exception.InnerExceptions);
-                    }
-                    else if (antecedent.IsCanceled)
-                    {
-                        tcs.TrySetCanceled();
-                    }
-                    else
-                    {
-                        try
-                        {
-                            var t = next(antecedent.Result);
-
-                            if (t == null)
-                            {
-                                tcs.TrySetCanceled();
-                            }
-                            else
-                            {
-                                t.ContinueWith(
-                                    nextAntecedent =>
-                                    {
-                                        if (nextAntecedent.IsFaulted)
-                                        {
-                                            Contract.Assume(nextAntecedent.Exception != null);
-                                            tcs.TrySetException(nextAntecedent.Exception.InnerExceptions);
-                                        }
-                                        else if (nextAntecedent.IsCanceled)
-                                        {
-                                            tcs.TrySetCanceled();
-                                        }
-                                        else
-                                        {
-                                            tcs.TrySetResult(nextAntecedent.Result);
-                                        }
-                                    },
-                                    TaskContinuationOptions.ExecuteSynchronously);
-                            }
-                        }
-                        catch (Exception exception)
-                        {
-                            tcs.TrySetException(exception);
-                        }
-                    }
-                },
-                TaskContinuationOptions.ExecuteSynchronously);
-
-            return tcs.Task;
+        /// <summary>
+        /// Transforms the result of a task
+        /// </summary>
+        public static async Task<T2> ThenAsync<T1, T2>(this Task<T1> first, Func<T1, Task<T2>> next)
+        {
+            var result = await first;
+            return await next(result);
         }
 
         /// <summary>

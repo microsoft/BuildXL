@@ -22,9 +22,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     public interface IContentResolver
     {
         /// <summary>
+        /// The local machine id
+        /// </summary>
+        MachineId LocalMachineId { get; }
+
+        /// <summary>
         /// Tries to obtain <see cref="ContentInfo"/> from a store and <see cref="ContentLocationEntry"/> from a content location database.
         /// </summary>
-        (ContentInfo info, ContentLocationEntry entry) GetContentInfo(OperationContext context, ContentHash hash);
+        (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash);
     }
 
     /// <summary>
@@ -36,19 +41,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IContentResolver _contentResolver;
         private readonly IClock _clock;
-        private readonly Func<MachineId, ContentHash, bool> _isDesignatedLocationFunc;
 
         /// <nodoc />
         public EffectiveLastAccessTimeProvider(
             LocalLocationStoreConfiguration configuration,
             IClock clock,
-            IContentResolver contentResolver,
-            Func<MachineId, ContentHash, bool> isDesignatedLocationFunc)
+            IContentResolver contentResolver)
         {
             _clock = clock;
             _configuration = configuration;
             _contentResolver = contentResolver;
-            _isDesignatedLocationFunc = isDesignatedLocationFunc;
         }
 
         /// <summary>
@@ -60,7 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public Result<IReadOnlyList<ContentEvictionInfo>> GetEffectiveLastAccessTimes(
             OperationContext context,
-            MachineId localMachineId,
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
         {
             Contract.RequiresNotNull(contentHashes);
@@ -77,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 int replicaCount = 1;
                 bool isImportantReplica = false;
 
-                var (contentInfo, entry) = _contentResolver.GetContentInfo(context, contentHash.Hash);
+                var (contentInfo, entry, isDesignatedLocation) = _contentResolver.GetContentInfo(context, contentHash.Hash);
 
                 // Getting a size from content directory information first.
                 long size = contentInfo.Size;
@@ -88,7 +89,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
                     lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                    isImportantReplica = IsImportantReplica(contentHash.Hash, entry, localMachineId, _configuration.DesiredReplicaRetention, _isDesignatedLocationFunc);
+                    isImportantReplica = isDesignatedLocation || IsImportantReplica(contentHash.Hash, entry, _contentResolver.LocalMachineId, _configuration.DesiredReplicaRetention);
+
                     replicaCount = entry.Locations.Count;
 
                     if (size == 0)
@@ -110,13 +112,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns true if a given hash considered to be an important replica for the given machine.
         /// </summary>
-        public static bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, MachineId localMachineId, long desiredReplicaCount, Func<MachineId, ContentHash, bool> isDesignatedLocationFunc)
+        public static bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, MachineId localMachineId, long desiredReplicaCount)
         {
-            if (isDesignatedLocationFunc(localMachineId, hash))
-            {
-                return true;
-            }
-
             var locationsCount = entry.Locations.Count;
             if (locationsCount <= desiredReplicaCount)
             {

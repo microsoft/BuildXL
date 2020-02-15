@@ -25,67 +25,18 @@ namespace ContentStoreTest.Distributed.Sessions
 {
     [Collection("Redis-based tests")]
     [Trait("Category", "LongRunningTest")]
-    public class PinBetterDistributedContentSessionTests : ContentSessionTests
+    public class PinBetterDistributedContentSessionTests : DistributedContentSessionTests
     {
-        private readonly LocalRedisFixture _redis;
-
-        internal static IReadOnlyList<TimeSpan> DefaultRetryIntervalsForTest = new List<TimeSpan>()
-        {
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(1),
-        };
-
         public PinBetterDistributedContentSessionTests(LocalRedisFixture redis, ITestOutputHelper output)
-            : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output: output)
+            : base(redis, output)
         {
-            _redis = redis;
         }
 
-        // The factory is the same as that of the old DistributedContentSessionTests, except that a PinConfiguration
-        // is specified for the DistributedContentStore that is created.
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
+        protected override DistributedContentStoreSettings CreateSettings()
         {
-            var rootPath = testDirectory.Path / "Root";
-            var tempPath = testDirectory.Path / "Temp";
-            var configurationModel = new ConfigurationModel(configuration);
-            var fileCopier = new TestFileCopier();
-
-            var localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-            var localMachineDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-
-            var localMachineLocation = new MachineLocation(rootPath.Path);
-            var storeFactory = new MockRedisContentLocationStoreFactory(localDatabase, localMachineDatabase, rootPath);
-
-            return new DistributedContentStore<AbsolutePath>(
-                localMachineLocation.Data,
-                (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
-                    new FileSystemContentStore(
-                        FileSystem,
-                        SystemClock.Instance, rootPath,
-                        configurationModel,
-                        nagleQueue: nagleBlock,
-                        distributedEvictionSettings: distributedEvictionSettings,
-                        settings: contentStoreSettings,
-                        trimBulkAsync: trimBulkAsync),
-                storeFactory,
-                fileCopier,
-                fileCopier,
-                storeFactory.PathTransformer,
-                copyRequester: null,
-                tempPath,
-                FileSystem,
-                settings: new DistributedContentStoreSettings
-                {
-                    ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist,
-                    LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
-                    RetryIntervalForCopies = DefaultRetryIntervalsForTest,
-                    PinConfiguration = new PinConfiguration(),
-                    SetPostInitializationCompletionAfterStartup = true
-                });
+            var settings = base.CreateSettings();
+            settings.PinConfiguration = new PinConfiguration();
+            return settings;
         }
     }
 }

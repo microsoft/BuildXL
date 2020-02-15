@@ -59,7 +59,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // check that machine the drive required by named cache.
                 // TODO: Should remove this, after measuring this doesn't happens.  If the drive layout doesn't match capability 
                 //       we'd rather fail.
-                AbsolutePath rootPath = GetCacheRootPathWithScenario(@this, kvp.Key);
+                AbsolutePath rootPath = @this.GetCacheRootPathWithScenario(kvp.Key);
                 string root = Path.GetPathRoot(rootPath.Path);
 
                 if (!checkDriveExists(root))
@@ -93,13 +93,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             return FilterUnsupportedNamedCaches(
                 @this, hostCapabilities, BuildXL.Cache.ContentStore.Logging.NullLogger.Instance, driveExistenceOverride);
-        }
-
-        public static AbsolutePath GetCacheRootPathWithScenario(
-            this LocalCasSettings @this, string cacheName)
-        {
-            return new AbsolutePath(
-                @this.GetCacheRootPath(cacheName, @this.ServiceSettings.ScenarioName ?? DefaultScenario));
         }
 
         private static List<string> GetSupportedDrivePreferenceOrder(

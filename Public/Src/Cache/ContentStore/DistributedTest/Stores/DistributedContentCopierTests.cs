@@ -186,7 +186,7 @@ namespace ContentStoreTest.Distributed.Stores
             }
         }
 
-        private async Task<(DistributedContentCopier<AbsolutePath>, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory, TimeSpan retryInterval, int retries = 1, MachineLocation[] designatedLocations = null)
+        private Task<(TestDistributedContentCopier, MockFileCopier)> CreateAsync(Context context, AbsolutePath rootDirectory, TimeSpan retryInterval, int retries = 1, MachineLocation[] designatedLocations = null)
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
@@ -204,32 +204,50 @@ namespace ContentStoreTest.Distributed.Stores
                 existenceChecker,
                 copyRequester: null,
                 new NoOpPathTransformer(rootDirectory),
-                new MockContentLocationStore(designatedLocations));
-            await contentCopier.StartupAsync(context).ThrowIfFailure();
-            return (contentCopier, mockFileCopier);
+                designatedLocations);
+            return Task.FromResult((contentCopier, mockFileCopier));
         }
 
-        private class TestDistributedContentCopier : DistributedContentCopier<AbsolutePath>
+        private class TestDistributedContentCopier : DistributedContentCopier<AbsolutePath>, IDistributedContentCopierHost
         {
             public readonly NoOpPathTransformer PathTransformer;
+            private readonly MachineLocation[] _designatedLocations;
 
             public TestDistributedContentCopier(
-            AbsolutePath workingDirectory,
-            DistributedContentStoreSettings settings,
-            IAbsFileSystem fileSystem,
-            IFileCopier<AbsolutePath> fileCopier,
-            IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
-            IContentCommunicationManager copyRequester,
-            IPathTransformer<AbsolutePath> pathTransformer,
-            IContentLocationStore contentLocationStore)
-                : base(workingDirectory, settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance, contentLocationStore)
+                AbsolutePath workingDirectory,
+                DistributedContentStoreSettings settings,
+                IAbsFileSystem fileSystem,
+                IFileCopier<AbsolutePath> fileCopier,
+                IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
+                IContentCommunicationManager copyRequester,
+                IPathTransformer<AbsolutePath> pathTransformer,
+                MachineLocation[] designatedLocations)
+                : base(settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance)
             {
+                WorkingFolder = workingDirectory;
                 PathTransformer = pathTransformer as NoOpPathTransformer;
+                _designatedLocations = designatedLocations;
+            }
+
+            public AbsolutePath WorkingFolder { get; }
+
+            public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+            {
+                return _designatedLocations;
+            }
+
+            public void ReportReputation(MachineLocation location, MachineReputation reputation)
+            {
             }
 
             protected override Task<CopyFileResult> CopyFileAsync(IFileCopier<AbsolutePath> copier, AbsolutePath sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
             {
                 return copier.CopyToAsync(sourcePath, null, expectedContentSize, cancellationToken);
+            }
+
+            internal Task<PutResult> TryCopyAndPutAsync(OperationContext operationContext, ContentHashWithSizeAndLocations hashWithLocations, Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
+            {
+                return base.TryCopyAndPutAsync(operationContext, this, hashWithLocations, handleCopyAsync);
             }
         }
 
@@ -250,105 +268,16 @@ namespace ContentStoreTest.Distributed.Stores
             }
         }
 
-        private class MockContentLocationStore : IContentLocationStore
+        private class MockPathTransformer : IPathTransformer
         {
-            private readonly MachineLocation[] _designatedLocations;
-
-            public MockContentLocationStore(MachineLocation[] designatedLocations)
-            {
-                _designatedLocations = designatedLocations;
-            }
+            /// <inheritdoc />
+            public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot) => new MachineLocation("");
 
             /// <inheritdoc />
-            public bool StartupCompleted => false;
+            public PathBase GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent) => null;
 
             /// <inheritdoc />
-            public bool StartupStarted => false;
-
-            /// <inheritdoc />
-            public Task<BoolResult> StartupAsync(Context context) => null;
-
-            /// <inheritdoc />
-            public void Dispose()
-            {
-            }
-
-            /// <inheritdoc />
-            public bool ShutdownCompleted => false;
-
-            /// <inheritdoc />
-            public bool ShutdownStarted => false;
-
-            /// <inheritdoc />
-            public Task<BoolResult> ShutdownAsync(Context context) => null;
-
-            /// <inheritdoc />
-            public MachineReputationTracker MachineReputationTracker => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> UpdateBulkAsync(
-                Context context,
-                IReadOnlyList<ContentHashWithSizeAndLocations> contentHashesWithSizeAndLocations,
-                CancellationToken cts,
-                UrgencyHint urgencyHint,
-                LocationStoreOption locationStoreOption) =>
-                null;
-
-            /// <inheritdoc />
-            public void ReportReputation(MachineLocation location, MachineReputation reputation) { }
-
-            /// <inheritdoc />
-            public Task<GetBulkLocationsResult> GetBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, GetBulkOrigin origin) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> InvalidateLocalMachineAsync(Context context, ILocalContentStore localStore, CancellationToken cts) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> GarbageCollectAsync(OperationContext context) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint) => null;
-
-            /// <inheritdoc />
-            public Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> TrimOrGetLastAccessTimeAsync(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> TouchBulkAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint) => null;
-
-            /// <inheritdoc />
-            public int PageSize => 0;
-
-            /// <inheritdoc />
-            public CounterSet GetCounters(Context context) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch) => null;
-
-            /// <inheritdoc />
-            public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] blob) => null;
-
-            /// <inheritdoc />
-            public Task<GetBlobResult> GetBlobAsync(OperationContext context, ContentHash contentHash) => null;
-
-            /// <inheritdoc />
-            public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => default;
-
-            /// <inheritdoc />
-            public bool IsMachineActive(MachineLocation machine) => false;
-
-            public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
-            {
-                return new Result<MachineLocation[]>(_designatedLocations);
-            }
-
-            /// <inheritdoc />
-            public bool AreBlobsSupported => false;
-
-            /// <inheritdoc />
-            public long MaxBlobSize => 0;
+            public byte[] GetPathLocation(PathBase path) => new byte[] { };
         }
 
         private class MockFileCopier : IFileCopier

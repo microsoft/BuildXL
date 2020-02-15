@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// Handles copies from remote locations to a local store
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentCopier<T> : StartupShutdownSlimBase, IDistributedContentCopier
+    public class DistributedContentCopier<T> : IDistributedContentCopier
         where T : PathBase
     {
         // Gate to control the maximum number of simultaneously active IO operations.
@@ -40,53 +40,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _timeoutForProactiveCopies;
         private readonly int _maxRetryCount;
-        private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
         private readonly IContentCommunicationManager _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
-        private readonly IContentLocationStore _contentLocationStore;
         private readonly IClock _clock;
 
         private readonly DistributedContentStoreSettings _settings;
-        private readonly IAbsFileSystem _fileSystem;
+
+        /// <inheritdoc />
+        public IAbsFileSystem FileSystem { get; }
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
-        private readonly AbsolutePath _workingDirectory;
-
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier<T>));
+        private Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier<T>));
 
         /// <nodoc />
         public int CurrentIoGateCount => _ioGate.CurrentCount;
 
         /// <nodoc />
         public DistributedContentCopier(
-            AbsolutePath workingDirectory,
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
             IContentCommunicationManager copyRequester,
             IPathTransformer<T> pathTransformer,
-            IClock clock,
-            IContentLocationStore contentLocationStore)
+            IClock clock)
         {
             Contract.Requires(settings != null);
             Contract.Requires(settings.ParallelHashingFileSizeBoundary >= -1);
 
             _settings = settings;
-            _tempFolderForCopies = new DisposableDirectory(fileSystem, workingDirectory / "Temp");
             _remoteFileCopier = fileCopier;
             _remoteFileExistenceChecker = fileExistenceChecker;
             _copyRequester = copyRequester;
-            _contentLocationStore = contentLocationStore;
             _pathTransformer = pathTransformer;
-            _fileSystem = fileSystem;
+            FileSystem = fileSystem;
             _clock = clock;
-
-            _workingDirectory = _tempFolderForCopies.Path;
 
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
@@ -96,40 +88,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
-        {
-            if (_settings.CleanRandomFilesAtRoot)
-            {
-                foreach (var file in _fileSystem.EnumerateFiles(_workingDirectory.Parent, EnumerateOptions.None))
-                {
-                    if (IsRandomFile(file.FullPath))
-                    {
-                        Tracer.Debug(context, $"Deleting random file {file.FullPath} at root.");
-                        _fileSystem.DeleteFile(file.FullPath);
-                    }
-                }
-            }
-
-            return base.StartupCoreAsync(context);
-        }
-
-        private bool IsRandomFile(AbsolutePath file)
-        {
-            var fileName = file.GetFileName();
-            return fileName.StartsWith("random-", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            _tempFolderForCopies.Dispose();
-
-            return base.ShutdownCoreAsync(context);
-        }
-
-        /// <inheritdoc />
         public async Task<PutResult> TryCopyAndPutAsync(
             OperationContext operationContext,
+            IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync,
             Action<IReadOnlyList<MachineLocation>> handleBadLocations = null)
@@ -147,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                 if (_settings.PrioritizeDesignatedLocationsOnCopies)
                 {
-                    hashInfo = PrioritizeDesignatedLocations(hashInfo);
+                    hashInfo = PrioritizeDesignatedLocations(host, hashInfo);
                 }
 
                 //DateTime defaults to 01/01/0001 when we initialize the array.
@@ -171,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
-                        _workingDirectory,
+                        host,
                         hashInfo,
                         badContentLocations,
                         missingContentLocations,
@@ -264,9 +225,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Moves designated locations to the front of the hash info locations.
         /// </summary>
-        private ContentHashWithSizeAndLocations PrioritizeDesignatedLocations(ContentHashWithSizeAndLocations hashInfo)
+        private ContentHashWithSizeAndLocations PrioritizeDesignatedLocations(IDistributedContentCopierHost host, ContentHashWithSizeAndLocations hashInfo)
         {
-            if (_contentLocationStore.GetDesignatedLocations(hashInfo.ContentHash).TryGetValue(out var designatedLocations))
+            if (host.GetDesignatedLocations(hashInfo.ContentHash).TryGetValue(out var designatedLocations))
             {
                 var newLocations = new MachineLocation[hashInfo.Locations.Count];
                 var currentNonDesignated = newLocations.Length - 1;
@@ -352,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
             OperationContext context,
-            AbsolutePath workingFolder,
+            IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
@@ -362,6 +323,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int maxReplicaCount,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
+            var workingFolder = host.WorkingFolder;
+
             var cts = context.Token;
 
             // before each retry, clear the list of bad locations so we can retry them all.
@@ -472,7 +435,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         switch (copyFileResult.Code)
                         {
                             case CopyFileResult.ResultCode.Success:
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Good);
+                                host.ReportReputation(location, MachineReputation.Good);
                                 break;
                             case CopyFileResult.ResultCode.FileNotFoundError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
@@ -480,14 +443,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
                                 missingContentLocations.Add(location);
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Missing);
+                                host.ReportReputation(location, MachineReputation.Missing);
                                 break;
                             case CopyFileResult.ResultCode.SourcePathError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to an error with the sourcepath: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Bad);
+                                host.ReportReputation(location, MachineReputation.Bad);
                                 badContentLocations.Add(location);
                                 break;
                             case CopyFileResult.ResultCode.DestinationPathError:
@@ -501,14 +464,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
+                                host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.CopyBandwidthTimeoutError:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to insufficient bandwidth timeout: {copyFileResult}";
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Trying another replica.");
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Timeout);
+                                host.ReportReputation(location, MachineReputation.Timeout);
                                 break;
                             case CopyFileResult.ResultCode.InvalidHash:
                                 lastErrorMessage = $"Could not copy file with hash {hashInfo.ContentHash.ToShortString()} from path {sourcePath} to path {tempLocation} due to invalid hash: {copyFileResult}";
@@ -521,7 +484,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 Tracer.Warning(
                                     context,
                                     $"{AttemptTracePrefix(attemptCount)} {lastErrorMessage} Not trying another replica.");
-                                _contentLocationStore.ReportReputation(location, MachineReputation.Bad);
+                                host.ReportReputation(location, MachineReputation.Bad);
                                 break;
                             default:
                                 lastErrorMessage = $"File copier result code {copyFileResult.Code} is not recognized";
@@ -586,7 +549,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     lastFailureTimes[replicaIndex] = _clock.UtcNow;
 
-                    _fileSystem.DeleteFile(tempLocation);
+                    FileSystem.DeleteFile(tempLocation);
                 }
             }
 
@@ -619,8 +582,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     // Since this is the only place where we hash the file during trusted copies, we attempt to get access to the bytes here,
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
-                    using (Stream fileStream = await _fileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
-                    using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
+                    using (Stream fileStream = await FileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
+                    using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
                     using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
                         var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);

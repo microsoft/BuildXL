@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Utilities.Collections;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -58,6 +59,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// </summary>
     public class LocalLocationStoreConfiguration
     {
+        /// <summary>
+        /// The machine location for the primary CAS folder on the machine.
+        /// NOTE: LLS database is assumed to be stored on the same disk as this CAS instance.
+        /// </summary>
+        public MachineLocation PrimaryMachineLocation { get; set; }
+
+        /// <summary>
+        /// The machine locations for other CAS folders on the machine (i.e. other than <see cref="PrimaryMachineLocation"/>)
+        /// </summary>
+        public MachineLocation[] AdditionalMachineLocations { get; set; } = CollectionUtilities.EmptyArray<MachineLocation>();
+
         /// <summary>
         /// The default for <see cref="LocationEntryExpiry"/>
         /// </summary>
@@ -196,6 +208,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan ReconciliationCycleFrequency { get; set; } = TimeSpan.FromMinutes(30);
 
         /// <summary>
+        /// Allows skipping reconciliation if the latest reconcile is sufficiently recent.
+        /// </summary>
+        public bool AllowSkipReconciliation { get; set; } = true;
+
+        /// <summary>
         /// The amount of events that should be sent per reconciliation cycle.
         /// </summary>
         public int ReconciliationMaxCycleSize { get; set; } = 100000;
@@ -214,26 +231,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Whether to initialize and use the BinManager
         /// </summary>
         public bool UseBinManager { get; set; } = false;
-
-        /// <summary>
-        /// Whether to enable proactive replication
-        /// </summary>
-        public bool EnableProactiveReplication { get; set; } = false;
-
-        /// <summary>
-        /// Whether to inline proactive replication
-        /// </summary>
-        public bool InlineProactiveReplication { get; set; } = false;
-
-        /// <summary>
-        /// Minimum delay between individual content proactive replications.
-        /// </summary>
-        public TimeSpan DelayForProactiveReplication { get; set; } = TimeSpan.FromMinutes(0.5);
-
-        /// <summary>
-        /// The maximum amount of copies allowed per proactive replication invocation.
-        /// </summary>
-        public int ProactiveReplicationCopyLimit { get; set; } = 5;
 
         /// <summary>
         /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the

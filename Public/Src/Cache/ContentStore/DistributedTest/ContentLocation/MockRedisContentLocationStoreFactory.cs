@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Stores;
 using ContentStoreTest.Distributed.Redis;
 
 namespace ContentStoreTest.Distributed.ContentLocation
@@ -58,10 +59,10 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Task<IContentLocationStore> CreateAsync()
         {
-            return CreateAsync(_localMachineLocation);
+            return CreateAsync(_localMachineLocation, null);
         }
 
-        public async Task<IContentLocationStore> CreateAsync(MachineLocation machineLocation)
+        public async Task<IContentLocationStore> CreateAsync(MachineLocation machineLocation, ILocalContentStore localContentStore)
         {
             var connection = MockRedisDatabaseFactory.CreateConnection(RedisDatabase);
             RedisDatabaseAdapter = RedisDatabaseAdapter ?? new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), connection), RedisContentLocationStoreFactory.DefaultKeySpace);

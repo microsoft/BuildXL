@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -32,6 +33,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
@@ -47,6 +49,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     {
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalLocationStore));
+
+        // LLS is 'managed' by multiple 'TransitioningContentLocationStore' instances. Allow multiple
+        // startups and shutdowns to account for this.
+        /// <inheritdoc />
+        public override bool AllowMultipleStartupAndShutdowns => true;
 
         /// <nodoc />
         public CounterCollection<ContentLocationStoreCounters> Counters { get; } = new CounterCollection<ContentLocationStoreCounters>();
@@ -66,32 +73,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public MachineReputationTracker MachineReputationTracker { get; private set; }
 
-        /// <summary>
-        /// Testing purposes only. Used to override machine id given by global store.
-        /// </summary>
-        internal MachineId? OverrideMachineId { get; set; }
-
-        /// <nodoc />
-        public MachineId LocalMachineId => OverrideMachineId ?? GlobalStore.LocalMachineId;
-
         /// <nodoc />
         public ContentLocationEventStore EventStore { get; private set; }
 
-        private ILocalContentStore _localContentStore;
 
-        internal ClusterState ClusterState { get; } = new ClusterState();
+        internal ClusterState ClusterState => GlobalStore.ClusterState;
+
         private readonly IClock _clock;
 
         private readonly LocalLocationStoreConfiguration _configuration;
         private CheckpointManager _checkpointManager;
 
         /// <nodoc />
-        public CentralStorage CentralStorage { get; private set; }
+        public CentralStorage CentralStorage { get; }
 
-        private CentralStorage _innerCentralStorage;
+        private readonly CentralStorage _innerCentralStorage;
 
         // The (optional) distributed central storage which wraps the inner central storage
-        internal DistributedCentralStorage DistributedCentralStorage { get; private set; }
+        internal DistributedCentralStorage DistributedCentralStorage { get; }
 
         // Fields that are initialized in StartupCoreAsync method.
         private Timer _heartbeatTimer;
@@ -111,7 +110,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
-        private bool _reconciled;
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
 
@@ -123,20 +121,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private Task<BoolResult> _postInitializationTask;
 
-        private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
-
-        private Func<OperationContext, ContentHash, Task<ProactiveCopyResult>> _proactiveCopyTaskFactory;
-
-        private Task _proactiveReplicationTask = Task.CompletedTask;
-        private readonly object _proactiveReplicationLockObject = new object();
-
         private const string BinManagerKey = "LocalLocationStore.BinManager";
 
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
             IGlobalLocationStore globalStore,
-            LocalLocationStoreConfiguration configuration)
+            LocalLocationStoreConfiguration configuration,
+            IDistributedContentCopier copier)
         {
             Contract.RequiresNotNull(clock);
             Contract.RequiresNotNull(globalStore);
@@ -152,9 +144,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ValidateConfiguration(configuration);
 
-            _reconcileFilePath = configuration.Checkpoint.WorkingDirectory / "reconcileMarker.txt";
+            _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
 
-            _innerCentralStorage = CreateCentralStorage(configuration.CentralStore);
+            if (_configuration.DistributedCentralStore != null)
+            {
+                DistributedCentralStorage = new DistributedCentralStorage(
+                    _configuration.DistributedCentralStore,
+                    new DistributedCentralStorageLocationStoreAdapter(this),
+                    copier,
+                    fallbackStorage: _innerCentralStorage);
+                CentralStorage = DistributedCentralStorage;
+            }
+            else
+            {
+                CentralStorage = _innerCentralStorage;
+            }
 
             configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = ContentLocationDatabase.Create(clock, configuration.Database, () => ClusterState.InactiveMachines);
@@ -163,14 +167,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Checks whether the reconciliation for the store is up to date
         /// </summary>
-        public bool IsReconcileUpToDate()
+        public bool IsReconcileUpToDate(MachineId machineId)
         {
-            if (!File.Exists(_reconcileFilePath.Path))
+            if (!File.Exists(GetReconcileFilePath(machineId)))
             {
                 return false;
             }
 
-            var contents = File.ReadAllText(_reconcileFilePath.Path);
+            var contents = File.ReadAllText(GetReconcileFilePath(machineId));
             var parts = contents.Split('|');
             if (parts.Length != 2 || parts[0] != _configuration.GetCheckpointPrefix())
             {
@@ -189,16 +193,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Marks reconciliation for the store is up to date with the current time stamp
         /// </summary>
-        public void MarkReconciled(bool reconciled = true)
+        public void MarkReconciled(MachineId machineId, bool reconciled = true)
         {
             if (reconciled)
             {
-                File.WriteAllText(_reconcileFilePath.Path, $"{_configuration.GetCheckpointPrefix()}|{_clock.UtcNow.ToReadableString()}");
+                File.WriteAllText(GetReconcileFilePath(machineId), $"{_configuration.GetCheckpointPrefix()}|{_clock.UtcNow.ToReadableString()}");
             }
             else
             {
-                FileUtilities.DeleteFile(_reconcileFilePath.Path);
+                FileUtilities.DeleteFile(GetReconcileFilePath(machineId));
             }
+        }
+
+        private string GetReconcileFilePath(MachineId machineId)
+        {
+            return (_configuration.Checkpoint.WorkingDirectory / $"reconcileMarker.{machineId.Index}.txt").Path;
         }
 
         /// <summary>
@@ -211,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return ContentLocationEventStore.Create(
                 configuration.EventStore,
                 new ContentLocationDatabaseAdapter(Database, ClusterState),
-                GlobalStore.LocalMachineLocation.ToString(),
+                configuration.PrimaryMachineLocation.ToString(),
                 CentralStorage,
                 configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
                 _clock
@@ -231,28 +240,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return new BlobCentralStorage(blobStoreConfig);
                 default:
                     throw new NotSupportedException();
-            }
-        }
-
-        /// <nodoc />
-        public void PreStartupInitialize(Context context, ILocalContentStore localStore, IDistributedContentCopier copier, Func<OperationContext, ContentHash, Task<ProactiveCopyResult>> proactiveCopyTaskFactory)
-        {
-            Contract.Requires(!StartupStarted, $"{nameof(PreStartupInitialize)} must be called before {nameof(StartupAsync)}");
-            context.Debug($"Reconciliation enabled: {_configuration.EnableReconciliation}. Local content store provided: {localStore != null}");
-            _localContentStore = localStore;
-
-            _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
-
-            _proactiveCopyTaskFactory = proactiveCopyTaskFactory;
-
-            if (_configuration.DistributedCentralStore != null)
-            {
-                DistributedCentralStorage = new DistributedCentralStorage(_configuration.DistributedCentralStore, copier, fallbackStorage: _innerCentralStorage);
-                CentralStorage = DistributedCentralStorage;
-            }
-            else
-            {
-                CentralStorage = _innerCentralStorage;
             }
         }
 
@@ -289,14 +276,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (DistributedCentralStorage != null)
             {
-                await DistributedCentralStorage.StartupAsync(context, new DistributedCentralStorageLocationStoreAdapter(this)).ThrowIfFailure();
+                await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
             }
 
             _checkpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
 
-            EventStore = CreateEventStore(_configuration, "main");
-
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
+
+            EventStore = CreateEventStore(_configuration, subfolder: "main");
 
             await Database.StartupAsync(context).ThrowIfFailure();
 
@@ -312,33 +299,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     HeartbeatAsync(nestedContext).FireAndForget(nestedContext);
                 }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
+            _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true)
+                .ThenAsync(r => r.Succeeded ? r : new BoolResult(r, "Failed initializing Local Location Store")));
 
-            if (_configuration.InlinePostInitialization)
-            {
-                // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
-                // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.FromResult(await HeartbeatAsync(context, inline: true));
-            }
-            else
-            {
-                // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
-                // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true))
-                    .ContinueWith(
-                        t =>
-                        {
-                            var result = t.GetAwaiter().GetResult();
-                            if (!result)
-                            {
-                                // If the heartbeat fails, we want to create a better error message
-                                // because the error produced here can be returned to the clients and even serialized back
-                                // to other systems.
-                                return new BoolResult(result, "Failed initializing Local Location Store");
-                            }
-
-                            return result;
-                        });
-            }
+            await _postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
@@ -396,6 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// For testing purposes only.
         /// Releases current master role (other workers now can pick it up) and changes the current role to a newly acquired one.
         /// </summary>
         internal async Task ReleaseRoleIfNecessaryAsync(OperationContext operationContext)
@@ -424,7 +389,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
                         Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master);
+                        ClusterState.EnableBinManagerUpdates = newRole == Role.Master;
                     }
+
+                    // Set the current role to the newly acquired role
+                    CurrentRole = newRole;
 
                     // Always restore when switching roles
                     bool shouldRestore = switchedRoles;
@@ -487,9 +456,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    // Successfully, applied changes for role. Set it as the current role.
-                    CurrentRole = newRole;
-
                     return result;
                 }),
                 out var factoryWasCalled);
@@ -517,10 +483,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
 
                 _postInitializationTask = BoolResult.SuccessTask;
-
-                // We have operations that we want to be triggered by heartbeat but require heartbeat to be successful and _postInitializationTask
-                // to be completed.
-                result &= await PostHeartbeatAsync(context);
             }
 
             return result;
@@ -566,37 +528,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private async Task<BoolResult> PostHeartbeatAsync(OperationContext context)
-        {
-            // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
-            if (_configuration.EnableProactiveReplication)
-            {
-                if (_configuration.InlineProactiveReplication)
-                {
-                    var result = await ProactiveReplicationAsync(context);
-
-                    if (!result.Succeeded)
-                    {
-                        return new BoolResult(result);
-                    }
-                }
-                else
-                {
-                    Interfaces.Extensions.TaskExtensions.RunIfCompleted(
-                        ref _proactiveReplicationTask,
-                        _proactiveReplicationLockObject,
-                        () => WithOperationContext(
-                            context,
-                            CancellationToken.None,
-                            opContext => ProactiveReplicationAsync(opContext)),
-                        out var newTaskWasCreated)
-                        .FireAndForget(context, traceFailures: newTaskWasCreated); // Only log failures on the context on which proactive replication was initiated.
-                }
-            }
-
-            return BoolResult.Success;
-        }
-
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {
             var startMaxMachineId = ClusterState.MaxMachineId;
@@ -614,7 +545,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         postDbMaxMachineId = ClusterState.MaxMachineId;
                     }
 
-                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, updateBinManager: CurrentRole == Role.Master);
+                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState);
                     postGlobalMaxMachineId = ClusterState.MaxMachineId;
 
                     // Update the local database with new machines if the cluster state was updated from the global store
@@ -740,21 +671,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer.Debug(context, $"Checkpoint '{checkpointState}' already restored.");
                 }
 
-                if (_localContentStore != null && !_reconciled && _configuration.EnableReconciliation)
-                {
-                    _reconciled = true;
-
-                    // Trigger reconciliation after receiving first checkpoint
-                    if (_configuration.InlinePostInitialization)
-                    {
-                        return await ReconcileAsync(context);
-                    }
-                    else
-                    {
-                        Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
-                    }
-                }
-
                 // Update bin manager in cluster state.
                 if (_configuration.UseBinManager && Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
                 {
@@ -776,7 +692,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets the list of <see cref="ContentLocationEntry"/> for every hash specified by <paramref name="contentHashes"/> from a given <paramref name="origin"/>.
         /// </summary>
-        public async Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
+        public async Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
             Contract.Requires(contentHashes != null);
 
@@ -793,28 +709,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var result = await context.PerformOperationAsync(
                 Tracer,
-                () => GetBulkCoreAsync(context, contentHashes, origin),
+                () => GetBulkCoreAsync(context, requestingMachineId, contentHashes, origin),
                 traceOperationStarted: false,
                 extraEndMessage: r => $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]");
 
             return result;
         }
 
-        private Task<GetBulkLocationsResult> GetBulkCoreAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
+        private Task<GetBulkLocationsResult> GetBulkCoreAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
             if (origin == GetBulkOrigin.Local)
             {
                 // Query local db
-                return GetBulkFromLocalAsync(context, contentHashes);
+                return GetBulkFromLocalAsync(context, requestingMachineId, contentHashes);
             }
             else
             {
                 // Query global store
-                return GetBulkFromGlobalAsync(context, contentHashes);
+                return GetBulkFromGlobalAsync(context, requestingMachineId, contentHashes);
             }
         }
 
-        internal Task<GetBulkLocationsResult> GetBulkFromGlobalAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        internal Task<GetBulkLocationsResult> GetBulkFromGlobalAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes)
         {
             Counters[ContentLocationStoreCounters.GetBulkGlobalHashes].Add(contentHashes.Count);
 
@@ -828,13 +744,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new GetBulkLocationsResult(entries);
                     }
 
-                    return await ResolveLocationsAsync(context, entries.Value, contentHashes, GetBulkOrigin.Global);
+                    return await ResolveLocationsAsync(context, requestingMachineId, entries.Value, contentHashes, GetBulkOrigin.Global);
                 },
                 Counters[ContentLocationStoreCounters.GetBulkGlobal],
                 traceErrorsOnly: true); // Intentionally tracing errors only.
         }
 
-        private Task<GetBulkLocationsResult> GetBulkFromLocalAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        private Task<GetBulkLocationsResult> GetBulkFromLocalAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentHash> contentHashes)
         {
             Counters[ContentLocationStoreCounters.GetBulkLocalHashes].Add(contentHashes.Count);
 
@@ -869,16 +785,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (touchEventHashes.Count != 0)
                     {
-                        EventStore.Touch(context, LocalMachineId, touchEventHashes, _clock.UtcNow).ThrowIfFailure();
+                        EventStore.Touch(context, requestingMachineId, touchEventHashes, _clock.UtcNow).ThrowIfFailure();
                     }
 
-                    return ResolveLocationsAsync(context, entries, contentHashes, GetBulkOrigin.Local);
+                    return ResolveLocationsAsync(context, requestingMachineId, entries, contentHashes, GetBulkOrigin.Local);
                 },
                 traceErrorsOnly: true, // Intentionally tracing errors only.
                 counter: Counters[ContentLocationStoreCounters.GetBulkLocal]);
         }
 
-        private async Task<GetBulkLocationsResult> ResolveLocationsAsync(OperationContext context, IReadOnlyList<ContentLocationEntry> entries, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
+        private async Task<GetBulkLocationsResult> ResolveLocationsAsync(OperationContext context, MachineId requestingMachineId, IReadOnlyList<ContentLocationEntry> entries, IReadOnlyList<ContentHash> contentHashes, GetBulkOrigin origin)
         {
             Contract.Requires(entries.Count == contentHashes.Count);
 
@@ -987,7 +903,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private RegisterAction GetRegisterAction(OperationContext context, ContentHash hash, DateTime now)
+        private RegisterAction GetRegisterAction(OperationContext context, MachineId machineId, ContentHash hash, DateTime now)
         {
             if (_configuration.SkipRedundantContentLocationAdd && _recentlyRemovedHashes.Contains(hash))
             {
@@ -1017,7 +933,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // TODO[LLS]: Is it ok to ignore a hash already registered to the machine. There is a subtle race condition (bug 1365340)
                 // here if the hash is deleted and immediately added to the machine
                 if (_configuration.SkipRedundantContentLocationAdd
-                    && entry.Locations[LocalMachineId.Index]) // content is registered for this machine
+                    && entry.Locations[machineId.Index]) // content is registered for this machine
                 {
                     // If content was touched recently, we can skip. Otherwise, we touch via event
                     if (entry.LastAccessTimeUtc.ToDateTime().IsRecent(now, _configuration.TouchFrequency))
@@ -1044,17 +960,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return RegisterAction.EagerGlobal;
         }
 
-        private Task<BoolResult> EnsureInitializedAsync()
+        internal Task<BoolResult> EnsureInitializedAsync()
         {
             Contract.Assert(_postInitializationTask != null);
-
             return _postInitializationTask;
         }
 
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
         {
             Contract.Requires(contentHashes != null);
 
@@ -1082,7 +997,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Select which hashes are not already registered for the local machine and those which must eagerly go to the global store
                     foreach (var contentHash in contentHashes)
                     {
-                        var registerAction = GetRegisterAction(context, contentHash.Hash, now);
+                        var registerAction = GetRegisterAction(context, machineId, contentHash.Hash, now);
                         actions.Add(registerAction);
 
                         var coreAction = ToCoreAction(registerAction);
@@ -1107,13 +1022,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eagerContentHashes.Count != 0)
                     {
                         // Update global store
-                        await GlobalStore.RegisterLocalLocationAsync(context, eagerContentHashes).ThrowIfFailure();
+                        await GlobalStore.RegisterLocationAsync(context, machineId, eagerContentHashes).ThrowIfFailure();
                     }
 
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes, touch).ThrowIfFailure();
+                        EventStore.AddLocations(context, machineId, eventContentHashes, touch).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -1139,7 +1054,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> TouchBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        public async Task<BoolResult> TouchBulkAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHash> contentHashes)
         {
             Contract.Requires(contentHashes != null);
 
@@ -1179,7 +1094,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (touchEventHashes.Count != 0)
                     {
-                        return EventStore.Touch(context, LocalMachineId, touchEventHashes, now);
+                        return EventStore.Touch(context, machineId, touchEventHashes, now);
                     }
 
                     return BoolResult.Success;
@@ -1188,7 +1103,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> TrimBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        public async Task<BoolResult> TrimBulkAsync(OperationContext context, MachineId machineId, IReadOnlyList<ContentHash> contentHashes)
         {
             Contract.Requires(contentHashes != null);
 
@@ -1223,7 +1138,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     // Send remove event for hashes
-                    return EventStore.RemoveLocations(context, LocalMachineId, contentHashes);
+                    return EventStore.RemoveLocations(context, machineId, contentHashes);
                 },
                 Counters[ContentLocationStoreCounters.TrimBulkLocal]);
         }
@@ -1233,6 +1148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrder(
             Context context,
+            IDistributedMachineInfo machineInfo,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo,
             bool reverse)
         {
@@ -1263,6 +1179,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IEnumerable<ContentEvictionInfo> getContentEvictionInfos(List<ContentHashWithLastAccessTimeAndReplicaCount> page) =>
                 GetEffectiveLastAccessTimes(
                         operationContext,
+                        machineInfo,
                         page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)))
                     .ThrowIfFailure();
 
@@ -1306,6 +1223,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public Result<IReadOnlyList<ContentEvictionInfo>> GetEffectiveLastAccessTimes(
             OperationContext context,
+            IDistributedMachineInfo machineInfo,
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
         {
             Contract.Requires(contentHashes != null);
@@ -1317,24 +1235,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<IReadOnlyList<ContentEvictionInfo>>(postInitializationResult);
             }
 
-            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this), isDesignatedLocation);
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
             return context.PerformOperation(
                     Tracer,
-                    () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, LocalMachineId, contentHashes),
+                    () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, contentHashes),
                     Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
                     traceOperationStarted: false,
                     traceErrorsOnly: true);
-
-            bool isDesignatedLocation(MachineId machineId, ContentHash hash) => ClusterState.GetDesignatedLocationIds(hash, includeExpired: true).TryGetValue(out var ids) && ids.Contains(machineId);
         }
 
         /// <summary>
         /// Forces reconciliation process between local content store and LLS.
         /// </summary>
-        public async Task<ReconciliationResult> ReconcileAsync(OperationContext context)
+        public async Task<ReconciliationResult> ReconcileAsync(OperationContext context, MachineId machineId, ILocalContentStore localContentStore)
         {
-            Contract.Requires(_localContentStore != null);
-
             var token = context.Token;
             var postInitializationResult = await EnsureInitializedAsync();
             if (!postInitializationResult)
@@ -1346,7 +1260,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    if (IsReconcileUpToDate())
+                    if (localContentStore == null)
+                    {
+                        return new ReconciliationResult(new ErrorResult("Local content store is not provided"));
+                    }
+
+                    if (_configuration.AllowSkipReconciliation && IsReconcileUpToDate(machineId))
                     {
                         return new ReconciliationResult(addedCount: 0, removedCount: 0, totalLocalContentCount: -1);
                     }
@@ -1375,7 +1294,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    MarkReconciled();
+                    MarkReconciled(machineId);
                     return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
 
                     async Task<BoolResult> performReconciliationCycleAsync()
@@ -1387,7 +1306,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // in the database would still have missing content [A].
                         using (EventStore.PauseSendingEvents())
                         {
-                            var allLocalStoreContentInfos = await _localContentStore.GetContentInfoAsync(token);
+                            var allLocalStoreContentInfos = await localContentStore.GetContentInfoAsync(token);
                             token.ThrowIfCancellationRequested();
 
                             var allLocalStoreContent = allLocalStoreContentInfos
@@ -1398,7 +1317,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             allLocalStoreContentCount = allLocalStoreContent.Count;
 
-                            var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId, startingPoint: lastProcessedHash);
+                            var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, machineId, startingPoint: lastProcessedHash);
                             token.ThrowIfCancellationRequested();
 
                             // Diff the two views of the local machines content (left = local store, right = content location db)
@@ -1435,13 +1354,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             {
                                 // Create separate event store for reconciliation events so they are dispatched first before
                                 // events in normal event store which may be queued during reconciliation operation.
-                                var reconciliationEventStore = CreateEventStore(_configuration, "reconcile");
+                                var reconciliationEventStore = CreateEventStore(_configuration, subfolder: "reconcile");
 
                                 try
                                 {
                                     await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
 
-                                    await reconciliationEventStore.ReconcileAsync(context, LocalMachineId, addedContent, removedContent).ThrowIfFailure();
+                                    await reconciliationEventStore.ReconcileAsync(context, machineId, addedContent, removedContent).ThrowIfFailure();
                                 }
                                 finally
                                 {
@@ -1460,10 +1379,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public Task<BoolResult> InvalidateLocalMachineAsync(OperationContext operationContext)
+        public Task<BoolResult> InvalidateLocalMachineAsync(OperationContext operationContext, MachineId machineId)
         {
             // Unmark reconcile since the machine is invalidated
-            MarkReconciled(reconciled: false);
+            MarkReconciled(machineId, reconciled: false);
 
             return GlobalStore.InvalidateLocalMachineAsync(operationContext);
         }
@@ -1511,7 +1430,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private class DistributedCentralStorageLocationStoreAdapter : DistributedCentralStorage.ILocationStore
         {
-            public MachineId LocalMachineId => _store.LocalMachineId;
             public ClusterState ClusterState => _store.ClusterState;
 
             private readonly LocalLocationStore _store;
@@ -1523,84 +1441,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public Task<GetBulkLocationsResult> GetBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
             {
-                return _store.GetBulkFromGlobalAsync(context, contentHashes);
+                return _store.GetBulkFromGlobalAsync(context, ClusterState.PrimaryMachineId, contentHashes);
             }
 
             public Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentInfo)
             {
-                return _store.GlobalStore.RegisterLocalLocationAsync(context, contentInfo);
+                return _store.GlobalStore.RegisterLocationAsync(context, ClusterState.PrimaryMachineId, contentInfo);
             }
-        }
-
-        private Task<ProactiveReplicationResult> ProactiveReplicationAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    // Important to yield as GetContentInfoAsync has a synchronous implementation.
-                    await Task.Yield();
-
-                    var localContent = (await _localContentStore.GetContentInfoAsync(context.Token))
-                        .OrderByDescending(info => info.LastAccessTimeUtc) // GetHashesInEvictionOrder expects entries to already be ordered by last access time.
-                        .Select(info => new ContentHashWithLastAccessTimeAndReplicaCount(info.ContentHash, info.LastAccessTimeUtc))
-                        .ToArray();
-
-                    var contents = GetHashesInEvictionOrder(context, localContent, reverse: true);
-
-                    var succeeded = 0;
-                    var failed = 0;
-                    var scanned = 0;
-                    var delayTask = Task.CompletedTask;
-                    var wasPreviousCopyNeeded = true;
-                    foreach (var content in contents)
-                    {
-                        context.Token.ThrowIfCancellationRequested();
-
-                        scanned++;
-
-                        if (Database.TryGetEntry(context, content.ContentHash, out var entry))
-                        {
-                            if (entry.Locations.Count < _configuration.ProactiveCopyLocationsThreshold)
-                            {
-                                if (wasPreviousCopyNeeded)
-                                {
-                                    await delayTask;
-                                    delayTask = Task.Delay(_configuration.DelayForProactiveReplication);
-                                }
-
-                                var result = await _proactiveCopyTaskFactory(context, content.ContentHash);
-
-                                wasPreviousCopyNeeded = true;
-                                if (result.Succeeded)
-                                {
-                                    if (result.WasProactiveCopyNeeded)
-                                    {
-                                        Counters[ContentLocationStoreCounters.ProactiveReplication_Succeeded].Increment();
-                                        succeeded++;
-                                    }
-                                    else
-                                    {
-                                        wasPreviousCopyNeeded = false;
-                                    }
-                                }
-                                else
-                                {
-                                    Counters[ContentLocationStoreCounters.ProactiveReplication_Failed].Increment();
-                                    failed++;
-                                }
-
-                                if ((succeeded + failed) >= _configuration.ProactiveReplicationCopyLimit)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    return new ProactiveReplicationResult(succeeded, failed, localContent.Length, scanned);
-                },
-                counter: Counters[ContentLocationStoreCounters.ProactiveReplication]);
         }
 
         private class ContentLocationDatabaseAdapter : IContentLocationEventHandler
@@ -1665,18 +1512,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private sealed class ContentResolver : IContentResolver
         {
             private readonly LocalLocationStore _localLocationStore;
+            private readonly IDistributedMachineInfo _machineInfo;
 
-            public ContentResolver(LocalLocationStore localLocationStore) => _localLocationStore = localLocationStore;
+            public MachineId LocalMachineId => _machineInfo.LocalMachineId;
+
+            public ContentResolver(LocalLocationStore localLocationStore, IDistributedMachineInfo machineInfo)
+            {
+                _localLocationStore = localLocationStore;
+                _machineInfo = machineInfo;
+            }
 
             /// <inheritdoc />
-            public (ContentInfo info, ContentLocationEntry entry) GetContentInfo(OperationContext context, ContentHash hash)
+            public (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
             {
                 ContentInfo info = default;
-                _localLocationStore._localContentStore?.TryGetContentInfo(hash, out info);
+                _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out info);
 
                 _localLocationStore.TryGetContentLocations(context, hash, out var entry);
 
-                return (info, entry);
+                bool isDesignatedLocation = _localLocationStore.ClusterState.IsDesignatedLocation(LocalMachineId, hash, includeExpired: true);
+
+                return (info, entry, isDesignatedLocation);
             }
         }
     }

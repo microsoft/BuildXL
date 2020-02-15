@@ -51,7 +51,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // Successfully updated the entry. Notify the event store.
             _localLocationStore.EventStore.UpdateMetadataEntry(context, 
                 new UpdateMetadataEntryEventData(
-                    _localLocationStore.LocalMachineId, 
+                    _localLocationStore.ClusterState.PrimaryMachineId, 
                     strongFingerprint, 
                     new MetadataEntry(replacement, _localLocationStore.EventStore.Clock.UtcNow.ToFileTimeUtc()))).ThrowIfFailure();
             return result;

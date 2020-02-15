@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,8 +44,15 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private readonly DistributedContentSettings _distributedSettings;
         private readonly DistributedCacheServiceArguments _arguments;
+        private readonly DistributedContentCopier<AbsolutePath> _copier;
 
-        internal string MachineName { get; set; } = Environment.MachineName;
+        private readonly RedisMemoizationStoreFactory _redisMemoizationStoreFactory;
+        private readonly DistributedContentStoreSettings _distributedContentStoreSettings;
+
+        public IReadOnlyList<ResolvedNamedCacheSettings> OrderedResolvedCacheSettings => _orderedResolvedCacheSettings;
+        private readonly List<ResolvedNamedCacheSettings> _orderedResolvedCacheSettings;
+
+        public RedisMemoizationStoreConfiguration RedisContentLocationStoreConfiguration { get; }
 
         public DistributedContentStoreFactory(DistributedCacheServiceArguments arguments)
         {
@@ -55,10 +63,91 @@ namespace BuildXL.Cache.Host.Service.Internal
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = new PassThroughFileSystem(_logger);
             _secretRetriever = new DistributedCacheSecretRetriever(arguments);
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+
+            _orderedResolvedCacheSettings = ResolveCacheSettingsInPrecedenceOrder(arguments);
+            Contract.Assert(_orderedResolvedCacheSettings.Count != 0);
+
+            RedisContentLocationStoreConfiguration = CreateRedisConfiguration();
+            _distributedContentStoreSettings = CreateDistributedStoreSettings(_arguments, RedisContentLocationStoreConfiguration);
+
+            _copier = new DistributedContentCopier<AbsolutePath>(
+                _distributedContentStoreSettings,
+                _fileSystem,
+                fileCopier: bandwidthCheckedCopier,
+                fileExistenceChecker: _arguments.Copier,
+                _arguments.CopyRequester,
+                _arguments.PathTransformer,
+                _arguments.Overrides.Clock
+            );
+
+            _redisMemoizationStoreFactory = CreateRedisCacheFactory();
         }
 
-        public RedisMemoizationStoreFactory CreateRedisCacheFactory(AbsolutePath localCacheRoot, out RedisContentLocationStoreConfiguration config)
+        private static List<ResolvedNamedCacheSettings> ResolveCacheSettingsInPrecedenceOrder(DistributedCacheServiceArguments arguments)
         {
+            var localCasSettings = arguments.Configuration.LocalCasSettings;
+            var cacheSettingsByName = localCasSettings.CacheSettingsByCacheName;
+
+            Dictionary<string, string> cacheNamesByDrive =
+                cacheSettingsByName.ToDictionary(x => Path.GetPathRoot(x.Value.CacheRootPath), x => x.Key, StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<ResolvedNamedCacheSettings>();
+
+            void addCacheByName(string cacheName)
+            {
+                var cacheSettings = cacheSettingsByName[cacheName];
+                var resolvedCacheRootPath = localCasSettings.GetCacheRootPathWithScenario(cacheName);
+                result.Add(
+                    new ResolvedNamedCacheSettings(
+                        name: cacheName,
+                        settings: cacheSettings,
+                        resolvedCacheRootPath: resolvedCacheRootPath,
+                        machineLocation: arguments.PathTransformer.GetLocalMachineLocation(resolvedCacheRootPath)));
+            }
+
+            // Add caches specified in drive preference order
+            foreach (var drive in localCasSettings.DrivePreferenceOrder)
+            {
+                if (cacheNamesByDrive.TryGetValue(drive, out var cacheName))
+                {
+                    addCacheByName(cacheName);
+                    cacheNamesByDrive.Remove(drive);
+                }
+            }
+
+            // Add remaining caches
+            foreach (var cacheName in cacheNamesByDrive.Values)
+            {
+                addCacheByName(cacheName);
+            }
+
+            return result;
+        }
+
+        private RedisMemoizationStoreFactory CreateRedisCacheFactory()
+        {
+            var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
+
+            // RedisContentSecretName and RedisMachineLocationsSecretName can be null. HostConnectionStringProvider won't fail in this case.
+            IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
+            IConnectionStringProvider machineLocationsConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisMachineLocationsSecretName);
+
+            return new RedisMemoizationStoreFactory(
+                contentConnectionStringProvider,
+                machineLocationsConnectionStringProvider,
+                _arguments.Overrides.Clock,
+                contentHashBumpTime,
+                _keySpace,
+                configuration: RedisContentLocationStoreConfiguration,
+                copier: _copier
+            );
+        }
+
+        private RedisMemoizationStoreConfiguration CreateRedisConfiguration()
+        {
+            var primaryCacheRoot = OrderedResolvedCacheSettings[0].ResolvedCacheRootPath;
+
             var redisContentLocationStoreConfiguration = new RedisMemoizationStoreConfiguration
             {
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
@@ -72,11 +161,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
-                UseBinManager = _distributedSettings.UseBinManager,
+                UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
-                DelayForProactiveReplication = TimeSpan.FromSeconds(_distributedSettings.ProactiveReplicationDelaySeconds),
-                ProactiveReplicationCopyLimit = _distributedSettings.ProactiveReplicationCopyLimit,
-                EnableProactiveReplication = _distributedSettings.EnableProactiveReplication,
+                PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
+                AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray()
             };
 
             ApplyIfNotNull(_distributedSettings.RedisConnectionErrorLimit, v => redisContentLocationStoreConfiguration.RedisConnectionErrorLimit = v);
@@ -93,7 +181,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)
             {
-                var dbConfig = new RocksDbContentLocationDatabaseConfiguration(localCacheRoot / "LocationDb")
+                var dbConfig = new RocksDbContentLocationDatabaseConfiguration(primaryCacheRoot / "LocationDb")
                 {
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase,
                     LogsKeepLongTerm = true,
@@ -139,12 +227,12 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 if (_distributedSettings.ContentLocationDatabaseLogsBackupEnabled)
                 {
-                    dbConfig.LogsBackupPath = localCacheRoot / "LocationDbLogs";
+                    dbConfig.LogsBackupPath = primaryCacheRoot / "LocationDbLogs";
                 }
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => dbConfig.LogsRetention = TimeSpan.FromMinutes(v));
 
                 redisContentLocationStoreConfiguration.Database = dbConfig;
-                ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot, dbConfig).GetAwaiter().GetResult();
+                ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, primaryCacheRoot, dbConfig).GetAwaiter().GetResult();
             }
 
             if (_distributedSettings.IsRedisGarbageCollectionEnabled)
@@ -159,66 +247,78 @@ namespace BuildXL.Cache.Host.Service.Internal
                 redisContentLocationStoreConfiguration.GarbageCollectionConfiguration = null;
             }
 
-            var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
-
-            // RedisContentSecretName and RedisMachineLocationsSecretName can be null. HostConnectionStringProvider won't fail in this case.
-            IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
-            IConnectionStringProvider machineLocationsConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisMachineLocationsSecretName);
-
             _arguments.Overrides.Override(redisContentLocationStoreConfiguration);
-            config = redisContentLocationStoreConfiguration;
-            ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
 
-            return new RedisMemoizationStoreFactory(
-                contentConnectionStringProvider,
-                machineLocationsConnectionStringProvider,
-                _arguments.Overrides.Clock,
-                contentHashBumpTime,
-                _keySpace,
-                configuration: redisContentLocationStoreConfiguration
-                );
+            ConfigurationPrinter.TraceConfiguration(redisContentLocationStoreConfiguration, _logger);
+            return redisContentLocationStoreConfiguration;
         }
 
-        public async Task<IMemoizationStore> CreateMemoizationStoreAsync(AbsolutePath localCacheRoot)
+        public async Task<IMemoizationStore> CreateMemoizationStoreAsync()
         {
-            var cacheFactory = CreateRedisCacheFactory(localCacheRoot, out var _);
+            var cacheFactory = CreateRedisCacheFactory();
             await cacheFactory.StartupAsync(new Context(_logger)).ThrowIfFailure();
             return cacheFactory.CreateMemoizationStore(_logger);
         }
 
-        public DistributedContentStore<AbsolutePath> CreateContentStore(AbsolutePath localCacheRoot)
+        public DistributedContentStore<AbsolutePath> CreateContentStore(ResolvedNamedCacheSettings resolvedSettings)
         {
-            var redisContentLocationStoreFactory = CreateRedisCacheFactory(localCacheRoot, out var redisContentLocationStoreConfiguration);
+            var contentStoreSettings = FromDistributedSettings(_distributedSettings);
 
-            var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
+            ConfigurationModel configurationModel = configurationModel 
+                = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedSettings.Settings.CacheSizeQuotaString)));
 
-           ContentAvailabilityGuarantee contentAvailabilityGuarantee;
-            if (string.IsNullOrEmpty(_distributedSettings.ContentAvailabilityGuarantee))
+            _logger.Debug("Creating a distributed content store");
+
+            var contentStore =
+                new DistributedContentStore<AbsolutePath>(
+                    resolvedSettings.MachineLocation,
+                    resolvedSettings.ResolvedCacheRootPath,
+                    (announcer, evictionSettings, checkLocal, trimBulk) =>
+                        ContentStoreFactory.CreateContentStore(_fileSystem, resolvedSettings.ResolvedCacheRootPath, announcer, distributedEvictionSettings: evictionSettings,
+                            contentStoreSettings: contentStoreSettings, trimBulkAsync: trimBulk, configurationModel: configurationModel),
+                    _redisMemoizationStoreFactory,
+                    _distributedContentStoreSettings,
+                    distributedCopier: _copier,
+                    clock: _arguments.Overrides.Clock,
+                    contentStoreSettings: contentStoreSettings);
+
+            _logger.Debug("Created Distributed content store.");
+            return contentStore;
+        }
+
+        private static DistributedContentStoreSettings CreateDistributedStoreSettings(
+            DistributedCacheServiceArguments arguments,
+            RedisContentLocationStoreConfiguration redisContentLocationStoreConfiguration)
+        {
+            var distributedSettings = arguments.Configuration.DistributedContentSettings;
+
+            ContentAvailabilityGuarantee contentAvailabilityGuarantee;
+            if (string.IsNullOrEmpty(distributedSettings.ContentAvailabilityGuarantee))
             {
                 contentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist;
             }
-            else if (!Enum.TryParse(_distributedSettings.ContentAvailabilityGuarantee, true, out contentAvailabilityGuarantee))
+            else if (!Enum.TryParse(distributedSettings.ContentAvailabilityGuarantee, true, out contentAvailabilityGuarantee))
             {
-                throw new ArgumentException($"Unable to parse {nameof(_distributedSettings.ContentAvailabilityGuarantee)}: [{_distributedSettings.ContentAvailabilityGuarantee}]");
+                throw new ArgumentException($"Unable to parse {nameof(distributedSettings.ContentAvailabilityGuarantee)}: [{distributedSettings.ContentAvailabilityGuarantee}]");
             }
 
             PinConfiguration pinConfiguration = null;
-            if (_distributedSettings.IsPinBetterEnabled)
+            if (distributedSettings.IsPinBetterEnabled)
             {
                 pinConfiguration = new PinConfiguration();
-                ApplyIfNotNull(_distributedSettings.PinRisk, v => pinConfiguration.PinRisk = v);
-                ApplyIfNotNull(_distributedSettings.MachineRisk, v => pinConfiguration.MachineRisk = v);
-                ApplyIfNotNull(_distributedSettings.FileRisk, v => pinConfiguration.FileRisk = v);
-                ApplyIfNotNull(_distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
+                ApplyIfNotNull(distributedSettings.PinRisk, v => pinConfiguration.PinRisk = v);
+                ApplyIfNotNull(distributedSettings.MachineRisk, v => pinConfiguration.MachineRisk = v);
+                ApplyIfNotNull(distributedSettings.FileRisk, v => pinConfiguration.FileRisk = v);
+                ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
 
-                pinConfiguration.IsPinCachingEnabled = _distributedSettings.IsPinCachingEnabled;
+                pinConfiguration.IsPinCachingEnabled = distributedSettings.IsPinCachingEnabled;
 
-                ApplyIfNotNull(_distributedSettings.PinCacheReplicaCreditRetentionMinutes, v => pinConfiguration.PinCachePerReplicaRetentionCreditMinutes = v);
-                ApplyIfNotNull(_distributedSettings.PinCacheReplicaCreditRetentionDecay, v => pinConfiguration.PinCacheReplicaCreditRetentionFactor = v);
+                ApplyIfNotNull(distributedSettings.PinCacheReplicaCreditRetentionMinutes, v => pinConfiguration.PinCachePerReplicaRetentionCreditMinutes = v);
+                ApplyIfNotNull(distributedSettings.PinCacheReplicaCreditRetentionDecay, v => pinConfiguration.PinCacheReplicaCreditRetentionFactor = v);
             }
 
-            var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
-            var lazyTouchContentHashBumpTime = _distributedSettings.IsTouchEnabled ? (TimeSpan?)contentHashBumpTime : null;
+            var contentHashBumpTime = TimeSpan.FromMinutes(distributedSettings.ContentHashBumpTimeMinutes);
+            var lazyTouchContentHashBumpTime = distributedSettings.IsTouchEnabled ? (TimeSpan?)contentHashBumpTime : null;
             if (redisContentLocationStoreConfiguration.ReadMode == ContentLocationMode.LocalLocationStore)
             {
                 // LocalLocationStore has its own internal notion of lazy touch/registration. We disable the lazy touch in distributed content store
@@ -226,64 +326,49 @@ namespace BuildXL.Cache.Host.Service.Internal
                 lazyTouchContentHashBumpTime = null;
             }
 
-            var contentStoreSettings = FromDistributedSettings(_distributedSettings);
-
-            ConfigurationModel configurationModel = null;
-            if (_arguments.Configuration.LocalCasSettings.CacheSettingsByCacheName.TryGetValue(_arguments.Configuration.LocalCasSettings.CasClientSettings.DefaultCacheName, out var namedCacheSettings))
+            var distributedContentStoreSettings = new DistributedContentStoreSettings()
             {
-                configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(namedCacheSettings.CacheSizeQuotaString)));
-            }
-
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
-
-            _logger.Debug("Creating a distributed content store for Autopilot");
-            var distributedContentStoreSettings = new DistributedContentStoreSettings() {
-                CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
-                TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
-                ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
-                MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
+                TrustedHashFileSizeBoundary = distributedSettings.TrustedHashFileSizeBoundary,
+                ParallelHashingFileSizeBoundary = distributedSettings.ParallelHashingFileSizeBoundary,
+                MaxConcurrentCopyOperations = distributedSettings.MaxConcurrentCopyOperations,
                 PinConfiguration = pinConfiguration,
-                RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
-                MaxRetryCount = _distributedSettings.MaxRetryCount,
-                TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
-                ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
-                PushProactiveCopies = _distributedSettings.PushProactiveCopies,
-                ProactiveCopyOnPut = _distributedSettings.ProactiveCopyOnPut,
-                ProactiveCopyOnPin = _distributedSettings.ProactiveCopyOnPin,
-                ProactiveCopyUsePreferredLocations = _distributedSettings.ProactiveCopyUsePreferredLocations,
-                MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
-                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
-                ProactiveCopyRejectOldContent = _distributedSettings.ProactiveCopyRejectOldContent,
-                MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
-                ReplicaCreditInMinutes = _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
-                EnableRepairHandling = _distributedSettings.IsRepairHandlingEnabled,
+                RetryIntervalForCopies = distributedSettings.RetryIntervalForCopies,
+                MaxRetryCount = distributedSettings.MaxRetryCount,
+                TimeoutForProactiveCopies = TimeSpan.FromMinutes(distributedSettings.TimeoutForProactiveCopiesMinutes),
+                ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), distributedSettings.ProactiveCopyMode),
+                PushProactiveCopies = distributedSettings.PushProactiveCopies,
+                ProactiveCopyOnPut = distributedSettings.ProactiveCopyOnPut,
+                ProactiveCopyOnPin = distributedSettings.ProactiveCopyOnPin,
+                ProactiveCopyUsePreferredLocations = distributedSettings.ProactiveCopyUsePreferredLocations,
+                MaxConcurrentProactiveCopyOperations = distributedSettings.MaxConcurrentProactiveCopyOperations,
+                ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
+                ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
+                MaximumConcurrentPutFileOperations = distributedSettings.MaximumConcurrentPutFileOperations,
+                ReplicaCreditInMinutes = distributedSettings.IsDistributedEvictionEnabled ? distributedSettings.ReplicaCreditInMinutes : null,
+                EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                 ContentHashBumpTime = lazyTouchContentHashBumpTime,
-                LocationStoreBatchSize = _distributedSettings.RedisBatchPageSize,
+                LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
                 ContentAvailabilityGuarantee = contentAvailabilityGuarantee,
-                PrioritizeDesignatedLocationsOnCopies = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
-                RestrictedCopyReplicaCount = _distributedSettings.RestrictedCopyReplicaCount,
-                CopyAttemptsWithRestrictedReplicas = _distributedSettings.CopyAttemptsWithRestrictedReplicas,
+                PrioritizeDesignatedLocationsOnCopies = distributedSettings.PrioritizeDesignatedLocationsOnCopies,
+                RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
+                CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
+                AreBlobsSupported = redisContentLocationStoreConfiguration.AreBlobsSupported,
+                MaxBlobSize = redisContentLocationStoreConfiguration.MaxBlobSize,
+                DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),
+                ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
+                EnableProactiveReplication = distributedSettings.EnableProactiveReplication,
             };
 
-            ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, _logger);
-            var contentStore =
-                new DistributedContentStore<AbsolutePath>(
-                    localMachineLocation,
-                    (announcer, evictionSettings, checkLocal, trimBulk) =>
-                        ContentStoreFactory.CreateContentStore(_fileSystem, localCacheRoot, announcer, distributedEvictionSettings: evictionSettings,
-                            contentStoreSettings: contentStoreSettings, trimBulkAsync: trimBulk, configurationModel: configurationModel),
-                    redisContentLocationStoreFactory,
-                    _arguments.Copier,
-                    bandwidthCheckedCopier,
-                    _arguments.PathTransformer,
-                    _arguments.CopyRequester,
-                    localCacheRoot,
-                    _fileSystem,
-                    Override(distributedContentStoreSettings),
-                    clock: _arguments.Overrides.Clock,
-                    contentStoreSettings: contentStoreSettings);
-            _logger.Debug("Created Distributed content store.");
-            return contentStore;
+            if (distributedSettings.EnableProactiveReplication && redisContentLocationStoreConfiguration.Checkpoint != null)
+            {
+                distributedContentStoreSettings.ProactiveReplicationInterval = redisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval;
+            }
+
+            arguments.Overrides.Override(distributedContentStoreSettings);
+
+            ConfigurationPrinter.TraceConfiguration(distributedContentStoreSettings, arguments.Logger);
+
+            return distributedContentStoreSettings;
         }
 
         private DistributedContentStoreSettings Override(DistributedContentStoreSettings settings)
@@ -302,16 +387,16 @@ namespace BuildXL.Cache.Host.Service.Internal
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
             var result = new ContentStoreSettings()
-                   {
-                       CheckFiles = settings.CheckLocalFiles,
-                       UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
-                       SelfCheckSettings = CreateSelfCheckSettings(settings),
-                       OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
-                       UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
-                       TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
-                       
-                       SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
-                   };
+            {
+                CheckFiles = settings.CheckLocalFiles,
+                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                SelfCheckSettings = CreateSelfCheckSettings(settings),
+                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+
+                SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
+            };
 
             ApplyIfNotNull(settings.SilentOperationDurationThreshold, v => result.SilentOperationDurationThreshold = TimeSpan.FromSeconds(v));
             ApplyIfNotNull(settings.SilentOperationDurationThreshold, v => DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold = TimeSpan.FromSeconds(v));
@@ -334,7 +419,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             return selfCheckSettings;
         }
 
-        private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot, RocksDbContentLocationDatabaseConfiguration dbConfig)
+        private async Task ApplySecretSettingsForLlsAsync(
+            RedisContentLocationStoreConfiguration configuration,
+            AbsolutePath localCacheRoot,
+            RocksDbContentLocationDatabaseConfiguration dbConfig)
         {
             (var secrets, var errors) = await _secretRetriever.TryRetrieveSecretsAsync();
             if (secrets == null)
@@ -381,10 +469,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
-            configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
+            configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
             if (_distributedSettings.SecondaryGlobalRedisSecretName != null)
             {
-                configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret) GetRequiredSecret(
+                configuration.RedisGlobalStoreSecondaryConnectionString = ((PlainTextSecret)GetRequiredSecret(
                     secrets,
                     _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
             }

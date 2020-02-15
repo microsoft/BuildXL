@@ -88,6 +88,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <nodoc />
         protected readonly DistributedContentCopier<T> DistributedCopier;
 
+        private readonly IDistributedContentCopierHost _copierHost;
+
         /// <summary>
         /// Updates content tracker lazily or eagerly based on local age.
         /// </summary>
@@ -111,6 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IContentSession inner,
             IContentLocationStore contentLocationStore,
             DistributedContentCopier<T> contentCopier,
+            IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
@@ -126,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentLocationStore = contentLocationStore;
             LocalCacheRootMachineLocation = localMachineLocation;
             Settings = settings;
-
+            _copierHost = copierHost;
             _pinCache = pinCache;
 
             // If no better pin configuration is supplied, fall back to the old remote pinning logic.
@@ -704,6 +707,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 var putResult = await DistributedCopier.TryCopyAndPutAsync(
                     operationContext,
+                    _copierHost,
                     hashInfo,
                     handleCopyAsync: async args =>
                     {

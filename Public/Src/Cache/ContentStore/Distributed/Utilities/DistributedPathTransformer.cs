@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot)
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
             if (!cacheRoot.IsLocal)
             {
@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 cacheRoot = cacheRoot / Constants.SharedDirectoryName;
             }
 
-            return Encoding.UTF8.GetBytes(cacheRoot.Path.ToUpperInvariant());
+            return new MachineLocation(cacheRoot.Path.ToUpperInvariant());
         }
 
         /// <inheritdoc />

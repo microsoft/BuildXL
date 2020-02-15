@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -133,6 +134,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             // Prefer db with highest version number (or primary if equal)
             bool preferPrimary = primaryVersionedResult.Value.version >= secondaryVersionedResult.Value.version;
+            if (!preferPrimary)
+            {
+                using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+                if (retryWindow != null)
+                {
+                    cancellationTokenSource.CancelAfter(retryWindow.Value);
+                }
+
+                // The primary might have a smaller version simply because it was modified first in time (i.e. not
+                // because there were failures). Requery again after the secondary to ensure that we are not in this particular
+                // race condition
+                var newPrimaryVersion = await _redis.ExecuteAndCaptureRedisErrorsAsync(
+                    _redis.PrimaryRedisDb,
+                    async (redisDb, token) =>
+                    {
+                        long version = await redisDb.ExecuteBatchAsync(
+                            context,
+                            batch => batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber), value: 0)),
+                            operation);
+
+                        return Result.Success(version);
+                    },
+                    cancellationTokenSource.Token);
+                
+                if (newPrimaryVersion.Succeeded
+                    && newPrimaryVersion.Value > secondaryVersionedResult.Value.version)
+                {
+                    preferPrimary = true;
+                }
+            }
 
             if (_host.CanMirror && !_lastMirrorTime.IsRecent(_clock.UtcNow, _host.MirrorInterval))
             {
@@ -146,7 +177,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     await TryMirrorRedisHashDataAsync(
                         context,
                         source: _redis.PrimaryRedisDb,
-                        target: _redis.SecondaryRedisDb);
+                        target: _redis.SecondaryRedisDb,
+                        primaryVersion: primaryVersionedResult.Value.version,
+                        secondaryVersion: secondaryVersionedResult.Value.version);
                 }
                 else
                 {
@@ -154,6 +187,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         context,
                         source: _redis.SecondaryRedisDb,
                         target: _redis.PrimaryRedisDb,
+                        primaryVersion: primaryVersionedResult.Value.version,
+                        secondaryVersion: secondaryVersionedResult.Value.version,
 
                         // Set version of secondary db to its prior version so primary will now take precedence
                         // Primary will have the current version of secondary after mirroring and secondary will have 
@@ -165,7 +200,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new Result<T>(result, isNullAllowed: true);
         }
 
-        private async Task TryMirrorRedisHashDataAsync(OperationContext context, RedisDatabaseAdapter source, RedisDatabaseAdapter target, long? postMirrorSourceVersion = null)
+        private async Task TryMirrorRedisHashDataAsync(
+            OperationContext context,
+            RedisDatabaseAdapter source,
+            RedisDatabaseAdapter target,
+            long primaryVersion,
+            long secondaryVersion,
+            long? postMirrorSourceVersion = null)
         {
             await context.PerformOperationAsync(
                 _host.Tracer,
@@ -193,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success(sourceDump.Length);
                 },
-                extraStartMessage: $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, PostMirrorSourceVersion={postMirrorSourceVersion ?? -1L}",
+                extraStartMessage: $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, PreMirrorVersions:(primary={primaryVersion}, secondary={secondaryVersion}), PostMirrorSourceVersion={postMirrorSourceVersion ?? -1L}",
                 extraEndMessage: r => $"({_redis.GetDbName(source)} -> {_redis.GetDbName(target)}) Key={_key}, Length={r.GetValueOrDefault(-1)}").IgnoreFailure();
         }
 

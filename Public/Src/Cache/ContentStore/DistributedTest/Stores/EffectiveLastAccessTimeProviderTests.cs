@@ -24,7 +24,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
     public class EffectiveLastAccessTimeProviderTests : TestBase
     {
         private static LocalLocationStoreConfiguration Configuration { get; } = new LocalLocationStoreConfiguration() {UseTieredDistributedEviction = true, DesiredReplicaRetention = 3};
-        private static readonly Func<MachineId, ContentHash, bool> DisableDesignatedLocationsFunc = (id, hash) => false;
 
         [Fact]
         public void RareContentShouldBeImportant()
@@ -36,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 contentSize: 42,
                 lastAccessTimeUtc: clock.UtcNow,
                 creationTimeUtc: clock.UtcNow);
-            bool isImportant = EffectiveLastAccessTimeProvider.IsImportantReplica(hash, entry, new MachineId(1), Configuration.DesiredReplicaRetention, DisableDesignatedLocationsFunc);
+            bool isImportant = EffectiveLastAccessTimeProvider.IsImportantReplica(hash, entry, new MachineId(1), Configuration.DesiredReplicaRetention);
             isImportant.Should().BeTrue();
         }
 
@@ -70,8 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                     hash,
                     entry,
                     new MachineId(machineId),
-                    Configuration.DesiredReplicaRetention,
-                    DisableDesignatedLocationsFunc)).Count(important => important);
+                    Configuration.DesiredReplicaRetention)).Count(important => important);
 
             // We should get roughly 'configuration.DesiredReplicaRetention' important replicas.
             // The number is not exact, because when we're computing the importance we're computing a hash of the first bytes of the hash
@@ -129,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                     lastAccessTimeUtc: clock.UtcNow - TimeSpan.FromHours(2),
                     creationTimeUtc: null));
 
-            var mock = new EffectiveLastAccessTimeProviderMock();
+            var mock = new EffectiveLastAccessTimeProviderMock(localMachineId: new MachineId(1024));
             var hashes = new [] {ContentHash.Random(), ContentHash.Random(), ContentHash.Random()};
             mock.Map = new Dictionary<ContentHash, ContentLocationEntry>()
             {
@@ -138,7 +136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 [hashes[2]] = entries[2],
             };
 
-            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock, DisableDesignatedLocationsFunc);
+            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock);
 
             var context = new OperationContext(new Context(Logger));
 
@@ -146,7 +144,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
             // This will prevent the provider to consider non-important locations randomly important
             var input = hashes.Select(hash => new ContentHashWithLastAccessTime(hash, mock.Map[hash].LastAccessTimeUtc.ToDateTime())).ToList();
 
-            var result = provider.GetEffectiveLastAccessTimes(context, new MachineId(1024), input).ShouldBeSuccess();
+            var result = provider.GetEffectiveLastAccessTimes(context, input).ShouldBeSuccess();
 
             var output = result.Value.ToList();
             output.Sort(ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance);
@@ -182,8 +180,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                     lastAccessTimeUtc: clock.UtcNow - TimeSpan.FromHours(2),
                     creationTimeUtc: null));
 
-            var mock = new EffectiveLastAccessTimeProviderMock();
             var hashes = new[] { ContentHash.Random(), ContentHash.Random(), ContentHash.Random() };
+
+            var mock = new EffectiveLastAccessTimeProviderMock(
+                localMachineId: new MachineId(1024),
+                isDesignatedLocation: hash => hash == hashes[0]); // The first hash will be designated, and thus important
+
             mock.Map = new Dictionary<ContentHash, ContentLocationEntry>()
             {
                 [hashes[0]] = entries[0],
@@ -191,11 +193,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 [hashes[2]] = entries[2],
             };
 
-            var provider = new EffectiveLastAccessTimeProvider(
-                Configuration,
-                clock,
-                mock,
-                isDesignatedLocationFunc: (location, hash) => hash == hashes[0]); // The first hash will be designated, and thus important
+            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock); 
 
             var context = new OperationContext(new Context(Logger));
 
@@ -203,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
             // This will prevent the provider to consider non-important locations randomly important
             var input = hashes.Select(hash => new ContentHashWithLastAccessTime(hash, mock.Map[hash].LastAccessTimeUtc.ToDateTime())).ToList();
 
-            var result = provider.GetEffectiveLastAccessTimes(context, new MachineId(1024), input).ShouldBeSuccess();
+            var result = provider.GetEffectiveLastAccessTimes(context, input).ShouldBeSuccess();
 
             var output = result.Value.ToList();
             output.Sort(ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance);
@@ -220,12 +218,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
 
         public class EffectiveLastAccessTimeProviderMock : IContentResolver
         {
+            private readonly Func<ContentHash, bool> _isDesignatedLocation;
+
             public Dictionary<ContentHash, ContentLocationEntry> Map { get; set; }
 
-            /// <inheritdoc />
-            public (ContentInfo info, ContentLocationEntry entry) GetContentInfo(OperationContext context, ContentHash hash)
+            public MachineId LocalMachineId { get; }
+
+            public EffectiveLastAccessTimeProviderMock(MachineId localMachineId, Func<ContentHash, bool> isDesignatedLocation = null)
             {
-                return (default, Map[hash]);
+                LocalMachineId = localMachineId;
+                _isDesignatedLocation = isDesignatedLocation;
+            }
+
+            /// <inheritdoc />
+            public (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
+            {
+                return (default, Map[hash], _isDesignatedLocation?.Invoke(hash) == true);
             }
         }
 

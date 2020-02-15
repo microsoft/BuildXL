@@ -59,8 +59,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
+        /// <summary>
+        /// Gets a list of machine ids representing unique CAS instances on the current machine
+        /// </summary>
+        public IReadOnlyList<MachineMapping> LocalMachineMappings { get; }
+
+        /// <summary>
+        /// The machine id representing the primary CAS instance on the machine. 
+        /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
+        /// this should correspond to the SSD CAS instance.
+        /// </summary>
+        public MachineId PrimaryMachineId { get; }
+
         /// <nodoc />
         public BinManager BinManager { get; set; }
+
+        /// <nodoc />
+        public bool EnableBinManagerUpdates { get; set; }
+
+        /// <nodoc />
+        public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> allLocalMachineIds)
+        {
+            PrimaryMachineId = primaryMachineId;
+            LocalMachineMappings = allLocalMachineIds;
+        }
+
+        /// <summary>
+        /// Create an empty cluster state only suitable for testing purposes.
+        /// </summary>
+        public static ClusterState CreateForTest()
+        {
+            return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
+        }
 
         /// <summary>
         /// Gets whether a machine is marked inactive
@@ -71,12 +101,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void SetInactiveMachines(BitMachineIdSet inactiveMachines, bool updateBinManager)
+        public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
         {
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
 
-            if (updateBinManager && BinManager != null)
+            if (EnableBinManagerUpdates && BinManager != null)
             {
                 var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
                 BinManager.UpdateAll(activeMachines, InactiveMachines);
@@ -90,7 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (_inactiveMachinesSet[machineId.Index])
             {
-                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId), updateBinManager: false);
+                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
             }
         }
 
@@ -197,19 +227,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
-        /// Gets the set of location ids designated for a hash. This is relevant for proactive copies and eviction.
+        /// Gets whether the given machine is a designated location for the hash
         /// </summary>
-        internal Result<MachineId[]> GetDesignatedLocationIds(ContentHash hash, bool includeExpired)
+        internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired)
         {
-            if (BinManager == null)
-            {
-                return new Result<MachineId[]>("Could not get designated locations because BinManager is null");
-            }
-
-            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
-            return locations
-                .Where(machineId => !_inactiveMachinesSet[machineId])
-                .ToArray();
+            return BinManager?.GetDesignatedLocations(hash, includeExpired).Contains(machineId) == true;
         }
 
         /// <summary>

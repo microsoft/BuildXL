@@ -120,15 +120,13 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             Func<AbsolutePath, MultiplexedContentStore> contentStoreFactory = path =>
             {
-                var cacheSettingsByCacheName = cacheConfig.LocalCasSettings.CacheSettingsByCacheName;
                 var drivesWithContentStore = new Dictionary<string, IContentStore>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var settings in cacheSettingsByCacheName)
+                foreach (var resolvedCacheSettings in factory.OrderedResolvedCacheSettings)
                 {
-                    _logger.Debug($"Using [{settings.Key}]'s settings: {settings.Value}");
+                    _logger.Debug($"Using [{resolvedCacheSettings.Settings.CacheRootPath}]'s settings: {resolvedCacheSettings.Settings}");
 
-                    var rootPath = cacheConfig.LocalCasSettings.GetCacheRootPathWithScenario(settings.Key);
-                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath);
+                    drivesWithContentStore[resolvedCacheSettings.Drive] = factory.CreateContentStore(resolvedCacheSettings);
                 }
 
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
@@ -184,7 +182,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (distributedSettings.UseRedisMetadataStore)
             {
-                return factory.CreateMemoizationStoreAsync(path).GetAwaiter().GetResult();
+                return factory.CreateMemoizationStoreAsync().GetAwaiter().GetResult();
             }
             else
             {

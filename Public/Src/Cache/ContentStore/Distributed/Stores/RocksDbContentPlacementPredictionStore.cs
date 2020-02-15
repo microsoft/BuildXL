@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
                 LogsKeepLongTerm = false,
             };
-            _clusterState = new ClusterState();
+            _clusterState = ClusterState.CreateForTest();
 
             _database = new RocksDbContentLocationDatabase(SystemClock.Instance, config, () => new List<MachineId>());
         }

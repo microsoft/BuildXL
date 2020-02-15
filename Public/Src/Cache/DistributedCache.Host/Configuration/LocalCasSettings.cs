@@ -15,6 +15,8 @@ namespace BuildXL.Cache.Host.Configuration
     [DataContract]
     public class LocalCasSettings
     {
+        public const string DefaultScenario = "ContentAddressableStore";
+
         [JsonConstructor]
         public LocalCasSettings()
         {    
@@ -145,6 +147,16 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public List<string> DrivePreferenceOrder { get; set; } = new List<string> { DefaultCacheDrive.Path };
 
+        /// <summary>
+        /// Indicates whether CAS instances should be separated by Scenario
+        /// </summary>
+        public bool UseScenarioIsolation { get; set; } = true;
+
+        public AbsolutePath GetCacheRootPathWithScenario(string cacheName)
+        {
+            return new AbsolutePath(GetCacheRootPath(cacheName, ServiceSettings?.ScenarioName ?? DefaultScenario));
+        }
+
         public Dictionary<string, NamedCacheSettings> CacheSettingsByCacheName
         {
             get { return CacheSettings?.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase); }
@@ -161,13 +173,20 @@ namespace BuildXL.Cache.Host.Configuration
                 throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(cacheName)}");
             }
 
-            if (string.IsNullOrEmpty(intent))
-            {
-                throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(intent)}");
-            }
-
             var settings = GetCacheSettings(cacheName);
-            return Path.Combine(settings.CacheRootPath, intent);
+            if (UseScenarioIsolation)
+            {
+                if (string.IsNullOrEmpty(intent))
+                {
+                    throw new ArgumentException($"Could not get cache root path due to null or empty {nameof(intent)}");
+                }
+
+                return Path.Combine(settings.CacheRootPath, intent);
+            }
+            else
+            {
+                return settings.CacheRootPath;
+            }
         }
 
         public NamedCacheSettings GetCacheSettings(string cacheName)

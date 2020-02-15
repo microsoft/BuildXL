@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// and used by peers for downloading content from local machine
         /// e.g. An implementation could be \\machine\cacheRoot
         /// </remarks>
-        byte[] GetLocalMachineLocation(AbsolutePath cacheRoot);
+        MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot);
 
         /// <summary>
         /// Generates a path a content hash on a remote machine given opaque data about the remote machine and a content hash.
@@ -31,18 +31,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <param name="contentLocationIdContent">Data about the machine reachable in the path.</param>
         /// <returns>A path that allows a file copier to retrieve the content hash locally.</returns>
         T GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent);
-
-        /// <summary>
-        /// Given a specific path, retrieves machine specific data about the path.
-        /// </summary>
-        /// <param name="path">An opaque path</param>
-        /// <returns>Machine data from the path</returns>
-        /// <remarks>
-        /// Used by <see cref="IFileCopier{T}"/> for downloading content from the peer
-        /// represented by given opaque path
-        /// e.g. An implementation could be \\machine\cacheRoot
-        /// </remarks>
-        byte[] GetPathLocation(T path);
     }
 
     /// <summary>

@@ -116,8 +116,32 @@ namespace ContentStoreTest.Distributed.Sessions
                 mockClock: TestClock,
                 _configuration);
 
+            var settings = new DistributedContentStoreSettings
+            {
+                RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
+                PinConfiguration = PinConfiguration,
+                InlinePutBlobs = true,
+                ReplicaCreditInMinutes = replicaCreditInMinutes,
+                EnableRepairHandling = enableRepairHandling,
+                SetPostInitializationCompletionAfterStartup = true,
+                ContentAvailabilityGuarantee = ContentAvailabilityGuarantee,
+                LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
+                MaxBlobSize = _configuration.MaxBlobSize,
+                AreBlobsSupported = _configuration.AreBlobsSupported,
+            };
+
+            var distributedCopier = new DistributedContentCopier<AbsolutePath>(
+                settings,
+                FileSystem,
+                fileCopier,
+                fileCopier,
+                (IContentCommunicationManager)fileCopier,
+                storeFactory.PathTransformer,
+                SystemClock.Instance);
+
             var distributedContentStore = new DistributedContentStore<AbsolutePath>(
                 localMachineData,
+                rootPath,
                 (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
                     new FileSystemContentStore(
                         FileSystem,
@@ -129,23 +153,8 @@ namespace ContentStoreTest.Distributed.Sessions
                         settings: contentStoreSettings,
                         trimBulkAsync: trimBulkAsync),
                 storeFactory,
-                fileCopier,
-                fileCopier,
-                pathTransformer,
-                (IContentCommunicationManager)fileCopier,
-                tempPath,
-                FileSystem,
-                settings: new DistributedContentStoreSettings
-                {
-                    RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
-                    PinConfiguration = PinConfiguration,
-                    InlinePutBlobs = true,
-                    ReplicaCreditInMinutes = replicaCreditInMinutes,
-                    EnableRepairHandling = enableRepairHandling,
-                    SetPostInitializationCompletionAfterStartup = true,
-                    ContentAvailabilityGuarantee = ContentAvailabilityGuarantee,
-                    LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize
-                },
+                settings: settings,
+                distributedCopier: distributedCopier,
                 clock: TestClock,
                 contentStoreSettings: new ContentStoreSettings()
                 {

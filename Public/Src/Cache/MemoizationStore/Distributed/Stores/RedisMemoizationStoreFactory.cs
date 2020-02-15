@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -25,8 +26,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             IClock clock,
             TimeSpan contentHashBumpTime,
             string keySpace,
-            RedisMemoizationStoreConfiguration configuration = null)
-            : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, configuration)
+            RedisMemoizationStoreConfiguration configuration,
+            IDistributedContentCopier copier)
+            : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, configuration, copier)
         {
             _memoizationExpiryTime = configuration.MemoizationExpiryTime;
         }

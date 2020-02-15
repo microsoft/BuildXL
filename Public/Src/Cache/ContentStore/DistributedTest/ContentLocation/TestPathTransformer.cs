@@ -11,9 +11,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
 {
     public class TestPathTransformer : IAbsolutePathTransformer, IPathTransformer<AbsolutePath>
     {
-        public byte[] GetLocalMachineLocation(AbsolutePath cacheRoot)
+        public MachineLocation GetLocalMachineLocation(AbsolutePath cacheRoot)
         {
-            return Encoding.Default.GetBytes(cacheRoot.Path.ToCharArray());
+            return new MachineLocation(cacheRoot.Path);
         }
 
         public virtual AbsolutePath GeneratePath(ContentHash contentHash, byte[] contentLocationIdContent)

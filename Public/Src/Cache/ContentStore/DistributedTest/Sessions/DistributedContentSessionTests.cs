@@ -48,7 +48,6 @@ namespace ContentStoreTest.Distributed.Sessions
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
         {
             var rootPath = testDirectory.Path / "Root";
-            var tempPath = testDirectory.Path / "Temp";
             var configurationModel = new ConfigurationModel(configuration);
             var fileCopier = new TestFileCopier();
 
@@ -58,8 +57,20 @@ namespace ContentStoreTest.Distributed.Sessions
             var localMachineLocation = new MachineLocation(rootPath.Path);
             var storeFactory = new MockRedisContentLocationStoreFactory(localDatabase, localMachineDatabase, rootPath);
 
+            var settings = CreateSettings();
+
+            var distributedCopier = new DistributedContentCopier<AbsolutePath>(
+                settings,
+                FileSystem,
+                fileCopier,
+                fileCopier,
+                copyRequester: null,
+                storeFactory.PathTransformer,
+                SystemClock.Instance);
+
             return new DistributedContentStore<AbsolutePath>(
-                localMachineLocation.Data,
+                localMachineLocation,
+                rootPath,
                 (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
                     new FileSystemContentStore(
                         FileSystem,
@@ -71,19 +82,19 @@ namespace ContentStoreTest.Distributed.Sessions
                         settings: contentStoreSettings,
                         trimBulkAsync: trimBulkAsync),
                 storeFactory,
-                fileCopier,
-                fileCopier,
-                storeFactory.PathTransformer,
-                copyRequester: null,
-                tempPath,
-                FileSystem,
-                settings: new DistributedContentStoreSettings
-                {
-                    ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist,
-                    LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
-                    RetryIntervalForCopies = DefaultRetryIntervalsForTest,
-                    SetPostInitializationCompletionAfterStartup = true
-                });
+                settings: settings,
+                distributedCopier: distributedCopier);
+        }
+
+        protected virtual DistributedContentStoreSettings CreateSettings()
+        {
+            return new DistributedContentStoreSettings
+            {
+                ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist,
+                LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
+                RetryIntervalForCopies = DefaultRetryIntervalsForTest,
+                SetPostInitializationCompletionAfterStartup = true
+            };
         }
     }
 }

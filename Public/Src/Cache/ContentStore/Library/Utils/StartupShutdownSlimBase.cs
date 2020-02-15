@@ -24,6 +24,17 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <nodoc />
         protected abstract Tracer Tracer { get; }
 
+        /// <summary>
+        /// Indicates whether the component supports multiple startup and shutdown calls. If true,
+        /// component is ref counted (incremented on startup and decremented on shutdown). When the ref count reaches 0,
+        /// the component will actually shutdown. NOTE: Multiple or concurrent startup calls are elided into a single execution
+        /// of startup where no startup calls will return until the operation is complete.
+        /// </summary>
+        public virtual bool AllowMultipleStartupAndShutdowns => false;
+
+        private int _refCount = 0;
+        private Lazy<Task<BoolResult>> _lazyStartupTask;
+
         /// <inheritdoc />
         public virtual bool StartupCompleted { get; private set; }
 
@@ -59,25 +70,45 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <inheritdoc />
         public virtual async Task<BoolResult> StartupAsync(Context context)
         {
-            if (StartupStarted)
+            if (AllowMultipleStartupAndShutdowns)
+            {
+                Interlocked.Increment(ref _refCount);
+            }
+            else if (StartupStarted)
             {
                 Contract.Assert(false, $"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
             }
 
             StartupStarted = true;
-            var operationContext = OperationContext(context);
-            var result = await operationContext.PerformInitializationAsync(
-                Tracer,
-                () => StartupCoreAsync(operationContext),
-                endMessageFactory: ExtraStartupMessageFactory);
-            StartupCompleted = true;
 
-            return result;
+            LazyInitializer.EnsureInitialized(ref _lazyStartupTask, () =>
+                new Lazy<Task<BoolResult>>(async () =>
+                {
+                    var operationContext = OperationContext(context);
+                    var result = await operationContext.PerformInitializationAsync(
+                        Tracer,
+                        () => StartupCoreAsync(operationContext),
+                        endMessageFactory: ExtraStartupMessageFactory);
+                    StartupCompleted = true;
+
+                    return result;
+                }));
+
+            return await _lazyStartupTask.Value;
         }
 
         /// <inheritdoc />
         public async Task<BoolResult> ShutdownAsync(Context context)
         {
+            if (AllowMultipleStartupAndShutdowns)
+            {
+                var refCount = Interlocked.Decrement(ref _refCount);
+                if (refCount > 0)
+                {
+                    return BoolResult.Success;
+                }
+            }
+
             if (ShutdownStarted)
             {
                 Contract.Assert(false, $"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on this instance.");

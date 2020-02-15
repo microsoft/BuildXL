@@ -29,11 +29,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// <see cref="CentralStorage"/> which uses uses distributed CAS as cache aside for a fallback central storage
     /// </summary>
-    public class DistributedCentralStorage : CentralStorage
+    public class DistributedCentralStorage : CentralStorage, IDistributedContentCopierHost
     {
         private const string StorageIdSeparator = "||DCS||";
         private readonly DistributedCentralStoreConfiguration _configuration;
-        private ILocationStore _locationStore;
+        private readonly ILocationStore _locationStore;
         private readonly IDistributedContentCopier _copier;
         private const string CacheSubFolderName = "dcs";
         private const string CacheSubFolderNameWithTrailingSlash = CacheSubFolderName + @"\";
@@ -52,6 +52,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // which machines have started copying a particular piece of content
         private const uint _startedCopyHashSeed = 1006063109;
         private readonly FileSystemContentStoreInternal _privateCas;
+        private readonly DisposableDirectory _copierWorkingDirectory;
         private int _translateLocationsOffset = 0;
 
         /// <inheritdoc />
@@ -63,45 +64,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public DistributedCentralStorage(
             DistributedCentralStoreConfiguration configuration,
+            ILocationStore locationStore,
             IDistributedContentCopier copier,
             CentralStorage fallbackStorage)
         {
             _configuration = configuration;
             _copier = copier;
             _fallbackStorage = fallbackStorage;
+            _locationStore = locationStore;
 
             var maxRetentionMb = configuration.MaxRetentionGb * 1024;
             var softRetentionMb = (int)(maxRetentionMb * 0.8);
 
+            var cacheFolder = configuration.CacheRoot / CacheSubFolderName;
+
+            _copierWorkingDirectory = new DisposableDirectory(copier.FileSystem, cacheFolder / "Temp");
+
             // Create a private CAS for storing checkpoint data
             // Avoid introducing churn into primary CAS
             _privateCas = new FileSystemContentStoreInternal(
-                new PassThroughFileSystem(),
+                copier.FileSystem,
                 SystemClock.Instance,
-                configuration.CacheRoot / CacheSubFolderName,
+                cacheFolder,
                 new ConfigurationModel(
                     new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
                     ConfigurationSelection.RequireAndUseInProcessConfiguration));
-            
-            // Suppressing the nullability warning. The field is technically nullable, but the instance is not usable unless the startup is called (where the field is initialized).
-            _locationStore = null!;
         }
 
-        /// <nodoc />
-        public Task<BoolResult> StartupAsync(OperationContext context, ILocationStore locationStore)
+        #region IDistributedContentCopierHost Members
+
+        AbsolutePath IDistributedContentCopierHost.WorkingFolder => _copierWorkingDirectory.Path;
+
+        void IDistributedContentCopierHost.ReportReputation(MachineLocation location, MachineReputation reputation)
         {
-            Contract.RequiresNotNull(locationStore);
-
-            _locationStore = locationStore;
-            return StartupAsync(context);
+            // Don't report reputation as this component modifies machine locations so they won't be recognized
+            // by the machine reputation tracker
         }
+
+        private readonly Result<MachineLocation[]> _notSupportedDesignatedLocationsResult = new Result<MachineLocation[]>("Not supported for distributed central storage");
+
+        Result<MachineLocation[]> IDistributedContentCopierHost.GetDesignatedLocations(ContentHash hash)
+        {
+            // Designated locations are not supported for distributed central storage
+            return _notSupportedDesignatedLocationsResult;
+        }
+
+        #endregion IDistributedContentCopierHost Members
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            Contract.Assert(_locationStore != null);
-
             await _privateCas.StartupAsync(context).ThrowIfFailure();
+
             return await base.StartupCoreAsync(context);
         }
 
@@ -109,6 +123,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             await _privateCas.ShutdownAsync(context).ThrowIfFailure();
+
+            _copierWorkingDirectory.Dispose();
+
             return await base.ShutdownCoreAsync(context);
         }
 
@@ -235,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // If initial place fails, try to copy the content from remote locations
                     var (hashInfo, pendingCopyCount) = await GetFileLocationsAsync(context, hash, startedCopyHash);
 
-                    var machineId = _locationStore.LocalMachineId.Index;
+                    var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
                     int machineNumber = GetMachineNumber();
                     var requiredReplicas = ComputeRequiredReplicas(machineNumber);
 
@@ -251,7 +268,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldCopy)
                     {
-                        var putResult = await _copier.TryCopyAndPutAsync(context, hashInfo,
+                        var putResult = await _copier.TryCopyAndPutAsync(
+                            context,
+                            this,
+                            hashInfo,
                             args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
 
                         return putResult;
@@ -369,7 +389,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private int GetMachineNumber()
         {
-            var machineId = _locationStore.LocalMachineId.Index;
+            var machineId = _locationStore.ClusterState.PrimaryMachineId.Index;
             var machineNumber = machineId - _locationStore.ClusterState.InactiveMachines.Where(id => id.Index < machineId).Count();
             return machineNumber;
         }
@@ -409,11 +429,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public interface ILocationStore
         {
-            /// <summary>
-            /// The local machine id
-            /// </summary>
-            MachineId LocalMachineId { get; }
-
             /// <summary>
             /// The cluster state
             /// </summary>

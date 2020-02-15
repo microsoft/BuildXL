@@ -19,10 +19,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class RocksDbMemoizationDatabase : MemoizationDatabase
     {
-        internal ContentLocationDatabase Database { get; }
-
         /// <inheritdoc />
-        protected override Tracer Tracer { get; }
+        protected override Tracer Tracer { get; } = new Tracer(nameof(RocksDbMemoizationDatabase));
+
+        internal ContentLocationDatabase Database { get; }
 
         private readonly bool _ownsDatabase;
 
@@ -35,13 +35,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <nodoc />
         public RocksDbMemoizationDatabase(ContentLocationDatabase database, bool ownsDatabase = true)
         {
-            Tracer = new Tracer(nameof(RocksDbMemoizationDatabase));
             _ownsDatabase = ownsDatabase;
             Database = database;
         }
 
         /// <inheritdoc />
-        public override Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string replacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        protected override Task<Result<bool>> CompareExchangeCore(OperationContext context, StrongFingerprint strongFingerprint, string replacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
         {
             return Task.FromResult(Database.CompareExchange(context, strongFingerprint, expected, replacement).ToResult());
         }
@@ -53,7 +52,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        protected override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var contentHashListResult = Database.GetContentHashList(context, strongFingerprint);
             return contentHashListResult.Succeeded
@@ -62,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        protected override Task<Result<LevelSelectors>> GetLevelSelectorsCoreAsync(OperationContext context, Fingerprint weakFingerprint, int level)
         {
             return Task.FromResult(LevelSelectors.Single(Database.GetSelectors(context, weakFingerprint)));
         }

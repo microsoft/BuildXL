@@ -28,7 +28,21 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
         /// fingerprint is not present, then it is inserted.
         /// </summary>
-        public abstract Task<Result<bool>> CompareExchange(
+        public Task<Result<bool>> CompareExchange(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            string expectedReplacementToken,
+            ContentHashListWithDeterminism expected,
+            ContentHashListWithDeterminism replacement)
+        {
+            return context.PerformOperationAsync(Tracer, () => CompareExchangeCore(context, strongFingerprint, expectedReplacementToken, expected, replacement),
+                extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}]",
+                traceOperationStarted: false,
+                traceErrorsOnly: true);
+        }
+
+        /// <nodoc />
+        protected abstract Task<Result<bool>> CompareExchangeCore(
             OperationContext context,
             StrongFingerprint strongFingerprint,
             string expectedReplacementToken,
@@ -38,7 +52,16 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// Load a ContentHashList and the token used to replace it.
         /// </summary>
-        public abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared);
+        public Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
+        {
+            return context.PerformOperationAsync(Tracer, () => GetContentHashListCoreAsync(context, strongFingerprint, preferShared),
+                extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}], PreferShared=[{preferShared}]",
+                traceOperationStarted: false,
+                traceErrorsOnly: true);
+        }
+
+        /// <nodoc />
+        protected abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListCoreAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared);
 
         /// <summary>
         /// Enumerates all strong fingerprints
@@ -48,6 +71,15 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// <see cref="ILevelSelectorsProvider.GetLevelSelectorsAsync(Context, Fingerprint, CancellationToken, int)"/>
         /// </summary>
-        public abstract Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level);
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(OperationContext context, Fingerprint weakFingerprint, int level)
+        {
+            return context.PerformOperationAsync(Tracer, () => GetLevelSelectorsCoreAsync(context, weakFingerprint, level),
+                extraEndMessage: _ => $"WeakFingerprint=[{weakFingerprint}], Level=[{level}]",
+                traceOperationStarted: false,
+                traceErrorsOnly: true);
+        }
+
+        /// <nodoc />
+        protected abstract Task<Result<LevelSelectors>> GetLevelSelectorsCoreAsync(OperationContext context, Fingerprint weakFingerprint, int level);
     }
 }

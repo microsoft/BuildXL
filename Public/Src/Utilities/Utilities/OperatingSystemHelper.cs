@@ -164,6 +164,25 @@ namespace BuildXL.Utilities
             throw new NotImplementedException("Getting physical memory size is not supported on this platform!");
         }
 
+        /// <summary>
+        /// Gets the currently available physical memory size in MB
+        /// </summary>
+        /// <returns></returns>
+        public static FileSize GetAvailablePhysicalMemorySize()
+        {
+            if (!IsUnixOS)
+            {
+                return GetAvailablePhysicalMemorySizeWindows();
+            }
+            else if (IsMacOS)
+            {
+                return GetAvailablePhysicalMemorySizeMacOS();
+            }
+
+            // Extend this once we start supporting Linux etc.
+            throw new NotImplementedException("Getting physical memory size is not supported on this platform!");
+        }
+
         private static string GetOSVersionWindows()
         {
             try
@@ -241,6 +260,16 @@ namespace BuildXL.Utilities
                 : 0;
             return new FileSize(bytes);
         }
+
+        private static FileSize GetAvailablePhysicalMemorySizeWindows()
+        {
+            MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+
+            ulong bytes = GlobalMemoryStatusEx(memoryStatusEx)
+                ? memoryStatusEx.ullAvailPhys
+                : 0;
+            return new FileSize(bytes);
+        }       
 
         /// <summary>
         /// Gets .NET Framework version installed on the machine in a human readable form.
@@ -447,6 +476,12 @@ namespace BuildXL.Utilities
             return new FileSize(physicalPages * pageSize);
         }
 
-#endregion
+        private static FileSize GetAvailablePhysicalMemorySizeMacOS()
+        {
+            double? bytes = PerformanceCollector.GetAvailablePhysicalBytesMacOS(GetPhysicalMemorySizeMacOS().Bytes);
+            return new FileSize(bytes.HasValue && bytes.Value < long.MaxValue && bytes.Value > 0 ? (long)bytes.Value : 0);
+        }
+
+        #endregion
     }
 }

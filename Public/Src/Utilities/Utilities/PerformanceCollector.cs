@@ -488,7 +488,10 @@ namespace BuildXL.Utilities
             return machineCpu;
         }
 
-        private double? GetAvailablePhysicalBytesMacOS(ulong totalPhysicalBytes)
+        /// <summary>
+        /// Returns number of available physical bytes when running on macOS
+        /// </summary>
+        public static double? GetAvailablePhysicalBytesMacOS(ulong totalPhysicalBytes)
         {
             double? availableAvailablePhysicalBytes = null;
             RamUsageInfo ramUsageInfo = new RamUsageInfo();

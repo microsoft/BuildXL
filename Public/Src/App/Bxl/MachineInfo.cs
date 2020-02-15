@@ -43,6 +43,11 @@ namespace BuildXL
         public int InstalledMemoryMB { get; private set; }
 
         /// <summary>
+        /// Available memory in MB
+        /// </summary>
+        public int AvailableMemoryMB { get; private set; }
+        
+        /// <summary>
         /// Whether the Current Directory's drive has a seek penalty.
         /// </summary>
         /// <remarks>
@@ -88,6 +93,8 @@ namespace BuildXL
             }
 #endif
             mi.InstalledMemoryMB = OperatingSystemHelper.GetPhysicalMemorySize().MB;
+            mi.AvailableMemoryMB = OperatingSystemHelper.GetAvailablePhysicalMemorySize().MB;
+
 
             char currentDrive = Environment.CurrentDirectory[0];
             bool ?seekPenalty = (char.IsLetter(currentDrive) && currentDrive > 64 && currentDrive < 123)

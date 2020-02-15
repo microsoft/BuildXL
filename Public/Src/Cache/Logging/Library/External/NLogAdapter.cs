@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.Logging.External
@@ -12,19 +14,90 @@ namespace BuildXL.Cache.Logging.External
     /// </summary>
     public sealed class NLogAdapter : ILogger
     {
+        private readonly ILogger _host;
         private readonly NLog.Logger _nlog;
         private int _errorCount;
 
+        /// <summary>
+        /// Whether to set unobserved task exceptions as observed.
+        /// </summary>
+        public bool CatchUnobservedTaskExceptions { get; set; } = false;
+
         /// <nodoc />
-        public NLogAdapter(NLog.Config.LoggingConfiguration configuration)
+        public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration)
         {
+            Contract.RequiresNotNull(logger);
+            Contract.RequiresNotNull(configuration);
+
+            _host = logger;
+
             NLog.LogManager.Configuration = configuration;
             _nlog = NLog.LogManager.GetLogger("Cache");
             NLog.LogManager.EnableLogging();
 
             CurrentSeverity = ComputeCurrentSeverity();
+
+            // Hook configuration readers up to config change events
             NLog.LogManager.ConfigurationChanged += HandleConfigurationChange;
             NLog.LogManager.ConfigurationReloaded += HandleConfigurationReload;
+
+            // Hook log cleanup up to exit handlers.
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            AppDomain.CurrentDomain.DomainUnload += CurrentDomain_DomainUnload;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+        }
+
+        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+
+        private void CurrentDomain_DomainUnload(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        {
+            var exception = args.ExceptionObject as Exception;
+
+            string exitString = args.IsTerminating
+                                    ? "Process will exit"
+                                    : "Process will not exit";
+
+            try
+            {
+                _host.Error(exception, "An exception has occured and is unhandled. {0}", exitString);
+            }
+            catch (Exception loggerException)
+            {
+                Console.WriteLine("Logger threw exception: {0} while trying to log unhandled exception {1}. {2}",
+                                  loggerException,
+                                  exception ?? args.ExceptionObject,
+                                  exitString);
+            }
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        {
+            var exception = args.Exception;
+
+            try
+            {
+                _host.Error(exception, "An exception has occurred in an unobserved task. Process will exit");
+            }
+            catch (Exception loggerException)
+            {
+                Console.WriteLine("Logger threw exception: {0} while trying to log an unobserved task exception: {1}",
+                                  loggerException,
+                                  exception);
+            }
+
+            if (CatchUnobservedTaskExceptions && !args.Observed)
+            {
+                args.SetObserved();
+            }
         }
 
         /// <inheritdoc />
@@ -80,7 +153,7 @@ namespace BuildXL.Cache.Logging.External
         /// <inheritdoc />
         public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs)
         {
-            _nlog.Log(Translate(Severity.Error), messageFormat, messageArgs);
+            _nlog.Log(Translate(Severity.Error), exception, messageFormat, messageArgs);
             Interlocked.Increment(ref _errorCount);
         }
 
@@ -127,16 +200,28 @@ namespace BuildXL.Cache.Logging.External
         /// <inheritdoc />
         public void Dispose()
         {
+            _host.Info("Disposing NLog instance");
             NLog.LogManager.Shutdown();
         }
 
         private void HandleConfigurationReload(object sender, NLog.Config.LoggingConfigurationReloadedEventArgs e)
         {
+            if (e.Succeeded)
+            {
+                _host.Info("NLog configuration has been reloaded successfully");
+            }
+            else
+            {
+                _host.Error(e.Exception, "Attempted NLog configuration reload failed");
+            }
+
             CurrentSeverity = ComputeCurrentSeverity();
         }
 
         private void HandleConfigurationChange(object sender, NLog.Config.LoggingConfigurationChangedEventArgs e)
         {
+            _host.Info("NLog configuration has changed");
+
             CurrentSeverity = ComputeCurrentSeverity();
         }
 

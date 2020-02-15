@@ -9,7 +9,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -163,8 +162,7 @@ namespace BuildXL.Cache.Logging
                 _uploadQueue.EnqueueAll(pendingUpload);
                 return BoolResult.Success;
             },
-                counter: Counters[AzureBlobStorageLogCounters.RecoverFromCrashCalls],
-                traceErrorsOnly: true);
+                counter: Counters[AzureBlobStorageLogCounters.RecoverFromCrashCalls]);
         }
 
         /// <nodoc />
@@ -228,8 +226,7 @@ namespace BuildXL.Cache.Logging
                 {
                     return UploadToBlobStorageAsync(_context, logFilePaths[0]);
                 },
-                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls],
-                traceErrorsOnly: true);
+                counter: Counters[AzureBlobStorageLogCounters.ProcessBatchCalls]);
         }
 
         private Task<Result<LogFile>> WriteLogsToFileAsync(OperationContext context, AbsolutePath logFilePath, string[] logs)
@@ -293,8 +290,7 @@ namespace BuildXL.Cache.Logging
                         return $"LogFilePath=[{logFilePath}] NumLogLines=[{logs.Length}]";
                     }
                 },
-                counter: Counters[AzureBlobStorageLogCounters.WriteLogsToFileCalls],
-                traceErrorsOnly: true);
+                counter: Counters[AzureBlobStorageLogCounters.WriteLogsToFileCalls]);
         }
 
         private Task<BoolResult> UploadToBlobStorageAsync(OperationContext context, LogFile uploadTask)
@@ -353,8 +349,7 @@ namespace BuildXL.Cache.Logging
                     return BoolResult.Success;
                 },
                 extraEndMessage: _ => $"LogFilePath=[{logFilePath}] UploadSizeBytes=[{uploadTask.CompressedSizeBytes?.ToSizeExpression() ?? "Unknown"}]",
-                counter: Counters[AzureBlobStorageLogCounters.UploadToBlobStorageCalls],
-                traceErrorsOnly: true);
+                counter: Counters[AzureBlobStorageLogCounters.UploadToBlobStorageCalls]);
         }
 
         private string GenerateBlobName()

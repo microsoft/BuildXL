@@ -407,7 +407,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
                                 $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
-                                (result.Succeeded ? $"attempt={attemptCount} replica={replicaIndex} " : string.Empty) +
+                                $"attempt={attemptCount} replica={replicaIndex} " +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
                                 $"IOGate.Wait={ts.TotalMilliseconds}ms.",

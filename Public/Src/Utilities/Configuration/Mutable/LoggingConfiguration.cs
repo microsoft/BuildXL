@@ -45,7 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
-            CacheMissBatch = false;
+            CacheMissBatch = true;
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 

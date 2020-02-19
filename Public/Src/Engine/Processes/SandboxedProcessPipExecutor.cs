@@ -3394,9 +3394,10 @@ namespace BuildXL.Processes
                                 hasEnumeration = true;
                             }
 
-                            // if the access is a write (and not a directory creation), then the path is a candidate to be part of a shared opaque
+                            // if the access is a write (and not a directory creation/removal), then the path is a candidate to be part of a shared opaque
                             isPathCandidateToBeOwnedByASharedOpaque |= (access.RequestedAccess & RequestedAccess.Write) != RequestedAccess.None &&
-                                                                       access.Operation != ReportedFileOperation.CreateDirectory;
+                                                                       access.Operation != ReportedFileOperation.CreateDirectory &&
+                                                                       access.Operation != ReportedFileOperation.RemoveDirectory;
                         }
 
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then

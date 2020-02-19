@@ -387,6 +387,37 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void DirectoryDoubleDeletionIsAllowedUnderASharedOpaque()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            // PipA creates and removes a directory
+            FileArtifact directory = CreateOutputFileArtifact(sharedOpaqueDir);
+            var builderA = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.CreateDir(directory, doNotInfer: true),
+                                                       Operation.DeleteDir(directory, doNotInfer: true),
+                                                   });
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            // PipB creates and remove the same directory
+            var builderB = CreatePipBuilder(new Operation[]
+                                                   {
+                                                       Operation.CreateDir(directory, doNotInfer: true),
+                                                       Operation.DeleteDir(directory, doNotInfer: true),
+                                                   });
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            // Order pips just to avoid races
+            builderB.AddOrderDependency(pipA.Process.PipId);
+            SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
         public void TwoPipsProducingTheSameFileDynamicallyAndStaticallyUnderASharedOpaqueDirectoryIsBlocked()
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");

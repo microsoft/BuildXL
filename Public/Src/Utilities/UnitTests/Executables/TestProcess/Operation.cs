@@ -513,6 +513,14 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Creates a delete directory operation (uses WinAPI)
+        /// </summary>
+        public static Operation DeleteDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string additionalArgs = null)
+        {
+            return new Operation(Type.DeleteDir, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
+        }
+
+        /// <summary>
         /// Creates a write file operation that appends. The file is created if it does not exist.
         /// Writes random content to file at path if no content is specified.
         /// </summary>

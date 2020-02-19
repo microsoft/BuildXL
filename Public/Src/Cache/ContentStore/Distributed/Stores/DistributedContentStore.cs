@@ -268,6 +268,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                        while (!context.Token.IsCancellationRequested)
                        {
+                           // Create task before starting operation to ensure uniform intervals assuming operation takes less than the delay.
+                           var delayTask = Task.Delay(_settings.ProactiveReplicationInterval, context.Token);
+
                            await ProactiveReplicationIterationAsync(context, localContentStore, contentLocationStore).ThrowIfFailure();
 
                            if (_settings.InlineProactiveReplication)
@@ -277,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                break;
                            }
 
-                           await Task.Delay(_settings.ProactiveReplicationInterval, context.Token);
+                           await delayTask;
                        }
 
                        return BoolResult.Success;

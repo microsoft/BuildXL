@@ -17,5 +17,6 @@ enum WorkDispatcher_DispatcherKind{
     WorkDispatcher_DispatcherKind_CacheLookup = 5;
     WorkDispatcher_DispatcherKind_ChooseWorkerCpu = 6;
     WorkDispatcher_DispatcherKind_ChooseWorkerCacheLookup = 7;
-    Materialize = 8;
+    WorkDispatcher_DispatcherKind_SealDirs = 8;
+    Materialize = 9;
 }

@@ -56,6 +56,11 @@ namespace BuildXL.Scheduler.WorkDispatcher
         ChooseWorkerCacheLookup,
 
         /// <summary>
+        /// The queue where sealdirectory pips are processed.
+        /// </summary>
+        SealDirs,
+
+        /// <summary>
         /// Queue for input/output materialization
         /// </summary>
         /// <remarks>

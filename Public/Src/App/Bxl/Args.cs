@@ -695,6 +695,9 @@ namespace BuildXL
                             "maxRelativeOutputDirectoryLength",
                             opt => engineConfiguration.MaxRelativeOutputDirectoryLength = CommandLineUtilities.ParseInt32Option(opt, 49, 260)),
                         OptionHandlerFactory.CreateOption(
+                            "maxSealDirs",
+                            opt => schedulingConfiguration.MaxSealDirs = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "maxTypeCheckingConcurrency",
                             opt => frontEndConfiguration.MaxTypeCheckingConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(

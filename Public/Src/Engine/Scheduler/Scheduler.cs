@@ -3136,9 +3136,17 @@ namespace BuildXL.Scheduler
                 inline = true;
             }
 
-            if (nextQueue != DispatcherKind.ChooseWorkerCpu && nextQueue != DispatcherKind.ChooseWorkerCacheLookup && previousQueue == nextQueue)
+            if (previousQueue == nextQueue && nextQueue != DispatcherKind.ChooseWorkerCpu && nextQueue != DispatcherKind.ChooseWorkerCacheLookup)
             {
-                inline = true;
+                // If the dispatcher kind is the same and we start a new pip, our new setting should decide to inline or not.
+                if (runnablePip.Step == PipExecutionStep.Start)
+                {
+                    inline = !EngineEnvironmentSettings.DoNotInlineWhenNewPipRunInSameQueue;
+                }
+                else
+                {
+                    inline = true;
+                }
             }
 
             if (runnablePip.Worker?.IsRemote == true)
@@ -3325,6 +3333,8 @@ namespace BuildXL.Scheduler
                             return m_pipQueue.IsDraining ? DispatcherKind.None : DispatcherKind.CPU;
 
                         case PipType.SealDirectory:
+                            return DispatcherKind.SealDirs;
+
                         case PipType.WriteFile:
                         case PipType.CopyFile:
                         case PipType.Ipc:
@@ -3363,6 +3373,7 @@ namespace BuildXL.Scheduler
                     }
 
                     return DispatcherKind.Materialize;
+
                 case PipExecutionStep.MaterializeOutputs:
                 case PipExecutionStep.PostProcess:
                     return DispatcherKind.Materialize;
@@ -3401,10 +3412,12 @@ namespace BuildXL.Scheduler
                 case PipType.Ipc:
                     return DispatcherKind.Light;
 
+                case PipType.SealDirectory:
+                    return DispatcherKind.SealDirs;
+
                 case PipType.Value:
                 case PipType.SpecFile:
                 case PipType.Module:
-                case PipType.SealDirectory:
                     return DispatcherKind.None;
 
                 default:

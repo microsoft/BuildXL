@@ -340,5 +340,10 @@ namespace BuildXL.Utilities.Configuration
         /// Enable estimating the setup cost when choosing worker.
         /// </summary>
         bool EnableSetupCostWhenChoosingWorker { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of sealdirectory pips that BuildXL will process at one time. The default value is the number of processors in the current machine.
+        /// </summary>
+        int MaxSealDirs { get; }
     }
 }

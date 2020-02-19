@@ -129,6 +129,11 @@ namespace BuildXL.Utilities.Configuration
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
 
+        /// <summary>
+        /// Specifies whether a new pip should not be inlined if it runs on the same queue with the pip that schedules it.
+        /// </summary>
+        public static readonly Setting<bool> DoNotInlineWhenNewPipRunInSameQueue = CreateSetting("BuildXLDoNotInlineWhenNewPipRunInSameQueue", value => value == "1");
+
         #region Distribution-related timeouts
 
         /// <summary>

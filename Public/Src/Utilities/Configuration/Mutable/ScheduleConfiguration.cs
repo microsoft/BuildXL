@@ -37,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Based on the benchmarks, the cache lookup limit is 2 times the number of logical cores.
             MaxCacheLookup = Environment.ProcessorCount * 2;
             MaxMaterialize = Environment.ProcessorCount * 2;
+            MaxSealDirs = Environment.ProcessorCount;
 
             MaxChooseWorkerCpu = 5;
             MaxChooseWorkerCacheLookup = 1;
@@ -146,6 +147,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InputChanges = pathRemapper.Remap(template.InputChanges);
             CacheOnly = template.CacheOnly;
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
+            MaxSealDirs = template.MaxSealDirs;
         }
 
         /// <inheritdoc />
@@ -344,5 +346,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnableSetupCostWhenChoosingWorker { get; set;  }
+
+        /// <nodoc />
+        public int MaxSealDirs { get; set; }
     }
 }

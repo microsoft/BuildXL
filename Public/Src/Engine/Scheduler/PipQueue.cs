@@ -169,7 +169,8 @@ namespace BuildXL.Scheduler
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
                                  {DispatcherKind.CPU, new DispatcherQueue(this, config.MaxProcesses)},
                                  {DispatcherKind.Materialize, new DispatcherQueue(this, config.MaxMaterialize)},
-                                 {DispatcherKind.Light, new DispatcherQueue(this, config.MaxLightProcesses)}
+                                 {DispatcherKind.Light, new DispatcherQueue(this, config.MaxLightProcesses)},
+                                 {DispatcherKind.SealDirs, new DispatcherQueue(this, config.MaxSealDirs)},
                              };
 
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);

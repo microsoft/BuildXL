@@ -648,6 +648,7 @@ namespace ContentStoreTest.Distributed.Sessions
             PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
+            var storeCount = 2;
 
             ConfigureWithOneMaster(dcs =>
             {
@@ -658,21 +659,21 @@ namespace ContentStoreTest.Distributed.Sessions
 
             await RunTestAsync(
                 new Context(Logger),
-                storeCount: 3,
+                storeCount,
                 iterations: 2,
                 testFunc: async context =>
                 {
                     var sessions = context.Sessions;
                     var master = context.GetMasterIndex();
 
-                    var ls = Enumerable.Range(0, 3).Select(n => context.GetLocationStore(n)).ToArray();
-                    var lls = Enumerable.Range(0, 3).Select(n => context.GetLocalLocationStore(n)).ToArray();
+                    var ls = Enumerable.Range(0, storeCount).Select(n => context.GetLocationStore(n)).ToArray();
+                    var lls = Enumerable.Range(0, storeCount).Select(n => context.GetLocalLocationStore(n)).ToArray();
 
                     if (context.Iteration == 0)
                     {
                         putResult = await sessions[1].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
-                        // Content should be available in two sessions, because of proactive put.
+                        // Content should be available in only one session, with proactive put set to false.
                         var masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
                         masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
                         await ls[master].LocalLocationStore.CreateCheckpointAsync(context).ShouldBeSuccess();
@@ -686,7 +687,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         var counters = proactiveSession.GetCounters().ToDictionaryIntegral();
                         counters["ProactiveCopy_OutsideRingFromPreferredLocations.Count"].Should().Be(usePreferredLocations ? 1 : 0);
 
-                        // Content should be available in all sessions, because of proactive replication.
+                        // Content should be available in two sessions, due to proactive replication in second iteration.
                         var masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
                         masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
                     }

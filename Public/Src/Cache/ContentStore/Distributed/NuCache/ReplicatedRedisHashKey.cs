@@ -159,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     cancellationTokenSource.Token);
                 
                 if (newPrimaryVersion.Succeeded
-                    && newPrimaryVersion.Value > secondaryVersionedResult.Value.version)
+                    && newPrimaryVersion.Value >= secondaryVersionedResult.Value.version)
                 {
                     preferPrimary = true;
                 }

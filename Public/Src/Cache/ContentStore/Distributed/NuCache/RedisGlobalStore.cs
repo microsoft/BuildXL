@@ -477,6 +477,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return (heartbeatResult, getUnknownMachinesResult);
             }).ThrowIfFailureAsync();
 
+            if (getUnknownMachinesResult.maxMachineId != clusterState.MaxMachineId)
+            {
+                Tracer.Debug(context, $"Retrieved unknown machines from ({clusterState.MaxMachineId}, {getUnknownMachinesResult.maxMachineId}]");
+                foreach (var item in getUnknownMachinesResult.unknownMachines)
+                {
+                    context.LogMachineMapping(Tracer, item.Key, item.Value);
+                }
+            }
+
             clusterState.AddUnknownMachines(getUnknownMachinesResult.maxMachineId, getUnknownMachinesResult.unknownMachines);
             clusterState.SetInactiveMachines(inactiveMachineIdSet);
             Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
@@ -497,15 +506,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (getUnknownMachinesResult.maxMachineId < machineMapping.Id.Index)
                 {
                     return new BoolResult($"Invalid redis cluster state on machine {machineMapping} (redis max machine id={getUnknownMachinesResult.maxMachineId})");
-                }
-            }
-
-            if (getUnknownMachinesResult.maxMachineId != clusterState.MaxMachineId)
-            {
-                Tracer.Debug(context, $"Retrieved unknown machines from ({clusterState.MaxMachineId}, {getUnknownMachinesResult.maxMachineId}]");
-                foreach (var item in getUnknownMachinesResult.unknownMachines)
-                {
-                    context.LogMachineMapping(Tracer, item.Key, item.Value);
                 }
             }
 

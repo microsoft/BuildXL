@@ -22,6 +22,8 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
+using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Engine
 {
@@ -337,6 +339,101 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(1, numDeleted);
             XAssert.IsFalse(File.Exists(fullSymlinkPath));
             XAssert.IsTrue(Directory.Exists(fullTargetDirPath));
+        }
+
+        [Fact]
+        public void DirectorySymlinksAreTraversed()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksAreTraversed));
+            string fullTargetDirPath = Path.Combine(rootDir, "target-dir");
+            Directory.CreateDirectory(fullTargetDirPath);
+
+            var fileUnderTarget = Path.Combine(fullTargetDirPath, "file.txt");
+            File.WriteAllText(fileUnderTarget, "content");
+
+            string rootToScrub = Path.Combine(rootDir, "root-to-scrub");
+            Directory.CreateDirectory(rootToScrub);
+
+            string fullSymlinkPath = WriteSymlink(Path.Combine(rootToScrub, "directory symlink"), fullTargetDirPath, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
+
+            // Scrub starting on a root dir that contains a symlink directory. We should be able to find the file underneath and delete it
+            // We consider all artifacts to be not part of the build, so symlink directories are followed and all files are deleted
+            Scrubber.RemoveExtraneousFilesAndDirectories(
+                        isPathInBuild: path => false,
+                        pathsToScrub: new[] { rootDir },
+                        blockedPaths: CollectionUtilities.EmptyArray<string>(),
+                        nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+            XAssert.IsFalse(File.Exists(fileUnderTarget));
+            XAssert.IsFalse(Directory.Exists(fullSymlinkPath));
+        }
+
+        /// <summary>
+        /// On Mac this happens naturally since directory symlinks are fully supported.
+        /// On Windows, directories under shared opaques are always removed unless they have files underneath
+        /// that shouldn't be removed. This test verifies this behavior also applies to symlink directories.
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty));
+            string fullTargetDirPath = Path.Combine(rootDir, "target-dir");
+            Directory.CreateDirectory(fullTargetDirPath);
+            XAssert.IsTrue(Directory.Exists(fullTargetDirPath));
+
+            var fileUnderTarget = Path.Combine(fullTargetDirPath, "file.txt");
+            File.WriteAllText(fileUnderTarget, "content");
+
+            string fullSymlinkPath = WriteSymlink(Path.Combine(rootDir, "directory symlink"), fullTargetDirPath, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
+
+            // This is somewhat subtle. On Windows, IsSharedOpaqueOutput will say yes for any directory, including symlink directories. This means they won't be
+            // considered part of the build and therefore should be traversed.
+            // So if the symlink is traversed, fileUnderTarget will be found, which is not a shared opaque output. So the file won't be deleted. And
+            // so nor the symlink directory. If the symlink directory wasn't traversed, then it would be deleted.
+            Scrubber.RemoveExtraneousFilesAndDirectories(
+                isPathInBuild: path => !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path), 
+                pathsToScrub: new[] { rootDir }, 
+                blockedPaths: CollectionUtilities.EmptyArray<string>(), 
+                nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+            XAssert.IsTrue(File.Exists(fileUnderTarget));
+            XAssert.IsTrue(Directory.Exists(fullSymlinkPath));
+        }
+
+        [Fact]
+        public void SymlinkDirectoriesDoNotIntroduceDuplicateWork()
+        {
+            // We are creating this layout
+            //
+            // root
+            // -- real-dir
+            //    -- symlink-dir -> real-dir
+            //       --file.txt
+            //
+            // so there is in fact a cycle, where root/real-dir/symlink-dir/.../symlink-dir/... is a valid path
+            // The fact that scrubbing finishes proves we are deduping work
+
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(SymlinkDirectoriesDoNotIntroduceDuplicateWork));
+            string realDirectory = Path.Combine(rootDir, "real-dir");
+            Directory.CreateDirectory(realDirectory);
+
+            string symlinkDirectory = WriteSymlink(Path.Combine(realDirectory, "symlink-dir"), rootDir, isTargetFile: false);
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(symlinkDirectory));
+
+            var fileUnderSymlinkDir = Path.Combine(symlinkDirectory, "file.txt");
+            File.WriteAllText(fileUnderSymlinkDir, "content");
+
+            Scrubber.RemoveExtraneousFilesAndDirectories(
+                isPathInBuild: path => false,
+                pathsToScrub: new[] { rootDir },
+                blockedPaths: CollectionUtilities.EmptyArray<string>(),
+                nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+
+            XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
+            XAssert.IsFalse(Directory.Exists(realDirectory));
+            XAssert.IsFalse(Directory.Exists(symlinkDirectory));
         }
 
         [Theory]

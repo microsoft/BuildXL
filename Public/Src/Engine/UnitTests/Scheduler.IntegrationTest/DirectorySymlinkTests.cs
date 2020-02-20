@@ -449,6 +449,8 @@ Versions/sym-sym-A -> sym-A/
                     }
                 }
             }
+
+            IgnoreWarnings();
         }
 
         [Feature(Features.Symlink)]

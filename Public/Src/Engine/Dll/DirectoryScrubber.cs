@@ -12,6 +12,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -140,7 +141,7 @@ namespace BuildXL.Engine
             MountPathExpander mountPathExpander,
             bool logRemovedFiles,
             string statisticIdentifier)
-        { 
+        {
             int directoriesEncountered = 0;
             int filesEncountered = 0;
             int filesRemoved = 0;
@@ -153,18 +154,18 @@ namespace BuildXL.Engine
                 // with particular messages
                 (_ => {}),
                 loggingContext =>
-                    {
-                        Tracing.Logger.Log.ScrubbingFinished(loggingContext, directoriesEncountered, filesEncountered, filesRemoved, directoriesRemovedRecursively);
-                        Logger.Log.BulkStatistic(
-                            loggingContext,
-                            new Dictionary<string, long>
-                            {
-                                [I($"{Category}.DirectoriesEncountered")] = directoriesEncountered,
-                                [I($"{Category}.FilesEncountered")] = filesEncountered,
-                                [I($"{Category}.FilesRemoved")] = filesRemoved,
-                                [I($"{Category}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
-                            });
-                    }))
+                {
+                    Tracing.Logger.Log.ScrubbingFinished(loggingContext, directoriesEncountered, filesEncountered, filesRemoved, directoriesRemovedRecursively);
+                    Logger.Log.BulkStatistic(
+                        loggingContext,
+                        new Dictionary<string, long>
+                        {
+                            [I($"{Category}.DirectoriesEncountered")] = directoriesEncountered,
+                            [I($"{Category}.FilesEncountered")] = filesEncountered,
+                            [I($"{Category}.FilesRemoved")] = filesRemoved,
+                            [I($"{Category}.DirectoriesRemovedRecursively")] = directoriesRemovedRecursively,
+                        });
+                }))
             using (var timer = new Timer(
                 o =>
                 {
@@ -178,6 +179,7 @@ namespace BuildXL.Engine
                 var deletableDirectoryCandidates = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var nondeletableDirectories = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var directoriesToEnumerate = new BlockingCollection<string>();
+                var allEnumeratedDirectories = new ConcurrentBigSet<string>();
 
                 foreach (var path in pathsToScrub)
                 {
@@ -193,6 +195,7 @@ namespace BuildXL.Engine
                         if (!isPathInBuild(path))
                         {
                             directoriesToEnumerate.Add(path);
+                            allEnumeratedDirectories.Add(path);
                         }
                         else
                         {
@@ -248,9 +251,18 @@ namespace BuildXL.Engine
                                             return;
                                         }
 
-                                        // important to not follow directory symlinks because that can cause 
-                                        // re-enumerating and scrubbing the same physical folder multiple times
-                                        if (FileUtilities.IsDirectoryNoFollow(attributes))
+                                        string realPath = fullPath;
+                                        
+                                        // If this is a symlinked directory, get the final real target directory that it points to, so we can track duplicate work properly
+                                        if (FileUtilities.IsDirectorySymlinkOrJunction(fullPath) &&
+                                            FileUtilities.TryGetLastReparsePointTargetInChain(handle: null, sourcePath: fullPath) is var maybeRealPath &&
+                                            maybeRealPath.Succeeded)
+                                        {
+                                            realPath = maybeRealPath.Result;
+                                        }
+
+                                        // If the current path is a directory, only follow it if we haven't followed it before (making sure we use the real path in case of symlinks)
+                                        if ((attributes & FileAttributes.Directory) == FileAttributes.Directory && !allEnumeratedDirectories.GetOrAdd(realPath).IsFound)
                                         {
                                             if (nondeletableDirectories.ContainsKey(fullPath))
                                             {
@@ -282,7 +294,7 @@ namespace BuildXL.Engine
                                                 shouldDeleteCurrentDirectory = false;
                                             }
                                         }
-                                        else
+                                        else 
                                         {
                                             Interlocked.Increment(ref filesEncountered);
 

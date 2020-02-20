@@ -14,6 +14,7 @@ using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -720,6 +721,38 @@ namespace BuildXL.Native.IO
         public static Possible<string> TryGetReparsePointTarget(SafeFileHandle handle, string sourcePath)
         {
             return s_fileSystem.TryGetReparsePointTarget(handle, sourcePath);
+        }
+
+        /// <summary>
+        /// Returns the last element of a reparse point chain. If the source path is not a reparse point
+        /// it returns the same path.
+        /// </summary>
+        /// <param name="handle">Handle to the source path. Can be null, in which case is not used</param>
+        /// <param name="sourcePath">Path to the artifact</param>
+        public static Possible<string> TryGetLastReparsePointTargetInChain([CanBeNull]SafeFileHandle handle, string sourcePath)
+        {
+            Contract.RequiresNotNullOrEmpty(sourcePath);
+
+            if (handle == null)
+            {
+                var openResult = FileUtilities.TryOpenDirectory(
+                                                sourcePath,
+                                                FileDesiredAccess.GenericRead,
+                                                FileShare.Read | FileShare.Delete,
+                                                FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                                                out handle);
+                if (!openResult.Succeeded)
+                {
+                    return openResult.CreateFailureForError();
+                } 
+            }
+
+            using (handle)
+            {
+                var symlinkChainElements = new List<string>();
+                FileUtilities.GetChainOfReparsePoints(handle, sourcePath, symlinkChainElements);
+                return symlinkChainElements[symlinkChainElements.Count - 1];
+            }
         }
 
         /// <see cref="IFileSystem.IsDirectorySymlinkOrJunction(string)"/>

@@ -6,26 +6,71 @@
 
 #include <EndpointSecurity/EndpointSecurity.h>
 #include <bsm/libbsm.h>
+#include <map>
 
+#include "BuildXLException.hpp"
 #include "Common.h"
+#include "SandboxedPip.hpp"
+#include "SandboxedProcess.hpp"
 #include "Trie.hpp"
 
 #define ES_CLIENT_CREATION_FAILED       0x1
 #define ES_CLIENT_CACHE_RESET_FAILED    0x2
 #define ES_CLIENT_SUBSCRIBE_FAILED      0x4
 #define ES_WRONG_BUFFER_SIZE            0x8
+#define ES_INSTANCE_ERROR               0x16
 
 typedef struct {
     int error;
-    uintptr_t client;
-    uintptr_t source;
-    uintptr_t runLoop;
 } ESConnectionInfo;
 
-enum class EventType {
-    IOEvent,
-    LookupEvent,
-    ProcessEvent
+static const dispatch_queue_attr_t processingQueuepriorityAttribute_ = dispatch_queue_attr_make_with_qos_class(
+    DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, -1
+);
+
+const es_event_type_t observed_events_[] =
+{
+    // Process life cycle
+    ES_EVENT_TYPE_NOTIFY_EXEC,
+    ES_EVENT_TYPE_NOTIFY_FORK,
+    ES_EVENT_TYPE_NOTIFY_EXIT,
+
+    // ES_EVENT_TYPE_NOTIFY_OPEN,
+    ES_EVENT_TYPE_NOTIFY_CLOSE,
+    
+    // Currently not used, maybe useful later
+    // ES_EVENT_TYPE_NOTIFY_READDIR,
+    // ES_EVENT_TYPE_NOTIFY_FSGETPATH,
+    // ES_EVENT_TYPE_NOTIFY_DUP,
+
+    // Read events
+    ES_EVENT_TYPE_NOTIFY_READLINK,
+    ES_EVENT_TYPE_NOTIFY_GETATTRLIST,
+    ES_EVENT_TYPE_NOTIFY_GETEXTATTR,
+    ES_EVENT_TYPE_NOTIFY_LISTEXTATTR,
+    ES_EVENT_TYPE_NOTIFY_ACCESS,
+    // ES_EVENT_TYPE_NOTIFY_STAT,
+
+    // Write events
+    ES_EVENT_TYPE_NOTIFY_CREATE,
+    // ES_EVENT_TYPE_NOTIFY_WRITE,
+    ES_EVENT_TYPE_NOTIFY_TRUNCATE,
+    ES_EVENT_TYPE_NOTIFY_CLONE,
+    ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA,
+    ES_EVENT_TYPE_NOTIFY_RENAME,
+
+    ES_EVENT_TYPE_NOTIFY_LINK,
+    ES_EVENT_TYPE_NOTIFY_UNLINK,
+
+    ES_EVENT_TYPE_NOTIFY_SETATTRLIST,
+    ES_EVENT_TYPE_NOTIFY_SETEXTATTR,
+    ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR,
+    ES_EVENT_TYPE_NOTIFY_SETFLAGS,
+    ES_EVENT_TYPE_NOTIFY_SETMODE,
+    ES_EVENT_TYPE_NOTIFY_SETOWNER,
+    ES_EVENT_TYPE_NOTIFY_SETACL,
+
+    // ES_EVENT_TYPE_NOTIFY_LOOKUP
 };
 
 extern "C"
@@ -43,123 +88,65 @@ class ESSandbox
 {
 private:
     
-    Trie *trackedProcesses_;
+    pid_t pid_;
     
-    static const uint32_t numberOfSubscribedProcEvents_ = 3;
-    const es_event_type_t proc_observed_events_[numberOfSubscribedProcEvents_] =
-    {
-        // Process life cycle
-        ES_EVENT_TYPE_NOTIFY_EXEC,
-        ES_EVENT_TYPE_NOTIFY_FORK,
-        ES_EVENT_TYPE_NOTIFY_EXIT,
-    };
+    std::map<pid_t, bool> whitelistedPids_;
     
-    static const uint32_t numberOfSubscribedIOEvents_ = 13;
-    const es_event_type_t io_observed_events_[numberOfSubscribedIOEvents_] =
-    {
-        // Process I/O operations
-        
-        // Currently deactivated, done through ES_EVENT_TYPE_NOTIFY_CLOSE to reduce overall event count
-        // ES_EVENT_TYPE_NOTIFY_OPEN,
-        
-        ES_EVENT_TYPE_NOTIFY_CLOSE,
-        ES_EVENT_TYPE_NOTIFY_CREATE,
-        ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA,
-        ES_EVENT_TYPE_NOTIFY_RENAME,
-        ES_EVENT_TYPE_NOTIFY_LINK,
-        ES_EVENT_TYPE_NOTIFY_UNLINK,
-        ES_EVENT_TYPE_NOTIFY_READLINK,
-        ES_EVENT_TYPE_NOTIFY_WRITE,
-        ES_EVENT_TYPE_NOTIFY_SETATTRLIST,
-        ES_EVENT_TYPE_NOTIFY_SETEXTATTR,
-        ES_EVENT_TYPE_NOTIFY_SETFLAGS,
-        ES_EVENT_TYPE_NOTIFY_SETMODE,
-        ES_EVENT_TYPE_NOTIFY_SETOWNER,
-    };
-            
-    static const uint32_t numberOfSubscribedLookupEvents_ = 1;
-    const es_event_type_t lookup_observed_events_[numberOfSubscribedLookupEvents_] =
-    {
-        ES_EVENT_TYPE_NOTIFY_LOOKUP
-    };
-
-    CFRunLoopSourceContext sourceContext_ = {
-        .version         = 0,
-        .info            = NULL,
-        .retain          = NULL,
-        .release         = NULL,
-        .copyDescription = NULL,
-        .equal           = NULL,
-        .hash            = NULL,
-        .schedule        = NULL,
-        .cancel          = NULL,
-        .perform         = NULL
-    };
+    Trie<SandboxedProcess> *trackedProcesses_;
     
-    es_client_t *client;
-    es_handler_block_t esObservationHandler_;
+    es_client_t *client_;
+    dispatch_queue_t processingQueue_;
+    
     AccessReportCallback accessReportCallback_;
     
 public:
-    
+
     ESSandbox() = delete;
-    ESSandbox(es_handler_block_t handler)
+    ESSandbox(pid_t pid)
     {
-        _Block_copy(handler);
-        esObservationHandler_ = handler;
-        accessReportCallback_ = nullptr;
+        pid_ = pid;
         
-        trackedProcesses_ = Trie::createUintTrie();
+        char queueName[PATH_MAX] = { '\0' };
+        sprintf(queueName, "com.microsoft.buildxl.es.queue_%d", pid);
+        processingQueue_ = dispatch_queue_create(queueName, processingQueuepriorityAttribute_);
+        
+        accessReportCallback_ = nullptr;
+        trackedProcesses_ = Trie<SandboxedProcess>::createUintTrie();
         if (!trackedProcesses_)
         {
-            throw "Could not create Trie for process tracking!";
+            throw BuildXLException("Could not create Trie for process tracking!");
         }
     }
     
     ~ESSandbox();
     
-    inline CFRunLoopSourceContext* GetRunLoopSourceContext() { return &sourceContext_; }
+    inline const pid_t GetHostPid() const { return pid_; }
     
-    inline es_event_type_t* GetEventsForType(EventType type)
+    inline std::map<pid_t, bool> GetPidMap() { return whitelistedPids_; }
+    inline bool RemoveWhitelistedPid(pid_t pid)
     {
-        switch (type)
+        auto result = whitelistedPids_.find(pid);
+        if (result != whitelistedPids_.end())
         {
-            case EventType::ProcessEvent:
-                return (es_event_type_t*) proc_observed_events_;
-            case EventType::IOEvent:
-                return (es_event_type_t*) io_observed_events_;
-            case EventType::LookupEvent:
-                return (es_event_type_t*) lookup_observed_events_;
+            return (whitelistedPids_.erase(pid) == 1);
         }
+        
+        return false;
     }
     
-    inline int GetEventCountForType(EventType type)
-    {
-        switch (type)
-        {
-            case EventType::ProcessEvent:
-                return numberOfSubscribedProcEvents_;
-            case EventType::IOEvent:
-                return numberOfSubscribedIOEvents_;
-            case EventType::LookupEvent:
-                return numberOfSubscribedLookupEvents_;
-        }
-    }
-    
-    inline es_handler_block_t GetObservationHandler() { return esObservationHandler_; }
-    
-    inline const AccessReportCallback GetAccessReportCallback() { return accessReportCallback_; }
+    inline const dispatch_queue_t GetProcessingQueue() const { return processingQueue_; }
+    inline const AccessReportCallback GetAccessReportCallback() const { return accessReportCallback_; }
     inline const void SetAccessReportCallback(AccessReportCallback callback) { accessReportCallback_ = callback; }
     
-    inline const es_client_t* GetESClient() { return client; }
-    inline const void SetESClient(es_client_t *c) { client = c; }
+    inline const es_client_t* GetESClient() const { return client_; }
+    inline const void SetESClient(es_client_t *c) { client_ = c; }
     
-    SandboxedProcess* FindTrackedProcess(pid_t pid);
-    bool TrackRootProcess(SandboxedPip *pip);
-    bool TrackChildProcess(pid_t childPid, SandboxedProcess *parentProcess);
-    bool UntrackProcess(pid_t pid, SandboxedProcess *process);
+    std::shared_ptr<SandboxedProcess> FindTrackedProcess(pid_t pid);
+    bool TrackRootProcess(std::shared_ptr<SandboxedPip> pip);
+    bool TrackChildProcess(pid_t childPid,std::shared_ptr<SandboxedProcess> parentProcess);
+    bool UntrackProcess(pid_t pid, std::shared_ptr<SandboxedProcess> process);
     
-    void const SendAccessReport(AccessReport &report, SandboxedPip *pip);
+    void const SendAccessReport(AccessReport &report, std::shared_ptr<SandboxedPip> pip);
 };
 
 #endif /* ESSandbox_h */

@@ -65,7 +65,7 @@ private:
     IOSharedDataQueue *queue_;
 
     /*! Recursive lock used for synchronization */
-    IORecursiveLock *lock_;
+    BXLRecursiveLock *lock_;
 
     /*! A pointer to an async failure handle */
     ClientAsyncHandle *asyncFailureHandle_;

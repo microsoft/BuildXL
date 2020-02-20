@@ -75,12 +75,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Accumulates the time (in microseconds) access reports spend in the report queue
         /// </summary>
-        private long m_sumOfReportQueueTimesUs;
+        private ulong m_sumOfReportQueueTimesUs;
 
         /// <summary>
         /// Accumulates the time (in microseconds) access reports need from kernel callbacks, over creation to the moment they are enqueued
         /// </summary>
-        private long m_sumOfReportCreationTimesUs;
+        private ulong m_sumOfReportCreationTimesUs;
 
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
@@ -144,6 +144,7 @@ namespace BuildXL.Processes
                 new ExecutionDataflowBlockOptions
                 {
                     EnsureOrdered = true,
+                    SingleProducerConstrained = true,
                     BoundedCapacity = DataflowBlockOptions.Unbounded,
                     MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });
@@ -227,7 +228,7 @@ namespace BuildXL.Processes
 
             if (!SandboxConnection.NotifyPipStarted(info.FileAccessManifest, this))
             {
-                ThrowCouldNotStartProcess("Failed to notify kernel extension about process start, make sure the extension is loaded");
+                ThrowCouldNotStartProcess("Failed to initialize the sandbox for process observation, make sure BuildXL is setup correctly!");
             }
 
             try
@@ -315,11 +316,11 @@ namespace BuildXL.Processes
             m_perfCollector.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 
-            var reportCount = Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
+            ulong reportCount = (ulong) Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);
             if (reportCount > 0)
             {
-                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgQueueTimeUs, m_sumOfReportQueueTimesUs / reportCount);
-                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgCreationTimeUs, m_sumOfReportCreationTimesUs / reportCount);
+                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgQueueTimeUs, (long)(m_sumOfReportQueueTimesUs / reportCount));
+                Counters.AddToCounter(SandboxedProcessCounters.SumOfAccessReportAvgCreationTimeUs, (long)(m_sumOfReportCreationTimesUs / reportCount));
             }
 
             if (!Killed)
@@ -557,8 +558,8 @@ namespace BuildXL.Processes
 
         private void UpdateAverageTimeSpentInReportQueue(AccessReportStatistics stats)
         {
-            m_sumOfReportCreationTimesUs += (long) (stats.EnqueueTime - stats.CreationTime) / 1000;
-            m_sumOfReportQueueTimesUs += (long) (stats.DequeueTime - stats.EnqueueTime) / 1000;
+            m_sumOfReportCreationTimesUs += (stats.EnqueueTime - stats.CreationTime) / 1000;
+            m_sumOfReportQueueTimesUs += (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
         private void HandleAccessReport(AccessReport report)
@@ -632,7 +633,10 @@ namespace BuildXL.Processes
 
                 if (report.Operation == FileOperation.OpProcessTreeCompleted)
                 {
-                    m_pipKextStats = report.DecodePipKextStats();
+                    if (SandboxConnection is SandboxConnectionKext)
+                    {
+                        m_pipKextStats = report.DecodePipKextStats();
+                    }
                     m_pendingReports.Complete();
                 }
                 else
@@ -755,8 +759,9 @@ namespace BuildXL.Processes
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
             var error           = report.Error;
             var path            = report.DecodePath();
-            var processTime     = (long)(report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
-            var queueTime       = (long)(report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
+            
+            ulong processTime   = (report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
+            ulong queueTime     = (report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 
             return
                 I($"{operation}:{pid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{path}|e:{report.Statistics.EnqueueTime}|h:{processTime}us|q:{queueTime}us");

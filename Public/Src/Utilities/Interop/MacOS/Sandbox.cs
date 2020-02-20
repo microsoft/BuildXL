@@ -24,9 +24,6 @@ namespace BuildXL.Interop.MacOS
         public struct ESConnectionInfo
         {
             public int Error;
-            public ulong Client;
-            public ulong Source;
-            public ulong RunLoop;
         }
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]

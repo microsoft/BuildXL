@@ -119,8 +119,8 @@ void NodeLight::free()
 
 NodeLight* NodeLight::findChild(uint key,
                                 bool createIfMissing,
-                                IORecursiveLock *maybeNullLock,
-                                IORecursiveLock *nonNullLock,
+                                BXLRecursiveLock *maybeNullLock,
+                                BXLRecursiveLock *nonNullLock,
                                 bool *outNewNodeCreated)
 {
     Monitor __monitor(maybeNullLock); // this will only acquire the lock if lock is not null
@@ -249,7 +249,7 @@ void NodeFast::free()
     Node::free();
 }
 
-Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock, bool *outNewNodeCreated)
+Node* NodeFast::findChild(uint key, bool createIfMissing, BXLRecursiveLock *lock, bool *outNewNodeCreated)
 {
     *outNewNodeCreated = false;
 

@@ -70,6 +70,7 @@ namespace BuildXL.Pips.Graph
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
                         MacPaths.Etc,
+                        MacPaths.EtcMasterPasswd,
                         MacPaths.UserKeyChainsDb,
                         MacPaths.UserKeyChains,
                         MacPaths.UserCFTextEncoding,

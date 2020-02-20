@@ -111,7 +111,7 @@ bool ConcurrentSharedDataQueue::init(const InitArgs& args)
     reportCounters_               = args.counters;
     enableBatching_               = args.enableBatching;
 
-    lock_ = IORecursiveLockAlloc();
+    lock_ = BXLRecursiveLockAlloc();
     if (lock_ == nullptr)
     {
         return false;
@@ -211,7 +211,7 @@ void ConcurrentSharedDataQueue::free()
 
     if (lock_ != nullptr)
     {
-        IORecursiveLockFree(lock_);
+        BXLRecursiveLockFree(lock_);
         lock_ = nullptr;
     }
 

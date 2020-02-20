@@ -51,6 +51,7 @@ extern "C"
         return false;
     }
 #endif
+
 #pragma mark Exported interop functions
 
     int NormalizePathAndReturnHash(const BYTE *path, BYTE *buffer, int bufferSize)

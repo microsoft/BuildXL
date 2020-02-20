@@ -4,17 +4,21 @@
 #ifndef Trie_hpp
 #define Trie_hpp
 
-#include "SandboxedProcess.hpp"
+#include <sys/types.h>
+#include <memory>
+
+template <typename T> class Trie;
 
 /*!
  * A node in a Trie.
  * Only accessible to its friend class Trie.
  */
+template <typename T>
 class Node
 {
 private:
 
-    friend class Trie;
+    friend class Trie<T>;
 
     _Atomic static uint s_numUintNodes;
     _Atomic static uint s_numPathNodes;
@@ -32,7 +36,7 @@ private:
     static const uint s_uintNodeChildrenCount = 10;
 
     /*! Arbitrary value */
-    SandboxedProcess *record_;
+    std::shared_ptr<T> record_;
 
     /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
     uint childrenLength_;
@@ -55,6 +59,16 @@ public:
 
 // ================================== class Trie ==================================
 
+typedef enum {
+    kTrieResultInserted,
+    kTrieResultReplaced,
+    kTrieResultRemoved,
+    kTrieResultAlreadyEmpty,
+    kTrieResultAlreadyExists,
+    kTrieResultRace,
+    kTrieResultFailure,
+} TrieResult;
+
 /*!
  * A thread-safe, lock-free, dictionary implementation.
  *
@@ -69,32 +83,23 @@ public:
  *
  * Thread-safe.  Non-blocking.
  */
+template <typename T>
 class Trie
 {
 public:
 
     typedef void (*on_change_fn)(void *data, const int oldCount, const int newCount);
-    typedef void (*for_each_fn)(void *data, uint64_t key, const SandboxedProcess *value);
-    typedef bool (*filter_fn)(void *data, const SandboxedProcess *value);
-
-    typedef enum {
-        kTrieResultInserted,
-        kTrieResultReplaced,
-        kTrieResultRemoved,
-        kTrieResultAlreadyEmpty,
-        kTrieResultAlreadyExists,
-        kTrieResultRace,
-        kTrieResultFailure,
-    } TrieResult;
+    typedef void (*for_each_fn)(void *data, uint64_t key, const std::shared_ptr<T> value);
+    typedef bool (*filter_fn)(void *data, const std::shared_ptr<T> value);
 
     static void getUintNodeCounts(uint *count, double *sizeMB)
     {
-        getNodeCounts(Node::s_numUintNodes, Node::s_uintNodeChildrenCount, count, sizeMB);
+        getNodeCounts(Node<T>::s_numUintNodes, Node<T>::s_uintNodeChildrenCount, count, sizeMB);
     }
 
     static void getPathNodeCounts(uint *count, double *sizeMB)
     {
-        getNodeCounts(Node::s_numPathNodes, Node::s_pathNodeChildrenCount, count, sizeMB);
+        getNodeCounts(Node<T>::s_numPathNodes, Node<T>::s_pathNodeChildrenCount, count, sizeMB);
     }
 
 private:
@@ -104,14 +109,14 @@ private:
     static void getNodeCounts(uint count, uint numChildren, uint *outCount, double *outSizeMB)
     {
         *outCount = count;
-        *outSizeMB = (1.0 * count * (sizeof(Node) + numChildren * sizeof(Node*))) / BytesInAMegabyte;
+        *outSizeMB = (1.0 * count * (sizeof(Node<T>) + numChildren * sizeof(Node<T>*))) / BytesInAMegabyte;
     }
 
     typedef enum { kUintTrie, kPathTrie } TrieKind;
-    typedef void (*traverse_fn)(Trie*, void*, uint64_t key, Node*);
+    typedef void (*traverse_fn)(Trie*, void*, uint64_t key, Node<T>*);
 
     /*! The root of the tree. */
-    Node *root_;
+    Node<T> *root_;
 
     /*! The kind of keys this tree accepts */
     TrieKind kind_;
@@ -138,7 +143,7 @@ private:
      * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
      * @result True IFF 'node' contains a child node at position 'idx' after this method returns.
      */
-    bool findChildNode(Node *node, int idx, bool createIfMissing);
+    bool findChildNode(Node<T> *node, int idx, bool createIfMissing);
 
     /*!
      * Ensures that 'node' has its 'record_' field set to a non-null value.
@@ -150,7 +155,7 @@ private:
      *    - kTrieResultAlreadyExists : if 'node' already has a record
      *    - kTrieResultInserted      : if a new record was created and assigned to 'node'.
      */
-    TrieResult makeSentinel(Node *node, SandboxedProcess *record);
+    TrieResult makeSentinel(Node<T> *node, std::shared_ptr<T> record);
 
     /*!
      * Returns the record already assigned to 'node' or, if no record is assigned to it, creates a new one by invoking
@@ -162,12 +167,12 @@ private:
      *
      * @result The record associated with 'node' or NULL if 'node' is NULL.
      */
-    SandboxedProcess* getOrAdd(Node *node, SandboxedProcess *records, TrieResult *result);
+    std::shared_ptr<T> getOrAdd(Node<T> *node, std::shared_ptr<T> records, TrieResult *result);
 
     /*!
      * Returns the record associated with 'node' or NULL if either 'node' is NULL or no record is associated with it.
      */
-    SandboxedProcess* get(Node *node);
+    std::shared_ptr<T> get(Node<T> *node);
 
     /*!
      * Attempts to associate 'value' with 'node', even if there is already a value associated with 'node'.
@@ -186,7 +191,7 @@ private:
      *
      * @result kTrieResultInserted, kTrieResultReplaced, kTrieResultRace, or kTrieResultFailure
      */
-    TrieResult replace(Node *node, const SandboxedProcess *value);
+    TrieResult replace(Node<T> *node, const std::shared_ptr<T> value);
 
     /*!
      * Attempts to associate 'value' with 'node', ONLY if no value is already associated with 'node'.
@@ -195,7 +200,7 @@ private:
      *
      * @result kTrieResultInserted, kTrieResultAlreadyExists, or kTrieResultFailure
      */
-    TrieResult insert(Node *node, const SandboxedProcess *value);
+    TrieResult insert(Node<T> *node, const std::shared_ptr<T> value);
 
     /*!
      * Attempts to remove any record currently associated with 'node'.
@@ -211,7 +216,7 @@ private:
      * this method simply returns 'kTrieResultRace'; the caller should decide whether to retry the operation or accept
      * the existing outcome.
      */
-    TrieResult remove(Node *node);
+    TrieResult remove(Node<T> *node);
 
     /*! Calls 'callback' for every node in the trie during a pre-order traversal. */
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback);
@@ -222,13 +227,13 @@ private:
      * else:
      *   returns the node corresponding to the given 'key' IFF such node already exists, or NULL otherwise.
      */
-    Node* findUintNode(uint64_t key, bool createIfMissing);
+    Node<T>* findUintNode(uint64_t key, bool createIfMissing);
 
     /*! Calls 'findUintNode' with 'createIfMissing' set to true. */
-    Node* findOrCreateNodeForUint(uint64_t key) { return findUintNode(key, true); }
+    Node<T>* findOrCreateNodeForUint(uint64_t key) { return findUintNode(key, true); }
 
     /*! Calls 'findUintNode' with 'createIfMissing' set to false. */
-    Node* findExistingNodeForUint(uint64_t key) { return findUintNode(key, false); }
+    Node<T>* findExistingNodeForUint(uint64_t key) { return findUintNode(key, false); }
 
     /*!
      * When 'createIfMissing' is true:
@@ -238,19 +243,19 @@ private:
      *
      * NULL is also returned when the key is invalid (contains non-ascii characters) or the system is out of memory.
      */
-    Node* findPathNode(const char *key, bool createIfMissing);
+    Node<T>* findPathNode(const char *key, bool createIfMissing);
 
     /*! Calls 'findPathNode' with 'createIfMissing' set to true. */
-    Node* findOrCreateNodeForPath(const char *key) { return findPathNode(key, true); }
+    Node<T>* findOrCreateNodeForPath(const char *key) { return findPathNode(key, true); }
 
     /*! Calls 'findPathNode' with 'createIfMissing' set to false. */
-    Node* findExistingNodeForPath(const char *key) { return findPathNode(key, false); }
+    Node<T>* findExistingNodeForPath(const char *key) { return findPathNode(key, false); }
 
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
-    Node* createNode()
+    Node<T>* createNode()
     {
-        return kind_ == kUintTrie ? Node::createUintNode() :
-               kind_ == kPathTrie ? Node::createPathNode() :
+        return kind_ == kUintTrie ? Node<T>::createUintNode() :
+               kind_ == kPathTrie ? Node<T>::createPathNode() :
                nullptr;
     }
 
@@ -285,7 +290,7 @@ public:
 
 #pragma mark Methods for 'path' keys
 
-    SandboxedProcess* get(const char *path)
+    std::shared_ptr<T> get(const char *path)
     {
         if (kind_ != kPathTrie) return nullptr;
         return get(findExistingNodeForPath(path));
@@ -301,19 +306,19 @@ public:
      * NOTE: The current implementation only paths containig only ASCII characters; for all other paths
      *       nullptr is returned indicating that the path couldn't be added.
      */
-    SandboxedProcess* getOrAdd(const char *path, SandboxedProcess *record, TrieResult *result = nullptr)
+    std::shared_ptr<T> getOrAdd(const char *path, std::shared_ptr<T> record, TrieResult *result = nullptr)
     {
         if (kind_ != kPathTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForPath(path), record, result);
     }
 
-    TrieResult replace(const char *path, const SandboxedProcess *value)
+    TrieResult replace(const char *path, const std::shared_ptr<T> value)
     {
         if (kind_ != kPathTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForPath(path), value);
     }
 
-    TrieResult insert(const char *path, const SandboxedProcess *value)
+    TrieResult insert(const char *path, const std::shared_ptr<T> value)
     {
         if (kind_ != kPathTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForPath(path), value);
@@ -327,25 +332,25 @@ public:
 
 #pragma mark Methods for 'uint' keys
 
-    SandboxedProcess* get(uint64_t key)
+    std::shared_ptr<T> get(uint64_t key)
     {
         if (kind_ != kUintTrie) return nullptr;
         return get(findExistingNodeForUint(key));
     }
 
-    SandboxedProcess* getOrAdd(uint64_t key, SandboxedProcess *record, TrieResult *result = nullptr)
+    std::shared_ptr<T> getOrAdd(uint64_t key, std::shared_ptr<T> record, TrieResult *result = nullptr)
     {
         if (kind_ != kUintTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForUint(key), record, result);
     }
 
-    TrieResult replace(uint64_t key, const SandboxedProcess *value)
+    TrieResult replace(uint64_t key, const std::shared_ptr<T> value)
     {
         if (kind_ != kUintTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForUint(key), value);
     }
 
-    TrieResult insert(uint64_t key, const SandboxedProcess *value)
+    TrieResult insert(uint64_t key, const std::shared_ptr<T> value)
     {
         if (kind_ != kUintTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForUint(key), value);
@@ -360,7 +365,7 @@ public:
 #pragma mark Static factory methods
 
     static Trie* createUintTrie() { return new Trie(kUintTrie); }
-    static Trie* createPathTrie() { return  new Trie(kPathTrie); }
+    static Trie* createPathTrie() { return new Trie(kPathTrie); }
 };
 
 #endif /* Trie_hpp */

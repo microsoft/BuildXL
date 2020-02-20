@@ -33,8 +33,8 @@ namespace BuildXL.Processes
 
         // TODO: remove at some later point
         private Sandbox.KextConnectionInfo m_fakeKextConnectionInfo = new Sandbox.KextConnectionInfo();
-        private Sandbox.ESConnectionInfo m_esConnectionInfo;
-        private readonly Thread m_workerThread;
+
+        private readonly Sandbox.ESConnectionInfo m_esConnectionInfo;
 
         /// <summary>
         /// Enqueue time of the last received report (or 0 if no reports have been received)
@@ -47,6 +47,8 @@ namespace BuildXL.Processes
         private long m_lastReportReceivedTimestampTicks = DateTime.UtcNow.Ticks;
 
         private long LastReportReceivedTimestampTicks => Volatile.Read(ref m_lastReportReceivedTimestampTicks);
+        
+        private Sandbox.AccessReportCallback m_AccessReportCallback;
 
         /// <inheritdoc />
         public TimeSpan CurrentDrought => DateTime.UtcNow.Subtract(new DateTime(ticks: LastReportReceivedTimestampTicks));
@@ -74,42 +76,9 @@ namespace BuildXL.Processes
             ProcessUtilities.SetNativeConfiguration(true);
 #else
             ProcessUtilities.SetNativeConfiguration(false);
-
 #endif
 
-            m_workerThread = new Thread(() => StartReceivingAccessReports());
-            m_workerThread.Name = "EndpointSecurityCallbackProcessor";
-            m_workerThread.Priority = ThreadPriority.Highest;
-            m_workerThread.IsBackground = true;
-            m_workerThread.Start();
-        }
-
-        /// <summary>
-        /// Disposes the sandbox connection and release the resources in the interop layer, when running tests this can be skipped
-        /// </summary>
-        public void Dispose()
-        {
-            if (!IsInTestMode)
-            {
-                ReleaseResources();
-            }
-        }
-
-        /// <summary>
-        /// Releases all resources and cleans up the interop instance too
-        /// </summary>
-        public void ReleaseResources()
-        {
-            Sandbox.DeinitializeEndpointSecuritySandbox(m_esConnectionInfo);
-            m_workerThread.Join();
-        }
-
-        /// <summary>
-        /// Starts listening for reports from the EndpointSecurity sandbox
-        /// </summary>
-        private void StartReceivingAccessReports()
-        {
-            Sandbox.AccessReportCallback callback = (Sandbox.AccessReport report, int code) =>
+            m_AccessReportCallback = (Sandbox.AccessReport report, int code) =>
             {
                 if (code != Sandbox.ReportQueueSuccessCode)
                 {
@@ -117,7 +86,7 @@ namespace BuildXL.Processes
                     throw new BuildXLException(message, ExceptionRootCause.MissingRuntimeDependency);
                 }
 
-                // Stamp the access report as it has been dequeued at this point
+                // Stamp the access report with a dequeue timestamp
                 report.Statistics.DequeueTime = Sandbox.GetMachAbsoluteTime();
 
                 // Update last received timestamp
@@ -141,8 +110,28 @@ namespace BuildXL.Processes
                     }
                 }
             };
+            
+            Sandbox.ObserverFileAccessReports(ref m_esConnectionInfo, m_AccessReportCallback, Marshal.SizeOf<Sandbox.AccessReport>());
+        }
 
-            Sandbox.ObserverFileAccessReports(ref m_esConnectionInfo, callback, Marshal.SizeOf<Sandbox.AccessReport>());
+        /// <summary>
+        /// Disposes the sandbox connection and release the resources in the interop layer, when running tests this can be skipped
+        /// </summary>
+        public void Dispose()
+        {
+            if (!IsInTestMode)
+            {
+                ReleaseResources();
+            }
+        }
+
+        /// <summary>
+        /// Releases all resources and cleans up the interop instance too
+        /// </summary>
+        public void ReleaseResources()
+        {
+            Sandbox.DeinitializeEndpointSecuritySandbox(m_esConnectionInfo);
+            m_AccessReportCallback = null;
         }
 
         /// <inheritdoc />

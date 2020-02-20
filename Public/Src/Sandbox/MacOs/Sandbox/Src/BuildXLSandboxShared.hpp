@@ -271,11 +271,15 @@ typedef struct {
     uint reportExplicitly;
     DWORD error;
     pipid_t pipId;
+#if MAC_OS_SANDBOX
     union
     {
         char path[MAXPATHLEN];
         PipCompletionStats pipStats;
     };
+#else
+    char path[MAXPATHLEN];
+#endif
     AccessReportStatistics stats;
 } AccessReport;
 

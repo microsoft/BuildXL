@@ -60,7 +60,7 @@ export function patchBinary(args: Arguments) : Result {
         ],
         environmentVariables: [
             { name: "COMPlus_EnableDiagnostics", value: "0" }, // Disables debug pipe creation
-        ],
+        ]
     });
 
     return {

@@ -17,11 +17,12 @@
  * for sandboxing a pip, e.g., which file accesses are permitted, which are not, which should
  * be reported back, etc.
  */
+
 class SandboxedPip
 {
 
 private:
-
+    
     /*! Process id of the root process of this pip. */
     pid_t processId_;
 
@@ -32,8 +33,8 @@ private:
     FileAccessManifestParseResult fam_;
 
     /*! Number of processses in this pip's process tree */
-    _Atomic int processTreeCount_;
-
+    std::atomic<int> processTreeCount_;
+    
 public:
 
     SandboxedPip() = delete;
@@ -41,33 +42,37 @@ public:
     ~SandboxedPip();
 
     /*! Process id of the root process of this pip. */
-    pid_t getProcessId() const { return processId_; }
+    inline const pid_t GetProcessId() const                 { return processId_; }
 
     /*! A unique identifier of this pip. */
-    pipid_t getPipId() const   { return fam_.GetPipId()->PipId; }
+    inline const pipid_t GetPipId() const                   { return fam_.GetPipId()->PipId; }
 
     /*! File access manifest record for this pip (to be used for checking file accesses) */
-    PCManifestRecord getManifestRecord() const    { return fam_.GetUnixRootNode(); }
+    inline const PCManifestRecord GetManifestRecord() const { return fam_.GetUnixRootNode(); }
 
     /*! File access manifest flags */
-    FileAccessManifestFlag getFamFlags() const    { return fam_.GetFamFlags(); }
+    inline const FileAccessManifestFlag GetFamFlags() const { return fam_.GetFamFlags(); }
 
     /*!
      * Returns the full path of the root process of this pip.
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.
      */
-    const char* getProcessPath(int *length) const { return fam_.GetProcessPath(length); }
+    inline const char* GetProcessPath(int *length) const    { return fam_.GetProcessPath(length); }
+
+    /*! Number of currently active processes in this pip's process tree */
+    inline const int GetTreeSize() const                    { return processTreeCount_; }
+    
+    /*! When this returns true, child processes should not be tracked. */
+    bool AllowChildProcessesToBreakAway() const             { return fam_.AllowChildProcessesToBreakAway(); }
+    
 
 #pragma mark Process Tree Tracking
 
-    /*! Number of currently active processes in this pip's process tree */
-    int getTreeSize() const          { return processTreeCount_; }
-
     /*! Atomically increments this pip's process tree size and returns the size before increment. */
-    int incrementProcessTreeCount() { return ++processTreeCount_; }
+    inline const int IncrementProcessTreeCount() { return ++processTreeCount_; }
 
     /*! Atomically dencrements this pip's process tree size and returns the size before decrement. */
-    int decrementProcessTreeCount() { return --processTreeCount_; }
+    inline const int DecrementProcessTreeCount() { return --processTreeCount_; }
 };
 
 #endif /* SandboxedPip_hpp */

@@ -45,7 +45,7 @@ bool BuildXLSandbox::init(OSDictionary *dictionary)
     bxl_sysctl_register();
     InitializePolicyStructures();
 
-    lock_ = IORecursiveLockAlloc();
+    lock_ = BXLRecursiveLockAlloc();
     if (!lock_)
     {
         return false;
@@ -73,7 +73,7 @@ void BuildXLSandbox::free(void)
 
     if (lock_)
     {
-        IORecursiveLockFree(lock_);
+        BXLRecursiveLockFree(lock_);
         lock_ = nullptr;
     }
 

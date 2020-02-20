@@ -2,12 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "AccessHandler.hpp"
-#include "OpNames.hpp"
 
 bool AccessHandler::TryInitializeWithTrackedProcess(pid_t pid)
 {
-    SandboxedProcess *process = sandbox_->FindTrackedProcess(pid);
-    if (process == nullptr || CheckDisableDetours(process->getPip()->getFamFlags()))
+    std::shared_ptr<SandboxedProcess> process = sandbox_->FindTrackedProcess(pid);
+    if (process == nullptr || CheckDisableDetours(process->GetPip()->GetFamFlags()))
     {
         return false;
     }
@@ -22,13 +21,13 @@ PolicySearchCursor AccessHandler::FindManifestRecord(const char *absolutePath, s
     const char *pathWithoutRootSentinel = absolutePath + 1;
 
     size_t len = pathLength == -1 ? strlen(pathWithoutRootSentinel) : pathLength;
-    return FindFileAccessPolicyInTreeEx(GetPip()->getManifestRecord(), pathWithoutRootSentinel, len);
+    return FindFileAccessPolicyInTreeEx(GetPip()->GetManifestRecord(), pathWithoutRootSentinel, len);
 }
 
 void AccessHandler::SetProcessPath(AccessReport *report)
 {
-    const char *procName = process_->hasPath()
-        ? process_->getPath()
+    const char *procName = process_->HasPath()
+        ? process_->GetPath()
         : "/unknown-process"; // should never happen
     
     strlcpy(report->path, procName, sizeof(report->path));
@@ -50,7 +49,7 @@ ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = { .creationTime = creationTimestamp_ }
+        .stats              = {0}
     };
 
     strlcpy(report.path, policyResult.Path(), sizeof(report.path));
@@ -67,7 +66,7 @@ bool AccessHandler::ReportProcessTreeCompleted(pid_t processId)
         .pid       = processId,
         .rootPid   = GetProcessId(),
         .pipId     = GetPipId(),
-        .stats     = { .creationTime = creationTimestamp_ }
+        .stats     = {0}
     };
 
     sandbox_->SendAccessReport(report, GetPip());
@@ -85,7 +84,7 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
         .status           = FileAccessStatus::FileAccessStatus_Allowed,
         .reportExplicitly = 0,
         .error            = 0,
-        .stats            = { .creationTime = creationTimestamp_ }
+        .stats            = {0}
     };
 
     SetProcessPath(&report);
@@ -106,7 +105,7 @@ bool AccessHandler::ReportChildProcessSpawned(pid_t childPid)
         .error              = 0,
         .pipId              = GetPipId(),
         .path               = {0},
-        .stats              = { .creationTime = creationTimestamp_ }
+        .stats              = {0}
     };
 
     SetProcessPath(&report);
@@ -123,7 +122,7 @@ PolicyResult AccessHandler::PolicyForPath(const char *absolutePath)
         log_error("Invalid policy cursor for path '%s'", absolutePath);
     }
 
-    return PolicyResult(GetPip()->getFamFlags(), absolutePath, cursor);
+    return PolicyResult(GetPip()->GetFamFlags(), absolutePath, cursor);
 }
 
 static bool is_prefix(const char *s1, const char *s2)

@@ -22,8 +22,6 @@
 		3C3B60BA22F1DC6600130AB3 /* SandboxedProcess.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CF74D9622F1C1A50018A1AF /* SandboxedProcess.hpp */; };
 		3C3B60BB22F1DC9E00130AB3 /* SandboxedPip.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C5A969022F1A9CC00C56F4C /* SandboxedPip.cpp */; };
 		3C3B60BC22F1DC9E00130AB3 /* SandboxedPip.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C5A969122F1A9CC00C56F4C /* SandboxedPip.hpp */; };
-		3C3B60C122F1DE8D00130AB3 /* Trie.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C5A969422F1B3F800C56F4C /* Trie.cpp */; };
-		3C3B60C222F1DE9000130AB3 /* Trie.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C5A969522F1B3F800C56F4C /* Trie.hpp */; };
 		3C3B60C322F1DEB200130AB3 /* KextSandbox.h in Headers */ = {isa = PBXBuildFile; fileRef = 3CF3733F20C1897400D14240 /* KextSandbox.h */; };
 		3C3B60C422F1DEB400130AB3 /* KextSandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CF3733E20C1897400D14240 /* KextSandbox.cpp */; };
 		3C3B60C722F1E12C00130AB3 /* ESSandbox.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C85C76D22F04DAC00BC3989 /* ESSandbox.h */; };
@@ -39,6 +37,9 @@
 		3C6495C621A6E2E20083FD3A /* AriaLogger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C6495C521A6E2E20083FD3A /* AriaLogger.cpp */; };
 		3C6495E021A6E3AA0083FD3A /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C6495DF21A6E3AA0083FD3A /* libsqlite3.tbd */; };
 		3C6495E421A6E3E70083FD3A /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C6495E321A6E3E60083FD3A /* libz.tbd */; };
+		3C7237A623FD4483001B15CC /* Trie.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C7237A423FD4483001B15CC /* Trie.hpp */; };
+		3C7237A723FD4483001B15CC /* Trie.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C7237A523FD4483001B15CC /* Trie.cpp */; };
+		3C7237A923FE9475001B15CC /* BuildXLException.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C7237A823FE9475001B15CC /* BuildXLException.hpp */; };
 		3C80E70821347B9700ECBD6E /* io.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C80E70621347B9700ECBD6E /* io.h */; };
 		3C80E70921347B9700ECBD6E /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C80E70721347B9700ECBD6E /* io.c */; };
 		3CC386B5233CE7C200F2D969 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C85C77422F0594800BC3989 /* libbsm.tbd */; };
@@ -100,8 +101,6 @@
 		3C4C636722F386AE0014D9AA /* OpNames.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = OpNames.hpp; path = ../Sandbox/Src/Kauth/OpNames.hpp; sourceTree = "<group>"; };
 		3C5A969022F1A9CC00C56F4C /* SandboxedPip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SandboxedPip.cpp; path = ../Data/SandboxedPip.cpp; sourceTree = "<group>"; };
 		3C5A969122F1A9CC00C56F4C /* SandboxedPip.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = SandboxedPip.hpp; path = ../Data/SandboxedPip.hpp; sourceTree = "<group>"; };
-		3C5A969422F1B3F800C56F4C /* Trie.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Trie.cpp; sourceTree = "<group>"; };
-		3C5A969522F1B3F800C56F4C /* Trie.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Trie.hpp; sourceTree = "<group>"; };
 		3C5C178D212EF6E900F4100F /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		3C6495BF21A6E2E20083FD3A /* libBuildXLAria.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libBuildXLAria.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C6495C121A6E2E20083FD3A /* AriaLogger.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AriaLogger.hpp; sourceTree = "<group>"; };
@@ -110,6 +109,9 @@
 		3C6495DF21A6E3AA0083FD3A /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		3C6495E121A6E3C30083FD3A /* libcompression.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcompression.tbd; path = usr/lib/libcompression.tbd; sourceTree = SDKROOT; };
 		3C6495E321A6E3E60083FD3A /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		3C7237A423FD4483001B15CC /* Trie.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Trie.hpp; sourceTree = "<group>"; };
+		3C7237A523FD4483001B15CC /* Trie.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Trie.cpp; sourceTree = "<group>"; };
+		3C7237A823FE9475001B15CC /* BuildXLException.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = BuildXLException.hpp; sourceTree = "<group>"; };
 		3C80E70621347B9700ECBD6E /* io.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = io.h; sourceTree = "<group>"; };
 		3C80E70721347B9700ECBD6E /* io.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = io.c; sourceTree = "<group>"; };
 		3C85C76C22F04DAC00BC3989 /* ESSandbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ESSandbox.cpp; sourceTree = "<group>"; };
@@ -252,12 +254,13 @@
 		3C5A968F22F1A9A500C56F4C /* Data */ = {
 			isa = PBXGroup;
 			children = (
-				3CF74D9522F1C1A50018A1AF /* SandboxedProcess.cpp */,
-				3CF74D9622F1C1A50018A1AF /* SandboxedProcess.hpp */,
-				3C5A969422F1B3F800C56F4C /* Trie.cpp */,
-				3C5A969522F1B3F800C56F4C /* Trie.hpp */,
+				3C7237A823FE9475001B15CC /* BuildXLException.hpp */,
 				3C5A969022F1A9CC00C56F4C /* SandboxedPip.cpp */,
 				3C5A969122F1A9CC00C56F4C /* SandboxedPip.hpp */,
+				3CF74D9522F1C1A50018A1AF /* SandboxedProcess.cpp */,
+				3CF74D9622F1C1A50018A1AF /* SandboxedProcess.hpp */,
+				3C7237A523FD4483001B15CC /* Trie.cpp */,
+				3C7237A423FD4483001B15CC /* Trie.hpp */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -353,7 +356,6 @@
 			files = (
 				3C80E70821347B9700ECBD6E /* io.h in Headers */,
 				F5CF3B1320C1E40C00DC1B2E /* PolicySearch.h in Headers */,
-				3C3B60C222F1DE9000130AB3 /* Trie.hpp in Headers */,
 				3CD0BB4322F2E84A008C0AC9 /* IOHandler.hpp in Headers */,
 				3C4C636B22F386AE0014D9AA /* OpNames.hpp in Headers */,
 				F5CF3B0B20C1E3C500DC1B2E /* FileAccessManifestParser.hpp in Headers */,
@@ -364,8 +366,10 @@
 				F5CF3B1D20C1F0F200DC1B2E /* FileAccessHelpers.h in Headers */,
 				3C1FD6D420D3F766007A0C1A /* process.h in Headers */,
 				3C3B60BA22F1DC6600130AB3 /* SandboxedProcess.hpp in Headers */,
+				3C7237A623FD4483001B15CC /* Trie.hpp in Headers */,
 				3C3B60C922F1E2B400130AB3 /* Common.h in Headers */,
 				3C1D7C9320C03E830069CF65 /* Dependencies.h in Headers */,
+				3C7237A923FE9475001B15CC /* BuildXLException.hpp in Headers */,
 				3C3B60C322F1DEB200130AB3 /* KextSandbox.h in Headers */,
 				F588040520D03EB7006CF533 /* PolicyResult.h in Headers */,
 				F5CF3B1520C1E40C00DC1B2E /* DataTypes.h in Headers */,
@@ -496,6 +500,7 @@
 				F58E920B220B5B750083C57E /* utf8proc_data.c in Sources */,
 				3C1D7C9120C036850069CF65 /* memory.c in Sources */,
 				3CD0BB4222F2E84A008C0AC9 /* IOHandler.cpp in Sources */,
+				3C7237A723FD4483001B15CC /* Trie.cpp in Sources */,
 				3C3B60C822F1E14B00130AB3 /* ESSandbox.cpp in Sources */,
 				F5CF3B1720C1E40C00DC1B2E /* StringOperations.cpp in Sources */,
 				3C1D7C8D20C0262B0069CF65 /* cpu.c in Sources */,
@@ -506,7 +511,6 @@
 				3C3B60BB22F1DC9E00130AB3 /* SandboxedPip.cpp in Sources */,
 				F5CF3B0A20C1E3C500DC1B2E /* FileAccessManifestParser.cpp in Sources */,
 				F588040720D042FB006CF533 /* PolicyResult_common.cpp in Sources */,
-				3C3B60C122F1DE8D00130AB3 /* Trie.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -653,6 +657,7 @@
 		3C1D7C8720C025F10069CF65 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_WARN_UNGUARDED_AVAILABILITY = NO;
 				CODE_SIGN_STYLE = Automatic;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -675,6 +680,7 @@
 		3C1D7C8820C025F10069CF65 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_WARN_UNGUARDED_AVAILABILITY = NO;
 				CODE_SIGN_STYLE = Automatic;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;

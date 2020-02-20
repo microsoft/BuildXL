@@ -2,70 +2,89 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <signal.h>
-#include "ESSandbox.h"
-#include "BuildXLSandboxShared.hpp"
 
+#include "ESSandbox.h"
 #include "IOHandler.hpp"
 
-// initialized below in InitializeEndpointSecuritySandbox (which is called once by the host process)
+// initialized below in InitializeEndpointSecuritySandbox (which is called once by the host BuildXL process)
 static ESSandbox *sandbox;
 
-void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg)
+void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg, pid_t host)
 {
     pid_t pid = audit_token_to_pid(msg->process->audit_token);
-    
-    IOHandler handler = IOHandler(sandbox);
-    if (handler.TryInitializeWithTrackedProcess(pid))
+    if (pid == host)
     {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wswitch"
-        switch (msg->event_type)
+        return;
+    }
+    
+    bool ppid_found = sandbox->GetPidMap().find(msg->process->ppid) != sandbox->GetPidMap().end();
+    auto original_ppid_found = sandbox->GetPidMap().find(msg->process->original_ppid) != sandbox->GetPidMap().end();
+    
+    if (ppid_found || original_ppid_found)
+    {
+        IOHandler handler = IOHandler(sandbox);
+        if (handler.TryInitializeWithTrackedProcess(pid))
         {
-            case ES_EVENT_TYPE_NOTIFY_EXEC:
-                return handler.HandleProcessExec(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_FORK:
-                return handler.HandleProcessFork(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_EXIT:
-                return handler.HandleProcessExit(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_LOOKUP:
-                return handler.HandleLookup(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_OPEN:
-                return handler.HandleOpen(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_CLOSE:
-                return handler.HandleClose(msg);
-
-            case ES_EVENT_TYPE_NOTIFY_CREATE:
-                return handler.HandleCreate(msg);
-
-            // TODO: Decide what to do, tools touch source files too
-            case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
-            case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
-            case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
-            case ES_EVENT_TYPE_NOTIFY_SETMODE:
-            case ES_EVENT_TYPE_NOTIFY_WRITE:
-                return handler.HandleWrite(msg);
-
-            case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
-                return handler.HandleExchange(msg);
-
-            case ES_EVENT_TYPE_NOTIFY_RENAME:
-                return handler.HandleRename(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_READLINK:
-                return handler.HandleReadlink(msg);
-                
-            case ES_EVENT_TYPE_NOTIFY_LINK:
-                return handler.HandleLink(msg);
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wswitch"
+            switch (msg->event_type)
+            {
+                case ES_EVENT_TYPE_NOTIFY_EXEC:
+                    return handler.HandleProcessExec(msg);
                     
-            case ES_EVENT_TYPE_NOTIFY_UNLINK:
-                return handler.HandleUnlink(msg);
+                case ES_EVENT_TYPE_NOTIFY_FORK:
+                {
+                    sandbox->GetPidMap().emplace(getpid(), true);
+                    return handler.HandleProcessFork(msg);
+                }
+                                                 
+                case ES_EVENT_TYPE_NOTIFY_EXIT:
+                {
+                    sandbox->RemoveWhitelistedPid(pid);
+                    return handler.HandleProcessExit(msg);
+                }
+                    
+                case ES_EVENT_TYPE_NOTIFY_LOOKUP:
+                    return handler.HandleLookup(msg);
+                    
+                case ES_EVENT_TYPE_NOTIFY_OPEN:
+                    return handler.HandleOpen(msg);
+                    
+                case ES_EVENT_TYPE_NOTIFY_CLOSE:
+                    return handler.HandleClose(msg);
+
+                case ES_EVENT_TYPE_NOTIFY_CREATE:
+                    return handler.HandleCreate(msg);
+
+                // TODO: Decide what to do, tools touch source files too
+                case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
+                case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
+                case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
+                case ES_EVENT_TYPE_NOTIFY_SETMODE:
+                case ES_EVENT_TYPE_NOTIFY_WRITE:
+                    return handler.HandleGenericWrite(msg);
+
+                case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
+                    return handler.HandleExchange(msg);
+
+                case ES_EVENT_TYPE_NOTIFY_RENAME:
+                    return handler.HandleRename(msg);
+                    
+                case ES_EVENT_TYPE_NOTIFY_READLINK:
+                    return handler.HandleReadlink(msg);
+                    
+                case ES_EVENT_TYPE_NOTIFY_LINK:
+                    return handler.HandleLink(msg);
+                        
+                case ES_EVENT_TYPE_NOTIFY_UNLINK:
+                    return handler.HandleUnlink(msg);
+            }
+    #pragma clang diagnostic pop
         }
-#pragma clang diagnostic pop
+    }
+    else
+    {
+        es_mute_process(client, &msg->process->audit_token);
     }
 }
 
@@ -73,80 +92,62 @@ extern "C"
 {
 #pragma mark Exported interop methods
 
-    void InitializeEndpointSecuritySandbox(ESConnectionInfo *info, pid_t host)
+    void InitializeEndpointSecuritySandbox(ESConnectionInfo *info, pid_t host_pid)
     {
-        if (__builtin_available(macOS 10.15, *))
+        sandbox = new ESSandbox(getpid());
+        if (!sandbox)
         {
-            sandbox = new ESSandbox(^(es_client_t *client, const es_message_t *msg)
-            {
-                processEndpointSecurityEvent(client, msg);
-            });
-
-            es_client_t *client;
-
-            es_new_client_result_t result = es_new_client(&client, sandbox->GetObservationHandler());
-            if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
-            {
-                log_error("Failed creating EndpointSecurity client with error code: (%d)\n", result);
-                info->error = ES_CLIENT_CREATION_FAILED;
-                return;
-            }
-
-            sandbox->SetESClient(client);
-
-            es_clear_cache_result_t clearResult = es_clear_cache(client);
-            if (clearResult != ES_CLEAR_CACHE_RESULT_SUCCESS)
-            {
-                log_error("%s", "Failed resetting result cache on EndpointSecurity client initialization!\n");
-                info->error = ES_CLIENT_CACHE_RESET_FAILED;
-                return;
-            }
-
-            info->client = (uintptr_t) client;
-            info->source = (uintptr_t) CFRunLoopSourceCreate(NULL, 0, sandbox->GetRunLoopSourceContext());
+            log_error("%s", "Failed creating sandbox instance!\n");
+            info->error = ES_INSTANCE_ERROR;
+            return;
         }
-        else
+        
+        es_client_t *client;
+        es_new_client_result_t result = es_new_client(&client, ^(es_client_t *c, const es_message_t *msg) {
+            __block es_message_t *cpy = es_copy_message(msg);
+            dispatch_async(sandbox->GetProcessingQueue(), ^{
+                processEndpointSecurityEvent(c, cpy, sandbox->GetHostPid());
+                es_free_message(cpy);
+            });
+        });
+        
+        if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
         {
-            log_error("%s", "Creating EndpointSecurity clients on macOS < 10.15 is not supported");
+            log_error("Failed creating EndpointSecurity client with error code: (%d)\n", result);
             info->error = ES_CLIENT_CREATION_FAILED;
+            return;
+        }
+
+        sandbox->SetESClient(client);
+        sandbox->GetPidMap().emplace(getpid(), true);
+        
+        es_clear_cache_result_t clearResult = es_clear_cache(client);
+        if (clearResult != ES_CLEAR_CACHE_RESULT_SUCCESS)
+        {
+            log_error("%s", "Failed resetting result cache on EndpointSecurity client initialization!\n");
+            info->error = ES_CLIENT_CACHE_RESET_FAILED;
             return;
         }
     }
     
     void DeinitializeEndpointSecuritySandbox(ESConnectionInfo info)
     {
-        if (__builtin_available(macOS 10.15, *))
+        es_client_t *client = (es_client_t *) sandbox->GetESClient();
+
+        es_return_t result = es_unsubscribe_all(client);
+        if (result != ES_RETURN_SUCCESS)
         {
-            es_client_t *client = (es_client_t *) info.client;
-
-            es_return_t result = es_unsubscribe_all(client);
-            if (result != ES_RETURN_SUCCESS)
-            {
-                log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
-            }
-
-            result = es_delete_client(client);
-            if (result != ES_RETURN_SUCCESS)
-            {
-                log_error("%s", "Failed deleting the EndpointSecurity client!\n");
-            }
-
-            CFRunLoopRef runLoop = (CFRunLoopRef) info.runLoop;
-            CFRunLoopSourceRef source = (CFRunLoopSourceRef) info.source;
-
-            CFRunLoopRemoveSource(runLoop, source, kCFRunLoopDefaultMode);
-            CFRunLoopSourceInvalidate(source);
-            CFRelease(source);
-
-            CFRunLoopStop(runLoop);
-            delete sandbox;
-            log_debug("%s", "Successfully shut down EndpointSecurity subystem...");
+            log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
         }
-        else
+
+        result = es_delete_client(client);
+        if (result != ES_RETURN_SUCCESS)
         {
-            // Noop, we should never be able to reach it as initialization wont work on macOS < 10.15
-            return;
+            log_error("%s", "Failed deleting the EndpointSecurity client!\n");
         }
+
+        delete sandbox;
+        log_debug("%s", "Successfully shut down EndpointSecurity subystem...");
     }
 
     __cdecl void ObserverFileAccessReports(ESConnectionInfo *info, AccessReportCallback callback, long accessReportSize)
@@ -163,51 +164,20 @@ extern "C"
             log_error("%s", "No callback has been supplied for EndpointSecurity file observation!");
             return;
         }
+        
+        sandbox->SetAccessReportCallback(callback);
+        es_client_t *client = (es_client_t *) sandbox->GetESClient();
 
-        if (__builtin_available(macOS 10.15, *))
+        // Subsribe and activate the ES client
+        es_return_t status = es_subscribe(client, (es_event_type_t *)observed_events_, sizeof(observed_events_) / sizeof(observed_events_[0]));
+        if (status != ES_RETURN_SUCCESS)
         {
-            sandbox->SetAccessReportCallback(callback);
-            es_client_t *client = (es_client_t *) info->client;
-
-            // Subsribe and activate the ES client
-
-            es_return_t status = es_subscribe(client, sandbox->GetEventsForType(EventType::ProcessEvent), sandbox->GetEventCountForType(EventType::ProcessEvent));
-            if (status != ES_RETURN_SUCCESS)
-            {
-                log_error("%s", "Failed subscribing to EndpointSecurity process lifetime events, please check the sandbox configuration!");
-                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
-                return;
-            }
-
-            status = es_subscribe(client, sandbox->GetEventsForType(EventType::IOEvent), sandbox->GetEventCountForType(EventType::IOEvent));
-            if (status != ES_RETURN_SUCCESS)
-            {
-                log_error("%s", "Failed subscribing to EndpointSecurity I/O events, please check the sandbox configuration!");
-                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
-                return;
-            }
-
-            status = es_subscribe(client, sandbox->GetEventsForType(EventType::LookupEvent), sandbox->GetEventCountForType(EventType::LookupEvent));
-            if (status != ES_RETURN_SUCCESS)
-            {
-                log_error("%s", "Failed subscribing to EndpointSecurity lookup events, please check the sandbox configuration!");
-                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
-                return;
-            }
-
-            log_debug("Listening for reports of the EndpointSecurity sub system from process: %d", getpid());
-
-            info->runLoop = (uintptr_t) CFRunLoopGetCurrent();
-
-            // Use a dedicated run-loop for the thread so we can continously observe ES events
-            CFRunLoopAddSource((CFRunLoopRef) info->runLoop, (CFRunLoopSourceRef) info->source, kCFRunLoopDefaultMode);
-            CFRunLoopRun();
-        }
-        else
-        {
-            // Noop, we should never be able to reach it as initialization wont work on macOS < 10.15
+            log_error("%s", "Failed subscribing to EndpointSecurity process lifetime events, please check the sandbox configuration!");
+            if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
             return;
         }
+
+        log_debug("Listening for reports of the EndpointSecurity sub system from process: %d", getpid());
     }
 }
 
@@ -216,8 +186,15 @@ extern "C"
 bool ES_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength)
 {
     log_debug("Pip with PipId = %#llX, PID = %d launching", pipId, pid);
-    SandboxedPip *entry = new SandboxedPip(pid, famBytes, famBytesLength);
-    return sandbox->TrackRootProcess(entry);
+    
+    try {
+        std::shared_ptr<SandboxedPip> pip(new SandboxedPip(pid, famBytes, famBytesLength));
+        return sandbox->TrackRootProcess(pip);
+    }
+    catch (...)
+    {
+        return false;
+    }
 }
 
 bool ES_SendPipProcessTerminated(pipid_t pipId, pid_t pid)
@@ -239,79 +216,80 @@ bool ES_SendPipProcessTerminated(pipid_t pipId, pid_t pid)
 
 ESSandbox::~ESSandbox()
 {
-    Block_release(esObservationHandler_);
-    esObservationHandler_ = nullptr;
-    client = nullptr;
-    
     if (trackedProcesses_ != nullptr)
     {
         delete trackedProcesses_;
     }
+    
+    client_ = nullptr;
 }
 
-SandboxedProcess* ESSandbox::FindTrackedProcess(pid_t pid)
+std::shared_ptr<SandboxedProcess> ESSandbox::FindTrackedProcess(pid_t pid)
 {
     // NOTE: this has to be very fast when we are not tracking any processes (i.e., trackedProcesses_ is empty)
     //       because this is called on every single file access any process makes
     return trackedProcesses_->get(pid);
 }
 
-bool ESSandbox::TrackRootProcess(SandboxedPip *pip)
+bool ESSandbox::TrackRootProcess(std::shared_ptr<SandboxedPip> pip)
 {
-    pid_t pid = pip->getProcessId();
-    SandboxedProcess *process = new SandboxedProcess(pid, pip);
+    pid_t pid = pip->GetProcessId();
+    std::shared_ptr<SandboxedProcess> process(new SandboxedProcess(pid, pip));
 
     if (process == nullptr)
     {
         return false;
     }
-
-    int len = MAXPATHLEN;
-    process->setPath(pip->getProcessPath(&len), len);
+    
+    log_debug("Pip with PipId = %#llX, PID = %d launching", pip->GetPipId(), pid);
+    
+    int len = PATH_MAX;
+    process->SetPath(pip->GetProcessPath(&len), len);
     
     int numAttempts = 0;
     while (++numAttempts <= 3)
     {
-        Trie::TrieResult result = trackedProcesses_->insert(pid, process);
-        if (result == Trie::TrieResult::kTrieResultAlreadyExists)
+        TrieResult result = trackedProcesses_->insert(pid, process);
+        if (result == TrieResult::kTrieResultAlreadyExists)
         {
             // if mapping for 'pid' exists (this can happen only if clients are nested) --> remove it and retry
             IOHandler handler = IOHandler(this);
             if (handler.TryInitializeWithTrackedProcess(pid))
             {
+                handler.HandleProcessUntracked(pid);
                 log_debug("EARLY untracking PID(%d); Previous :: RootPID: %d, PipId: %#llX, tree size: %d)",
                           pid, handler.GetProcessId(), handler.GetPipId(), handler.GetProcessTreeSize());
-                          handler.HandleProcessUntracked(pid); // consider: handler.HandleProcessExit(pid);
             }
 
             continue;
         }
         else
         {
-            bool insertedNew = result == Trie::TrieResult::kTrieResultInserted;
+            bool insertedNew = result == TrieResult::kTrieResultInserted;
             log_debug("Tracking root process PID(%d), PipId: %#llX, tree size: %d, path: %{public}s, code: %d",
-                      pid, pip->getPipId(), pip->getTreeSize(), process->getPath(), result);
+                      pid, pip->GetPipId(), pip->GetTreeSize(), process->GetPath(), result);
             
             return insertedNew;
         }
     }
-
-    log_debug("Exceeded max number of attempts: %d", numAttempts);
+    
+    process.reset();
+    log_error("Exceeded max number of attempts in TrackRootProcess: %d - aborting!", numAttempts);
     return false;
 }
 
-bool ESSandbox::TrackChildProcess(pid_t childPid, SandboxedProcess *parentProcess)
+bool ESSandbox::TrackChildProcess(pid_t childPid, std::shared_ptr<SandboxedProcess> parentProcess)
 {
-    SandboxedPip *pip = parentProcess->getPip();
-    SandboxedProcess *childProcess = new SandboxedProcess(childPid, pip);
+    std::shared_ptr<SandboxedPip> pip = parentProcess->GetPip();
+    std::shared_ptr<SandboxedProcess> childProcess (new SandboxedProcess(childPid, pip));
 
     if (childProcess == nullptr)
     {
         return false;
     }
 
-    Trie::TrieResult getOrAddResult;
-    SandboxedProcess *newValue = trackedProcesses_->getOrAdd(childPid, childProcess, &getOrAddResult);
+    TrieResult getOrAddResult;
+    std::shared_ptr<SandboxedProcess> newValue = trackedProcesses_->getOrAdd(childPid, childProcess, &getOrAddResult);
     
     // Operation getOrAdd failed:
     //   -> skip everything and return error (should not happen under normal circumstances)
@@ -322,67 +300,67 @@ bool ESSandbox::TrackChildProcess(pid_t childPid, SandboxedProcess *parentProces
 
     // There was already a process associated with this 'childPid':
     //   -> log an appropriate message and return false to indicate that no new process has been tracked
-    if (getOrAddResult == Trie::TrieResult::kTrieResultAlreadyExists)
+    if (getOrAddResult == TrieResult::kTrieResultAlreadyExists)
     {
-        if (newValue->getPip() == pip)
+        if (newValue->GetPip() == pip)
         {
-            log_debug("Child process PID(%d) already tracked by the same Root PID(%d)", childPid, pip->getProcessId());
+            log_debug("Child process PID(%d) already tracked by the same Root PID(%d)", childPid, pip->GetProcessId());
         }
-        else if (newValue->getPip()->getProcessId() == childPid)
+        else if (newValue->GetPip()->GetProcessId() == childPid)
         {
             log_debug("Child process PID(%d) cannot be added to Root PID(%d) because it has already been promoted to root itself",
-                      childPid, pip->getProcessId());
+                      childPid, pip->GetProcessId());
         }
         else
         {
             log_debug("Child process PID(%d) already tracked by a different Root PID(%d); intended new: Root PID(%d) (Code: %d)",
-                      childPid, newValue->getPip()->getProcessId(), pip->getProcessId(), getOrAddResult);
+                      childPid, newValue->GetPip()->GetProcessId(), pip->GetProcessId(), getOrAddResult);
         }
-        return false;
+        
+        goto error;
     }
 
     // We associated 'process' with 'childPid' -> increment process tree and return true to indicate that a new process is being tracked
-    if (getOrAddResult == Trie::TrieResult::kTrieResultInserted)
+    if (getOrAddResult == TrieResult::kTrieResultInserted)
     {
         // copy the path from the parent process (because the child process always starts out as a fork of the parent)
-        childProcess->setPath(parentProcess->getPath());
-        pip->incrementProcessTreeCount();
+        childProcess->SetPath(parentProcess->GetPath());
+        pip->IncrementProcessTreeCount();
         
-        log_debug("Track entry %d -> %d, PipId: %#llX, New tree size: %d", childPid, pip->getProcessId(), pip->getPipId(), pip->getTreeSize());
+        log_debug("Track entry %d -> %d, PipId: %#llX, New tree size: %d", childPid, pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize());
         
         return true;
     }
 
 error:
 
-    log_debug("Track entry %d -> %d FAILED, PipId: %#llX, Tree size: %d, Code: %d",
-              childPid, pip->getProcessId(), pip->getPipId(), pip->getTreeSize(), getOrAddResult);
+    log_debug("Failed tracking child entry %d -> %d, PipId: %#llX, Tree size: %d, Code: %d",
+              childPid, pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize(), getOrAddResult);
     
+    childProcess.reset();
     return false;
 }
 
-bool ESSandbox::UntrackProcess(pid_t pid, SandboxedProcess *process)
+bool ESSandbox::UntrackProcess(pid_t pid, std::shared_ptr<SandboxedProcess> process)
 {
     // remove the mapping for 'pid'
     auto removeResult = trackedProcesses_->remove(pid);
-    bool removedExisting = removeResult == Trie::TrieResult::kTrieResultRemoved;
+    bool removedExisting = removeResult == TrieResult::kTrieResultRemoved;
     if (removedExisting)
     {
-        process->getPip()->decrementProcessTreeCount();
+        process->GetPip()->DecrementProcessTreeCount();
     }
     
-    SandboxedPip *pip = process->getPip();
+    std::shared_ptr<SandboxedPip> pip = process->GetPip();
     
     log_debug("Untrack entry %d (%{public}s) -> %d, PipId: %#llX, New tree size: %d, Code: %d",
-              pid, process->getPathBuffer(), pip->getProcessId(), pip->getPipId(), pip->getTreeSize(), removeResult);
+              pid, process->GetPath(), pip->GetProcessId(), pip->GetPipId(), pip->GetTreeSize(), removeResult);
     
     return removedExisting;
 }
 
-void const ESSandbox::SendAccessReport(AccessReport &report, SandboxedPip *pip)
+void const ESSandbox::SendAccessReport(AccessReport &report, std::shared_ptr<SandboxedPip> pip)
 {
-    report.stats.enqueueTime = mach_absolute_time();
-
     this->GetAccessReportCallback()(report, REPORT_QUEUE_SUCCESS);
 
     log_debug("Enqueued PID(%d), Root PID(%d), PIP(%#llX), Operation: %{public}s, Path: %{public}s, Status: %d",

@@ -83,7 +83,7 @@ export function generateCSharp(args: ArgumentsCSharp) : Result {
                     grpcCsFile
                 ),
             ],
-            dependencies: filesToProcess.map(fileToProcess => fileToProcess.file),
+            dependencies: filesToProcess.map(fileToProcess => fileToProcess.file)
         });
 
         resultSources = resultSources.push(result.getOutputFile(mainCsFile));

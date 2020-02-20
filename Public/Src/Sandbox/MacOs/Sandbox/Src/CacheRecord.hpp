@@ -8,6 +8,7 @@
 #include <IOKit/IOLib.h>
 #include "BuildXLSandboxShared.hpp"
 #include "FileAccessHelpers.h"
+#include "BXLLocks.hpp"
 
 #define CacheRecord BXL_CLASS(CacheRecord)
 
@@ -20,7 +21,7 @@ private:
 
     OSDeclareDefaultStructors(CacheRecord)
 
-    IOLock *lock_;
+    BXLLock *lock_;
 
     /*!
      * A bitwise disjunction of reported accesses.

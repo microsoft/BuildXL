@@ -62,7 +62,7 @@ private:
     ResourceManager *resourceManager_;
 
     /*! Recursive lock used for synchronization */
-    IORecursiveLock *lock_;
+    BXLRecursiveLock *lock_;
 
     /*!
      * Keeps the PID --> SandboxedProcess* mapping of currently tracked processes.

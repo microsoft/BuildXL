@@ -369,6 +369,7 @@ namespace BuildXL.Interop.MacOS
         public const string BinSh                     = "/bin/sh";
         public const string Dev                       = "/dev";
         public const string Etc                       = "/etc";
+        public const string EtcMasterPasswd           = "/etc/master.passwd";
         public const string Library                   = "/Library";
         public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
         public const string Private                   = "/private";

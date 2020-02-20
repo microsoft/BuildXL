@@ -7,6 +7,7 @@
 #include <IOKit/IOService.h>
 #include <IOKit/IOLib.h>
 #include "BuildXLSandboxShared.hpp"
+#include "BXLLocks.hpp"
 
 #define ResourceManager BXL_CLASS(ResourceManager)
 
@@ -24,7 +25,7 @@ private:
 
     OSDeclareDefaultStructors(ResourceManager)
 
-    IOLock *procBarrier_;
+    BXLLock *procBarrier_;
     ResourceThresholds thresholds_;
 
     /*!

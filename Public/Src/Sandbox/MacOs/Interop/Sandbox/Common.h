@@ -6,9 +6,9 @@
 
 #include "BuildXLSandboxShared.hpp"
 
-#define REPORT_QUEUE_SUCCESS                      0x1000
-#define REPORT_QUEUE_CONNECTION_ERROR             0x1001
-#define REPORT_QUEUE_DEQUEUE_ERROR                0x1002
+#define REPORT_QUEUE_SUCCESS          0x1000
+#define REPORT_QUEUE_CONNECTION_ERROR 0x1001
+#define REPORT_QUEUE_DEQUEUE_ERROR    0x1002
 
 typedef enum {
     Kext,

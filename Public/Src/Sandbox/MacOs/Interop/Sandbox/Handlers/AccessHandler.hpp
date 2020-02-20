@@ -5,9 +5,7 @@
 #define AccessHandler_hpp
 
 #include "ESSandbox.h"
-#include "SandboxedPip.hpp"
 #include "Checkers.hpp"
-#include "OpNames.hpp"
 
 enum ReportResult
 {
@@ -28,22 +26,20 @@ private:
     
     ESSandbox *sandbox_;
 
-    SandboxedProcess *process_;
-
-    uint64_t creationTimestamp_;
+    std::shared_ptr<SandboxedProcess> process_;
 
     ReportResult ReportFileOpAccess(FileOperation operation,
                                     PolicyResult policy,
                                     AccessCheckResult accessCheckResult,
                                     pid_t processID);
 
-    inline void SetProcess(SandboxedProcess *process) { process_ = process; }
+    inline void SetProcess(std::shared_ptr<SandboxedProcess> process) { process_ = process; }
 
 protected:
 
-    ESSandbox* GetSandbox()   const { return sandbox_; }
-    SandboxedProcess* GetProcess() const { return process_; }
-    SandboxedPip* GetPip()         const { return process_->getPip(); }
+    inline ESSandbox* GetSandbox()                        const { return sandbox_; }
+    inline std::shared_ptr<SandboxedProcess> GetProcess() const { return process_; }
+    inline std::shared_ptr<SandboxedPip> GetPip()         const { return process_->GetPip(); }
 
     PolicySearchCursor FindManifestRecord(const char *absolutePath, size_t pathLength = -1);
     
@@ -55,16 +51,7 @@ protected:
     /*!
      * Template for checking and reporting file accesses.
      *
-     * Adds caching around the existing checking ('CheckAccess') and reporting ('ReportFileOpAccess') methods.
-     *
      * The key used for looking up if the operation was already reported is "<operation>,<path>".
-     *
-     * If the operation has already been reported (cache hit w.r.t. the aforementioned key), an AccessCheckResult
-     * object is returned that indicates that the operation is allowed (@result.ShouldDenyAccess() returns false)
-     * and that it should not be reported (@result.ShouldReport() returns false).
-     *
-     * If the operation has not been reported, 'CheckAccess' and 'ReportFileOpAccess' are called and the result
-     * is added to the cache if the returned AccessCheckResult object indicates that the operation should not be denied.
      *
      * @param operation Operation to be executed
      * @param path Absolute path against which the operation is to be executed
@@ -78,12 +65,12 @@ protected:
                                      const es_message_t *msg,
                                      bool isDir);
 
-    AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg)
     {
         return CheckAndReportInternal(operation, path, checker, msg, false);
     }
 
-    AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg, bool isDir)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg, bool isDir)
     {
         return CheckAndReportInternal(operation, path, checker, msg, isDir);
     }
@@ -92,7 +79,6 @@ public:
 
     AccessHandler(ESSandbox *sandbox)
     {
-        creationTimestamp_ = mach_absolute_time();
         sandbox_           = sandbox;
         process_           = nullptr;
     }
@@ -116,10 +102,10 @@ public:
     bool TryInitializeWithTrackedProcess(pid_t pid);
 
     inline bool HasTrackedProcess()             const { return process_ != nullptr; }
-    inline pid_t GetProcessId()                 const { return GetPip()->getProcessId(); }
-    inline pipid_t GetPipId()                   const { return GetPip()->getPipId(); }
-    inline int GetProcessTreeSize()             const { return GetPip()->getTreeSize(); }
-    inline FileAccessManifestFlag GetFamFlags() const { return GetPip()->getFamFlags(); }
+    inline pid_t GetProcessId()                 const { return GetPip()->GetProcessId(); }
+    inline pipid_t GetPipId()                   const { return GetPip()->GetPipId(); }
+    inline int GetProcessTreeSize()             const { return GetPip()->GetTreeSize(); }
+    inline FileAccessManifestFlag GetFamFlags() const { return GetPip()->GetFamFlags(); }
 
     PolicyResult PolicyForPath(const char *absolutePath);
 

@@ -82,7 +82,7 @@ private:
     void *onChangeData_;
 
     /*! Used only when modifying a node's list of children */
-    IORecursiveLock *lock_;
+    BXLRecursiveLock *lock_;
 
     /*! Initialized a new Trie.  The return value indicates the success of the operation. */
     bool init(TrieKind kind);

@@ -35,7 +35,7 @@ bool Trie::init(TrieKind kind)
     onChangeData_ = nullptr;
     onChangeCallback_ = nullptr;
 
-    lock_ = IORecursiveLockAlloc();
+    lock_ = BXLRecursiveLockAlloc();
     if (!lock_)
     {
         return false;
@@ -57,7 +57,7 @@ void Trie::free()
                  OSSafeReleaseNULL(n);
              });
 
-    IORecursiveLockFree(lock_);
+    BXLRecursiveLockFree(lock_);
     lock_ = nullptr;
     root_ = nullptr;
     size_ = 0;

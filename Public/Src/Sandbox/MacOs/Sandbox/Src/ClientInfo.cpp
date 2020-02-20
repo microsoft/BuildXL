@@ -44,7 +44,7 @@ bool ClientInfo::init(const InitArgs& args)
         return false;
     }
 
-    lock_ = IORecursiveLockAlloc();
+    lock_ = BXLRecursiveLockAlloc();
     if (lock_ == nullptr)
     {
         return false;
@@ -59,7 +59,7 @@ void ClientInfo::free()
 
     if (lock_)
     {
-        IORecursiveLockFree(lock_);
+        BXLRecursiveLockFree(lock_);
         lock_ = nullptr;
     }
 

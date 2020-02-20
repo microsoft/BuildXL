@@ -29,7 +29,7 @@ bool CacheRecord::init()
         return false;
     }
 
-    lock_ = IOLockAlloc();
+    lock_ = BXLLockAlloc();
     if (lock_ == nullptr)
     {
         return false;
@@ -43,7 +43,7 @@ void CacheRecord::free()
 {
     if (lock_ != nullptr)
     {
-        IOLockFree(lock_);
+        BXLLockFree(lock_);
         lock_ = nullptr;
     }
 
@@ -134,7 +134,7 @@ void CacheRecord::Update(const AccessCheckResult *result)
 bool CacheRecord::CheckAndUpdate(const AccessCheckResult *checkResult)
 {
     bool isHit;
-    IOLockLock(lock_);
+    BXLLockLock(lock_);
     {
         isHit = Check(checkResult);
         if (!isHit)
@@ -142,6 +142,6 @@ bool CacheRecord::CheckAndUpdate(const AccessCheckResult *checkResult)
             Update(checkResult);
         }
     }
-    IOLockUnlock(lock_);
+    BXLLockUnlock(lock_);
     return isHit;
 }

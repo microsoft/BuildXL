@@ -12,6 +12,14 @@ See the [the BuildXL Release Management page for the Production environment](htt
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
 # Upcoming release
+ 
+# 0.1.0-20200214.6 (Release [55661](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55661)).  Released 2/19/2020
+- Stop running in unsafe_IgnorePreloadedDlls mode by default
+- Convert to user-error: CTMIS due to 'access denied' errors
+- Log available physical memory at the beginning of the build
+- [PipInputAnalyzer] Compute files at most common intersection of failed pips to check whether a bunch of failures are attributable to the same intermediate file
+- [QTest] Fix -testMethod problem
+- [QTest] Add environment variable for dotnetcore path in Cloudbuild
 
 # 0.1.0-20200207.4.1 (Release [55353](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55353)).  Released 2/13/2020
 - Detours plugin for substitute process execution

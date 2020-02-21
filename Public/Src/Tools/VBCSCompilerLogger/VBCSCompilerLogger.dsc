@@ -25,7 +25,10 @@ namespace VBCSCompilerLogger {
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
-            importFrom("System.Reflection.Metadata").pkg
+            importFrom("System.Reflection.Metadata").pkg,
+            importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+            importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         ]
     });
 

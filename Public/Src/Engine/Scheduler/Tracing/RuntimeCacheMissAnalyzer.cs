@@ -347,8 +347,8 @@ namespace BuildXL.Scheduler.Tracing
                     else
                     {
                         var detail = new JObject(
-                            new JProperty(nameof(resultAndDetail.Detail.Type), resultAndDetail.Detail.Type), 
-                            new JProperty(nameof(resultAndDetail.Detail.Reason), resultAndDetail.Detail.Reason), 
+                            new JProperty(nameof(resultAndDetail.Detail.ActualMissType), resultAndDetail.Detail.ActualMissType), 
+                            new JProperty(nameof(resultAndDetail.Detail.ReasonFromAnalysis), resultAndDetail.Detail.ReasonFromAnalysis), 
                             new JProperty(nameof(resultAndDetail.Detail.Info), resultAndDetail.Detail.Info)).ToString();
                         Logger.Log.CacheMissAnalysis(m_loggingContext, pipDescription, detail, fromCacheLookup);
                     }                  

@@ -1805,6 +1805,22 @@ NTSTATUS NTAPI Detoured_ZwSetInformationFile(
         FileInformationClass);
 }
 
+static bool ShouldBreakawayFromJob(const CanonicalizedPath& fullApplicationPath)
+{
+    if (g_processNamesToBreakAwayFromJob->empty() || fullApplicationPath.IsNull())
+    {
+        return false;
+    }
+
+    std::wstring imageName(fullApplicationPath.GetLastComponent());
+
+#if SUPER_VERBOSE
+    Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
+#endif
+
+    return g_processNamesToBreakAwayFromJob->find(imageName) != g_processNamesToBreakAwayFromJob->end();
+}
+
 IMPLEMENTED(Detoured_CreateProcessW)
 BOOL WINAPI Detoured_CreateProcessW(
     _In_opt_    LPCWSTR               lpApplicationName,
@@ -1856,41 +1872,25 @@ BOOL WINAPI Detoured_CreateProcessW(
 
     CanonicalizedPath imagePath = GetImagePath(lpApplicationName, lpCommandLine);
 
-    // If the process to be created is configured to breakaway from the current
-    // job object, we use the regular process creation, and set the breakaway flag
-    if (!g_processNamesToBreakAwayFromJob->empty())
+    if (ShouldBreakawayFromJob(imagePath))
     {
-        // An null path means we couldn't find a candidate, or the path was malformed.
-        // In this case we just let the regular detoured create process take control
-        if (!imagePath.IsNull())
-        {
-            std::wstring imageName(imagePath.GetLastComponent());
-
-            std::unordered_set<wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>::iterator result;
-            result = g_processNamesToBreakAwayFromJob->find(imageName);
-            
-            if (result != g_processNamesToBreakAwayFromJob->end())
-            {
-#if SUPER_VERBOSE
-                Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
-#endif
-                return Real_CreateProcessW(
-                    lpApplicationName,
-                    lpCommandLine,
-                    lpProcessAttributes,
-                    lpThreadAttributes,
-                    // Since this process will be detached from the job, and could survive the parent, we don't 
-                    // want any handle inheritance to happen
-                    /*bInheritHandles*/ FALSE,
-                    dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
-                    lpEnvironment,
-                    lpCurrentDirectory,
-                    lpStartupInfo,
-                    lpProcessInformation);
-            }
-        }
+        // If the process to be created is configured to breakaway from the current
+        // job object, we use the regular process creation, and set the breakaway flag.
+        return Real_CreateProcessW(
+            lpApplicationName,
+            lpCommandLine,
+            lpProcessAttributes,
+            lpThreadAttributes,
+            // Since this process will be detached from the job, and could survive the parent, we don't 
+            // want any handle inheritance to happen
+            /*bInheritHandles*/ FALSE,
+            dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
+            lpEnvironment,
+            lpCurrentDirectory,
+            lpStartupInfo,
+            lpProcessInformation);
     }
-
+    
     FileOperationContext operationContext = FileOperationContext::CreateForRead(L"CreateProcess", !imagePath.IsNull() ? imagePath.GetPathString() : L"");
     FileReadContext readContext;
     AccessCheckResult readCheck(RequestedAccess::None, ResultAction::Allow, ReportLevel::Ignore);

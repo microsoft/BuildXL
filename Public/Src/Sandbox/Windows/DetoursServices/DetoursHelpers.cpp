@@ -1151,11 +1151,64 @@ bool ExistsAsFile(_In_ PCWSTR path)
 {
     DWORD dwAttrib = GetFileAttributesW(path);
 
-    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
-        !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-bool ExistsImageFile(_In_ CanonicalizedPath& candidatePath)
+static DWORD SearchFullPath(
+    _In_ LPCWSTR lpPath,
+    _In_ LPCWSTR lpFileName,
+    _In_ LPCWSTR lpExtension,
+    _Inout_ std::wstring& fullPath)
+{
+    // First, we try with a fixed-sized buffer, which should be good enough for all practical cases.
+
+    wchar_t wszBuffer[MAX_PATH];
+    DWORD nBufferLength = std::extent<decltype(wszBuffer)>::value;
+    LPWSTR filePart;
+
+    DWORD result = SearchPathW(lpPath, lpFileName, lpExtension, nBufferLength, wszBuffer, &filePart);
+
+    if (result == 0)
+    {
+        DWORD ret = GetLastError();
+        return ret;
+    }
+
+    if (result < nBufferLength)
+    {
+        fullPath.assign(wszBuffer, static_cast<size_t>(result));
+    }
+    else
+    {
+        // Second, if that buffer wasn't big enough, we try again with a dynamically allocated buffer with sufficient size.
+
+        // Note that in this case, the return value indicates the required buffer length, INCLUDING the terminating null character.
+        // https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-searchpathw
+        unique_ptr<wchar_t[]> buffer(new wchar_t[result]);
+        assert(buffer.get());
+
+        DWORD result2 = SearchPathW(lpPath, lpFileName, lpExtension, result, buffer.get(), &filePart);
+
+        if (result2 == 0)
+        {
+            DWORD ret = GetLastError();
+            return ret;
+        }
+
+        if (result2 < result)
+        {
+            fullPath.assign(buffer.get(), result2);
+        }
+        else
+        {
+            return ERROR_NOT_ENOUGH_MEMORY;
+        }
+    }
+
+    return ERROR_SUCCESS;
+}
+
+static bool ExistsImageFile(_In_ CanonicalizedPath& candidatePath)
 {
     if (candidatePath.IsNull())
     {
@@ -1165,7 +1218,7 @@ bool ExistsImageFile(_In_ CanonicalizedPath& candidatePath)
     return ExistsAsFile(candidatePath.GetPathString());
 }
 
-bool TryFindImagePath(_In_ std::wstring& candidatePath, _Out_opt_ CanonicalizedPath& imagePath)
+static bool TryFindImagePath(_In_ std::wstring& candidatePath, _Out_opt_ CanonicalizedPath& imagePath)
 {
     imagePath = CanonicalizedPath::Canonicalize(candidatePath.c_str());
     if (ExistsImageFile(imagePath))
@@ -1186,94 +1239,106 @@ bool TryFindImagePath(_In_ std::wstring& candidatePath, _Out_opt_ CanonicalizedP
     return ExistsImageFile(imagePath);
 }
 
-CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine)
+static CanonicalizedPath GetCanonicalizedApplicationPath(_In_ LPCWSTR lpApplicationName)
 {
-    // Tries to mimic the CreateProcess logic by identifying the image path based on the application
-    // name and command line for a process.
-    // See https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
-
-    // If the application name is not null, it should be a path to the image name
-    if (lpApplicationName != nullptr)
+    if (GetRootLength(lpApplicationName) > 0)
     {
+        // Path is rooted.
         return CanonicalizedPath::Canonicalize(lpApplicationName);
     }
-    else
+
+    // Path is not rooted.
+    // For example, lpApplicationName can be just "cmd.exe". In this case, we rely on SearchPathW
+    // to find the full path. We cannot rely on GetFullPathNameW (as in CanonicalizedPath) because
+    // GetFullPathNameW will simply prepend the file name with the current directory, which result in
+    // a non-existent path for executables like "cmd.exe".
+    std::wstring applicationPath;
+    return SearchFullPath(nullptr, lpApplicationName, L".exe", applicationPath) != ERROR_SUCCESS
+        ? CanonicalizedPath()
+        : CanonicalizedPath::Canonicalize(applicationPath.c_str());;
+}
+
+CanonicalizedPath GetImagePath(_In_opt_ LPCWSTR lpApplicationName, _In_opt_ LPWSTR lpCommandLine)
+{
+    if (lpApplicationName != nullptr)
     {
-        if (lpCommandLine == nullptr)
-        {
-            // The command line should not be null.
-            return CanonicalizedPath();
-        }
+        return GetCanonicalizedApplicationPath(lpApplicationName);
+    }
 
-        std::wstring imagePathCandidate = L"";
-
-        LPWSTR cursor = lpCommandLine;
-        unsigned int count = 0;
-
-        // First check for a leading quote.
-        if (*cursor == L'\"')
-        {
-            cursor++;
-            lpCommandLine = cursor;
-            while (*cursor && *cursor != (WCHAR)'\"') {
-                cursor++;
-                count++;
-            }
-
-            // Start with the first quoted string.
-            imagePathCandidate.assign(lpCommandLine, count);
-
-            // If we found and ending quote, advance the cursor past it.
-            if (*cursor == (WCHAR)'\"')
-            {
-                cursor++;
-            }
-        }
-        else
-        {
-            // Look for the first whitespace/tab.
-            while (*cursor && *cursor != (WCHAR)' ' && *cursor != (WCHAR)'\t') {
-                cursor++;
-                count++;
-            }
-
-            // Start with the first string delimited with the first space/tab.
-            imagePathCandidate.assign(lpCommandLine, count);
-        }
-
-        CanonicalizedPath imagePath = CanonicalizedPath();
-        if (TryFindImagePath(imagePathCandidate, imagePath))
-        {
-            return imagePath;
-        }
-
-        // Now keep checking space/tab separated blocks until we find an image or run out of command line.
-        while (*cursor)
-        {
-            lpCommandLine = cursor;
-            count = 0;
-
-            // Skip trailing spaces.
-            while ((*cursor == (WCHAR)' ') || (*cursor == (WCHAR)'\t'))
-            {
-                count++;
-                cursor++;
-            }
-
-            // Move through the next space separated block.
-            while ((*cursor) && (*cursor != (WCHAR)' ') && (*cursor != (WCHAR)'\t'))
-            {
-                count++;
-                cursor++;
-            }
-
-            imagePathCandidate.append(lpCommandLine, count);
-            if (TryFindImagePath(imagePathCandidate, imagePath))
-            {
-                return imagePath;
-            }
-        }
-
+    if (lpCommandLine == nullptr)
+    {
         return CanonicalizedPath();
     }
+
+    LPWSTR cursor = lpCommandLine;
+    LPWSTR start = lpCommandLine;
+    size_t length = 0;
+    std::wstring applicationNamePath(L"");
+
+    if (*cursor == L'\"')
+    {
+        start = ++cursor;
+ 
+        while (*cursor && *cursor != L'\"')
+        {
+            ++cursor;
+            ++length;
+        }
+
+        // Unlike the implementation of CreateProcessW that runs the expanded path logic (as in the else branch below),
+        // we simply search for the ending quote and use the found path as the application path.
+        // We do this because we don't want to slow down 99% cases by going to the file system to check file existence.
+        applicationNamePath.assign(start, length);
+        return GetCanonicalizedApplicationPath(applicationNamePath.c_str());
+    }
+    else 
+    {
+        // Skip past space and tab.
+        while (*cursor && (*cursor == L' ' || *cursor == L'\t'))
+        {
+            ++cursor;
+        }
+
+        do 
+        {
+            start = cursor;
+            length = 0;
+
+            // Skip past space and tab.
+            while (*cursor && (*cursor == L' ' || *cursor == L'\t'))
+            {
+                ++cursor;
+                ++length;
+            }
+            
+            // Look for the first whitespace/tab.
+            while (*cursor && *cursor != L' ' && *cursor != L'\t')
+            {
+                ++cursor;
+                ++length;
+            }
+
+            CanonicalizedPath imagePath;
+            applicationNamePath.append(start, length);
+
+            if (GetRootLength(applicationNamePath.c_str()) > 0) 
+            {
+                if (TryFindImagePath(applicationNamePath, imagePath))
+                {
+                    return imagePath;
+                }
+            }
+            else 
+            {
+                // For non-rooted path, check path existence using SearchFullPath.
+                imagePath = GetCanonicalizedApplicationPath(applicationNamePath.c_str());
+                if (!imagePath.IsNull())
+                {
+                    return imagePath;
+                }
+            }
+        } while (*cursor);
+
+        return CanonicalizedPath();
+    }    
 }

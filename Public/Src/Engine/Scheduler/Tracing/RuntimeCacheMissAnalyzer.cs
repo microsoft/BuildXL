@@ -196,8 +196,8 @@ namespace BuildXL.Scheduler.Tracing
         ///             Description:
         ///             FromCacheLookUp:
         ///             Detail: {
-        ///                Type: ...
-        ///                Reason: ...
+        ///                ActualMissType: ...
+        ///                ReasonFromAnalysis: ...
         ///                Info: ...
         ///             }
         ///         },
@@ -205,27 +205,34 @@ namespace BuildXL.Scheduler.Tracing
         ///             Description:
         ///             FromCacheLookUp:
         ///             Detail: {
-        ///                Type: ...
-        ///                Reason: ...
+        ///                ActualMissType: ...
+        ///                ReasonFromAnalysis: ...
         ///                Info: ...
         ///             }
         ///         },
         ///     }
         ///}
         /// </summary>
-        private Task<Unit> BatchLogging(JProperty[] results)
+        internal Task<Unit> BatchLogging(JProperty[] results)
         {
             // Use JsonTextWritter for 2 reasons:
             // 1. easily control when to start a new log event and when to end it.
             // 2. according to some research, manually serialization with JsonTextWritter can improve performance.
             using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))                
+            {
+                ProcessResults(results, MaxLogSize, m_loggingContext);
+                return Unit.VoidTask;
+            }
+        }
+
+        internal static void ProcessResults(JProperty[] results, int maxLogSize, LoggingContext loggingContext)
+        {
             using (var sbPool = Pools.GetStringBuilder())
             {
                 var sb = sbPool.Instance;
                 var sw = new StringWriter(sb);
                 var writer = new JsonTextWriter(sw);
                 var logStarted = false;
-                var haslogValue = false;
                 var lenSum = 0;
                 for (int i = 0; i < results.Length;)
                 {
@@ -240,7 +247,7 @@ namespace BuildXL.Scheduler.Tracing
                     var name = results[i].Name.ToString();
                     var value = results[i].Value.ToString();
                     lenSum += name.Length + value.Length;
-                    if (lenSum < MaxLogSize)
+                    if (lenSum < maxLogSize)
                     {
                         writeProperty(name, value);
                         i++;
@@ -250,35 +257,33 @@ namespace BuildXL.Scheduler.Tracing
                         // Give warning instead of a single result if max length exceeded, 
                         // otherwise finish this batch without i++. 
                         // So this item will go to next batch.
-                        if ((name.Length + value.Length) > MaxLogSize)
+                        if ((name.Length + value.Length) > maxLogSize)
                         {
                             writeProperty(name, "Warning: The actual cache miss analysis result is too long to present.");
                             i++;
                         }
                         lenSum = 0;
-                        logStarted = false;
                         endLogging();
                     }
                 }
 
                 endLogging();
-                return Unit.VoidTask;
 
                 void writeProperty(string name, string value)
                 {
                     writer.WritePropertyName(name);
                     writer.WriteRawValue(value);
-                    haslogValue = true;
                 }
 
                 void endLogging()
-                {                   
+                {
                     // Only log when at least one result has been written to the Json string
-                    if (haslogValue)
+                    if (logStarted)
                     {
                         writer.WriteEndObject();
                         writer.WriteEndObject();
-                        Logger.Log.CacheMissAnalysisBatchResults(m_loggingContext, sw.ToString());
+                        logStarted = false;
+                        Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());                      
                     }
                 }
             }

@@ -14,6 +14,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -434,7 +435,7 @@ namespace Test.BuildXL.FingerprintStore
                 var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
                 if (exceedMaxLogSize)
                 {
-                    pipBuilder.ToolDescription = StringId.Create(Context.StringTable, new string('*', 2000));
+                    pipBuilder.ToolDescription = StringId.Create(Context.StringTable, new string('*', 2*RuntimeCacheMissAnalyzer.MaxLogSize/pipNumber));
                 }
 
                 var pip = SchedulePipBuilder(pipBuilder);
@@ -463,6 +464,27 @@ namespace Test.BuildXL.FingerprintStore
                 AssertVerboseEventLogged(EventId.CacheMissAnalysis, allowMore: true);
             }
 
+        }
+
+        [Fact]
+        public void ProcessResultsForBatchingTest()
+        {
+            var results = new List<JProperty>();
+            JProperty result;
+            var lenSum = 0;
+            int i;
+            for ( i = 0; i < 9; i++)
+            {
+                result = new JProperty("P" + i, new string('*', 100));
+                results.Add(result);            
+                lenSum += result.Name.ToString().Length + result.Value.ToString().Length;
+            }
+
+            var maxLogLen = lenSum * 2;
+            result = new JProperty("P" + i, new string('*', maxLogLen + 1));
+            results.Add(result);
+
+            RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), maxLogLen, LoggingContext);
         }
 
         private void MakeTwoPhaseCacheForgetEverything()

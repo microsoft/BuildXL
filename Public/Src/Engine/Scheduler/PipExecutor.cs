@@ -886,6 +886,7 @@ namespace BuildXL.Scheduler
 
                     if (storeCacheEntryResult.Converged && !IsProcessPreservingOutputs(environment, process))
                     {
+                        environment.Counters.AddToCounter(PipExecutorCounter.ExecuteConvergedProcessDuration, processExecutionResult.PerformanceInformation.ProcessExecutionTime);
                         environment.Counters.IncrementCounter(PipExecutorCounter.ProcessPipTwoPhaseCacheEntriesConverged);
 
                         // Copy the status into the result, if the pip was successful, it will remain so, if the pip

@@ -46,7 +46,7 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// The amount of time it took to execute all process pips. This only includes the time spent executing the process.
-        /// It does not include any pre or post processing. It does not include any processes that were cancelled.
+        /// It does not include any pre or post processing. It does not include any processes that were canceled.
         /// </summary>
         /// <remarks>
         /// In distributed builds, this counter only includes processes executed on one machine, even if the machine
@@ -1166,6 +1166,16 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         PipQueueEnqueueDuration,
+
+        /// <summary>
+        /// The amount of time it took to execute all process pips that later converged with existing entries in cache.
+        /// It does not include any pre or post processing. It does not include any processes that were canceled.
+        /// </summary>
+        /// <remarks>
+        /// The durations of converged processes are tracked by both this and ExecuteProcessDuration counter.
+        /// </remarks>
+        [CounterType(CounterType.Stopwatch)]
+        ExecuteConvergedProcessDuration,
     }
 
     /// <summary>

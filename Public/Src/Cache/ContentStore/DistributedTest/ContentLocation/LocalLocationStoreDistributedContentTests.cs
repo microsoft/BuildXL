@@ -461,7 +461,7 @@ namespace ContentStoreTest.Distributed.Sessions
             task.Should().BeNull("Task is not set when inline is true");
         }
 
-        [Fact(Skip = "Flaky test")]
+        [Fact]
         public async Task SkipRestoreCheckpointTest()
         {
             // Ensure master lease is long enough that role doesn't switch between machines

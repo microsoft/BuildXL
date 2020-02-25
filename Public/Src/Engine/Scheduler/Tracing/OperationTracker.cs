@@ -224,7 +224,7 @@ namespace BuildXL.Scheduler.Tracing
 
                 m_lastCounterFileWriteTime = m_stopwatch.Elapsed;
 
-                var performanceStatsJsonPath = loggingConfiguration.StatsLog.ToString(context.PathTable) + "prf.json";
+                var performanceStatsJsonPath = loggingConfiguration.StatsPrfLog.ToString(context.PathTable);
 
                 try
                 {

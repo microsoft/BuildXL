@@ -193,6 +193,11 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath StatsLog { get; }
 
         /// <summary>
+        /// Logs performance statistics to a json file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file
+        /// </summary>
+        AbsolutePath StatsPrfLog { get; }
+
+        /// <summary>
         /// The file where to store events summary.
         /// </summary>
         AbsolutePath EventSummaryLog { get; }

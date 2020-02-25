@@ -716,6 +716,7 @@ namespace BuildXL.Engine
             if (logging.LogStats)
             {
                 logging.StatsLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Stats);
+                logging.StatsPrfLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.StatsPrf);
             }
 
             if (logging.LogStatus)

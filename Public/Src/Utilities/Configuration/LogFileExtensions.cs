@@ -44,6 +44,11 @@ namespace BuildXL.Utilities.Configuration
         public const string Stats = ".stats";
 
         /// <summary>
+        /// A file containing execution performance statistics in json
+        /// </summary>
+        public const string StatsPrf = ".statsprf.json";
+
+        /// <summary>
         /// A file containing execution statistics
         /// </summary>
         public const string Status = ".status.csv";

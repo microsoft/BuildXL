@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -1079,8 +1080,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private class KeyValueStoreGuard : IDisposable
         {
             private KeyValueStoreAccessor _accessor;
-            private readonly ReadWriteLock _accessorLock = ReadWriteLock.Create();
-            private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
+            private readonly ReaderWriterLockSlim _accessorLock = new ReaderWriterLockSlim(recursionPolicy: LockRecursionPolicy.SupportsRecursion);
 
             public KeyValueStoreGuard(KeyValueStoreAccessor accessor)
             {
@@ -1089,43 +1089,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Dispose()
             {
-                using (_accessorLock.AcquireWriteLock())
-                {
-                    _accessor.Dispose();
-                }
+                using var token = _accessorLock.AcquireWriteLock();
+                _accessor.Dispose();
             }
 
             public void Replace(KeyValueStoreAccessor accessor)
             {
-                using (_accessorLock.AcquireWriteLock())
-                {
-                    _accessor.Dispose();
-                    _accessor = accessor;
-                }
+                using var token = _accessorLock.AcquireWriteLock();
+                _accessor.Dispose();
+                _accessor = accessor;
             }
 
             public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> action, TState state)
             {
-                using (_accessorLock.AcquireReadLock())
-                {
-                    return _accessor.Use(action, state);
-                }
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use(action, state);
             }
 
             public Possible<Unit> Use(Action<IBuildXLKeyValueStore> action)
             {
-                using (_accessorLock.AcquireReadLock())
-                {
-                    return _accessor.Use(action);
-                }
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use(action);
             }
 
             public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, TResult> action)
             {
-                using (_accessorLock.AcquireReadLock())
-                {
-                    return _accessor.Use(action);
-                }
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use(action);
             }
         }
     }

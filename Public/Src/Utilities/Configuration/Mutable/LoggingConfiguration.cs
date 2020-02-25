@@ -45,7 +45,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
-            CacheMissBatch = true;
+            
+            // Temporarily disable it by default due to crash.
+            // TODO: Enable it by default once crash is fixed.
+            CacheMissBatch = false;
+            
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 

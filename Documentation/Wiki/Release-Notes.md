@@ -12,7 +12,13 @@ See the [the BuildXL Release Management page for the Production environment](htt
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
 # Upcoming release
- 
+
+# 0.1.0-20200221.3.1 (Release [56624](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=56624)).  Released 2/26/2020
+- Directory scrubber can follow directory symlinks
+- A new dispatcher in scheduler for seal directory pips.
+- [MacOS] Sandboxing using Endpoint Security API.
+
+
 # 0.1.0-20200214.6 (Release [55661](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=55661)).  Released 2/19/2020
 - Stop running in unsafe_IgnorePreloadedDlls mode by default
 - Convert to user-error: CTMIS due to 'access denied' errors

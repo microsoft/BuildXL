@@ -47,7 +47,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public bool Equals(Location other) => string.Equals(File, other.File) && Line == other.Line && Position == other.Position;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null)
             {

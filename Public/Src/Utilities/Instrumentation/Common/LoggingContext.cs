@@ -77,7 +77,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// A back pointer to the parent logging context.
         /// </summary>
-        public readonly LoggingContext Parent;
+        public readonly LoggingContext? Parent;
 
         /// <summary>
         /// Unique ID to trace the activity in a session
@@ -107,7 +107,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// The logging queue used for asynchronous logging
         /// </summary>
-        private readonly ILoggingQueue m_loggingQueue;
+        private readonly ILoggingQueue? m_loggingQueue;
 
         /// <summary>
         /// Gets whether asynchronous logging is enabled
@@ -135,13 +135,13 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Creates an instance of Context
         /// </summary>
-        public LoggingContext(Guid activityId, string loggerComponentInfo, SessionInfo session, LoggingContext parent = null, ILoggingQueue loggingQueue = null)
+        public LoggingContext(Guid activityId, string loggerComponentInfo, SessionInfo session, LoggingContext? parent = null, ILoggingQueue? loggingQueue = null)
         {
             // TODO: we want to always have a component info for debugging purposes.
             // However right now, PerformanceMeasurement and TimedBlock allow nulls and their behavior depends on whether this vaslue is null.
             // Fix these classes and enable this contract check.
             // Contract.Requires(loggerComponentInfo != null);
-            Contract.Requires(session != null);
+            Contract.RequiresNotNull(session);
 
             ActivityId = activityId;
             LoggerComponentInfo = loggerComponentInfo;
@@ -156,7 +156,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <param name="loggerComponentInfo">The component that calls the log, e.g. Class.Method.</param>
         /// <param name="environment">Identifies the environment the code is being run in, e.g., dev, test, prod.
         /// It is best to limit the variability of these identifiers if bucketing by them in SkypeRV's heuristics API</param>
-        public LoggingContext(string loggerComponentInfo, string environment = null)
+        public LoggingContext(string loggerComponentInfo, string? environment = null)
             : this(Guid.NewGuid(), loggerComponentInfo, new SessionInfo(Guid.NewGuid().ToString(), environment ?? DefaultEnvironment, Guid.Empty))
         {
         }
@@ -257,10 +257,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Enqueues an asynchronous log action for the given event
         /// </summary>
-        public void EnqueueLogAction(int eventId, Action logAction, string eventName)
+        public void EnqueueLogAction(int eventId, Action logAction, string? eventName)
         {
             Contract.Requires(IsAsyncLoggingEnabled);
-            m_loggingQueue.EnqueueLogAction(eventId, logAction, eventName);
+            m_loggingQueue?.EnqueueLogAction(eventId, logAction, eventName);
         }
 
         /// <summary>

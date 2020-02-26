@@ -65,7 +65,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null)
             {

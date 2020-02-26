@@ -27,7 +27,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
             /// <nodoc />
             [MarshalAs(UnmanagedType.LPStr)]
-            public string Value;
+            public string? Value;
 
             /// <nodoc />
             public long PiiOrValue;

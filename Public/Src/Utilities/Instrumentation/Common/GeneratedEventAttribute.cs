@@ -44,7 +44,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Message format used for the event. Format string consumes the
         /// </summary>
-        public string Message { get; set; }
+        public string? Message { get; set; }
 
         /// <summary>
         /// Constructor that takes event id.

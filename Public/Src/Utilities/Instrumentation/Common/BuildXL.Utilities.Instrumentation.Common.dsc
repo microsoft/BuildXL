@@ -12,6 +12,7 @@ namespace Common {
         allowUnsafeBlocks: true,
         assemblyName: "BuildXL.Utilities.Instrumentation.Common",
         sources: globR(d`.`, '*.cs'),
+        nullable: true,
         skipDefaultReferences: true,
         references: [],
         runtimeContent: [

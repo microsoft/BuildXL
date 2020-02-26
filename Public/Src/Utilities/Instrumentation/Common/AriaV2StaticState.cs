@@ -25,7 +25,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         private static readonly string s_ariaTelemetryDBName = "Aria.db";
 
         private static bool s_hasBeenInitialized;
-        private static string s_ariaTelemetryDBLocation;
+        private static string? s_ariaTelemetryDBLocation;
         private static IntPtr s_ariaLogger;
 
         /// <summary>
@@ -62,7 +62,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
                 // Initialization may only happen once per application lifetime so we need some static state to enforce this
                 if (!s_hasBeenInitialized)
                 {
-                    Contract.Requires(s_ariaTelemetryDBLocation != null);
+                    Contract.RequiresNotNull(s_ariaTelemetryDBLocation);
                     if (s_ariaTelemetryDBLocation.Length > 0 && !Directory.Exists(s_ariaTelemetryDBLocation))
                     {
                         Directory.CreateDirectory(s_ariaTelemetryDBLocation);
@@ -83,7 +83,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// Ensure that all events are sent and shuts down telemetry. This should be done before the application exits.
         /// It should not be called if the application will log any more telemetry events in the future
         /// </summary>
-        public static ShutDownResult TryShutDown(out Exception exception)
+        public static ShutDownResult TryShutDown(out Exception? exception)
         {
             return TryShutDown(DefaultShutdownTimeout, out exception);
         }
@@ -92,7 +92,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// Ensure that all events are sent and shuts down telemetry. This should be done before the application exits.
         /// It should not be called if the application will log any more telemetry events in the future
         /// </summary>
-        public static ShutDownResult TryShutDown(TimeSpan timeout, out Exception exception)
+        public static ShutDownResult TryShutDown(TimeSpan timeout, out Exception? exception)
         {
             exception = null;
             if (!IsEnabled)
@@ -104,7 +104,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             {
                 if (s_hasBeenInitialized)
                 {
-                    Exception thrownException = null;
+                    Exception? thrownException = null;
                     ShutDownResult shutDownResult = ShutDownResult.Failure;
                     Task shutdownTask = Task.Factory.StartNew(() =>
                     {

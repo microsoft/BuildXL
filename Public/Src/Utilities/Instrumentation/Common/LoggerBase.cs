@@ -28,7 +28,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// See <see cref="LoggingContext.EnqueueLogAction"/>.
         /// </summary>
-        protected static void EnqueueLogAction(LoggingContext loggingContext, int logEventId, Action logAction, [CallerMemberName] string eventName = null)
+        protected static void EnqueueLogAction(LoggingContext loggingContext, int logEventId, Action logAction, [CallerMemberName] string? eventName = null)
         {
             loggingContext.EnqueueLogAction(logEventId, logAction, eventName);
         }

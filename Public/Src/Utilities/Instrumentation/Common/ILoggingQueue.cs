@@ -13,6 +13,6 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Enqueues an asynchronous log action for the given event
         /// </summary>
-        void EnqueueLogAction(int eventId, Action logAction, string eventName);
+        void EnqueueLogAction(int eventId, Action logAction, string? eventName);
     }
 }

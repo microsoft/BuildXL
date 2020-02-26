@@ -13,7 +13,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using JetBrains.Annotations;
-using Newtonsoft.Json.Linq;
 
 namespace BuildXL
 {
@@ -30,7 +29,6 @@ namespace BuildXL
     /// </remarks>
     public sealed class AzureDevOpsListener : FormattingEventListener
     {
-        private static readonly char[] s_newLineCharArray = Environment.NewLine.ToCharArray();
         private readonly IConsole m_console;
 
         /// <summary>
@@ -50,8 +48,8 @@ namespace BuildXL
             [CanBeNull] WarningMapper warningMapper)
             : base(eventSource, baseTime, warningMapper: warningMapper, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
-            Contract.Requires(console != null);
-            Contract.Requires(buildViewModel != null);
+            Contract.RequiresNotNull(console);
+            Contract.RequiresNotNull(buildViewModel);
 
             m_console = console;
             m_buildViewModel = buildViewModel;

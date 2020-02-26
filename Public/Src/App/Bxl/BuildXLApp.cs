@@ -168,9 +168,9 @@ namespace BuildXL
             DateTime? startTimeUtc = null,
             ServerModeStatusAndPerf? serverModeStatusAndPerf = null)
         {
-            Contract.Requires(initialConfig != null, "initialConfig can't be null");
-            Contract.Requires(pathTable != null, "pathTable can't be null");
-            Contract.Requires(host != null, "host can't be null");
+            Contract.RequiresNotNull(initialConfig, "initialConfig can't be null");
+            Contract.RequiresNotNull(pathTable, "pathTable can't be null");
+            Contract.RequiresNotNull(host, "host can't be null");
 
             var mutableConfig = new BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration(initialConfig);
 
@@ -1061,7 +1061,7 @@ namespace BuildXL
         /// </summary>
         private static string GetExpandedCmdLine(IReadOnlyCollection<string> rawArgs)
         {
-            Contract.Requires(rawArgs != null, "rawArgs must not be null.");
+            Contract.RequiresNotNull(rawArgs, "rawArgs must not be null.");
             Contract.Ensures(Contract.Result<string>() != null, "Result of the method can't be null.");
 
             var cl = new CommandLineUtilities(rawArgs);
@@ -1242,8 +1242,8 @@ namespace BuildXL
                 BuildViewModel buildViewModel,
                 bool displayWarningErrorTime)
             {
-                Contract.Requires(console != null);
-                Contract.Requires(configuration != null);
+                Contract.RequiresNotNull(console);
+                Contract.RequiresNotNull(configuration);
 
                 m_console = console;
                 m_baseTime = startTime;
@@ -1983,7 +1983,7 @@ namespace BuildXL
                 result = engine.Run(asyncLoggingContext, engineState);
             }
 
-            Contract.Assert(result != null, "Running the engine should return a valid engine result.");
+            Contract.AssertNotNull(result, "Running the engine should return a valid engine result.");
 
             // Graph caching complicates some things. we'll have to reload state which invalidates the pathtable and everything that holds
             // a pathtable like configuration.

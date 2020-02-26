@@ -110,7 +110,7 @@ namespace BuildXL
             Justification = "A using statement is used for both the BufferedStream and NamedPipeServerStream.")]
         public ExitKind Run(StartupParameters startupParameters)
         {
-            Contract.Requires(startupParameters != null);
+            Contract.RequiresNotNull(startupParameters);
 
             m_startupParameters = startupParameters;
             string pipeName = GetPipeName(startupParameters.UniqueAppServerName);
@@ -122,7 +122,7 @@ namespace BuildXL
                     return ExitKind.InternalError;
                 }
 
-                Contract.Assert(pipeInstance != null);
+                Contract.AssertNotNull(pipeInstance);
 
                 using (BufferedStream bufferedStream = new BufferedStream(pipeInstance))
                 {
@@ -854,8 +854,8 @@ namespace BuildXL
 
             internal Connection(NamedPipeClientStream clientStream, IConsole console)
             {
-                Contract.Requires(clientStream != null);
-                Contract.Requires(console != null);
+                Contract.RequiresNotNull(clientStream);
+                Contract.RequiresNotNull(console);
 
                 m_console = console;
                 m_clientStream = clientStream;
@@ -872,7 +872,7 @@ namespace BuildXL
                 List<KeyValuePair<string, string>> environmentVariables,
                 ServerModeStatusAndPerf serverModeStatusAndPerf)
             {
-                Contract.Requires(rawArgs != null);
+                Contract.RequiresNotNull(rawArgs);
 
                 return ExceptionUtilities.HandleRecoverableIOException(
                     () =>
@@ -1066,8 +1066,8 @@ namespace BuildXL
 
             private StartupParameters(Guid guid, string uniqueAppServerName, string timestampBasedHash, string pathToProcess, int serverMaxIdleTimeInMinutes)
             {
-                Contract.Requires(!string.IsNullOrEmpty(uniqueAppServerName));
-                Contract.Requires(!string.IsNullOrEmpty(pathToProcess));
+                Contract.RequiresNotNullOrEmpty(uniqueAppServerName);
+                Contract.RequiresNotNullOrEmpty(pathToProcess);
                 Contract.Requires(serverMaxIdleTimeInMinutes > 0);
 
                 UniqueAppServerName = uniqueAppServerName;
@@ -1082,8 +1082,8 @@ namespace BuildXL
             /// </summary>
             public static StartupParameters CreateForNewAppServer(string uniqueAppServerName, string timestampBasedHash, string pathToProcess, int serverMaxIdleTimeInMinutes)
             {
-                Contract.Requires(!string.IsNullOrEmpty(uniqueAppServerName));
-                Contract.Requires(!string.IsNullOrEmpty(pathToProcess));
+                Contract.RequiresNotNullOrEmpty(uniqueAppServerName);
+                Contract.RequiresNotNullOrEmpty(pathToProcess);
                 Contract.Requires(serverMaxIdleTimeInMinutes > 0);
 
                 return new StartupParameters(Guid.NewGuid(), uniqueAppServerName, timestampBasedHash, pathToProcess, serverMaxIdleTimeInMinutes);
@@ -1300,7 +1300,7 @@ namespace BuildXL
                 Logger.Log.UsingExistingServer(loggingContext, start);
             }
 
-            Contract.Assume(m_startupParameters != null, "StartupParameters should have previously been set.");
+            Contract.AssertNotNull(m_startupParameters, "StartupParameters should have previously been set.");
             Logger.Log.ServerModeBuildStarted(loggingContext, start, m_startupParameters.UniqueAppServerName);
 
             m_timesUsed++;

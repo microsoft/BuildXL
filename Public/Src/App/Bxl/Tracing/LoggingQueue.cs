@@ -56,7 +56,7 @@ namespace BuildXL.Tracing
         /// </summary>
         public void EnqueueLogAction(int eventId, Action logAction, string eventName)
         {
-            Contract.Requires(logAction != null);
+            Contract.RequiresNotNull(logAction);
 
             var eventCounter = GetEventCounter(eventId, eventName);
 

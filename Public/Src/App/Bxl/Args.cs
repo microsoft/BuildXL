@@ -1520,7 +1520,7 @@ namespace BuildXL
         /// </remarks>
         private static void ValidateLoggingConfiguration(ILoggingConfiguration loggingConfiguration)
         {
-            Contract.Requires(loggingConfiguration != null);
+            Contract.RequiresNotNull(loggingConfiguration);
 
             if (!string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId))
             {
@@ -1654,7 +1654,7 @@ namespace BuildXL
             PathTable pathTable,
             Dictionary<string, AbsolutePath> map)
         {
-            Contract.Requires(map != null);
+            Contract.RequiresNotNull(map);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
             map[keyValuePair.Key] = CommandLineUtilities.GetFullPath(keyValuePair.Value, opt, pathTable);
@@ -1665,7 +1665,7 @@ namespace BuildXL
             PathTable pathTable,
             Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> map)
         {
-            Contract.Requires(map != null);
+            Contract.RequiresNotNull(map);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
 

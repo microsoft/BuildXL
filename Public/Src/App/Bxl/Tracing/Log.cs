@@ -783,7 +783,7 @@ namespace BuildXL.App.Tracing
         /// </summary>
         internal static string ScrubCommandLine(string rawCommandLine, int leadingChars, int trailingChars)
         {
-            Contract.Requires(rawCommandLine != null);
+            Contract.RequiresNotNull(rawCommandLine);
             Contract.Requires(leadingChars >= 0);
             Contract.Requires(trailingChars >= 0);
 

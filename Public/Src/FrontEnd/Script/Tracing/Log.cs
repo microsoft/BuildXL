@@ -25,11 +25,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
     [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
-        private bool m_preserveLogEvents;
         private Logger m_forwardDiagnosticsTo;
         private int m_errorCount;
 
-        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
         private readonly ConcurrentBag<ILogMessageObserver> m_messageObservers = new ConcurrentBag<ILogMessageObserver>();
 
         // Internal logger will prevent public users from creating an instance of the logger
@@ -46,10 +44,8 @@ namespace BuildXL.FrontEnd.Script.Tracing
         /// </summary>
         public int ErrorCount => m_errorCount;
 
-        /// <summary>
-        /// Whether the logger preserves log events
-        /// </summary>
-        public bool PreserveLogEvents { get; }
+        /// <nodoc />
+        public bool PreserveLogEvents => m_preserveLogEvents;
 
         /// <summary>
         /// Factory method that creates instances of the logger.
@@ -57,36 +53,23 @@ namespace BuildXL.FrontEnd.Script.Tracing
         /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
         /// <param name="forwardDiagnosticsTo">Logger to forward diagnostics to.</param>
         /// <param name="notifyContextWhenErrorsAreLogged">Whether to notify the logging context that errors are logged.</param>
-        public static Logger CreateLogger(bool preserveLogEvents = false, Logger forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
+        public static Logger CreateLogger(bool preserveLogEvents, Logger forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
         {
             return new LoggerImpl()
             {
+                m_inspectMessageEnabled = true,
                 m_preserveLogEvents = preserveLogEvents,
                 m_forwardDiagnosticsTo = forwardDiagnosticsTo,
                 m_notifyContextWhenErrorsAreLogged = notifyContextWhenErrorsAreLogged,
             };
         }
 
-        /// <summary>
-        /// Provides diagnostics captured by the logger.
-        /// Would be non-empty only when preserveLogEvents flag was specified in the <see cref="Logger.CreateLogger"/> factory method.
-        /// </summary>
-        public IReadOnlyList<Diagnostic> CapturedDiagnostics => m_capturedDiagnostics.ToList();
-
         /// <inheritdoc />
-        public override bool InspectMessageEnabled => true;
-
-        /// <inheritdoc />
-        protected override void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
+        partial void InspectMessageCustom(int logEventId, EventLevel level, string message, Location? location)
         {
             m_forwardDiagnosticsTo?.InspectMessage(logEventId, level, message, location);
 
             var diagnostic = new Diagnostic(logEventId, level, message, location);
-            if (m_preserveLogEvents)
-            {
-                m_capturedDiagnostics.Enqueue(diagnostic);
-            }
-
             foreach (var observer in m_messageObservers)
             {
                 observer.OnMessage(diagnostic);

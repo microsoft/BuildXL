@@ -87,169 +87,8 @@ namespace BuildXL.LogGen
                         gen.Ln("#pragma warning disable 219");
                         gen.Ln();
 
-                        gen.GenerateSummaryComment("Logging Instantiation");
-                        gen.WriteGeneratedAttribute();
-                        gen.Ln("{0} partial class {1} : {2}.LoggerBase", GetAccessibilityString(typeAndSites.Key.DeclaredAccessibility), typeAndSites.Key.Name, GlobalInstrumentationNamespace);
-                        using (gen.Br)
-                        {
-                            gen.Ln("static private Logger m_log = new {0}Impl();", typeAndSites.Key.Name);
-                            gen.Ln();
-
-                            var notifyContextWhenErrorsAreLoggedIsUsed = false;
-                            var notifyContextWhenWarningsAreLoggedIsUsed = false;
-
-                            foreach (GeneratorBase generator in m_generators)
-                            {
-                                generator.GenerateAdditionalLoggerMembers();
-                            }
-
-                            gen.GenerateSummaryComment("Logging implementation");
-                            gen.WriteGeneratedAttribute();
-                            gen.Ln("private class {0}Impl: {0}", typeAndSites.Key.Name);
-                            using (gen.Br)
-                            {
-                                foreach (LoggingSite site in typeAndSites)
-                                {
-                                    List<GeneratorBase> generators = generatorMap[site];
-
-                                    gen.GenerateSummaryComment("Logging implementation");
-                                    string methodParameters = string.Empty;
-                                    if (site.Payload.Count > 0)
-                                    {
-                                        methodParameters = ", " + string.Join(", ", site.Payload.Select(i => i.Type.ToDisplayString() + " " + i.Name));
-                                    }
-
-                                    gen.Ln(
-                                        "{0} override void {1}({2}.LoggingContext {3}{4})",
-                                        GetAccessibilityString(site.Method.DeclaredAccessibility),
-                                        site.Method.Name,
-                                        GlobalInstrumentationNamespace,
-                                        site.LoggingContextParameterName,
-                                        methodParameters);
-                                    using (gen.Br)
-                                    {
-                                        string methodArgs = string.Empty;
-                                        if (site.Payload.Count > 0)
-                                        {
-                                            methodArgs = ", " + string.Join(", ", site.Payload.Select(i => i.Name));
-                                        }
-
-                                        if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Critical)
-                                        {
-                                            // Critical events are always logged synchronously
-                                            gen.Ln("{0}_Core({1}{2});",
-                                                site.Method.Name,
-                                                site.LoggingContextParameterName,
-                                                methodArgs);
-                                        }
-                                        else
-                                        {
-                                            gen.Ln("if ({0}.{1})",
-                                                site.LoggingContextParameterName,
-                                                nameof(BuildXL.Utilities.Instrumentation.Common.LoggingContext.IsAsyncLoggingEnabled));
-                                            using (gen.Br)
-                                            {
-                                                // NOTE: This allocates a closure for every log message when async logging is enabled.
-                                                // This is assumed to not be non-issue as the logging infrastructure already has many allocations
-                                                // as a part of logging so this allocation doesn't 
-                                                gen.Ln("EnqueueLogAction({0}, {1}, () => {2}_Core({0}{3}));",
-                                                    site.LoggingContextParameterName,
-                                                    site.Id,
-                                                    site.Method.Name,
-                                                    methodArgs);
-                                            }
-
-                                            gen.Ln("else");
-                                            using (gen.Br)
-                                            {
-                                                gen.Ln("{0}_Core({1}{2});",
-                                                    site.Method.Name,
-                                                    site.LoggingContextParameterName,
-                                                    methodArgs);
-                                            }
-                                        }
-
-                                        // Register errors on the logging context so code can assert that errors were logged
-                                        if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Error)
-                                        {
-                                            notifyContextWhenErrorsAreLoggedIsUsed = true;
-                                            gen.Ln("if ({0})", NotifyContextWhenErrorsAreLogged);
-                                            using (gen.Br)
-                                            {
-                                                gen.Ln("{0}.SpecifyErrorWasLogged({1});", site.LoggingContextParameterName, site.Id);
-                                            }
-                                        }
-
-                                        // Register warnings on the logging context so code can assert that warnings were logged
-                                        if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Warning)
-                                        {
-                                            notifyContextWhenWarningsAreLoggedIsUsed = true;
-                                            gen.Ln("if ({0})", NotifyContextWhenWarningsAreLogged);
-                                            using (gen.Br)
-                                            {
-                                                gen.Ln("{0}.SpecifyWarningWasLogged();", site.LoggingContextParameterName);
-                                            }
-                                        }
-                                    }
-
-                                    gen.Ln();
-                                    gen.Ln(
-                                        "private void {0}_Core({1}.LoggingContext {2}{3})",
-                                        site.Method.Name,
-                                        GlobalInstrumentationNamespace,
-                                        site.LoggingContextParameterName,
-                                        methodParameters);
-                                    using (gen.Br)
-                                    {
-                                        List<char> interceptedCode = new List<char>();
-                                        using (gen.InterceptOutput((c) => interceptedCode.Add(c)))
-                                        {
-                                            foreach (GeneratorBase generator in generators)
-                                            {
-                                                generator.GenerateLogMethodBody(
-                                                    site,
-                                                    getMessageExpression: () =>
-                                                    {
-                                                        // Track whether the getMessage() function was called where there is a format string
-                                                        if (site.GetMessageFormatParameters().Any())
-                                                        {
-                                                            // Only InspecMessage takes a fully constructed message.
-                                                            // To avoid redundant allocations this callback creates
-                                                            // an argument instead of creating a local variable.
-                                                            return
-                                                                string.Format(
-                                                                    CultureInfo.InvariantCulture,
-                                                                    "string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{0}\", {1})",
-                                                                    site.GetNormalizedMessageFormat(),
-                                                                    string.Join(", ", site.GetMessageFormatParameters()));
-                                                        }
-
-                                                        return "\"" + site.SpecifiedMessageFormat + "\"";
-                                                    });
-                                            }
-                                        }
-
-                                        // Now we can write out the intercepted code from the code generators
-                                        foreach (char c in interceptedCode)
-                                        {
-                                            gen.Output(c);
-                                        }
-                                    }
-
-                                    gen.Ln();
-                                }
-                            }
-
-                            if (notifyContextWhenErrorsAreLoggedIsUsed)
-                            {
-                                gen.Ln("private bool {0} = true;", NotifyContextWhenErrorsAreLogged);
-                            }
-
-                            if (notifyContextWhenWarningsAreLoggedIsUsed)
-                            {
-                                gen.Ln("private bool {0} = true;", NotifyContextWhenWarningsAreLogged);
-                            }
-                        }
+                        GenerateLoggerInstance(gen, typeAndSites, generatorMap);
+                        GenerateImplementations(gen, typeAndSites, generatorMap);
                     }
                 }
 
@@ -261,6 +100,272 @@ namespace BuildXL.LogGen
             }
 
             return itemsWritten;
+        }
+
+        private void GenerateLoggerInstance(CodeGenerator gen, IGrouping<INamedTypeSymbol, LoggingSite> typeAndSites, Dictionary<LoggingSite, List<GeneratorBase>> generatorMap)
+        {
+            var className = "Log";
+            gen.GenerateSummaryComment("Instance based logger");
+            gen.WriteGeneratedAttribute();
+            gen.Ln($"{GetAccessibilityString(typeAndSites.Key.DeclaredAccessibility)} class {className}");
+            using (gen.Br)
+            {
+                gen.GenerateSummaryComment("The static logger this delegates to");
+                gen.Ln($"private {typeAndSites.Key.Name} m_logger;");
+
+                gen.GenerateSummaryComment("The logging context to use.");
+                gen.Ln($"public {GlobalInstrumentationNamespace}.LoggingContext LoggingContext {{ get; }}");
+                gen.Ln();
+
+                gen.GenerateSummaryComment("Creates a new instnce base logger.");
+                gen.Ln($"public Log({GlobalInstrumentationNamespace}.LoggingContext loggingContext, bool preserveLogEvents = false)");
+                using (gen.Br)
+                {
+                    gen.Ln($"m_logger = {typeAndSites.Key.Name}.CreateLogger(preserveLogEvents);");
+                    gen.Ln("LoggingContext = loggingContext;");
+                }
+
+                foreach (LoggingSite site in typeAndSites)
+                {
+                    List<GeneratorBase> generators = generatorMap[site];
+
+                    gen.GenerateSummaryComment("Logging implementation");
+                    string methodParameters = string.Empty;
+                    string methodArguments = string.Empty;
+                    if (site.Payload.Count > 0)
+                    {
+                        methodParameters = string.Join(", ", site.Payload.Select(i => i.Type.ToDisplayString() + " " + i.Name));
+                        methodArguments = ", " + string.Join(", ", site.Payload.Select(i => i.Name));
+                    }
+
+                    gen.Ln($"{GetAccessibilityString(site.Method.DeclaredAccessibility)} void {site.Method.Name}({methodParameters})");
+                    using (gen.Br)
+                    {
+                        gen.Ln($"m_logger.{site.Method.Name}(LoggingContext{methodArguments});");
+                    }
+                    gen.Ln();
+                }
+            }
+        }
+
+        private void GenerateImplementations(CodeGenerator gen, IGrouping<INamedTypeSymbol, LoggingSite> typeAndSites, Dictionary<LoggingSite, List<GeneratorBase>> generatorMap)
+        {
+            gen.GenerateSummaryComment("Logging Instantiation");
+            gen.WriteGeneratedAttribute();
+            gen.Ln(
+                "{0} partial class {1} : {2}.LoggerBase",
+                GetAccessibilityString(typeAndSites.Key.DeclaredAccessibility),
+                typeAndSites.Key.Name,
+                GlobalInstrumentationNamespace);
+            using (gen.Br)
+            {
+                gen.Ln("static private Logger m_log = new {0}Impl();", typeAndSites.Key.Name);
+                gen.Ln();
+
+                gen.Ln("private bool m_preserveLogEvents;");
+                gen.Ln("private bool m_inspectMessageEnabled;");
+                gen.Ln($"private readonly global::System.Collections.Concurrent.ConcurrentQueue<{GlobalInstrumentationNamespace}.Diagnostic> m_capturedDiagnostics = new global::System.Collections.Concurrent.ConcurrentQueue<{GlobalInstrumentationNamespace}.Diagnostic>();");
+                gen.Ln();
+
+                gen.GenerateSummaryComment("Factory method that creates instances of the logger.");
+                gen.Ln($"public static {typeAndSites.Key.Name} CreateLogger(bool preserveLogEvents = false)");
+                using (gen.Br)
+                {
+                    gen.Ln($"return new {typeAndSites.Key.Name}Impl");
+                    using (gen.Br)
+                    {
+                        gen.Ln("m_preserveLogEvents = preserveLogEvents,");
+                        gen.Ln("m_inspectMessageEnabled = preserveLogEvents,");
+                    }
+                    gen.Ln(";");
+                }
+                gen.Ln();
+
+                gen.GenerateSummaryComment($@"Provides diagnostics captured by the logger.
+            Would be non-empty only when preserveLogEvents flag was specified in the <see cref=""{typeAndSites.Key.Name}.CreateLogger(bool)"" /> factory method.");
+                gen.Ln($"public global::System.Collections.Generic.IReadOnlyList<{GlobalInstrumentationNamespace}.Diagnostic> CapturedDiagnostics => global::System.Linq.Enumerable.ToList(m_capturedDiagnostics);");
+                gen.Ln();
+
+                gen.GenerateInheritDoc();
+                gen.Ln("public override bool InspectMessageEnabled => m_inspectMessageEnabled;");
+                gen.Ln();
+
+                gen.GenerateInheritDoc();
+                gen.Ln($"protected override void InspectMessage(int logEventId, global::System.Diagnostics.Tracing.EventLevel level, string message, {GlobalInstrumentationNamespace}.Location? location = null)");
+                using (gen.Br)
+                {
+                    gen.Ln("InspectMessageCustom(logEventId, level, message, location);");
+                    gen.Ln("if (m_preserveLogEvents)");
+                    using (gen.Br)
+                    {
+                        gen.Ln($"m_capturedDiagnostics.Enqueue(new {GlobalInstrumentationNamespace}.Diagnostic(logEventId, level, message, location));");
+                    }
+                }
+                gen.Ln();
+                
+                gen.GenerateSummaryComment($@"Allows customization by loggers for extra processing");
+                gen.Ln($"partial void InspectMessageCustom(int logEventId, global::System.Diagnostics.Tracing.EventLevel level, string message, {GlobalInstrumentationNamespace}.Location? location);");
+                gen.Ln();
+
+                var notifyContextWhenErrorsAreLoggedIsUsed = false;
+                var notifyContextWhenWarningsAreLoggedIsUsed = false;
+
+                foreach (GeneratorBase generator in m_generators)
+                {
+                    generator.GenerateAdditionalLoggerMembers();
+                }
+
+                gen.GenerateSummaryComment("Logging implementation");
+                gen.WriteGeneratedAttribute();
+                gen.Ln("private class {0}Impl: {0}", typeAndSites.Key.Name);
+                using (gen.Br)
+                {
+                    foreach (LoggingSite site in typeAndSites)
+                    {
+                        List<GeneratorBase> generators = generatorMap[site];
+
+                        gen.GenerateSummaryComment("Logging implementation");
+                        string methodParameters = string.Empty;
+                        if (site.Payload.Count > 0)
+                        {
+                            methodParameters = ", " + string.Join(", ", site.Payload.Select(i => i.Type.ToDisplayString() + " " + i.Name));
+                        }
+
+                        gen.Ln(
+                            "{0} override void {1}({2}.LoggingContext {3}{4})",
+                            GetAccessibilityString(site.Method.DeclaredAccessibility),
+                            site.Method.Name,
+                            GlobalInstrumentationNamespace,
+                            site.LoggingContextParameterName,
+                            methodParameters);
+                        using (gen.Br)
+                        {
+                            string methodArgs = string.Empty;
+                            if (site.Payload.Count > 0)
+                            {
+                                methodArgs = ", " + string.Join(", ", site.Payload.Select(i => i.Name));
+                            }
+
+                            if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Critical)
+                            {
+                                // Critical events are always logged synchronously
+                                gen.Ln(
+                                    "{0}_Core({1}{2});",
+                                    site.Method.Name,
+                                    site.LoggingContextParameterName,
+                                    methodArgs);
+                            }
+                            else
+                            {
+                                gen.Ln(
+                                    "if ({0}.{1})",
+                                    site.LoggingContextParameterName,
+                                    nameof(BuildXL.Utilities.Instrumentation.Common.LoggingContext.IsAsyncLoggingEnabled));
+                                using (gen.Br)
+                                {
+                                    // NOTE: This allocates a closure for every log message when async logging is enabled.
+                                    // This is assumed to not be non-issue as the logging infrastructure already has many allocations
+                                    // as a part of logging so this allocation doesn't 
+                                    gen.Ln(
+                                        "EnqueueLogAction({0}, {1}, () => {2}_Core({0}{3}));",
+                                        site.LoggingContextParameterName,
+                                        site.Id,
+                                        site.Method.Name,
+                                        methodArgs);
+                                }
+
+                                gen.Ln("else");
+                                using (gen.Br)
+                                {
+                                    gen.Ln(
+                                        "{0}_Core({1}{2});",
+                                        site.Method.Name,
+                                        site.LoggingContextParameterName,
+                                        methodArgs);
+                                }
+                            }
+
+                            // Register errors on the logging context so code can assert that errors were logged
+                            if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Error)
+                            {
+                                notifyContextWhenErrorsAreLoggedIsUsed = true;
+                                gen.Ln("if ({0})", NotifyContextWhenErrorsAreLogged);
+                                using (gen.Br)
+                                {
+                                    gen.Ln("{0}.SpecifyErrorWasLogged({1});", site.LoggingContextParameterName, site.Id);
+                                }
+                            }
+
+                            // Register warnings on the logging context so code can assert that warnings were logged
+                            if (site.Level == BuildXL.Utilities.Instrumentation.Common.Level.Warning)
+                            {
+                                notifyContextWhenWarningsAreLoggedIsUsed = true;
+                                gen.Ln("if ({0})", NotifyContextWhenWarningsAreLogged);
+                                using (gen.Br)
+                                {
+                                    gen.Ln("{0}.SpecifyWarningWasLogged();", site.LoggingContextParameterName);
+                                }
+                            }
+                        }
+
+                        gen.Ln();
+                        gen.Ln(
+                            "private void {0}_Core({1}.LoggingContext {2}{3})",
+                            site.Method.Name,
+                            GlobalInstrumentationNamespace,
+                            site.LoggingContextParameterName,
+                            methodParameters);
+                        using (gen.Br)
+                        {
+                            List<char> interceptedCode = new List<char>();
+                            using (gen.InterceptOutput((c) => interceptedCode.Add(c)))
+                            {
+                                foreach (GeneratorBase generator in generators)
+                                {
+                                    generator.GenerateLogMethodBody(
+                                        site,
+                                        getMessageExpression: () =>
+                                                              {
+                                                                  // Track whether the getMessage() function was called where there is a format string
+                                                                  if (site.GetMessageFormatParameters().Any())
+                                                                  {
+                                                                      // Only InspecMessage takes a fully constructed message.
+                                                                      // To avoid redundant allocations this callback creates
+                                                                      // an argument instead of creating a local variable.
+                                                                      return
+                                                                          string.Format(
+                                                                              CultureInfo.InvariantCulture,
+                                                                              "string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{0}\", {1})",
+                                                                              site.GetNormalizedMessageFormat(),
+                                                                              string.Join(", ", site.GetMessageFormatParameters()));
+                                                                  }
+
+                                                                  return "\"" + site.SpecifiedMessageFormat + "\"";
+                                                              });
+                                }
+                            }
+
+                            // Now we can write out the intercepted code from the code generators
+                            foreach (char c in interceptedCode)
+                            {
+                                gen.Output(c);
+                            }
+                        }
+
+                        gen.Ln();
+                    }
+                }
+
+                if (notifyContextWhenErrorsAreLoggedIsUsed)
+                {
+                    gen.Ln("private bool {0} = true;", NotifyContextWhenErrorsAreLogged);
+                }
+
+                if (notifyContextWhenWarningsAreLoggedIsUsed)
+                {
+                    gen.Ln("private bool {0} = true;", NotifyContextWhenWarningsAreLogged);
+                }
+            }
         }
 
         /// <summary>

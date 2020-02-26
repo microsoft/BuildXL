@@ -358,7 +358,7 @@ This is a second line.
                 {
                     var errors = string.Join(Environment.NewLine, logger.CapturedDiagnostics.Select(d => d.Message));
                     Assert.True(success, "Expect to have successful run. Encountered:\r\n" + errors);
-                    Assert.False(logger.HasErrors, "Expect to have no errors. Encountered:\r\n" + errors);
+                    Assert.False(logger.HasErrors(), "Expect to have no errors. Encountered:\r\n" + errors);
 
                     string contents = File.ReadAllText(Path.Combine(temp.RootDirectory, expectedFileName));
                     Console.Write(expectedFileName + ":");

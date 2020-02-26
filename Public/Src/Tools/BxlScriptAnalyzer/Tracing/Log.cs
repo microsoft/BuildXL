@@ -28,41 +28,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
     {
         private const int DefaultKeywords = (int)(Keywords.UserMessage | Keywords.Diagnostics);
 
-        private bool m_preserveLogEvents;
-        private int m_errorCount;
-
-        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
-
         // Internal logger will prevent public users from creating an instance of the logger
         internal Logger()
         {
-        }
-
-        /// <summary>
-        /// True when at least one error occurred.
-        /// </summary>
-        public bool HasErrors => ErrorCount != 0;
-
-        /// <summary>
-        /// Returns number of errors.
-        /// </summary>
-        public int ErrorCount => m_errorCount;
-
-        /// <summary>
-        /// Provides diagnostics captured by the logger.
-        /// Would be non-empty only when preserveLogEvents flag was specified in the <see cref="Logger.CreateLogger"/> factory method.
-        /// </summary>
-        public IReadOnlyList<Diagnostic> CapturedDiagnostics => m_capturedDiagnostics.ToList();
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        public static Logger CreateLogger(bool preserveLogEvents = false)
-        {
-            return new LoggerImpl
-            {
-                m_preserveLogEvents = preserveLogEvents,
-            };
         }
 
         /// <summary>
@@ -106,25 +74,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
 
             return eventListener;
         }
-
-        /// <nodoc />
-        public override bool InspectMessageEnabled => true;
-
-        /// <nodoc />
-        protected override void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
-        {
-            if (level.IsError())
-            {
-                Interlocked.Increment(ref m_errorCount);
-            }
-
-            if (m_preserveLogEvents)
-            {
-                var diagnostic = new Diagnostic(logEventId, level, message, location);
-                m_capturedDiagnostics.Enqueue(diagnostic);
-            }
-        }
-
+        
         [GeneratedEvent(
             (ushort)LogEventId.ErrorParsingFile,
             EventGenerators = EventGenerators.LocalOnly,

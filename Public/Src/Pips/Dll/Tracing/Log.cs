@@ -20,36 +20,8 @@ namespace BuildXL.Pips.Tracing
     [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
-         private bool m_preserveLogEvents;
-
-        private readonly ConcurrentQueue<Diagnostic> m_capturedDiagnostics = new ConcurrentQueue<Diagnostic>();
-
         internal Logger()
         {
-        }
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
-        public static Logger CreateLogger(bool preserveLogEvents = false)
-        {
-            return new LoggerImpl() { m_preserveLogEvents = preserveLogEvents };
-        }
-
-        /// <summary>
-        /// Provides diagnostics captured by the logger.
-        /// Would be non-empty only when preserveLogEvents flag was specified in the <see cref="Logger.CreateLogger" /> factory method.
-        /// </summary>
-        public IReadOnlyList<Diagnostic> CapturedDiagnostics => m_capturedDiagnostics.ToList();
-
-        /// <inheritdoc />
-        public override bool InspectMessageEnabled => m_preserveLogEvents;
-
-        /// <inheritdoc />
-        protected override void InspectMessage(int logEventId, EventLevel level, string message, Location? location = null)
-        {
-            m_capturedDiagnostics.Enqueue(new Diagnostic(logEventId, level, message, location));
         }
 
         /// <summary>

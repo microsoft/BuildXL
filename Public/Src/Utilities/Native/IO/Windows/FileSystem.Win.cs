@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -395,7 +396,9 @@ namespace BuildXL.Native.IO.Windows
                 || hr == NativeIOConstants.ErrorNotReady
                 || hr == NativeIOConstants.FveLockedVolume
                 || hr == NativeIOConstants.ErrorCantAccessFile
-                || hr == NativeIOConstants.ErrorBadPathname;
+                || hr == NativeIOConstants.ErrorBadPathname
+                || hr == NativeIOConstants.ErrorInvalidName
+                || hr == NativeIOConstants.ErrorInvalidParameter;
         }
 
         /// <summary>
@@ -2919,6 +2922,14 @@ namespace BuildXL.Native.IO.Windows
         {
             if (!TryGetFileAttributesViaGetFileAttributes(path, out FileAttributes fileAttributes, out int hr))
             {
+                if (hr == NativeIOConstants.ErrorInvalidParameter)
+                {
+                    // This is a temporary log, added to figure out what causes ERROR_INVALID_PARAMETER
+                    // Should be removed after we find out which parameters are wrong and fixing them
+                    string errorMessage = new Win32Exception(Marshal.GetLastWin32Error()).Message;
+                    Events.Log.VerboseEvent("ERROR_INVALID_PARAMETER (0x57) error orrured in TryProbePathExistence for path: " + path + "  Error Message: " + errorMessage);
+                }
+
                 if (IsHresultNonexistent(hr))
                 {
                     return PathExistence.Nonexistent;

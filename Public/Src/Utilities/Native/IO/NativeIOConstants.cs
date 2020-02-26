@@ -221,5 +221,10 @@ namespace BuildXL.Native.IO
         /// ERROR_BAD_PATHNAME
         /// </summary>
         public const int ErrorBadPathname = 0xA1;
+
+        /// <summary>
+        /// ERROR_INVALID_NAME
+        /// </summary>
+        public const int ErrorInvalidName = 0x7B;
     }
 }

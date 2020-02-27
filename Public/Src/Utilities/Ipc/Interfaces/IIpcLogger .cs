@@ -27,7 +27,7 @@ namespace BuildXL.Ipc.Interfaces
     /// Simple logging interface for classes implementing
     /// <see cref="IClient"/> and <see cref="IServer"/> to use.
     /// </summary>
-    public interface ILogger : IDisposable
+    public interface IIpcLogger : IDisposable
     {
         /// <nodoc />
         void Log(LogLevel level, string format, params object[] args);

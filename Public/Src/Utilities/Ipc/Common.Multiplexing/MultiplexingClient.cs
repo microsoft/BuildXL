@@ -51,7 +51,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
 
         private bool m_disconnectRequestedByServer;
 
-        private ILogger Logger { get; }
+        private IIpcLogger Logger { get; }
 
         /// <inheritdoc />
         public IClientConfig Config { get; }

@@ -22,7 +22,7 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public sealed class ReloadingDropServiceClient : IDropServiceClient
     {
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
         private readonly Reloader<IDropServiceClient> m_reloader;
         private readonly IEnumerable<TimeSpan> m_retryIntervals;
         private static readonly TimeSpan s_defaultOperationTimeout = TimeSpan.FromMinutes(5);
@@ -57,7 +57,7 @@ namespace Tool.ServicePipDaemon
         /// <param name="logger">Logger.</param>
         /// <param name="clientConstructor">Target drop service client.</param>
         /// <param name="retryIntervals">How many times to retry and how much to wait between retries.</param>
-        public ReloadingDropServiceClient(ILogger logger, Func<IDropServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
+        public ReloadingDropServiceClient(IIpcLogger logger, Func<IDropServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
         {
             m_logger = logger;
             m_reloader = new Reloader<IDropServiceClient>(clientConstructor, destructor: client => client.Dispose());

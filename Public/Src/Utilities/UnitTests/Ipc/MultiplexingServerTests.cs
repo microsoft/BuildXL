@@ -338,7 +338,7 @@ namespace Test.BuildXL.Ipc
             }
         }
 
-        private TcpIpConnectivity CreateAndStartTcpIpProvider(ILogger logger, int numTimesToRetry = 3, int delayMillis = 250)
+        private TcpIpConnectivity CreateAndStartTcpIpProvider(IIpcLogger logger, int numTimesToRetry = 3, int delayMillis = 250)
         {
             try
             {

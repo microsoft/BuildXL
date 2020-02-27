@@ -9,7 +9,7 @@ namespace BuildXL.Ipc.Common
     /// <summary>
     /// Logger that receives an action to which it delegates all log requests.
     /// </summary>
-    public sealed class LambdaLogger : ILogger
+    public sealed class LambdaLogger : IIpcLogger
     {
         private readonly Action<LogLevel, string, object[]> m_logFunction;
 

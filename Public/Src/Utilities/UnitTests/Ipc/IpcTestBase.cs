@@ -43,7 +43,7 @@ namespace Test.BuildXL.Ipc
             e.SetObserved();
         }
 
-        protected ILogger VerboseLogger(string testName)
+        protected IIpcLogger VerboseLogger(string testName)
         {
             return new LambdaLogger((level, format, args) =>
             {

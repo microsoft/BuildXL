@@ -7,9 +7,9 @@ using BuildXL.Ipc.Interfaces;
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// Implementation of <see cref="ILogger"/> that forwards log requests to System.Console.
+    /// Implementation of <see cref="IIpcLogger "/> that forwards log requests to System.Console.
     /// </summary>
-    public sealed class ConsoleLogger : ILogger
+    public sealed class ConsoleLogger : IIpcLogger
     {
         /// <nodoc />
         public bool IsLoggingVerbose { get; }

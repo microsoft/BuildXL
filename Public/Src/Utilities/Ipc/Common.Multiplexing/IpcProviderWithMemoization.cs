@@ -37,14 +37,14 @@ namespace BuildXL.Ipc.Common.Multiplexing
     public sealed class IpcProviderWithMemoization : IIpcProvider, IDisposable
     {
         private readonly IIpcProvider m_provider;
-        private readonly ILogger m_defaultClientLogger;
+        private readonly IIpcLogger m_defaultClientLogger;
 
         private readonly ConcurrentDictionary<string, IClient> m_connectionString2Client = new ConcurrentDictionary<string, IClient>();
         private readonly ConcurrentDictionary<string, IServer> m_connectionString2Server = new ConcurrentDictionary<string, IServer>();
         private readonly ConcurrentDictionary<string, string> m_moniker2connectionString = new ConcurrentDictionary<string, string>();
 
         /// <nodoc />
-        public IpcProviderWithMemoization(IIpcProvider provider, ILogger defaultClientLogger = null)
+        public IpcProviderWithMemoization(IIpcProvider provider, IIpcLogger defaultClientLogger = null)
         {
             m_provider = provider;
             m_defaultClientLogger = defaultClientLogger;

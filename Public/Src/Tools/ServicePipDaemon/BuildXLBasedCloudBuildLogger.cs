@@ -15,11 +15,11 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public sealed class BuildXLBasedCloudBuildLogger : ICloudBuildLogger
     {
-        private readonly ILogger m_localLogger;
+        private readonly IIpcLogger m_localLogger;
         private readonly CloudBuildEventSource m_etwEventSource;
 
         /// <nodoc/>
-        public BuildXLBasedCloudBuildLogger(ILogger logger, bool enableCloudBuildIntegration)
+        public BuildXLBasedCloudBuildLogger(IIpcLogger logger, bool enableCloudBuildIntegration)
         {
             m_localLogger = logger;
             m_etwEventSource = enableCloudBuildIntegration ? CloudBuildEventSource.Log : CloudBuildEventSource.TestLog;

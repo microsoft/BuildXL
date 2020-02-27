@@ -39,7 +39,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
         public IServerConfig Config { get; }
 
         /// <nodoc/>
-        public ILogger Logger { get; }
+        public IIpcLogger Logger { get; }
 
         /// <nodoc/>
         internal ConcurrentQueue<Exception> Diagnostics => m_diagnostics;

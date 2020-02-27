@@ -11,7 +11,7 @@ namespace BuildXL.Ipc.Common
     public sealed class ServerConfig : IServerConfig
     {
         /// <inheritdoc />
-        public ILogger Logger { get; set; } = VoidLogger.Instance;
+        public IIpcLogger Logger { get; set; } = VoidLogger.Instance;
 
         /// <inheritdoc />
         public int MaxConcurrentClients { get; set; } = 10;

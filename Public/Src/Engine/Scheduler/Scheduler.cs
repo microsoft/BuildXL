@@ -1297,7 +1297,7 @@ namespace BuildXL.Scheduler
             return null;
         }
 
-        private static ILogger CreateLoggerForIpcClients(LoggingContext loggingContext)
+        private static IIpcLogger CreateLoggerForIpcClients(LoggingContext loggingContext)
         {
             return new LambdaLogger((level, message, args) =>
                 Logger.Log.IpcClientForwardedMessage(
@@ -1306,7 +1306,7 @@ namespace BuildXL.Scheduler
                     args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, message, args) : message));
         }
 
-        private static ILogger CreateLoggerForApiServer(LoggingContext loggingContext)
+        private static IIpcLogger CreateLoggerForApiServer(LoggingContext loggingContext)
         {
             return new LambdaLogger((level, message, args) =>
                 Logger.Log.ApiServerForwardedIpcServerMessage(

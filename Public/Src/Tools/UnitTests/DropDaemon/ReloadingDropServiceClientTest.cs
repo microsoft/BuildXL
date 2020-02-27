@@ -114,7 +114,7 @@ namespace Test.Tool.DropDaemon
             XAssert.AreEqual(retryIntervals.Length + 1, reloadingClient.Reloader.CurrentVersion);
         }
 
-        private ILogger TestLogger => new LambdaLogger((level, format, args) => Output.WriteLine(LoggerExtensions.Format(level, format, args)));
+        private IIpcLogger TestLogger => new LambdaLogger((level, format, args) => Output.WriteLine(LoggerExtensions.Format(level, format, args)));
 
         private Task CallDropOperationAsync(ReloadingDropServiceClient reloadingClient)
         {

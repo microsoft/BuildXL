@@ -69,12 +69,12 @@ namespace BuildXL.Ipc.Common.Multiplexing
         /// <nodoc/>
         internal ConcurrentQueue<Exception> Diagnostics => m_clientListener.Diagnostics;
 
-        private ILogger Logger { get; }
+        private IIpcLogger Logger { get; }
 
         private IIpcOperationExecutor m_executor;
 
         /// <nodoc/>
-        public MultiplexingServer([CanBeNull]string name, [CanBeNull]ILogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
+        public MultiplexingServer([CanBeNull]string name, [CanBeNull]IIpcLogger logger, IConnectivityProvider<TClient> connectivityProvider, int maxConcurrentClients, int maxConcurrentRequestsPerClient)
         {
             Contract.Requires(connectivityProvider != null);
             Contract.Requires(maxConcurrentClients > 0);
@@ -157,7 +157,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
 
             private string Name { get; }
 
-            private ILogger Logger => m_parent.Logger;
+            private IIpcLogger Logger => m_parent.Logger;
 
             /// <nodoc/>
             public RequestHandler(MultiplexingServer<TClient> parent, TClient client)

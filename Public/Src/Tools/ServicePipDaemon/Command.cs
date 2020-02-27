@@ -131,10 +131,10 @@ namespace Tool.ServicePipDaemon
         public Config Config { get; }
 
         /// <nodoc/>
-        public ILogger Logger { get; }
+        public IIpcLogger Logger { get; }
 
         /// <nodoc/>
-        public ConfiguredCommand(Command command, Config config, ILogger logger)
+        public ConfiguredCommand(Command command, Config config, IIpcLogger logger)
         {
             Command = command;
             Config = config;

@@ -33,13 +33,13 @@ namespace BuildXL.Ipc.Common
         private readonly TaskSourceSlim<Unit> m_stopTask;
         private readonly CancellableListener m_listener;
         private readonly string m_name;
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
 
         private int m_startCounter;
         private ITargetBlock<TOutput> m_targetBlock;
 
         /// <nodoc/>
-        public ListenerSourceBlock(CancellableListener listener, string name = "unknown", ILogger logger = null)
+        public ListenerSourceBlock(CancellableListener listener, string name = "unknown", IIpcLogger logger = null)
         {
             Contract.Requires(listener != null);
 

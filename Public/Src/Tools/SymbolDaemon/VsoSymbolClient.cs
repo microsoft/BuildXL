@@ -36,7 +36,7 @@ namespace Tool.SymbolDaemon
 
         private readonly Client m_apiClient;
 
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
         private readonly SymbolConfig m_config;
         private readonly ISymbolServiceClient m_symbolClient;
         private readonly CancellationTokenSource m_cancellationSource;
@@ -70,7 +70,7 @@ namespace Tool.SymbolDaemon
         }
 
         /// <nodoc />
-        public VsoSymbolClient(ILogger logger, SymbolConfig config, Client apiClient)
+        public VsoSymbolClient(IIpcLogger logger, SymbolConfig config, Client apiClient)
         {
             m_logger = logger;
             m_apiClient = apiClient;

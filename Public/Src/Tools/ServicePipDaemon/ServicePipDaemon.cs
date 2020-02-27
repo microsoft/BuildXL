@@ -63,7 +63,7 @@ namespace Tool.ServicePipDaemon
         protected readonly IParser m_parser;
 
         /// <nodoc />
-        protected readonly ILogger m_logger;
+        protected readonly IIpcLogger m_logger;
 
         /// <nodoc />
         protected readonly CounterCollection<DaemonCounter> m_counters = new CounterCollection<DaemonCounter>();
@@ -84,7 +84,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <nodoc />
-        public ILogger Logger => m_logger;
+        public IIpcLogger Logger => m_logger;
 
         #region Options and commands 
 
@@ -343,7 +343,7 @@ namespace Tool.ServicePipDaemon
         #endregion
 
         /// <nodoc />
-        public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, ILogger logger, IIpcProvider rpcProvider = null, Client client = null)
+        public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, IIpcLogger logger, IIpcProvider rpcProvider = null, Client client = null)
         {
             Contract.Requires(daemonConfig != null);
 
@@ -427,7 +427,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Parses a string and returns a ConfiguredCommand.
         /// </summary>        
-        public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
         {
             return ParseArgs(parser.SplitArgs(allArgs), parser, logger, ignoreInvalidOptions);
         }
@@ -435,7 +435,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Parses a list of arguments and returns a ConfiguredCommand.
         /// </summary>  
-        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, ILogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
         {
             var usageMessage = Lazy.Create(() => "Usage:" + Environment.NewLine + Usage());
 

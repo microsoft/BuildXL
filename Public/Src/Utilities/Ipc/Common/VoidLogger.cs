@@ -6,9 +6,9 @@ using BuildXL.Ipc.Interfaces;
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// No-op implementation of <see cref="ILogger"/>.
+    /// No-op implementation of <see cref="IIpcLogger "/>.
     /// </summary>
-    public sealed class VoidLogger : ILogger
+    public sealed class VoidLogger : IIpcLogger
     {
         /// <summary>Singleton instance.</summary>
         public static readonly VoidLogger Instance = new VoidLogger();

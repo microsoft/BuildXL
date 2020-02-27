@@ -13,13 +13,13 @@ namespace Tool.ServicePipDaemon
     public sealed class DaemonConfig : IServerConfig, IClientConfig
     {
         /// <nodoc/>
-        public ILogger Logger { get; }
+        public IIpcLogger Logger { get; }
 
         /// <inheritdoc/>
-        ILogger IServerConfig.Logger => Logger;
+        IIpcLogger IServerConfig.Logger => Logger;
 
         /// <inheritdoc/>
-        ILogger IClientConfig.Logger => Logger;
+        IIpcLogger IClientConfig.Logger => Logger;
 
         #region ConfigOptions
 
@@ -78,7 +78,7 @@ namespace Tool.ServicePipDaemon
 
         /// <nodoc/>
         public DaemonConfig(
-            ILogger logger,
+            IIpcLogger logger,
             string moniker,
             int? maxConnectRetries = null,
             TimeSpan? connectRetryDelay = null,

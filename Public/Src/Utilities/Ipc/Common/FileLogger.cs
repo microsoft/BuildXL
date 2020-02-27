@@ -11,9 +11,9 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// Implementation of <see cref="ILogger"/> that forwards log requests to a file.
+    /// Implementation of <see cref="IIpcLogger "/> that forwards log requests to a file.
     /// </summary>
-    public sealed class FileLogger : ILogger, IDisposable
+    public sealed class FileLogger : IIpcLogger, IDisposable
     {
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;

@@ -85,7 +85,7 @@ namespace Tool.DropDaemon
         }
         #endregion
 
-        private readonly ILogger m_logger;
+        private readonly IIpcLogger m_logger;
         private readonly DropConfig m_config;
         private readonly IDropServiceClient m_dropClient;
         private readonly CancellationTokenSource m_cancellationSource;
@@ -126,7 +126,7 @@ namespace Tool.DropDaemon
         public string DropUrl => ServiceEndpoint + "/_apis/drop/drops/" + DropName;
 
         /// <nodoc />
-        public VsoClient(ILogger logger, DropConfig dropConfig)
+        public VsoClient(IIpcLogger logger, DropConfig dropConfig)
         {
             Contract.Requires(dropConfig != null);
 

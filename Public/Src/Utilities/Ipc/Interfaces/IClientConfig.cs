@@ -15,7 +15,7 @@ namespace BuildXL.Ipc.Interfaces
         /// <summary>
         /// Logger to use.  May be null to indicate no logging.
         /// </summary>
-        ILogger Logger { get; }
+        IIpcLogger Logger { get; }
 
         /// <summary>
         /// Maximum number of retries to establish a connection.

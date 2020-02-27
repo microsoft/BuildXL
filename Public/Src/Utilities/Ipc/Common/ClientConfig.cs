@@ -26,7 +26,7 @@ namespace BuildXL.Ipc.Common
         }
 
         /// <inheritdoc />
-        public ILogger Logger { get; set; } = null;
+        public IIpcLogger Logger { get; set; } = null;
 
         /// <inheritdoc />
         public TimeSpan ConnectRetryDelay { get; set; } = TimeSpan.FromMilliseconds(DefaultConnectRetryDelayMillis);

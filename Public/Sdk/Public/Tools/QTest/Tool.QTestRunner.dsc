@@ -171,26 +171,6 @@ function getContextInfoFile(args: QTestArguments) : File {
 }
 
 /**
- * Create a manifest file for input files to QTest to use in test sandboxing.
- */
-function createInputsManifest(args: QTestArguments) {
-    let inputsArray: Array<Path | RelativePath | PathAtom> = undefined;
-
-    if (args.qTestInputs) {
-        inputsArray = args.qTestInputs.mapMany(f => [f.path, f.name]);
-    } else if (args.qTestDirToDeploy) {
-        inputsArray = args.qTestDirToDeploy.contents.mapMany(f => [f.path, args.qTestDirToDeploy.path.getRelative(f.path)]);
-    }
-
-    if (inputsArray && inputsArray.length > 0) {
-        let manifestTempDir = Context.getTempDirectory("inputsManifestDirectory");
-        return Transformer.writeFile(p`${manifestTempDir}/QTestInputsManifestFile.txt`, inputsArray);
-    }
-
-    return undefined;
-}
-
-/**
  * Evaluate (i.e. schedule) QTest runner with specified arguments.
  */
 @@public
@@ -207,9 +187,28 @@ export function runQTest(args: QTestArguments): Result {
     let sandboxDir = Context.getNewOutputDirectory("sandbox");
     let qtestSandboxInternal = p`${sandboxDir}/qtest`;
 
-    // Files passed through qTestDirToDeploy or qTestInputs argument are recorded in
-    // a manifest file that QTest will then use to generate fresh sandboxes for new runs.
-    let inputsFile = createInputsManifest(args);
+    // If qTestInputs is used to deploy files needed to run the test,
+    // We need to create a deployment directory name qtestdirtodeploy and copy these files into it.
+    // Then the copied files are passed as dependecy as input to the qtest pip
+    let qTestDirToDeploy: StaticDirectory = undefined;
+    if (args.qTestInputs) {
+        let qTestDirtoDeployCreated = Context.getNewOutputDirectory("qtestRun");
+        let copiedFiles = args.qTestInputs.map(
+            f => Transformer.copyFile(
+                f,
+                p`${qTestDirtoDeployCreated}/${f.name}`,
+                args.tags
+            )
+        );
+        qTestDirToDeploy = Transformer.sealDirectory({
+            root: qTestDirtoDeployCreated,
+            files: copiedFiles,
+            scrub: true,
+        });
+    }
+
+    // If no qTestInputs is specified, use the qTestDirToDeploy
+    qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // If QTestArguments does not provide the Flaky Suppression File,
     // attempt to find the file at the source root.
@@ -244,8 +243,8 @@ export function runQTest(args: QTestArguments): Result {
             Artifact.none(qtestSandboxInternal)
         ),
         Cmd.option(
-            "--qTestInputsManifestFile ",
-            Artifact.input(inputsFile)
+            "--copyToSandbox ",
+            Artifact.input(qTestDirToDeploy)
         ),
         Cmd.option(
             "--qTestLogsDir ",
@@ -326,8 +325,14 @@ export function runQTest(args: QTestArguments): Result {
             additionalTempDirectories : [sandboxDir],
             privilegeLevel: args.privilegeLevel,
             dependencies: [
-                ...(args.qTestInputs || args.qTestDirToDeploy.contents),
+                //When there are test failures, and PDBs are looked up to generate the stack traces,
+                //the original location of PDBs is used instead of PDBs in test sandbox. This is
+                //a temporary solution until a permanent fix regarding the lookup is identified
+                ...(args.qTestInputs ? args.qTestInputs.filter(
+                    f => f.name.hasExtension && f.name.extension === a`.pdb`
+                ) : []),
                 ...(args.qTestRuntimeDependencies || []),
+                ...(unsafeOptions.hasUntrackedChildProcesses ? qTestDirToDeploy.contents : []),
             ],
             unsafe: unsafeOptions,
             retryExitCodes: [2],

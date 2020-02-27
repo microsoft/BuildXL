@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Acceptable time difference between local last access time and content tracker's last access time.
         /// </summary>
-        internal static readonly TimeSpan TargetRange = TimeSpan.FromMinutes(1);
+        internal static readonly TimeSpan TargetRange = TimeSpan.FromMinutes(10);
 
         #endregion
 

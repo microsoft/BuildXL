@@ -88,7 +88,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 cacheFolder,
                 new ConfigurationModel(
                     new ContentStoreConfiguration(new MaxSizeQuota(hardExpression: maxRetentionMb + "MB", softExpression: softRetentionMb + "MB")),
-                    ConfigurationSelection.RequireAndUseInProcessConfiguration));
+                    ConfigurationSelection.RequireAndUseInProcessConfiguration),
+                settings: new ContentStoreSettings()
+                {
+                    TraceFileSystemContentStoreDiagnosticMessages = _configuration.TraceFileSystemContentStoreDiagnosticMessages
+                });
         }
 
         #region IDistributedContentCopierHost Members

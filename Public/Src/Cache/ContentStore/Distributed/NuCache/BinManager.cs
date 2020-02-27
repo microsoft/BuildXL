@@ -49,7 +49,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly IClock _clock;
         private readonly MachineId?[] _binToMachineMap;
         private readonly HashSet<MachineId> _machineSetBuffer = new HashSet<MachineId>();
-        private readonly HashSet<uint> _expiredBinSet = new HashSet<uint>();
         private uint[]? _previousBins;
 
         private MachineId[][]? _bins;

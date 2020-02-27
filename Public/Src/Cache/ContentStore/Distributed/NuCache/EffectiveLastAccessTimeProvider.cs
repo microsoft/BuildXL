@@ -29,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Tries to obtain <see cref="ContentInfo"/> from a store and <see cref="ContentLocationEntry"/> from a content location database.
         /// </summary>
-        (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash);
+        (ContentInfo localInfo, ContentLocationEntry distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash);
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly LocalLocationStoreConfiguration _configuration;
 
         private readonly IContentResolver _contentResolver;
-        private readonly IClock _clock;
+        private readonly DateTime _now;
 
         /// <nodoc />
         public EffectiveLastAccessTimeProvider(
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IClock clock,
             IContentResolver contentResolver)
         {
-            _clock = clock;
+            _now = clock.UtcNow;
             _configuration = configuration;
             _contentResolver = contentResolver;
         }
@@ -78,31 +78,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 int replicaCount = 1;
                 bool isImportantReplica = false;
 
-                var (contentInfo, entry, isDesignatedLocation) = _contentResolver.GetContentInfo(context, contentHash.Hash);
+                var (localInfo, distributedEntry, isDesignatedLocation) = _contentResolver.GetContentInfo(context, contentHash.Hash);
 
                 // Getting a size from content directory information first.
-                long size = contentInfo.Size;
+                long size = localInfo.Size;
 
-                if (entry != null)
+                if (distributedEntry != null)
                 {
                     // Use the latest last access time between LLS and local last access time
-                    DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
+                    DateTime distributedLastAccessTime = distributedEntry.LastAccessTimeUtc.ToDateTime();
                     lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                    isImportantReplica = isDesignatedLocation || IsImportantReplica(contentHash.Hash, entry, _contentResolver.LocalMachineId, _configuration.DesiredReplicaRetention);
+                    isImportantReplica = isDesignatedLocation || IsImportantReplica(contentHash.Hash, distributedEntry, _contentResolver.LocalMachineId, _configuration.DesiredReplicaRetention);
 
-                    replicaCount = entry.Locations.Count;
+                    replicaCount = distributedEntry.Locations.Count;
 
                     if (size == 0)
                     {
-                        size = entry.ContentSize;
+                        size = distributedEntry.ContentSize;
                     }
                 }
 
-                var age = _clock.UtcNow - lastAccessTime;
+                var localAge = _now - contentHash.LastAccessTime;
+                var age = _now - lastAccessTime;
                 var effectiveAge = GetEffectiveLastAccessTime(_configuration, age, replicaCount, size, isImportantReplica, logInverseMachineRisk);
 
-                var info = new ContentEvictionInfo(contentHash.Hash, age, effectiveAge, replicaCount, size, isImportantReplica);
+                var info = new ContentEvictionInfo(
+                    contentHash.Hash, 
+                    age: age, 
+                    localAge: localAge, 
+                    effectiveAge: effectiveAge, 
+                    replicaCount: replicaCount, 
+                    size: size, 
+                    isImportantReplica: isImportantReplica);
                 effectiveLastAccessTimes.Add(info);
             }
 

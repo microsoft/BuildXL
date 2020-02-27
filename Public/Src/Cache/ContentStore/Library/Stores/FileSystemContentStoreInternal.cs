@@ -180,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     List of cached files and their metadata.
         /// </summary>
-        protected readonly IContentDirectory ContentDirectory;
+        protected internal readonly IContentDirectory ContentDirectory;
 
         /// <nodoc />
         protected QuotaKeeper QuotaKeeper;

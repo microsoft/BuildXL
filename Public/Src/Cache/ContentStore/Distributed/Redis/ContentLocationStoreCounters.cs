@@ -141,6 +141,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         LazyTouchEventOnly,
 
         /// <nodoc />
+        StaleLastAccessTimeUpdates,
+
+        /// <nodoc />
         EffectiveLastAccessTimeLookupHit,
 
         /// <nodoc />

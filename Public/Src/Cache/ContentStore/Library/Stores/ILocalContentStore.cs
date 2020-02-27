@@ -31,6 +31,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Gets the information about the content hash if present
         /// </summary>
         bool TryGetContentInfo(ContentHash hash, out ContentInfo info);
+
+        /// <summary>
+        /// Updates the last access time for the given piece of content with the given value if newer than registered last access time
+        /// </summary>
+        void UpdateLastAccessTimeIfNewer(ContentHash hash, DateTime newLastAccessTime);
     }
 
     /// <summary>

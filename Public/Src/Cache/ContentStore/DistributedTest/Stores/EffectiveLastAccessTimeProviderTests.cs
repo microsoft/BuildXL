@@ -231,7 +231,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
             }
 
             /// <inheritdoc />
-            public (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
+            public (ContentInfo localInfo, ContentLocationEntry distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
             {
                 return (default, Map[hash], _isDesignatedLocation?.Invoke(hash) == true);
             }

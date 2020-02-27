@@ -154,8 +154,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
+                UseFullEvictionSort = _distributedSettings.UseFullEvictionSort,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
+                UpdateStaleLocalLastAccessTimes = _distributedSettings.UpdateStaleLocalLastAccessTimes,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 EvictionDiscardFraction = _distributedSettings.EvictionDiscardFraction,
                 UseTieredDistributedEviction = _distributedSettings.UseTieredDistributedEviction,
@@ -513,6 +515,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
                 };
+
+                distributedCentralStoreConfiguration.TraceFileSystemContentStoreDiagnosticMessages = _distributedSettings.TraceFileSystemContentStoreDiagnosticMessages;
 
                 ApplyIfNotNull(_distributedSettings.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds, v => distributedCentralStoreConfiguration.PeerToPeerCopyTimeout = TimeSpan.FromSeconds(v));
                 configuration.DistributedCentralStore = distributedCentralStoreConfiguration;

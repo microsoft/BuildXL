@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
+using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores
 {
@@ -41,6 +42,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public TimeSpan Age { get; }
 
         /// <summary>
+        /// Age of content based on the local last access time
+        /// </summary>
+        public TimeSpan LocalAge { get; }
+
+        /// <summary>
         /// An effective age of the content that is computed based on content importance or other metrics like content evictability.
         /// </summary>
         public TimeSpan EffectiveAge { get; }
@@ -49,6 +55,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public ContentEvictionInfo(
             ContentHash contentHash,
             TimeSpan age,
+            TimeSpan localAge,
             TimeSpan effectiveAge,
             int replicaCount,
             long size,
@@ -56,6 +63,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         {
             ContentHash = contentHash;
             Age = age;
+            LocalAge = localAge;
             EffectiveAge = effectiveAge;
             ReplicaCount = replicaCount;
             Size = size;
@@ -65,8 +73,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash.ToShortString()} Age={Age} EffectiveAge={EffectiveAge} Cost={ReplicaCount}*{Size} IsImportantReplica={IsImportantReplica}]";
+            return $"[ContentHash={ContentHash.ToShortString()} Age={Age} EffectiveAge={EffectiveAge} LocalAge={LocalAge} Cost={ReplicaCount}*{Size} IsImportantReplica={IsImportantReplica}]";
         }
+
+        /// <summary>
+        /// Compares two ages returning the eviction order (oldest/greatest age first). If reverse=true,
+        /// the opposite order is returned.
+        /// </summary>
+        public static OrderResult OrderAges(TimeSpan age1, TimeSpan age2, bool reverse)
+        {
+            return Order(age1, age2, greatestFirst: !reverse);
+        }
+
+        /// <nodoc />
+        public static readonly IComparer<ContentEvictionInfo> AgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.Age, c2.Age, reverse: false));
+
+        /// <nodoc />
+        public static readonly IComparer<ContentEvictionInfo> ReverseAgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.Age, c2.Age, reverse: true));
 
         /// <summary>
         /// Object comparer for <see cref="ContentEvictionInfo"/>.

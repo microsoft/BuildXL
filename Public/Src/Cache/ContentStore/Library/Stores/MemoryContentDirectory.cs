@@ -363,14 +363,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                 },
                 _counters[MemoryContentDirectoryCounters.InitializeContentDirectory]).ThrowIfFailure();
 
-                return result.Value;
+            return result.Value;
         }
 
         [SuppressMessage("AsyncUsage", "AsyncFixer02:Long running or blocking operations under an async method")]
         private async Task<ContentMap> DeserializeBodyAsync(Context context, MemoryContentDirectoryHeader header, AbsolutePath path, bool isLoadingBackup)
         {
             var contentDirectory = new ContentMap();
-            
+
             try
             {
                 var sw = Stopwatch.StartNew();
@@ -524,6 +524,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 existingInfo.UpdateLastAccessed(lastAccess);
             }
+        }
+
+        /// <summary>
+        /// For testing purposes only.
+        /// Attempts to add the given file info for the hash.
+        /// </summary>
+        internal bool TryAdd(ContentHash hash, ContentFileInfo fileInfo)
+        {
+            return ContentDirectory.TryAdd(hash, fileInfo);
         }
 
         /// <inheritdoc />

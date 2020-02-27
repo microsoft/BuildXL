@@ -243,7 +243,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     await blob.UploadFromFileAsync(file.ToString(), null, DefaultBlobStorageRequestOptions, null, token);
 
-                    if (garbageCollect)
+                    if (garbageCollect && _configuration.EnableGarbageCollect)
                     {
                         // Only GC every after retention time. 
                         if (!_lastGcTime.IsRecent(DateTime.UtcNow, _configuration.RetentionTime))

@@ -137,6 +137,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ImportantReplicaBucketOffset { get; set; } = 2;
 
         /// <summary>
+        /// Indicates whether important replicas should be preserved.
+        /// </summary>
+        public bool PreserveImportantReplicas { get; set; } = true;
+
+        /// <summary>
         /// Age buckets for use with tiered eviction
         /// </summary>
         public IReadOnlyList<TimeSpan> AgeBuckets { get; set; } =
@@ -233,6 +238,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool UseBinManager { get; set; } = false;
 
         /// <summary>
+        /// Indicates whether full sort algorithm should be used for getting hashes in eviction order
+        /// </summary>
+        public bool UseFullEvictionSort { get; set; } = false;
+
+        /// <summary>
+        /// Indicates whether local last access times should be updated if out of date with respect to distributed last access times
+        /// </summary>
+        public bool UpdateStaleLocalLastAccessTimes { get; set; } = false;
+
+        /// <summary>
         /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
         /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
         /// to produce candidates.
@@ -281,6 +296,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public TimeSpan? RetryWindow { get; set; }
 
         /// <summary>
+        /// For testing purposes only. This is used for testing to prevent machine registration when
+        /// using from production resources. Primary usage is for consuming checkpoints from production.
+        /// </summary>
+        public bool DisallowRegisterMachine { get; set; }
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
@@ -327,6 +348,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The number of retries to wait for content to propagate to enough machines to enable copying
         /// </summary>
         public int PropagationIterations { get; set; } = 3;
+
+        /// <summary>
+        /// See <see cref="BuildXL.Cache.ContentStore.Stores.ContentStoreSettings.TraceFileSystemContentStoreDiagnosticMessages"/>
+        /// </summary>
+        public bool TraceFileSystemContentStoreDiagnosticMessages = false;
 
         /// <summary>
         /// The maximum number of gigabytes to retain in CAS
@@ -382,6 +408,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The retention time for checkpoint blobs.
         /// </summary>
         public TimeSpan RetentionTime { get; set; } = TimeSpan.FromHours(5);
+
+        /// <summary>
+        /// Indicates whether garbage collection of blobs is triggered after <see cref="RetentionTime"/>
+        /// </summary>
+        public bool EnableGarbageCollect { get; set; } = true;
 
         /// <nodoc />
         public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(10);

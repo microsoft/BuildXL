@@ -35,6 +35,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -82,7 +83,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly IClock _clock;
 
         private readonly LocalLocationStoreConfiguration _configuration;
-        private CheckpointManager _checkpointManager;
+
+        internal CheckpointManager CheckpointManager { get; private set; }
 
         /// <nodoc />
         public CentralStorage CentralStorage { get; }
@@ -279,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 await DistributedCentralStorage.StartupAsync(context).ThrowIfFailure();
             }
 
-            _checkpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
+            CheckpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
@@ -620,12 +622,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Database.SetGlobalEntry(BinManagerKey, serializedString);
             }
 
-            return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
+            return await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
         private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
         {
-            var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+            var latestCheckpoint = CheckpointManager.GetLatestCheckpointInfo(context);
             var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
 
             // Only skip if this is the first restore and it is sufficiently recent
@@ -657,7 +659,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
                     Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
+                    var possibleCheckpointResult = await CheckpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;
@@ -769,15 +771,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             if ((entry.LastAccessTimeUtc.ToDateTime() + _configuration.TouchFrequency < now)
                                 && _recentlyTouchedHashes.Add(hash, _configuration.TouchFrequency))
                             {
-                                    // Entry was not touched recently so no need to send a touch event
-                                    touchEventHashes.Add(hash);
+                                // Entry was not touched recently so no need to send a touch event
+                                touchEventHashes.Add(hash);
                             }
                         }
                         else
                         {
-                                // NOTE: Entries missing from the local db are not touched. They referring to content which is no longer
-                                // in the system or content which is new and has not been propagated through local db
-                                entry = ContentLocationEntry.Missing;
+                            // NOTE: Entries missing from the local db are not touched. They referring to content which is no longer
+                            // in the system or content which is new and has not been propagated through local db
+                            entry = ContentLocationEntry.Missing;
                         }
 
                         entries.Add(entry);
@@ -1152,9 +1154,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo,
             bool reverse)
         {
-            // Counter for successful eviction candidates. Different than total number of eviction candidates, because this only increments when candidate is above minimum eviction age
-            int evictionCount = 0;
-
             // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
             // content until we are within quota. Here we return batches of content to be removed.
 
@@ -1168,6 +1167,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             var operationContext = new OperationContext(context);
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
 
             // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
             // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
@@ -1175,12 +1175,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var comparer = reverse
                 ? ContentEvictionInfo.AgeBucketingPrecedenceComparer.ReverseInstance
                 : ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance;
+            var contentHashesWithLastAccessTimes = contentHashesWithInfo.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime));
 
-            IEnumerable<ContentEvictionInfo> getContentEvictionInfos(List<ContentHashWithLastAccessTimeAndReplicaCount> page) =>
+
+            if (_configuration.UseFullEvictionSort)
+            {
+                return GetHashesInEvictionOrderUsingFullSort(
+                    operationContext,
+                    effectiveLastAccessTimeProvider,
+                    comparer,
+                    contentHashesWithLastAccessTimes,
+                    reverse);
+            }
+            else
+            {
+                return GetHashesInEvictionOrderUsingApproximateSort(
+                    operationContext,
+                    effectiveLastAccessTimeProvider,
+                    comparer,
+                    contentHashesWithLastAccessTimes);
+            }
+        }
+
+        private IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrderUsingApproximateSort(
+            OperationContext operationContext,
+            EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
+            IComparer<ContentEvictionInfo> comparer,
+            IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo)
+        {
+            // Counter for successful eviction candidates. Different than total number of eviction candidates, because this only increments when candidate is above minimum eviction age
+            int evictionCount = 0;
+            var now = _clock.UtcNow;
+
+            IEnumerable<ContentEvictionInfo> getContentEvictionInfos(IReadOnlyList<ContentHashWithLastAccessTime> page) =>
                 GetEffectiveLastAccessTimes(
                         operationContext,
-                        machineInfo,
-                        page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime)))
+                        effectiveLastAccessTimeProvider,
+                        page)
                     .ThrowIfFailure();
 
             // We make sure that we select a set of the newer content, to ensure that we at least look at newer
@@ -1199,7 +1230,77 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 .ApproximateSort(comparer, getContentEvictionInfos, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction, _configuration.EvictionDiscardFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestContentSortedByEvictability, newestContentSortedByEvictability, comparer)
-                .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
+                .Where((candidate, index) => IsPassEvictionAge(operationContext, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
+        }
+
+        private IEnumerable<ContentEvictionInfo> GetHashesInEvictionOrderUsingFullSort(
+            OperationContext operationContext,
+            EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
+            IComparer<ContentEvictionInfo> comparer,
+            IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo,
+            bool reverse)
+        {
+            var candidateQueue = new PriorityQueue<ContentEvictionInfo>(_configuration.EvictionPoolSize, comparer);
+
+            foreach (var candidate in GetFullSortedContentWithEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, contentHashesWithInfo, reverse))
+            {
+                candidateQueue.Push(candidate);
+
+                // Only consider content when the eviction pool size is reached.
+                if (candidateQueue.Count > _configuration.EvictionPoolSize)
+                {
+                    yield return candidateQueue.Top;
+                    candidateQueue.Pop();
+                }
+            }
+
+            while (candidateQueue.Count != 0)
+            {
+                yield return candidateQueue.Top;
+                candidateQueue.Pop();
+            }
+        }
+
+        private IEnumerable<ContentEvictionInfo> GetFullSortedContentWithEffectiveLastAccessTimes(
+            OperationContext operationContext,
+            EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
+            IReadOnlyList<ContentHashWithLastAccessTime> contentHashesWithInfo,
+            bool reverse)
+        {
+            var ageOnlyComparer = reverse
+                ? ContentEvictionInfo.ReverseAgeOnlyComparer
+                : ContentEvictionInfo.AgeOnlyComparer;
+
+            var ageSortingQueue = new PriorityQueue<ContentEvictionInfo>(_configuration.EvictionPoolSize, ageOnlyComparer);
+
+            foreach (var page in contentHashesWithInfo.GetPages(_configuration.EvictionWindowSize))
+            {
+                foreach (var item in GetEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, page).ThrowIfFailure())
+                {
+                    while (ageSortingQueue.Count != 0 && ContentEvictionInfo.OrderAges(ageSortingQueue.Top.Age, item.LocalAge, reverse) != OrderResult.PreferSecond)
+                    {
+                        // NOTE: Optimization to ensure we return elements as soon as possible rather than having to put all elements in the queue
+                        // before a single element can be returned.
+                        // The top item's distributed age from the queue is older than the current item's local age. This means the top item in the
+                        // queue should be preferred to any other item that will be encountered because we that subsequent items will always be newer.
+
+                        // For all items, i: i.LocalAge >= i.Age (distributed age). In other words, distributed age is always equal or newer than local age.
+                        // Suppose the current item is i_n.
+                        // Since we are traversing the items in oldest local age first order. For x > 0, i_n.LocalAge >= i_(n+x).LocalAge
+                        // We know from the condition that: ageSortingQueue.Top.Age >= i_n.LocalAge >= i_(n+x).LocalAge >= i_(n+x).Age
+                        yield return ageSortingQueue.Top;
+                        ageSortingQueue.Pop();
+                    }
+
+                    ageSortingQueue.Push(item);
+                }
+            }
+
+            while (ageSortingQueue.Count != 0)
+            {
+                yield return ageSortingQueue.Top;
+                ageSortingQueue.Pop();
+            }
         }
 
         private bool IsPassEvictionAge(Context context, ContentEvictionInfo candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
@@ -1214,6 +1315,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;
         }
+
         /// <summary>
         /// Returns effective last access time for all the <paramref name="contentHashes"/>.
         /// </summary>
@@ -1229,13 +1331,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.Requires(contentHashes != null);
             Contract.Requires(contentHashes.Count > 0);
 
+            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
+
+            return GetEffectiveLastAccessTimes(context, effectiveLastAccessTimeProvider, contentHashes);
+        }
+
+        /// <summary>
+        /// Returns effective last access time for all the <paramref name="contentHashes"/>.
+        /// </summary>
+        /// <remarks>
+        /// Effective last access time is computed based on entries last access time considering content's size and replica count.
+        /// This method is used in distributed eviction.
+        /// </remarks>
+        private Result<IReadOnlyList<ContentEvictionInfo>> GetEffectiveLastAccessTimes(
+            OperationContext context,
+            EffectiveLastAccessTimeProvider effectiveLastAccessTimeProvider,
+            IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
+        {
+            Contract.Requires(contentHashes != null);
+            Contract.Requires(contentHashes.Count > 0);
+
             var postInitializationResult = EnsureInitializedAsync().GetAwaiter().GetResult();
             if (!postInitializationResult)
             {
                 return new Result<IReadOnlyList<ContentEvictionInfo>>(postInitializationResult);
             }
 
-            var effectiveLastAccessTimeProvider = new EffectiveLastAccessTimeProvider(_configuration, _clock, new ContentResolver(this, machineInfo));
             return context.PerformOperation(
                     Tracer,
                     () => effectiveLastAccessTimeProvider.GetEffectiveLastAccessTimes(context, contentHashes),
@@ -1523,16 +1644,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             /// <inheritdoc />
-            public (ContentInfo info, ContentLocationEntry entry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
+            public (ContentInfo localInfo, ContentLocationEntry distributedEntry, bool isDesignatedLocation) GetContentInfo(OperationContext context, ContentHash hash)
             {
-                ContentInfo info = default;
-                _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out info);
+                ContentInfo localInfo = default;
+                bool foundLocalInfo = _machineInfo.LocalContentStore?.TryGetContentInfo(hash, out localInfo) ?? false;
 
-                _localLocationStore.TryGetContentLocations(context, hash, out var entry);
+                bool foundDistributedEntry = _localLocationStore.TryGetContentLocations(context, hash, out var distributedEntry);
+
+                if (_localLocationStore._configuration.UpdateStaleLocalLastAccessTimes
+                    && foundLocalInfo
+                    && foundDistributedEntry
+                    && distributedEntry.LastAccessTimeUtc.ToDateTime() > localInfo.LastAccessTimeUtc)
+                {
+                    // Update the local content store with distributed last access time if it is newer (within some margin of error specified by RedisContentLocationStoreConstants.TargetRange)
+                    _machineInfo.LocalContentStore.UpdateLastAccessTimeIfNewer(hash, distributedEntry.LastAccessTimeUtc.ToDateTime());
+                    _localLocationStore.Counters[ContentLocationStoreCounters.StaleLastAccessTimeUpdates].Increment();
+                }
 
                 bool isDesignatedLocation = _localLocationStore.ClusterState.IsDesignatedLocation(LocalMachineId, hash, includeExpired: true);
 
-                return (info, entry, isDesignatedLocation);
+                return (localInfo, distributedEntry, isDesignatedLocation);
             }
         }
     }

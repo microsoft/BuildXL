@@ -237,6 +237,18 @@ namespace BuildXL.Cache.Host.Configuration
         public float EvictionDiscardFraction { get; set; } = 0;
 
         /// <summary>
+        /// Configures whether to use full eviction sort logic
+        /// </summary>
+        [DataMember]
+        public bool UseFullEvictionSort { get; set; } = false;
+
+        /// <summary>
+        /// Configures whether ages of content are updated when sorting during eviction
+        /// </summary>
+        [DataMember]
+        public bool UpdateStaleLocalLastAccessTimes { get; set; } = false;
+
+        /// <summary>
         /// Configures whether to use new tiered eviction logic or not.
         /// </summary>
         [DataMember]

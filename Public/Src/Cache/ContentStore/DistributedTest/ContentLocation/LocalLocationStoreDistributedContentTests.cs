@@ -107,7 +107,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool ProactiveCopyOnPins { get; set; } = false;
         protected bool ProactiveCopyUsePreferredLocations { get; set; } = false;
 
-        protected bool UseRealEventHubAndStorage { get; set; } = false;
+        protected bool UseRealStorage { get; set; } = false;
+        protected bool UseRealEventHub { get; set; } = false;
 
         private Action<DistributedContentSettings> _overrideDistributed = null;
         private Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
@@ -136,13 +137,21 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Set recompute time to zero to force recomputation on every heartbeat
                 configuration.RecomputeInactiveMachinesExpiry = TimeSpan.Zero;
 
-                if (!_tests.UseRealEventHubAndStorage)
+                if (!_tests.UseRealStorage)
                 {
                     configuration.CentralStore = new LocalDiskCentralStoreConfiguration(_tests.TestRootDirectoryPath / "centralStore", "checkpoints-key");
+                }
 
+                if (!_tests.UseRealEventHub)
+                {
                     // Propagate epoch from normal configuration to in-memory configuration
                     _tests.MemoryEventStoreConfiguration.Epoch = configuration.EventStore.Epoch;
                     configuration.EventStore = _tests.MemoryEventStoreConfiguration;
+                }
+
+                if (configuration.CentralStore is BlobCentralStoreConfiguration blobConfig)
+                {
+                    blobConfig.EnableGarbageCollect = false;
                 }
 
                 _tests._overrideRedis?.Invoke(configuration);
@@ -347,12 +356,13 @@ namespace ContentStoreTest.Distributed.Sessions
 
         protected bool ConfigureWithRealEventHubAndStorage(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
         {
+            UseRealStorage = true;
+            UseRealEventHub = true;
+
             if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
             {
                 return false;
             }
-
-            UseRealEventHubAndStorage = true;
 
             ConfigureWithOneMaster(s =>
                 {
@@ -384,28 +394,34 @@ namespace ContentStoreTest.Distributed.Sessions
             eventHubConnectionString = Environment.GetEnvironmentVariable("TestEventHub_EventHubConnectionString");
             eventHubName = Environment.GetEnvironmentVariable("TestEventHub_EventHubName");
 
-            if (storageAccountKey == null)
+            if (UseRealStorage)
             {
-                Output.WriteLine("Please specify 'TestEventHub_StorageAccountKey' to run this test");
-                return false;
+                if (storageAccountKey == null)
+                {
+                    Output.WriteLine("Please specify 'TestEventHub_StorageAccountKey' to run this test");
+                    return false;
+                }
+
+                if (storageAccountName == null)
+                {
+                    Output.WriteLine("Please specify 'TestEventHub_StorageAccountName' to run this test");
+                    return false;
+                }
             }
 
-            if (storageAccountName == null)
+            if (UseRealEventHub)
             {
-                Output.WriteLine("Please specify 'TestEventHub_StorageAccountName' to run this test");
-                return false;
-            }
+                if (eventHubConnectionString == null)
+                {
+                    Output.WriteLine("Please specify 'TestEventHub_EventHubConnectionString' to run this test");
+                    return false;
+                }
 
-            if (eventHubConnectionString == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_EventHubConnectionString' to run this test");
-                return false;
-            }
-
-            if (eventHubName == null)
-            {
-                Output.WriteLine("Please specify 'TestEventHub_EventHubName' to run this test");
-                return false;
+                if (eventHubName == null)
+                {
+                    Output.WriteLine("Please specify 'TestEventHub_EventHubName' to run this test");
+                    return false;
+                }
             }
 
             Output.WriteLine("The test is configured correctly.");
@@ -2545,6 +2561,181 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 },
                 enableRepairHandling: true);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestFullSortEviction(bool updateStaleLocalAges)
+        {
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.UseIncrementalCheckpointing = true;
+                dcs.UseTieredDistributedEviction = true;
+                dcs.UseFullEvictionSort = true;
+                dcs.UpdateStaleLocalLastAccessTimes = updateStaleLocalAges;
+            });
+
+            var hashCount = 20_000;
+            var hashBytes = new byte[HashInfoLookup.Find(HashType.Vso0).ByteLength];
+            using var hashStream = new MemoryStream(hashBytes);
+            using var writer = new BinaryWriter(hashStream);
+
+            ContentHash getHash(int index)
+            {
+                hashStream.Position = 0;
+                writer.Write(index);
+                return new ContentHash(HashType.Vso0, hashBytes);
+            }
+
+            await RunTestAsync(
+                new Context(Logger),
+                1,
+                async context =>
+                {
+                    var lls = context.GetLocalLocationStore(0);
+                    var localStore = (FileSystemContentStore)context.GetLocationStore(0).LocalContentStore;
+                    var contentDirectory = (MemoryContentDirectory)localStore.Store.ContentDirectory;
+
+                    var baseTime = TestClock.UtcNow;
+                    for (int i = 0; i < hashCount; i++)
+                    {
+                        // Hashes with higher index will be older from local perspective
+                        var localLastAccessTime = baseTime - TimeSpan.FromSeconds((i + 1) * 10);
+
+                        // Hashes with higher index will be newer from distributed perspective
+                        var distributedLastAccessTime = baseTime + TimeSpan.FromSeconds((i + 1) * 10);
+                        var hash = getHash(i);
+                        contentDirectory.TryAdd(hash, new ContentFileInfo(100, localLastAccessTime.ToFileTimeUtc(), 1)).Should().BeTrue();
+
+                        // Add hash and set distributed last access time
+                        TestClock.UtcNow = distributedLastAccessTime;
+                        lls.Database.LocationAdded(context, hash, lls.ClusterState.PrimaryMachineId, 100, updateLastAccessTime: true);
+                    }
+
+                    for (int iteration = 0; iteration < 2; iteration++)
+                    {
+                        var localOrderedHashes = await contentDirectory.GetLruOrderedCacheContentWithTimeAsync();
+
+                        var evictionOrderedHashes = lls.GetHashesInEvictionOrder(context,
+                            context.GetLocationStore(0),
+                            localOrderedHashes,
+                            reverse: false).ToList();
+
+                        evictionOrderedHashes.Count.Should().BeGreaterOrEqualTo(hashCount);
+
+                        var fullOrderPrecedenceMap = evictionOrderedHashes.OrderBy(e => e, ContentEvictionInfo.AgeBucketingPrecedenceComparer.Instance).Select((e, index) => (hash: e.ContentHash, index)).ToDictionary(t => t.hash, t => t.index);
+
+                        var llsFullOrderPrecedenceMap = evictionOrderedHashes.Select((e, index) => (hash: e.ContentHash, index)).ToDictionary(t => t.hash, t => t.index);
+
+                        for (int i = 0; i < hashCount; i++)
+                        {
+                            var hash = getHash(i);
+
+                            var llsEvictionPrecedence = llsFullOrderPrecedenceMap[hash];
+                            var fullOrderPredecedence = fullOrderPrecedenceMap[hash];
+                            var info = evictionOrderedHashes[llsEvictionPrecedence];
+
+                            llsEvictionPrecedence.Should().BeCloseTo(fullOrderPredecedence, 100, "Hash precedence should roughly match the precedence if hashes were all sorted");
+
+                            if (iteration == 0 || !updateStaleLocalAges)
+                            {
+                                // Local age and distributed age should not match
+                                info.LocalAge.Should().NotBe(info.Age);
+                            }
+                            else
+                            {
+                                // Local age and distributed age should match
+                                info.LocalAge.Should().Be(info.Age);
+                            }
+                        }
+                    }
+                });
+        }
+
+        [Fact(Skip = "For manual testing only")]
+        public async Task TestRealDistributedEviction()
+        {
+            // Running this test:
+            // 1.  Specify azure storage secret below
+            // 2.  Set UseRealStorage=true
+            // 3.  Copy Directory.backup.bin (MemoryContentDirectory file) to local location
+            // 3a. Replace localContentDirectoryPath with location from (3)
+            // 4.  Find a recent checkpoint from the stamp where the MemoryContentDirectory file came from
+            //     by looking for RestoreCheckpointAsync calls on the machine
+            // 4a. Set checkpointId to the checkpoint ID from (4)
+            // 5.  Set TestClock.UtcNow to the time of the checkpoint
+
+            //UseRealStorage = true;
+            OverrideTestRootDirectoryPath = new AbsolutePath(@"D:\temp\cacheTest");
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.UseIncrementalCheckpointing = true;
+                dcs.UseTieredDistributedEviction = true;
+                dcs.IncrementalCheckpointDegreeOfParallelism = 16;
+                dcs.IsMasterEligible = false;
+                dcs.UseFullEvictionSort = true;
+                dcs.UseDistributedCentralStorage = true;
+                dcs.AzureStorageSecretName = Host.StoreSecret("blobsecret", @"INSERT AZURE STORAGE SECRET HERE");
+            });
+
+            var checkpointId = @"MD5:0906B6FD454B815AF5AE3B11BBA7A960||DCS||incrementalCheckpoints/3.229499be-163a-4b99-acc2-57fbf93a8267.checkpointInfo.txt|Incremental";
+            /*var checkpointId = @"incrementalCheckpoints /117037650.d92a5ab3-276d-4c66-af69-d2d20c4e94aa.checkpointInfo.txt|Incremental"*/;
+            var localContentDirectoryPath = @"D:\temp\Directory.backup.bin";
+            var machineId = 4;
+
+            TestClock.UtcNow = DateTime.Parse("2020-02-19 21:30:0.0Z").ToUniversalTime();
+
+            await RunTestAsync(
+                new Context(Logger),
+                1,
+                async context =>
+                {
+                    var machineInfoRoot = TestRootDirectoryPath / "machineInfo";
+                    FileSystem.CreateDirectory(machineInfoRoot);
+
+                    var testMachineInfo = new TestDistributedMachineInfo(
+                        machineId: machineId,
+                        localContentDirectoryPath: localContentDirectoryPath,
+                        FileSystem,
+                        machineInfoRoot);
+
+                    await testMachineInfo.StartupAsync(context).ShouldBeSuccess();
+
+                    var lls = context.GetLocalLocationStore(0);
+
+                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow))
+                        .ShouldBeSuccess();
+
+                    // Uncomment this line to create a checkpoint to keep alive the content in storage
+                    //await lls.CheckpointManager.CreateCheckpointAsync(context, new EventSequencePoint(3))
+                    //    .ShouldBeSuccess();
+
+                    var localOrderedHashes = await testMachineInfo.Directory.GetLruOrderedCacheContentWithTimeAsync();
+
+                    var evictionOrderedHashes = lls.GetHashesInEvictionOrder(context,
+                        testMachineInfo,
+                        localOrderedHashes,
+                        reverse: false).ToList();
+
+                    context.Context.Debug($"Content listing (out of {localOrderedHashes.Count})");
+                    foreach (var result in evictionOrderedHashes.Take(10000))
+                    {
+                        context.Context.Debug(result.ToString());
+                    }
+
+                    context.Context.Debug($"Top effective ages (out of {localOrderedHashes.Count})");
+                    foreach (var result in evictionOrderedHashes.OrderByDescending(e => e.EffectiveAge).Take(1000))
+                    {
+                        context.Context.Debug(result.ToString());
+                    }
+
+                    context.Context.Debug($"Top local ages (out of {localOrderedHashes.Count})");
+                    foreach (var result in evictionOrderedHashes.OrderByDescending(e => e.LocalAge).Take(1000))
+                    {
+                        context.Context.Debug(result.ToString());
+                    }
+                });
         }
 
         [Fact]

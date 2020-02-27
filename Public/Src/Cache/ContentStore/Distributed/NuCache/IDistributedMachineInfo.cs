@@ -22,10 +22,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// The local machine id
         /// </summary>
         MachineId LocalMachineId { get; }
-
-        /// <summary>
-        /// The local machine location
-        /// </summary>
-        MachineLocation LocalMachineLocation { get; }
     }
 }

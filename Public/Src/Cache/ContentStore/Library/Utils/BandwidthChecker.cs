@@ -72,6 +72,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                 using var copyCancellation = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
                 var copyTask = copyTaskFactory(copyCancellation.Token);
 
+                // Subscribing for potential task failure here to avoid unobserved task exceptions.
+                traceCopyTaskFailures(copyTask);
+
                 while (!copyCompleted)
                 {
                     // Wait some time for bytes to be copied
@@ -101,7 +104,6 @@ namespace BuildXL.Cache.ContentStore.Utils
                         {
                             // Ensure that we signal the copy to cancel
                             copyCancellation.Cancel();
-                            traceCopyTaskFailures(copyTask);
 
                             var bytesCopied = position - startPosition;
                             var result = new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {bytesCopied} bytes copied");

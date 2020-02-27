@@ -38,7 +38,7 @@ namespace BuildXL.Tracing
         /// </summary>
         private readonly Stopwatch m_stopwatch;
 
-        private readonly PerformanceCollector.Aggregator m_aggregator;
+        private readonly PerformanceCollector.Aggregator? m_aggregator;
 
         /// <summary>
         /// Whether this has been disposed
@@ -50,14 +50,14 @@ namespace BuildXL.Tracing
         /// </summary>
         private TimedBlock(
             LoggingContext parentLoggingContext,
-            PerformanceCollector.Aggregator aggregator,
-            string phaseFriendlyName,
+            PerformanceCollector.Aggregator? aggregator,
+            string? phaseFriendlyName,
             Action<LoggingContext, TEndObject> endAction,
             Func<TEndObject> endObjGetter)
         {
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(endObjGetter != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNull(endObjGetter);
 
             m_loggingContext = new LoggingContext(parentLoggingContext, phaseFriendlyName);
             m_aggregator = aggregator;
@@ -99,11 +99,13 @@ namespace BuildXL.Tracing
 
             if (!string.IsNullOrWhiteSpace(m_loggingContext.LoggerComponentInfo))
             {
+                Contract.AssertNotNullOrEmpty(m_loggingContext.LoggerComponentInfo);
                 LoggingHelpers.LogCategorizedStatistic(m_loggingContext, m_loggingContext.LoggerComponentInfo, Statistics.DurationMs, (int)m_stopwatch.ElapsedMilliseconds);
             }
 
             if (m_aggregator != null)
             {
+                Contract.AssertNotNull(m_loggingContext.LoggerComponentInfo);
                 LoggingHelpers.LogPerformanceCollector(m_aggregator, m_loggingContext, m_loggingContext.LoggerComponentInfo);
                 m_aggregator.Dispose();
             }
@@ -128,10 +130,10 @@ namespace BuildXL.Tracing
             Func<TEndObject> endObjGetter)
         {
             // There's no point is using this structure if the end action and struct aren't set
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(endObjGetter != null);
-            Contract.Requires(startAction != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNull(endObjGetter);
+            Contract.RequiresNotNull(startAction);
 
             return Start(parentLoggingContext, null, null, startAction, startObject, endAction, endObjGetter);
         }
@@ -155,11 +157,11 @@ namespace BuildXL.Tracing
             Func<TEndObject> endObjGetter)
         {
             // There's no point is using this structure if the end action and struct aren't set
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(endObjGetter != null);
-            Contract.Requires(startAction != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(phaseFriendlyName));
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNull(endObjGetter);
+            Contract.RequiresNotNull(startAction);
+            Contract.RequiresNotNullOrWhiteSpace(phaseFriendlyName);
 
             return Start(parentLoggingContext, null, phaseFriendlyName, startAction, startObject, endAction, endObjGetter);
         }
@@ -179,18 +181,18 @@ namespace BuildXL.Tracing
             Justification = "We specifically want a PerfCounterCollector so its aggregator returns the appropriate type")]
         public static TimedBlock<TStartObject, TEndObject> Start(
             LoggingContext parentLoggingContext,
-            PerformanceCollector collector,
-            string phaseFriendlyName,
+            PerformanceCollector? collector,
+            string? phaseFriendlyName,
             Action<LoggingContext, TStartObject> startAction,
             TStartObject startObject,
             Action<LoggingContext, TEndObject> endAction,
             Func<TEndObject> endObjGetter)
         {
             // There's no point is using this structure if the end action and struct aren't set
-            Contract.Requires(parentLoggingContext != null);
-            Contract.Requires(endAction != null);
-            Contract.Requires(endObjGetter != null);
-            Contract.Requires(startAction != null);
+            Contract.RequiresNotNull(parentLoggingContext);
+            Contract.RequiresNotNull(endAction);
+            Contract.RequiresNotNull(endObjGetter);
+            Contract.RequiresNotNull(startAction);
             Contract.Requires(collector == null || !string.IsNullOrWhiteSpace(phaseFriendlyName));
 
             startAction(parentLoggingContext, startObject);

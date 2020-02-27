@@ -21,13 +21,13 @@ namespace BuildXL.Tracing
         private int m_sequenceNumber = 0;
 
         // HACK: This is used to allow the Cache.Core cache factories to create logs to ETW logger without needing to pipe through a logging context.
-        private static LoggingContext s_globalLoggingContext;
+        private static LoggingContext? s_globalLoggingContext;
 
         /// <nodoc />
         public EtwOnlyTextLogger(LoggingContext loggingContext, string logKind)
         {
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(!string.IsNullOrEmpty(logKind));
+            Contract.RequiresNotNull(loggingContext);
+            Contract.RequiresNotNullOrEmpty(logKind);
 
             m_loggingContext = loggingContext;
             m_logKind = logKind;
@@ -102,7 +102,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Attempts to get global default logging context
         /// </summary>
-        public static bool TryGetDefaultGlobalLoggingContext(out LoggingContext loggingContext)
+        public static bool TryGetDefaultGlobalLoggingContext(out LoggingContext? loggingContext)
         {
             loggingContext = s_globalLoggingContext;
             return loggingContext != null;

@@ -18,7 +18,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Creates a new instance configured to output to the given writer.
         /// </summary>
-        public StatusEventListener(Events eventSource, TextWriter writer, DateTime baseTime, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null)
+        public StatusEventListener(Events eventSource, TextWriter writer, DateTime baseTime, DisabledDueToDiskWriteFailureEventHandler? onDisabledDueToDiskWriteFailure = null)
             : base(
                 eventSource,
                 writer,
@@ -29,8 +29,8 @@ namespace BuildXL.Tracing
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages: true)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
         }
 
         /// <summary>
@@ -46,14 +46,16 @@ namespace BuildXL.Tracing
         }
 
         /// <inheritdoc/>
-        protected override void Write(EventWrittenEventArgs eventData, EventLevel level, string message = null, bool suppressEvent = false)
+        protected override void Write(EventWrittenEventArgs eventData, EventLevel level, string? message = null, bool suppressEvent = false)
         {
             if (eventData.EventId == (int)EventId.StatusHeader)
             {
+                Contract.AssertNotNull(eventData.Payload);
                 Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
             }
             else if (eventData.EventId == (int)EventId.Status)
             {
+                Contract.AssertNotNull(eventData.Payload);
                 var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
                 Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }

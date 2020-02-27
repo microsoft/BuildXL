@@ -19,9 +19,9 @@ namespace BuildXL.Tracing
         /// </summary>
         public static void LogPerformanceCollector(PerformanceCollector.Aggregator aggregator, LoggingContext loggingContext, string description, long? duration = null)
         {
-            Contract.Requires(aggregator != null);
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(description));
+            Contract.RequiresNotNull(aggregator);
+            Contract.RequiresNotNull(loggingContext);
+            Contract.RequiresNotNullOrWhiteSpace(description);
 
             // Only log if there was more than one sample taken
             if (aggregator.ProcessThreadCount.Count > 0)
@@ -69,9 +69,9 @@ namespace BuildXL.Tracing
         /// </summary>
         public static void LogCategorizedStatistic(LoggingContext loggingContext, string categorization, string itemName, int value)
         {
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(categorization));
-            Contract.Requires(!string.IsNullOrWhiteSpace(itemName));
+            Contract.RequiresNotNull(loggingContext);
+            Contract.RequiresNotNullOrWhiteSpace(categorization);
+            Contract.RequiresNotNullOrWhiteSpace(itemName);
 
             Logger.Log.Statistic(
                 loggingContext,

@@ -41,11 +41,11 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// File path that contains the output of standard error stream
         /// </summary>
-        public string StdErrorPath { get; set; }
+        public string? StdErrorPath { get; set; }
 
         /// <summary>
         /// Pip description
         /// </summary>
-        public string PipDescription { get; set; }
+        public string? PipDescription { get; set; }
     }
 }

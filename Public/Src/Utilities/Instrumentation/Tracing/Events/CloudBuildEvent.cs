@@ -102,7 +102,7 @@ namespace BuildXL.Tracing.CloudBuild
         /// For each event, we cannot afford calling Type.GetType(string) so I keep the mapping in a static variable.
         /// Whenever we add a CloudBuildEvent, we need to add it to this dictionary.
         /// </remarks>
-        private static Type GetType(string name)
+        private static Type? GetType(string name)
         {
             switch (name)
             {
@@ -147,7 +147,7 @@ namespace BuildXL.Tracing.CloudBuild
         /// </summary>
         public static Possible<CloudBuildEvent> TryParse(string eventName, IList<object> values)
         {
-            Type eventType = GetType(eventName);
+            Type? eventType = GetType(eventName);
             if (eventType == null)
             {
                 return new Possible<CloudBuildEvent>(
@@ -171,16 +171,16 @@ namespace BuildXL.Tracing.CloudBuild
             }
 
             // This is the fastest way to call the default constructor (faster than activator.createinstance and compiled lambda expression)
-            CloudBuildEvent eventObj = eventType.GetConstructor(Type.EmptyTypes).Invoke(null) as CloudBuildEvent;
+            CloudBuildEvent? eventObj = eventType?.GetConstructor(Type.EmptyTypes)?.Invoke(null) as CloudBuildEvent;
 
             // All types in the dictionary, m_typesByName, derive from CloudBuildEvent
-            Contract.Assume(eventObj != null);
+            Contract.AssertNotNull(eventObj);
 
             try
             {
                 foreach (var member in eventObj.Members)
                 {
-                    object value;
+                    object? value;
                     if (rawEventObject.TryGetValue(member.Name, out value))
                     {
                         member.SetValue(eventObj, value);

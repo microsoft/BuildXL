@@ -36,6 +36,6 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Name for the target (groupby::targetname)
         /// </summary>
-        public string TargetName { get; set; }
+        public string? TargetName { get; set; }
     }
 }

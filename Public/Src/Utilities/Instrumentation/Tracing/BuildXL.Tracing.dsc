@@ -7,6 +7,7 @@ namespace Tracing {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Tracing",
+        nullable: true,
         generateLogs: true,
         generateLogsLite: false,
         sources: [

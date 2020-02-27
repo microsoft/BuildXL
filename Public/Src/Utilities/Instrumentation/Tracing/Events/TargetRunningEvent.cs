@@ -41,6 +41,6 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Represents the platform for which the target was built (first pip's qualifier)
         /// </summary>
-        public string QualifierName { get; set; }
+        public string? QualifierName { get; set; }
     }
 }

@@ -21,7 +21,7 @@ namespace BuildXL.Tracing
         /// <summary>
         /// Creates a new instance configured to output to the given writer.
         /// </summary>
-        public StatisticsEventListener(Events eventSource, TextWriter writer, LoggingContext loggingContext, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null)
+        public StatisticsEventListener(Events eventSource, TextWriter writer, LoggingContext loggingContext, DisabledDueToDiskWriteFailureEventHandler? onDisabledDueToDiskWriteFailure = null)
             : base(
                 eventSource,
                 writer,
@@ -32,8 +32,8 @@ namespace BuildXL.Tracing
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages: true)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
             m_loggingContext = loggingContext;
         }
 
@@ -56,11 +56,15 @@ namespace BuildXL.Tracing
             if (eventData.EventId == (int)EventId.Statistic ||
                 eventData.EventId == (int)EventId.StatisticWithoutTelemetry)
             {
+                Contract.AssertNotNull(eventData.Payload);
+
+                var objKey = eventData.Payload[0] as string;
+                var objValue = eventData.Payload[1];
+
                 // BulkStatistic events should be normalized to have the standard statistic naming convention
                 // when they go into the file
-                var key = ((string)eventData.Payload[0]).Replace("BulkStatistic_", string.Empty);
-                var value = (long)eventData.Payload[1];
-
+                var key = (objKey ?? string.Empty).Replace("BulkStatistic_", string.Empty);
+                var value = objValue == null ? 0L : (long)objValue;
 
                 if (ShouldSendStatisticToFinalStatistics(key))
                 {

@@ -87,7 +87,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// The component that calls the log, e.g. Class.Method
         /// </summary>
-        public readonly string LoggerComponentInfo;
+        public readonly string? LoggerComponentInfo;
 
         /// <summary>
         /// Return the activity id of the parent context.
@@ -135,7 +135,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Creates an instance of Context
         /// </summary>
-        public LoggingContext(Guid activityId, string loggerComponentInfo, SessionInfo session, LoggingContext? parent = null, ILoggingQueue? loggingQueue = null)
+        public LoggingContext(Guid activityId, string? loggerComponentInfo, SessionInfo session, LoggingContext? parent = null, ILoggingQueue? loggingQueue = null)
         {
             // TODO: we want to always have a component info for debugging purposes.
             // However right now, PerformanceMeasurement and TimedBlock allow nulls and their behavior depends on whether this vaslue is null.
@@ -167,7 +167,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <param name="parent">The parent context.</param>
         /// <param name="loggerComponentInfo">The component that calls the log, e.g. Class.Method.</param>
         /// <param name="activityId">Activity id.</param>
-        public LoggingContext(LoggingContext parent, string loggerComponentInfo, Guid? activityId = null)
+        public LoggingContext(LoggingContext parent, string? loggerComponentInfo, Guid? activityId = null)
             : this(activityId ?? Guid.NewGuid(), loggerComponentInfo, parent.Session, parent)
         {
             Contract.Requires(parent != null);

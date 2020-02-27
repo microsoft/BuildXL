@@ -21,12 +21,12 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Holds a non-empty string IFF <see cref="Succeeded"/> equals to <code>false</code>.
         /// </summary>
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
 
         /// <summary>
         /// Arbitrary additional information.
         /// </summary>
-        public string AdditionalInformation { get; set; }
+        public string? AdditionalInformation { get; set; }
         #endregion
 
         #region statistics
@@ -42,12 +42,12 @@ namespace BuildXL.Tracing.CloudBuild
         /// <summary>
         /// Type of the drop. BuildXL currently supports "VsoDrop" only.
         /// </summary>
-        public string DropType { get; set; }
+        public string? DropType { get; set; }
 
         /// <summary>
         /// URL where the drop can be viewed/downloaded in case of a successful creation.
         /// </summary>
-        public string DropUrl { get; set; }
+        public string? DropUrl { get; set; }
         #endregion
     }
 }

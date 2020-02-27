@@ -61,6 +61,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         }
 
         /// <summary>
+        /// Returns a task representing the result of the given task which will run continuations asynchronously.
+        /// </summary>
+        public static Task<T> RunContinuationsAsync<T>(this Task<T> task)
+        {
+            var taskSource = TaskSourceSlim.Create<T>();
+            taskSource.LinkToTask(task);
+            return taskSource.Task;
+        }
+
+        /// <summary>
         /// When you want to call an <c>async</c> method which returns a <see cref="BoolResult"/> but only want to log error rather than propagating.
         /// </summary>
         /// <remarks>

@@ -154,19 +154,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Tracer.Debug(context, $"Session {Name} {canHibernate} hibernate");
             await Inner.StartupAsync(context).ThrowIfFailure();
 
+            TryRegisterMachineWithBuildId(context);
+
+            await InitializePredictionStoreAsync(context);
+
+            return BoolResult.Success;
+        }
+
+        private void TryRegisterMachineWithBuildId(OperationContext context)
+        {
             if (Constants.TryExtractBuildId(Name, out _buildId) && Guid.TryParse(_buildId, out var buildIdGuid))
             {
                 // Generate a fake hash for the build and register a content entry in the location store to represent
                 // machines in the build ring
                 _buildIdHash = new ContentHash(HashType.MD5, buildIdGuid.ToByteArray());
 
-                Tracer.Info(context, $"Registering machine with build {_buildId} (build id hash: {_buildIdHash.Value.ToShortString()}");
-                await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+                var arguments = $"Build={_buildId}, BuildIdHash={_buildIdHash.Value.ToShortString()}";
+
+                context.PerformOperationAsync(Tracer, async () =>
+                {
+                    await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+
+                    return BoolResult.Success;
+                },
+                extraStartMessage: arguments,
+                extraEndMessage: r => arguments).FireAndForget(context);
             }
-
-            await InitializePredictionStoreAsync(context);
-
-            return BoolResult.Success;
         }
 
         private Task InitializePredictionStoreAsync(OperationContext context)

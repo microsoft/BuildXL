@@ -302,7 +302,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true)
-                .ThenAsync(r => r.Succeeded ? r : new BoolResult(r, "Failed initializing Local Location Store")));
+                .ThenAsync(r => r.Succeeded ? r : new BoolResult(r, "Failed initializing Local Location Store")))
+                // Run continuations asynchronously because many callers may be queued waiting for initialization to complete
+                .RunContinuationsAsync();
 
             await _postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
 

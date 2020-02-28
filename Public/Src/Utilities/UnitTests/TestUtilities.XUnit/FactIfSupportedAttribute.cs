@@ -53,7 +53,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresWindowsBasedOperatingSystem = false, 
             bool requiresUnixBasedOperatingSystem = false, 
             bool requiresHeliumDriversAvailable = false,
-            bool requiresHeliumDriversNotAvailable = false)
+            bool requiresHeliumDriversNotAvailable = false,
+            bool requiresMacOperatingSystem = false)
         {
             RequiresAdmin = requiresAdmin;
             RequiresJournalScan = requiresJournalScan;
@@ -135,6 +136,15 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
                     Skip = "Test must be run on the CoreCLR on Unix based operating systems!";
+                    return;
+                }
+            }
+
+            if (requiresMacOperatingSystem)
+            {
+                if (!OperatingSystemHelper.IsMacOS)
+                {
+                    Skip = "Test must be run on macOS";
                     return;
                 }
             }

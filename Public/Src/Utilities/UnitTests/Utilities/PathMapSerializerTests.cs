@@ -6,11 +6,15 @@ using System.Collections.Generic;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
     public sealed class PathMapSerializerTests : TemporaryStorageTestBase
     {
+        public PathMapSerializerTests(ITestOutputHelper output)
+            : base(output) { }
+
         [Fact]
         public void BasicTest()
         {

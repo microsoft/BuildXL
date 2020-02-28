@@ -11,7 +11,7 @@ namespace Test.BuildXL.Utilities
 {
     public class MacNativeIOTests
     {
-        [TheoryIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresMacOperatingSystem: true)]
         [InlineData("/", true)]
         [InlineData("/bin", true)]
         [InlineData("/bin/ls", true)]

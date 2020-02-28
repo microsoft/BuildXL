@@ -51,9 +51,9 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Indicates if BuildXL is running on macOS
         /// </summary>
-        public static readonly bool IsMacOS = 
-#if PLATFORM_OSX
-            true;
+        public static readonly bool IsMacOS =
+#if NET_CORE
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #else
             false;
 #endif

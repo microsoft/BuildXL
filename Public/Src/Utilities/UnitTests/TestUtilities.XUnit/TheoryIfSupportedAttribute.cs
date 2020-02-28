@@ -41,7 +41,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresSymlinkPermission = false, 
             bool requiresWindowsBasedOperatingSystem = false, 
             bool requiresUnixBasedOperatingSystem = false, 
-            bool requiresHeliumDriversAvailable = false)
+            bool requiresHeliumDriversAvailable = false,
+            bool requiresMacOperatingSystem = false)
         {
             RequiresAdmin = requiresAdmin;
             RequiresJournalScan = requiresJournalScan;
@@ -54,7 +55,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 requiresSymlinkPermission: requiresSymlinkPermission,
                 requiresWindowsBasedOperatingSystem: requiresWindowsBasedOperatingSystem,
                 requiresUnixBasedOperatingSystem: requiresUnixBasedOperatingSystem,
-                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable
+                requiresHeliumDriversAvailable: requiresHeliumDriversAvailable,
+                requiresMacOperatingSystem: requiresMacOperatingSystem
             ).Skip;
         }
     }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
 using BuildXL.Engine.Cache;
@@ -357,12 +358,14 @@ namespace Test.BuildXL.Scheduler
         /// any state from any previous run such as the cache
         /// </summary>
         public ScheduleRunResult RunScheduler(
-            SchedulerTestHooks testHooks = null, 
-            SchedulerState schedulerState = null, 
-            RootFilter filter = null, 
-            ITempCleaner tempCleaner = null, 
+            SchedulerTestHooks testHooks = null,
+            SchedulerState schedulerState = null,
+            RootFilter filter = null,
+            ITempCleaner tempCleaner = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
-            PerformanceCollector performanceCollector = null)
+            PerformanceCollector performanceCollector = null,
+            bool updateStatusTimerEnabled = false,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -379,7 +382,9 @@ namespace Test.BuildXL.Scheduler
                 schedulerState,
                 filter,
                 constraintExecutionOrder,
-                performanceCollector: performanceCollector);
+                performanceCollector: performanceCollector,
+                updateStatusTimerEnabled: updateStatusTimerEnabled,
+                cancellationToken: cancellationToken);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -414,7 +419,9 @@ namespace Test.BuildXL.Scheduler
             RootFilter filter = null,
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
             string runNameOrDescription = null,
-            PerformanceCollector performanceCollector = null)
+            PerformanceCollector performanceCollector = null,
+            bool updateStatusTimerEnabled = false,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             MarkSchedulerRun(runNameOrDescription);
 
@@ -478,7 +485,7 @@ namespace Test.BuildXL.Scheduler
                 pipQueue: constraintExecutionOrder == null ?
                             testQueue :
                             constraintExecutionOrder.Aggregate(testQueue, (TestPipQueue testQueue, (Pip before, Pip after) constraint) => { testQueue.ConstrainExecutionOrder(constraint.before, constraint.after); return testQueue; }).Unpause(),
-                context: Context,
+                context: BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationToken),
                 fileContentTable: FileContentTable,
                 loggingContext: localLoggingContext,
                 cache: Cache,
@@ -500,6 +507,8 @@ namespace Test.BuildXL.Scheduler
                 testHooks: testHooks,
                 performanceCollector: performanceCollector))
             {
+                CancellableTimedAction updateStatusAction = null;
+
                 MountPathExpander mountPathExpander = null;
                 var frontEndNonScrubbablePaths = CollectionUtilities.EmptyArray<string>();
 
@@ -520,6 +529,15 @@ namespace Test.BuildXL.Scheduler
                 }
 
                 testScheduler.Start(localLoggingContext);
+
+                if (updateStatusTimerEnabled)
+                {
+                    updateStatusAction = new CancellableTimedAction(
+                        () => testScheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: 1000),
+                        1000,
+                        "SchedulerUpdateStatus");
+                    updateStatusAction.Start();
+                }
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
 
@@ -553,6 +571,10 @@ namespace Test.BuildXL.Scheduler
 
                 // Prmote this run's specific LoggingContext into the test's LoggingContext.
                 LoggingContext.AbsorbLoggingContextState(localLoggingContext);
+
+                updateStatusAction?.Cancel();
+                updateStatusAction?.Join();
+
                 return runResult;
             }
         }

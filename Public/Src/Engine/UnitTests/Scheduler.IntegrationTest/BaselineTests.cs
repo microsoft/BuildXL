@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -113,7 +114,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler(testHooks: new SchedulerTestHooks()
             {
-                SyntheticMachinePerfInfo = new PerformanceCollector.MachinePerfInfo()
+                GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
                 {
                     AvailableRamMb = 100,
                     RamUsagePercentage = 99,
@@ -122,7 +123,6 @@ namespace IntegrationTest.BuildXL.Scheduler
                     CommitUsagePercentage = 10,
                     CommitLimitMb = 100000,
                 }
-
             });
 
             AssertVerboseEventLogged(LogEventId.LowRamMemory);
@@ -147,7 +147,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler(testHooks: new SchedulerTestHooks()
             {
-                SyntheticMachinePerfInfo = new PerformanceCollector.MachinePerfInfo()
+                GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
                 {
                     AvailableRamMb = 9000,
                     RamUsagePercentage = 10,
@@ -1390,6 +1390,72 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipB.Process.PipId]);
             // PipB should also be skipped because its upstream dependency was skipped
             XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipC.Process.PipId]);
+        }
+
+        [Fact]
+        public void RetryPipSuccessOnHighMemoryUsage()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+            Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
+
+            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+            });
+
+            var processB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+            });
+
+            bool triggeredCancellation = false;
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                SimulateHighMemoryPressure = true,
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (triggeredCancellation)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    if (scheduler.MaxExternalProcessesRan == 2)
+                    {
+                        triggeredCancellation = true;
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 100,
+                            RamUsagePercentage = 99,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo()
+                    {
+                        AvailableRamMb = 9000,
+                        RamUsagePercentage = 10,
+                        TotalRamMb = 10000,
+                        CommitUsedMb = 5000,
+                        CommitUsagePercentage = 50,
+                        CommitLimitMb = 10000,
+                    };
+                }
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+
+            AssertErrorEventLogged(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+            AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
+            AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

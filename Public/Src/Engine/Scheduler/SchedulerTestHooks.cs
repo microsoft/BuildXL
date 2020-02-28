@@ -3,10 +3,12 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using BuildXL.Processes;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
@@ -49,13 +51,18 @@ namespace BuildXL.Scheduler
         public IDetoursEventListener DetoursListener { get; set; }
 
         /// <summary>
-        /// A synthetic machine perf info to pass it to Scheduler to test various functions related to cancellation.
+        /// A function to generate synthetic machine perf info
         /// </summary>
-        public PerformanceCollector.MachinePerfInfo SyntheticMachinePerfInfo { get; set; }
+        public Func<LoggingContext, Scheduler, PerformanceCollector.MachinePerfInfo> GenerateSyntheticMachinePerfInfo { get; set; }
 
         /// <summary>
         /// Shortcut to get <see cref="CounterCollection{FingerprintStoreCounters}"/>.
         /// </summary>
         public CounterCollection<FingerprintStoreCounters> FingerprintStoreCounters => FingerprintStoreTestHooks?.Counters;
+
+        /// <summary>
+        /// Flag used to enable Pip Cancellation due to high memory on Mac
+        /// </summary>
+        public bool SimulateHighMemoryPressure { get; set; }
     }
 }

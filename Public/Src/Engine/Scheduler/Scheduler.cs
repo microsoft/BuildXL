@@ -2079,7 +2079,9 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? m_testHooks?.SyntheticMachinePerfInfo ?? default(PerformanceCollector.MachinePerfInfo);
+                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ??
+                    (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
+                    default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
 
                 // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
@@ -2375,8 +2377,9 @@ namespace BuildXL.Scheduler
                 }
 
 #if PLATFORM_OSX
-                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
-                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+                bool simulateHighMemory = m_testHooks?.SimulateHighMemoryPressure ?? false;
+                Memory.PressureLevel pressureLevel = simulateHighMemory ? Memory.PressureLevel.Critical : Memory.PressureLevel.Normal;
+                var result = simulateHighMemory ? true : Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
                 var startCancellingPips = false;
 
                 if (result)

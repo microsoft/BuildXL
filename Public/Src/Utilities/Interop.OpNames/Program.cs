@@ -1,13 +1,3 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
-
-namespace Interop {
-    @@public
-    export const opNamesAutoGen = genOpNamesCSharpFile(f`${Context.getMount("Sandbox").path}/MacOs/Sandbox/Src/Kauth/OpNames.hpp`);
-
-    const program = `
 using System;
 using System.IO;
 using System.Linq;
@@ -32,7 +22,7 @@ namespace BuildXL.OpNameGen
                 return 2;
             }
 
-            var regex = new Regex(@"macro_to_apply\\((.*),\\s*(.*)\\)");
+            var regex = new Regex(@"macro_to_apply\((.*),\s*(.*)\)");
             var matches = File
                 .ReadAllLines(path)
                 .Select(line => regex.Match(line))
@@ -78,42 +68,5 @@ namespace BuildXL.Interop.MacOS
             Console.WriteLine(output);
             return 0;
         }
-    }
-}
-`;
-
-    const exe = BuildXLSdk.executable({
-        assemblyName: "BuildXL.Interop.TmpOpNameGenerator",
-        sources: [
-            Transformer.writeAllText({
-                outputPath: p`${Context.getNewOutputDirectory("op-name-gen")}/Program.cs`, 
-                text: program
-            })
-        ],
-        allowUnsafeBlocks: true,
-    });
-
-    export const deployed = BuildXLSdk.deployManagedTool({
-        tool: exe,
-        options: {
-            prepareTempDirectory: true,
-        },
-    });
-
-    function genOpNamesCSharpFile(inputHppFile: SourceFile): DerivedFile {
-        const tool = Interop.withQualifier(BuildXLSdk.TargetFrameworks.MachineQualifier.current).deployed;
-        const outDir = Context.getNewOutputDirectory("op-name-out");
-        const consoleOutPath = p`${outDir}/FileOperation.g.cs`;
-        const result = Transformer.execute({
-            tool: tool,
-            arguments: [
-                Cmd.argument(Artifact.input(inputHppFile))
-            ],
-            workingDirectory: outDir,
-            consoleOutput: consoleOutPath,
-            tags: ["codegen"]
-        });
-
-        return result.getOutputFile(consoleOutPath);
     }
 }

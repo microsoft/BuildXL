@@ -4320,6 +4320,10 @@ static AccessCheckResult CreateDirectorySafeProbe(
 //
 // The value of lpSecurityAttributes is not important to our access policy,
 // so we can ignore it when determining whether this call is successful.
+//
+// CODESYNC: keep this weird logic in sync with
+//   - IOHandler::HandleCreate in IOHandler.cpp, and
+//   - TrustedBsdHandler::HandleVNodeCreateEvent in TrustedBsdHandler.cpp
 IMPLEMENTED(Detoured_CreateDirectoryW)
 BOOL WINAPI Detoured_CreateDirectoryW(
     _In_     LPCWSTR               lpPathName,

@@ -71,6 +71,16 @@ static void checkCreateDirectory(PolicyResult policy, bool isDir, AccessCheckRes
     *checkResult = policy.CheckCreateDirectoryAccess();
 }
 
+static void checkCreateDirectoryNoEnforcement(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
+{
+    // CODESYNC: CreateDirectoryW in DetouredFunctions.cpp
+    *checkResult = policy.CheckCreateDirectoryAccess();
+    if (checkResult->ShouldDenyAccess())
+    {
+        checkProbe(policy, isDir, checkResult);
+    }
+}
+
 CheckFunc Checkers::CheckRead            = checkRead;
 CheckFunc Checkers::CheckLookup          = checkLookup;
 CheckFunc Checkers::CheckWrite           = checkWrite;
@@ -80,3 +90,4 @@ CheckFunc Checkers::CheckReadWrite       = checkReadWrite;
 CheckFunc Checkers::CheckEnumerateDir    = checkEnumerateDir;
 CheckFunc Checkers::CheckCreateSymlink   = checkCreateSymlink;
 CheckFunc Checkers::CheckCreateDirectory = checkCreateDirectory;
+CheckFunc Checkers::CheckCreateDirectoryNoEnforcement = checkCreateDirectoryNoEnforcement;

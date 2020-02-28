@@ -201,10 +201,10 @@ void IOHandler::HandleCreate(const es_message_t *msg)
                             ? Checkers::CheckWrite
                             : enforceDirectoryCreation
                                 ? Checkers::CheckCreateDirectory
-                                : Checkers::CheckProbe;
+                                : Checkers::CheckCreateDirectoryNoEnforcement;
     }
 
-    AccessCheckResult result = CheckAndReport(kOpMacVNodeCreate, info.Path(), checker, msg, isDir);
+    AccessCheckResult result = CheckAndReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, info.Path(), checker, msg, isDir);
     
     if (result.ShouldDenyAccess())
     {

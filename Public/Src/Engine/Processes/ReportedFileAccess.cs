@@ -400,17 +400,23 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Whether this access represents a directory creation
+        /// </summary>
+        public bool IsDirectoryCreation() => 
+            Operation == ReportedFileOperation.CreateDirectory || 
+            Operation == ReportedFileOperation.KAuthCreateDir;
+
+        /// <summary>
+        /// Whether this access represents a directory removal
+        /// </summary>
+        public bool IsDirectoryRemoval() => 
+            Operation == ReportedFileOperation.RemoveDirectory || 
+            Operation == ReportedFileOperation.KAuthDeleteDir;
+
+        /// <summary>
         /// Whether this access represents a directory creation or removal
         /// </summary>
-        public bool IsDirectoryCreationOrRemoval(PathTable pathTable)
-        {
-            return 
-                Operation == ReportedFileOperation.CreateDirectory
-                || Operation == ReportedFileOperation.RemoveDirectory
-                || Operation == ReportedFileOperation.KAuthCreateDir
-                || Operation == ReportedFileOperation.KAuthDeleteDir
-                || (Operation == ReportedFileOperation.MacVNodeCreate && FileUtilities.DirectoryExistsNoFollow(GetPath(pathTable)));
-        }
+        public bool IsDirectoryCreationOrRemoval() => IsDirectoryCreation() || IsDirectoryRemoval();
 
         /// <summary>
         /// Checks if this is a special device type of path for which we should not report a warning.

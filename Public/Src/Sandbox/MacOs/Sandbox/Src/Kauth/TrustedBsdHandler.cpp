@@ -54,8 +54,8 @@ int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath,
         isSymlink                          ? Checkers::CheckCreateSymlink :
         !isDir                             ? Checkers::CheckWrite :
         enforceDirectoryCreation           ? Checkers::CheckCreateDirectory :
-                                             Checkers::CheckProbe;
-    AccessCheckResult result = CheckAndReport(kOpMacVNodeCreate, fullPath, checker, isDir);
+                                             Checkers::CheckCreateDirectoryNoEnforcement;
+    AccessCheckResult result = CheckAndReport(isDir ? kOpKAuthCreateDir : kOpMacVNodeCreate, fullPath, checker, isDir);
 
     if (result.ShouldDenyAccess())
     {

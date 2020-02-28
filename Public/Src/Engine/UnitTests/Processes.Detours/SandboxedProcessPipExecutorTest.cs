@@ -1034,7 +1034,7 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
 
                 // There should be a single reported file access that is not related to creating directories: The attempt to read 'input/in.txt'. The accesses related to writing the file should not be reported here.
-                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.IsDirectoryCreationOrRemoval(context.PathTable)));
+                ObservedFileAccess access = result.ObservedFileAccesses.Single(fa => !fa.Accesses.All(a => a.IsDirectoryCreationOrRemoval()));
                 XAssert.AreEqual(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot), access.Path);
             }
         }

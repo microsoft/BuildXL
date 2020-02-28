@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Compression = Key.UseCompression ? CopyCompression.Gzip : CopyCompression.None
                 };
 
-                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request);
+                AsyncServerStreamingCall<CopyFileResponse> response = _client.CopyFile(request, cancellationToken: context.Token);
 
                 Metadata headers = await response.ResponseHeadersAsync;
 

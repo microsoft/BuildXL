@@ -11,31 +11,8 @@ namespace BuildXL.Utilities.Configuration
     /// <summary>
     /// Settings for MSBuild resolver
     /// </summary>
-    public interface IMsBuildResolverSettings : IResolverSettings, IUntrackingSettings
+    public interface IMsBuildResolverSettings : IProjectGraphResolverSettings, IUntrackingSettings
     {
-        /// <summary>
-        /// The enlistment root. This may not be the location where parsing starts
-        /// <see cref="RootTraversal"/> can override that behavior.
-        /// </summary>
-        AbsolutePath Root { get; }
-
-        /// <summary>
-        /// The directory where the resolver starts parsing the enlistment
-        /// (including all sub-directories recursively). Not necessarily the
-        /// same as <see cref="Root"/> for cases where the codebase to process
-        /// starts in a subdirectory of the enlistment.
-        /// </summary>
-        /// <remarks>
-        /// If this is not specified, it will default to <see cref="Root"/>
-        /// </remarks>
-        AbsolutePath RootTraversal { get; }
-
-        /// <summary>
-        /// The name of the module exposed to other DScript projects that will include all MSBuild projects found under
-        /// the enlistment
-        /// </summary>
-        string ModuleName { get; }
-
         /// <summary>
         /// Output directories to be added in addition to the ones BuildXL predicts
         /// </summary>
@@ -95,11 +72,6 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<string> InitialTargets { get; }
 
         /// <summary>
-        /// The environment that is exposed to the resolver. If not specified, the process environment is used.
-        /// </summary>
-        IReadOnlyDictionary<string, DiscriminatingUnion<string, UnitValue>> Environment { get; }
-
-        /// <summary>
         /// Global properties to use for all projects.
         /// </summary>
         IReadOnlyDictionary<string, string> GlobalProperties { get; }
@@ -124,11 +96,6 @@ namespace BuildXL.Utilities.Configuration
         /// When true, additional engine trace outputs are requested from MSBuild.
         /// </summary>
         bool? EnableEngineTracing { get; }
-
-        /// <summary>
-        /// For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted
-        /// </summary>
-        bool? KeepProjectGraphFile { get; }
 
         /// <summary>
         /// Whether each project has implicit access to the transitive closure of its references. 
@@ -180,50 +147,6 @@ namespace BuildXL.Utilities.Configuration
     /// <nodoc/>
     public static class MsBuildResolverSettingsExtensions
     {
-        /// <summary>
-        /// Process <see cref="IMsBuildResolverSettings.Environment"/> and split the specified environment variables that need to be exposed and tracked from the passthrough environment variables
-        /// </summary>
-        /// <remarks>
-        /// When <see cref="IMsBuildResolverSettings.Environment"/> is null, the current environment is defined as the tracked environment, with no passthroughs
-        /// </remarks>
-        public static void ComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
-        {
-            if (msBuildResolverSettings.Environment == null)
-            {
-                var allEnvironmentVariables = Environment.GetEnvironmentVariables();
-                processEnvironmentUsed = true;
-                trackedEnv = new Dictionary<string, string>(allEnvironmentVariables.Count);
-                foreach (var envVar in allEnvironmentVariables.Keys)
-                {
-                    object value = allEnvironmentVariables[envVar];
-                    trackedEnv[envVar.ToString()] = value.ToString();
-                }
-
-                passthroughEnv = CollectionUtilities.EmptyArray<string>();
-                return;
-            }
-
-            processEnvironmentUsed = false;
-            var trackedList = new Dictionary<string, string>();
-            var passthroughList = new List<string>();
-
-            foreach (var kvp in msBuildResolverSettings.Environment)
-            {
-                var valueOrPassthrough = kvp.Value?.GetValue();
-                if (valueOrPassthrough == null || valueOrPassthrough is string)
-                {
-                    trackedList.Add(kvp.Key, (string)valueOrPassthrough);
-                }
-                else
-                {
-                    passthroughList.Add(kvp.Key);
-                }
-            }
-
-            trackedEnv = trackedList;
-            passthroughEnv = passthroughList;
-        }
-
         /// <summary>
         /// Whether MSBuildRuntime is DotNetCore.
         /// </summary>

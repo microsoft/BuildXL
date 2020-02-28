@@ -129,7 +129,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                 new GlobalProperties(properties), 
                 inputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 outputs ?? CollectionUtilities.EmptyArray<AbsolutePath>(), 
-                projectReferences: references?.ToArray() ?? CollectionUtilities.EmptyArray<ProjectWithPredictions>(),
+                projectReferences: references?.ToArray() ?? null,
                 predictedTargetsToExecute: predictedTargetsToExecute ?? PredictedTargetsToExecute.Create(new[] { "Build" }));
 
             return projectWithPredictions;
@@ -161,8 +161,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
 
                 foreach (var projectWithPredictions in projectsWithPredictions)
                 {
-                    var result = pipConstructor.TrySchedulePipForFile(projectWithPredictions, currentQualifier, out string failureDetail, out Process process);
-                    schedulingResults[projectWithPredictions] = (result, failureDetail, process);
+                    // Is some tests projects are not finalized. Let's do it here.
+                    if (!projectWithPredictions.IsDependenciesSet)
+                    {
+                        projectWithPredictions.SetDependencies(CollectionUtilities.EmptyArray<ProjectWithPredictions>());
+                    }
+
+                    var result = pipConstructor.TrySchedulePipForProject(projectWithPredictions, currentQualifier);
+                    schedulingResults[projectWithPredictions] = (result.Succeeded, result.Succeeded? null : result.Failure.Describe(), result.Succeeded? result.Result : null);
                 }
 
                 return new MsBuildSchedulingResult(PathTable, controller.PipGraph, schedulingResults);

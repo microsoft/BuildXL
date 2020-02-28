@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using Newtonsoft.Json;
 
 namespace BuildXL.FrontEnd.MsBuild.Serialization
@@ -15,10 +16,10 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
     /// This class is designed to be JSON serializable.
     /// The type for the path is parametric since, on the graph serialization process, this is just a string. On the BuildXL side, this becomes an AbsolutePath
     /// </remarks>
-    public sealed class ProjectWithPredictions<TPathType>
+    public class ProjectWithPredictions<TPathType> : IProjectWithDependencies<ProjectWithPredictions<TPathType>>
     {
         [JsonProperty]
-        private IReadOnlyCollection<ProjectWithPredictions<TPathType>> m_projectReferences;
+        private IReadOnlyCollection<ProjectWithPredictions<TPathType>> m_dependencies;
 
         [JsonProperty]
         private PredictedTargetsToExecute m_predictedTargetsToExecute;
@@ -65,14 +66,14 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
 
         /// <nodoc/>
         [JsonIgnore()]
-        public IReadOnlyCollection<ProjectWithPredictions<TPathType>> ProjectReferences
+        public IReadOnlyCollection<ProjectWithPredictions<TPathType>> Dependencies
         {
             get
             {
-                Contract.Assert(m_projectReferences != null, "References are not set");
-                return m_projectReferences;
+                Contract.Assert(m_dependencies != null, "References are not set");
+                return m_dependencies;
             }
-            private set => m_projectReferences = value;
+            private set => m_dependencies = value;
         }
 
         /// <nodoc/>
@@ -95,7 +96,7 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             PredictedInputFiles = predictedInputFiles;
             PredictedOutputFolders = predictedOutputFolders;
             PredictedTargetsToExecute = predictedTargetsToExecute;
-            m_projectReferences = projectReferences;
+            m_dependencies = projectReferences;
         }
 
         /// <summary>
@@ -104,13 +105,18 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
         /// <remarks>
         /// This method should be called only once per instance
         /// </remarks>
-        public void SetReferences(IReadOnlyCollection<ProjectWithPredictions<TPathType>> projectReferences)
+        public void SetDependencies(IReadOnlyCollection<ProjectWithPredictions<TPathType>> projectDependencies)
         {
-            Contract.Assert(projectReferences != null);
-            Contract.Assert(m_projectReferences == null, "Project references can be set only once");
+            Contract.Assert(projectDependencies != null);
+            Contract.Assert(m_dependencies == null, "Project references can be set only once");
 
-            m_projectReferences = projectReferences;
+            m_dependencies = projectDependencies;
         }
+
+        /// <summary>
+        /// Whether dependencies have been set already
+        /// </summary>
+        public bool IsDependenciesSet => m_dependencies != null;
 
         /// <summary>
         /// When constructing the graph under particular scenarios some instances of this class are created without knowing the targets to execute yet, so this allows for a way to set them after the fact.
@@ -124,6 +130,14 @@ namespace BuildXL.FrontEnd.MsBuild.Serialization
             Contract.Assert(m_predictedTargetsToExecute == null, "Predicted targets to execute can be set only once");
 
             m_predictedTargetsToExecute = predictedTargetsToExecute;
+        }
+
+        /// <summary>
+        /// Only projects with non-empty targets can be scheduled
+        /// </summary>
+        public bool CanBeScheduled()
+        {
+            return PredictedTargetsToExecute.Targets.Count != 0;
         }
     }
 }

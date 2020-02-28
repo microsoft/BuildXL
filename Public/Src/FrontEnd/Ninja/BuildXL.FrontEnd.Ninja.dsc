@@ -26,7 +26,7 @@ namespace Ninja {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("Newtonsoft.Json").pkg,
-            BuildXL.FrontEnd.Utilities.dll,
+            Utilities.dll,
             Serialization.dll,
             TypeScript.Net.dll,
             Script.dll,

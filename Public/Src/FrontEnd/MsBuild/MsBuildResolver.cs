@@ -17,6 +17,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
@@ -286,27 +287,40 @@ namespace BuildXL.FrontEnd.MsBuild
                             .Where(project => ProjectMatchesQualifier(project, qualifier))
                             .ToReadOnlySet();
 
-            var graphConstructor = new PipGraphConstructor(
-                m_context,
-                m_host,
-                result.ModuleDefinition,
-                m_msBuildResolverSettings,
-                result.MsBuildLocation,
-                result.DotNetExeLocation,
-                m_frontEndName,
-                m_msBuildWorkspaceResolver.UserDefinedEnvironment,
+            var pipConstructor = new PipConstructor(
+                m_context, 
+                m_host, 
+                result.ModuleDefinition, 
+                m_msBuildResolverSettings, 
+                result.MsBuildLocation, 
+                result.DotNetExeLocation, 
+                m_frontEndName, 
+                m_msBuildWorkspaceResolver.UserDefinedEnvironment, 
                 m_msBuildWorkspaceResolver.UserDefinedPassthroughVariables);
 
-            var scheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);
-                
-            foreach (var kvp in scheduleResult.Item2)
+            var graphConstructor = new ProjectGraphToPipGraphConstructor<ProjectWithPredictions>(pipConstructor, m_host.Configuration.FrontEnd.MaxFrontEndConcurrency());
+            var maybeScheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);
+
+            if (maybeScheduleResult.Succeeded)
             {
-                m_scheduledProcessesByPath.AddOrUpdate((qualifierId, kvp.Key.FullPath),
-                    _ => new List<Process>() { kvp.Value },
-                    (key, processes) => { processes.Add(kvp.Value); return processes; });
+                foreach (var kvp in maybeScheduleResult.Result.ScheduledProcesses)
+                {
+                    m_scheduledProcessesByPath.AddOrUpdate((qualifierId, kvp.Key.FullPath),
+                        _ => new List<Process>() { kvp.Value },
+                        (key, processes) => { processes.Add(kvp.Value); return processes; });
+                }
+            }
+            else
+            {
+                if (maybeScheduleResult.Failure is CycleInProjectsFailure<ProjectWithPredictions> cycleFailure)
+                {
+                    var cycleDescription = string.Join(" -> ", cycleFailure.Cycle.Select(project => project.FullPath.ToString(m_context.PathTable)));
+                    Tracing.Logger.Log.CycleInBuildTargets(m_context.LoggingContext, cycleDescription);
+                }
+                // Else, error has already been logged by the pip constructor
             }
 
-            return scheduleResult.Item1;
+            return maybeScheduleResult.Succeeded;
         }
 
         private bool ProjectMatchesQualifier(ProjectWithPredictions project, GlobalProperties qualifier)

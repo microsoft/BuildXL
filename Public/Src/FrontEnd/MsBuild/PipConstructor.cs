@@ -2,16 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Reflection;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -19,18 +20,15 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Qualifier;
-using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
-using BuildXL.FrontEnd.MsBuild.Serialization;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
     /// <summary>
     /// Creates a pip based on a <see cref="ProjectWithPredictions"/>
     /// </summary>
-    internal sealed class PipConstructor
+    internal sealed class PipConstructor : IProjectToPipConstructor<ProjectWithPredictions>
     {
         private readonly FrontEndContext m_context;
         private readonly ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs> m_processOutputsPerProject = new ConcurrentDictionary<ProjectWithPredictions, MSBuildProjectOutputs>();
@@ -120,9 +118,9 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </summary>
         /// <remarks>
         /// The project is assumed to be scheduled in the right order, where all dependencies are scheduled first.
-        /// See topographical sort performed in <see cref="PipGraphConstructor"/>.
+        /// See topographical sort performed in <see cref="ProjectGraphToPipGraphConstructor{TProject}"/>.
         /// </remarks>
-        public bool TrySchedulePipForFile(ProjectWithPredictions project, QualifierId qualifierId, out string failureDetail, out Process process)
+        public Possible<Process> TrySchedulePipForProject(ProjectWithPredictions project, QualifierId qualifierId)
         {
             try
             {
@@ -130,15 +128,17 @@ namespace BuildXL.FrontEnd.MsBuild
                 if (!TryExecuteArgumentsToPipBuilder(
                     project,
                     qualifierId,
-                    out failureDetail,
-                    out process))
+                    out var failureDetail,
+                    out var process))
                 {
                     Tracing.Logger.Log.SchedulingPipFailure(
                         m_context.LoggingContext,
                         Location.FromFile(project.FullPath.ToString(PathTable)),
                         failureDetail);
-                    return false;
+                    return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, failureDetail, m_context.PathTable));
                 }
+
+                return process;
             }
             catch (Exception ex)
             {
@@ -148,13 +148,8 @@ namespace BuildXL.FrontEnd.MsBuild
                     ex.GetLogEventMessage(),
                     ex.StackTrace);
 
-                process = null;
-                failureDetail = ex.ToString();
-
-                return false;
+                return new Possible<Process>(new MsBuildProjectSchedulingFailure(project, ex.ToString(), m_context.PathTable));
             }
-
-            return true;
         }
 
         private IReadOnlyDictionary<string, string> CreateEnvironment(AbsolutePath logDirectory, ProjectWithPredictions project)
@@ -277,7 +272,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // If the project is not implementing the target protocol, emit corresponding warn/verbose
                 if (!project.ImplementsTargetProtocol)
                 {
-                    if (project.ProjectReferences.Count != 0)
+                    if (project.Dependencies.Count != 0)
                     {
                         // Let's warn about this. Targets of the referenced projects may not be accurate
                         Tracing.Logger.Log.ProjectIsNotSpecifyingTheProjectReferenceProtocol(
@@ -335,7 +330,7 @@ namespace BuildXL.FrontEnd.MsBuild
             ProcessBuilder processBuilder)
         {
             // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
-            var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
+            var knownOutputDirectories = project.Dependencies.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
 
             var pkgRefGen = PathAtom.Create(PathTable.StringTable, ".pkgrefgen");
 
@@ -391,7 +386,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // Add all known explicit inputs from project references. But rule out
                 // projects that have a known empty list of targets: those projects are not scheduled, so
                 // there is nothing to consume from them.
-                references = project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
+                references = project.Dependencies.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0);
             }
 
             var argumentsBuilder = processBuilder.ArgumentsBuilder;
@@ -434,7 +429,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 return;
             }
 
-            foreach (ProjectWithPredictions dependency in project.ProjectReferences.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
+            foreach (ProjectWithPredictions dependency in project.Dependencies.Where(projectReference => projectReference.PredictedTargetsToExecute.Targets.Count != 0))
             {
                 accumulatedDependencies.Add(dependency);
                 ComputeTransitiveDependenciesFor(dependency, accumulatedDependencies);
@@ -957,6 +952,16 @@ namespace BuildXL.FrontEnd.MsBuild
 
                 return PipConstructionUtilities.ComputeSha256(builder.ToString());
             }
+        }
+
+        /// <inheritdoc/>
+        public void NotifyProjectNotScheduled(ProjectWithPredictions<AbsolutePath> project)
+        {
+            // Just log a verbose message indicating the project was not scheduled
+            Tracing.Logger.Log.ProjectWithEmptyTargetsIsNotScheduled(
+                m_context.LoggingContext,
+                Location.FromFile(project.FullPath.ToString(m_context.PathTable)),
+                project.FullPath.GetName(m_context.PathTable).ToString(m_context.StringTable));
         }
 
         /// <summary>

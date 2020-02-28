@@ -455,7 +455,7 @@ namespace MsBuildGraphBuilderTool
                     .Select(projectReference => msBuildNodesToNodeWithPredictionIndex[projectReference])
                     .ToHashSet();
 
-                projectWithPredictions.SetReferences(references);
+                projectWithPredictions.SetDependencies(references);
             }
 
             reporter.ReportMessage("Done predicting inputs and outputs.");

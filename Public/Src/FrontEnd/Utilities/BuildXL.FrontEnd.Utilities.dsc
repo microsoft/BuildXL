@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace BuildXL.FrontEnd.Utilities {
+namespace Utilities {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.Utilities",
@@ -16,6 +16,8 @@ namespace BuildXL.FrontEnd.Utilities {
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("Newtonsoft.Json").pkg,
             Sdk.dll,
+            SdkProjectGraph.dll,
+            TypeScript.Net.dll,
         ],
     });
 }

@@ -196,7 +196,7 @@ namespace BuildXL.Utilities.Tracing
             // from B:\c, with D:\a\b is the subst path and B: is the subst drive. Furthermore, presentation-wise, path translation
             // can result in invalid format. Consider for example the JSON format where paths are property names and all paths are escaped.
             // Any occurence of "B:\\c" will be translated into "D:\a\b\\c".
-            || (int)EventId.CacheMissAnalysis == eventId || (int)EventId.CacheMissAnalysisBatchResults == eventId;
+            || (int)SharedLogEventId.CacheMissAnalysis == eventId || (int)SharedLogEventId.CacheMissAnalysisBatchResults == eventId;
 
         /// <nodoc/>
         public static string TimeSpanToString(TimeDisplay timeDisplay, TimeSpan t)

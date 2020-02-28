@@ -206,7 +206,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             //   => for pipA delayed deletion should still be enabled
             var result = RunScheduler();
             AssertSharedOpaqueOutputDeletionPostponed(numLazilyDeleted: invalidatePipA ? 1 : 0);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 1);
+            AssertInformationalEventLogged(LogEventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 1);
             XAssert.FileDoesNotExist(ToString(sodOutB));
             if (invalidatePipA)
             {
@@ -231,13 +231,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             // invalidate sideband file and run again
             InvalidateSidebandFile(GetSidebandFile(result, pipA.Process), kind);
             RunScheduler().AssertCacheHit(pipA.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             if (kind == SidebandIntegrityCheckFailReason.ChecksumMismatch)
             {
@@ -258,7 +258,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var result = RunScheduler().AssertCacheMiss(pipA1.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             // reset
             ResetPipGraphBuilder();
@@ -270,7 +270,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(pipA1.Process.FormattedSemiStableHash, pipA2.Process.FormattedSemiStableHash);
             RunScheduler().AssertCacheMiss(pipA1.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
         }
 
         [Fact]
@@ -286,7 +286,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipB1 = SchedulePipBuilder(pipBuilderB);
             RunScheduler().AssertCacheMiss(pipA1.Process.PipId, pipB1.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             // reset
             ResetPipGraphBuilder();
@@ -302,7 +302,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // re-run, assert that deletion was not postponed because sideband integrity check failed
             RunScheduler().AssertCacheMiss(pipA2.Process.PipId, pipB2.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
         }
 
         private const string PipATag = "PipA";
@@ -331,7 +331,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 .AssertCacheMiss(pipA.Process.PipId)
                 .AssertPipResultStatus((pipB.Process.PipId, PipResultStatus.Skipped));
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             // run again and assert PipA was a cache hit and deletions were postponed
             RunScheduler(filter: rootFilter)
@@ -367,7 +367,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
             AssertSharedOpaqueOutputDeletionNotPostponed();
-            AssertVerboseEventLogged(EventId.SidebandIntegrityCheckForProcessFailed);
+            AssertVerboseEventLogged(LogEventId.SidebandIntegrityCheckForProcessFailed);
 
             var tagFilter = new TagFilter(StringId.Create(Context.StringTable, PipATag));
             var rootFilter = new RootFilter(tagFilter);
@@ -380,7 +380,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 .AssertCacheHit(pipA.Process.PipId)
                 .AssertPipResultStatus((pipB.Process.PipId, PipResultStatus.Skipped));
             AssertSharedOpaqueOutputDeletionPostponed(numLazilyDeleted: 0);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 1);
+            AssertInformationalEventLogged(LogEventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 1);
 
             // invalidate PipA, run again with the same filer
             //   => PipA is a cache miss, PipB is skipped
@@ -391,7 +391,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 .AssertCacheMiss(pipA.Process.PipId)
                 .AssertPipResultStatus((pipB.Process.PipId, PipResultStatus.Skipped));
             AssertSharedOpaqueOutputDeletionPostponed(numLazilyDeleted: 1);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 0);
+            AssertInformationalEventLogged(LogEventId.DeletingOutputsFromExtraneousSidebandFilesStarted, count: 0);
         }
 
         [Fact]
@@ -457,12 +457,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         private void AssertSharedOpaqueOutputDeletion(bool postponed, int numLazilyDeleted)
         {
             XAssert.IsTrue(postponed || numLazilyDeleted == 0);
-            AssertInformationalEventLogged(EventId.PostponingDeletionOfSharedOpaqueOutputs, count: postponed ? 1 : 0);
+            AssertInformationalEventLogged(LogEventId.PostponingDeletionOfSharedOpaqueOutputs, count: postponed ? 1 : 0);
             AssertInformationalEventLogged(global::BuildXL.Processes.Tracing.LogEventId.SharedOpaqueOutputsDeletedLazily, count: numLazilyDeleted);
 
             // the following events must be logged exactly 0 times when 'postponed'; otherwise, they may or may not be logged
             AssertInformationalEventLogged(LogEventId.ScrubbingSharedOpaquesStarted, count: 0, allowMore: !postponed);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 0, allowMore: !postponed);
+            AssertInformationalEventLogged(LogEventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 0, allowMore: !postponed);
         }
     }
 }

@@ -56,11 +56,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builder);
 
             RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(EventId.DisallowedFileAccessInTopOnlySourceSealedDirectory);
+            AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInTopOnlySourceSealedDirectory);
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -117,8 +117,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -155,8 +155,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]

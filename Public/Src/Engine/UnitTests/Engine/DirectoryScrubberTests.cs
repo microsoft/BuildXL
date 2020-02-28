@@ -137,7 +137,7 @@ namespace Test.BuildXL.Engine
                 mountPathExpander: mountPathExpander);
 
             // NonScrubbable\D produces a warning.
-            AssertWarningEventLogged(EventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable);
+            AssertWarningEventLogged(global::BuildXL.Engine.Tracing.LogEventId.ScrubbingFailedBecauseDirectoryIsNotScrubbable);
 
             // f is in NonScrubbable.
             XAssert.IsTrue(File.Exists(f));

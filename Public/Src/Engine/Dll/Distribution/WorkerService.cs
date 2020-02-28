@@ -891,7 +891,7 @@ namespace BuildXL.Engine.Distribution
                 private Snapshot m_pipStateSnapshot;
 
                 public StatusReporter(LoggingContext loggingContext, WorkerServicePipStateManager stateManager)
-                    : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)EventId.PipStatus }, disabledEvents: null))
+                    : base(Events.Log, warningMapper: null, eventMask: new EventMask(enabledEvents: new int[] { (int)SharedLogEventId.PipStatus }, disabledEvents: null))
                 {
                     m_loggingContext = loggingContext;
                     m_pipStateSnapshot = stateManager.GetSnapshot();
@@ -917,7 +917,7 @@ namespace BuildXL.Engine.Distribution
 
                 protected override void OnEventWritten(EventWrittenEventArgs eventData)
                 {
-                    if (eventData.EventId == (int)EventId.PipStatus)
+                    if (eventData.EventId == (int)SharedLogEventId.PipStatus)
                     {
                         ReportStatus();
                     }

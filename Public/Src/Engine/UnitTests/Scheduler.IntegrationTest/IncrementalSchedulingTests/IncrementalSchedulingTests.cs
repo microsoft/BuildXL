@@ -7,6 +7,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.IncrementalScheduling;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
@@ -195,7 +196,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             result = RunScheduler(schedulerState: result.SchedulerState).AssertScheduled(pipA.Process.PipId).AssertCacheMiss(pipA.Process.PipId);
             result = RunScheduler(schedulerState: result.SchedulerState).AssertNotScheduled(pipA.Process.PipId);
 
-            AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState, count: 3);
+            AssertVerboseEventLogged(LogEventId.IncrementalSchedulingReuseState, count: 3);
 
             foreach (ReuseFromEngineStateKind kind in Enum.GetValues(typeof(ReuseFromEngineStateKind)))
             {

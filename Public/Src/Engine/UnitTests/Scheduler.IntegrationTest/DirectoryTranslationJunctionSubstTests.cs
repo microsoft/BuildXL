@@ -511,8 +511,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
                 AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
     }

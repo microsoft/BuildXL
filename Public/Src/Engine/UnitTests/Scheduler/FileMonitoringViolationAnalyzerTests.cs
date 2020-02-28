@@ -76,7 +76,7 @@ namespace Test.BuildXL.Scheduler
                 "The violator has an undeclared output but it wasn't reported.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -112,7 +112,7 @@ namespace Test.BuildXL.Scheduler
                     producer),
                 "The violator is after the producer, so this should be a double-write on the produced path.");
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -140,7 +140,7 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -179,11 +179,11 @@ namespace Test.BuildXL.Scheduler
 
             if (unexpectedFileAccessesAsErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             }
         }
 
@@ -220,7 +220,7 @@ namespace Test.BuildXL.Scheduler
                 "A MissingSourceDependency should have been reported with no suggested value");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -257,7 +257,7 @@ namespace Test.BuildXL.Scheduler
                 "An UndeclaredReadCycle should have been reported since an earlier pip has an undeclared read of a later pip's output.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -294,7 +294,7 @@ namespace Test.BuildXL.Scheduler
                     producer),
                 "The violator is concurrent with the producer, so this should be a read-race on the produced path.");
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -322,7 +322,7 @@ namespace Test.BuildXL.Scheduler
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
                 out _);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -352,7 +352,7 @@ namespace Test.BuildXL.Scheduler
                     out _); 
 
             AssertTrue(!analyzePipViolationsResult.IsViolationClean);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
         }
 
@@ -381,7 +381,7 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOrderedRead);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -446,7 +446,7 @@ namespace Test.BuildXL.Scheduler
                 "The violator is after the producer, so this should be a double-write on the produced path.");
 
             analyzer.AssertNoExtraViolationsCollected();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -482,7 +482,7 @@ namespace Test.BuildXL.Scheduler
                     producer,
                     null),
                 "The violator has an undeclared output but it wasn't reported.");
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -591,7 +591,7 @@ namespace Test.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadUndeclaredOutput, 2);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, 2);
-            AssertErrorEventLogged(EventId.FileMonitoringError, 3);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 3);
         }
 
         [Fact]
@@ -625,7 +625,7 @@ namespace Test.BuildXL.Scheduler
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
                 out _);
 
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // The ending of the expected log message.
             // The order of files here is based on the sorting in FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths()
@@ -780,11 +780,11 @@ namespace Test.BuildXL.Scheduler
             // Based on the double write policy, the violation is an error or a warning
             if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             }
         }
 
@@ -845,7 +845,7 @@ namespace Test.BuildXL.Scheduler
             // Based on the double write policy, the violation is an error or it is not raised
             if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
             }
             else
@@ -952,7 +952,7 @@ namespace Test.BuildXL.Scheduler
                         violator: producer,
                         related: prober),
                     "The violator created a file/directory after absent path probe but it wasn't reported.");
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
 
             analyzer.AssertNoExtraViolationsCollected();

@@ -76,7 +76,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
                     result.AssertCacheHit(firstProducer.Process.PipId);
                     result.AssertCacheMiss(secondProducer.Process.PipId);
 
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
                 }
 
                 // We are expecting a double write as a verbose message (twice, one for each run)
@@ -86,12 +86,12 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
             // The violation is either an error or a warning depending on expectations
             if (expectViolationIsError)
             {
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertErrorEventLogged(ProcessesLogEventId.DisallowedDoubleWriteOnMerge);
             }
             else
             {
-                AssertWarningEventLogged(EventId.FileMonitoringWarning, 2);
+                AssertWarningEventLogged(LogEventId.FileMonitoringWarning, 2);
             }
         }
 
@@ -110,7 +110,7 @@ namespace IntegrationTest.BuildXL.Scheduler.Containers
 
             // Given the policy and isolation level, both producers should get cached
             RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             string doubleWritePath = doubleWriteArtifact.Path.ToString(Context.PathTable);
 

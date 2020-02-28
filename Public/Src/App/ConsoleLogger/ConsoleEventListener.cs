@@ -220,19 +220,19 @@ namespace BuildXL
         {
             switch (eventData.EventId)
             {
-                case (int)EventId.StartEngineRun:
+                case (int)SharedLogEventId.StartEngineRun:
                     {
                         m_console.ReportProgress((ulong)(m_notWorker ? 0 : 100), 100);
                         break;
                     }
 
-                case (int)EventId.EndEngineRun:
+                case (int)SharedLogEventId.EndEngineRun:
                     {
                         m_console.ReportProgress(100, 100);
                         break;
                     }
 
-                case (int)EventId.PipStatus:
+                case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
                     {
                         ReadOnlyCollection<object> payload = eventData.Payload;

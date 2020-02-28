@@ -506,8 +506,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(PipResultStatus.Failed, fail.PipResults[pipB.PipId]);
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, ArtifactToString(targetFile));
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -711,8 +711,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
             else
             {
@@ -777,7 +777,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact output = CopyFile(symlinkFile1, CreateOutputFileArtifact());
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipCopyFileFailed);
+            AssertErrorEventLogged(LogEventId.PipCopyFileFailed);
         }
 
         [Fact]
@@ -803,7 +803,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact output = CopyFile(symlinkFile1, CreateOutputFileArtifact());
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipCopyFileFailed);
+            AssertErrorEventLogged(LogEventId.PipCopyFileFailed);
         }
 
         [Feature(Features.OpaqueDirectory)]
@@ -847,7 +847,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // check that init pip finished without any errors
             XAssert.AreEqual(PipResultStatus.Succeeded, result.PipResults[pipA.Process.PipId]);
 
-            AssertErrorEventLogged(EventId.PipCopyFileFailed);
+            AssertErrorEventLogged(LogEventId.PipCopyFileFailed);
         }
 
         [Theory]
@@ -1065,7 +1065,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Block creating symlink
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, allowMore: true);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // Test process fails when an operation cannot be completed
             AssertErrorEventLogged(EventId.PipProcessError);

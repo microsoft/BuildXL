@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -104,7 +104,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             // pipC should not be allowed to read from outputB, since the composed shared opaque does not contain it
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]

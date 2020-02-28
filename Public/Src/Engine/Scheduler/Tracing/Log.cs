@@ -66,7 +66,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         [GeneratedEvent(
-            (ushort)EventId.PipWriteFileFailed,
+            (ushort)LogEventId.PipWriteFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -85,7 +85,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         [GeneratedEvent(
-            (ushort)EventId.PipCopyFileFailed,
+            (ushort)LogEventId.PipCopyFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -100,7 +100,7 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.PipIpcFailed,
+            (ushort)LogEventId.PipIpcFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -114,7 +114,7 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.PipIpcFailedDueToInvalidInput,
+            (ushort)LogEventId.PipIpcFailedDueToInvalidInput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -140,7 +140,7 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
-            (ushort)EventId.PipCopyFileFromUntrackableDir,
+            (ushort)LogEventId.PipCopyFileFromUntrackableDir,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -153,7 +153,7 @@ namespace BuildXL.Scheduler.Tracing
             string destination);
 
         [GeneratedEvent(
-            (ushort)EventId.PipCopyFileSourceFileDoesNotExist,
+            (ushort)LogEventId.PipCopyFileSourceFileDoesNotExist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -166,7 +166,7 @@ namespace BuildXL.Scheduler.Tracing
             string destination);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageCachePutContentFailed,
+            (ushort)LogEventId.StorageCachePutContentFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -175,7 +175,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageCachePutContentFailed(LoggingContext loggingContext, string path, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageTrackOutputFailed,
+            (ushort)LogEventId.StorageTrackOutputFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -184,7 +184,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageTrackOutputFailed(LoggingContext loggingContext, string path, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipOutputProduced,
+            (ushort)LogEventId.PipOutputProduced,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -198,7 +198,7 @@ namespace BuildXL.Scheduler.Tracing
             string reparsePointInfo);
 
         [GeneratedEvent(
-            (ushort)EventId.PipOutputUpToDate,
+            (ushort)LogEventId.PipOutputUpToDate,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -212,7 +212,7 @@ namespace BuildXL.Scheduler.Tracing
             string reparsePointInfo);
 
         [GeneratedEvent(
-            (ushort)EventId.PipOutputNotMaterialized,
+            (ushort)LogEventId.PipOutputNotMaterialized,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -226,7 +226,7 @@ namespace BuildXL.Scheduler.Tracing
             string reparsePointInfo);
 
         [GeneratedEvent(
-            (ushort)EventId.PipOutputDeployedFromCache,
+            (ushort)LogEventId.PipOutputDeployedFromCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -240,7 +240,7 @@ namespace BuildXL.Scheduler.Tracing
             string reparsePointInfo);
 
         [GeneratedEvent(
-            (ushort)EventId.PipWarningsFromCache,
+            (ushort)LogEventId.PipWarningsFromCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -249,7 +249,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipWarningsFromCache(LoggingContext loggingContext, string pipDescription, int numberOfWarnings);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessPipCacheMiss,
+            (ushort)LogEventId.ProcessPipCacheMiss,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -258,7 +258,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessPipCacheMiss(LoggingContext loggingContext, string pipDescription, string fingerprint);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessPipProcessWeight,
+            (ushort)LogEventId.ProcessPipProcessWeight,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -267,7 +267,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessPipProcessWeight(LoggingContext loggingContext, string pipDescription, int weight);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessPipCacheHit,
+            (ushort)LogEventId.ProcessPipCacheHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -294,7 +294,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void AddAugmentingPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, int pathCount, int pathSetCount, int minPathCount, int maxPathCount, string result);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedDueToServicesFailedToRun,
+            (ushort)LogEventId.PipFailedDueToServicesFailedToRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -303,7 +303,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipFailedDueToServicesFailedToRun(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache,
+            (ushort)LogEventId.PipMaterializeDependenciesFailureUnrelatedToCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -321,7 +321,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipMaterializeDependenciesFromCacheFailure,
+            (ushort)LogEventId.PipMaterializeDependenciesFromCacheFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -339,7 +339,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFromCacheFailureDueToFileDeletionFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.DetailedPipMaterializeDependenciesFromCacheFailure,
+            (ushort)LogEventId.DetailedPipMaterializeDependenciesFromCacheFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -420,7 +420,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipFingerprintData(LoggingContext loggingContext, int fingerprintVersion, string fingerprintSalt);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageCacheIngressFallbackContentToMakePrivateError,
+            (ushort)LogEventId.StorageCacheIngressFallbackContentToMakePrivateError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -429,7 +429,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageCacheIngressFallbackContentToMakePrivateError(LoggingContext loggingContext, string contentHash, string fallbackPath, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessDescendantOfUncacheable,
+            (ushort)LogEventId.ProcessDescendantOfUncacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -438,7 +438,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessDescendantOfUncacheable(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations,
+            (ushort)LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -456,7 +456,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessNotStoredToWarningsUnderWarnAsError(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessNotStoredToCachedDueToItsInherentUncacheability,
+            (ushort)LogEventId.ProcessNotStoredToCachedDueToItsInherentUncacheability,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -465,7 +465,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessNotStoredToCacheDueToInherentUncacheability(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ContentMissAfterContentFingerprintCacheDescriptorHit,
+            (ushort)LogEventId.ContentMissAfterContentFingerprintCacheDescriptorHit,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -474,7 +474,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleContentMissAfterContentFingerprintCacheDescriptorHit(LoggingContext loggingContext, string pipDescription, string contentFingerprint, ulong uniqueId);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedToMaterializeItsOutputs,
+            (ushort)LogEventId.PipFailedToMaterializeItsOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -483,7 +483,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipFailedToMaterializeItsOutputs(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.ScheduleArtificialCacheMiss,
+            (ushort)LogEventId.ScheduleArtificialCacheMiss,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -492,7 +492,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleArtificialCacheMiss(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ScheduleProcessConfiguredUncacheable,
+            (ushort)LogEventId.ScheduleProcessConfiguredUncacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -501,7 +501,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessConfiguredUncacheable(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheDescriptorMissForContentFingerprint,
+            (ushort)LogEventId.CacheDescriptorMissForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -510,7 +510,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, bool isAugmented);
 
         [GeneratedEvent(
-            (ushort)EventId.InvalidCacheDescriptorForContentFingerprint,
+            (ushort)LogEventId.InvalidCacheDescriptorForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -519,7 +519,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleInvalidCacheDescriptorForContentFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, int cacheDepth, string error);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheDescriptorHitForContentFingerprint,
+            (ushort)LogEventId.CacheDescriptorHitForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -528,7 +528,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleCacheDescriptorHitForContentFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint, ulong uniqueId, int cacheDepth);
 
         [GeneratedEvent(
-            (ushort)EventId.DisallowedFileAccessInSealedDirectory,
+            (ushort)LogEventId.DisallowedFileAccessInSealedDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -538,7 +538,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleDisallowedFileAccessInSealedDirectory(LoggingContext loggingContext, string pipDescription, string path);
 
         [GeneratedEvent(
-            (ushort)EventId.DisallowedFileAccessInTopOnlySourceSealedDirectory,
+            (ushort)LogEventId.DisallowedFileAccessInTopOnlySourceSealedDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -547,7 +547,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DisallowedFileAccessInTopOnlySourceSealedDirectory(LoggingContext loggingContext, string pipDescription, string path);
 
         [GeneratedEvent(
-            (ushort)EventId.PipInputAssertion,
+            (ushort)LogEventId.PipInputAssertion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -569,7 +569,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void AbortObservedInputProcessorBecauseFileUntracked(LoggingContext loggingContext, string pipDescription, string path, string mount);
 
         [GeneratedEvent(
-            (ushort)EventId.FileAccessCheckProbeFailed,
+            (ushort)LogEventId.FileAccessCheckProbeFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -578,7 +578,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleFileAccessCheckProbeFailed(LoggingContext loggingContext, string pipDescription, string path, string error);
 
         [GeneratedEvent(
-            (ushort)EventId.PipDirectoryMembershipAssertion,
+            (ushort)LogEventId.PipDirectoryMembershipAssertion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -591,7 +591,7 @@ namespace BuildXL.Scheduler.Tracing
             string fingerprint);
 
         [GeneratedEvent(
-            (ushort)EventId.PipDirectoryMembershipFingerprintingError,
+            (ushort)LogEventId.PipDirectoryMembershipFingerprintingError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -600,7 +600,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipDirectoryMembershipFingerprintingError(LoggingContext loggingContext, string pipDescription, string path);
 
         [GeneratedEvent(
-            (ushort)EventId.TryBringContentToLocalCache,
+            (ushort)LogEventId.TryBringContentToLocalCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics | (int)Keywords.Performance,
@@ -609,7 +609,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleTryBringContentToLocalCache(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessingPipOutputFileFailed,
+            (ushort)LogEventId.ProcessingPipOutputFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -618,7 +618,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessingPipOutputFileFailed(LoggingContext loggingContext, string pipDescription, string path, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessingPipOutputDirectoryFailed,
+            (ushort)LogEventId.ProcessingPipOutputDirectoryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -782,7 +782,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void ProblematicWorkerExit(LoggingContext context, string workerName);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageCacheGetContentError,
+            (ushort)LogEventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -791,7 +791,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheGetContentError(LoggingContext loggingContext, string contentHash, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageCacheGetContentWarning,
+            (ushort)LogEventId.StorageCacheGetContentWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -800,7 +800,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageCacheGetContentWarning(LoggingContext loggingContext, string pipDescription, string contentHash, string destinationPath, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.CopyingPipOutputToLocalStorage,
+            (ushort)LogEventId.CopyingPipOutputToLocalStorage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -815,7 +815,7 @@ namespace BuildXL.Scheduler.Tracing
             long remotelyCopyBytes);
 
         [GeneratedEvent(
-            (int)EventId.CopyingPipInputToLocalStorage,
+            (int)LogEventId.CopyingPipInputToLocalStorage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
@@ -831,7 +831,7 @@ namespace BuildXL.Scheduler.Tracing
             long remotelyCopyBytes);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageBringProcessContentLocalWarning,
+            (ushort)LogEventId.StorageBringProcessContentLocalWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -840,7 +840,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void StorageBringProcessContentLocalWarning(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToMaterializeFileWarning,
+            (ushort)LogEventId.FailedToMaterializeFileWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -849,7 +849,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void FailedToLoadFileContentWarning(LoggingContext loggingContext, string pipDescription, string contentHash, string destinationPath);
 
         [GeneratedEvent(
-            (ushort)EventId.MaterializeFilePipProducerNotFound,
+            (ushort)LogEventId.MaterializeFilePipProducerNotFound,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -862,7 +862,7 @@ namespace BuildXL.Scheduler.Tracing
         #region Two-phase fingerprinting
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseFailureQueryingWeakFingerprint,
+            (int)LogEventId.TwoPhaseFailureQueryingWeakFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -871,7 +871,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseFailureQueryingWeakFingerprint(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string errorMessage);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseCacheDescriptorMissDueToStrongFingerprints,
+            (int)LogEventId.TwoPhaseCacheDescriptorMissDueToStrongFingerprints,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -880,7 +880,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToStrongFingerprints(LoggingContext loggingContext, string pipDescription, string contentFingerprint, bool isAugmentedWeakFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseStrongFingerprintComputedForPathSet,
+            (int)LogEventId.TwoPhaseStrongFingerprintComputedForPathSet,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -889,7 +889,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintComputedForPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseStrongFingerprintMatched,
+            (int)LogEventId.TwoPhaseStrongFingerprintMatched,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -898,7 +898,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintMatched(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string strongFingerprintCacheId);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseStrongFingerprintRejected,
+            (int)LogEventId.TwoPhaseStrongFingerprintRejected,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -907,7 +907,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintRejected(LoggingContext loggingContext, string pipDescription, string pathSetHash, string rejectedStrongFingerprint, string availableStrongFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseStrongFingerprintUnavailableForPathSet,
+            (int)LogEventId.TwoPhaseStrongFingerprintUnavailableForPathSet,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -916,7 +916,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintUnavailableForPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseCacheEntryMissing,
+            (int)LogEventId.TwoPhaseCacheEntryMissing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -926,7 +926,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheEntryMissing(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string strongFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseFetchingCacheEntryFailed,
+            (int)LogEventId.TwoPhaseFetchingCacheEntryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -935,7 +935,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseFetchingCacheEntryFailed(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string failure);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseMissingMetadataForCacheEntry,
+            (int)LogEventId.TwoPhaseMissingMetadataForCacheEntry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -945,7 +945,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseMissingMetadataForCacheEntry(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string metadataHash);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseFetchingMetadataForCacheEntryFailed,
+            (int)LogEventId.TwoPhaseFetchingMetadataForCacheEntryFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -954,7 +954,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseFetchingMetadataForCacheEntryFailed(LoggingContext loggingContext, string pipDescription, string strongFingerprint, string metadataHash, string failure);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseLoadingPathSetFailed,
+            (int)LogEventId.TwoPhaseLoadingPathSetFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -963,7 +963,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseLoadingPathSetFailed(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string failure);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhasePathSetInvalid,
+            (int)LogEventId.TwoPhasePathSetInvalid,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -972,7 +972,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhasePathSetInvalid(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string failure);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhasePublishingCacheEntryFailedWarning,
+            (int)LogEventId.TwoPhasePublishingCacheEntryFailedWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -981,7 +981,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhasePublishingCacheEntryFailedWarning(LoggingContext loggingContext, string pipDescription, string failure, string cachingInfo);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhasePublishingCacheEntryFailedError,
+            (int)LogEventId.TwoPhasePublishingCacheEntryFailedError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -990,7 +990,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhasePublishingCacheEntryFailedError(LoggingContext loggingContext, string pipDescription, string failure, string cachingInfo);
 
         [GeneratedEvent(
-            (int)EventId.ConvertToRunnableFromCacheFailed,
+            (int)LogEventId.ConvertToRunnableFromCacheFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -999,7 +999,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ConvertToRunnableFromCacheFailed(LoggingContext loggingContext, string pipDescription, string cacheMissType);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseCacheEntryConflict,
+            (int)LogEventId.TwoPhaseCacheEntryConflict,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1009,7 +1009,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheEntryConflict(LoggingContext loggingContext, string pipDescription, string strongFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseFailedToStoreMetadataForCacheEntry,
+            (int)LogEventId.TwoPhaseFailedToStoreMetadataForCacheEntry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1018,7 +1018,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseFailedToStoreMetadataForCacheEntry(LoggingContext loggingContext, string pipDescription, string failure);
 
         [GeneratedEvent(
-            (int)EventId.TwoPhaseCacheEntryPublished,
+            (int)LogEventId.TwoPhaseCacheEntryPublished,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1027,13 +1027,13 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheEntryPublished(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheFingerprintHitSources,
+            (ushort)LogEventId.CacheFingerprintHitSources,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             Message = "Cache Fingerprint Hit Sources")]
         public abstract void CacheFingerprintHitSources(LoggingContext context, IDictionary<string, int> entryMatches);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageCacheContentHitSources,
+            (ushort)LogEventId.StorageCacheContentHitSources,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             Message = "Cache Content Hit Sources")]
         public abstract void StorageCacheContentHitSources(LoggingContext context, IDictionary<string, int> entryMatches);
@@ -1063,7 +1063,7 @@ namespace BuildXL.Scheduler.Tracing
         #region Stats
 
         [GeneratedEvent(
-            (ushort)EventId.IncrementalBuildSavingsSummary,
+            (ushort)LogEventId.IncrementalBuildSavingsSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
@@ -1072,7 +1072,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IncrementalBuildSavingsSummary(LoggingContext loggingContext, double cacheRate, long totalProcesses, long ignoredProcesses);
 
         [GeneratedEvent(
-            (ushort)EventId.IncrementalBuildSharedCacheSavingsSummary,
+            (ushort)LogEventId.IncrementalBuildSharedCacheSavingsSummary,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
@@ -1081,7 +1081,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IncrementalBuildSharedCacheSavingsSummary(LoggingContext loggingContext, double relativeCacheRate, long remoteProcesses, string contentDownloaded);
 
         [GeneratedEvent(
-            (ushort)EventId.SchedulerDidNotConverge,
+            (ushort)LogEventId.SchedulerDidNotConverge,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
@@ -1090,7 +1090,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void SchedulerDidNotConverge(LoggingContext loggingContext, string executionLogPath, string executionAnalyzerPath, string outputFilePath);
 
         [GeneratedEvent(
-            (ushort)EventId.RemoteCacheHitsGreaterThanTotalCacheHits,
+            (ushort)LogEventId.RemoteCacheHitsGreaterThanTotalCacheHits,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
@@ -1099,7 +1099,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void RemoteCacheHitsGreaterThanTotalCacheHits(LoggingContext loggingContext, long remoteHits, long totalHits);
 
         [GeneratedEvent(
-            (ushort)EventId.PipsSucceededStats,
+            (ushort)LogEventId.PipsSucceededStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Performance | Keywords.UserMessage),
@@ -1108,7 +1108,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipsSucceededStats(LoggingContext loggingContext, long numberOfPips);
 
         [GeneratedEvent(
-            (ushort)EventId.PipsFailedStats,
+            (ushort)LogEventId.PipsFailedStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1117,7 +1117,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipsFailedStats(LoggingContext loggingContext, long numberOfPips);
 
         [GeneratedEvent(
-            (ushort)EventId.PipDetailedStats,
+            (ushort)LogEventId.PipDetailedStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1126,7 +1126,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipDetailedStats(LoggingContext loggingContext, string pipType, long success, long fail, long skipped, long ignored, long total);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessesCacheMissStats,
+            (ushort)LogEventId.ProcessesCacheMissStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1135,7 +1135,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessesCacheMissStats(LoggingContext loggingContext, long numberOfProcesses);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessesCacheHitStats,
+            (ushort)LogEventId.ProcessesCacheHitStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1144,7 +1144,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessesCacheHitStats(LoggingContext loggingContext, long numberOfProcesses);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessesSemaphoreQueuedStats,
+            (ushort)LogEventId.ProcessesSemaphoreQueuedStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1153,7 +1153,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ProcessesSemaphoreQueuedStats(LoggingContext loggingContext, long numberOfProcesses);
 
         [GeneratedEvent(
-            (ushort)EventId.SourceFileHashingStats,
+            (ushort)LogEventId.SourceFileHashingStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1162,7 +1162,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void SourceFileHashingStats(LoggingContext loggingContext, long sourceFilesHashed, long sourceFilesUnchanged, long sourceFilesUntracked, long sourceFilesAbsent);
 
         [GeneratedEvent(
-            (ushort)EventId.OutputFileHashingStats,
+            (ushort)LogEventId.OutputFileHashingStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1171,7 +1171,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void OutputFileHashingStats(LoggingContext loggingContext, long outputFilesHashed, long outputFilesUnchanged);
 
         [GeneratedEvent(
-            (ushort)EventId.OutputFileStats,
+            (ushort)LogEventId.OutputFileStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1180,7 +1180,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void OutputFileStats(LoggingContext loggingContext, long outputFilesNewlyCreated, long outputFilesDeployed, long outputFilesUpToDate);
 
         [GeneratedEvent(
-            (ushort)EventId.WarningStats,
+            (ushort)LogEventId.WarningStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1189,7 +1189,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void WarningStats(LoggingContext loggingContext, int pipsWithWarnings, long warnings, int pipsWithWarningsFromCache, long warningsFromCache);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheTransferStats,
+            (ushort)LogEventId.CacheTransferStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1261,7 +1261,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StartCancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, long elapsedMs, int peakMemoryMb, int expectedMemoryMb);
 
         [GeneratedEvent(
-            (int)EventId.LogMismatchedDetoursErrorCount,
+            (int)LogEventId.LogMismatchedDetoursErrorCount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1270,7 +1270,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LogMismatchedDetoursErrorCount(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.PipExitedWithAzureWatsonExitCode,
+            (int)LogEventId.PipExitedWithAzureWatsonExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1279,7 +1279,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipExitedWithAzureWatsonExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (int)EventId.FailPipOutputWithNoAccessed,
+            (int)LogEventId.FailPipOutputWithNoAccessed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -1298,7 +1298,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipCacheMetadataBelongToAnotherPip(LoggingContext context, long pipSemiStableHash, string pipDescription, string details);
 
         [GeneratedEvent(
-            (int)EventId.PipWillBeRetriedDueToExitCode,
+            (int)LogEventId.PipWillBeRetriedDueToExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1334,7 +1334,7 @@ namespace BuildXL.Scheduler.Tracing
             long pipsWaitingOnSemaphore);
 
         [GeneratedEvent(
-            (ushort)EventId.TerminatingDueToPipFailure,
+            (ushort)LogEventId.TerminatingDueToPipFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -1343,7 +1343,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleTerminatingDueToPipFailure(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.PipSemaphoreQueued,
+            (ushort)LogEventId.PipSemaphoreQueued,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1352,7 +1352,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipSemaphoreQueued(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.PipSemaphoreDequeued,
+            (ushort)LogEventId.PipSemaphoreDequeued,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1361,7 +1361,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipSemaphoreDequeued(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.IgnoringPipSinceScheduleIsTerminating,
+            (ushort)LogEventId.IgnoringPipSinceScheduleIsTerminating,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1370,7 +1370,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleIgnoringPipSinceScheduleIsTerminating(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.CancelingPipSinceScheduleIsTerminating,
+            (ushort)LogEventId.CancelingPipSinceScheduleIsTerminating,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1379,7 +1379,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleCancelingPipSinceScheduleIsTerminating(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedDueToFailedPrerequisite,
+            (ushort)LogEventId.PipFailedDueToFailedPrerequisite,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1394,7 +1394,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (ushort)EventId.StartAssigningPriorities,
+            (ushort)LogEventId.StartAssigningPriorities,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1404,7 +1404,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StartAssigningPriorities(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.EndAssigningPriorities,
+            (ushort)LogEventId.EndAssigningPriorities,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1414,7 +1414,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void EndAssigningPriorities(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.StartSettingPipStates,
+            (ushort)LogEventId.StartSettingPipStates,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1424,7 +1424,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StartSettingPipStates(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.EndSettingPipStates,
+            (ushort)LogEventId.EndSettingPipStates,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -1434,7 +1434,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void EndSettingPipStates(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.HashedSourceFile,
+            (ushort)LogEventId.HashedSourceFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -1457,7 +1457,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToHashInputFile,
+            (ushort)LogEventId.FailedToHashInputFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1466,7 +1466,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void FailedToHashInputFile(LoggingContext loggingContext, string pipDescription, string path, int errorCode, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToHashInputFileDueToFailedExistenceCheck,
+            (ushort)LogEventId.FailedToHashInputFileDueToFailedExistenceCheck,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1475,7 +1475,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void FailedToHashInputFileDueToFailedExistenceCheck(LoggingContext loggingContext, string pipDescription, string path, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.FailedToHashInputFileBecauseTheFileIsDirectory,
+            (ushort)LogEventId.FailedToHashInputFileBecauseTheFileIsDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1484,7 +1484,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void FailedToHashInputFileBecauseTheFileIsDirectory(LoggingContext loggingContext, string pipDescription, string path);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageUsingKnownHashForSourceFile,
+            (ushort)LogEventId.StorageUsingKnownHashForSourceFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -1493,7 +1493,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageUsingKnownHashForSourceFile(LoggingContext loggingContext, string sourceFilePath, string hash);
 
         [GeneratedEvent(
-            (ushort)EventId.StorageHashedSourceFile,
+            (ushort)LogEventId.StorageHashedSourceFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -1502,7 +1502,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StorageHashedSourceFile(LoggingContext loggingContext, string sourceFilePath, string hash);
 
         [GeneratedEvent(
-            (ushort)EventId.IgnoringUntrackedSourceFileNotUnderMount,
+            (ushort)LogEventId.IgnoringUntrackedSourceFileNotUnderMount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -1511,7 +1511,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleIgnoringUntrackedSourceFileNotUnderMount(LoggingContext loggingContext, string untrackedFileFullPath);
 
         [GeneratedEvent(
-            (ushort)EventId.IgnoringUntrackedSourceFileUnderMountWithHashingDisabled,
+            (ushort)LogEventId.IgnoringUntrackedSourceFileUnderMountWithHashingDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1525,7 +1525,7 @@ namespace BuildXL.Scheduler.Tracing
         private const string PipEndMessage = "[{pipDescription}] Finish Processing";
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessStart,
+            (ushort)LogEventId.ProcessStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1543,7 +1543,7 @@ namespace BuildXL.Scheduler.Tracing
             string executableHash);
 
         [GeneratedEvent(
-            (ushort)EventId.ProcessEnd,
+            (ushort)LogEventId.ProcessEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1559,7 +1559,7 @@ namespace BuildXL.Scheduler.Tracing
             string executableHash);
 
         [GeneratedEvent(
-            (ushort)EventId.CopyFileStart,
+            (ushort)LogEventId.CopyFileStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1575,7 +1575,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (ushort)EventId.CopyFileEnd,
+            (ushort)LogEventId.CopyFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1585,7 +1585,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void CopyFileEnd(LoggingContext loggingContext, string pipDescription, string pipValueId, int status, long ticks);
 
         [GeneratedEvent(
-            (ushort)EventId.WriteFileStart,
+            (ushort)LogEventId.WriteFileStart,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1601,7 +1601,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (ushort)EventId.WriteFileEnd,
+            (ushort)LogEventId.WriteFileEnd,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.Diagnostics | Keywords.Performance),
@@ -1613,7 +1613,7 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.StartSchedulingPipsWithFilter,
+            (ushort)LogEventId.StartSchedulingPipsWithFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1623,7 +1623,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void StartSchedulingPipsWithFilter(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.EndSchedulingPipsWithFilter,
+            (ushort)LogEventId.EndSchedulingPipsWithFilter,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1633,7 +1633,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void EndSchedulingPipsWithFilter(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.StartComputingPipFingerprints,
+            (ushort)LogEventId.StartComputingPipFingerprints,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -1642,7 +1642,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleStartComputingPipFingerprints(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.StartMaterializingPipOutputs,
+            (ushort)LogEventId.StartMaterializingPipOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -1651,7 +1651,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleStartMaterializingPipOutputs(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.StartMarkingInvalidPipOutputs,
+            (ushort)LogEventId.StartMarkingInvalidPipOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -1660,7 +1660,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleStartMarkingInvalidPipOutputs(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.StartExecutingPips,
+            (ushort)LogEventId.StartExecutingPips,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -1669,7 +1669,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleStartExecutingPips(LoggingContext loggingContext);
 
         [GeneratedEvent(
-            (ushort)EventId.TopDownPipForMaterializingOutputs,
+            (ushort)LogEventId.TopDownPipForMaterializingOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1684,7 +1684,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (ushort)EventId.InvalidatedDoneMaterializingOutputPip,
+            (ushort)LogEventId.InvalidatedDoneMaterializingOutputPip,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1699,7 +1699,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (ushort)EventId.PossiblyInvalidatingPip,
+            (ushort)LogEventId.PossiblyInvalidatingPip,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1708,7 +1708,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void SchedulePossiblyInvalidatingPip(LoggingContext loggingContext, string pipDescriptionInvalidator, string pipDescriptionInvalidated);
 
         [GeneratedEvent(
-            (ushort)EventId.BottomUpPipForPipExecutions,
+            (ushort)LogEventId.BottomUpPipForPipExecutions,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -1723,7 +1723,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (int)EventId.StorageCacheGetContentUsingFallback,
+            (int)LogEventId.StorageCacheGetContentUsingFallback,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -1860,7 +1860,7 @@ namespace BuildXL.Scheduler.Tracing
         private const EventTask StatusTask = Tasks.Scheduler;
 
         [GeneratedEvent(
-            (ushort)EventId.PipStatus,
+            (ushort)SharedLogEventId.PipStatus,
             EventGenerators = StatusGenerators,
             EventLevel = StatusLevel,
             Keywords = (int)(StatusKeywords | Keywords.Overwritable),
@@ -1929,7 +1929,7 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-          (int)EventId.FileMonitoringError,
+          (int)LogEventId.FileMonitoringError,
           EventGenerators = EventGenerators.LocalOnly,
           EventLevel = Level.Error,
           Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -1942,7 +1942,7 @@ namespace BuildXL.Scheduler.Tracing
             string paths);
 
         [GeneratedEvent(
-            (int)EventId.FileMonitoringWarning,
+            (int)LogEventId.FileMonitoringWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -2285,7 +2285,7 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedTempDirectoryCleanup,
+            (ushort)LogEventId.PipFailedTempDirectoryCleanup,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -2294,7 +2294,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipFailedTempDirectoryCleanup(LoggingContext context, string directory, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipFailedTempFileCleanup,
+            (ushort)LogEventId.PipFailedTempFileCleanup,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -2303,7 +2303,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipFailedTempFileCleanup(LoggingContext context, string file, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.PipTempCleanerThreadSummary,
+            (ushort)LogEventId.PipTempCleanerThreadSummary,
             EventLevel = Level.Verbose,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)Keywords.UserMessage,
@@ -2312,7 +2312,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
 
         [GeneratedEvent(
-            (int)EventId.RunningTimeAdded,
+            (int)LogEventId.RunningTimeAdded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -2321,7 +2321,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void RunningTimeAdded(LoggingContext context, long semiStableHash, uint milliseconds);
 
         [GeneratedEvent(
-            (int)EventId.RunningTimeUpdated,
+            (int)LogEventId.RunningTimeUpdated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -2330,7 +2330,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void RunningTimeUpdated(LoggingContext context, long semiStableHash, uint milliseconds, uint oldMilliseconds, int relativeDeviation);
 
         [GeneratedEvent(
-            (int)EventId.RunningTimeStats,
+            (int)LogEventId.RunningTimeStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
@@ -2339,7 +2339,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void RunningTimeStats(LoggingContext context, long hits, long misses, long added, long updated, int averageRuntimeDeviation);
 
         [GeneratedEvent(
-            (int)EventId.PipQueueConcurrency,
+            (int)LogEventId.PipQueueConcurrency,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2348,7 +2348,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipQueueConcurrency(LoggingContext context, int io, int chooseWorkerCacheLookup, int cacheLookup, int chooseWorkerCpu, int cpu, int materialize, int light, string masterCacheLookupMultiplier, string masterCpuMultiplier);
 
         [GeneratedEvent(
-            (int)EventId.UnableToCreateExecutionLogFile,
+            (int)LogEventId.UnableToCreateExecutionLogFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2491,7 +2491,7 @@ namespace BuildXL.Scheduler.Tracing
                 string exception);
 
         [GeneratedEvent(
-            (int)EventId.InvalidProcessPipDueToExplicitArtifactsInOpaqueDirectory,
+            (int)LogEventId.InvalidProcessPipDueToExplicitArtifactsInOpaqueDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2509,7 +2509,7 @@ namespace BuildXL.Scheduler.Tracing
             string opaqueDirectoryPath);
 
         [GeneratedEvent(
-            (int)EventId.InvalidInputSinceSourceFileCannotBeInsideOutputDirectory,
+            (int)LogEventId.InvalidInputSinceSourceFileCannotBeInsideOutputDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2532,7 +2532,7 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipValueId);
 
         [GeneratedEvent(
-            (int)EventId.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs,
+            (int)LogEventId.AllowSameContentPolicyNotAvailableForStaticallyDeclaredOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -2546,7 +2546,7 @@ namespace BuildXL.Scheduler.Tracing
             string outputFile);
 
         [GeneratedEvent(
-            (int)EventId.DirectoryFingerprintExercisedRule,
+            (int)LogEventId.DirectoryFingerprintExercisedRule,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2555,7 +2555,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirectoryFingerprintExercisedRule(LoggingContext context, string ruleName, string path);
 
         [GeneratedEvent(
-            (int)EventId.PathSetValidationTargetFailedAccessCheck,
+            (int)LogEventId.PathSetValidationTargetFailedAccessCheck,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics),
@@ -2564,7 +2564,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PathSetValidationTargetFailedAccessCheck(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.InvalidMetadataStaticOutputNotFound,
+            (int)LogEventId.InvalidMetadataStaticOutputNotFound,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -2573,7 +2573,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void InvalidMetadataStaticOutputNotFound(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.InvalidMetadataRequiredOutputIsAbsent,
+            (int)LogEventId.InvalidMetadataRequiredOutputIsAbsent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -2582,7 +2582,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void InvalidMetadataRequiredOutputIsAbsent(LoggingContext context, string pipDescription, string path);
 
         [GeneratedEvent(
-            (int)EventId.DirectoryFingerprintComputedFromGraph,
+            (int)LogEventId.DirectoryFingerprintComputedFromGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -2591,7 +2591,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirectoryFingerprintComputedFromGraph(LoggingContext context, string path, string fingerprint, int memberCount, string processDescription);
 
         [GeneratedEvent(
-            (int)EventId.DirectoryFingerprintingFilesystemEnumerationFailed,
+            (int)LogEventId.DirectoryFingerprintingFilesystemEnumerationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2600,7 +2600,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirectoryFingerprintingFilesystemEnumerationFailed(LoggingContext context, string path, string failure);
 
         [GeneratedEvent(
-            (int)EventId.DirectoryFingerprintComputedFromFilesystem,
+            (int)LogEventId.DirectoryFingerprintComputedFromFilesystem,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
@@ -2609,7 +2609,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirectoryFingerprintComputedFromFilesystem(LoggingContext context, string path, string fingerprint, int memberCount);
 
         [GeneratedEvent(
-            (int)EventId.JournalProcessingStatisticsForScheduler,
+            (int)LogEventId.JournalProcessingStatisticsForScheduler,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2618,7 +2618,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void JournalProcessingStatisticsForScheduler(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (int)EventId.JournalProcessingStatisticsForSchedulerTelemetry,
+            (int)LogEventId.JournalProcessingStatisticsForSchedulerTelemetry,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2627,7 +2627,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void JournalProcessingStatisticsForSchedulerTelemetry(LoggingContext context, string scanningJournalStatus, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-            (int)EventId.ProcessRetries,
+            (int)LogEventId.ProcessRetries,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2636,7 +2636,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
 
         [GeneratedEvent(
-            (int)EventId.ProcessPattern,
+            (int)LogEventId.ProcessPattern,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2645,7 +2645,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void ProcessPattern(LoggingContext context, string pipPropertyImpactedPips, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingNewlyPresentFile,
+            (int)LogEventId.IncrementalSchedulingNewlyPresentFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2654,7 +2654,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingNewlyPresentFile(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingNewlyPresentDirectory,
+            (int)LogEventId.IncrementalSchedulingNewlyPresentDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2663,7 +2663,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingNewlyPresentDirectory(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingSourceFileIsDirty,
+            (int)LogEventId.IncrementalSchedulingSourceFileIsDirty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2672,7 +2672,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingSourceFileIsDirty(LoggingContext context, string reason, string pathChangeReason);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPipIsDirty,
+            (int)LogEventId.IncrementalSchedulingPipIsDirty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2681,7 +2681,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipIsDirty(LoggingContext context, long pipHash, string reason, string pathChangeReason);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPipIsPerpetuallyDirty,
+            (int)LogEventId.IncrementalSchedulingPipIsPerpetuallyDirty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2690,7 +2690,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipIsPerpetuallyDirty(LoggingContext context, long pipHash, string reason);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingReadDirtyNodeState,
+            (int)LogEventId.IncrementalSchedulingReadDirtyNodeState,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2699,7 +2699,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingReadDirtyNodeState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingArtifactChangesCounters,
+            (int)LogEventId.IncrementalSchedulingArtifactChangesCounters,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2708,7 +2708,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingArtifactChangesCounters(LoggingContext context, long newlyAddedFiles, long newlyAddedDirectories, long changedStaticFiles, long changedDynamicallyObservedFiles, long changedDynamicallyProbedFiles, long changedDynamicallyObservedEnumerationMembership, long perpetuallyDirtyPips);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingArtifactChangeSample,
+            (int)LogEventId.IncrementalSchedulingArtifactChangeSample,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2717,7 +2717,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingArtifactChangeSample(LoggingContext context, string samples);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingAssumeAllPipsDirtyDueToFailedJournalScan,
+            (int)LogEventId.IncrementalSchedulingAssumeAllPipsDirtyDueToFailedJournalScan,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2726,7 +2726,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingAssumeAllPipsDirtyDueToFailedJournalScan(LoggingContext context, string reason);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingAssumeAllPipsDirtyDueToAntiDependency,
+            (int)LogEventId.IncrementalSchedulingAssumeAllPipsDirtyDueToAntiDependency,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2735,7 +2735,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingAssumeAllPipsDirtyDueToAntiDependency(LoggingContext context, long addedFilesCount);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingDirtyPipChanges,
+            (int)LogEventId.IncrementalSchedulingDirtyPipChanges,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2744,7 +2744,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingDirtyPipChanges(LoggingContext context, bool status, long initialDirty, long transitivelyDirty, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPreciseChange,
+            (int)LogEventId.IncrementalSchedulingPreciseChange,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2753,7 +2753,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPreciseChange(LoggingContext context, bool status, bool dirtyNodeChanges, string reason, string description, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingIdsMismatch,
+            (int)LogEventId.IncrementalSchedulingIdsMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2762,7 +2762,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingIdsMismatch(LoggingContext context, string newId, string existingId);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingTokensMismatch,
+            (int)LogEventId.IncrementalSchedulingTokensMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2771,7 +2771,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingTokensMismatch(LoggingContext context, string expectedToken, string actualToken);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingLoadState,
+            (int)LogEventId.IncrementalSchedulingLoadState,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2780,7 +2780,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingLoadState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingReuseState,
+            (int)LogEventId.IncrementalSchedulingReuseState,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2789,7 +2789,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingReuseState(LoggingContext context, string reason, string engineStateIdIfReusable);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingSaveState,
+            (int)LogEventId.IncrementalSchedulingSaveState,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2798,7 +2798,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingSaveState(LoggingContext context, string path, string status, string reason, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingProcessGraphChange,
+            (int)LogEventId.IncrementalSchedulingProcessGraphChange,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2807,7 +2807,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingProcessGraphChange(LoggingContext context, string loadedGraphId, string newGraphId, long elapsedMs);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingProcessGraphChangeGraphId,
+            (int)LogEventId.IncrementalSchedulingProcessGraphChangeGraphId,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2816,7 +2816,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingProcessGraphChangeGraphId(LoggingContext context, string status, string graphId, string dateSeen);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingProcessGraphChangeProducerChange,
+            (int)LogEventId.IncrementalSchedulingProcessGraphChangeProducerChange,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2825,7 +2825,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingProcessGraphChangeProducerChange(LoggingContext context, string path, long newProducerHash, string oldProducerFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingProcessGraphChangePathNoLongerSourceFile,
+            (int)LogEventId.IncrementalSchedulingProcessGraphChangePathNoLongerSourceFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2834,7 +2834,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingProcessGraphChangePathNoLongerSourceFile(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPipDirtyAcrossGraphBecauseSourceIsDirty,
+            (int)LogEventId.IncrementalSchedulingPipDirtyAcrossGraphBecauseSourceIsDirty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2843,7 +2843,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipDirtyAcrossGraphBecauseSourceIsDirty(LoggingContext context, long pipHash, string sourceFile);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPipDirtyAcrossGraphBecauseDependencyIsDirty,
+            (int)LogEventId.IncrementalSchedulingPipDirtyAcrossGraphBecauseDependencyIsDirty,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2852,7 +2852,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipDirtyAcrossGraphBecauseDependencyIsDirty(LoggingContext context, long pipHash, long depPipHash, string depFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingSourceFileOfOtherGraphIsDirtyDuringScan,
+            (int)LogEventId.IncrementalSchedulingSourceFileOfOtherGraphIsDirtyDuringScan,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2861,7 +2861,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingSourceFileOfOtherGraphIsDirtyDuringScan(LoggingContext context, string sourceFile, string pathChangeReason);
 
         [GeneratedEvent(
-            (int)EventId.IncrementalSchedulingPipOfOtherGraphIsDirtyDuringScan,
+            (int)LogEventId.IncrementalSchedulingPipOfOtherGraphIsDirtyDuringScan,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -2870,7 +2870,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipOfOtherGraphIsDirtyDuringScan(LoggingContext context, string pipFingerprint, string path, string pathChangeReason);
 
         [GeneratedEvent(
-           (int)EventId.IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan,
+           (int)LogEventId.IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan,
            EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
@@ -2879,7 +2879,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(LoggingContext context, int dynamicPathCount, int dynamicProbeCount, int dynamicPathEnumerationCount, long elapsedMs);
 
         [GeneratedEvent(
-           (int)EventId.IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan,
+           (int)LogEventId.IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan,
            EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
@@ -2888,7 +2888,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan(LoggingContext context, int pipCount, long elapsedMs);
 
         [GeneratedEvent(
-           (int)EventId.IncrementalSchedulingStateStatsAfterLoad,
+           (int)LogEventId.IncrementalSchedulingStateStatsAfterLoad,
            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
@@ -2897,7 +2897,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingStateStatsAfterLoad(LoggingContext context, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-           (int)EventId.IncrementalSchedulingStateStatsAfterScan,
+           (int)LogEventId.IncrementalSchedulingStateStatsAfterScan,
            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
@@ -2906,7 +2906,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingStateStatsAfterScan(LoggingContext context, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-           (int)EventId.IncrementalSchedulingStateStatsEnd,
+           (int)LogEventId.IncrementalSchedulingStateStatsEnd,
            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
@@ -2915,7 +2915,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingStateStatsEnd(LoggingContext context, IDictionary<string, long> stats);
 
         [GeneratedEvent(
-            (ushort)EventId.ServicePipStarting,
+            (ushort)LogEventId.ServicePipStarting,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2924,7 +2924,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipStarting(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ServicePipShuttingDown,
+            (ushort)LogEventId.ServicePipShuttingDown,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2933,7 +2933,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipShuttingDown(LoggingContext loggingContext, string servicePipDescription, string shutdownPipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ServicePipTerminatedBeforeStartupWasSignaled,
+            (ushort)LogEventId.ServicePipTerminatedBeforeStartupWasSignaled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2942,7 +2942,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServiceTerminatedBeforeStartupWasSignaled(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ServicePipFailed,
+            (ushort)LogEventId.ServicePipFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2951,7 +2951,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipFailed(LoggingContext loggingContext, string servicePipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.ServicePipShuttingDownFailed,
+            (ushort)LogEventId.ServicePipShuttingDownFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -2960,7 +2960,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleServicePipShuttingDownFailed(LoggingContext loggingContext, string servicePipDescription, string shutdownPipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.IpcClientForwardedMessage,
+            (ushort)LogEventId.IpcClientForwardedMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2969,7 +2969,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IpcClientForwardedMessage(LoggingContext loggingContext, string level, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.IpcClientFailed,
+            (ushort)LogEventId.IpcClientFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -2978,7 +2978,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void IpcClientFailed(LoggingContext loggingContext, string exceptionMessage);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerForwarderIpcServerMessage,
+            (ushort)LogEventId.ApiServerForwarderIpcServerMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2987,7 +2987,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerForwardedIpcServerMessage(LoggingContext loggingContext, string level, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerOperationReceived,
+            (ushort)LogEventId.ApiServerOperationReceived,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2996,7 +2996,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerOperationReceived(LoggingContext loggingContext, string operation);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerInvalidOperation,
+            (ushort)LogEventId.ApiServerInvalidOperation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3005,7 +3005,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerInvalidOperation(LoggingContext loggingContext, string operation, string reason);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerMaterializeFileSucceeded,
+            (ushort)LogEventId.ApiServerMaterializeFileSucceeded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3014,7 +3014,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerMaterializeFileSucceeded(LoggingContext loggingContext, string file);
 
         [GeneratedEvent(
-            (ushort)EventId.ErrorApiServerMaterializeFileFailed,
+            (ushort)LogEventId.ErrorApiServerMaterializeFileFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
@@ -3023,7 +3023,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ErrorApiServerMaterializeFileFailed(LoggingContext loggingContext, string file, string reason);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerReportStatisticsExecuted,
+            (ushort)LogEventId.ApiServerReportStatisticsExecuted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3032,7 +3032,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerReportStatisticsExecuted(LoggingContext loggingContext, int numStatistics);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerReceivedMessage,
+            (ushort)LogEventId.ApiServerReceivedMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3041,7 +3041,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerReceivedMessage(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerReceivedWarningMessage,
+            (ushort)LogEventId.ApiServerReceivedWarningMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
@@ -3050,7 +3050,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerReceivedWarningMessage(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.ApiServerGetSealedDirectoryContentExecuted,
+            (ushort)LogEventId.ApiServerGetSealedDirectoryContentExecuted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3228,7 +3228,7 @@ namespace BuildXL.Scheduler.Tracing
         #region Determinism probe to detect nondeterministic PIPs
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredNondeterministicOutput,
+            (ushort)LogEventId.DeterminismProbeEncounteredNondeterministicOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3237,7 +3237,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredNondeterministicOutput(LoggingContext loggingContext, string pipDescription, string file, string cache, string execution);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache,
+            (ushort)LogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3246,7 +3246,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredProcessThatCannotRunFromCache(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch,
+            (ushort)LogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3255,7 +3255,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch(LoggingContext loggingContext, string pipDescription, string cached, string cachedPathSet, string executed, string executedPathSet);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredPipFailure,
+            (ushort)LogEventId.DeterminismProbeEncounteredPipFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3264,7 +3264,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredPipFailure(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredUncacheablePip,
+            (ushort)LogEventId.DeterminismProbeEncounteredUncacheablePip,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3273,7 +3273,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredUncacheablePip(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeDetectedUnexpectedMismatch,
+            (ushort)LogEventId.DeterminismProbeDetectedUnexpectedMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3282,7 +3282,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeDetectedUnexpectedMismatch(LoggingContext loggingContext, string pipDescription, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles,
+            (ushort)LogEventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3291,7 +3291,7 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void DeterminismProbeEncounteredOutputDirectoryDifferentFiles(LoggingContext loggingContext, string pipDescription, string directory, string cache, string execution);
 
         [GeneratedEvent(
-            (ushort)EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput,
+            (ushort)LogEventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)Keywords.UserMessage,
@@ -3302,7 +3302,7 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         [GeneratedEvent(
-            (int)EventId.DirtyBuildExplicitlyRequestedModules,
+            (int)LogEventId.DirtyBuildExplicitlyRequestedModules,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3311,7 +3311,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirtyBuildExplicitlyRequestedModules(LoggingContext context, string modules);
 
         [GeneratedEvent(
-            (int)EventId.DirtyBuildProcessNotSkippedDueToMissingOutput,
+            (int)LogEventId.DirtyBuildProcessNotSkippedDueToMissingOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3320,7 +3320,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirtyBuildProcessNotSkippedDueToMissingOutput(LoggingContext context, string pipDescription, string path, string consumerDescription);
 
         [GeneratedEvent(
-            (int)EventId.DirtyBuildProcessNotSkipped,
+            (int)LogEventId.DirtyBuildProcessNotSkipped,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3329,7 +3329,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirtyBuildProcessNotSkipped(LoggingContext context, string pipDescription, string reason);
 
         [GeneratedEvent(
-            (int)EventId.DirtyBuildStats,
+            (int)LogEventId.DirtyBuildStats,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3338,7 +3338,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DirtyBuildStats(LoggingContext context, long durationMs, bool isDirtyModule, int numExplicitlySelectedProcesses, int numScheduledProcesses, int numBeExecutedProcesses, int skippedProcesses);
 
         [GeneratedEvent(
-            (int)EventId.MinimumWorkersNotSatisfied,
+            (int)LogEventId.MinimumWorkersNotSatisfied,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3347,7 +3347,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void MinimumWorkersNotSatisfied(LoggingContext context, int minimumWorkers, int connectedWorkers);
 
         [GeneratedEvent(
-            (int)EventId.BuildSetCalculatorProcessStats,
+            (int)LogEventId.BuildSetCalculatorProcessStats,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3364,7 +3364,7 @@ namespace BuildXL.Scheduler.Tracing
             int buildSetCalculatorDurationMs);
 
         [GeneratedEvent(
-            (int)EventId.BuildSetCalculatorStats,
+            (int)LogEventId.BuildSetCalculatorStats,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3386,7 +3386,7 @@ namespace BuildXL.Scheduler.Tracing
             int getScheduledNodesDurationMs);
 
         [GeneratedEvent(
-            (int)EventId.BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterializedStats,
+            (int)LogEventId.BuildSetCalculatorScheduleDependenciesUntilCleanAndMaterializedStats,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3415,7 +3415,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LimitingResourceStatistics(LoggingContext context, IDictionary<string, long> statistics);
 
         [GeneratedEvent(
-            (int)EventId.FailedToDuplicateSchedulerFile,
+            (int)LogEventId.FailedToDuplicateSchedulerFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3424,7 +3424,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void FailedToDuplicateSchedulerFile(LoggingContext context, string sourcePath, string destinationPath, string reason);
 
         [GeneratedEvent(
-            (int)EventId.KextFailedToInitializeConnectionManager,
+            (int)LogEventId.KextFailedToInitializeConnectionManager,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3433,7 +3433,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void KextFailedToInitializeConnectionManager(LoggingContext context, string reason);
 
         [GeneratedEvent(
-            (int)EventId.KextFailureNotificationReceived,
+            (int)LogEventId.KextFailureNotificationReceived,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
@@ -3442,7 +3442,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
         [GeneratedEvent(
-            (ushort)EventId.LowRamMemory,
+            (ushort)LogEventId.LowRamMemory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
@@ -3451,7 +3451,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LowRamMemory(LoggingContext context, int machineAvailablePhysicalMb, int machineRamUsagePercentage);
 
         [GeneratedEvent(
-            (ushort)EventId.LowCommitMemory,
+            (ushort)LogEventId.LowCommitMemory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
@@ -3460,7 +3460,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LowCommitMemory(LoggingContext context, int machineAvailableCommitMb, int machineCommitUsagePercentage);
 
         [GeneratedEvent(
-            (ushort)EventId.HitLowMemorySmell,
+            (ushort)LogEventId.HitLowMemorySmell,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
@@ -3469,7 +3469,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.VirtualizationFilterDetachError,
+            (int)LogEventId.VirtualizationFilterDetachError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -3480,7 +3480,7 @@ namespace BuildXL.Scheduler.Tracing
             string errorDetail);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheMissAnalysis,
+            (ushort)SharedLogEventId.CacheMissAnalysis,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3489,7 +3489,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void CacheMissAnalysis(LoggingContext loggingContext, string pipDescription, string reason, bool fromCacheLookup);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheMissAnalysisBatchResults,
+            (ushort)SharedLogEventId.CacheMissAnalysisBatchResults,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3498,7 +3498,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void CacheMissAnalysisBatchResults(LoggingContext loggingContext, string cacheMissAnalysisResults);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheMissAnalysisException,
+            (ushort)LogEventId.CacheMissAnalysisException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3507,7 +3507,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void CacheMissAnalysisException(LoggingContext loggingContext, string pipDescription, string exception, string oldEntry, string newEntry);
 
         [GeneratedEvent(
-            (int)EventId.MissingKeyWhenSavingFingerprintStore,
+            (int)LogEventId.MissingKeyWhenSavingFingerprintStore,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3516,7 +3516,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void MissingKeyWhenSavingFingerprintStore(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.FingerprintStoreSavingFailed,
+            (int)LogEventId.FingerprintStoreSavingFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3525,7 +3525,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void FingerprintStoreSavingFailed(LoggingContext context, string reason);
 
         [GeneratedEvent(
-            (int)EventId.FingerprintStoreToCompareTrace,
+            (int)LogEventId.FingerprintStoreToCompareTrace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3534,7 +3534,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void GettingFingerprintStoreTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (int)EventId.SuccessLoadFingerprintStoreToCompare,
+            (int)LogEventId.SuccessLoadFingerprintStoreToCompare,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -3543,7 +3543,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void SuccessLoadFingerprintStoreToCompare(LoggingContext context, string mode, string path);
 
         [GeneratedEvent(
-            (int)EventId.FileArtifactContentMismatch,
+            (int)LogEventId.FileArtifactContentMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -3558,7 +3558,7 @@ namespace BuildXL.Scheduler.Tracing
             string newHash);
 
         [GeneratedEvent(
-            (int)EventId.DeleteFullySealDirectoryUnsealedContents,
+            (int)LogEventId.DeleteFullySealDirectoryUnsealedContents,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
@@ -3581,7 +3581,7 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void DebugFragment(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.PipCacheLookupStats,
+            (ushort)LogEventId.PipCacheLookupStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,

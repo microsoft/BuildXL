@@ -3,7 +3,7 @@
 
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Scheduler.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit;
@@ -56,8 +56,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 RunScheduler().AssertFailure();
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
     }

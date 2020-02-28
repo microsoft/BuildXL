@@ -12,7 +12,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Test.BuildXL.Executables.TestProcess;
@@ -22,6 +22,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
+using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 
 
 namespace Test.BuildXL.FingerprintStore
@@ -457,11 +458,11 @@ namespace Test.BuildXL.FingerprintStore
 
             if (cacheMissBatch)
             {
-                AssertVerboseEventLogged(EventId.CacheMissAnalysisBatchResults, allowMore: true);
+                AssertVerboseEventLogged(SharedLogEventId.CacheMissAnalysisBatchResults, allowMore: true);
             }
             else
             {
-                AssertVerboseEventLogged(EventId.CacheMissAnalysis, allowMore: true);
+                AssertVerboseEventLogged(SharedLogEventId.CacheMissAnalysis, allowMore: true);
             }
 
         }

@@ -12,10 +12,16 @@ namespace BuildXL.Utilities.Instrumentation.Common
     public enum SharedLogEventId
     {
         None = 0,
-
+        PipStatus = 58,
+        
+        StartEngineRun = 87,
+        EndEngineRun = 88,
+        CacheMissAnalysis = 312,
+        CacheMissAnalysisBatchResults = 325,
         DominoInvocation = 405,
         DominoInvocationForLocalLog = 409,
-
+        DistributionWorkerForwardedError = 7015,
+        PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         /*
          *********************************************
          * README:

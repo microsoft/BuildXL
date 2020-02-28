@@ -106,9 +106,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 RunScheduler().AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 XAssert.IsTrue(Directory.Exists(nestedDir2Str), $"unseal directory was supposed to exist: {nestedDir2Str}");
                 XAssert.IsTrue(File.Exists(sealFile2Str), $"File not in the content list when seal was supposed to exist: {sealFile2Str}");
             }

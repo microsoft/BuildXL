@@ -5,10 +5,9 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.IncrementalScheduling;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -1262,7 +1261,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             result = RunScheduler(schedulerState: result.SchedulerState).AssertScheduled(q.PipId);
 
-            AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
+            AssertVerboseEventLogged(LogEventId.IncrementalSchedulingReuseState);
             AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.ChangedGraph);
         }
 
@@ -1297,7 +1296,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             // Then, incremental scheduling will be loaded from file, and in that case P is already clean, and will not be scheduled.
             RunScheduler(schedulerState: resultP.SchedulerState).AssertNotScheduled(p.PipId);
 
-            AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
+            AssertVerboseEventLogged(LogEventId.IncrementalSchedulingReuseState);
             AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.MismatchedEngineStateId);
         }
 

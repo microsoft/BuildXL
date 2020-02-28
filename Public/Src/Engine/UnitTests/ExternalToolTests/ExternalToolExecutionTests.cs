@@ -3,9 +3,9 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -14,6 +14,7 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -64,7 +65,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             // run again, assert cache hit, assert sideband files were used to postpone scrubbing
             RunScheduler().AssertCacheHit(pip.Process.PipId);
             AssertWritesJournaled(result, pip, outputInSharedOpaque);
-            AssertInformationalEventLogged(EventId.PostponingDeletionOfSharedOpaqueOutputs, count: 1);
+            AssertInformationalEventLogged(EngineLogEventId.PostponingDeletionOfSharedOpaqueOutputs, count: 1);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -167,8 +168,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
 
             RunScheduler().AssertFailure();
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
-            AssertErrorEventLogged(EventId.FileMonitoringError, count: 1);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 1);
         }
 
         [Fact]

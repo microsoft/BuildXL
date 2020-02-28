@@ -3,6 +3,7 @@
 
 using System.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
@@ -44,36 +45,36 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             // Ensure no determinism probe events for first build where determinism probe is not enabled
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredPipFailure, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUncacheablePip, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
 
             Configuration.Cache.DeterminismProbe = true;
             RunScheduler().AssertSuccess();
 
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredPipFailure, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUncacheablePip, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
 
             // Here we are testing that the changed file content in an opaque dir is detected
             if (fileListedAsNormalOutput)
             {
-                AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 1);
+                AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicOutput, 1);
             }
             else
             {
-                AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
+                AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
             }
 
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 1);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 1);
         }
 
         [Feature(Features.OpaqueDirectory)]
@@ -103,14 +104,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             // Ensure no determinism probe events for first build where determinism probe is not enabled
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredPipFailure, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUncacheablePip, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
 
 
             // set untracked to 2 so the second and third file are written by the pip
@@ -120,15 +121,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             // Here we are testing that the set of file paths
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredPipFailure, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredUncacheablePip, 0);
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
-
-            AssertInformationalEventLogged(EventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 1);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredProcessThatCannotRunFromCache, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUnexpectedStrongFingerprintMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredPipFailure, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeDetectedUnexpectedMismatch, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredUncacheablePip, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredNondeterministicDirectoryOutput, 0);
+            AssertInformationalEventLogged(LogEventId.DeterminismProbeEncounteredOutputDirectoryDifferentFiles, 1);
         }
     }
 }

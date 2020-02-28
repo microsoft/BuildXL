@@ -225,7 +225,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 // We are expecting a write after an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -284,7 +284,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 secondResult.AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
             }
         }
 
@@ -374,7 +374,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             else
             {
                 result.AssertFailure();
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
                 AssertVerboseEventLogged(LogEventId.DependencyViolationAbsentPathProbeInsideUndeclaredOpaqueDirectory);
             }
         }

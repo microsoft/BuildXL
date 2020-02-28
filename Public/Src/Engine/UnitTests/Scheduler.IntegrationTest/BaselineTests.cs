@@ -125,7 +125,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             });
 
-            AssertVerboseEventLogged(EventId.LowRamMemory);
+            AssertVerboseEventLogged(LogEventId.LowRamMemory);
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
         }
 
@@ -159,7 +159,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             });
 
-            AssertVerboseEventLogged(EventId.LowCommitMemory);
+            AssertVerboseEventLogged(LogEventId.LowCommitMemory);
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion); 
         }
 
@@ -223,7 +223,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertFailure();
             IgnoreWarnings();
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             if (!shouldPipSucceed)
             {
                 AssertErrorEventLogged(EventId.PipProcessError);
@@ -285,8 +285,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -351,8 +351,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Fail on unspecified output
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -1133,8 +1133,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var result = RunScheduler().AssertSuccess();
 
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning, count: 1);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning, count: 1);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.

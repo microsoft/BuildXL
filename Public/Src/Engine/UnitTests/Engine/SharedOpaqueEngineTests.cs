@@ -195,7 +195,7 @@ namespace Test.BuildXL.Engine
 
             IgnoreWarnings();
             // Make sure this is a cache replay
-            AssertVerboseEventLogged(EventId.ProcessPipCacheHit);
+            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessPipCacheHit);
             // And check again that the file is still properly marked
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
         }
@@ -240,7 +240,7 @@ namespace Test.BuildXL.Engine
 
             IgnoreWarnings();
             // Make sure this is a cache replay
-            AssertVerboseEventLogged(EventId.ProcessPipCacheHit);
+            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessPipCacheHit);
             // Check the timestamp is the right one now
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on cache replay");
         }

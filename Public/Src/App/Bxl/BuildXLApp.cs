@@ -34,6 +34,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using Logger = BuildXL.App.Tracing.Logger;
 using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
 #pragma warning disable SA1649 // File name must match first type name
@@ -248,12 +249,12 @@ namespace BuildXL
                 mutableConfig.Logging.CacheMissLog,
                 (new[]
                 {
-                    (int)EventId.CacheMissAnalysis,
-                    (int)EventId.CacheMissAnalysisBatchResults,
-                    (int)EventId.MissingKeyWhenSavingFingerprintStore,
-                    (int)EventId.FingerprintStoreSavingFailed,
-                    (int)EventId.FingerprintStoreToCompareTrace,
-                    (int)EventId.SuccessLoadFingerprintStoreToCompare
+                    (int)SharedLogEventId.CacheMissAnalysis,
+                    (int)SharedLogEventId.CacheMissAnalysisBatchResults,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.MissingKeyWhenSavingFingerprintStore,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreSavingFailed,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.FingerprintStoreToCompareTrace,
+                    (int)BuildXL.Scheduler.Tracing.LogEventId.SuccessLoadFingerprintStoreToCompare
                 },
                 null));
         }
@@ -298,45 +299,45 @@ namespace BuildXL
                         (int)EventId.UnexpectedConditionTelemetry,
                         (int)SchedulerEventId.CriticalPathPipRecord,
                         (int)SchedulerEventId.CriticalPathChain,
-                        (int)EventId.HistoricMetadataCacheLoaded,
-                        (int)EventId.HistoricMetadataCacheSaved,
-                        (int)EventId.RunningTimesLoaded,
-                        (int)EventId.RunningTimesSaved,
+                        (int)EngineLogEventId.HistoricMetadataCacheLoaded,
+                        (int)EngineLogEventId.HistoricMetadataCacheSaved,
+                        (int)EngineLogEventId.RunningTimesLoaded,
+                        (int)EngineLogEventId.RunningTimesSaved,
                         (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
                         (int)SchedulerEventId.SymlinkFileTraceMessage,
-                        (int)EventId.StartEngineRun,
+                        (int)SharedLogEventId.StartEngineRun,
                         (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.GraphNotReusedDueToChangedInput,
 
-                        (int)EventId.StartLoadingRunningTimes,
-                        (int)EventId.EndLoadingRunningTimes,
+                        (int)EngineLogEventId.StartLoadingRunningTimes,
+                        (int)EngineLogEventId.EndLoadingRunningTimes,
                         (int)Engine.Tracing.LogEventId.StartSerializingPipGraph,
                         (int)Engine.Tracing.LogEventId.EndSerializingPipGraph,
-                        (int)EventId.ScrubbingStarted,
-                        (int)EventId.ScrubbingFinished,
-                        (int)EventId.StartSchedulingPipsWithFilter,
-                        (int)EventId.EndSchedulingPipsWithFilter,
+                        (int)EngineLogEventId.ScrubbingStarted,
+                        (int)EngineLogEventId.ScrubbingFinished,
+                        (int)SchedulerEventId.StartSchedulingPipsWithFilter,
+                        (int)SchedulerEventId.EndSchedulingPipsWithFilter,
                         (int)EventId.StartScanningJournal,
                         (int)EventId.EndScanningJournal,
                         (int)Engine.Tracing.LogEventId.StartExecute,
                         (int)Engine.Tracing.LogEventId.EndExecute,
-                        (int)EventId.PipDetailedStats,
-                        (int)EventId.ProcessesCacheHitStats,
-                        (int)EventId.ProcessesCacheMissStats,
-                        (int)EventId.ProcessesSemaphoreQueuedStats,
-                        (int)EventId.CacheTransferStats,
-                        (int)EventId.OutputFileStats,
-                        (int)EventId.SourceFileHashingStats,
-                        (int)EventId.OutputFileHashingStats,
-                        (int)EventId.BuildSetCalculatorStats,
+                        (int)SchedulerEventId.PipDetailedStats,
+                        (int)SchedulerEventId.ProcessesCacheHitStats,
+                        (int)SchedulerEventId.ProcessesCacheMissStats,
+                        (int)SchedulerEventId.ProcessesSemaphoreQueuedStats,
+                        (int)SchedulerEventId.CacheTransferStats,
+                        (int)SchedulerEventId.OutputFileStats,
+                        (int)SchedulerEventId.SourceFileHashingStats,
+                        (int)SchedulerEventId.OutputFileHashingStats,
+                        (int)SchedulerEventId.BuildSetCalculatorStats,
                         (int)Pips.Tracing.LogEventId.EndFilterApplyTraversal,
-                        (int)EventId.EndAssigningPriorities,
+                        (int)SchedulerEventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
-                        (int)EventId.PipQueueConcurrency,
+                        (int)SchedulerEventId.PipQueueConcurrency,
                         (int)Engine.Tracing.LogEventId.GrpcSettings,
                         (int)Engine.Tracing.LogEventId.ChosenABTesting,
-                        (int)EventId.SynchronouslyWaitedForCache,
+                        (int)EngineLogEventId.SynchronouslyWaitedForCache,
                         (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
                         (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
                     },
@@ -777,11 +778,11 @@ namespace BuildXL
         {
             // The loss of connectivity to other machines during a distributed build is generally the true cause of the
             // failure even though it may manifest itself as a different failure first (like failure to materialize)
-            if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
+            if (listener.CountsPerEventId((int)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
                 return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
             }
-            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
+            else if (listener.CountsPerEventId((int)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
                 (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
             {
                 string errorMessage = listener.InternalErrorDetails.Count > 0 ?
@@ -818,14 +819,14 @@ namespace BuildXL
                     // Pick the best bucket by the type of events that were logged. First wins.
                     switch (item.Key)
                     {
-                        case (int)EventId.FileMonitoringError:
+                        case (int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError:
                             return ExitKind.BuildFailedWithFileMonErrors;
                         case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
                         case (int)BuildXL.Pips.Tracing.LogEventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;
                         case (int)EventId.PipProcessError:
-                        case (int)EventId.DistributionWorkerForwardedError:
+                        case (int)SharedLogEventId.DistributionWorkerForwardedError:
                             return ExitKind.BuildFailedWithPipErrors;
                         case (int)LogEventId.CancellationRequested:
                             return ExitKind.BuildCancelled;

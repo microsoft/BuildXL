@@ -36,7 +36,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
@@ -50,7 +49,6 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Scheduler.ExecutionSampler;
 using static BuildXL.Utilities.BuildParameters;
 using static BuildXL.Utilities.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
@@ -2093,8 +2091,8 @@ namespace BuildXL.Engine
 
             if (ShouldUpgradeFileAccessWarningsToHighLevelError(Configuration) &&
                 m_trackingEventListener != null &&
-                ((m_trackingEventListener.CountsPerEventId(EventId.FileMonitoringWarning) != 0) ||
-                 (m_trackingEventListener.CountsPerEventId(EventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
+                ((m_trackingEventListener.CountsPerEventId((int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringWarning) != 0) ||
+                 (m_trackingEventListener.CountsPerEventId((int)EventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
             {
                 Logger.Log.FileAccessErrorsExist(loggingContext);
                 success = false;

@@ -288,7 +288,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         /// <summary>
@@ -320,11 +320,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Build should fail with a Disallowed File Access
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.FileMonitoringError, 1);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
 
             // And we should have a related pip
             AssertLogContains(caseSensitive: false, "Violations related to pip");
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -448,11 +448,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.StorageCachePutContentFailed);
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -487,11 +487,11 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.StorageCachePutContentFailed);
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -533,10 +533,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(ToString(tempDirUnderSharedPath))).AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationSharedOpaqueWriteInTempDirectory);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
             // We might get a put content failed event if the file was being written by one pip while being cached by the second
-            AllowErrorEventMaybeLogged(EventId.ProcessingPipOutputFileFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
         }
 
         [Fact]
@@ -571,13 +571,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write as a verbose message.
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             // We inform about a mismatch in the file content (due to the ignored double write)
-            AssertVerboseEventLogged(EventId.FileArtifactContentMismatch);
+            AssertVerboseEventLogged(LogEventId.FileArtifactContentMismatch);
 
             // Verify the process not stored to cache event is raised
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         [Fact]
@@ -638,7 +638,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -666,7 +666,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             // It gets reported as a double write (between the writing pip and the hash source file pip)
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
@@ -699,7 +699,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
             // It gets reported as a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
@@ -730,7 +730,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // We are expecting a file monitor violation
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -823,7 +823,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Theory]
@@ -867,7 +867,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // We are expecting a write after an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -919,7 +919,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 // We are expecting a write on an absent path probe
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }
         }
 
@@ -1009,7 +1009,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 // We are expecting a write after an absent path probe (one message per run)
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
             }
         }
 
@@ -1062,7 +1062,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 firstResult.AssertFailure();
                 secondResult.AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe, 2);
-                AssertErrorEventLogged(EventId.FileMonitoringError, 2);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
                 IgnoreWarnings();
             }
         }
@@ -1206,7 +1206,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // The post-convergence analysis should find the double write
             // Since we are running with DFAs as warnings, it won't be logger as an error
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
@@ -1256,13 +1256,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We are expecting a double write as a verbose message.
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
 
             // We inform about a mismatch in the file content (due to the ignored double write)
-            AssertVerboseEventLogged(EventId.FileArtifactContentMismatch);
+            AssertVerboseEventLogged(LogEventId.FileArtifactContentMismatch);
 
             // Verify the process not stored to cache event is raised
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
         }
 
         [Theory]
@@ -1307,7 +1307,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 AssertVerboseEventLogged(LogEventId.AbsentPathProbeInsideUndeclaredOpaqueDirectory);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
 
                 // second run -- in Unsafe mode, the outcome of the build (pass/fail) currently depends on
                 // the fact whether a pip was incrementally skipped or not:
@@ -1320,7 +1320,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 else
                 {
                     result.AssertFailure();
-                    AssertErrorEventLogged(EventId.FileMonitoringError);
+                    AssertErrorEventLogged(LogEventId.FileMonitoringError);
                     AssertVerboseEventLogged(LogEventId.DependencyViolationWriteOnAbsentPathProbe);
                 }
             }
@@ -1530,7 +1530,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
             AssertTimestamps();
 
-            AssertWarningEventLogged(EventId.ConvertToRunnableFromCacheFailed, count: 0, allowMore: true);
+            AssertWarningEventLogged(LogEventId.ConvertToRunnableFromCacheFailed, count: 0, allowMore: true);
 
             // helper inner functions
 

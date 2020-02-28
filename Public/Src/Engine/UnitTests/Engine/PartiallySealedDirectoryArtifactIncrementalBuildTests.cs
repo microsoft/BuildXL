@@ -59,8 +59,8 @@ namespace Test.BuildXL.Engine
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
             AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         /// <summary>
@@ -82,8 +82,8 @@ namespace Test.BuildXL.Engine
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAPath);
             AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency();
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -97,8 +97,8 @@ namespace Test.BuildXL.Engine
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, buildPaths.HeaderAUnsealedSiblingPath);
             AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
             AssertDependencyViolationMissingSourceDependency();
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
@@ -115,8 +115,8 @@ namespace Test.BuildXL.Engine
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, yPath);
             AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 2);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         /// <summary>
@@ -138,8 +138,8 @@ namespace Test.BuildXL.Engine
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, yPath);
             AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 2);
             AssertDependencyViolationMissingSourceDependency(count: 1);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertErrorEventLogged(EventId.FileMonitoringError);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         private void AssertDependencyViolationMissingSourceDependency(int count = 1)

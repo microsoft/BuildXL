@@ -14,6 +14,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace Test.BuildXL.Engine
 {
@@ -83,12 +84,12 @@ namespace Test.BuildXL.Engine
 
             return new BuildCounters
             {
-                PipsExecuted = EventListener.GetEventCountSinceSnapshot(EventId.ProcessPipCacheMiss, snapshot),
+                PipsExecuted = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.ProcessPipCacheMiss, snapshot),
                 ProcessPipsCached = checked((int)scheduleStats.ProcessPipsSatisfiedFromCache),
-                CachedOutputsCopied = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputDeployedFromCache, snapshot),
-                CachedOutputsUpToDate = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputUpToDate, snapshot),
-                OutputsProduced = EventListener.GetEventCountSinceSnapshot(EventId.PipOutputProduced, snapshot),
-                PipsBringContentToLocal = EventListener.GetEventCountSinceSnapshot(EventId.TryBringContentToLocalCache, snapshot)
+                CachedOutputsCopied = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputDeployedFromCache, snapshot),
+                CachedOutputsUpToDate = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputUpToDate, snapshot),
+                OutputsProduced = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.PipOutputProduced, snapshot),
+                PipsBringContentToLocal = EventListener.GetEventCountSinceSnapshot((int)SchedulerLogEventId.TryBringContentToLocalCache, snapshot)
             };
         }
 

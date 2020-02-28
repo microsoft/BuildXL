@@ -949,7 +949,7 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipInContainerStarting(LoggingContext context, long pipSemiStableHash, string pipDescription, string remappingInfo);
 
         [GeneratedEvent(
-            (int)LogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
+            (int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,

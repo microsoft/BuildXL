@@ -878,7 +878,7 @@ namespace BuildXL.Processes
                                 if (!s_isIsolationSupported)
                                 {
                                     Tracing.Logger.Log.PipSpecifiedToRunInContainerButIsolationIsNotSupported(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                                    return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, (int)EventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
+                                    return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, (int)SharedLogEventId.PipSpecifiedToRunInContainerButIsolationIsNotSupported, maxDetoursHeapSize: maxDetoursHeapSize);
                                 }
 
                                 Tracing.Logger.Log.PipInContainerStarting(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, m_containerConfiguration.ToDisplayString());

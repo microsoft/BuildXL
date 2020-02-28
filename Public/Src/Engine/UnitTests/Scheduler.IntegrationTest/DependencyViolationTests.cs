@@ -11,6 +11,8 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
+using SchedulerLogEventId=BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -61,9 +63,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             ScheduleRunResult result = RunScheduler().AssertFailure();
 
-            AssertErrorEventLogged(EventId.FileMonitoringError);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
-            AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationReadRace);
+            AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
+            AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertVerboseEventLogged(SchedulerLogEventId.DependencyViolationReadRace);
         }
 
         [Fact]
@@ -94,8 +96,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             ScheduleRunResult result = RunScheduler().AssertFailure();
 
-            AssertErrorEventLogged(EventId.FileMonitoringError);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
+            AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationUndeclaredOrderedRead);
         }
 
@@ -126,15 +128,15 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 result.AssertFailure();
                 AssertErrorEventLogged(EventId.PipProcessError);
-                AssertErrorEventLogged(EventId.FileMonitoringError);
+                AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
                 // Double check that the directory was not created
                 Test.BuildXL.TestUtilities.Xunit.XAssert.IsFalse(Directory.Exists(dir.Path.ToString(Context.PathTable)), "Directory should not exist");
             }
             else
             {
                 result.AssertSuccess();
-                AssertWarningEventLogged(EventId.FileMonitoringWarning);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+                AssertWarningEventLogged(SchedulerLogEventId.FileMonitoringWarning);
+                AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
             }
 
             // Now test that BuildXL has the same behavior even if the directory is already on disk.
@@ -149,13 +151,13 @@ namespace IntegrationTest.BuildXL.Scheduler
                 {
                     result.AssertFailure();
                     AssertErrorEventLogged(EventId.PipProcessError);
-                    AssertErrorEventLogged(EventId.FileMonitoringError);
+                    AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
                 }
                 else
                 {
                     result.AssertSuccess();
-                    AssertWarningEventLogged(EventId.FileMonitoringWarning);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+                    AssertWarningEventLogged(SchedulerLogEventId.FileMonitoringWarning);
+                    AssertWarningEventLogged(SchedulerLogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
                 }
             }
         }

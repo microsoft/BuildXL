@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
@@ -99,7 +100,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // The source file under the full seal directory should be part of the path set for the pip
             XAssert.Contains(result.PathSets[pip.Process.PipId].Value.Paths.Select(pathEntry => pathEntry.Path), sourceInFullySealed);
             // There should be a single produced output (the mandatory one)
-            XAssert.IsTrue(EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Single().ToUpperInvariant().Contains(output.Path.ToString(Context.PathTable).ToUpperInvariant()));
+            XAssert.IsTrue(EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToUpperInvariant().Contains(output.Path.ToString(Context.PathTable).ToUpperInvariant()));
         }
 
         [Fact]
@@ -130,7 +131,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var result = RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
 
             // there should be a single "produced output" message and it should be for the outer output file
-            var producedOutputLogMessage = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Single().ToUpperInvariant();
+            var producedOutputLogMessage = EventListener.GetLogMessagesForEventId((int)LogEventId.PipOutputProduced).Single().ToUpperInvariant();
             XAssert.Contains(producedOutputLogMessage, ToString(outerOutputFile).ToUpperInvariant());
             XAssert.ContainsNot(producedOutputLogMessage, ToString(innerOutputFile).ToUpperInvariant());
 

@@ -191,9 +191,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
 
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, 2);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 4);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 4);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, 2);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning, 2);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning, 2);
         }
 
         [Fact]
@@ -212,16 +212,16 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
 
             // Pip allowed to run successfully, but will not be cached due to file monitoring violations
             RunScheduler().AssertCacheMiss(pip.PipId);
 
             AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
-            AssertWarningEventLogged(EventId.FileMonitoringWarning);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
+            AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
         }
 
         [FactIfSupported(requiresJournalScan: true, Skip = "Bug #1517905")]

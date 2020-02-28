@@ -1117,7 +1117,7 @@ namespace BuildXL.Engine.Distribution
                 isInfraError = true;
             }
 
-            if (eventId == (int)EventId.PipFailedToMaterializeItsOutputs &&
+            if (eventId == (int)LogEventId.PipFailedToMaterializeItsOutputs &&
                 m_masterService.Environment.MaterializeOutputsInBackground)
             {
                 isInfraError = true;

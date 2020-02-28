@@ -18,6 +18,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -76,7 +77,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         protected override void Dispose(bool disposing)
         {
-            AssertWarningEventLogged(EventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
+            AssertWarningEventLogged(EngineLogEventId.ScrubbingExternalFileOrDirectoryFailed, count: 0, allowMore: true);
             base.Dispose(disposing);
         }
 
@@ -570,7 +571,7 @@ Versions/sym-sym-A -> sym-A/
 
             // assert failure with error "Pip produced outputs 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.FailPipOutputWithNoAccessed);
+            AssertErrorEventLogged(LogEventId.FailPipOutputWithNoAccessed);
             AssertLogContains(caseSensitive: false, $"No file access for output: '{outViaSymDir}'");
         }
 

@@ -96,14 +96,13 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="eventId">The eventId which count to return.</param>
         /// <returns>The number of tome the iventId was raised.</returns>
         /// <remarks>If the eventId is not in the range of available eventIds, the return value is 0.</remarks>
-        public int CountsPerEventId(EventId eventId)
+        public int CountsPerEventId(int eventId)
         {
             var accessor = m_eventCounts.GetAccessor();
-            var eventIdInt = (int)eventId;
 
-            if (eventId >= 0 && eventIdInt < MaxEventIdExclusive)
+            if (eventId >= 0 && eventId < MaxEventIdExclusive)
             {
-                return accessor[eventIdInt];
+                return accessor[eventId];
             }
 
             return 0;
@@ -212,7 +211,7 @@ namespace BuildXL.Utilities.Tracing
                 string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, m_baseTime, useCustomPipDescription: false);
 
                 // Errors replayed from workers should respect their original event name and keywords
-                if (eventData.EventId == (int)EventId.DistributionWorkerForwardedError)
+                if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError)
                 {
                     eventMessage = (string)eventData.Payload[0];
                     eventName = (string)eventData.Payload[2];

@@ -69,7 +69,7 @@ namespace BuildXL
         {
             switch (eventData.EventId)
             {
-                case (int)EventId.PipStatus:
+                case (int)SharedLogEventId.PipStatus:
                 case (int)BuildXL.Scheduler.Tracing.LogEventId.PipStatusNonOverwriteable:
                     {
                         var payload = eventData.Payload;
@@ -108,7 +108,7 @@ namespace BuildXL
         {
             switch (eventData.EventId)
             {
-                case (int)EventId.CacheMissAnalysis:
+                case (int)SharedLogEventId.CacheMissAnalysis:
                     {
                         var payload = eventData.Payload;
 
@@ -122,7 +122,7 @@ namespace BuildXL
                         );
                     }
                     break;
-                case (int)EventId.CacheMissAnalysisBatchResults:
+                case (int)SharedLogEventId.CacheMissAnalysisBatchResults:
                 {
                     m_buildViewModel.BuildSummary.CacheSummary.BatchEntries.Add((string)eventData.Payload[0]);
                 }

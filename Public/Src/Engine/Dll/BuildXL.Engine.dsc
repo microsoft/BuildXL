@@ -8,7 +8,6 @@ namespace Engine {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine",
         generateLogs: true,
-        generateLogsLite: false,
         sources: [
             ...globR(d`.`, "*.cs"),
         ],

@@ -484,9 +484,9 @@ namespace Test.BuildXL.Scheduler
                     {
                         var testRunChecker = new TestRunChecker();
                         await testRunChecker.VerifyFailed(env, ipcPip, expectMarkedPerpertuallyDirty: true);
-                        AssertErrorEventLogged(EventId.PipIpcFailed, count: 1);
+                        AssertErrorEventLogged(LogEventId.PipIpcFailed, count: 1);
                         await testRunChecker.VerifyFailed(env, ipcPip, expectMarkedPerpertuallyDirty: true);
-                        AssertErrorEventLogged(EventId.PipIpcFailed, count: 1);
+                        AssertErrorEventLogged(LogEventId.PipIpcFailed, count: 1);
                     }
                 },
                 cache: InMemoryCacheFactory.Create);
@@ -1156,7 +1156,7 @@ namespace Test.BuildXL.Scheduler
                     // Events ignore the function used for the access.
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
@@ -1164,7 +1164,7 @@ namespace Test.BuildXL.Scheduler
                     // Events ignore the function used for the access.
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
 
@@ -1193,14 +1193,14 @@ namespace Test.BuildXL.Scheduler
                     
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                     // Uncacheable pip due to the file monitoring errors
                     await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
                     AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 });
         }
 
@@ -1421,7 +1421,7 @@ namespace Test.BuildXL.Scheduler
                         // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                         // Events ignore the function used for the access.
                         AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
-                        AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                        AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                         // Expecting 3 violations, of which 2 are collapsed into one due to similar file access type.
                         // Events ignore the function used for the access.
@@ -1477,7 +1477,7 @@ namespace Test.BuildXL.Scheduler
 
                     // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
@@ -1485,7 +1485,7 @@ namespace Test.BuildXL.Scheduler
                     // Events ignore the function used for the access.
                     AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
 
@@ -1533,12 +1533,12 @@ namespace Test.BuildXL.Scheduler
 
                     // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
 
                     await testRunChecker.VerifyUpToDate(env, pip, expected);
                     AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
                     AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
-                    AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
                 });
         }
 
@@ -2180,7 +2180,7 @@ EXIT /b 3
                                       additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty));
 
                           await VerifyPipResult(PipResultStatus.Failed, env, p);
-                          AssertVerboseEventLogged(EventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
+                          AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
                           AssertLogContains(false, "Standard error:");
                           AssertLogContains(false, "Standard output:");
                       });

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using System.IO;
@@ -240,7 +241,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Each event logged once per scheduler run
             AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2, allowMore: OperatingSystemHelper.IsUnixOS);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
         }
 
         /// <summary>
@@ -296,7 +297,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // No whitelist file access warnings logged
             AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, 0);
-            AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 0);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 0);
         }
 
         /// <summary>
@@ -328,7 +329,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 // Whitelist file access warnings
                 AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, allowMore: OperatingSystemHelper.IsUnixOS);
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             }
         }
 
@@ -401,10 +402,10 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // DFA on exeLink because it is not specified as input.
                 // Although there's a cacheable whitelist entry for exeLink, that entry only holds for file accessed by exeLink.
                 // In this case, exeLink is accessed by the test process, so there's a read operation by the test process on exeLink, hence DFA.
-                AssertErrorEventLogged(EventId.FileMonitoringError, 1);
+                AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
                 AssertLogContains(false, $"R  {exeLink.Path.ToString(Context.PathTable)}");
 
-                AssertWarningEventLogged(EventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
             }
         }
 

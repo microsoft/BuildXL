@@ -4,6 +4,26 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
 ***********************************************************************************************/
 {
   "FlakyTestsPerModule": {
+    "Public\\Src\\Engine\\UnitTests\\Processes_retail_x64": {
+      "FlakyTestMap": {
+        "Test.BuildXL.Processes.SandboxedProcessBreakawayTest.ChildProcessCanBreakawayWhenConfigured(letInfiniteWaiterSurvive: True)": {
+          "Name": "Test.BuildXL.Processes.SandboxedProcessBreakawayTest.ChildProcessCanBreakawayWhenConfigured(letInfiniteWaiterSurvive: True)",
+          "DetectionTimeUtc": "2020-02-28T00:06:51.6803791Z",
+          "QuarantineExpiryTimeUtc": "2020-08-26T00:06:51.6803793Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1682252",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "unexpected #NUM# surviving child processes: expected: true actual: false"
+          ],
+          "SessionUri": "https://b/build/53c3660d-90e1-7748-f052-e7b73a538989",
+          "ScheduledDeletionTimeUtc": null
+        }
+      },
+      "Metadata": {
+        "ErrorSignatureToModuleBugReportUri": {}
+      },
+      "TestSourceDir": "Public\\Src\\Engine\\UnitTests\\Processes"
+    },
     "Public\\Src\\FrontEnd\\UnitTests\\Script.Ast_retail_x64": {
       "FlakyTestMap": {
         "Test.BuildXL.FrontEnd.Script.Test.DScript.Ast.Incrementality.TestFileTracking.RemovingTheFileShouldInvalidateTheCache": {
@@ -23,6 +43,26 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
         "ErrorSignatureToModuleBugReportUri": {}
       },
       "TestSourceDir": "Public\\Src\\FrontEnd\\UnitTests\\Script.Ast"
+    },
+    "Public\\Src\\Utilities\\UnitTests\\Utilities_retail_x64": {
+      "FlakyTestMap": {
+        "Test.BuildXL.Utilities.TaskUtilitiesTests.WithTimeoutShouldTriggerGivenCancellationTokenAndFailWithTimeoutException": {
+          "Name": "Test.BuildXL.Utilities.TaskUtilitiesTests.WithTimeoutShouldTriggerGivenCancellationTokenAndFailWithTimeoutException",
+          "DetectionTimeUtc": "2020-02-28T19:30:50.6855795Z",
+          "QuarantineExpiryTimeUtc": "2020-08-26T19:30:50.6855798Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1682623",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "assert.throws() failure expected: typeof(system.timeoutexception) actual: (no exception was thrown)"
+          ],
+          "SessionUri": "https://b/build/5fe9ba7f-c0dd-c3c7-347b-1f5d36ec655e",
+          "ScheduledDeletionTimeUtc": null
+        }
+      },
+      "Metadata": {
+        "ErrorSignatureToModuleBugReportUri": {}
+      },
+      "TestSourceDir": "Public\\Src\\Utilities\\UnitTests\\Utilities"
     }
   }
 }

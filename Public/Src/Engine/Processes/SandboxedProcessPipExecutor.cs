@@ -3388,16 +3388,16 @@ namespace BuildXL.Processes
                             }
 
                             // TODO: Remove this when WDG can grog this feature with no flag.
-                                if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
+                            if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
                                 access.RequestedAccess == RequestedAccess.Enumerate)
                             {
                                 hasEnumeration = true;
                             }
 
-                            // if the access is a write (and not a directory creation/removal), then the path is a candidate to be part of a shared opaque
-                            isPathCandidateToBeOwnedByASharedOpaque |= (access.RequestedAccess & RequestedAccess.Write) != RequestedAccess.None &&
-                                                                       access.Operation != ReportedFileOperation.CreateDirectory &&
-                                                                       access.Operation != ReportedFileOperation.RemoveDirectory;
+                            // if the access is a write (and not a directory creation), then the path is a candidate to be part of a shared opaque
+                            isPathCandidateToBeOwnedByASharedOpaque |= 
+                                access.RequestedAccess.HasFlag(RequestedAccess.Write) &&
+                                !access.IsDirectoryCreationOrRemoval(m_context.PathTable);
                         }
 
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then

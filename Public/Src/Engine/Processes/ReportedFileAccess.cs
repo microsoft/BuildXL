@@ -400,6 +400,19 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Whether this access represents a directory creation or removal
+        /// </summary>
+        public bool IsDirectoryCreationOrRemoval(PathTable pathTable)
+        {
+            return 
+                Operation == ReportedFileOperation.CreateDirectory
+                || Operation == ReportedFileOperation.RemoveDirectory
+                || Operation == ReportedFileOperation.KAuthCreateDir
+                || Operation == ReportedFileOperation.KAuthDeleteDir
+                || (Operation == ReportedFileOperation.MacVNodeCreate && FileUtilities.DirectoryExistsNoFollow(GetPath(pathTable)));
+        }
+
+        /// <summary>
         /// Checks if this is a special device type of path for which we should not report a warning.
         /// Make it a verbose message, so it appears in the log (for diagnosability if there are problems with such access).
         /// </summary>

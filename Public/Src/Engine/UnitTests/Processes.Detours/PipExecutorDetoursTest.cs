@@ -17,14 +17,13 @@ using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
-using ProcessLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -222,7 +221,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             // The \\?\ escaped path should not have failed parsing.
-            AssertWarningEventLogged(ProcessLogEventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
+            AssertWarningEventLogged(ProcessesLogEventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
         }
 
         [Flags]
@@ -1219,7 +1218,7 @@ namespace Test.BuildXL.Processes.Detours
                     enforceAccessPoliciesOnDirectoryCreation: true);
 
                 SetExpectedFailures(1, 0);
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
 
                 VerifyAccessDenied(context, result);
 
@@ -1944,7 +1943,7 @@ namespace Test.BuildXL.Processes.Detours
                     pip: pip,
                     errorString: out errorString);
 
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
                 SetExpectedFailures(1, 0);
 
                 VerifyAccessDenied(context, result);
@@ -2269,7 +2268,7 @@ namespace Test.BuildXL.Processes.Detours
                     errorString: out errorString);
 
                 SetExpectedFailures(1, 0);
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
 
                 VerifyAccessDenied(context, result);
 
@@ -4609,7 +4608,7 @@ namespace Test.BuildXL.Processes.Detours
                     pip: pip,
                     errorString: out errorString);
 
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
                 SetExpectedFailures(1, 0);
 
                 VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
@@ -4690,7 +4689,7 @@ namespace Test.BuildXL.Processes.Detours
                     errorString: out errorString);
 
                 SetExpectedFailures(1, 0);
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
 
                 VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
                 VerifyExitCode(context, result, 1);

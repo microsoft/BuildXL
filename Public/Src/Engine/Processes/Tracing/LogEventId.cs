@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes.Tracing
 {
@@ -43,8 +44,10 @@ namespace BuildXL.Processes.Tracing
         PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
 
 
-        PipProcessError = 64,
-        PipProcessWarning = 65,
+#pragma warning disable 618
+        PipProcessError = SharedLogEventId.PipProcessError,
+        PipProcessWarning = SharedLogEventId.PipProcessWarning,
+#pragma warning restore 618
         PipProcessOutput = 66,
 
         PipProcessResponseFileCreationFailed = 74,
@@ -68,7 +71,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
         PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,
         FileAccessWhitelistFailedToParsePath = 274,
-        
+
         //// Reserved = 306,
         //// Reserved = 307,
         PipFailSymlinkCreation = 308,
@@ -82,11 +85,11 @@ namespace BuildXL.Processes.Tracing
         PipRetryDueToExitedWithAzureWatsonExitCode = 317,
 
         DuplicateWindowsEnvironmentVariableEncountered = 336,
-        
+
         PipProcessDisallowedNtCreateFileAccessWarning = 480,
 
         PipProcessExpectedMissingOutputs = 504,
-        
+
         //// Additional Process Isolation
         PipProcessIgnoringPathWithWildcardsFileAccess = 800,
         PipProcessIgnoringPathOfSpecialDeviceFileAccess = 801,
@@ -131,7 +134,7 @@ namespace BuildXL.Processes.Tracing
         FailedToMergeOutputsToOriginalLocation = 12202,
         FailedToCleanUpContainer = 12203,
         WarningSettingUpContainer = 12204,
-        
+
         PipInContainerStarted = 12206,
         PipInContainerStarting = 12207,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,

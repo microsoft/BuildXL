@@ -180,7 +180,7 @@ namespace BuildXL.Utilities.Tracing
         {
             // Ensure this event which routes text log messages to ETW is not handled by
             // event listeners
-            if (eventData.EventId == (int)EventId.TextLogEtwOnly)
+            if (eventData.EventId == (int)SharedLogEventId.TextLogEtwOnly)
             {
                 return;
             }

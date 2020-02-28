@@ -3642,6 +3642,15 @@ namespace BuildXL.Scheduler.Tracing
            EventTask = (ushort)Tasks.Storage,
            Message = "[{pipDescription}] Some path(s) in the augmented path set were not entries not encountered during pip execution. If these paths keep changing, it might lead to artificial cache misses. The first {cntLoggedPaths} of {totalSuspiciousPaths} paths:{paths}")]
         internal abstract void SuspiciousPathsInAugmentedPathSet(LoggingContext loggingContext, string pipDescription, int cntLoggedPaths, int totalSuspiciousPaths, string paths);
+
+        [GeneratedEvent(
+            (int)LogEventId.OperationTrackerAssert,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask= (ushort)Tasks.Storage,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "{message}")]
+        internal abstract void OperationTrackerAssert(LoggingContext loggingContext, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

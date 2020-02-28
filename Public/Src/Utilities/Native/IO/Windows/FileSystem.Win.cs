@@ -2926,8 +2926,9 @@ namespace BuildXL.Native.IO.Windows
                 {
                     // This is a temporary log, added to figure out what causes ERROR_INVALID_PARAMETER
                     // Should be removed after we find out which parameters are wrong and fixing them
+                    // $TODO: When this is removed, please also remove the method VerboseEvent_RemoveMe
                     string errorMessage = new Win32Exception(Marshal.GetLastWin32Error()).Message;
-                    Events.Log.VerboseEvent("ERROR_INVALID_PARAMETER (0x57) error orrured in TryProbePathExistence for path: " + path + "  Error Message: " + errorMessage);
+                    Events.Log.VerboseEvent_RemoveMe("ERROR_INVALID_PARAMETER (0x57) error orrured in TryProbePathExistence for path: " + path + "  Error Message: " + errorMessage);
                 }
 
                 if (IsHresultNonexistent(hr))

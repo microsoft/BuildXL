@@ -11,11 +11,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
@@ -29,9 +29,9 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -39,6 +39,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
 using Process = BuildXL.Pips.Operations.Process;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -901,7 +902,7 @@ namespace Test.BuildXL.Scheduler
                     return config2;
                 });
 
-            AssertWarningEventLogged(EventId.PipProcessWarning, 2);
+            AssertWarningEventLogged(ProcessesLogEventId.PipProcessWarning, 2);
             AssertInformationalEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ScheduleProcessNotStoredToWarningsUnderWarnAsError, 2);
         }
 
@@ -948,10 +949,10 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifyFailed(env, pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
                     string log = EventListener.GetLog();
-                    XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessError));
+                    XAssert.IsTrue(log.Contains("DX00" + (int)ProcessesLogEventId.PipProcessError));
                     XAssert.IsTrue(log.Contains("ERROR"), "text 'ERROR' should not be filtered out by error regex.");
 
                     if (outputReportingMode == OutputReportingMode.TruncatedOutputOnError)
@@ -968,7 +969,7 @@ namespace Test.BuildXL.Scheduler
                         // setting. So we expect to see it repeated on the PipProcessOutput message
                         if (regexMatchesSomething)
                         {
-                            XAssert.IsTrue(log.Contains("DX00" + (int)EventId.PipProcessOutput));
+                            XAssert.IsTrue(log.Contains("DX00" + (int)ProcessesLogEventId.PipProcessOutput));
                         }
                     }
 
@@ -977,7 +978,7 @@ namespace Test.BuildXL.Scheduler
                     {
                         // "Z" is a marker at the end of the error message. We should see this in the DX64 message as long as
                         // we aren't truncating the error
-                        XAssert.IsTrue(Regex.IsMatch(log, $@"(?<Prefix>dx00{(int)EventId.PipProcessError})(?<AnythingButZ>[^z]*)(?<ZForEndOfError>z)", RegexOptions.IgnoreCase), 
+                        XAssert.IsTrue(Regex.IsMatch(log, $@"(?<Prefix>dx00{(int)ProcessesLogEventId.PipProcessError})(?<AnythingButZ>[^z]*)(?<ZForEndOfError>z)", RegexOptions.IgnoreCase), 
                             "Non-truncated error message was not found in error event. Full output:" + log);
                     }
 
@@ -1028,7 +1029,7 @@ namespace Test.BuildXL.Scheduler
 
                     await testRunChecker.VerifyFailed(env, pip);
 
-                    AssertErrorEventLogged(EventId.PipProcessError, count: 1);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.FullOutputOnError));
@@ -1038,17 +1039,17 @@ namespace Test.BuildXL.Scheduler
         // For all cases except the commented one, if the regex matches every thing, the user gets all the information from the log message,
         // the path to original stdout/err log file shouldn't be presented.
         // Otherwise, it should be presented.
-        [InlineData(true, EventId.PipProcessError, false)]
-        [InlineData(false, EventId.PipProcessError, true)]
-        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        [InlineData(true, ProcessesLogEventId.PipProcessError, false)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
         // When the error length exceed limit and outputReportingMode is set to TruncatedOutputOnError,
         // even though the regex matches every thing the error message still get truncated, so present the path to original stdout/err log file
-        [InlineData(true, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
-        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
-        [InlineData(true, EventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
-        [InlineData(true, EventId.PipProcessWarning, false)]
-        [InlineData(false, EventId.PipProcessWarning, true)]
-        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
+        [InlineData(true, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        [InlineData(false, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
+        [InlineData(true, ProcessesLogEventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
+        [InlineData(true, ProcessesLogEventId.PipProcessWarning, false)]
+        [InlineData(false, ProcessesLogEventId.PipProcessWarning, true)]
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, ProcessesLogEventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
         {
             await WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
@@ -1060,7 +1061,7 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("dest");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    if (eventId == EventId.PipProcessError)
+                    if ((int)eventId == (int)ProcessesLogEventId.PipProcessError)
                     {
                         Process pip = CreateErrorProcess(
                             env.Context,
@@ -1101,7 +1102,7 @@ namespace Test.BuildXL.Scheduler
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
         }
 
-        private string GetRelatedLog (string log, EventId eventId)
+        private string GetRelatedLog (string log, ProcessesLogEventId eventId)
         {
             string start = "DX00"+ ((int)eventId).ToString();
             string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
@@ -1154,16 +1155,16 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 warnings, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
@@ -1191,15 +1192,15 @@ namespace Test.BuildXL.Scheduler
                     // Pip with file monitoring errors succeeds in PipExecutor but fails in the post-process step.
                     await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
                     
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                     // Uncacheable pip due to the file monitoring errors
                     await testRunChecker.VerifySucceeded(env, pip, expectMarkedPerpetuallyDirty: true);
 
-                    AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 1);
+                    AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 1);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 });
         }
@@ -1251,10 +1252,10 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
 
                     await testRunChecker.VerifyUpToDate(env, pip, Contents);
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
                 });
         }
 
@@ -1420,7 +1421,7 @@ namespace Test.BuildXL.Scheduler
 
                         // Expecting 3 events, of which 2 are collapsed into one due to similar file access type.
                         // Events ignore the function used for the access.
-                        AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
+                        AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
                         AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
 
                         // Expecting 3 violations, of which 2 are collapsed into one due to similar file access type.
@@ -1473,18 +1474,18 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
 
                     // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     await testRunChecker.VerifySucceeded(env, pip, expected, expectMarkedPerpetuallyDirty: true);
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
                 });
         }
@@ -1529,15 +1530,15 @@ namespace Test.BuildXL.Scheduler
 
                     // Expecting 4 events, of which 3 are collapsed into one due to similar file access type.
                     // Events ignore the function used for the access.
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 2);
 
                     // The sealed-directory specific event is only emitted when there are non-whitelisted violations.
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
 
                     await testRunChecker.VerifyUpToDate(env, pip, expected);
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
-                    AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory, count: 0);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable, count: 0);
+                    AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory, count: 0);
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 0);
                 });
         }

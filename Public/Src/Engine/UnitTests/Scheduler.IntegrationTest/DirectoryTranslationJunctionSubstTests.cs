@@ -4,18 +4,17 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Native.IO;
-using IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -510,7 +509,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // No directory translation will cause an error
                 RunScheduler().AssertFailure();
                 AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
-                AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
                 AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
                 AssertErrorEventLogged(LogEventId.FileMonitoringError);
             }

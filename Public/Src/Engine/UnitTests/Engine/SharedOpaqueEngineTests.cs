@@ -4,10 +4,9 @@
 using System;
 using System.IO;
 using BuildXL.Engine;
-using BuildXL.Native.IO;
 using BuildXL.Processes;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -258,7 +257,7 @@ namespace Test.BuildXL.Engine
             // Run the pip
             RunEngine(rememberAllChangedTrackedInputs: true, expectSuccess: false);
 
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(LogEventId.PipProcessError);
 
             // Check the timestamp is the right one
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on pip failure");

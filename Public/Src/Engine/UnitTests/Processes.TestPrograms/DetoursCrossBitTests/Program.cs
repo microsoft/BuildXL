@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -19,13 +20,12 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities;
-using BuildXL.Native.IO;
 
 namespace DetoursCrossBitTests
 {
@@ -548,7 +548,7 @@ namespace DetoursCrossBitTests
             {
                 switch (eventData.EventId)
                 {
-                    case (int)EventId.PipProcessFileAccess:
+                    case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessFileAccess:
                         object[] args = eventData.Payload.ToArray();
                         var fileAccess = new FileAccessDescription((string)args[2], (string)args[3]);
                         m_fileAccesses.GetOrAdd(fileAccess, Unit.Void);

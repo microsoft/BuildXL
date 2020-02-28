@@ -1,8 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
+using System.Linq;
 using BuildXL.Engine.Cache.Serialization;
+using BuildXL.Execution.Analyzer;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -10,20 +13,19 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Execution.Analyzer;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using static Test.Tool.Analyzers.AnalyzerTestBase;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
-using System;
-using static BuildXL.Scheduler.Tracing.FingerprintStore;
-using System.Linq;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+
 
 namespace Test.Tool.Analyzers
 {
@@ -445,7 +447,7 @@ namespace Test.Tool.Analyzers
             // Both builds will fail to cache any output to the cache due to the pip failure
             var buildA = RunScheduler().AssertFailure();
             var buildB = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError, 2);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, 2);
 
             // buildB has a cache miss for failPip due to no content being stored in buildA,
             // however their fingerprints match since they are the same pip and fail after the same set of filesystem operations in both runs

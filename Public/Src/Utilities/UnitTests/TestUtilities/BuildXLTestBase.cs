@@ -314,7 +314,7 @@ namespace Test.BuildXL.TestUtilities
         /// This is applicable only to some file monitoring events that identify a path, but for which the number
         /// of occurrences is not easily predictable. The number of occurrences is returned on success (ensured positive).
         /// </summary>
-        protected void AssertVerboseEventLogged(EventId eventId, string path)
+        protected void AssertVerboseEventLogged(Enum eventId, string path)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             AssertEventLoggedWithPath(eventId, path);
@@ -378,20 +378,22 @@ namespace Test.BuildXL.TestUtilities
         /// This is applicable only to some file monitoring events that identify a path, but for which the number
         /// of occurrences is not easily predictable. The number of occurrences is returned on success (ensured positive).
         /// </summary>
-        private int AssertEventLoggedWithPath(EventId eventId, string path)
+        private int AssertEventLoggedWithPath(Enum eventId, string path)
         {
-            int newOccurrencesForPath = EventListener.GetAndResetEventCountForPath(eventId, path);
+            var intEventId = Convert.ToInt32(eventId);
+            int newOccurrencesForPath = EventListener.GetAndResetEventCountForPath(intEventId, path);
+
             AssertTrue(
                 newOccurrencesForPath != 0,
                 "The event '{0:G}' (id: {1}) for path {2} should have been logged exactly one or more additional times since it was last checked.",
                 eventId,
-                (int)eventId,
+                intEventId,
                 path);
 
             int expectedEventCountLogged;
-            m_expectedPerEventCounts.TryGetValue((int)eventId, out expectedEventCountLogged);
+            m_expectedPerEventCounts.TryGetValue(intEventId, out expectedEventCountLogged);
             expectedEventCountLogged += newOccurrencesForPath;
-            m_expectedPerEventCounts[(int)eventId] = expectedEventCountLogged;
+            m_expectedPerEventCounts[intEventId] = expectedEventCountLogged;
 
             return newOccurrencesForPath;
         }

@@ -409,7 +409,9 @@ namespace BuildXL
                 return;
             }
             
-            if (eventData.EventId == (int)EventId.PipProcessError)
+#pragma warning disable 618
+            if (eventData.EventId == (int)SharedLogEventId.PipProcessError)
+#pragma warning restore 618
             {
                 // Try to be a bit fancy and only show the tool errors in red. The pip name and log file will stay in
                 // the default color
@@ -444,7 +446,9 @@ namespace BuildXL
                 return;
             }
 
-            if (eventData.EventId == (int)EventId.PipProcessWarning)
+#pragma warning disable 618
+            if (eventData.EventId == (int)SharedLogEventId.PipProcessWarning)
+#pragma warning restore 618
             {
                 string warnings = (string)eventData.Payload[5];
 

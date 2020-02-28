@@ -294,7 +294,7 @@ namespace BuildXL.Scheduler.Tracing
                                 string line;
                                 while ((line = reader.ReadLine()) != null)
                                 {
-                                    m_etwOnlyTextLogger.TextLogEtwOnly((int)EventId.StatsPerformanceLog,
+                                    m_etwOnlyTextLogger.TextLogEtwOnly((int)LogEventId.StatsPerformanceLog,
                                          refreshInterval == null ? "Performance" : "IncrementalPerformance", line);
                                 }
                             }
@@ -1069,13 +1069,13 @@ namespace BuildXL.Scheduler.Tracing
 
                             if (builder.Length > 200000)
                             {
-                                Events.Log.ErrorEvent(builder.ToString());
+                                Logger.Log.OperationTrackerAssert(Events.StaticContext, builder.ToString());
                                 builder.Clear();
                             }
                         }
                     }
 
-                    Events.Log.ErrorEvent(builder.ToString());
+                    Logger.Log.OperationTrackerAssert(Events.StaticContext, builder.ToString());
                     builder.Clear();
 
                     message = message ?? string.Empty;

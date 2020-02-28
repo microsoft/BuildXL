@@ -28,7 +28,7 @@ namespace BuildXL.Tracing
                 DateTime.UtcNow, // The time doesn't actually matter since no times are written to the stats log
                 warningMapper: null,
                 level: EventLevel.Verbose,
-                eventMask: new EventMask(enabledEvents: new[] { (int)EventId.Statistic, (int)EventId.StatisticWithoutTelemetry }, disabledEvents: null),
+                eventMask: new EventMask(enabledEvents: new[] { (int)LogEventId.Statistic, (int)LogEventId.StatisticWithoutTelemetry }, disabledEvents: null),
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages: true)
         {
@@ -53,8 +53,8 @@ namespace BuildXL.Tracing
         protected override void OnVerbose(EventWrittenEventArgs eventData)
         {
             // First we filter to events with the appropriate event id
-            if (eventData.EventId == (int)EventId.Statistic ||
-                eventData.EventId == (int)EventId.StatisticWithoutTelemetry)
+            if (eventData.EventId == (int)LogEventId.Statistic ||
+                eventData.EventId == (int)LogEventId.StatisticWithoutTelemetry)
             {
                 Contract.AssertNotNull(eventData.Payload);
 
@@ -71,7 +71,7 @@ namespace BuildXL.Tracing
                     m_finalStatistics.AddOrUpdate(key, value, (k, v) => value);
                 }
 
-                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
             }
         }
 

@@ -12,11 +12,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using static BuildXL.Native.IO.Windows.FileUtilitiesWin;
+using NativeLogEventId = BuildXL.Native.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -158,7 +158,7 @@ namespace Test.BuildXL.Storage
                 XAssert.IsTrue(FileUtilities.Exists(dir));
             }
 
-            AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+            AssertVerboseEventLogged(NativeLogEventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
             FileUtilities.DeleteDirectoryContents(dir, deleteRootDirectory: true);
             XAssert.IsFalse(FileUtilities.Exists(dir));
         }
@@ -233,7 +233,7 @@ namespace Test.BuildXL.Storage
                 XAssert.IsFalse(File.Exists(nestedFile));
 
                 // Check for retries and ERROR_DIR_NOT_EMPTY
-                AssertVerboseEventLogged(EventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
+                AssertVerboseEventLogged(NativeLogEventId.RetryOnFailureException, Helpers.DefaultNumberOfAttempts);
                 string logs = EventListener.GetLog();
                 var numMatches = Regex.Matches(logs, Regex.Escape("Native: RemoveDirectoryW for RemoveDirectory failed (0x91: The directory is not empty")).Count;
                 XAssert.AreEqual(Helpers.DefaultNumberOfAttempts, numMatches);

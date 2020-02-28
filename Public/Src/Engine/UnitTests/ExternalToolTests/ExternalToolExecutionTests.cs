@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -143,7 +144,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
 
             ScheduleRunResult result = RunScheduler().AssertSuccess();
-            AssertWarningEventLogged(EventId.PipProcessWarning, count: 1);
+            AssertWarningEventLogged(ProcessesLogEventId.PipProcessWarning, count: 1);
         }
 
         [Fact]
@@ -157,7 +158,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError, count: 1);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
         }
 
         [Fact]
@@ -230,8 +231,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessTookTooLongError, count: 1);
-            AssertErrorEventLogged(EventId.PipProcessError, count: 1);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessTookTooLongError, count: 1);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
         }
 
         [Fact]

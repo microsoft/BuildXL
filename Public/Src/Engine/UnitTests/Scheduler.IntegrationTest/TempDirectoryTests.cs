@@ -16,6 +16,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -130,7 +131,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(TempArtifactType.AdditionalTempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
         [InlineData(TempArtifactType.TempDirectory, LogEventId.InvalidInputSinceInputIsOutputWithNoProducer)]
         [InlineData(TempArtifactType.TempFile, LogEventId.InvalidInputSinceCorrespondingOutputIsTemporary)]
-        public void FailOnTempInput(int tempArtifactType, EventId errorEvent)
+        public void FailOnTempInput(int tempArtifactType, LogEventId errorEvent)
         {
             // First pip writes a file to its temp directory
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut);
@@ -450,7 +451,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (ensureTempDirectoriesCreation)
             {
                 result.AssertFailure();
-                AssertErrorEventLogged(EventId.PipProcessError, 1);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, 1);
             }
             else
             {

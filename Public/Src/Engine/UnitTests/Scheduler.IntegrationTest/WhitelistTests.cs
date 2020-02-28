@@ -1,21 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
+using BuildXL.Native.IO;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using System.IO;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Processes;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Configuration = BuildXL.Utilities.Configuration;
-using Test.BuildXL.Processes;
-using BuildXL.Pips.Builders;
-using BuildXL.Native.IO;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -66,7 +66,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                     // Existence of whitelisted files is still tracked for absent file probes
                     // This is consistent with including whitelisted files in directory fingerprints
                     RunScheduler().AssertCacheMiss(pip.PipId);
-                    AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedCacheable);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable);
                     break;
                 case MountType.NonHashable:
                     // Absent file probes are not tracked for nonhashable mounts
@@ -240,7 +240,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
 
             // Each event logged once per scheduler run
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
         }
 
@@ -296,7 +296,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // No whitelist file access warnings logged
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, 0);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, 0);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 0);
         }
 
@@ -328,7 +328,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (!cacheableWhitelist)
             {
                 // Whitelist file access warnings
-                AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, allowMore: OperatingSystemHelper.IsUnixOS);
+                AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, allowMore: OperatingSystemHelper.IsUnixOS);
                 AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             }
         }

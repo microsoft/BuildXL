@@ -5,14 +5,13 @@ using System.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
-using SchedulerLogEventId=BuildXL.Scheduler.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -127,7 +126,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (failOnUnexpectedFileAccesses)
             {
                 result.AssertFailure();
-                AssertErrorEventLogged(EventId.PipProcessError);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                 AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
                 // Double check that the directory was not created
                 Test.BuildXL.TestUtilities.Xunit.XAssert.IsFalse(Directory.Exists(dir.Path.ToString(Context.PathTable)), "Directory should not exist");
@@ -150,7 +149,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 if (failOnUnexpectedFileAccesses)
                 {
                     result.AssertFailure();
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                     AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
                 }
                 else

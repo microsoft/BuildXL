@@ -20,30 +20,6 @@ namespace Test.BuildXL
     public class BuildXLAppTests
     {
         [Fact]
-        public void ErrorPrecedence()
-        {
-            using (var listener = new TrackingEventListener(Events.Log))
-            {
-                Events.Log.UserErrorEvent("1");
-                var userErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.UserError, userErrorClassification.ExitKind);
-                XAssert.AreEqual("UserErrorEvent", userErrorClassification.ErrorBucket);
-
-                // Now add an infrasctructure error. This should take prescedence
-                Events.Log.InfrastructureErrorEvent("1");
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
-                XAssert.AreEqual("InfrastructureErrorEvent", infrastructureErrorClassification.ErrorBucket);
-
-                // Finally add an internal error. Again, this takes highest prescedence
-                Events.Log.ErrorEvent("1");
-                var internalErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
-                XAssert.AreEqual(ExitKind.InternalError, internalErrorClassification.ExitKind);
-                XAssert.AreEqual("ErrorEvent", internalErrorClassification.ErrorBucket);
-            }
-        }
-
-        [Fact]
         public void DistributedBuildConnectivityIssueTrumpsOtherErrors()
         {
             var loggingContext = XunitBuildXLTest.CreateLoggingContextForTest();

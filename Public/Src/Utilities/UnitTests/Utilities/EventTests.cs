@@ -69,7 +69,6 @@ namespace Test.BuildXL.Utilities
 
                     eventMethod.Invoke(Events.Log, payload);
 
-                    XAssert.AreNotEqual(l.LastEvent.EventId, EventId.None, "Last EventId should not be None. Check payload and Message format.");
                     XAssert.AreEqual(eventAttribute.EventId, l.LastEvent.EventId, "Wrong event ID logged for event {0}", eventMethod.Name);
                     XAssert.AreNotEqual(0, eventAttribute.Task, "Invalid task id == 0 for event {0} (this results in auto-assignment of task id)", eventMethod.Name);
                     XAssert.AreEqual(eventAttribute.Task, l.LastEvent.Task, "Wrong task logged for event {0}", eventMethod.Name);
@@ -151,15 +150,6 @@ namespace Test.BuildXL.Utilities
                                     i);
                             }
                         }
-                    }
-
-                    if (eventAttribute.EventId != (int)EventId.ErrorEvent)
-                    {
-                        XAssert.IsTrue(
-                            eventAttribute.Level != EventLevel.Error ||
-                            (eventAttribute.Keywords & Keywords.UserMessage) == Keywords.UserMessage,
-                            "Event {0} marked as Error must be Keywords.UserMessage",
-                            eventMethod.Name);
                     }
                 }
             }

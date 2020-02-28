@@ -11,7 +11,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using SchedulerLogEventId=BuildXL.Scheduler.Tracing.LogEventId;
-using SchedulerEngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
+using ProcessesLogEventId=BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Engine
 {
@@ -90,9 +90,9 @@ namespace Test.BuildXL.Engine
             Configuration.Cache.DeterminismProbe = true;
 
             FailedBuild("Build #4");
-            AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             // Verify DeterminismProbeEncounteredPipFailure was logged
             XAssert.AreEqual(1, EventListener.GetEventCountSinceSnapshot((int)global::BuildXL.Scheduler.Tracing.LogEventId.DeterminismProbeEncounteredPipFailure, snapshot));

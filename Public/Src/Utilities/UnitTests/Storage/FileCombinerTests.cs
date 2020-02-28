@@ -196,7 +196,7 @@ namespace Test.BuildXL.Storage
                 }
             }
 
-            AssertWarningEventLogged(EventId.FileCombinerVersionIncremented);
+            AssertWarningEventLogged(LogEventId.FileCombinerVersionIncremented);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // need to investigate if equivalent behavior on Unix

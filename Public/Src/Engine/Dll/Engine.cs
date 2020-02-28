@@ -2092,7 +2092,7 @@ namespace BuildXL.Engine
             if (ShouldUpgradeFileAccessWarningsToHighLevelError(Configuration) &&
                 m_trackingEventListener != null &&
                 ((m_trackingEventListener.CountsPerEventId((int)BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringWarning) != 0) ||
-                 (m_trackingEventListener.CountsPerEventId((int)EventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
+                 (m_trackingEventListener.CountsPerEventId((int)BuildXL.Processes.Tracing.LogEventId.PipProcessDisallowedNtCreateFileAccessWarning) != 0)))
             {
                 Logger.Log.FileAccessErrorsExist(loggingContext);
                 success = false;

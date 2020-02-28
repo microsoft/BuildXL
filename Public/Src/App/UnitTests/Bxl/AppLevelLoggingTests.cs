@@ -3,6 +3,7 @@
 
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -25,14 +26,14 @@ namespace Test.BuildXL
                 }
 
                 // Make sure only 5 of the 6 events went to telemetry. The 6th events should only go local
-                XAssert.AreEqual(maxTelemetryUnexpectedConditions, listener.CountsPerEventId((int)EventId.UnexpectedConditionTelemetry));
-                XAssert.AreEqual(1, listener.CountsPerEventId((int)EventId.UnexpectedConditionLocal));
+                XAssert.AreEqual(maxTelemetryUnexpectedConditions, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionTelemetry));
+                XAssert.AreEqual(1, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionLocal));
 
                 // Now change the logging context for a new session and make sure the event goes to telemetry again
                 context = new LoggingContext("Test2");
                 global::BuildXL.Tracing.Logger.Log.UnexpectedCondition(context, "UnexpectedConditionTest");
-                XAssert.AreEqual(maxTelemetryUnexpectedConditions + 1, listener.CountsPerEventId((int)EventId.UnexpectedConditionTelemetry));
-                XAssert.AreEqual(1, listener.CountsPerEventId((int)EventId.UnexpectedConditionLocal));
+                XAssert.AreEqual(maxTelemetryUnexpectedConditions + 1, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionTelemetry));
+                XAssert.AreEqual(1, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionLocal));
             }
         }
     }

@@ -4,7 +4,7 @@
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Tracing;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -30,7 +30,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public override void WriteLine(Severity severity, string severityName, string message)
         {
-            m_logger?.TextLogEtwOnly((int)EventId.CacheFileLog, severityName, message);
+            m_logger?.TextLogEtwOnly((int)SharedLogEventId.CacheFileLog, severityName, message);
             base.WriteLine(severity, severityName, message);
         }
     }

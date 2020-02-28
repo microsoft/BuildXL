@@ -181,7 +181,7 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Assume(eventData.Level == EventLevel.Critical);
             long keywords = (long)eventData.Keywords;
-            string eventName = eventData.GetEventName();
+            string eventName = eventData.EventName;
 
             BucketError(keywords, eventName, eventData.Message);
             Interlocked.Increment(ref m_numCriticals);
@@ -207,7 +207,7 @@ namespace BuildXL.Utilities.Tracing
             if (level == EventLevel.Error)
             {
                 long keywords = (long)eventData.Keywords;
-                string eventName = eventData.GetEventName();
+                string eventName = eventData.EventName;
                 string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, m_baseTime, useCustomPipDescription: false);
 
                 // Errors replayed from workers should respect their original event name and keywords
@@ -228,7 +228,7 @@ namespace BuildXL.Utilities.Tracing
 
                 string eventMessage = FormattingEventListener.CreateFullMessageString(eventData, "error", eventData.Message, DateTime.Now, useCustomPipDescription: false);
                 // The configuration promoted a warning to an error. That's a user error
-                UserErrorDetails.RegisterError(eventData.GetEventName(), eventMessage);
+                UserErrorDetails.RegisterError(eventData.EventName, eventMessage);
             }
         }
 

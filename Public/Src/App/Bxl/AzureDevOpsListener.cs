@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -143,7 +144,7 @@ namespace BuildXL
 
             switch (eventData.EventId)
             {
-                case (int)EventId.PipProcessError:
+                case (int)LogEventId.PipProcessError:
                     {
                         var payload = eventData.Payload;
 
@@ -205,7 +206,7 @@ namespace BuildXL
             }
            
             // construct a short message for ADO console
-            if (eventData.EventId == (int)EventId.PipProcessError)
+            if (eventData.EventId == (int)LogEventId.PipProcessError)
             {
                 args[0] = Pip.FormatSemiStableHash((long)args[0]);
                 message = "[{0}, {10}, {2}] - failed with exit code {8}, {9}\r\n{5}\r\n{6}\r\n{7}";

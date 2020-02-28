@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+
 namespace BuildXL.Utilities.Instrumentation.Common
 {
     // disable warning regarding 'missing XML comments on public API'. We don't need docs for these values
@@ -17,9 +19,20 @@ namespace BuildXL.Utilities.Instrumentation.Common
         StartEngineRun = 87,
         EndEngineRun = 88,
         CacheMissAnalysis = 312,
+        
+        [Obsolete("Please use BuildXL.Processes.Tracing.LogEvent.PipProcessError. This is only here to circumvent an inverse legacy dependency.")]
+        PipProcessError = 64,
+
+        [Obsolete("Please use BuildXL.Processes.Tracing.LogEvent.PipProcessWarning. This is only here to circumvent an inverse legacy dependency.")]
+        PipProcessWarning = 65,
+
         CacheMissAnalysisBatchResults = 325,
         DominoInvocation = 405,
         DominoInvocationForLocalLog = 409,
+        TextLogEtwOnly = 450,
+        
+        // This one is used by the cache to report to ETW
+        CacheFileLog = 451,
         DistributionWorkerForwardedError = 7015,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         /*

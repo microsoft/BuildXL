@@ -22,12 +22,12 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -652,12 +652,12 @@ namespace Test.BuildXL.Scheduler
             config.TreatWarningsAsErrors = true;
             XAssert.IsTrue(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
 
-            config.WarningsNotAsErrors.Add((int)EventId.PipProcessWarning);
+            config.WarningsNotAsErrors.Add((int)ProcessesLogEventId.PipProcessWarning);
             XAssert.IsFalse(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
 
             config.WarningsNotAsErrors.Clear();
             config.TreatWarningsAsErrors = false;
-            config.WarningsAsErrors.Add((int)EventId.PipProcessWarning);
+            config.WarningsAsErrors.Add((int)ProcessesLogEventId.PipProcessWarning);
             XAssert.IsTrue(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
         }
 

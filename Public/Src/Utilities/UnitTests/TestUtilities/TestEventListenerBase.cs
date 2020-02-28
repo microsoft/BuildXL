@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -54,7 +55,7 @@ namespace Test.BuildXL.TestUtilities
 
         /// <summary>
         /// Counts how many instances of different events have occurred, with event counters aggregated by path key.
-        /// This is used for events like <see cref="EventId.PipProcessDisallowedFileAccess"/> by which the particular counts
+        /// This is used for events like <see cref="ProcessesLogEventId.PipProcessDisallowedFileAccess"/> by which the particular counts
         /// are not easily predictable, but the paths themselves are.
         /// </summary>
         private readonly ConcurrentDictionary<int, Dictionary<string, int>> m_eventsByPathCounter = new ConcurrentDictionary<int, Dictionary<string, int>>();
@@ -158,17 +159,6 @@ namespace Test.BuildXL.TestUtilities
         /// <remarks>
         /// Returns an empty array if no logs were received for a given event id
         /// </remarks>
-        public ReadOnlyArray<string> GetLogMessagesForEventId(EventId id)
-        {
-            return GetLogMessagesForEventId((int)id);            
-        }
-
-        /// <summary>
-        /// Returns all the logs received for a given event id
-        /// </summary>
-        /// <remarks>
-        /// Returns an empty array if no logs were received for a given event id
-        /// </remarks>
         public ReadOnlyArray<string> GetLogMessagesForEventId(int eventId)
         {
             lock (m_logMessagesLock)
@@ -213,7 +203,7 @@ namespace Test.BuildXL.TestUtilities
             m_eventCounter.AddOrUpdate(eventData.EventId, 1, (k, v) => v + 1);
 
             // Increase per-path counters if applicable.
-            string pathKey = TryGetPathKey((EventId)eventData.EventId, eventData.Payload);
+            string pathKey = TryGetPathKey(eventData.EventId, eventData.Payload);
             if (pathKey != null)
             {
                 Dictionary<string, int> pathCounters = m_eventsByPathCounter.GetOrAdd(
@@ -285,27 +275,11 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Gets the number of times a given event has been logged.
         /// </summary>
-        public int GetEventCount(EventId eventId)
-        {
-            return GetEventCount((int)eventId);
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged.
-        /// </summary>
         public int GetEventCount(int eventId)
         {
             int count;
             m_eventCounter.TryGetValue(eventId, out count);
             return count;
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged after the given snapshot.
-        /// </summary>
-        public int GetEventCountSinceSnapshot(EventId eventId, EventCountsSnapshot snapshot)
-        {
-            return GetEventCountSinceSnapshot((int)eventId, snapshot);
         }
 
         /// <summary>
@@ -326,9 +300,9 @@ namespace Test.BuildXL.TestUtilities
         /// This is only applicable for some events - in particular file monitoring events for which the
         /// particular number of occurrences is highly implementation dependent and hard to predict.
         /// </remarks>
-        public int GetAndResetEventCountForPath(EventId eventId, string path)
+        public int GetAndResetEventCountForPath(int eventId, string path)
         {
-            Contract.Requires(eventId == EventId.PipProcessDisallowedFileAccess, "Path-keyed event assertions are not supported for this event type.");
+            Contract.Requires(eventId == (int)ProcessesLogEventId.PipProcessDisallowedFileAccess, "Path-keyed event assertions are not supported for this event type.");
 
             Dictionary<string, int> pathCounts;
             if (!m_eventsByPathCounter.TryGetValue((int)eventId, out pathCounts))
@@ -348,9 +322,9 @@ namespace Test.BuildXL.TestUtilities
             }
         }
 
-        private string TryGetPathKey(EventId eventId, IReadOnlyCollection<object> payload)
+        private string TryGetPathKey(int eventId, IReadOnlyCollection<object> payload)
         {
-            if (eventId == EventId.PipProcessDisallowedFileAccess)
+            if (eventId == (int)ProcessesLogEventId.PipProcessDisallowedFileAccess)
             {
                 AssertTrue(payload.Count == 6, "Payload for PipProcessDisallowedFileAccess has changed. Does the ElementAt below need to be updated?");
                 return (string)payload.ElementAt(5);
@@ -371,14 +345,6 @@ namespace Test.BuildXL.TestUtilities
         {
             Contract.Requires(counts != null);
             m_counts = counts;
-        }
-
-        /// <summary>
-        /// Gets the number of times a given event has been logged as of this snapshot.
-        /// </summary>
-        public int GetEventCount(EventId eventId)
-        {
-            return GetEventCount((int)eventId);
         }
 
         /// <summary>

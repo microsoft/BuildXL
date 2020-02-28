@@ -1,21 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.IO;
+using BuildXL.Native.IO;
+using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
-using System.IO;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Storage;
-using BuildXL.Native.IO;
-using BuildXL.Pips.Builders;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
@@ -190,7 +190,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Pip allowed to run successfully, but will not be cached due to file monitoring violations
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, 2);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, 2);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 4);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, 2);
             AssertWarningEventLogged(LogEventId.FileMonitoringWarning, 2);
@@ -210,7 +210,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
             AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
@@ -218,7 +218,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Pip allowed to run successfully, but will not be cached due to file monitoring violations
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
             AssertWarningEventLogged(LogEventId.FileMonitoringWarning);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
@@ -258,7 +258,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileUtilities.CreateJunction(junctionPath.ToString(Context.PathTable), targetPathStr);
             
             RunScheduler().AssertSuccess();
-            AssertVerboseEventLogged(EventId.ValidateJunctionRoot);
+            AssertVerboseEventLogged(StorageLogEventId.ValidateJunctionRoot);
             AssertVerboseEventLogged(StorageLogEventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
 
             // Remove junction and recreate one with the same target
@@ -267,7 +267,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileUtilities.CreateJunction(junctionPath.ToString(Context.PathTable), targetPathStr);
 
             RunScheduler().AssertSuccess();
-            AssertVerboseEventLogged(EventId.ValidateJunctionRoot);
+            AssertVerboseEventLogged(StorageLogEventId.ValidateJunctionRoot);
             AssertVerboseEventLogged(StorageLogEventId.IgnoredRecordsDueToUnchangedJunctionRootCount);
         }
     }

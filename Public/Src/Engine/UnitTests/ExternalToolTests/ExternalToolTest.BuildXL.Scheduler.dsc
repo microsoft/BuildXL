@@ -22,6 +22,7 @@ namespace ExternalToolTest {
             EngineTestUtilities.dll,
             Scheduler.IntegrationTest.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

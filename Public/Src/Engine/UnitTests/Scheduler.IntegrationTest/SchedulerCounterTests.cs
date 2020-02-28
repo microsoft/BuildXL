@@ -1,19 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.IO;
+using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
-using System.IO;
-using BuildXL.Pips.Builders;
-using Test.BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
+using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using System;
-using System.Linq;
-using BuildXL.Utilities.Tracing;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -85,7 +84,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             new []{ filterTag });
 
             var failedPipRun = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             var explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
             var implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;
@@ -98,7 +97,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             Configuration.Filter = $"tag='{filterTag}'";
             failedPipRun = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             explicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ExplicitlyScheduledProcesses;
             implicitlyScheduled = failedPipRun.ProcessPipCountersByFilter.ImplicitlyScheduledProcesses;

@@ -9,13 +9,11 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
-using BuildXL.Pips.Tracing;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -23,6 +21,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -287,7 +286,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             RunScheduler().AssertFailure();
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
@@ -355,7 +354,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             IgnoreWarnings();
             RunScheduler().AssertFailure();
 
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 

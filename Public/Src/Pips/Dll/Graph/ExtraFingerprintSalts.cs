@@ -9,7 +9,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Pips.Fingerprints;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Pips.Graph
 {
@@ -100,8 +100,10 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public static bool ArePipWarningsPromotedToErrors(ILoggingConfiguration loggingConfiguration)
         {
-            return (loggingConfiguration.TreatWarningsAsErrors && (loggingConfiguration.WarningsNotAsErrors.Count == 0 || !loggingConfiguration.WarningsNotAsErrors.Contains((int)EventId.PipProcessWarning)))
-                || loggingConfiguration.WarningsAsErrors.Contains((int)EventId.PipProcessWarning);
+#pragma warning disable 618
+            return (loggingConfiguration.TreatWarningsAsErrors && (loggingConfiguration.WarningsNotAsErrors.Count == 0 || !loggingConfiguration.WarningsNotAsErrors.Contains((int)SharedLogEventId.PipProcessWarning)))
+                || loggingConfiguration.WarningsAsErrors.Contains((int)SharedLogEventId.PipProcessWarning);
+#pragma warning restore 618
         }
 
 #pragma warning disable CS1572

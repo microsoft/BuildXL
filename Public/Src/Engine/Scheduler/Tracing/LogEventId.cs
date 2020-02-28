@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler.Tracing
         DeleteFullySealDirectoryUnsealedContents = 244,
         PipsSucceededStats = 227,
         PipsFailedStats = 228,
-
+        StatsPerformanceLog = 459,
         StorageTrackOutputFailed = 745,
 
         CacheDescriptorHitForContentFingerprint = 200,
@@ -454,6 +454,8 @@ namespace BuildXL.Scheduler.Tracing
 
         ProcessRetries = 14504,
         ProcessPattern = 14505,
+        OperationTrackerAssert = 14506,
+        
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

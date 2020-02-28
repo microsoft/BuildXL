@@ -25,6 +25,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -849,7 +850,7 @@ namespace Test.BuildXL.FingerprintStore
 
             downstreamPip = CreateAndSchedulePipBuilder(downstreamOps).Process;
             var failResult = RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
 
             // Get the fingerprints and path set result from the failing run
             var failEntry = default(FingerprintStoreEntry);

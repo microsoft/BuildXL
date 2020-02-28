@@ -119,8 +119,8 @@ namespace Test.BuildXL.Processes.Detours
                         sandboxConfiguration,
                         pip);
 
-                    AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                 }
             }
         }
@@ -484,9 +484,9 @@ namespace Test.BuildXL.Processes.Detours
                     pip);
             }
 
-            AssertVerboseEventLogged(EventId.PipProcessFinishedFailed);
-            AssertErrorEventLogged(EventId.PipProcessError);
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessFinishedFailed);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertLogContains(caseSensitive: true, requiredLogMessages: "exit code 42");
         }
 
@@ -545,7 +545,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             SetExpectedFailures(1, 0, "DX0064");
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedTempFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess);
         }
 
         [Fact]
@@ -681,7 +681,7 @@ namespace Test.BuildXL.Processes.Detours
 
             // 4 warnings with 2 probes collapsed into one, because they reported the same kind
             // of access. Events ignore the function used for the access.
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedTempFileAccess, count: 3);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess, count: 3);
         }
 
         [Fact]
@@ -769,7 +769,7 @@ namespace Test.BuildXL.Processes.Detours
                     fileAccessWhitelist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
         }
 
         [Fact]
@@ -858,7 +858,7 @@ namespace Test.BuildXL.Processes.Detours
                     fileAccessWhitelist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
         }
 
         [Fact]
@@ -938,7 +938,7 @@ namespace Test.BuildXL.Processes.Detours
                     fileAccessWhitelist);
             }
 
-            AssertInformationalEventLogged(EventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
         }
 
         [Fact]
@@ -1716,10 +1716,10 @@ namespace Test.BuildXL.Processes.Detours
 
             // conhost.exe may or may not be started within the pip depending on
             // the current machine state. And each cmd might have its own conhost.
-            int numChildrenSurvivedErrors = EventListener.GetEventCount(EventId.PipProcessChildrenSurvivedError);
+            int numChildrenSurvivedErrors = EventListener.GetEventCount((int)ProcessesLogEventId.PipProcessChildrenSurvivedError);
             SetExpectedFailures(1 + numChildrenSurvivedErrors, 0,
-                "DX0041",  // EventId.PipProcessChildrenSurvivedError
-                "DX0064");  // EventId.PipProcessChildrenSurvivedKilled
+                "DX0041",  // ProcessesLogEventId.PipProcessChildrenSurvivedError
+                "DX0064");  // ProcessesLogEventId.PipProcessChildrenSurvivedKilled
             XAssert.IsTrue(numChildrenSurvivedErrors >= 1 && numChildrenSurvivedErrors <= 3, $"Child processes: {numChildrenSurvivedErrors}");
         }
 
@@ -1850,7 +1850,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 XAssert.AreEqual(SandboxedProcessPipExecutionStatus.PreparationFailed, result.Status);
                 XAssert.AreEqual(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, result.NumberOfProcessLaunchRetries);
-                AssertVerboseEventLogged(EventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
+                AssertVerboseEventLogged(ProcessesLogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
             }
 
             SetExpectedFailures(1, 0, "DX0011");

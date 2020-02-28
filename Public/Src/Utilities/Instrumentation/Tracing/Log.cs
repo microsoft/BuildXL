@@ -30,7 +30,7 @@ namespace BuildXL.Tracing
         /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.Statistic,
+            (ushort)LogEventId.Statistic,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -39,7 +39,7 @@ namespace BuildXL.Tracing
         public abstract void Statistic(LoggingContext context, Statistic statistic);
 
         [GeneratedEvent(
-            (ushort)EventId.FinalStatistics,
+            (ushort)LogEventId.FinalStatistics,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -48,7 +48,7 @@ namespace BuildXL.Tracing
         public abstract void FinalStatistics(LoggingContext context, IDictionary<string, long> statistics);
 
         [GeneratedEvent(
-            (ushort)EventId.PipCounters,
+            (ushort)LogEventId.PipCounters,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -66,7 +66,7 @@ namespace BuildXL.Tracing
         /// must also be changed to compensate
         /// </remarks>
         [GeneratedEvent(
-            (ushort)EventId.BulkStatistic,
+            (ushort)LogEventId.BulkStatistic,
             EventGenerators = Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -78,7 +78,7 @@ namespace BuildXL.Tracing
         /// Logs statistics about log event occurrences and aggregate time
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.LoggerStatistics,
+            (ushort)LogEventId.LoggerStatistics,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -91,7 +91,7 @@ namespace BuildXL.Tracing
         /// .stats file that is already captured in another telemetry event
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.StatisticWithoutTelemetry,
+            (ushort)LogEventId.StatisticWithoutTelemetry,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -100,7 +100,7 @@ namespace BuildXL.Tracing
         public abstract void StatisticWithoutTelemetry(LoggingContext context, string key, long value);
 
         [GeneratedEvent(
-            (ushort)EventId.Memory,
+            (ushort)LogEventId.Memory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
@@ -153,7 +153,7 @@ namespace BuildXL.Tracing
         public const int MaxTelemetryUnexpectedConditions = 5;
 
         [GeneratedEvent(
-            (ushort)EventId.UnexpectedConditionLocal,
+            (ushort)LogEventId.UnexpectedConditionLocal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -161,7 +161,7 @@ namespace BuildXL.Tracing
         public abstract void UnexpectedConditionLocal(LoggingContext loggingContext, string description);
 
         [GeneratedEvent(
-            (ushort)EventId.UnexpectedConditionTelemetry,
+            (ushort)LogEventId.UnexpectedConditionTelemetry,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -172,7 +172,7 @@ namespace BuildXL.Tracing
         /// Log the usage of resources and pip queues
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.Status,
+            (ushort)LogEventId.Status,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -181,7 +181,7 @@ namespace BuildXL.Tracing
         public abstract void Status(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.StatusCallbacksDelayed,
+            (ushort)LogEventId.StatusCallbacksDelayed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -193,7 +193,7 @@ namespace BuildXL.Tracing
         /// Log the usage of resources and pip queues
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.StatusHeader,
+            (ushort)LogEventId.StatusHeader,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -202,13 +202,13 @@ namespace BuildXL.Tracing
         public abstract void StatusHeader(LoggingContext context, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheClientStats,
+            (ushort)LogEventId.CacheClientStats,
             EventGenerators = EventGenerators.TelemetryOnly,
             Message = "Cache Statistics for an ICache provider")]
         public abstract void ICacheStatistics(LoggingContext context, string cacheId, string cacheLevel, string cacheType, IDictionary<string, long> entryMatches);
 
         [GeneratedEvent(
-            (ushort)EventId.CacheBulkStatistics,
+            (ushort)LogEventId.CacheBulkStatistics,
             EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -220,7 +220,7 @@ namespace BuildXL.Tracing
         /// Log the usage of CPU, Memory and Network resources
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.StatusSnapshot,
+            (ushort)LogEventId.StatusSnapshot,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -232,7 +232,7 @@ namespace BuildXL.Tracing
         /// Logs log file event message to ETW
         /// </summary>
         [GeneratedEvent(
-            (ushort)EventId.TextLogEtwOnly,
+            (ushort)SharedLogEventId.TextLogEtwOnly,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
             EventTask = (ushort)Tasks.CommonInfrastructure,
@@ -245,7 +245,7 @@ namespace BuildXL.Tracing
         private const string CloudBuildMessageVersionTargetId = " v{cbEvent.Version} Id:{cbEvent.TargetId}";
 
         [GeneratedEvent(
-            (ushort)EventId.DominoInvocationEvent,
+            (ushort)LogEventId.DominoInvocationEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -253,7 +253,7 @@ namespace BuildXL.Tracing
         public abstract void DominoInvocationEvent(LoggingContext context, DominoInvocationEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoCompletedEvent,
+            (ushort)LogEventId.DominoCompletedEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -261,7 +261,7 @@ namespace BuildXL.Tracing
         public abstract void DominoCompletedEvent(LoggingContext context, DominoCompletedEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoContinuousStatisticsEvent,
+            (ushort)LogEventId.DominoContinuousStatisticsEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -269,7 +269,7 @@ namespace BuildXL.Tracing
         public abstract void DominoContinuousStatisticsEvent(LoggingContext context, DominoContinuousStatisticsEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.TargetAddedEvent,
+            (ushort)LogEventId.TargetAddedEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -277,7 +277,7 @@ namespace BuildXL.Tracing
         public abstract void TargetAddedEvent(LoggingContext context, TargetAddedEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.TargetRunningEvent,
+            (ushort)LogEventId.TargetRunningEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -285,7 +285,7 @@ namespace BuildXL.Tracing
         public abstract void TargetRunningEvent(LoggingContext context, TargetRunningEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.TargetFailedEvent,
+            (ushort)LogEventId.TargetFailedEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -293,7 +293,7 @@ namespace BuildXL.Tracing
         public abstract void TargetFailedEvent(LoggingContext context, TargetFailedEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.TargetFinishedEvent,
+            (ushort)LogEventId.TargetFinishedEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.CloudBuild | Keywords.UserMessage),
@@ -301,7 +301,7 @@ namespace BuildXL.Tracing
         public abstract void TargetFinishedEvent(LoggingContext context, TargetFinishedEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.DropCreationEvent,
+            (ushort)LogEventId.DropCreationEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.CloudBuild,
@@ -309,7 +309,7 @@ namespace BuildXL.Tracing
         public abstract void DropCreationEvent(LoggingContext context, DropCreationEvent cbEvent);
 
         [GeneratedEvent(
-            (ushort)EventId.DropFinalizationEvent,
+            (ushort)LogEventId.DropFinalizationEvent,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.CloudBuild,

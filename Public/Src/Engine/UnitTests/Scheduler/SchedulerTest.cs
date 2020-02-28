@@ -33,7 +33,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
@@ -346,7 +345,7 @@ namespace Test.BuildXL.Scheduler
             if (OperatingSystemHelper.IsUnixOS)
             {
                 // ignoring /bin/sh is being used as a source file
-                AssertWarningEventLogged(EventId.IgnoringUntrackedSourceFileNotUnderMount);
+                AssertWarningEventLogged(LogEventId.IgnoringUntrackedSourceFileNotUnderMount);
             }
 
             // Only 1 source file should have been hashed (file1.txt). Also the second pip that consumes file1.txt should not cause the file to be rehashed
@@ -2304,7 +2303,7 @@ namespace Test.BuildXL.Scheduler
                     ExpectPipsDone(LabelPip(ipcPip, nameof(ipcPip)));
 
                     // assert IpcClientFailed error was logged
-                    AssertWarningEventLogged(EventId.IpcClientFailed);
+                    AssertWarningEventLogged(LogEventId.IpcClientFailed);
                 });
         }
 

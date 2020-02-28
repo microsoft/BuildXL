@@ -4,18 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
-using BuildXL.Storage;
-using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
@@ -24,6 +19,8 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -93,7 +90,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
         }
 
         [Fact]
@@ -190,10 +187,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(pipBuilder);
 
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.AbortObservedInputProcessorBecauseFileUntracked);
+            AssertErrorEventLogged(SchedulerLogEventId.AbortObservedInputProcessorBecauseFileUntracked);
             if (!shouldPipSucceed)
             {
-                AssertErrorEventLogged(EventId.PipProcessError);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
             }
         }
 
@@ -226,7 +223,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
             if (!shouldPipSucceed)
             {
-                AssertErrorEventLogged(EventId.PipProcessError);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
             }
         }
 
@@ -281,9 +278,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             if (partialSealDirectory)
             {
-                AssertVerboseEventLogged(EventId.DisallowedFileAccessInSealedDirectory);
+                AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             }
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
@@ -320,7 +317,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 if (shouldPipFail)
                 {
                     RunScheduler(tempCleaner: tempCleaner).AssertFailure();
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
                     tempCleaner.WaitPendingTasksForCompletion();
                     XAssert.IsTrue(Directory.Exists(tempdirStr), $"TEMP directory deleted but wasn't supposed to: {tempdirStr}");
                     XAssert.IsTrue(File.Exists(fileStr), $"Temp file deleted but wasn't supposed to: {fileStr}");
@@ -349,7 +346,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertFailure();
 
             // Fail on unspecified output
-            AssertVerboseEventLogged(EventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, count: 1, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
@@ -372,9 +369,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Fail on missing output
             RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
             AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
         }
 
         [Fact]

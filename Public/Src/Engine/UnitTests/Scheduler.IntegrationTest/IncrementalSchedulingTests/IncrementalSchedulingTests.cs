@@ -9,7 +9,6 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -18,6 +17,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using ArtificialCacheMissConfig = BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig;
+using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
@@ -303,7 +303,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                     }
                 }).AssertScheduled(pipA.Process.PipId);
 
-            AssertVerboseEventLogged(EventId.ConflictDirectoryMembershipFingerprint, count: 1);
+            AssertVerboseEventLogged(StorageLogEventId.ConflictDirectoryMembershipFingerprint, count: 1);
 
             if (changeMembershipBeforeThirdRun)
             {

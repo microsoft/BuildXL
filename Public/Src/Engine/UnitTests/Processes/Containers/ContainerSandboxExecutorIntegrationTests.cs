@@ -13,11 +13,11 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId=BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes
 {
@@ -182,8 +182,8 @@ namespace Test.BuildXL.Processes
                 var pipExecutionResult = await RunProcess(context, pip, failUnexpectedFileAccesses: false);
 
                 // The redirected output is created as a tombstone file, but the sandboxed pip executor should report it as an absent file
-                AssertErrorEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessMissingExpectedOutputOnCleanExit);
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessExpectedMissingOutputs);
             }
         }
 

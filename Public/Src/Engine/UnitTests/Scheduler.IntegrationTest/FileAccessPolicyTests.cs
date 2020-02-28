@@ -14,6 +14,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
@@ -193,7 +194,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             DirectoryArtifact undefinedDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(SourceRootPrefix, TemporaryDirectory));
 
             ValidateCachingBehaviorUntrackedMount(undefinedFile, undefinedDir, undefinedMount: true);
-            AssertWarningEventLogged(EventId.IgnoringUntrackedSourceFileNotUnderMount, 7);
+            AssertWarningEventLogged(SchedulerLogEventId.IgnoringUntrackedSourceFileNotUnderMount, 7);
         }
 
         public void ValidateCachingBehaviorUntrackedMount(FileArtifact file, DirectoryArtifact dir, bool undefinedMount)
@@ -384,7 +385,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(EventId.PipProcessError);
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
     }

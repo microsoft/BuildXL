@@ -97,7 +97,7 @@ namespace BuildXL.Engine.Tracing
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance | Keywords.Progress))]
-        public abstract void ExecutePhaseComplete(LoggingContext context, ExecuteStatistics executeStatistics, Scheduler.ExecutionSampler.LimitingResourcePercentages limitingResourcePercentages);
+        public abstract void ExecutePhaseComplete(LoggingContext context, ExecuteStatistics executeStatistics, LimitingResourcePercentages limitingResourcePercentages);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartCheckingForPipGraphReuse,

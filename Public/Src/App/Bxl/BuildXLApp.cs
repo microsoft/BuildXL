@@ -288,12 +288,12 @@ namespace BuildXL
                     (new List<int>(FrontEndControllerFactory.DevLogEvents)
                     {
                         // Add useful low volume-messages for dev diagnostics here
-                        (int)EventId.DominoInvocation,
-                        (int)EventId.StartupTimestamp,
-                        (int)EventId.StartupCurrentDirectory,
+                        (int)SharedLogEventId.DominoInvocation,
+                        (int)LogEventId.StartupTimestamp,
+                        (int)LogEventId.StartupCurrentDirectory,
                         (int)EventId.DominoCompletion,
-                        (int)EventId.DominoPerformanceSummary,
-                        (int)EventId.DominoCatastrophicFailure,
+                        (int)LogEventId.DominoPerformanceSummary,
+                        (int)LogEventId.DominoCatastrophicFailure,
                         (int)EventId.UnexpectedConditionLocal,
                         (int)EventId.UnexpectedConditionTelemetry,
                         (int)SchedulerEventId.CriticalPathPipRecord,
@@ -789,7 +789,7 @@ namespace BuildXL
                     listener.InfrastructureErrorDetails.FirstErrorMessage;
 
                 Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: LogEventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
             }
             else if (listener.InternalErrorDetails.Count > 0)
             {
@@ -827,7 +827,7 @@ namespace BuildXL
                         case (int)EventId.PipProcessError:
                         case (int)EventId.DistributionWorkerForwardedError:
                             return ExitKind.BuildFailedWithPipErrors;
-                        case (int)EventId.CancellationRequested:
+                        case (int)LogEventId.CancellationRequested:
                             return ExitKind.BuildCancelled;
                         case (int)BuildXL.Pips.Tracing.LogEventId.NoPipsMatchedFilter:
                             return ExitKind.NoPipsMatchFilter;

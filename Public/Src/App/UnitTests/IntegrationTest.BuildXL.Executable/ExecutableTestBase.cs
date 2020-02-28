@@ -8,7 +8,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Tracing;
+using BuildXL.App.Tracing;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
@@ -372,7 +372,7 @@ namespace IntegrationTest.BuildXL.Executable
             using (var sr = new StreamReader(bs))
             {
                 string line;
-                var appServerBuildStartRegex = new Regex($"verbose DX[0]*{(int)EventId.AppServerBuildStart}(?<serverInfo>.*)");
+                var appServerBuildStartRegex = new Regex($"verbose DX[0]*{(int)LogEventId.AppServerBuildStart}(?<serverInfo>.*)");
                 while ((line = sr.ReadLine()) != null)
                 {
                     var match = appServerBuildStartRegex.Match(line);

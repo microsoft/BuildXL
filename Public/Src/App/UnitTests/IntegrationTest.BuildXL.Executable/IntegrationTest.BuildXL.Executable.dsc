@@ -38,6 +38,7 @@ namespace IntegrationTest.BuildXL.Executable {
         }),
         skipTestRun: true,
         references: [
+            Main.exe,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Utilities").dll,

@@ -190,7 +190,7 @@ namespace BuildXL.Utilities.Tracing
         private bool DoNotTranslatePath(int eventId) =>
             // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
             // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
-            (int)EventId.DominoInvocation == eventId || (int)EventId.DominoInvocationForLocalLog == eventId
+            (int)SharedLogEventId.DominoInvocation == eventId || (int)SharedLogEventId.DominoInvocationForLocalLog == eventId
             // Don't translate paths in the CacheMissAnalysis event since that can give a wrong presentation, e.g.,
             // two fingerprints do not match because path D:\a\b\c equals D:\a\b\c, but the latter path is actually a translation
             // from B:\c, with D:\a\b is the subst path and B: is the subst drive. Furthermore, presentation-wise, path translation

@@ -42,7 +42,7 @@ namespace BuildXL.Utilities.Tracing
 
         // BuildXL.Engine.dll FilterDetails = 25
         PipProcessFinishedDetourFailures = 26,
-        StartupCurrentDirectory = 27,
+        // Elsewhere = 27,
 
         EngineDidNotFindDefaultQualifierInConfig = 28,
         AssignProcessToJobObjectFailed = 29,
@@ -65,9 +65,9 @@ namespace BuildXL.Utilities.Tracing
         EngineFailedToInitializeOutputCache = 45,
         PipProcessOutputPreparationFailed = 46,
         CacheFingerprintHitSources = 47,
-        CatastrophicFailureCausedByDiskSpaceExhaustion = 49,
+        // Elsewhere = 49,
         CacheClientStats = 50,
-        CatastrophicFailureCausedByCorruptedCache = 51,
+        // Elsewhere = 51,
         ProcessingPipOutputFileFailed = 52,
         PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         // Reserved = 54,
@@ -75,7 +75,7 @@ namespace BuildXL.Utilities.Tracing
         // Reserved = 56,
         // Reservd = 57,
         PipStatus = 58,
-        CatastrophicFailure = 59,
+        // Elsewhere = 59,
         StatsBanner = 60,
         GCStats = 61,
         ObjectPoolStats = 62,
@@ -104,7 +104,7 @@ namespace BuildXL.Utilities.Tracing
         PipProcessFinishedExternalVm = 81,
         PipProcessExternalExecution = 82,
 
-        MappedRoot = 83,
+        // Elsewhere = 83,
         PipTableDeserializationContext = 84,
         RetryStartPipDueToErrorPartialCopyDuringDetours = 85,
 
@@ -385,13 +385,13 @@ namespace BuildXL.Utilities.Tracing
         EnvUnresolvableIdentifier = 400,
         EnvRequestedIdentifierIsANamespace = 401,
         EnvFreezing = 402,
-        StartupTimestamp = 403,
+        // Elsewhere = 403,
         EnvAmbiguousReferenceDeclaration = 404,
-        DominoInvocation = 405,
+        // Elsewhere = 405,
         DominoCompletion = 406,
-        DominoCatastrophicFailure = 407,
-        DominoPerformanceSummary = 408,
-        DominoInvocationForLocalLog = 409,
+        // Elsewhere = 407,
+        // Elsewhere = 408,
+        // Elsewhere 409,
         // DEPRECATED = 410,
         // DEPRECATED = 411,
         // Elsewhere = 412,
@@ -401,26 +401,26 @@ namespace BuildXL.Utilities.Tracing
         TextLogEtwOnly = 450,
         CacheFileLog = 451,
 
-        EventWriteFailuresOccurred = 452,
+        // Elsewhere = 452,
         // Elsewhere = 453,
-        FailedToEnumerateLogDirsForCleanup = 454,
-        FailedToCleanupLogDir = 455,
-        WaitingCleanupLogDir = 456,
+        // Elsewhere = 454,
+        // Elsewhere = 455,
+        // Elsewhere = 456,
         // Elsewhere = 457,
         //was: DisplayHelpLink = 458,
         StatsPerformanceLog = 459,
-        CoreDumpNoPermissions = 460,
-        CrashReportProcessing = 461,
+        // Elsewhere = 460,
+        // Elsewhere = 461,
 
         // Cancellation
-        CancellationRequested = 470,
+        // Elsewhere = 470,
 
-        TelemetryShutDown = 471,
+        // Elsewhere = 471,
         UnexpectedConditionLocal = 472,
         UnexpectedConditionTelemetry = 473,
-        TelemetryShutDownException = 474,
+        // Elsewhere = 474,
         // was ServerDeploymentDirectoryHashMismatch = 475,
-        TelemetryShutdownTimeout = 476,
+        // Elsewhere = 476,
 
         PipProcessDisallowedNtCreateFileAccessWarning = 480,
 
@@ -428,7 +428,7 @@ namespace BuildXL.Utilities.Tracing
         FileMonitoringError = 500,
         FileMonitoringWarning = 501,
 
-        Channel = 502,
+        // Elsewhere = 502,
         StorageCacheContentHitSources = 503,
         // Elsewhere = 504,
         // was PipProcessAllowedMissingOutputs = 505,
@@ -484,8 +484,8 @@ namespace BuildXL.Utilities.Tracing
 
         // Elsewhere  = 729,
 
-        StorageCatastrophicFailureDriveError = 730,
-        CatastrophicFailureMissingRuntimeDependency = 731,
+        // Elsewhere  = 730,
+        // Elsewhere = 731,
         // Elsewhere  = 732,
         // Elsewhere  = 733,
         // Elsewhere  = 734,
@@ -728,7 +728,7 @@ namespace BuildXL.Utilities.Tracing
         // Elsewhere  = 2911,
         // Elsewhere  = 2912,
         // Elsewhere  = 2913,
-        ChangeJournalServiceReady = 2914,
+        // Elsewhere = 2914,
         // Elsewhere = 2915,
         // Elsewhere = 2916,
 
@@ -850,9 +850,9 @@ namespace BuildXL.Utilities.Tracing
         #region ASSEMBLY RESERVED (4300-4399): bxl.exe
 
         DominoApplicationStart = 4300,
-        TelemetryEnabledNotifyUser = 4301,
-        TelemetryEnabledHideNotification = 4302,
-        MemoryLoggingEnabled = 4303,
+        // Elswhere = 4301,
+        // Elsewhere = 4302,
+        // Elsewhere = 4303,
 
         DominoApplicationEnd = 4399,
 
@@ -884,7 +884,7 @@ namespace BuildXL.Utilities.Tracing
         // was SchedulerAskedToWaitForUnscheduledValue = 6215,
         Statistic = 6300,
         // was PerformanceSnapshot = 6301,
-        EventCount = 6302,
+        // Elsewhere = 6302,
         PerformanceSample = 6303,
         StatisticWithoutTelemetry = 6304,
         BulkStatistic = 6305,
@@ -991,13 +991,13 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingStateStatsEnd = 8082,
 
         // Server mode
-        UsingExistingServer = 8100,
-        AppServerBuildStart = 8101,
-        AppServerBuildFinish = 8102,
-        StartingNewServer = 8103,
-        CannotStartServer = 8104,
-        DeploymentUpToDateCheckPerformed = 8105,
-        DeploymentCacheCreated = 8106,
+        // Elsewhere = 8100,
+        // Elsewhere = 8101,
+        // Elsewhere = 8102,
+        // Elsewhere = 8103,
+        // Elsewhere = 8104,
+        // Elsewhere = 8105,
+        // Elsewhere = 8106,
 
         // Next free section
         #region ASSEMBLY RESERVED (9000-9899): BuildXL.FrontEnd.Script.dll
@@ -1113,19 +1113,19 @@ namespace BuildXL.Utilities.Tracing
         SuccessLoadFingerprintStoreToCompare = 13303,
 
         // Smell events
-        ProcessPipsUncacheable = 14001,
-        NoCriticalPathTableHits = 14002,
-        NoSourceFilesUnchanged = 14003,
-        ServerModeDisabled = 14004,
-        GraphCacheCheckJournalDisabled = 14005,
-        SlowCacheInitialization = 14006,
+        // Elsewhere = 14001,
+        // Elsewhere = 14002,
+        // Elsewhere = 14003,
+        // Elsewhere = 14004,
+        // Elsewhere = 14005,
+        // Elsewhere = 14006,
         LowRamMemory = 14007,
         // Elsewhere  = 14008,
         // Elsewhere  = 14009,
-        BuildHasPerfSmells = 14010,
-        LogProcessesEnabled = 14011,
-        FrontendIOSlow = 14012,
-        ProblematicWorkerExitError = 14013,
+        // Elsewhere = 14010,
+        // Elsewhere = 14011,
+        // Elsewhere = 14012,
+        // Elsewhere = 14013,
         LowCommitMemory = 14014,
         HitLowMemorySmell = 14015,
 

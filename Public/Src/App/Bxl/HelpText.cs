@@ -1170,6 +1170,9 @@ namespace BuildXL
             hw.WriteOption("/numRetryFailedPipsOnAnotherWorker:<int>",
                Strings.HelpText_DisplayHelp_NumberofFailedPipRetry);
 
+            hw.WriteOption("/engineVersion:<int>",
+               Strings.HelpText_DisplayHelp_EngineVersion);
+
             #endregion
 
             if (helpLevel < HelpLevel.Verbose)

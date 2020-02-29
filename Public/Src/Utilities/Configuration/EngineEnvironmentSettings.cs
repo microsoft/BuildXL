@@ -134,6 +134,15 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static readonly Setting<bool> DoNotInlineWhenNewPipRunInSameQueue = CreateSetting("BuildXLDoNotInlineWhenNewPipRunInSameQueue", value => value == "1");
 
+        /// <summary>
+        /// Specifies the engine version to be used for controlling configuration.
+        /// </summary>
+        /// <remarks>
+        /// This environment variable is useful when introducing breaking change due to changing the default values of some configuration.
+        /// This environment variable is temporary until customers' LTSBs pick up the new /engineVersion argument.
+        /// </remarks>
+        public static readonly Setting<int?> BuildXLEngineVersion = CreateSetting("BUILDXL_ENGINE_VERSION", value => ParseInt32(value));
+
         #region Distribution-related timeouts
 
         /// <summary>

@@ -418,6 +418,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "engineCacheDirectory",
                             opt => layoutConfiguration.EngineCacheDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateOption(
+                            "engineVersion",
+                            opt => EngineVersion.Version = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "ensureTempDirectoriesExistenceBeforePipExecution",
                             sign => sandboxConfiguration.EnsureTempDirectoriesExistenceBeforePipExecution = sign),

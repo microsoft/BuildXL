@@ -345,5 +345,15 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the maximum number of sealdirectory pips that BuildXL will process at one time. The default value is the number of processors in the current machine.
         /// </summary>
         int MaxSealDirs { get; }
+
+        /// <summary>
+        /// Enable memory projection based on historic commit memory usage.
+        /// </summary>
+        bool EnableHistoricCommitMemoryProjection { get; }
+
+        /// <summary>
+        /// Specifies the maximum amount of commit memory which can be utilized before scheduling is paused to allow freeing resources.
+        /// </summary>
+        int MaximumCommitUtilizationPercentage { get; }
     }
 }

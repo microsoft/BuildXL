@@ -1188,6 +1188,11 @@ namespace BuildXL.Scheduler.Tracing
         public int CommitFreeMb;
 
         /// <summary>
+        /// Effective total process slots
+        /// </summary>
+        public int EffectiveTotalProcessSlots;
+
+        /// <summary>
         /// CPU utilization of the current process
         /// </summary>
         public int ProcessCpuPercent;
@@ -1310,6 +1315,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(CommitPercent);
             writer.Write(CommitUsedMb);
             writer.Write(CommitFreeMb);
+            writer.Write(EffectiveTotalProcessSlots);
         }
 
         /// <inheritdoc />
@@ -1352,6 +1358,7 @@ namespace BuildXL.Scheduler.Tracing
             CommitPercent = reader.ReadInt32();
             CommitUsedMb = reader.ReadInt32();
             CommitFreeMb = reader.ReadInt32();
+            EffectiveTotalProcessSlots = reader.ReadInt32();
         }
     }
 

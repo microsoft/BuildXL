@@ -78,6 +78,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InputChanges = AbsolutePath.Invalid;
 
             EnableSetupCostWhenChoosingWorker = true;
+            MaximumCommitUtilizationPercentage = 95;
         }
 
         /// <nodoc />
@@ -148,6 +149,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheOnly = template.CacheOnly;
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
             MaxSealDirs = template.MaxSealDirs;
+            EnableHistoricCommitMemoryProjection = template.EnableHistoricCommitMemoryProjection;
+            MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
         }
 
         /// <inheritdoc />
@@ -347,7 +350,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public bool EnableSetupCostWhenChoosingWorker { get; set;  }
 
-        /// <nodoc />
+        /// <inheritdoc />
         public int MaxSealDirs { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableHistoricCommitMemoryProjection { get; set; }
+
+        /// <inheritdoc />
+        public int MaximumCommitUtilizationPercentage { get; set; }
     }
 }

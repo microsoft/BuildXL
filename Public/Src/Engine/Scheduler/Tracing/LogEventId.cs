@@ -200,7 +200,7 @@ namespace BuildXL.Scheduler.Tracing
         PipFailedDueToOutputsCannotBeHashed = 3604,
         PreserveOutputsFailedToMakeOutputPrivate = 3605,
         PipStatusNonOverwriteable = 3606,
-        StoppingProcessExecutionDueToResourceExhaustion = 3607,
+        StoppingProcessExecutionDueToMemory = 3607,
         ResumingProcessExecutionAfterSufficientResources = 3608,
         PipFailedOnRemoteWorker = 3609,
 

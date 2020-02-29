@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Distribution;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -68,6 +69,10 @@ namespace BuildXL.Scheduler.Tracing
 
             worker.ActualFreeMemoryMb = data.RamFreeMb;
             worker.ActualFreeCommitMb = data.CommitFreeMb;
+            if (worker.IsRemote)
+            {
+                ((RemoteWorkerBase)worker).SetEffectiveTotalProcessSlots(data.EffectiveTotalProcessSlots);
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
 
@@ -15,6 +16,9 @@ namespace BuildXL.Scheduler.Distribution
         /// <nodoc />
         public const uint Id = uint.MaxValue;
         private readonly Worker[] m_workers;
+
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => m_workers.Sum(a => a.EffectiveTotalProcessSlots);
 
         /// <nodoc />
         public AllWorker(Worker[] workers)

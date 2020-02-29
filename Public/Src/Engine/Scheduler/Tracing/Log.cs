@@ -1228,19 +1228,24 @@ namespace BuildXL.Scheduler.Tracing
             long maximumRamUtilization);
 
         [GeneratedEvent(
-            (ushort)LogEventId.StoppingProcessExecutionDueToResourceExhaustion,
+            (ushort)LogEventId.StoppingProcessExecutionDueToMemory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Stopping further process execution due to low remaining RAM: (available RAM MB: {availableRam} < {minimumAvailableRam})" +
-            " && (used RAM percentage: {ramUtilization} > {maximumRamUtilization}) ")]
-        internal abstract void StoppingProcessExecutionDueToResourceExhaustion(
+            Message = "Stopping further process execution due to {reason}:" + 
+            " (available RAM MB: {availableRam} < {minimumAvailableRam})" +
+            " (used RAM percentage: {ramUtilization} > {maximumRamUtilization})" +
+            " (used Commit percentage: {commitUtilization} > {maximumCommitUtilization})")]
+        internal abstract void StoppingProcessExecutionDueToMemory(
             LoggingContext loggingContext,
+            string reason,
             long availableRam,
             long minimumAvailableRam,
             long ramUtilization,
-            long maximumRamUtilization);
+            long maximumRamUtilization,
+            long commitUtilization,
+            long maximumCommitUtilization);
 
         [GeneratedEvent(
             (ushort)LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion,

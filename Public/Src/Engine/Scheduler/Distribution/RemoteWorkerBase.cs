@@ -18,5 +18,18 @@ namespace BuildXL.Scheduler.Distribution
         {
             Contract.Ensures(IsRemote);
         }
+
+        private int m_effectiveTotalProcessSlots;
+
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => m_effectiveTotalProcessSlots;
+
+        /// <summary>
+        /// Set effective total process slots based on the StatusReported event came from the remote worker
+        /// </summary>
+        public void SetEffectiveTotalProcessSlots(int newEffectiveProcessSlots)
+        {
+            m_effectiveTotalProcessSlots = newEffectiveProcessSlots;
+        }
     }
 }

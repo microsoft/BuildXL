@@ -94,8 +94,11 @@ namespace BuildXL.Engine.Distribution
         public override WorkerNodeStatus Status => (WorkerNodeStatus) Volatile.Read(ref m_status);
 
         private bool m_everAvailable;
+
+        /// <inheritdoc/>
         public override bool EverAvailable => Volatile.Read(ref m_everAvailable);
 
+        /// <inheritdoc/>
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
 
         /// <summary>

@@ -380,6 +380,9 @@ namespace BuildXL
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableHistoricCommitMemoryProjection",
+                            sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableDedup",
                             sign =>
                             {
@@ -691,6 +694,9 @@ namespace BuildXL
                             opt =>
                             schedulingConfiguration.MaxProcesses =
                             (int)Math.Max(1, Environment.ProcessorCount * CommandLineUtilities.ParseDoubleOption(opt, 0, int.MaxValue))),
+                        OptionHandlerFactory.CreateOption(
+                            "maxCommitUtilizationPercentage",
+                            opt => schedulingConfiguration.MaximumCommitUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),
                         OptionHandlerFactory.CreateOption(
                             "maxRamUtilizationPercentage",
                             opt => schedulingConfiguration.MaximumRamUtilizationPercentage = CommandLineUtilities.ParseInt32Option(opt, 0, 100)),

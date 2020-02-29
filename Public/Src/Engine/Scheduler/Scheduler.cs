@@ -1005,11 +1005,16 @@ namespace BuildXL.Scheduler
         public ExecutionSampler ExecutionSampler { get; }
 
         /// <summary>
-        /// Whether a low memory perf smell was reached
+        /// Whether a low ram memory perf smell was reached
         /// </summary>
-        private volatile bool m_hitLowMemoryPerfSmell;
+        private volatile bool m_hitLowRamMemoryPerfSmell;
 
-#endregion Statistics
+        /// <summary>
+        /// Whether a low commit memory perf smell was reached
+        /// </summary>
+        private volatile bool m_hitLowCommitMemoryPerfSmell;
+
+        #endregion Statistics
 
         /// <summary>
         /// Sets the process start time
@@ -1864,7 +1869,7 @@ namespace BuildXL.Scheduler
                 MachineMinimumAvailablePhysicalMB = SafeConvert.ToLong(((m_performanceAggregator != null && m_performanceAggregator.MachineAvailablePhysicalMB.Count > 2) ? m_performanceAggregator.MachineAvailablePhysicalMB.Minimum : -1)),
                 AverageMachineCPU = (m_performanceAggregator != null && m_performanceAggregator.MachineCpu.Count > 2) ? (int)m_performanceAggregator.MachineCpu.Average : 0,
                 DiskStatistics = m_performanceAggregator != null ? m_performanceAggregator.DiskStats : null,
-                HitLowMemorySmell = m_hitLowMemoryPerfSmell,
+                HitLowMemorySmell = m_hitLowRamMemoryPerfSmell,
                 ProcessPipCountersByTelemetryTag = ProcessPipCountersByTelemetryTag
             };
         }
@@ -1918,7 +1923,9 @@ namespace BuildXL.Scheduler
                 { "ChooseSuccessCount", data => m_chooseWorkerCpu.ChooseSuccessCount },
                 { "ChooseIterations", data => m_chooseWorkerCpu.ChooseIterations },
                 { "ChooseSeconds", data => m_chooseWorkerCpu.ChooseSeconds },
-                { "LastSchedulerLimitingResource", data => m_chooseWorkerCpu.LastLimitingResource?.Name ?? "N/A" },
+                { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
+                { "LimitingResource", data => data.LimitingResource},
+                { "MemoryResourceAvailability", data => LocalWorker.MemoryResource },
                 {
                     EnumTraits<PipState>.EnumerateValues(), (rows, state) =>
                     {
@@ -1936,7 +1943,6 @@ namespace BuildXL.Scheduler
                         }
                     }
                 },
-                { "LimitingResource", data => data.LimitingResource },
                 { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
                 { "Running Processes", data => data.RunningProcesses },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
@@ -1986,6 +1992,7 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Total CacheLookup Slots"), _ => worker.TotalCacheLookupSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used CacheLookup Slots"), _ => worker.AcquiredCacheLookupSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Effective Process Slots"), _ => worker.EffectiveTotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
@@ -2060,7 +2067,7 @@ namespace BuildXL.Scheduler
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
                 if (m_performanceAggregator != null)
                 {
-                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
+                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastConcurrencyLimiter: m_chooseWorkerCpu.LastConcurrencyLimiter);
                 }
 
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);
@@ -2204,12 +2211,14 @@ namespace BuildXL.Scheduler
                     IoRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.IO),
                     LookupWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
                     LookupRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CacheLookup),
+                    LimitingResource = limitingResource,
                     RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
                     RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
                     ProcessPipsAllocatedSlots = numProcessPipsAllocatedSlots,
+                    EffectiveTotalProcessSlots = LocalWorker.EffectiveTotalProcessSlots,
                 };
 
                 // Send resource usage to the execution log
@@ -2297,85 +2306,84 @@ namespace BuildXL.Scheduler
             var resourceManager = State.ResourceManager;
             resourceManager.UpdateRamUsageForResourceScopes();
 
+            MemoryResource memoryResource = MemoryResource.Available;
+
+            // RAM (WORKINGSET) USAGE.
+            // If ram resources are not available, the scheduler is throttled (effectiveprocessslots becoming 1) and 
+            // we cancel the running ones.  
+
             if (LocalWorker.TotalRamMb == null)
             {
+                // TotalRam represent the available size at the beginning of the build; not the total size.
                 LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb;
             }
 
-            if (LocalWorker.TotalCommitMb == null && m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue)
-            {
-                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb - m_perfInfo.CommitUsedMb;
-            }
-
-            if (LocalWorker.TotalCommitMb == null && OperatingSystemHelper.IsUnixOS)
-            {
-                // Commit(pagefile) is called as swapfile in MacOS; but we do not track of swap file usage there. 
-                // That's why, we set it to very high number instead of inserting Windows specific code in the throttling logic.
-                LocalWorker.TotalCommitMb = int.MaxValue;
-            }
-
-            bool resourceAvailable = true;
-
             if (perfInfo.RamUsagePercentage != null)
             {
-                bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
-                bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
-
-                resourceAvailable &= !(exceededMaxRamUtilizationPercentage && underMinimumAvailableRam);
-
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty
                 // sure there is a ram problem
-                if (!m_hitLowMemoryPerfSmell && (perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value > 98))
+                if (perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value > 98)
                 {
-                    m_hitLowMemoryPerfSmell = true;
-                    // Log the perf smell at the time that it happens since the machine is likely going to get very
-                    // bogged down and we want to make sure this gets sent to telemetry before the build is killed.
-                    Logger.Log.LowRamMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value, perfInfo.RamUsagePercentage.Value);
+                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowRamMemory);
+
+                    if (!m_hitLowRamMemoryPerfSmell)
+                    {
+                        m_hitLowRamMemoryPerfSmell = true;
+                        // Log the perf smell at the time that it happens since the machine is likely going to get very
+                        // bogged down and we want to make sure this gets sent to telemetry before the build is killed.
+                        Logger.Log.LowRamMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value, perfInfo.RamUsagePercentage.Value);
+                    }
                 }
+
+                bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
+                bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
+
+                if (exceededMaxRamUtilizationPercentage && underMinimumAvailableRam)
+                {
+                    memoryResource |= MemoryResource.LowRam;
+                }
+            }
+
+            // COMMIT MEMORY USAGE.
+            // If commit memory usage is high, then the scheduler is throttled without cancelling any pips.
+
+            if (LocalWorker.TotalCommitMb == null)
+            {
+                // If we cannot get commit usage for Windows, or it is the MacOS, we do not track of swap file usage. 
+                // That's why, we set it to very high number to disable throttling.
+                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb ?? int.MaxValue;
             }
 
             if (perfInfo.CommitUsagePercentage != null)
             {
                 int availableCommit = m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value;
 
-                // Use the same limits as the physical ram.
-                bool exceededMaxCommitUtilizationPercentage = perfInfo.CommitUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
-                bool underMinimumAvailableCommit = availableCommit < m_configuration.Schedule.MinimumTotalAvailableRamMb;
-
-                // We will go ahead to cancel pips for physical ram as process using the higher ram will also use the higher commit memory.
-                // There is no specific cancellation for high commit usage.
-                resourceAvailable &= !(exceededMaxCommitUtilizationPercentage && underMinimumAvailableCommit);
-
-                if (!m_hitLowMemoryPerfSmell && (availableCommit < 100 || perfInfo.CommitUsagePercentage.Value > 98))
+                if (perfInfo.CommitUsagePercentage.Value > 98)
                 {
-                    m_hitLowMemoryPerfSmell = true;
-                    Logger.Log.LowCommitMemory(m_executePhaseLoggingContext, availableCommit, perfInfo.CommitUsagePercentage.Value);
-                }
-            }
+                    PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowCommitMemory);
 
-            if (!resourceAvailable)
-            {
-                if (LocalWorker.ResourcesAvailable)
-                {
-                    // Set resources to unavailable to prevent executing further work
-                    Logger.Log.StoppingProcessExecutionDueToResourceExhaustion(
-                        m_executePhaseLoggingContext,
-                        availableRam: perfInfo.AvailableRamMb.Value,
-                        minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
-                        ramUtilization: perfInfo.RamUsagePercentage.Value,
-                        maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
-
-                    LocalWorker.ResourcesAvailable = false;
-
-                    // For distributed workers, the local worker total processes does not control
-                    // concurrency. It must be set on the CPU queue
-                    if (IsDistributedWorker)
+                    if (!m_hitLowCommitMemoryPerfSmell)
                     {
-                        SetQueueMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.EffectiveTotalProcessSlots);
+                        m_hitLowCommitMemoryPerfSmell = true;
+                        Logger.Log.LowCommitMemory(m_executePhaseLoggingContext, availableCommit, perfInfo.CommitUsagePercentage.Value);
                     }
                 }
 
+                // By default, MaximumCommitUtilizationPercentage is 95%.
+                bool exceededMaxCommitUtilizationPercentage = perfInfo.CommitUsagePercentage.Value > m_configuration.Schedule.MaximumCommitUtilizationPercentage;
+
+                if (exceededMaxCommitUtilizationPercentage)
+                {
+                    memoryResource |= MemoryResource.LowCommit;
+                }
+            }
+
+            ToggleMemoryResourceAvailability(perfInfo, memoryResource);
+
+            // If ram resource is not available, cancel the running pips.
+            if (memoryResource.HasFlag(MemoryResource.LowRam))
+            {
 #if PLATFORM_OSX
                 bool simulateHighMemory = m_testHooks?.SimulateHighMemoryPressure ?? false;
                 Memory.PressureLevel pressureLevel = simulateHighMemory ? Memory.PressureLevel.Critical : Memory.PressureLevel.Normal;
@@ -2399,6 +2407,9 @@ namespace BuildXL.Scheduler
 
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
 #else
+                // We only retry when the ram memory is not available. 
+                // When commit memory is not available, we stop scheduling; but we do not cancel the currently running ones 
+                // because OS can resize the commit memory. 
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
 #endif
                 {
@@ -2415,11 +2426,48 @@ namespace BuildXL.Scheduler
                     resourceManager.TryFreeResources(desiredRamToFreeMb);
                 }
             }
-            else if (!LocalWorker.ResourcesAvailable)
+        }
+
+        private void ToggleMemoryResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo, MemoryResource memoryResource)
+        {
+            if (memoryResource.HasFlag(MemoryResource.LowRam))
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.MemoryResourceBecomeUnavailableDueToRam);
+            }
+
+            if (memoryResource.HasFlag(MemoryResource.LowCommit))
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.MemoryResourceBecomeUnavailableDueToCommit);
+            }
+
+            if (memoryResource == MemoryResource.Available && !LocalWorker.MemoryResourceAvailable)
             {
                 // Set resources to available to allow executing further work
                 Logger.Log.ResumingProcessExecutionAfterSufficientResources(m_executePhaseLoggingContext);
-                LocalWorker.ResourcesAvailable = true;
+                LocalWorker.MemoryResource = memoryResource;
+
+                // For distributed workers, the local worker total processes does not control
+                // concurrency. It must be set on the CPU queue
+                if (IsDistributedWorker)
+                {
+                    SetQueueMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.EffectiveTotalProcessSlots);
+                }
+            }
+
+            if (memoryResource != MemoryResource.Available && LocalWorker.MemoryResourceAvailable)
+            {
+                // Set resources to unavailable to prevent executing further work
+                Logger.Log.StoppingProcessExecutionDueToMemory(
+                    m_executePhaseLoggingContext,
+                    reason: memoryResource.ToString(),
+                    availableRam: perfInfo.AvailableRamMb ?? 0,
+                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                    ramUtilization: perfInfo.RamUsagePercentage ?? 0,
+                    maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage,
+                    commitUtilization: perfInfo.CommitUsagePercentage ?? 0,
+                    maximumCommitUtilization: m_configuration.Schedule.MaximumCommitUtilizationPercentage);
+
+                LocalWorker.MemoryResource = memoryResource;
 
                 // For distributed workers, the local worker total processes does not control
                 // concurrency. It must be set on the CPU queue

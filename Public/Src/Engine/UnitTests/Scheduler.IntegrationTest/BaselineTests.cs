@@ -123,7 +123,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             AssertVerboseEventLogged(LogEventId.LowRamMemory);
-            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
         }
 
         [Fact]
@@ -157,7 +157,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             AssertVerboseEventLogged(LogEventId.LowCommitMemory);
-            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion); 
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory); 
         }
 
         [Theory]
@@ -1450,7 +1450,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
 
             AssertErrorEventLogged(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
-            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
             AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
             AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
         }

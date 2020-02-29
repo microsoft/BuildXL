@@ -81,25 +81,30 @@ namespace BuildXL.Scheduler.Distribution
             .ToReadOnlyArray();
 
         /// <summary>
-        /// Gets or sets whether sufficient resources are available. When set to false, <see cref="EffectiveTotalProcessSlots"/> are throttled to 1 to
-        /// prevent further resource exhaustion by scheduling more pips
+        /// The state of the memory resource availability.
         /// </summary>
-        public bool ResourcesAvailable
+        public MemoryResource MemoryResource
         {
             get
             {
-                return m_resourcesAvailable;
+                return m_memoryResource;
             }
 
             set
             {
-                var oldValue = m_resourcesAvailable;
-                m_resourcesAvailable = value;
-                OnWorkerResourcesChanged(WorkerResource.ResourcesAvailable, increased: value && !oldValue);
+                var oldValue = m_memoryResource;
+                m_memoryResource = value;
+                OnWorkerResourcesChanged(WorkerResource.MemoryResourceAvailable, increased: value == MemoryResource.Available && oldValue != MemoryResource.Available);
             }
         }
 
-        private bool m_resourcesAvailable = true;
+        private MemoryResource m_memoryResource = MemoryResource.Available;
+
+        /// <summary>
+        /// Gets or sets whether sufficient resources are available. When set to false, <see cref="EffectiveTotalProcessSlots"/> are throttled to 1 to
+        /// prevent further resource exhaustion by scheduling more pips
+        /// </summary>
+        public bool MemoryResourceAvailable => MemoryResource == MemoryResource.Available;
 
         /// <summary>
         /// The identifier for the worker.
@@ -109,9 +114,12 @@ namespace BuildXL.Scheduler.Distribution
 
         /// <summary>
         /// The total amount of slots for process execution (i.e., max degree of pip parallelism). This can
-        /// be adjusted due to resource availability. Namely, it will be one if <see cref="ResourcesAvailable"/> is false.
+        /// be adjusted due to resource availability. Namely, it will be one if <see cref="MemoryResourceAvailable"/> is false.
         /// </summary>
-        public int EffectiveTotalProcessSlots => ResourcesAvailable ? TotalProcessSlots : 1;
+        public abstract int EffectiveTotalProcessSlots
+        {
+            get;
+        }
 
         /// <summary>
         /// The total amount of slots for process execution (i.e., max degree of pip parallelism).
@@ -558,18 +566,28 @@ namespace BuildXL.Scheduler.Distribution
                     return true;
                 }
 
-                limitingResource = limitingResourceName == m_ramSemaphoreNameId
-                    ? WorkerResource.AvailableMemoryMb
-                    : WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
+                if (limitingResourceName == m_ramSemaphoreNameId)
+                {
+                    limitingResource = WorkerResource.AvailableMemoryMb;
+                }
+                else if (limitingResourceName == m_commitSemaphoreNameId)
+                {
+                    limitingResource = WorkerResource.AvailableCommitMb;
+                }
+                else
+                { 
+                    limitingResource = WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(runnablePip.Environment.Context.StringTable));
+                }
+
                 return false;
             }
         }
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
         {
-            if (TotalRamMb == null || TotalCommitMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
+            if (TotalRamMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
             {
-                // Not tracking working set or commit memory
+                // Not tracking working set
                 return null;
             }
 
@@ -579,25 +597,30 @@ namespace BuildXL.Scheduler.Distribution
                 m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
             }
 
-            if (!m_commitSemaphoreNameId.IsValid)
-            {
-                m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
-                m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
-            }
-
             var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
 
-            return new ProcessSemaphoreInfo[]
-            {
-                ProcessExtensions.GetNormalizedPercentageResource(
+            var ramSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                     m_ramSemaphoreNameId,
                     usage: expectedMemoryCounters.PeakWorkingSetMb,
-                    total: TotalRamMb.Value),
-                ProcessExtensions.GetNormalizedPercentageResource(
+                    total: TotalRamMb.Value);
+
+            if (runnableProcess.Environment.Configuration.Schedule.EnableHistoricCommitMemoryProjection)
+            {
+                if (!m_commitSemaphoreNameId.IsValid)
+                {
+                    m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
+                    m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+                }
+
+                var commitSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                     m_commitSemaphoreNameId,
                     usage: expectedMemoryCounters.PeakCommitUsageMb,
-                    total: TotalCommitMb.Value),
-            };
+                    total: TotalCommitMb.Value);
+
+                return new ProcessSemaphoreInfo[] { ramSemaphoreInfo, commitSemaphoreInfo };
+            }
+
+            return new ProcessSemaphoreInfo[] { ramSemaphoreInfo};
         }
 
         /// <summary>

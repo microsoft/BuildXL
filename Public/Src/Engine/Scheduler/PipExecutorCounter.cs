@@ -1176,6 +1176,26 @@ namespace BuildXL.Scheduler
         /// </remarks>
         [CounterType(CounterType.Stopwatch)]
         ExecuteConvergedProcessDuration,
+
+        /// <summary>
+        /// Number of times when the local resources become unavailable due to low available commit memory
+        /// </summary>
+        MemoryResourceBecomeUnavailableDueToCommit,
+
+        /// <summary>
+        /// Number of times when the local resources become unavailable due to low available ram memory
+        /// </summary>
+        MemoryResourceBecomeUnavailableDueToRam,
+
+        /// <summary>
+        /// Number of times when the available ram is in the critical level.
+        /// </summary>
+        CriticalLowRamMemory,
+
+        /// <summary>
+        /// Number of times when the available commit is in the critical level.
+        /// </summary>
+        CriticalLowCommitMemory,
     }
 
     /// <summary>

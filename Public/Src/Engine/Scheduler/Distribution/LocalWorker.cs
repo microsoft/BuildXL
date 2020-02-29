@@ -31,6 +31,9 @@ namespace BuildXL.Scheduler.Distribution
 
         private int m_currentlyRunningPipCount = 0;
         private readonly IDetoursEventListener m_detoursListener;
+        
+        /// <inheritdoc/>
+        public override int EffectiveTotalProcessSlots => MemoryResourceAvailable ? TotalProcessSlots : 1;
 
         /// <summary>
         /// Constructor

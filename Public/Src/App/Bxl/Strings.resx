@@ -1039,6 +1039,12 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_PathSetAugmentationMonitoring" xml:space="preserve">
     <value>Check that the paths used in creating an augmented pathset/weak fingerprint are used during the execution of a pip. If a path is not used it's logged together with its hash. The argument controls the max number of paths logged per executed pip. If the value is set to 0, the monitoring is disabled.</value>
   </data>
+  <data name="HelpText_DisplayHelp_MaxCommitUtilizationPercentage" xml:space="preserve">
+    <value>Specifies the maximum machine wide commit utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 95%.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection" xml:space="preserve">
+    <value>Controls whether Scheduler should use commit memory projection based on historic commit memory usage.</value>
+  </data>
   <data name="HelpText_DisplayHelp_EngineVersion" xml:space="preserve">
     <value>Specifies engine version used for performing the build. Engine version controls the default values of some configurations.</value>
   </data>

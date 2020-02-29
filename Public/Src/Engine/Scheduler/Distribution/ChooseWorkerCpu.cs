@@ -62,7 +62,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <remarks>
         /// If it is null, there is no resource limiting the worker.
         /// </remarks>
-        public WorkerResource? LastLimitingResource { get; set; }
+        public WorkerResource? LastConcurrencyLimiter { get; set; }
 
         /// <summary>
         /// The number of choose worker iterations
@@ -170,7 +170,7 @@ namespace BuildXL.Scheduler.Distribution
                     }
                     
                     // If a worker is successfully chosen, then the limiting resouce would be null.
-                    LastLimitingResource = limitingResource;
+                    LastConcurrencyLimiter = limitingResource;
 
                     m_chooseTime += TimestampUtilities.Timestamp - startTime;
                     return chosenWorker;

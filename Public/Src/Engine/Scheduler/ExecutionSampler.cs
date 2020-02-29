@@ -38,8 +38,8 @@ namespace BuildXL.Scheduler
         /// <param name="aggregator">Performance Aggregator</param>
         /// <param name="readyProcessPips">Process pips whose graph dependencies have been satisfied but are not currently executing</param>
         /// <param name="executinProcessPips">Number of process pips that are currently executing</param>
-        /// <param name="lastLimitingResource">The most recent limiting worker resource</param>
-        internal LimitingResource OnPerfSample(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executinProcessPips, WorkerResource? lastLimitingResource)
+        /// <param name="lastConcurrencyLimiter">The most recent limiting worker resource</param>
+        internal LimitingResource OnPerfSample(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executinProcessPips, WorkerResource? lastConcurrencyLimiter)
         {
             if (m_lastSnapshotUtc == DateTime.MinValue)
             {
@@ -48,7 +48,7 @@ namespace BuildXL.Scheduler
                 return LimitingResource.Other;
             }
 
-            LimitingResource limitingResource = DetermineLimitingResource(aggregator, readyProcessPips, executinProcessPips, lastLimitingResource);
+            LimitingResource limitingResource = DetermineLimitingResource(aggregator, readyProcessPips, executinProcessPips, lastConcurrencyLimiter);
             UpdateAggregations(limitingResource);
 
             return limitingResource;
@@ -57,7 +57,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Determines what build execution is being limited by for the sample period
         /// </summary>
-        private LimitingResource DetermineLimitingResource(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executingProcessPips, WorkerResource? workerResource)
+        private LimitingResource DetermineLimitingResource(PerformanceCollector.Aggregator aggregator, long readyProcessPips, long executingProcessPips, WorkerResource? lastConcurrencyLimiter)
         {
             // Determining the heuristic on distributed builds requires some more thought. For now just bucket them as Other
             // to keep from showing possibly incorrect data
@@ -82,18 +82,19 @@ namespace BuildXL.Scheduler
 
             // The scheduler has backed off on executing additional process pips because of projected memory usage,
             // even though the graph and concurrency configuration would allow it
-            if (workerResource.HasValue && workerResource.Value == WorkerResource.AvailableMemoryMb)
+            if (lastConcurrencyLimiter.HasValue && lastConcurrencyLimiter.Value == WorkerResource.AvailableMemoryMb)
             {
                 return LimitingResource.ProjectedMemory;
             }
 
             // Some other user configured semaphore is preventing the scheduler from launching additional processes.
-            if (workerResource.HasValue &&
-                workerResource.Value != WorkerResource.AvailableMemoryMb &&
-                workerResource.Value != WorkerResource.AvailableProcessSlots &&
-                workerResource.Value != WorkerResource.ResourcesAvailable &&
-                workerResource.Value != WorkerResource.Status &&
-                workerResource.Value != WorkerResource.TotalProcessSlots)
+            if (lastConcurrencyLimiter.HasValue &&
+                lastConcurrencyLimiter.Value != WorkerResource.AvailableMemoryMb &&
+                lastConcurrencyLimiter.Value != WorkerResource.AvailableCommitMb &&
+                lastConcurrencyLimiter.Value != WorkerResource.AvailableProcessSlots &&
+                lastConcurrencyLimiter.Value != WorkerResource.MemoryResourceAvailable &&
+                lastConcurrencyLimiter.Value != WorkerResource.Status &&
+                lastConcurrencyLimiter.Value != WorkerResource.TotalProcessSlots)
             {
                 return LimitingResource.Semaphore;
             }

@@ -42,9 +42,9 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCommitMb = new WorkerResource(nameof(AvailableCommitMb), Precedence.AvailableCommitMb);
 
         /// <summary>
-        /// See <see cref="Worker.ResourcesAvailable"/>
+        /// See <see cref="Worker.MemoryResourceAvailable"/>
         /// </summary>
-        public static readonly WorkerResource ResourcesAvailable = new WorkerResource(nameof(ResourcesAvailable), Precedence.ResourcesAvailable);
+        public static readonly WorkerResource MemoryResourceAvailable = new WorkerResource(nameof(MemoryResourceAvailable), Precedence.MemoryResourceAvailable);
 
         /// <summary>
         /// See <see cref="Worker.Status"/>
@@ -119,7 +119,7 @@ namespace BuildXL.Scheduler.Distribution
             AvailableProcessSlots,
             AvailableMemoryMb,
             AvailableCommitMb,
-            ResourcesAvailable,
+            MemoryResourceAvailable,
             SemaphorePrecedence,
         }
     }

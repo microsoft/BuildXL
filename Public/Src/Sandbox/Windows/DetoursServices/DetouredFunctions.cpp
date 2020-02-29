@@ -1898,13 +1898,15 @@ BOOL WINAPI Detoured_CreateProcessW(
 
     if (!imagePath.IsNull() && !IgnoreCreateProcessReport())
     { 
-        readContext.FileExistence = FileExistence::Existent; // Valid imagePath guarantees that the image exists; thanks to GetFileAttributes called by GetImagePath.
-        readContext.OpenedDirectory = false;
-
         if (!policyResult.Initialize(imagePath.GetPathString()))
         {
             policyResult.ReportIndeterminatePolicyAndSetLastError(operationContext);
             return FALSE;
+        }
+
+        if (ExistsAsFile(imagePath.GetPathString()))
+        {
+            readContext.FileExistence = FileExistence::Existent;
         }
 
         readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext);

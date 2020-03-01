@@ -192,5 +192,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// When logs backup is enabled, the maximum time logs are kept since their creation date.
         /// </summary>
         public TimeSpan LogsRetention { get; set; } = TimeSpan.FromDays(7);
+
+        /// <summary>
+        /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext)"/>
+        /// </summary>
+        public long EnumerateSortedKeysFromStorageBufferSize { get; set; } = 100_000;
+
+        /// <summary>
+        /// Number of keys to buffer on <see cref="RocksDbContentLocationDatabase.EnumerateEntriesWithSortedKeysFromStorage(ContentStore.Tracing.Internal.OperationContext, ContentLocationDatabase.EnumerationFilter, bool)"/>
+        /// </summary>
+        public long EnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; } = 100_000;
     }
 }

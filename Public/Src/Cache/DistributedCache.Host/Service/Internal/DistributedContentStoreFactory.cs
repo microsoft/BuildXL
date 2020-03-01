@@ -238,6 +238,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseLogsBackupRetentionMinutes, v => dbConfig.LogsRetention = TimeSpan.FromMinutes(v));
 
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize, v => dbConfig.EnumerateSortedKeysFromStorageBufferSize = v);
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize, v => dbConfig.EnumerateEntriesWithSortedKeysFromStorageBufferSize = v);
+
                 redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, primaryCacheRoot, dbConfig).GetAwaiter().GetResult();
             }

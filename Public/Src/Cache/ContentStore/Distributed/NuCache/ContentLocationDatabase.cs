@@ -240,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
-                    _ => GarbageCollect(context.CreateNested("GarbageCollect")),
+                    _ => GarbageCollect(context.CreateNested(caller: nameof(GarbageCollect))),
                     null,
                     IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
@@ -250,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
-                        ForceCacheFlush(context.CreateNested(caller: "ForceCacheFlush"),
+                        ForceCacheFlush(context.CreateNested(caller: nameof(ForceCacheFlush)),
                             counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer,
                             blocking: false);
                     },
@@ -322,22 +322,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected abstract IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token);
+        protected abstract IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context);
 
         /// <summary>
-        /// Gets a sequence of keys.
-        /// </summary>
-        protected IEnumerable<ShortHash> EnumerateSortedKeys(OperationContext context)
-        {
-            // NOTE: This is used by GC which will query for the value itself and thereby
-            // get the value from the in memory cache if present. It will NOT necessarily
-            // enumerate all keys in the in memory cache since they may be new keys but GC
-            // is fine to just handle those on the next GC iteration
-            return EnumerateSortedKeysFromStorage(context.Token);
-        }
-
-        /// <summary>
-        /// Enumeration filter used by <see cref="ContentLocationDatabase.EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
+        /// Enumeration filter used by <see cref="EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
         /// </summary>
         public class EnumerationFilter
         {
@@ -350,8 +338,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         protected abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
-            CancellationToken token,
-            EnumerationFilter filter = null);
+            OperationContext context,
+            EnumerationFilter filter = null,
+            bool returnKeysOnly = false);
 
         /// <summary>
         /// Gets a sequence of keys and values sorted by keys.
@@ -366,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 ForceCacheFlush(context, ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByContentEnumeration, blocking: true);
             }
 
-            return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
+            return EnumerateEntriesWithSortedKeysFromStorage(context, filter);
         }
 
         /// <summary>
@@ -447,7 +436,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             int[] countsByLogSize = new int[totalSizeByLogSize.Length];
 
             // Enumerate over all hashes...
-            foreach (var hash in EnumerateSortedKeys(context))
+            // NOTE: GC will query for the value itself and thereby get the value from the in memory cache if present.
+            // It will NOT necessarily enumerate all keys in the in memory cache since they may be new keys but GC is
+            // fine to just handle those on the next GC iteration.
+            foreach (var hash in EnumerateSortedKeysFromStorage(context))
             {
                 if (context.Token.IsCancellationRequested)
                 {

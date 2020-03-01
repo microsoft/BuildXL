@@ -101,24 +101,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
 
         /// <inheritdoc />
-        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
+        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
         {
             return _map.Keys.OrderBy(h => h);
         }
 
         /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
-            CancellationToken token,
-            EnumerationFilter filter = null)
+            OperationContext context,
+            EnumerationFilter valueFilter,
+            bool returnKeysOnly)
         {
             return _map
                 // Directly calling OrderBy on ConcurrentDictionary instance is not thread-safe.
                 // Making a copy by calling instance ToArray method first.
                 .ToArray()
                 .OrderBy(kvp => kvp.Key)
-                .SkipWhile(kvp => filter?.StartingPoint != null && filter.StartingPoint > kvp.Key)
-                .Where(kvp => filter?.ShouldEnumerate == null || filter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true)
-                .Select(kvp => (kvp.Key, kvp.Value));
+                .SkipWhile(kvp => valueFilter?.StartingPoint != null && valueFilter.StartingPoint > kvp.Key)
+                .Where(kvp => {
+                    if (returnKeysOnly)
+                    {
+                        return true;
+                    }
+
+                    return valueFilter?.ShouldEnumerate == null || valueFilter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true;
+                })
+                .Select(kvp => (kvp.Key, returnKeysOnly ? null : kvp.Value));
         }
 
         /// <inheritdoc />

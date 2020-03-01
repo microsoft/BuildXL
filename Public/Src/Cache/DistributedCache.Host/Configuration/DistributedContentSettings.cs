@@ -501,6 +501,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public byte? FullRangeCompactionByteIncrementStep { get; set; }
 
+        [DataMember]
+        public long? ContentLocationDatabaseEnumerateSortedKeysFromStorageBufferSize { get; set; }
+
+        [DataMember]
+        public long? ContentLocationDatabaseEnumerateEntriesWithSortedKeysFromStorageBufferSize { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }

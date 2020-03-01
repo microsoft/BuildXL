@@ -30,7 +30,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -125,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
             {
                 _compactionTimer = new Timer(
-                    _ => FullRangeCompaction(context),
+                    _ => FullRangeCompaction(context.CreateNested(caller: nameof(FullRangeCompaction))),
                     null,
                     IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
@@ -473,126 +472,91 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(CancellationToken token)
+        protected override IEnumerable<ShortHash> EnumerateSortedKeysFromStorage(OperationContext context)
         {
-            var keyBuffer = new List<ShortHash>();
-            byte[] startValue = null;
-
-            const int KeysChunkSize = 100000;
-            while (!token.IsCancellationRequested)
-            {
-                keyBuffer.Clear();
-
-                _keyValueStore.Use(
-                    store =>
-                    {
-                        // NOTE: Use the garbage collect procedure to collect which keys to garbage collect. This is
-                        // different than the typical use which actually collects the keys specified by the garbage collector.
-                        var cts = new CancellationTokenSource();
-                        using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token))
-                        {
-                            store.GarbageCollect(
-                                canCollect: key =>
-                                {
-                                    if (keyBuffer.Count == 0 && ByteArrayComparer.Instance.Equals(startValue, key))
-                                    {
-                                        // Start value is the same as the key. Skip it to keep from double processing the start value.
-                                        return false;
-                                    }
-
-                                    keyBuffer.Add(DeserializeKey(key));
-                                    startValue = key;
-
-                                    if (keyBuffer.Count == KeysChunkSize)
-                                    {
-                                        cts.Cancel();
-                                    }
-
-                                    return false;
-                                },
-                                cancellationToken: cancellation.Token,
-                                startValue: startValue);
-                        }
-
-                    }).ThrowOnError();
-
-                if (keyBuffer.Count == 0)
-                {
-                    break;
-                }
-
-                foreach (var key in keyBuffer)
-                {
-                    yield return key;
-                }
-            }
+            return EnumerateEntriesWithSortedKeysFromStorage(context, valueFilter: null, returnKeysOnly: true)
+                .Select(pair => pair.key);
         }
 
         /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
-            CancellationToken token,
-            EnumerationFilter filter = null)
+            OperationContext context,
+            EnumerationFilter valueFilter,
+            bool returnKeysOnly)
         {
+            var token = context.Token;
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
-            const int KeysChunkSize = 100000;
-            var startValue = filter?.StartingPoint?.ToByteArray();
-            while (!token.IsCancellationRequested)
+            // Last successfully processed entry, or before-the-start pointer
+            var startValue = valueFilter?.StartingPoint?.ToByteArray();
+
+            var reachedEnd = false;
+            while (!token.IsCancellationRequested && !reachedEnd)
             {
+                var processedKeys = 0;
                 keyBuffer.Clear();
 
-                _keyValueStore.Use(
-                    store =>
-                    {
-                        // NOTE: Use the garbage collect procedure to collect which keys to garbage collect. This is
-                        // different than the typical use which actually collects the keys specified by the garbage collector.
-                        var cts = new CancellationTokenSource();
-                        using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token))
+                var killSwitchUsed = false;
+                context.PerformOperation(Tracer, () =>
+                {
+                    // NOTE: the killswitch may cause the GC to early stop. After it has been triggered, the next Use()
+                    // call will resume with a different database instance.
+                    return _keyValueStore.Use(
+                        (store, killSwitch) =>
                         {
-                            store.GarbageCollectByKeyValue(
-                                canCollect: (iterator) =>
-                                {
-                                    byte[] key = null;
-                                    if (keyBuffer.Count == 0 && ByteArrayComparer.Instance.Equals(startValue, key = iterator.Key()))
+                            // NOTE: Use the garbage collect procedure to collect which keys to garbage collect. This is
+                            // different than the typical use which actually collects the keys specified by the garbage collector.
+                            using (var cts = new CancellationTokenSource())
+                            using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token, killSwitch))
+                            {
+                                var gcResult = store.GarbageCollectByKeyValue(
+                                    canCollect: (iterator) =>
                                     {
-                                        // Start value is the same as the key. Skip it to keep from double processing the start value.
+                                        var key = iterator.Key();
+                                        if (processedKeys == 0 && ByteArrayComparer.Instance.Equals(startValue, key))
+                                        {
+                                            // Start value is the same as the key. Skip it to keep from double processing the start value.
+                                            return false;
+                                        }
 
-                                        // Set startValue to null to indicate that we potentially could have reached the end of the database.
-                                        startValue = null;
+                                        if (returnKeysOnly)
+                                        {
+                                            keyBuffer.Add((DeserializeKey(key), null));
+                                        }
+                                        else
+                                        {
+                                            byte[] value = null;
+                                            if (valueFilter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
+                                            {
+                                                keyBuffer.Add((DeserializeKey(key), DeserializeContentLocationEntry(value)));
+                                            }
+                                        }
+
+                                        // We can only update this after the key has been successfully processed.
+                                        startValue = key;
+                                        processedKeys++;
+
+                                        if (processedKeys == _configuration.EnumerateEntriesWithSortedKeysFromStorageBufferSize)
+                                        {
+                                            // We reached the limit for the current chunk. Iteration will get cancelled here,
+                                            // which will set reachedEnd to false.
+                                            cts.Cancel();
+                                        }
+
                                         return false;
-                                    }
+                                    },
+                                    cancellationToken: cancellation.Token,
+                                    startValue: startValue);
 
-                                    startValue = null;
-                                    byte[] value = null;
-                                    if (filter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
-                                    {
-                                        keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), DeserializeContentLocationEntry(value)));
-                                    }
+                                reachedEnd = gcResult.ReachedEnd;
+                            }
 
-                                    if (keyBuffer.Count == KeysChunkSize)
-                                    {
-                                        // We reached the limit for a current chunk.
-                                        // Reading the iterator to get the new start value.
-                                        startValue = iterator.Key();
-                                        cts.Cancel();
-                                    }
-
-                                    return false;
-                                },
-                                cancellationToken: cancellation.Token,
-                                startValue: startValue);
-                        }
-
-                    }).ThrowOnError();
+                            killSwitchUsed = killSwitch.IsCancellationRequested;
+                        }).ToBoolResult();
+                }, messageFactory: _ => $"KillSwitch=[{killSwitchUsed}] ReturnKeysOnly=[{returnKeysOnly}]").ThrowIfFailure();
 
                 foreach (var key in keyBuffer)
                 {
                     yield return key;
-                }
-
-                // Null value in startValue variable means that the database reached it's end.
-                if (startValue == null)
-                {
-                    break;
                 }
             }
         }
@@ -848,7 +812,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
-            return _keyValueStore.Use(store =>
+            return _keyValueStore.Use((store, killSwitch) =>
             {
                 // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
                 // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
@@ -863,54 +827,58 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var scannedEntries = 0;
                 var removedEntries = 0;
 
-                // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
-                // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
-                // a new element is smaller than the Top, it's not in the top K, if larger, it is.
-                var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
-                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
-                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
-                foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(killSwitch, context.Token))
                 {
-                    // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
-                    // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
-                    // unneeded entries as we go. We could also batch deletions here.
 
-                    if (context.Token.IsCancellationRequested)
+                    // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
+                    // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
+                    // a new element is smaller than the Top, it's not in the top K, if larger, it is.
+                    var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
+                        capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
+                        comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
+                    foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                     {
-                        break;
-                    }
+                        // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
+                        // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
+                        // unneeded entries as we go. We could also batch deletions here.
 
-                    var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
-                        strongFingerprint: keyValuePair.Key);
-
-                    byte[] strongFingerprintToRemove = null;
-
-                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
-                    {
-                        // If we already reached the maximum number of elements to keep, and the current entry is older
-                        // than the oldest in the top K, we can just remove the current entry.
-                        strongFingerprintToRemove = entry.strongFingerprint;
-                    }
-                    else
-                    {
-                        // We either didn't reach the number of elements we want to keep, or the entry has a last
-                        // access time larger than the current smallest one in the top K.
-                        entries.Push(entry);
-
-                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
+                        if (cts.IsCancellationRequested)
                         {
-                            strongFingerprintToRemove = entries.Top.strongFingerprint;
-                            entries.Pop();
+                            break;
                         }
-                    }
 
-                    if (!(strongFingerprintToRemove is null))
-                    {
-                        store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
-                        removedEntries++;
-                    }
+                        var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
+                            strongFingerprint: keyValuePair.Key);
 
-                    scannedEntries++;
+                        byte[] strongFingerprintToRemove = null;
+
+                        if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
+                        {
+                            // If we already reached the maximum number of elements to keep, and the current entry is older
+                            // than the oldest in the top K, we can just remove the current entry.
+                            strongFingerprintToRemove = entry.strongFingerprint;
+                        }
+                        else
+                        {
+                            // We either didn't reach the number of elements we want to keep, or the entry has a last
+                            // access time larger than the current smallest one in the top K.
+                            entries.Push(entry);
+
+                            if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
+                            {
+                                strongFingerprintToRemove = entries.Top.strongFingerprint;
+                                entries.Pop();
+                            }
+                        }
+
+                        if (!(strongFingerprintToRemove is null))
+                        {
+                            store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
+                            removedEntries++;
+                        }
+
+                        scannedEntries++;
+                    }
                 }
 
                 Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(removedEntries);
@@ -923,7 +891,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
                 // new tombstones have been added. However, there is no way to compute how much we added/removed that
                 // doesn't involve either keeping track of the values, or doing two passes over the column family.
-                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}");
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries=[{scannedEntries}] RemovedEntries=[{removedEntries}] LiveDbSizeInBytesBeforeGc=[{liveDbSizeInBytesBeforeGc}] LiveDbSizeInBytesAfterGc=[{liveDbSizeInBytesAfterGc}] KillSwitch=[{killSwitch.IsCancellationRequested}]");
 
                 return Unit.Void;
             }).ToBoolResult();
@@ -945,23 +913,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return;
             }
 
-            context.PerformOperation<BoolResult>(Tracer, () =>
-                PossibleExtensions.ToBoolResult(_keyValueStore.Use(store =>
-                {
-                    foreach (var columnFamily in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+            using (var cancellableContext = TrackShutdown(context))
+            {
+                var ctx = (OperationContext)cancellableContext;
+                var killSwitchUsed = false;
+                ctx.PerformOperation<BoolResult>(Tracer, () =>
+                    PossibleExtensions.ToBoolResult(_keyValueStore.Use((store, killSwitch) =>
                     {
-                        if (context.Token.IsCancellationRequested)
+                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx.Token, killSwitch))
                         {
-                            break;
-                        }
+                            foreach (var columnFamily in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+                            {
+                                if (cts.IsCancellationRequested)
+                                {
+                                    killSwitchUsed = killSwitch.IsCancellationRequested;
+                                    break;
+                                }
 
-                        var result = CompactColumnFamily(context, store, columnFamily);
-                        if (!result.Succeeded)
-                        {
-                            break;
+                                var result = CompactColumnFamily(context, store, columnFamily);
+                                if (!result.Succeeded)
+                                {
+                                    break;
+                                }
+                            }
                         }
-                    }
-                }))).IgnoreFailure();
+                    })),
+                    messageFactory: _ => $"KillSwitch=[{killSwitchUsed}]").IgnoreFailure();
+            }
 
             if (!ShutdownStarted)
             {
@@ -1080,6 +1058,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private class KeyValueStoreGuard : IDisposable
         {
             private KeyValueStoreAccessor _accessor;
+
+            /// <summary>
+            /// The kill switch is used to stop all long running operations. Such operations should call the Use
+            /// overload that gets a <see cref="CancellationToken"/>, and re-start the operation from the last valid
+            /// state when the kill switch gets triggered.
+            ///
+            /// Operations that do this will have their database switched under them as they are running. They can
+            /// also choose to terminate gracefully if possible. For examples, see:
+            ///  - <see cref="GarbageCollectMetadataCore(OperationContext)"/>
+            ///  - <see cref="FullRangeCompaction(OperationContext)"/>
+            ///  - Content GC
+            /// </summary>
+            private CancellationTokenSource _killSwitch = new CancellationTokenSource();
+
             private readonly ReaderWriterLockSlim _accessorLock = new ReaderWriterLockSlim(recursionPolicy: LockRecursionPolicy.SupportsRecursion);
 
             public KeyValueStoreGuard(KeyValueStoreAccessor accessor)
@@ -1089,15 +1081,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             public void Dispose()
             {
+                _killSwitch.Cancel();
+
                 using var token = _accessorLock.AcquireWriteLock();
+
                 _accessor.Dispose();
+                _killSwitch.Dispose();
             }
 
             public void Replace(KeyValueStoreAccessor accessor)
             {
+                _killSwitch.Cancel();
+
                 using var token = _accessorLock.AcquireWriteLock();
+
                 _accessor.Dispose();
                 _accessor = accessor;
+
+                _killSwitch.Dispose();
+                _killSwitch = new CancellationTokenSource();
             }
 
             public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, TResult> action, TState state)
@@ -1116,6 +1118,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 using var token = _accessorLock.AcquireReadLock();
                 return _accessor.Use(action);
+            }
+
+            public Possible<TResult> Use<TState, TResult>(Func<IBuildXLKeyValueStore, TState, CancellationToken, TResult> action, TState state)
+            {
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use((store, innerState) => action(store, innerState.state, innerState.token), (state, token: _killSwitch.Token));
+            }
+
+            public Possible<Unit> Use(Action<IBuildXLKeyValueStore, CancellationToken> action)
+            {
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use((store, killSwitch) =>
+                {
+                    action(store, killSwitch);
+                    return Unit.Void;
+                }, _killSwitch.Token);
+            }
+
+            public Possible<TResult> Use<TResult>(Func<IBuildXLKeyValueStore, CancellationToken, TResult> action)
+            {
+                using var token = _accessorLock.AcquireReadLock();
+                return _accessor.Use((store, killSwitch) => action(store, killSwitch), _killSwitch.Token);
             }
         }
     }

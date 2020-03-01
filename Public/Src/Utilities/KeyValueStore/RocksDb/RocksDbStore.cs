@@ -646,9 +646,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 CancellationToken cancellationToken = default,
                 byte[] startValue = null)
             {
-                var gcStats = new GarbageCollectResult
+                var gcResult = new GarbageCollectResult
                 {
-                    BatchSize = GarbageCollectionBatchSize
+                    BatchSize = GarbageCollectionBatchSize,
+                    ReachedEnd = false,
                 };
 
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
@@ -677,10 +678,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         iterator.SeekToFirst();
                     }
 
-                    bool reachedEnd = !iterator.Valid();
-                    while (!reachedEnd && !cancellationToken.IsCancellationRequested)
+                    gcResult.ReachedEnd = !iterator.Valid();
+                    while (!gcResult.ReachedEnd && !cancellationToken.IsCancellationRequested)
                     {
-                        gcStats.TotalCount++;
+                        gcResult.TotalCount++;
                         bool canCollectResult = canCollect(iterator);
 
                         if (canCollectResult)
@@ -690,10 +691,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         }
 
                         iterator.Next();
-                        reachedEnd = !iterator.Valid();
+                        gcResult.ReachedEnd = !iterator.Valid();
 
                         if (keysToRemove.Count == GarbageCollectionBatchSize
-                            || (reachedEnd && keysToRemove.Count > 0))
+                            || (gcResult.ReachedEnd && keysToRemove.Count > 0))
                         {
                             var startTime = TimestampUtilities.Timestamp;
                             // Remove the key across all specified columns
@@ -701,28 +702,31 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                             var duration = TimestampUtilities.Timestamp - startTime;
 
-                            if (duration > gcStats.MaxBatchEvictionTime)
+                            if (duration > gcResult.MaxBatchEvictionTime)
                             {
-                                gcStats.MaxBatchEvictionTime = duration;
+                                gcResult.MaxBatchEvictionTime = duration;
                             }
 
-                            gcStats.LastKey = keysToRemove.Last();
-                            gcStats.RemovedCount += keysToRemove.Count;
+                            gcResult.LastKey = keysToRemove.Last();
+                            gcResult.RemovedCount += keysToRemove.Count;
                             keysToRemove.Clear();
                         }
                     }
                 }
 
-                gcStats.Canceled = cancellationToken.IsCancellationRequested;
-                return gcStats;
+                gcResult.Canceled = cancellationToken.IsCancellationRequested;
+                return gcResult;
             }
 
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollect(Func<byte[], byte[], bool> canCollect, string columnFamilyName = null, CancellationToken cancellationToken = default, byte[] startValue = null)
             {
-                var gcResult = new GarbageCollectResult();
-                // The implementation below ignores batching and removes keys one by one
-                gcResult.BatchSize = 1;
+                var gcResult = new GarbageCollectResult()
+                {
+                    // The implementation below ignores batching and removes keys one by one
+                    BatchSize = 1,
+                    ReachedEnd = false,
+                };
 
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
@@ -739,7 +743,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         iterator.SeekToFirst();
                     }
 
-                    while (iterator.Valid() && !cancellationToken.IsCancellationRequested)
+                    gcResult.ReachedEnd = !iterator.Valid();
+                    while (!gcResult.ReachedEnd && !cancellationToken.IsCancellationRequested)
                     {
                         var startTime = TimestampUtilities.Timestamp;
                         gcResult.TotalCount++;
@@ -754,6 +759,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         }
 
                         iterator.Next();
+                        gcResult.ReachedEnd = !iterator.Valid();
 
                         var duration = TimestampUtilities.Timestamp - startTime;
                         if (duration > gcResult.MaxBatchEvictionTime)
@@ -763,6 +769,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     }
                 }
 
+                gcResult.Canceled = cancellationToken.IsCancellationRequested;
                 return gcResult;
             }
 

@@ -130,5 +130,10 @@ namespace BuildXL.Engine.Cache
         /// Whether garbage collection was cancelled.
         /// </summary>
         public bool Canceled;
+
+        /// <summary>
+        /// Whether the garbage collection reached the end of the column family.
+        /// </summary>
+        public bool ReachedEnd;
     }
 }

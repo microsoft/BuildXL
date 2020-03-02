@@ -413,7 +413,11 @@ namespace BuildXL.Scheduler.Tracing
         /// <nodoc/>
         public void Dispose()
         {
-            PreviousFingerprintStore.Dispose();
+            using (Counters.StartStopwatch(FingerprintStoreCounters.PreviousFingerprintStoreDisposeDuration))
+            {
+                PreviousFingerprintStore.Dispose();
+            }
+
             using (Counters.StartStopwatch(FingerprintStoreCounters.RuntimeCacheMissBatchLoggingQueueDisposeDuration))
             {
                 m_batchLoggingQueue?.Dispose();

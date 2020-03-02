@@ -323,5 +323,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         RuntimeCacheMissBatchLoggingQueueDisposeDuration,
+
+        /// <summary>
+        /// The number of ms spent for disposing PreviousFingerprintStore
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PreviousFingerprintStoreDisposeDuration
     }
 }

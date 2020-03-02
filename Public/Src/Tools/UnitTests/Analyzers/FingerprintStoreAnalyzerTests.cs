@@ -868,11 +868,11 @@ namespace Test.Tool.Analyzers
             RunAnalyzer(cacheHitBuild, cacheMissBuild).AssertPipMiss(pip.Process, PipCacheMissType.MissForDescriptorsDueToWeakFingerprints, messages);
         }
 
-    /// <summary>
-    /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
-    /// when serializing to JSON.
-    /// </summary>
-    private string ArtifactToPrint(FileOrDirectoryArtifact artifact)
+        /// <summary>
+        /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
+        /// when serializing to JSON.
+        /// </summary>
+        private string ArtifactToPrint(FileOrDirectoryArtifact artifact)
         {
             return Expander.ExpandPath(Context.PathTable, artifact.Path).ToLowerInvariant().Replace(@"\", @"\\");
         }

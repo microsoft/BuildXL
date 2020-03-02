@@ -23,12 +23,13 @@ using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
 using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
-
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 
 namespace Test.BuildXL.FingerprintStore
 {
     public class RuntimeCacheMissAnalyzerTests : SchedulerIntegrationTestBase
     {
+        private string m_cacheMissAnalysisDetail;
         public RuntimeCacheMissAnalyzerTests(ITestOutputHelper output)
             : base(output)
         {
@@ -486,6 +487,39 @@ namespace Test.BuildXL.FingerprintStore
             results.Add(result);
 
             RuntimeCacheMissAnalyzer.ProcessResults(results.ToArray(), maxLogLen, LoggingContext);
+        }
+
+        /// <summary>
+        /// This test is created for making sure the format of the cachemiss analysis result is stable.
+        /// If you do need to update the format, update this test as well
+        /// </summary>
+        [Fact]
+        public void FormatContractTesting()
+        {
+            EventListener.NestedLoggerHandler += eventData =>
+            {
+                if (eventData.EventId == (int)SharedLogEventId.CacheMissAnalysis)
+                {
+                    m_cacheMissAnalysisDetail = eventData.Payload.ToArray()[1].ToString();
+                }
+            };
+
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact input = CreateSourceFile(root: dirPath, prefix: "input-file");
+            FileArtifact output = CreateOutputFileArtifact(root: dirPath, prefix: "output-file");
+            var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
+            var pip = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+
+            var detail = new JObject(
+                    new JProperty(nameof(CacheMissAnalysisDetail.ActualMissType), PipCacheMissType.MissForDescriptorsDueToWeakFingerprints.ToString()),
+                    new JProperty(nameof(CacheMissAnalysisDetail.ReasonFromAnalysis), $"No fingerprint computation data found from old build. This may be the first execution where pip outputs were stored to the cache. {RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching}"),
+                    new JProperty(nameof(CacheMissAnalysisDetail.Info), null));
+
+            XAssert.AreEqual(detail.ToString(), m_cacheMissAnalysisDetail);
         }
 
         private void MakeTwoPhaseCacheForgetEverything()

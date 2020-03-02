@@ -475,11 +475,13 @@ namespace BuildXL.Scheduler.Tracing
             {
                 // No fingerprint entry needs to be stored for this pip, but it's unique output hash entry might need to be updated
                 UpdateOrStorePipUniqueOutputHashEntry(ExecutionFingerprintStore, pip);
+                Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists);
                 return false;
             }
             else
             {
                 CreateAndStoreFingerprintStoreEntry(ExecutionFingerprintStore, pip, pipFingerprintKeys, weakFingerprint, strongFingerprintData);
+                Counters.IncrementCounter(FingerprintStoreCounters.NumHitEntriesPut);
                 return true;
             }
         }
@@ -522,14 +524,7 @@ namespace BuildXL.Scheduler.Tracing
             // Cache hit, update execution fingerprint store entry, if necessary, to match what would have been executed
             if (strongFingerprintData.IsStrongFingerprintHit)
             {
-                if (TryPutExecutionFingerprintStoreEntry(pip, weakFingerprint, maybeStrongFingerprintData.Value, data.SessionId, data.RelatedSessionId))
-                {
-                    Counters.IncrementCounter(FingerprintStoreCounters.NumHitEntriesPut);
-                }
-                else
-                {
-                    Counters.IncrementCounter(FingerprintStoreCounters.NumFingerprintComputationSkippedSameValueEntryExists);
-                }
+                TryPutExecutionFingerprintStoreEntry(pip, weakFingerprint, maybeStrongFingerprintData.Value, data.SessionId, data.RelatedSessionId);
             }
             // Strong fingerprint cache miss, store the most relevant fingerprint to the cache lookup fingerprint store
             else if (CacheLookupStoreEnabled || CacheMissAnalysisEnabled)
@@ -706,8 +701,6 @@ namespace BuildXL.Scheduler.Tracing
 
         private void ProcessCacheMissData(PipCacheMissEventData data)
         {
-            GetProcess(data.PipId).TryComputePipUniqueOutputHash(m_context.PathTable, out var pipUniqueOutputHash, PipContentFingerprinter.PathExpander);
-
             using (Counters.StartStopwatch(FingerprintStoreCounters.FingerprintStoreLoggingTime))
             {
                 var cacheMissInfo = new PipCacheMissInfo

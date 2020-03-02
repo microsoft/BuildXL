@@ -9,6 +9,11 @@ namespace BuildXL.Utilities.Configuration
     public static class EngineVersion
     {
         /// <summary>
+        /// Property name that user can specify to set the engine version, i.e., '/p:BUILDXL_ENGINE_VERSION=X', where X is the version.
+        /// </summary>
+        public const string PropertyName = "BUILDXL_ENGINE_VERSION";
+
+        /// <summary>
         /// Current engine version.
         /// </summary>
         /// <remarks>
@@ -18,7 +23,7 @@ namespace BuildXL.Utilities.Configuration
         /// because the feature requires some modification on the branch. LTSB is frozen, and so making modification is nearly impossible.
         /// To move forward, do the following:
         ///   - Increment the engine version to N + 1, and fill in the reason below.
-        ///   - Ensure that the LTSB invocation pass '/engineVersion:X' or '/p:BUILDXL_ENGINE_VERSION=X', where X &lt; N + 1.
+        ///   - Ensure that the LTSB invocation pass '/p:BUILDXL_ENGINE_VERSION=X', where X &lt; N + 1.
         ///   - Add in the configuration the following code (whichever appropriate):
         ///       if (EngineVersion.Version &gt; X) { enableF = true; }
         ///     or
@@ -39,7 +44,7 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static int Version
         {
-            get => (s_usedVersion ?? EngineEnvironmentSettings.BuildXLEngineVersion) ?? CurrentVersion;
+            get => s_usedVersion ?? CurrentVersion;
             set
             {
                 s_usedVersion = value;

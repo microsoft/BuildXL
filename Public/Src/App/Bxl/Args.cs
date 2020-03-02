@@ -179,7 +179,10 @@ namespace BuildXL
             {
                 var cl = new CommandLineUtilities(args);
 
-                var configuration = new BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration();
+                // Setting engine configuration has to be done before the creation of configuration.
+                SetEngineConfigurationVersionIfSpecified(cl);
+
+                var configuration = new Utilities.Configuration.Mutable.CommandLineConfiguration();
                 var startupConfiguration = configuration.Startup;
                 var engineConfiguration = configuration.Engine;
                 var layoutConfiguration = configuration.Layout;
@@ -421,9 +424,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "engineCacheDirectory",
                             opt => layoutConfiguration.EngineCacheDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
-                            "engineVersion",
-                            opt => EngineVersion.Version = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "ensureTempDirectoriesExistenceBeforePipExecution",
                             sign => sandboxConfiguration.EnsureTempDirectoriesExistenceBeforePipExecution = sign),
@@ -1472,6 +1472,29 @@ namespace BuildXL
             string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
             var cl2 = new CommandLineUtilities(splittedABTestingArgs);
             IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
+        }
+
+        private void SetEngineConfigurationVersionIfSpecified(CommandLineUtilities cl)
+        {
+            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (CommandLineUtilities.Option opt in cl.Options)
+            {
+                if (string.Equals(opt.Name, "p", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(opt.Name, "parameter", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineUtilities.ParsePropertyOption(opt, properties);
+                }
+            }
+
+            // We don't check for every option name in the cl.Options because we want to use the same rules of last-one-win as we did for processing arguments.
+            if (properties.TryGetValue(EngineVersion.PropertyName, out string valueString))
+            {
+                if (int.TryParse(valueString, out var result))
+                {
+                    EngineVersion.Version = result;
+                }
+            }
         }
 
         private void IterateArgs(CommandLineUtilities cl, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)

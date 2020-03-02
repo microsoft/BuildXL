@@ -1045,7 +1045,4 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection" xml:space="preserve">
     <value>Controls whether Scheduler should use commit memory projection based on historic commit memory usage.</value>
   </data>
-  <data name="HelpText_DisplayHelp_EngineVersion" xml:space="preserve">
-    <value>Specifies engine version used for performing the build. Engine version controls the default values of some configurations.</value>
-  </data>
 </root>

@@ -56,6 +56,11 @@ namespace BuildXL
         /// </summary>
         public bool IsDeveloperBuild => CommitId == "[Developer Build]";
 
+        /// <summary>
+        /// Current engine configuration version.
+        /// </summary>
+        public int EngineConfigurationVersion => Utilities.Configuration.EngineVersion.Version;
+
         private BuildInfo()
         {
         }

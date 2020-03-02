@@ -4,10 +4,12 @@
 namespace BuildXL.Interop.MacOS
 {
     /// <summary>
-    /// macOS specific constants for interop purposes
+    /// Constants for interop purposes
     /// </summary>
     internal static class Constants
     {
         internal const int MaxPathLength = 1024;
+
+        internal const int ERROR = -1;
     }
 }

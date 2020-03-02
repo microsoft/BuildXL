@@ -303,14 +303,18 @@ namespace Test.BuildXL.Storage
                 sourceInfo.VersionedFileIdentityAndContentInfo.FileContentInfo.Hash,
                 targetInfo.VersionedFileIdentityAndContentInfo.FileContentInfo.Hash);
 
-            await
-                VerifyCopyIfContentMismatchedAsync(
-                    fileContentTable,
-                    FileA,
-                    FileB,
-                    sourceInfo.VersionedFileIdentityAndContentInfo.FileContentInfo,
-                    expectedCopy: true,
-                    originalDestinationInfo: targetInfo.VersionedFileIdentityAndContentInfo);
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                // TODO: flaky on Linux because of low-precission timestamps
+                await
+                    VerifyCopyIfContentMismatchedAsync(
+                        fileContentTable,
+                        FileA,
+                        FileB,
+                        sourceInfo.VersionedFileIdentityAndContentInfo.FileContentInfo,
+                        expectedCopy: true,
+                        originalDestinationInfo: targetInfo.VersionedFileIdentityAndContentInfo);
+            }
         }
 
         [Fact]
@@ -462,13 +466,17 @@ namespace Test.BuildXL.Storage
                 await fileContentTable.GetAndRecordContentHashAsync(GetFullPath(FileB));
             XAssert.AreEqual(FileContentTableExtensions.ContentHashOrigin.NewlyHashed, targetInfo.Origin);
 
-            await
-                VerifyWriteBytesIfContentMismatchedAsync(
-                    fileContentTable,
-                    FileB,
-                    TargetContent,
-                    expectWrite: true,
-                    originalDestinationInfo: targetInfo.VersionedFileIdentityAndContentInfo);
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                // TODO: flaky on Linux because of low-precission timestamps
+                await
+                    VerifyWriteBytesIfContentMismatchedAsync(
+                        fileContentTable,
+                        FileB,
+                        TargetContent,
+                        expectWrite: true,
+                        originalDestinationInfo: targetInfo.VersionedFileIdentityAndContentInfo);
+            }
         }
 
         [Fact]

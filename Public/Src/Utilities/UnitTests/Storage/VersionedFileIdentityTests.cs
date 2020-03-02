@@ -30,8 +30,8 @@ namespace Test.BuildXL.Storage
                 var idA = VersionedFileIdentity.TryQuery(streamA.SafeFileHandle);
                 var idB = VersionedFileIdentity.TryQuery(streamB.SafeFileHandle);
 
-                XAssert.IsTrue(idA.Succeeded);
-                XAssert.IsTrue(idB.Succeeded);
+                XAssert.PossiblySucceeded(idA);
+                XAssert.PossiblySucceeded(idB);
 
                 XAssert.AreEqual(idA.Result.VolumeSerialNumber, idB.Result.VolumeSerialNumber);
                 XAssert.AreNotEqual(
@@ -128,7 +128,7 @@ namespace Test.BuildXL.Storage
             using (var stream = File.Open(fullPath, FileMode.Open))
             {
                 var mayBeId = VersionedFileIdentity.TryEstablishStrong(stream.SafeFileHandle, true);
-                XAssert.IsTrue(mayBeId.Succeeded);
+                XAssert.PossiblySucceeded(mayBeId);
                 id1 = mayBeId.Result;
             }
 
@@ -139,11 +139,11 @@ namespace Test.BuildXL.Storage
             using (var stream = File.Open(fullPath, FileMode.Open))
             {
                 var mayBeId = VersionedFileIdentity.TryQuery(stream.SafeFileHandle);
-                XAssert.IsTrue(mayBeId.Succeeded);
+                XAssert.PossiblySucceeded(mayBeId);
                 id2 = mayBeId.Result;
             }
 
-            XAssert.IsTrue(id1.Usn < id2.Usn);
+            XAssert.IsTrue(id1.Usn < id2.Usn, "Expected USN to increase after a write, but it didn't; before: {0}, after: {1}", id1.Usn, id2.Usn);
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -183,8 +183,8 @@ namespace Test.BuildXL.Storage
                     var id1 = VersionedFileIdentity.TryQuery(symlink1Handle);
                     var id2 = VersionedFileIdentity.TryQuery(symlink2Handle);
 
-                    XAssert.IsTrue(id1.Succeeded);
-                    XAssert.IsTrue(id2.Succeeded);
+                    XAssert.PossiblySucceeded(id1);
+                    XAssert.PossiblySucceeded(id2);
                     XAssert.AreNotEqual(id1.Result.FileId, id2.Result.FileId);
                 }
             }

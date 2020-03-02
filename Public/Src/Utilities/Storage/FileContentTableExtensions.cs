@@ -189,36 +189,36 @@ namespace BuildXL.Storage
                 sourcePath,
                 destinationPath,
                 predicate: (source, dest) =>
-                                 {
-                                     // Nonexistent destination?
-                                     if (dest == null)
-                                     {
-                                         return true;
-                                     }
+                {
+                    // Nonexistent destination?
+                    if (dest == null)
+                    {
+                        return true;
+                    }
 
-                                     VersionedFileIdentityAndContentInfo? knownDestinationInfo = fileContentTable.TryGetKnownContentHash(destinationPath, dest);
-                                     if (!knownDestinationInfo.HasValue || knownDestinationInfo.Value.FileContentInfo.Hash != sourceContentInfo.Hash)
-                                     {
-                                         return true;
-                                     }
+                    VersionedFileIdentityAndContentInfo? knownDestinationInfo = fileContentTable.TryGetKnownContentHash(destinationPath, dest);
+                    if (!knownDestinationInfo.HasValue || knownDestinationInfo.Value.FileContentInfo.Hash != sourceContentInfo.Hash)
+                    {
+                        return true;
+                    }
 
-                                     destinationInfo = knownDestinationInfo.Value;
-                                     return false;
-                                 },
+                    destinationInfo = knownDestinationInfo.Value;
+                    return false;
+                },
                 onCompletion: (source, dest) =>
-                              {
-                                  Contract.Assume(
-                                      destinationInfo == null,
-                                      "onCompletion should only happen when we committed to a copy (and then, we shouldn't have a destination version yet).");
-                                  VersionedFileIdentity identity =
-                                      fileContentTable.RecordContentHash(
-                                        destinationPath,
-                                        dest,
-                                        sourceContentInfo.Hash,
-                                        sourceContentInfo.Length,
-                                        strict: true);
-                                  destinationInfo = new VersionedFileIdentityAndContentInfo(identity, sourceContentInfo);
-                              });
+                {
+                    Contract.Assume(
+                        destinationInfo == null,
+                        "onCompletion should only happen when we committed to a copy (and then, we shouldn't have a destination version yet).");
+                    VersionedFileIdentity identity =
+                        fileContentTable.RecordContentHash(
+                        destinationPath,
+                        dest,
+                        sourceContentInfo.Hash,
+                        sourceContentInfo.Length,
+                        strict: true);
+                    destinationInfo = new VersionedFileIdentityAndContentInfo(identity, sourceContentInfo);
+                });
 
             Contract.Assume(destinationInfo != null);
             return new ConditionalUpdateResult(!copied, destinationInfo.Value);
@@ -270,19 +270,18 @@ namespace BuildXL.Storage
                     return false;
                 },
                 onCompletion: handle =>
-                              {
-                                  Contract.Assume(destinationInfo == null);
-                                  VersionedFileIdentity identity =
-                                    fileContentTable.RecordContentHash(
-                                        destinationPath,
-                                        handle,
-                                        contentsHash,
-                                        contents.Length,
-                                        strict: true);
-                                  destinationInfo = new VersionedFileIdentityAndContentInfo(
-                                      identity,
-                                      new FileContentInfo(contentsHash, contents.Length));
-                              });
+                {
+                    Contract.Assume(destinationInfo == null);
+                    VersionedFileIdentity identity = fileContentTable.RecordContentHash(
+                        destinationPath,
+                        handle,
+                        contentsHash,
+                        contents.Length,
+                        strict: true);
+                    destinationInfo = new VersionedFileIdentityAndContentInfo(
+                        identity,
+                        new FileContentInfo(contentsHash, contents.Length));
+                });
 
             Contract.Assume(destinationInfo != null);
             return new ConditionalUpdateResult(!written, destinationInfo.Value);

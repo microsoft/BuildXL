@@ -59,6 +59,16 @@ namespace BuildXL.Utilities
 #endif
 
         /// <summary>
+        /// Indicates if BuildXL is running on macOS
+        /// </summary>
+        public static readonly bool IsLinuxOS =
+#if NET_CORE
+            RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Indicates if BuildXL is running on .NET Core
         /// </summary>
         public static readonly bool IsDotNetCore =

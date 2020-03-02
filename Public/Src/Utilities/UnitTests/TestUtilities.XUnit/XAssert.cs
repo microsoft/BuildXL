@@ -551,23 +551,29 @@ namespace Test.BuildXL.TestUtilities.Xunit
             }
         }
 
+        private static string JoinNonEmpty(string separator, params string[] messages)
+            => string.Join(separator, messages.Where(s => !string.IsNullOrEmpty(s)));
+
+        /// <nodoc/>
+        public static void PossiblySucceeded<T, F>(Possible<T, F> result, string message = null) where F : Failure
+        {
+            if (result.Succeeded)
+            {
+                return;
+            }
+
+            Fail(JoinNonEmpty(Environment.NewLine, message, result.Failure.DescribeIncludingInnerFailures()));
+        }
+
         /// <nodoc/>
         public static void PossiblySucceeded<T>(Possible<T> result, string message = null)
         {
-            if (!result.Succeeded)
+            if (result.Succeeded)
             {
-                string failureMessage = result.Failure.DescribeIncludingInnerFailures();
-                if (message == null)
-                {
-                    message = failureMessage;
-                }
-                else
-                {
-                    message += Environment.NewLine + failureMessage;
-                }
+                return;
             }
 
-            XAssert.IsTrue(result.Succeeded, message);
+            Fail(JoinNonEmpty(Environment.NewLine, message, result.Failure.DescribeIncludingInnerFailures()));
         }
     }
 }

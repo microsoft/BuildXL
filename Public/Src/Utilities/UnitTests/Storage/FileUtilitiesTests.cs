@@ -788,10 +788,15 @@ namespace Test.BuildXL.Storage
 
             var timestamps = FileUtilities.GetFileTimestamps(targetFile);
 
-            // We dont look at last changed and access time as the test process touches the permissions of the output file and
+            // We don't look at last changed and access time as the test process touches the permissions of the output file and
             // the system indexes the files so the access time changes too!
-            XAssert.AreEqual(test, timestamps.CreationTime);
             XAssert.AreEqual(test, timestamps.LastWriteTime);
+
+            // can't change birth timestamp on Linux
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                XAssert.AreEqual(test, timestamps.CreationTime);
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -809,13 +814,17 @@ namespace Test.BuildXL.Storage
             var originalTimestamps = FileUtilities.GetFileTimestamps(originalFile);
             var symlinkTimestamps = FileUtilities.GetFileTimestamps(intermediateLink);
 
-            // We dont look at last changed and access time as the test process touches the permissions of the output file and
+            // We don't look at last changed and access time as the test process touches the permissions of the output file and
             // the system indexes the files so the access time changes too!
-            XAssert.AreEqual(test, symlinkTimestamps.CreationTime);
             XAssert.AreEqual(test, symlinkTimestamps.LastWriteTime);
-
-            XAssert.AreNotEqual(originalTimestamps.CreationTime, symlinkTimestamps.CreationTime);
             XAssert.AreNotEqual(originalTimestamps.LastWriteTime, symlinkTimestamps.LastWriteTime);
+
+            // Cannot change birth timestamp on Linux
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                XAssert.AreNotEqual(originalTimestamps.CreationTime, symlinkTimestamps.CreationTime);
+                XAssert.AreEqual(test, symlinkTimestamps.CreationTime);
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]

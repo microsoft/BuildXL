@@ -45,6 +45,11 @@ namespace BuildXL.Interop
         }
 
         /// <summary>
+        /// Returns true when executing on OSX.
+        /// </summary>
+        public static readonly bool IsMacOS = CurrentOS() == OperatingSystem.MacOS;
+
+        /// <summary>
         /// Gets the elevated status of the process.
         /// </summary>
         /// <returns>True if process is running elevated, otherwise false.</returns>

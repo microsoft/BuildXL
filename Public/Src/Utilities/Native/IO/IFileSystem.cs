@@ -532,8 +532,8 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// This function tries to get file identity as in <see cref="TryGetFileIdentityByHandle(SafeFileHandle)"/>. In addition
         /// to the file identity, this function also tries to establish the file version. The notion of version depends on the OS.
-        /// For Windows, the version is the USN after inserting a close record. For Unix, where journaling is not always available, the version can be file timestamp.
-        /// The version is simply represented using <see cref="Usn"/>.
+        /// For Windows, the version is the USN after inserting a close record. For Unix, where journaling is not always available, 
+        /// the version can be file timestamp. The version is simply represented using <see cref="Usn"/>.
         ///
         /// The <paramref name="flushPageCache"/> parameter is often needed on Windows to avoid subsequent USN change after a close record is inserted.
         /// </remarks>

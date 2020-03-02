@@ -385,16 +385,14 @@ namespace BuildXL.Native.IO.Unix
                 throw ThrowForNativeFailure(Marshal.GetLastWin32Error(), nameof(GetFileSystemType), managedApiName: nameof(GetVolumeFileSystemByHandle));
             }
 
-            string fsTypeName = buffer.ToString().ToUpperInvariant();
-            switch (fsTypeName)
+            return buffer.ToString().ToUpperInvariant() switch
             {
-                case "APFS":
-                    return FileSystemType.APFS;
-                case "HFS":
-                    return FileSystemType.HFS;
-                default:
-                    return FileSystemType.Unknown;
-            }
+                "APFS" => FileSystemType.APFS,
+                "HFS"  => FileSystemType.HFS,
+                "EXT3" => FileSystemType.EXT3,
+                "EXT4" => FileSystemType.EXT4,
+                     _ => FileSystemType.Unknown
+            };
         }
 
         /// <inheritdoc />
@@ -983,37 +981,31 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
             {
-                if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
-                {
-                    return default;
-                }
-
-                var fileIdAndVolumeId = new FileIdAndVolumeId(
-                        unchecked((ulong)statBuffer.DeviceID),
-                        new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
-
-                long sec = statBuffer.TimeLastStatusChange;
-                long nsec = statBuffer.TimeNSecLastStatusChange;
-
-                if (nsec == 0
-                    && (!IsPreciseFileVersionSupportedByEnlistmentVolume
-                        || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle)))
-                {
-                    // Nanosecond precision may not be supported (nsec == 0), and
-                    // either enlistment volume does not support precise file version, or
-                    // the volume where the file resides does not support precise file version.
-                    // Use the modified timestamp. Yes, this can result in unreliability.
-                    sec = statBuffer.TimeLastModification;
-                    nsec = statBuffer.TimeNSecLastModification;
-                }
-
-                ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
-                version += unchecked((ulong)nsec);
-
-                return (fileIdAndVolumeId, new Usn(version));
+                return default;
             }
+
+            var fileIdAndVolumeId = new FileIdAndVolumeId(
+                unchecked((ulong)statBuffer.DeviceID),
+                new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
+
+            long sec = statBuffer.TimeLastStatusChange;
+            long nsec = statBuffer.TimeNSecLastStatusChange;
+            if (!IsPreciseFileVersionSupportedByEnlistmentVolume || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle))
+            {
+                // Nanosecond precision may not be supported, and
+                // either enlistment volume does not support precise file version, or
+                // the volume where the file resides does not support precise file version.
+                // Use the modified timestamp. Yes, this can result in unreliability.
+                sec = statBuffer.TimeLastModification;
+                nsec = statBuffer.TimeNSecLastModification;
+            }
+
+            ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
+            version += unchecked((ulong)nsec);
+
+            return (fileIdAndVolumeId, new Usn(version));
         }
 
         /// <inheritdoc />
@@ -1021,78 +1013,77 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
             {
-                if (StatFileDescriptor(fileHandle, ref statBuffer) != 0)
-                {
-                    return default;
-                }
-
-                var fileIdAndVolumeId = new FileIdAndVolumeId(
-                        unchecked((ulong)statBuffer.DeviceID),
-                        new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
-
-                long sec = statBuffer.TimeLastStatusChange;
-                long nsec = statBuffer.TimeNSecLastStatusChange;
-
-                if (nsec == 0
-                    && (!IsPreciseFileVersionSupportedByEnlistmentVolume
-                        || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle)))
-                {
-                    // Nanosecond precision may not be supported (nsec == 0), and
-                    // either enlistment volume does not support precise file version, or
-                    // the volume where the file resides does not support precise file version.
-
-                    // Get the current time.
-                    var elapsedSeconds = (long)(DateTime.UtcNow - UnixEpoch).TotalSeconds;
-
-                    if (elapsedSeconds == statBuffer.TimeLastModification)
-                    {
-                        // Set the modified time 1s to the past, only if it matches the current time.
-                        // It means that modification and establishing identity happened in sub-second and high-precision timestamp is not supported.
-                        // This most likely happens for outputs or intermediate outputs.
-
-                        // Accessing hidden files in MacOs.
-                        // Ref: http://www.westwind.com/reference/os-x/invisibles.html
-                        // Another alternative is using fcntl with F_GETPATH that takes a handle and returns the concrete OS path owned by the handle.
-                        // Yet another alternative is to use fsetattrlist.
-                        var path = I($"/.vol/{fileIdAndVolumeId.VolumeSerialNumber}/{fileIdAndVolumeId.FileId.Low}");
-
-                        var setTimeStatBuffer = new StatBuffer();
-                        setTimeStatBuffer.TimeCreation = statBuffer.TimeCreation;
-                        setTimeStatBuffer.TimeNSecCreation = statBuffer.TimeNSecCreation;
-
-                        setTimeStatBuffer.TimeLastAccess = statBuffer.TimeLastAccess;
-                        setTimeStatBuffer.TimeNSecLastAccess = statBuffer.TimeNSecLastAccess;
-
-                        setTimeStatBuffer.TimeLastModification = statBuffer.TimeLastModification - 1;
-                        setTimeStatBuffer.TimeNSecLastModification = statBuffer.TimeNSecLastModification;
-
-                        setTimeStatBuffer.TimeLastStatusChange = statBuffer.TimeLastStatusChange;
-                        setTimeStatBuffer.TimeNSecLastStatusChange = statBuffer.TimeNSecLastStatusChange;
-
-                        int result = SetTimeStampsForFilePath(path, false, setTimeStatBuffer);
-
-                        if (result != 0)
-                        {
-                            return default;
-                        }
-
-                        sec = statBuffer.TimeLastModification - 1;
-                        nsec = statBuffer.TimeNSecLastModification;
-                    }
-                    else
-                    {
-                        sec = statBuffer.TimeLastModification;
-                        nsec = statBuffer.TimeNSecLastModification;
-                    }
-                }
-
-                ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
-                version += unchecked((ulong)nsec);
-
-                return (fileIdAndVolumeId, new Usn(version));
+                return default;
             }
+
+            var fileIdAndVolumeId = new FileIdAndVolumeId(
+                unchecked((ulong)statBuffer.DeviceID),
+                new FileId(UnusedFileIdPart, unchecked((ulong)statBuffer.InodeNumber)));
+
+            long sec = statBuffer.TimeLastStatusChange;
+            long nsec = statBuffer.TimeNSecLastStatusChange;
+
+            if (!IsPreciseFileVersionSupportedByEnlistmentVolume || !CheckIfVolumeSupportsPreciseFileVersionByHandle(fileHandle))
+            {
+                // Nanosecond precision may not be supported (nsec == 0), and
+                // either enlistment volume does not support precise file version, or
+                // the volume where the file resides does not support precise file version.
+
+                // Get the current time.
+                var elapsedSeconds = (long)(DateTime.UtcNow - UnixEpoch).TotalSeconds;
+                if (elapsedSeconds - statBuffer.TimeLastModification <= 1)
+                {
+                    // Set the modified time 1s to the past, only if it matches the current time.
+                    // It means that modification and establishing identity happened in sub-second and high-precision timestamp is not supported.
+                    // This most likely happens for outputs or intermediate outputs.
+
+                    var setTimeStatBuffer = new StatBuffer();
+                    setTimeStatBuffer.TimeCreation = statBuffer.TimeCreation;
+                    setTimeStatBuffer.TimeNSecCreation = statBuffer.TimeNSecCreation;
+
+                    setTimeStatBuffer.TimeLastAccess = statBuffer.TimeLastAccess;
+                    setTimeStatBuffer.TimeNSecLastAccess = statBuffer.TimeNSecLastAccess;
+
+                    setTimeStatBuffer.TimeLastModification = statBuffer.TimeLastModification - 1;
+                    setTimeStatBuffer.TimeNSecLastModification = statBuffer.TimeNSecLastModification;
+
+                    setTimeStatBuffer.TimeLastStatusChange = statBuffer.TimeLastStatusChange;
+                    setTimeStatBuffer.TimeNSecLastStatusChange = statBuffer.TimeNSecLastStatusChange;
+
+                    // Accessing hidden files in MacOs: http://www.westwind.com/reference/os-x/invisibles.html
+                    // 
+                    // An alternative would be using fcntl with F_GETPATH that takes a handle and returns
+                    // the concrete OS path owned by the handle; or calling fsetattrlist().
+                    //
+                    // TODO: in any case, this should be moved to Interop.IO so that there it is decided
+                    //       what to do based on the current os
+                    var path = OperatingSystemHelper.IsMacOS
+                        ? $"/.vol/{fileIdAndVolumeId.VolumeSerialNumber}/{fileIdAndVolumeId.FileId.Low}"
+                        : $"/proc/self/fd/{fileHandle.DangerousGetHandle().ToInt32()}";
+
+                    int result = SetTimeStampsForFilePath(path, followSymlink: true, setTimeStatBuffer);
+
+                    if (result != 0)
+                    {
+                        return default;
+                    }
+
+                    sec = statBuffer.TimeLastModification - 1;
+                    nsec = statBuffer.TimeNSecLastModification;
+                }
+                else
+                {
+                    sec = statBuffer.TimeLastModification;
+                    nsec = statBuffer.TimeNSecLastModification;
+                }
+            }
+
+            ulong version = unchecked((ulong)Timespec.SecToNSec(sec));
+            version += unchecked((ulong)nsec);
+
+            return (fileIdAndVolumeId, new Usn(version));
 
             // TODO: if high-precision file timestamp is supported, this function should simply call TryGetVersionedFileIdentityByHandle.
             // return TryGetVersionedFileIdentityByHandle(fileHandle);
@@ -1178,22 +1169,19 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFile(path, followSymlink, ref statBuffer) != 0)
             {
-               if (StatFile(path, followSymlink, ref statBuffer) != 0)
-               {
-                   if (throwOnFailure)
-                   {
-                       throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
-                   }
-                   else
-                   {
-                       return -1;
-                   }
-               }
-
-               return unchecked((int)statBuffer.Mode);
+                if (throwOnFailure)
+                {
+                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its permission - error: {Marshal.GetLastWin32Error()}"));
+                }
+                else
+                {
+                    return -1;
+                }
             }
+
+            return unchecked((int)statBuffer.Mode);
         }
 
         /// <summary>

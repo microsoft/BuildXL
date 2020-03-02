@@ -91,8 +91,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 // C# identifiers are valid path atoms. See IsValidPathAtom and  http://msdn.microsoft.com/en-us/library/aa664670(v=vs.71).aspx
                 Contract.Assume(testClassName != null && PathAtom.Validate((StringSegment)testClassName));
 
-                var tempDir = Environment.GetEnvironmentVariable("TEMP") ?? Path.GetTempPath();
-                m_tempBase = Path.GetFullPath(Path.Combine(tempDir, testClassName, testMethodNumber.ToString(CultureInfo.InvariantCulture)));
+                m_tempBase = Path.GetFullPath(Path.Combine(GetTempDir(), testClassName, testMethodNumber.ToString(CultureInfo.InvariantCulture)));
 
                 if (Directory.Exists(m_tempBase))
                 {

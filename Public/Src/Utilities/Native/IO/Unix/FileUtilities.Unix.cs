@@ -235,31 +235,28 @@ namespace BuildXL.Native.IO.Unix
 
             var statBuffer = new StatBuffer();
 
-            unsafe
+            Timespec creationTime = Timespec.CreateFromUtcDateTime(timestamps.CreationTime);
+            Timespec lastAccessTime = Timespec.CreateFromUtcDateTime(timestamps.AccessTime);
+            Timespec lastModificationTime = Timespec.CreateFromUtcDateTime(timestamps.LastWriteTime);
+            Timespec lastStatusChangeTime = Timespec.CreateFromUtcDateTime(timestamps.LastChangeTime);
+
+            statBuffer.TimeCreation = creationTime.Tv_sec;
+            statBuffer.TimeNSecCreation = creationTime.Tv_nsec;
+
+            statBuffer.TimeLastAccess = lastAccessTime.Tv_sec;
+            statBuffer.TimeNSecLastAccess = lastAccessTime.Tv_nsec;
+
+            statBuffer.TimeLastModification = lastModificationTime.Tv_sec;
+            statBuffer.TimeNSecLastModification = lastModificationTime.Tv_nsec;
+
+            statBuffer.TimeLastStatusChange = lastStatusChangeTime.Tv_sec;
+            statBuffer.TimeNSecLastStatusChange = lastStatusChangeTime.Tv_nsec;
+
+            int result = SetTimeStampsForFilePath(path, followSymlink, statBuffer);
+
+            if (result != 0)
             {
-                Timespec creationTime = Timespec.CreateFromUtcDateTime(timestamps.CreationTime);
-                Timespec lastAccessTime = Timespec.CreateFromUtcDateTime(timestamps.AccessTime);
-                Timespec lastModificationTime = Timespec.CreateFromUtcDateTime(timestamps.LastWriteTime);
-                Timespec lastStatusChangeTime = Timespec.CreateFromUtcDateTime(timestamps.LastChangeTime);
-
-                statBuffer.TimeCreation = creationTime.Tv_sec;
-                statBuffer.TimeNSecCreation = creationTime.Tv_nsec;
-
-                statBuffer.TimeLastAccess = lastAccessTime.Tv_sec;
-                statBuffer.TimeNSecLastAccess = lastAccessTime.Tv_nsec;
-
-                statBuffer.TimeLastModification = lastModificationTime.Tv_sec;
-                statBuffer.TimeNSecLastModification = lastModificationTime.Tv_nsec;
-
-                statBuffer.TimeLastStatusChange = lastStatusChangeTime.Tv_sec;
-                statBuffer.TimeNSecLastStatusChange = lastStatusChangeTime.Tv_nsec;
-
-                int result = SetTimeStampsForFilePath(path, followSymlink, statBuffer);
-
-                if (result != 0)
-                {
-                    throw new BuildXLException("Failed to open a file to set its timestamps - error: " + Marshal.GetLastWin32Error());
-                }
+                throw new BuildXLException("Failed to open a file to set its timestamps - error: " + Marshal.GetLastWin32Error());
             }
         }
 
@@ -268,12 +265,9 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
+            if (StatFile(path, followSymlink, ref statBuffer) != 0)
             {
-                if (StatFile(path, followSymlink, ref statBuffer) != 0)
-                {
-                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its timestamps - error: {Marshal.GetLastWin32Error()}"));
-                }
+                throw new BuildXLException(I($"Failed to stat file '{path}' to get its timestamps - error: {Marshal.GetLastWin32Error()}"));
             }
 
             var creationTime = new Timespec() { Tv_sec = statBuffer.TimeCreation, Tv_nsec = statBuffer.TimeNSecCreation };
@@ -295,15 +289,12 @@ namespace BuildXL.Native.IO.Unix
         {
             var statBuffer = new StatBuffer();
 
-            unsafe
-            {
-                int result = StatFile(path, followSymlink, ref statBuffer);
+            int result = StatFile(path, followSymlink, ref statBuffer);
 
-                device = unchecked((ulong) statBuffer.DeviceID);
-                inode = unchecked((ulong) statBuffer.InodeNumber);
+            device = unchecked((ulong) statBuffer.DeviceID);
+            inode = unchecked((ulong) statBuffer.InodeNumber);
 
-                return result;
-            }
+            return result;
         }
 
         /// <inheritdoc />
@@ -362,8 +353,14 @@ namespace BuildXL.Native.IO.Unix
                     using (FileStream stream = CreateReplacementFile(filePath, FileShare.Delete, openAsync: true))
                     {
                         await stream.WriteAsync(bytes, 0, bytes.Length);
+                    }
 
-                        onCompletion?.Invoke(stream.SafeFileHandle);
+                    if (onCompletion != null)
+                    {
+                        using (var file = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Delete))
+                        {
+                            onCompletion(file.SafeFileHandle);
+                        }
                     }
 
                     return true;
@@ -416,19 +413,23 @@ namespace BuildXL.Native.IO.Unix
                             }
                         }
 
-                        using (FileStream destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
+                        using (var destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
                         {
                             await sourceStream.CopyToAsync(destinationStream);
-
                             var mode = GetFilePermissionsForFilePath(source, followSymlink: false);
                             var result = SetFilePermissionsForFilePath(destination, checked((FilePermissions)mode), followSymlink: false);
-
                             if (result < 0)
                             {
                                 throw new BuildXLException($"Failed to set permissions for file copy at '{destination}' - error: {Marshal.GetLastWin32Error()}");
                             }
+                        }
 
-                            onCompletion?.Invoke(sourceStream.SafeFileHandle, destinationStream.SafeFileHandle);
+                        if (onCompletion != null)
+                        {
+                            using (var dest = File.Open(destination, FileMode.Open, FileAccess.Read, FileShare.Delete))
+                            {
+                                onCompletion(sourceStream.SafeFileHandle, dest.SafeFileHandle);
+                            }
                         }
                     }
 
@@ -464,15 +465,10 @@ namespace BuildXL.Native.IO.Unix
         public void CloneFile(string source, string destination, bool followSymlink)
         {
             var flags = followSymlink ? CloneFileFlags.CLONE_NONE : CloneFileFlags.CLONE_NOFOLLOW;
-
-            unsafe
+            int result = Interop.MacOS.IO.CloneFile(source, destination, flags);
+            if (result != 0)
             {
-                int result = Interop.MacOS.IO.CloneFile(source, destination, flags);
-
-                if (result != 0)
-                {
-                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
-                }
+                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));
             }
         }
 
@@ -547,7 +543,6 @@ namespace BuildXL.Native.IO.Unix
             }
 
             var settingsFolder = Path.Combine(homeFolder, "." + ToCamelCase(appName));
-
             s_fileSystem.CreateDirectory(settingsFolder);
             return settingsFolder;
         }
@@ -566,17 +561,13 @@ namespace BuildXL.Native.IO.Unix
         public uint GetHardLinkCount(string path)
         {
             var statBuffer = new StatBuffer();
-
-            unsafe
+            if (StatFile(path, true, ref statBuffer) != 0)
             {
-                if (StatFile(path, true, ref statBuffer) != 0)
-                {
-                    throw new BuildXLException(I($"Failed to stat file '{path}' to get its hardlink count - error: {Marshal.GetLastWin32Error()}"));
-                }
-
-                // TODO: Change hardlink count return type to ulong.
-                return unchecked((uint) statBuffer.HardLinks);
+                throw new BuildXLException(I($"Failed to stat file '{path}' to get its hardlink count - error: {Marshal.GetLastWin32Error()}"));
             }
+
+            // TODO: Change hardlink count return type to ulong.
+            return unchecked((uint) statBuffer.HardLinks);
         }
 
         /// <inheritdoc />

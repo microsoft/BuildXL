@@ -120,12 +120,21 @@ namespace Test.BuildXL.TestUtilities
             {
                 if (m_testOutputDirectory == null)
                 {
-                    m_testOutputDirectory = Environment.GetEnvironmentVariable("TEMP");
+                    m_testOutputDirectory = GetTempDir();
                     Directory.CreateDirectory(m_testOutputDirectory);
                 }
 
                 return m_testOutputDirectory;
             }
+        }
+
+        /// <summary>
+        /// Returns a path to a temporary directory.
+        /// The directory is not guaranteed to exist.
+        /// </summary>
+        public static string GetTempDir()
+        {
+            return Environment.GetEnvironmentVariable("TEMP") ?? Path.GetTempPath();
         }
 
         /// <summary>

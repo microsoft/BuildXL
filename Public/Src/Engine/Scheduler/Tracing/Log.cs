@@ -1,15 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
-using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
@@ -2682,7 +2679,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = EventConstants.ArtifactOrPipChangePrefix + Pip.SemiStableHashPrefix + "{pipHash:X16} is dirty => Reason: {reason} | Path change reason: {pathChangeReason}")]
+            Message = EventConstants.ArtifactOrPipChangePrefix + "Pip" + "{pipHash:X16} is dirty => Reason: {reason} | Path change reason: {pathChangeReason}")]
         public abstract void IncrementalSchedulingPipIsDirty(LoggingContext context, long pipHash, string reason, string pathChangeReason);
 
         [GeneratedEvent(
@@ -2691,7 +2688,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = EventConstants.ArtifactOrPipChangePrefix + Pip.SemiStableHashPrefix + "{pipHash:X16} is perpetually dirty => Reason: {reason}")]
+            Message = EventConstants.ArtifactOrPipChangePrefix + "Pip" + "{pipHash:X16} is perpetually dirty => Reason: {reason}")]
         public abstract void IncrementalSchedulingPipIsPerpetuallyDirty(LoggingContext context, long pipHash, string reason);
 
         [GeneratedEvent(

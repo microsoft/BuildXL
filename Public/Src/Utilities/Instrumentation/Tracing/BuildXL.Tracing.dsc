@@ -9,7 +9,10 @@ namespace Tracing {
         assemblyName: "BuildXL.Tracing",
         nullable: true,
         generateLogs: true,
-        generateLogsLite: false,
+        generateLogBinaryRefs: [
+            Common.dll.compile,
+            importFrom("BuildXL.Utilities").Configuration.dll.compile,
+        ],
         sources: [
             ...globR(d`.`, "*.cs"),
             importFrom("BuildXL.Tracing.AriaTenantToken").Contents.all.getFile(r`AriaTenantToken.cs`),

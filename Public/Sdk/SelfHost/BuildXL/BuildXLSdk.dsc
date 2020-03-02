@@ -54,9 +54,9 @@ export interface Arguments extends Managed.Arguments {
 
     /** Whether to run LogGen. */
     generateLogs?: boolean;
-    
-    /** Whether we can use the fast lite version of loggen. Defaults to true. */
-    generateLogsLite?: boolean;
+
+    /** If the log generation needs external references, one can explicitly declare them. */
+    generateLogBinaryRefs?: Managed.Binary[],
 
     /** Disables assembly signing with the BuildXL key. */
     skipAssemblySigning?: boolean;
@@ -478,17 +478,20 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     }
 
     if (args.generateLogs) {
-        let compileClosure = args.generateLogsLite === false
-            ? Managed.Helpers.computeCompileClosure(framework, args.references)
-            : [
+        let compileClosure = args.generateLogBinaryRefs !== undefined
+            ? [
+                ...args.generateLogBinaryRefs,
+                ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
+            ] : [
                 importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll.compile,
                 importFrom("BuildXL.Utilities.Instrumentation").Common.dll.compile,
                 ...Managed.Helpers.computeCompileClosure(framework, framework.standardReferences),
             ];
         
-        let sources = args.generateLogsLite === false
-            ? args.sources
-            : args.sources.filter(f => f.parent.name === a`Tracing`);
+        // $TODO: We have some ugglyness here in that there is not a good way to do a 'under' path check from the sdk
+        // without the caller passing in the path. BuildXL.Tracing doesn't follow the proper loggen pattern either with
+        // subfolders hence the ugly logic here for now.
+        let sources = args.sources.filter(f => f.parent.name === a`Tracing` || f.parent.parent.name === a`Tracing`);
 
         let extraSourceFile = LogGenerator.generate({
             references: compileClosure,

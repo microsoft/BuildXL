@@ -4,7 +4,6 @@
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591 // Missing Xml comment
 #pragma warning disable CA1823 // Unused field

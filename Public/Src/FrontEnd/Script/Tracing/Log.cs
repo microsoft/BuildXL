@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Linq;
@@ -10,7 +9,6 @@ using System.Threading;
 using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field

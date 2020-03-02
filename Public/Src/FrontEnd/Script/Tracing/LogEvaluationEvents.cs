@@ -3,7 +3,6 @@
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable SA1600 // Element must be documented

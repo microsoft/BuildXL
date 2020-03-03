@@ -173,7 +173,7 @@ namespace BuildXL.LogGen
             {
                 switch (argument.Key)
                 {
-                    case "EventLevel":
+                    case nameof(GeneratedEventAttribute.EventLevel):
                         if (argument.Value.Value.GetType() != typeof(int))
                         {
                             m_errorReport.ReportError(method, "Unsupported EventLevel value '{0}'", argument.Value.Value.ToString());
@@ -207,19 +207,19 @@ namespace BuildXL.LogGen
                         }
 
                         break;
-                    case "EventGenerators":
+                    case nameof(GeneratedEventAttribute.EventGenerators):
                         loggingSite.EventGenerators = (EventGenerators)argument.Value.Value;
                         break;
-                    case "Message":
+                    case nameof(GeneratedEventAttribute.Message):
                         loggingSite.SpecifiedMessageFormat = EscapeMessageString((string)argument.Value.Value);
                         break;
-                    case "EventOpcode":
+                    case nameof(GeneratedEventAttribute.EventOpcode):
                         loggingSite.EventOpcode = (byte)argument.Value.Value;
                         break;
-                    case "Keywords":
+                    case nameof(GeneratedEventAttribute.Keywords):
                         loggingSite.EventKeywords = (int)argument.Value.Value;
                         break;
-                    case "EventTask":
+                    case nameof(GeneratedEventAttribute.EventTask):
                         loggingSite.EventTask = (ushort)argument.Value.Value;
                         break;
                 }
@@ -227,13 +227,13 @@ namespace BuildXL.LogGen
 
             if (string.IsNullOrWhiteSpace(loggingSite.SpecifiedMessageFormat))
             {
-                m_errorReport.ReportError(method, "Message is required");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} is required");
                 return false;
             }
 
             if (loggingSite.SpecifiedMessageFormat.StartsWith(EventConstants.LabeledProvenancePrefix, StringComparison.Ordinal) && method.Parameters.Length >= 2 && method.Parameters[1].Name != "location")
             {
-                m_errorReport.ReportError(method, "Message is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the LoggingContext. This method declares '{0}' as that parameter", method.Parameters[1].Name);
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} is using provenance prefix information to indicate line information. Therefore the location must be the first parameter after the {nameof(LoggingContext)}. This method declares '{method.Parameters[1].Name}' as that parameter");
                 return false;
             }
 
@@ -248,7 +248,7 @@ namespace BuildXL.LogGen
                 {
                     if (normalizedMessageFormat[curlyBracketPos] == '}')
                     {
-                        m_errorReport.ReportError(method, "Message format error: Found '}}' without matching '{{'");
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found '}}' without matching '{{'");
                         return false;
                     }
 
@@ -258,7 +258,7 @@ namespace BuildXL.LogGen
                 {
                     if (normalizedMessageFormat[curlyBracketPos] == '{')
                     {
-                        m_errorReport.ReportError(method, "Message format error: Found too many nested '{{'");
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found too many nested '{{'");
                         return false;
                     }
 
@@ -266,13 +266,13 @@ namespace BuildXL.LogGen
                     int idx;
                     if (!int.TryParse(format.Split(':')[0], out idx))
                     {
-                        m_errorReport.ReportError(method, "Message format error: Unknown parameter: {{{0}}}", format);
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Unknown parameter: {{{format}}}");
                         return false;
                     }
 
                     if (idx < 0 || idx >= loggingSite.FlattenedPayload.Count)
                     {
-                        m_errorReport.ReportError(method, "Message format error: Index out of range: {{{0}}}", format);
+                        m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Index out of range: {{{format}}}");
                         return false;
                     }
 
@@ -284,7 +284,7 @@ namespace BuildXL.LogGen
 
             if (openBracketPos >= 0)
             {
-                m_errorReport.ReportError(method, "Message format error: Found '{{' without matching '}}'");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.Message)} format error: Found '{{' without matching '}}'");
                 return false;
             }
 
@@ -292,7 +292,7 @@ namespace BuildXL.LogGen
             // trigger the error
             if (loggingSite.EventGenerators == EventGenerators.None)
             {
-                m_errorReport.ReportError(method, "EventGenerators not specified");
+                m_errorReport.ReportError(method, $"{nameof(GeneratedEventAttribute.EventGenerators)}  not specified");
                 return false;
             }
 
@@ -312,7 +312,7 @@ namespace BuildXL.LogGen
             }
             else
             {
-                m_errorReport.ReportError(method, "First method argument must be a LoggingContext");
+                m_errorReport.ReportError(method, $"First method argument must be a {nameof(LoggingContext)}");
                 return false;
             }
 
@@ -320,10 +320,10 @@ namespace BuildXL.LogGen
             {
                 switch (attribute.AttributeClass.Name)
                 {
-                    case "EventKeywordsTypeAttribute":
+                    case nameof(EventKeywordsTypeAttribute):
                         loggingSite.KeywordsType = (INamedTypeSymbol)attribute.ConstructorArguments[0].Value;
                         break;
-                    case "EventTasksTypeAttribute":
+                    case nameof(EventTasksTypeAttribute):
                         loggingSite.TasksType = (INamedTypeSymbol)attribute.ConstructorArguments[0].Value;
                         break;
                 }
@@ -356,7 +356,7 @@ namespace BuildXL.LogGen
         {
             foreach (var attribute in symbol.GetAttributes())
             {
-                if (attribute.AttributeClass.Name == "GeneratedEventAttribute")
+                if (attribute.AttributeClass.Name == nameof(GeneratedEventAttribute))
                 {
                     attributeData = attribute;
                     return true;

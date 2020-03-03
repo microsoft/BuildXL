@@ -2643,7 +2643,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbNative",
-          "Version": "6.0.1-b20191119.3"
+          "Version": "6.0.1-b20200302.8.DRAFT"
         }
       }
     },
@@ -2652,7 +2652,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RocksDbSharp",
-          "Version": "5.8.0-b20191119.3"
+          "Version": "5.8.0-b20200302.8.DRAFT"
         }
       }
     },

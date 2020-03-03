@@ -62,7 +62,7 @@ namespace BuildXL.Interop.MacOS
         private static int StatFile(int fd, string path, bool followSymlink, ref StatBuffer statBuf)
         {
             // using 'fstatat' instead of the newer 'statx' because Ubuntu 18.04 doesn't have iit
-            var buf = new stat_buf(); // new statx_buf();
+            var buf = new stat_buf();
             int result = StatFile(fd, path, followSymlink, ref buf);
             if (result != 0)
             {
@@ -106,26 +106,6 @@ namespace BuildXL.Interop.MacOS
             return result;
         }
 
-        /// <summary>
-        /// Same as the StatFile above which uses the good old 'fstatat' instead of 'statx',
-        /// except that this one retrieves the birth timestamp as well (when available).
-        /// On the flop side, 'statx' is not available in older kernels.
-        /// </summary>
-        private static int StatFile(int dirfd, string pathname, bool followSymlink, ref statx_buf buf)
-        {
-            Contract.Requires(pathname != null);
-
-            int flags = AT_STATX_SYNC_AS_STAT
-                | (!followSymlink                 ? AT_SYMLINK_NOFOLLOW : 0)
-                | (string.IsNullOrEmpty(pathname) ? AT_EMPTY_PATH : 0);
-
-            int result;
-            while (
-                (result = statx(dirfd, pathname, flags, STATX_ALL, ref buf)) < 0 && 
-                Marshal.GetLastWin32Error() == (int)Errno.EINTR);
-            return result;
-        }
-
         /// <summary>Linux specific implementation of <see cref="IO.SafeReadLink"/> </summary>
         internal static long SafeReadLink(string link, StringBuilder buffer, long bufferSize)
         {
@@ -148,7 +128,7 @@ namespace BuildXL.Interop.MacOS
         /// <summary>Linux specific implementation of <see cref="IO.GetFilePermissionsForFilePath"/> </summary>
         internal static int GetFilePermissionsForFilePath(string path, bool followSymlink)
         {
-            var stat = new stat_buf(); // new statx_buf();
+            var stat = new stat_buf();
             int errorCode = StatFile(AT_FDCWD, path, followSymlink, ref stat);
             return errorCode == 0 ? (int)stat.st_mode : ERROR;
         }
@@ -181,10 +161,10 @@ namespace BuildXL.Interop.MacOS
 
         private static bool IsSymlink(string path)
         {
-            var buf = new statx_buf();
+            var buf = new stat_buf();
             return 
-                statx(AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_MODE, ref buf) == 0 &&
-                (buf.stx_mode & (ushort)FilePermissions.S_IFLNK) != 0;
+                fstatat(__Ver, AT_FDCWD, path, ref buf, AT_SYMLINK_NOFOLLOW) == 0 &&
+                (buf.st_mode & (ushort)FilePermissions.S_IFLNK) != 0;
         }
 
         private static int ToInt(SafeFileHandle fd) => fd.DangerousGetHandle().ToInt32();
@@ -226,27 +206,6 @@ namespace BuildXL.Interop.MacOS
 
         private static uint Concat(params uint[] elems) => elems.Aggregate(0U, (a, e) => a*10+e);
 
-        private static void Translate(statx_buf from, ref StatBuffer to)
-        {
-            to.DeviceID                 = (int)Concat(from.stx_rdev_major, from.stx_dev_major, from.stx_rdev_minor, from.stx_dev_minor);
-            to.InodeNumber              = from.stx_ino;
-            to.Mode                     = from.stx_mode;
-            to.HardLinks                = (ushort)from.stx_nlink;
-            to.UserID                   = from.stx_uid;
-            to.GroupID                  = from.stx_gid;
-            to.Size                     = (long)from.stx_size;
-            to.TimeLastAccess           = from.stx_atime.tv_sec;
-            to.TimeLastModification     = from.stx_mtime.tv_sec;
-            to.TimeLastStatusChange     = from.stx_ctime.tv_sec;
-            to.TimeCreation             = from.stx_btime.tv_sec;
-            // even though EXT4 supports nanosecond precision, the kernel time is not
-            // necessarily getting updated every 1ns so nsec values can still be quantized
-            to.TimeNSecLastAccess       = from.stx_atime.tv_nsec;
-            to.TimeNSecLastModification = from.stx_mtime.tv_nsec;
-            to.TimeNSecLastStatusChange = from.stx_ctime.tv_nsec;
-            to.TimeNSecCreation         = from.stx_btime.tv_nsec;
-        }
-
         private static void Translate(stat_buf from, ref StatBuffer to)
         {
             to.DeviceID                 = (int)from.st_dev;
@@ -286,65 +245,8 @@ namespace BuildXL.Interop.MacOS
         #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
         private const int AT_FDCWD              = -100;
-        private const int AT_STATX_SYNC_AS_STAT = 0x0;
         private const int AT_SYMLINK_NOFOLLOW   = 0x100;
         private const int AT_EMPTY_PATH         = 0x1000;
-        private const int AT_STATX_FORCE_SYNC   = 0x2000;
-
-        private const uint STATX_MODE = 0x00000002U;
-        private const uint STATX_ALL = 0x00000fffU;
-
-        /// <summary>
-        /// struct statx_timestamp from stat.h
-        /// </summary>
-        /// <remarks>
-        /// IMPORTANT: the explicitly specified size of 16 must match the value of 'sizeof(struct statx_timestamp)' in C
-        /// </remarks>
-        [StructLayout(LayoutKind.Sequential, Size = 16)]
-        public struct statx_timestamp
-        {
-            public Int64  tv_sec;
-            public UInt32 tv_nsec;
-            private Int32  __reserved;
-        };
-
-        /// <summary>
-        /// struct statx from stat.h
-        /// </summary>
-        /// <remarks>
-        /// IMPORTANT: the explicitly specified size of 256 must match the value of 'sizeof(struct statx)' in C
-        /// </remarks>
-        [StructLayout(LayoutKind.Sequential, Size = 256)]
-        private struct statx_buf
-        {
-            /* 0x00 */
-            public UInt32    stx_mask;       /* What results were written [uncond] */
-            public UInt32    stx_blksize;    /* Preferred general I/O size [uncond] */
-            public UInt64    stx_attributes; /* Flags conveying information about the file [uncond] */
-            /* 0x10 */
-            public UInt32    stx_nlink;      /* Number of hard links */
-            public UInt32    stx_uid;        /* User ID of owner */
-            public UInt32    stx_gid;    /* Group ID of owner */
-            public UInt16    stx_mode;    /* File mode */
-            public UInt16    __spare0;
-            /* 0x20 */
-            public UInt64    stx_ino;    /* Inode number */
-            public UInt64    stx_size;    /* File size */
-            public UInt64    stx_blocks;    /* Number of 512-byte blocks allocated */
-            public UInt64    stx_attributes_mask; /* Mask to show what's supported in stx_attributes */
-            /* 0x40 */
-            public statx_timestamp    stx_atime;    /* Last access time */
-            public statx_timestamp    stx_btime;    /* File creation time */
-            public statx_timestamp    stx_ctime;    /* Last attribute change time */
-            public statx_timestamp    stx_mtime;    /* Last data modification time */
-            /* 0x80 */
-            public UInt32    stx_rdev_major;    /* Device ID of special file [if bdev/cdev] */
-            public UInt32    stx_rdev_minor;
-            public UInt32    stx_dev_major;    /* ID of device containing file [uncond] */
-            public UInt32    stx_dev_minor;
-            /* 0x90 */
-            /* More spare space for future expansion (controlled by explicitly specifying struct size) */
-        }
 
         /// <summary>
         /// struct stat from stat.h
@@ -410,9 +312,6 @@ namespace BuildXL.Interop.MacOS
 
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int chmod(string pathname, Mode mode);
-
-        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
-        private static extern int statx(int dirfd, string pathname, int flags, uint mask, ref statx_buf buff);
 
         [DllImport(LibC, EntryPoint = "__fxstatat", SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int fstatat(int __ver, int fd, string pathname, ref stat_buf buff, int flags);

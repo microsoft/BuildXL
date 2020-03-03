@@ -148,9 +148,9 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "5.8.0-b20191119.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "6.0.1-b20191119.3" },
-
+                { id: "RocksDbSharp", version: "5.8.0-b20200302.8.DRAFT", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbNative", version: "6.0.1-b20200302.8.DRAFT" },
+                
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 
                 // Event hubs

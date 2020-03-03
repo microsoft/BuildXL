@@ -20,7 +20,7 @@ namespace Tests.Linux {
             createDef(importFrom("BuildXL.Utilities.UnitTests").Collections.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Configuration.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Ipc.dll, true),
-            // createDef(importFrom("BuildXL.Utilities.UnitTests").KeyValueStoreTests.dll, true), // needs RocksDB
+            createDef(importFrom("BuildXL.Utilities.UnitTests").KeyValueStoreTests.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.Untracked.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").ToolSupport.dll, true),

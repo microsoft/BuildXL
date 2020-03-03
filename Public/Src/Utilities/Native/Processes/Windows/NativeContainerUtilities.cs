@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using BuildXL.Native.IO;
 
 namespace BuildXL.Native.Processes.Windows
 {
@@ -14,6 +15,10 @@ namespace BuildXL.Native.Processes.Windows
     /// </summary>
     public static class NativeContainerUtilities
     {
+        private static readonly string s_legacyBindDllLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), ExternDll.BindfltLegacy);
+        private static readonly string s_bindDllLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), ExternDll.Bindflt);
+        private static readonly bool s_isOfficialBindDllPresent = FileUtilities.Exists(s_bindDllLocation);
+
         /// <summary>
         /// Name of the WCI filter driver as it is registered in the OS
         /// </summary>
@@ -27,14 +32,16 @@ namespace BuildXL.Native.Processes.Windows
         /// <summary>
         /// Location of the user-mode DLL for the WCI driver
         /// </summary>
-        public static readonly string WciDllLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wci.dll");
+        public static readonly string WciDllLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), ExternDll.Wcifs);
 
         /// <summary>
         /// Location of the user-mode DLL for the Bind driver
         /// </summary>
-        public static readonly string BindDllLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "bindflt.dll");
-
-
+        /// <remarks>
+        /// Older versions of the OS come with a DLL for bind with a deprecated name. If the current DLL name is not found on disk, we return the legacy one.
+        /// </remarks>
+        public static readonly string BindDllLocation = s_isOfficialBindDllPresent? s_bindDllLocation : s_legacyBindDllLocation;
+        
         /// <summary>
         /// We depend on the RS6 user-mode DLLs to interact with WCI and Bind filters.
         /// 10.0.18301.1000 is the minimum required version.
@@ -280,10 +287,15 @@ namespace BuildXL.Native.Processes.Windows
             [In] WC_NESTING_MODE nestingMode);
 
         /// <summary>
-        /// This routine attaches Bind filter to sandbox volume
+        /// <see cref="BfSetupFilterInternal(IntPtr, BfSetupFilterFlags, string, string, string[], ulong)"/>, this is a 
+        /// pinvoke that uses a legacy version of bind dll.
         /// </summary>
-        [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern int BfSetupFilter(
+        [DllImport(
+            ExternDll.BindfltLegacy, 
+            SetLastError = true, 
+            CharSet = CharSet.Unicode,
+            EntryPoint = "BfSetupFilter")]
+        private static extern int BfSetupFilterLegacyInternal(
             [In] IntPtr jobHandle, 
             [In] BfSetupFilterFlags flags, 
             [In] [MarshalAs(UnmanagedType.LPWStr)] string virtualizationRootPath,
@@ -292,13 +304,77 @@ namespace BuildXL.Native.Processes.Windows
             [In] ulong pathCount);
 
         /// <summary>
+        /// This routine attaches Bind filter to sandbox volume
+        /// </summary>
+        [DllImport(
+            ExternDll.Bindflt, 
+            SetLastError = true, 
+            CharSet = CharSet.Unicode,
+            EntryPoint = "BfSetupFilter")]
+        private static extern int BfSetupFilterInternal(
+            [In] IntPtr jobHandle,
+            [In] BfSetupFilterFlags flags,
+            [In] [MarshalAs(UnmanagedType.LPWStr)] string virtualizationRootPath,
+            [In] [MarshalAs(UnmanagedType.LPWStr)] string virtualizationTargetPath,
+            [In] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPWStr)] string[] virtualizationExceptionPaths,
+            [In] ulong pathCount);
+
+        /// <summary>
+        /// <see cref="BfRemoveMappingInternal(IntPtr, string)"/>, this is a pinvoke that uses a legacy version of bind dll.
+        /// </summary>
+        [DllImport(
+            ExternDll.BindfltLegacy, 
+            SetLastError = true, 
+            CharSet = CharSet.Unicode,
+            EntryPoint = "BfRemoveMapping"
+            )]
+        private static extern int BfRemoveMappingLegacyInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
+
+        /// <summary>
         /// Removes a mapping from the Bind filter
         /// </summary>
         /// <remarks>
         /// Mappings should be removed before the container is cleaned up
         /// </remarks>
-        [DllImport(ExternDll.Bindflt, SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern int BfRemoveMapping([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
+        [DllImport(
+            ExternDll.Bindflt, 
+            SetLastError = true, 
+            CharSet = CharSet.Unicode, 
+            EntryPoint = "BfRemoveMapping")]
+        private static extern int BfRemoveMappingInternal([In] IntPtr jobHandle, [MarshalAs(UnmanagedType.LPWStr)] string virtualizationPath);
+
+        /// <summary>
+        /// Delegate for <see cref="BfRemoveMapping"/>
+        /// </summary>
+        public delegate int BfRemoveMappingDelegate(
+            IntPtr jobHandle, 
+            string virtualizationPath);
+
+        /// <summary>
+        /// Delegate for <see cref="BfSetupFilter"/>
+        /// </summary>
+        public delegate int BfSetupFilterDelegate(IntPtr jobHandle,
+            BfSetupFilterFlags flags,
+            string virtualizationRootPath,
+            string virtualizationTargetPath,
+            string[] virtualizationExceptionPaths,
+            ulong pathCount);
+
+        /// <summary>
+        /// <see cref="BfSetupFilterInternal(IntPtr, BfSetupFilterFlags, string, string, string[], ulong)"/>
+        /// </summary>
+        /// <remarks>
+        /// This function points to either the official or legacy bind dll depending on what we found available on the OS
+        /// </remarks>
+        public static BfSetupFilterDelegate BfSetupFilter = s_isOfficialBindDllPresent ? (BfSetupFilterDelegate) BfSetupFilterInternal : BfSetupFilterLegacyInternal;
+
+        /// <summary>
+        /// <see cref="BfRemoveMappingInternal(IntPtr, string)"/>
+        /// </summary>
+        /// <remarks>
+        /// This function points to either the official or legacy bind dll depending on what we found available on the OS
+        /// </remarks>
+        public static BfRemoveMappingDelegate BfRemoveMapping = s_isOfficialBindDllPresent ? (BfRemoveMappingDelegate) BfRemoveMappingInternal : BfRemoveMappingLegacyInternal;
 
         /// <summary>
         /// Changes an existing file to be a WCI reparse point file and sets the reparse point data.

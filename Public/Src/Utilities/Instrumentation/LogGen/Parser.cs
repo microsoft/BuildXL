@@ -43,9 +43,9 @@ namespace BuildXL.LogGen
             m_errorReport = errorReport;
         }
 
-        public bool DiscoverLoggingSites(out List<LoggingSite> loggingSites)
+        public bool DiscoverLoggingSites(out List<LoggingClass> loggingClasses)
         {
-            loggingSites = new List<LoggingSite>();
+            loggingClasses = new List<LoggingClass>();
 
             // First create a compilation to act upon values and run codegen
             var syntaxTrees = new ConcurrentBag<SyntaxTree>();
@@ -114,43 +114,32 @@ namespace BuildXL.LogGen
 
             foreach (var symbol in symbols)
             {
-                foreach (var member in symbol.GetMembers())
+                if (GetAttribute(symbol, errorsByFile, nameof(LoggingDetailsAttribute), out var loggingDetailsData))
                 {
-                    IMethodSymbol method = member as IMethodSymbol;
-                    if (method != null)
+                    if (!TryParseLoggingDetailsAttribute(symbol, loggingDetailsData, out var loggingDetails))
                     {
-                        AttributeData attributeData;
-                        if (GetGeneratedEventAttribute(method, out attributeData))
-                        {
-                            // Check the errors we stashed off to see if any pretain to this event. If so, display them
-                            // as they may cause us to generate the event incorrectly
-                            bool eventHasErrors = false;
-                            IReadOnlyList<Diagnostic> diagnostics;
-                            if (errorsByFile.TryGetValue(method.Locations[0].SourceTree.FilePath, out diagnostics))
-                            {
-                                foreach (Diagnostic d in diagnostics)
-                                {
-                                    if (d.Location.SourceSpan.OverlapsWith(method.Locations[0].SourceSpan) ||
-                                        d.Location.SourceSpan.OverlapsWith(attributeData.ApplicationSyntaxReference.Span))
-                                    {
-                                        m_errorReport.ReportError(d.ToString());
-                                        eventHasErrors = true;
-                                    }
-                                }
-                            }
+                        return false;
+                    }
 
-                            if (!eventHasErrors)
+                    var loggingClass = new LoggingClass(loggingDetails.Name, symbol);
+
+                    foreach (var member in symbol.GetMembers())
+                    {
+                        if (member is IMethodSymbol method)
+                        {
+                            if (GetAttribute(method, errorsByFile, nameof(GeneratedEventAttribute), out var generatedEventData))
                             {
-                                LoggingSite site;
-                                if (!ParseAndValidateLogSite(method, attributeData, out site))
+                                if (!ParseAndValidateLogSite(method, generatedEventData, out var site))
                                 {
                                     return false;
                                 }
 
-                                loggingSites.Add(site);
+                                loggingClass.Sites.Add(site);
                             }
                         }
                     }
+
+                    loggingClasses.Add(loggingClass);
                 }
             }
 
@@ -176,7 +165,7 @@ namespace BuildXL.LogGen
                     case nameof(GeneratedEventAttribute.EventLevel):
                         if (argument.Value.Value.GetType() != typeof(int))
                         {
-                            m_errorReport.ReportError(method, "Unsupported EventLevel value '{0}'", argument.Value.Value.ToString());
+                            m_errorReport.ReportError(method, $"Unsupported {nameof(GeneratedEventAttribute.EventLevel)} value '{argument.Value.Value.ToString()}'");
                             return false;
                         }
 
@@ -202,7 +191,7 @@ namespace BuildXL.LogGen
                                 loggingSite.Level = Level.Verbose;
                                 break;
                             default:
-                                m_errorReport.ReportError(method, "Unsupported EventLevel value '{0}'", value);
+                                m_errorReport.ReportError(method, $"Unsupported {nameof(GeneratedEventAttribute.EventLevel)} value '{value}'");
                                 break;
                         }
 
@@ -332,6 +321,59 @@ namespace BuildXL.LogGen
             return true;
         }
 
+
+        public bool TryParseLoggingDetailsAttribute(ISymbol symbolForError, AttributeData attributeData, out LoggingDetailsAttribute result)
+        {
+            if (attributeData.ConstructorArguments.Length > 0 && attributeData.ConstructorArguments[0].Value is string)
+            {
+                var name = (string)attributeData.ConstructorArguments[0].Value;
+                if (string.IsNullOrEmpty(name))
+                {
+                    m_errorReport.ReportError(symbolForError, $"Unsupported constructor argument value {nameof(LoggingDetailsAttribute.Name)}: Cannot be null or empty.");
+                    result = null;
+                    return false;
+                }
+                result = new LoggingDetailsAttribute(name);
+            }
+            else
+            {
+                m_errorReport.ReportError(symbolForError, "First constructor argument should be a string");
+                result = null;
+                return false;
+            }
+
+            // Pull the data out of the GeneratedEventAttribute
+            foreach (var argument in attributeData.NamedArguments)
+            {
+                switch (argument.Key)
+                {
+                    case nameof(LoggingDetailsAttribute.Name):
+                        var value = argument.Value.Value;
+                        if (value.GetType() != typeof(string))
+                        {
+                            m_errorReport.ReportError(symbolForError, "Unsupported constructor argument type: '{0}'", argument.Value.Value.ToString());
+                            return false;
+                        }
+
+                        result.Name = (string)value;
+                        if (string.IsNullOrEmpty(result.Name))
+                        {
+                            m_errorReport.ReportError(symbolForError, $"Unsupported property '{nameof(LoggingDetailsAttribute.Name)}': Cannot be null or empty.");
+                            result = null;
+                            return false;
+                        }
+
+                        break;
+                    default:
+                        m_errorReport.ReportError(symbolForError, $"Unsupported attribute property '{argument.Key}' with value '{argument.Value.Value.ToString()}'");
+                        result = null;
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
         private static string EscapeMessageString(string message)
         {
             string result = message;
@@ -352,14 +394,32 @@ namespace BuildXL.LogGen
             { "\r", @"\r" },
         };
 
-        private static bool GetGeneratedEventAttribute(IMethodSymbol symbol, out AttributeData attributeData)
+        private bool GetAttribute(ISymbol symbol, MultiValueDictionary<string, Diagnostic> errorsByFile, string attributeClassName, out AttributeData attributeData)
         {
             foreach (var attribute in symbol.GetAttributes())
             {
-                if (attribute.AttributeClass.Name == nameof(GeneratedEventAttribute))
+                if (attribute.AttributeClass.Name == attributeClassName)
                 {
                     attributeData = attribute;
-                    return true;
+
+                    // Check the errors we stashed off to see if any pertain to this event. If so, display them
+                    // as they may cause us to generate the event incorrectly
+                    bool eventHasErrors = false;
+                    IReadOnlyList<Diagnostic> diagnostics;
+                    if (errorsByFile.TryGetValue(symbol.Locations[0].SourceTree.FilePath, out diagnostics))
+                    {
+                        foreach (var d in diagnostics)
+                        {
+                            if (d.Location.SourceSpan.OverlapsWith(symbol.Locations[0].SourceSpan) ||
+                                d.Location.SourceSpan.OverlapsWith(attributeData.ApplicationSyntaxReference.Span))
+                            {
+                                m_errorReport.ReportError(d.ToString());
+                                eventHasErrors = true;
+                            }
+                        }
+                    }
+
+                    return !eventHasErrors;
                 }
             }
 

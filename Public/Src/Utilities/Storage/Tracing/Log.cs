@@ -7,6 +7,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Storage.Tracing
 {
@@ -15,6 +16,7 @@ namespace BuildXL.Storage.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("StorageLogger")]
     public abstract partial class Logger
     {
         /// <summary>

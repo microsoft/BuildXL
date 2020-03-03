@@ -3,10 +3,10 @@
 
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 // Suppress missing XML comments on publicly visible types or members
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.FrontEnd.CMake.Tracing
 {
@@ -15,6 +15,7 @@ namespace BuildXL.FrontEnd.CMake.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("CMakeLogger")]
     public abstract partial class Logger
     {
         /// <summary>

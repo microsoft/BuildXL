@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
-using System.Linq;
 //using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -14,6 +11,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
 
+#nullable enable
+
 namespace BuildXL.FrontEnd.Core.Tracing
 {
     /// <summary>
@@ -21,6 +20,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("FrontEndLogger")]
     public abstract partial class Logger : LoggerBase
     {
         // Internal logger will prevent public users from creating an instance of the logger
@@ -615,7 +615,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Parser,
             Message = "Package '{friendlyPackageName}' will be downloaded again because there was an invalid entry in the cache.{additionalInfo}")]
-        public abstract void DownloadPackageFailedDueToInvalidCacheContents(LoggingContext loggingContext, string friendlyPackageName, string additionalInfo = null);
+        public abstract void DownloadPackageFailedDueToInvalidCacheContents(LoggingContext loggingContext, string friendlyPackageName, string? additionalInfo = null);
 
         [GeneratedEvent(
             (ushort)LogEventId.DownloadPackageCannotCacheError,

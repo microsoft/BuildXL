@@ -28,11 +28,10 @@ namespace BuildXL.LogGen
                 Configuration config = new Configuration(args);
                 Parser parser = new Parser(config, errorReport);
 
-                List<LoggingSite> loggingSites;
-                if (parser.DiscoverLoggingSites(out loggingSites))
+                if (parser.DiscoverLoggingSites(out var loggingClasses))
                 {
                     LogWriter writer = new LogWriter(config, errorReport);
-                    int itemsWritten = writer.WriteLog(loggingSites);
+                    int itemsWritten = writer.WriteLog(loggingClasses);
                     if (itemsWritten == 0)
                     {
                         Console.Error.WriteLine("No log helpers to be written. Turn off log generation.");

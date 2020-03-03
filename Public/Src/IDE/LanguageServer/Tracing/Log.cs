@@ -7,6 +7,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
+#nullable enable
 
 namespace BuildXL.Ide.LanguageServer.Tracing
 {
@@ -18,6 +19,7 @@ namespace BuildXL.Ide.LanguageServer.Tracing
     /// </remarks>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptLanguageServerLogger")]
     public abstract partial class Logger
     {
         // Internal logger will prevent public users from creating an instance of the logger

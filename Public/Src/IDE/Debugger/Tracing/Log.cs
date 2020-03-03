@@ -5,6 +5,7 @@ using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.FrontEnd.Script.Debugger.Tracing
 {
@@ -13,6 +14,7 @@ namespace BuildXL.FrontEnd.Script.Debugger.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptDebuggerLogger")]
     public abstract partial class Logger
     {
         /// <summary>

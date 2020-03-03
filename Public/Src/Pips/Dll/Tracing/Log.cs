@@ -1,15 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.Tracing;
-using System.Linq;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
+#nullable enable
 
 namespace BuildXL.Pips.Tracing
 {
@@ -18,6 +16,7 @@ namespace BuildXL.Pips.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("PipsLogger")]
     public abstract partial class Logger : LoggerBase
     {
         internal Logger()

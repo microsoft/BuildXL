@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
+#nullable enable
 
 namespace BuildXL.Tracing
 {
@@ -17,6 +17,8 @@ namespace BuildXL.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("TracingLogger")]
+
     public abstract partial class Logger
     {
         /// <summary>

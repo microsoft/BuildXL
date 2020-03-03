@@ -80,10 +80,13 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// <summary>
         /// Generates the attributes for generated
         /// </summary>
-        public void WriteGeneratedAttribute()
+        public void WriteGeneratedAttribute(bool includeCodeCoverageExclusion = true)
         {
             Ln(@"[System.CodeDom.Compiler.GeneratedCode(""{0}"", ""{1}"")]", s_applicationName, s_applicationVersion);
-            Ln(@"[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]");
+            if (includeCodeCoverageExclusion)
+            {
+                Ln(@"[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]");
+            }
         }
 
         /// <summary>

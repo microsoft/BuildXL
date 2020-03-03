@@ -88,7 +88,7 @@ namespace BuildXL.LogGen
             foreach (var item in Payload)
             {
                 bool flattenSuccess = true;
-                flattenedPayload.AddRange(FlattenSymbol(errorReport, ref flattenSuccess, item, item.Type, 0, item.Name));
+                flattenedPayload.AddRange(FlattenSymbol(errorReport, ref flattenSuccess, item, item.Type, item.NullableAnnotation, 0, item.Name));
                 if (!flattenSuccess)
                 {
                     return false;
@@ -172,6 +172,11 @@ namespace BuildXL.LogGen
             public ITypeSymbol Type;
 
             /// <summary>
+            /// Whether the type symbol is nullable.
+            /// </summary>
+            public NullableAnnotation NullableAnnotation;
+
+            /// <summary>
             /// Gets an address that is suitable for a name of a method parameter
             /// </summary>
             public string AddressForMethodParameter => Address.Replace(".", "_");
@@ -182,7 +187,7 @@ namespace BuildXL.LogGen
             public string AddressForTelemetryString => char.ToUpperInvariant(AddressForMethodParameter[0]) + AddressForMethodParameter.Substring(1, AddressForMethodParameter.Length - 1);
         }
 
-        private static List<AddressedType> FlattenSymbol(ErrorReport errorReport, ref bool success, IParameterSymbol root, ITypeSymbol item, int depth, string prefix = "")
+        private static List<AddressedType> FlattenSymbol(ErrorReport errorReport, ref bool success, IParameterSymbol root, ITypeSymbol item, NullableAnnotation nullableAnnotation, int depth, string prefix = "")
         {
             List<AddressedType> result = new List<AddressedType>();
 
@@ -195,33 +200,33 @@ namespace BuildXL.LogGen
 
             if (item.SpecialType == SpecialType.System_Enum)
             {
-                result.Add(new AddressedType() { Type = item, Address = prefix });
+                result.Add(new AddressedType() { Type = item, Address = prefix, NullableAnnotation = nullableAnnotation });
             }
 
             if (item.ToDisplayString() == "System.Guid")
             {
-                result.Add(new AddressedType() { Type = item, Address = prefix });
+                result.Add(new AddressedType() { Type = item, Address = prefix, NullableAnnotation = nullableAnnotation });
             }
             else if (IsNonSpecialClassLike(item))
             {
                 if (item.BaseType != null && IsNonSpecialClassLike(item.BaseType))
                 {
-                    result.AddRange(FlattenSymbol(errorReport, ref success, root, item.BaseType, depth + 1, prefix));
+                    result.AddRange(FlattenSymbol(errorReport, ref success, root, item.BaseType, nullableAnnotation, depth + 1, prefix));
                 }
 
                 foreach (var member in item.GetMembers().OfType<IPropertySymbol>().Where(FilterMembersToFlatten))
                 {
-                    result.AddRange(FlattenSymbol(errorReport, ref success, root, member.Type, depth + 1, prefix + '.' + member.Name));
+                    result.AddRange(FlattenSymbol(errorReport, ref success, root, member.Type, member.NullableAnnotation, depth + 1, prefix + '.' + member.Name));
                 }
 
                 foreach (var member in item.GetMembers().OfType<IFieldSymbol>().Where(FilterMembersToFlatten))
                 {
-                    result.AddRange(FlattenSymbol(errorReport, ref success, root, member.Type, depth + 1, prefix + '.' + member.Name));
+                    result.AddRange(FlattenSymbol(errorReport, ref success, root, member.Type, member.NullableAnnotation, depth + 1, prefix + '.' + member.Name));
                 }
             }
             else
             {
-                result.Add(new AddressedType() { Type = item, Address = prefix });
+                result.Add(new AddressedType() { Type = item, Address = prefix, NullableAnnotation = nullableAnnotation });
             }
 
             Contract.Assume(depth > 0 || result.Count > 0, "FlattenSymbol skipped or didn't know how to handle a symbol of type " + item.TypeKind.ToString());

@@ -109,7 +109,7 @@ namespace BuildXL.LogGen.Generators
                     m_codeGenerator.Ln();
 
                     // Generate an event method for each site
-                    foreach (var site in m_loggingSites.Where(s => (s.EventGenerators & BuildXL.Utilities.Instrumentation.Common.Generators.ManifestedEventSource) != 0))
+                    foreach (var site in m_loggingClasses.SelectMany(loggingClass => loggingClass.Sites).Where(s => (s.EventGenerators & BuildXL.Utilities.Instrumentation.Common.Generators.ManifestedEventSource) != 0))
                     {
                         m_codeGenerator.GenerateSummaryComment(site.Method.Name);
                         m_codeGenerator.Ln("[Event(");
@@ -149,7 +149,11 @@ namespace BuildXL.LogGen.Generators
                             m_codeGenerator.Ln("Message = \"{0}\")]", site.GetNormalizedMessageFormat());
                         }
 
-                        string arguments = string.Join(",", site.FlattenedPayload.Select(i => i.Type.ToDisplayString() + " " + i.AddressForMethodParameter));
+                        string arguments = string.Join(",", site.FlattenedPayload.Select(
+                            i =>
+                            {
+                                return i.Type.ToDisplayString() + (i.NullableAnnotation == NullableAnnotation.Annotated ? "?" : string.Empty) + " " + i.AddressForMethodParameter;
+                            }));
                         string relatedActivityIdArg = "Guid relatedActivityId";
                         if (string.IsNullOrEmpty(arguments))
                         {
@@ -265,14 +269,15 @@ namespace BuildXL.LogGen.Generators
                     // Both are specified on the containing class of the method defining the LoggingSite. So we can get
                     // away with just checking and using the first since all LoggingSites within the same class will have
                     // the same setting
-                    if (m_loggingSites.Count > 0 && m_loggingSites[0].KeywordsType != null)
+                    var firstSite = m_loggingClasses.SelectMany(loggingClass => loggingClass.Sites).FirstOrDefault();
+                    if (firstSite != null && firstSite.KeywordsType != null)
                     {
                         m_codeGenerator.Ln();
                         m_codeGenerator.GenerateSummaryComment("Event Keywords");
                         m_codeGenerator.Ln("public static class Keywords");
                         using (m_codeGenerator.Br)
                         {
-                            foreach (IFieldSymbol field in m_loggingSites[0].KeywordsType.GetMembers().OfType<IFieldSymbol>())
+                            foreach (IFieldSymbol field in firstSite.KeywordsType.GetMembers().OfType<IFieldSymbol>())
                             {
                                 m_codeGenerator.GenerateSummaryComment(field.Name);
                                 m_codeGenerator.Ln("public const EventKeywords {0} = (EventKeywords)({1});", field.Name, field.ConstantValue);
@@ -281,14 +286,14 @@ namespace BuildXL.LogGen.Generators
                         }
                     }
 
-                    if (m_loggingSites.Count > 0 && m_loggingSites[0].TasksType != null)
+                    if (firstSite != null && firstSite.TasksType != null)
                     {
                         m_codeGenerator.Ln();
                         m_codeGenerator.GenerateSummaryComment("Event Tasks");
                         m_codeGenerator.Ln("public static class Tasks");
                         using (m_codeGenerator.Br)
                         {
-                            foreach (IFieldSymbol field in m_loggingSites[0].TasksType.GetMembers().OfType<IFieldSymbol>())
+                            foreach (IFieldSymbol field in firstSite.TasksType.GetMembers().OfType<IFieldSymbol>())
                             {
                                 m_codeGenerator.GenerateSummaryComment(field.Name);
                                 m_codeGenerator.Ln("public const EventTask {0} = (EventTask)({1});", field.Name, field.ConstantValue);

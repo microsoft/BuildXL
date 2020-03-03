@@ -13,6 +13,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1600 // Element must be documented
+#nullable enable
 
 namespace BuildXL.FrontEnd.Script.Tracing
 {
@@ -21,9 +22,10 @@ namespace BuildXL.FrontEnd.Script.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("DScriptLogger")]
     public abstract partial class Logger : LoggerBase
     {
-        private Logger m_forwardDiagnosticsTo;
+        private Logger? m_forwardDiagnosticsTo;
         private int m_errorCount;
 
         private readonly ConcurrentBag<ILogMessageObserver> m_messageObservers = new ConcurrentBag<ILogMessageObserver>();
@@ -51,7 +53,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
         /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
         /// <param name="forwardDiagnosticsTo">Logger to forward diagnostics to.</param>
         /// <param name="notifyContextWhenErrorsAreLogged">Whether to notify the logging context that errors are logged.</param>
-        public static Logger CreateLogger(bool preserveLogEvents, Logger forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
+        public static Logger CreateLogger(bool preserveLogEvents, Logger? forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
         {
             return new LoggerImpl()
             {

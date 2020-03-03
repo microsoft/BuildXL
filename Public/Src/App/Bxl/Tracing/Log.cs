@@ -16,9 +16,9 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.App.Tracing
 {
@@ -27,6 +27,7 @@ namespace BuildXL.App.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("AppLogger")]
     public abstract partial class Logger
     {
         /// <summary>
@@ -150,6 +151,7 @@ namespace BuildXL.App.Tracing
             using (var sbPool = Pools.GetStringBuilder())
             {
                 SchedulerPerformanceInfo schedulerInfo = perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo;
+                Contract.RequiresNotNull(schedulerInfo);
 
                 long loadOrConstructGraph = perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs +
                     perfInfo.EnginePerformanceInfo.GraphReloadDurationMs +
@@ -173,9 +175,12 @@ namespace BuildXL.App.Tracing
 
                 // Process Overhead
                 long allStepsDuration = 0;
-                foreach (PipExecutionStep step in Enum.GetValues(typeof(PipExecutionStep)))
+                foreach (var enumValue in Enum.GetValues(typeof(PipExecutionStep)))
                 {
-                    allStepsDuration += (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(step).TotalMilliseconds;
+                    if (enumValue is PipExecutionStep step)
+                    {
+                        allStepsDuration += (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(step).TotalMilliseconds;
+                    }
                 }
 
                 // ExecuteProcessDuration comes from the PipExecutionCounters and is a bit tighter around the actual external
@@ -247,7 +252,7 @@ namespace BuildXL.App.Tracing
                         processOverheadOther: processOverheadOther,
                         nonProcessPips: nonProcessPips.Item1,
                         averageCpu: schedulerInfo.AverageMachineCPU,
-                        minAvailableMemoryMb: (int)schedulerInfo?.MachineMinimumAvailablePhysicalMB,
+                        minAvailableMemoryMb: (int)schedulerInfo.MachineMinimumAvailablePhysicalMB,
                         diskUsage: sb.ToString(),
                         limitingResourcePercentages: perfInfo.EnginePerformanceInfo.LimitingResourcePercentages ?? new LimitingResourcePercentages());
                 }

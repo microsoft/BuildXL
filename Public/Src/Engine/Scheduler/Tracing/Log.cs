@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
-using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -11,6 +10,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
+#nullable enable
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -19,6 +19,7 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("SchedulerLogger")]
     public abstract partial class Logger : LoggerBase
     {
         internal Logger()

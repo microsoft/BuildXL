@@ -5,9 +5,9 @@ using System;
 using BuildXL.Pips.Operations;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Processes.Tracing
 {
@@ -16,6 +16,7 @@ namespace BuildXL.Processes.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("ProcessesLogger")]
     public abstract partial class Logger
     {
         /// <summary>

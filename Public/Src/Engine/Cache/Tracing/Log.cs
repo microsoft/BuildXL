@@ -2,11 +2,10 @@
 // Licensed under the MIT License.
 
 using BuildXL.Tracing;
-using BuildXL.Utilities.Instrumentation;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Engine.Cache.Tracing
 {
@@ -15,6 +14,8 @@ namespace BuildXL.Engine.Cache.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("EngineCacheLogger")]
+
     internal abstract partial class Logger
     {
         /// <summary>

@@ -7,15 +7,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
-using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.Engine.Tracing
 {
@@ -24,6 +23,7 @@ namespace BuildXL.Engine.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("EngineLogger")]
     public abstract partial class Logger
     {
         /// <summary>

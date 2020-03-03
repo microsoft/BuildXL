@@ -2,11 +2,10 @@
 // Licensed under the MIT License.
 
 using BuildXL.Tracing;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 #pragma warning disable 1591
+#nullable enable
 
 namespace BuildXL.FrontEnd.Factory.Tracing
 {
@@ -15,6 +14,7 @@ namespace BuildXL.FrontEnd.Factory.Tracing
     /// </summary>
     [EventKeywordsType(typeof(Keywords))]
     [EventTasksType(typeof(Tasks))]
+    [LoggingDetails("FrontEndFactoryLogger")]
     public abstract partial class Logger
     {
         /// <summary>

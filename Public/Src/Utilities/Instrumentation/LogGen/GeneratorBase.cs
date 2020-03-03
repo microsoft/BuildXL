@@ -36,9 +36,9 @@ namespace BuildXL.LogGen
         protected CodeGenerator m_codeGenerator;
 
         /// <summary>
-        /// All logging sites
+        /// All logging classes
         /// </summary>
-        protected IReadOnlyList<LoggingSite> m_loggingSites;
+        protected IReadOnlyList<LoggingClass> m_loggingClasses;
 
         /// <summary>
         /// The ErrorReport
@@ -48,18 +48,18 @@ namespace BuildXL.LogGen
         /// <summary>
         /// Initializes the Generator
         /// </summary>
-        public void Initialize(string globalNamespace, string targetFramework, string targetRuntime, CodeGenerator codeGenerator, List<LoggingSite> loggingSites, ErrorReport errorReport)
+        public void Initialize(string globalNamespace, string targetFramework, string targetRuntime, CodeGenerator codeGenerator, IReadOnlyList<LoggingClass> loggingClasses, ErrorReport errorReport)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(globalNamespace));
             Contract.Requires(codeGenerator != null);
-            Contract.Requires(loggingSites != null);
+            Contract.Requires(loggingClasses != null);
             Contract.Requires(errorReport != null);
 
             m_globalNamespace = globalNamespace;
             m_targetFramework = targetFramework;
             m_targetRuntime = targetRuntime;
             m_codeGenerator = codeGenerator;
-            m_loggingSites = loggingSites;
+            m_loggingClasses = loggingClasses;
             m_errorReport = errorReport;
         }
 

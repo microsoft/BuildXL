@@ -1069,6 +1069,11 @@ namespace BuildXL.Engine
                     mutableConfig.Schedule.MinimumDiskSpaceForPipsGb = 5;
                 }
 
+                if (mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker == null)
+                {
+                    mutableConfig.Distribution.NumRetryFailedPipsOnAnotherWorker = 3;
+                }
+
                 // Enable fail fast for null reference exceptions caught by
                 // ExceptionUtilities.IsUnexpectedException
                 EngineEnvironmentSettings.FailFastOnNullReferenceException.Value = true;

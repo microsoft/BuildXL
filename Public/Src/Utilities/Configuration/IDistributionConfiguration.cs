@@ -73,6 +73,6 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates number of times the master should retry failing pips on a different worker.
         /// To disable feature, set EnableRetryFailedPipsOnAnotherWorker to 0.
         /// </summary>
-        int NumRetryFailedPipsOnAnotherWorker { get; }
+        int? NumRetryFailedPipsOnAnotherWorker { get; }
     }
 }

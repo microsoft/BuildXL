@@ -80,6 +80,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool FireForgetMaterializeOutput { get; set; }
 
         /// <inheritdoc />
-        public int NumRetryFailedPipsOnAnotherWorker { get; set; }
+        public int? NumRetryFailedPipsOnAnotherWorker { get; set; }
     }
 }

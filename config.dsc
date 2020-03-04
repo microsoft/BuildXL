@@ -107,7 +107,7 @@ config({
 
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
-                { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
+                { id: "RuntimeContracts.Analyzer", version: "0.1.10" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 

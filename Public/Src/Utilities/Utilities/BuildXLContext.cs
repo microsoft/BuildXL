@@ -27,7 +27,7 @@ namespace BuildXL.Utilities
             context.QualifierTable,
             context.TokenTextTable)
         {
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace BuildXL.Utilities
                 symbolTable,
                 qualifierTable)
         {
-            Contract.Requires(tokenTextTable != null);
+            Contract.RequiresNotNull(tokenTextTable);
 
             m_tokenTextTable = tokenTextTable;
         }
@@ -86,7 +86,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<TokenTextTable>() != null);
                 return m_tokenTextTable;
             }
         }

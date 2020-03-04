@@ -109,7 +109,7 @@ namespace BuildXL.Utilities.Tracing
             bool useCustomPipDescription = false)
             : base(eventSource, warningMapper, level, captureAllDiagnosticMessages, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages)
         {
-            Contract.Requires(eventSource != null);
+            Contract.RequiresNotNull(eventSource);
 
             BaseTime = baseTime;
             TimeDisplay = timeDisplay;
@@ -139,7 +139,7 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="suppressEvent">Whether an event should be suppressed</param>
         protected virtual void Write(EventWrittenEventArgs eventData, EventLevel level, string message = null, bool suppressEvent = false)
         {
-            Contract.Requires(eventData != null);
+            Contract.RequiresNotNull(eventData);
 
             string label;
             switch (level)
@@ -256,9 +256,9 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static string CreateFullMessageString(EventWrittenEventArgs eventData, string label, string message, DateTime baseTime, bool useCustomPipDescription, TimeDisplay timeDisplay = TimeDisplay.Seconds)
         {
-            Contract.Requires(eventData != null);
-            Contract.Requires(label != null);
-            Contract.Requires(message != null);
+            Contract.RequiresNotNull(eventData);
+            Contract.RequiresNotNull(label);
+            Contract.RequiresNotNull(message);
 
             // Note that we cannot assume that Payload or other fields are actually populated.
             // In particular, an event-write failure goes through EventSource.WriteStringToAllListeners,

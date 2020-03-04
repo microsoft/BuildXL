@@ -48,14 +48,14 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.WriteCompact(Line);
             writer.WriteCompact(Position);
         }
 
         internal static LineInfo Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             var line = reader.ReadInt32Compact();
             var position = reader.ReadInt32Compact();
             return new LineInfo(line, position);

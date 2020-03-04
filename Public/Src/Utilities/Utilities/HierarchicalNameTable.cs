@@ -219,7 +219,7 @@ namespace BuildXL.Utilities
             /// </summary>
             internal void Serialize(BuildXLWriter writer)
             {
-                Contract.Requires(writer != null);
+                Contract.RequiresNotNull(writer);
                 writer.Write(Component);
                 writer.Write(ContainerAndFlags);
                 writer.WriteCompact(DepthAndExtendedFlags);
@@ -232,7 +232,7 @@ namespace BuildXL.Utilities
             /// </summary>
             internal static Node Deserialize(BuildXLReader reader)
             {
-                Contract.Requires(reader != null);
+                Contract.RequiresNotNull(reader);
                 Node result = new Node(
                     reader.ReadStringId(),
                     containerAndFlags: reader.ReadInt32(),
@@ -295,7 +295,7 @@ namespace BuildXL.Utilities
             /// <returns>the length of the current name</returns>
             public virtual int GetLength(HierarchicalNameId name, StringTable stringTable, StringId stringId, NameFlags nameFlags, out bool expandContainer)
             {
-                Contract.Requires(stringTable != null);
+                Contract.RequiresNotNull(stringTable);
                 Contract.Requires(stringId.IsValid);
 
                 expandContainer = true;
@@ -314,9 +314,9 @@ namespace BuildXL.Utilities
             /// <returns>the number of characters copied into the buffer</returns>
             public virtual int CopyString(HierarchicalNameId name, StringTable stringTable, StringId stringId, NameFlags nameFlags, char[] buffer, int endIndex)
             {
-                Contract.Requires(stringTable != null);
+                Contract.RequiresNotNull(stringTable);
                 Contract.Requires(stringId.IsValid);
-                Contract.Requires(buffer != null);
+                Contract.RequiresNotNull(buffer);
                 Contract.Requires(endIndex >= 0);
 
                 return stringTable.CopyString(stringId, buffer, endIndex, isEndIndex: true);
@@ -337,7 +337,7 @@ namespace BuildXL.Utilities
             /// <nodoc />
             internal ExpandedHierarchicalNameComparer(HierarchicalNameTable table)
             {
-                Contract.Requires(table != null);
+                Contract.RequiresNotNull(table);
                 NameTable = table;
             }
 
@@ -879,7 +879,7 @@ namespace BuildXL.Utilities
         public HierarchicalNameTable(StringTable stringTable, bool ignoreCase, char separator)
             : this(stringTable, ignoreCase, separator, disableDebugTag: false)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
         }
 
         internal static IEqualityComparer<StringId> CreateEqualityComparer(StringTable stringTable, bool ignoreCase)
@@ -920,8 +920,8 @@ namespace BuildXL.Utilities
         protected HierarchicalNameTable(SerializedState state, StringTable stringTable, bool ignoreCase, char separator)
             : this(stringTable, ignoreCase, separator, disableDebugTag: true)
         {
-            Contract.Requires(state != null);
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(state);
+            Contract.RequiresNotNull(stringTable);
 
             // We passed disabledDebugTag: true so now we re-instate the deserialized debug tag (instead of allocating one).
             // TODO:409239: This is broken. On deserialization, allocate a tag and then remap deserialized paths.
@@ -951,7 +951,7 @@ namespace BuildXL.Utilities
         /// </param>
         protected HierarchicalNameTable(StringTable stringTable, bool ignoreCase, char separator, bool disableDebugTag = false)
         {
-            Contract.Requires(stringTable != null, "StringTable can't be null.");
+            Contract.RequiresNotNull(stringTable, "StringTable can't be null.");
             m_stringTable = stringTable;
             m_ignoreCase = ignoreCase;
             m_equalityComparer = CreateEqualityComparer(m_stringTable, ignoreCase);
@@ -1012,7 +1012,7 @@ namespace BuildXL.Utilities
         public bool TryGetName(StringId[] components, out HierarchicalNameId hierarchicalNameId)
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(components);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out hierarchicalNameId).IsValid);
 
             return TryGetName(HierarchicalNameId.Invalid, components, out hierarchicalNameId);
@@ -1024,7 +1024,7 @@ namespace BuildXL.Utilities
         public bool TryGetName(HierarchicalNameId parent, StringId[] components, out HierarchicalNameId hierarchicalNameId)
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(components);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out hierarchicalNameId).IsValid);
 
             int componentIndex = 0;
@@ -1221,7 +1221,7 @@ namespace BuildXL.Utilities
         public HierarchicalNameId AddComponents(HierarchicalNameId container, params StringId[] components)
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(components);
             Contract.RequiresForAll(components, id => id.IsValid);
 
             for (int i = 0; i < components.Length; i++)
@@ -1704,7 +1704,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<string>() != null);
 
             separator = separator == char.MinValue ? m_separator : separator;
             expander = expander ?? DefaultExpander;
@@ -1754,7 +1753,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
             Contract.Requires(name.IsValid);
-            Contract.Ensures(Contract.Result<string>() != null);
 
             Node node = GetNode(name);
             int length = m_stringTable.GetLength(node.Component);
@@ -1809,7 +1807,6 @@ namespace BuildXL.Utilities
             get
             {
                 Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
-                Contract.Ensures(Contract.Result<StringTable>() != null);
                 return m_stringTable;
             }
         }
@@ -1915,8 +1912,8 @@ namespace BuildXL.Utilities
         /// </summary>
         protected static void Serialize(BuildXLWriter writer, SerializedState state)
         {
-            Contract.Requires(writer != null);
-            Contract.Requires(state != null);
+            Contract.RequiresNotNull(writer);
+            Contract.RequiresNotNull(state);
 
             writer.Write(state.DebugTag);
             writer.Write(state.IgnoreCase);
@@ -1963,8 +1960,8 @@ namespace BuildXL.Utilities
         /// </summary>
         protected static async Task<SerializedState> ReadSerializationStateAsync(BuildXLReader reader, Task<StringTable> stringTableTask)
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(stringTableTask);
 
             SerializedState state = new SerializedState();
             state.DebugTag = reader.ReadInt32();

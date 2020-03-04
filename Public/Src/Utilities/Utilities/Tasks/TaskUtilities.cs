@@ -26,8 +26,7 @@ namespace BuildXL.Utilities.Tasks
         [ContractOption("runtime", "checking", false)]
         public static Task<T> FromException<T>(Exception ex)
         {
-            Contract.Requires(ex != null);
-            Contract.Ensures(Contract.Result<Task<T>>() != null);
+            Contract.RequiresNotNull(ex);
 
             var failureSource = TaskSourceSlim.Create<T>();
             failureSource.SetException(ex);
@@ -42,7 +41,7 @@ namespace BuildXL.Utilities.Tasks
         /// </summary>
         public static async Task SafeWhenAll(IEnumerable<Task> tasks)
         {
-            Contract.Requires(tasks != null);
+            Contract.RequiresNotNull(tasks);
 
             var whenAllTask = Task.WhenAll(tasks);
             try
@@ -51,7 +50,7 @@ namespace BuildXL.Utilities.Tasks
             }
             catch
             {
-                Contract.Assume(whenAllTask.Exception != null);
+                Contract.AssertNotNull(whenAllTask.Exception);
                 throw whenAllTask.Exception;
             }
         }
@@ -64,7 +63,7 @@ namespace BuildXL.Utilities.Tasks
         /// </summary>
         public static async Task<TResult[]> SafeWhenAll<TResult>(IEnumerable<Task<TResult>> tasks)
         {
-            Contract.Requires(tasks != null);
+            Contract.RequiresNotNull(tasks);
 
             var whenAllTask = Task.WhenAll(tasks);
             try
@@ -87,7 +86,7 @@ namespace BuildXL.Utilities.Tasks
         /// <returns>The awaiter.</returns>
         public static TaskAwaiter GetAwaiter(this WaitHandle handle)
         {
-            Contract.Requires(handle != null);
+            Contract.RequiresNotNull(handle);
 
             return handle.ToTask().GetAwaiter();
         }
@@ -99,7 +98,7 @@ namespace BuildXL.Utilities.Tasks
         /// <returns>The awaiter.</returns>
         public static TaskAwaiter<int> GetAwaiter(this WaitHandle[] handles)
         {
-            Contract.Requires(handles != null);
+            Contract.RequiresNotNull(handles);
             Contract.RequiresForAll(handles, handle => handles != null);
 
             return handles.ToTask().GetAwaiter();
@@ -116,7 +115,7 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static Task ToTask(this WaitHandle handle, int timeout = Timeout.Infinite)
         {
-            Contract.Requires(handle != null);
+            Contract.RequiresNotNull(handle);
 
             return ToTask(new WaitHandle[1] { handle }, timeout);
         }
@@ -132,7 +131,7 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static Task<int> ToTask(this WaitHandle[] handles, int timeout = Timeout.Infinite)
         {
-            Contract.Requires(handles != null);
+            Contract.RequiresNotNull(handles);
             Contract.RequiresForAll(handles, handle => handles != null);
 
             var tcs = TaskSourceSlim.Create<int>();
@@ -201,7 +200,7 @@ namespace BuildXL.Utilities.Tasks
         /// <returns>A disposable which will release the semaphore when it is disposed.</returns>
         public static async Task<SemaphoreReleaser> AcquireAsync(this SemaphoreSlim semaphore, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Contract.Requires(semaphore != null);
+            Contract.RequiresNotNull(semaphore);
             await semaphore.WaitAsync(cancellationToken);
             return new SemaphoreReleaser(semaphore);
         }
@@ -212,7 +211,7 @@ namespace BuildXL.Utilities.Tasks
         /// <param name="semaphore">The semaphore to acquire</param>
         public static SemaphoreReleaser AcquireSemaphore(this SemaphoreSlim semaphore)
         {
-            Contract.Requires(semaphore != null);
+            Contract.RequiresNotNull(semaphore);
             semaphore.Wait();
             return new SemaphoreReleaser(semaphore);
         }
@@ -374,7 +373,7 @@ namespace BuildXL.Utilities.Tasks
             /// </remarks>
             internal SemaphoreReleaser(SemaphoreSlim semaphore)
             {
-                Contract.Requires(semaphore != null);
+                Contract.RequiresNotNull(semaphore);
                 m_semaphore = semaphore;
             }
 

@@ -68,7 +68,7 @@ namespace BuildXL.Utilities
         /// <returns>Return the parser result indicating success, or what was wrong with the parsing.</returns>
         public static ParseResult TryCreate(SymbolTable table, StringSegment fullSymbol, out FullSymbol result, out int characterWithError)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             StringId[] components;
@@ -97,7 +97,7 @@ namespace BuildXL.Utilities
         /// </summary>
         private static ParseResult TryGetComponents(SymbolTable table, StringSegment fullSymbol, out StringId[] components, out int characterWithError)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == (Contract.ValueAtReturn(out components) != null));
 
             PartialSymbol relIdentifier;
@@ -121,7 +121,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static FullSymbol Create(SymbolTable table, SymbolAtom atom)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
@@ -134,8 +134,8 @@ namespace BuildXL.Utilities
         /// <returns>FullSymbol of the identifier just added.</returns>
         private static FullSymbol AddIdentifierComponents(SymbolTable table, FullSymbol parentIdentifier, params StringId[] components)
         {
-            Contract.Requires(table != null, "table != null");
-            Contract.Requires(components != null, "components != null");
+            Contract.RequiresNotNull(table, "table != null");
+            Contract.RequiresNotNull(components, "components != null");
             Contract.RequiresForAll(components, id => id.IsValid);
 
             return new FullSymbol(table.AddComponents(parentIdentifier.Value, components));
@@ -147,7 +147,7 @@ namespace BuildXL.Utilities
         /// <returns>FullSymbol of the identifier just added.</returns>
         private static FullSymbol AddIdentifierComponent(SymbolTable table, FullSymbol parentIdentifier, StringId component)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(component.IsValid);
 
             return new FullSymbol(table.AddComponent(parentIdentifier.Value, component));
@@ -161,7 +161,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static FullSymbol Create(SymbolTable table, StringSegment fullSymbol)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol result;
@@ -186,7 +186,7 @@ namespace BuildXL.Utilities
         /// <returns>Final resulting absolute identifier.</returns>
         public FullSymbol Combine(SymbolTable table, StringSegment relativeId)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures(Contract.Result<FullSymbol>() != FullSymbol.Invalid);
             PartialSymbol relIdentifier;
             PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out _);
@@ -205,7 +205,7 @@ namespace BuildXL.Utilities
         [Pure]
         public static bool TryGet(SymbolTable table, StringSegment fullSymbol, out FullSymbol result)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
             StringId[] components;
@@ -231,7 +231,7 @@ namespace BuildXL.Utilities
         [Pure]
         public bool TryGet(SymbolTable table, SymbolAtom component, out FullSymbol result)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(component.IsValid);
             Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
@@ -249,7 +249,7 @@ namespace BuildXL.Utilities
         [Pure]
         public bool TryGet(SymbolTable table, PartialSymbol relativeId, out FullSymbol result)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Ensures(Contract.Result<bool>() == (Contract.ValueAtReturn(out result) != FullSymbol.Invalid));
 
             if (relativeId.IsEmpty)
@@ -273,7 +273,7 @@ namespace BuildXL.Utilities
         [Pure]
         public bool TryGetRelative(SymbolTable table, FullSymbol proposedRelativeId, out PartialSymbol result)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(proposedRelativeId.IsValid);
 
             string str;
@@ -288,7 +288,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public FullSymbol Combine(SymbolTable table, PartialSymbol identifier)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(identifier.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
@@ -301,7 +301,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public FullSymbol Combine(SymbolTable table, SymbolAtom atom)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
@@ -314,7 +314,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public FullSymbol Combine(SymbolTable table, SymbolAtom atom1, SymbolAtom atom2)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(atom1.IsValid);
             Contract.Requires(atom2.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
@@ -329,8 +329,8 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public FullSymbol Combine(SymbolTable table, params SymbolAtom[] atoms)
         {
-            Contract.Requires(table != null, "table != null");
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(table, "table != null");
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
@@ -349,7 +349,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public FullSymbol Combine(SymbolTable table, FullSymbol symbol)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             return !symbol.IsValid ? this : Combine(table, symbol.GetParent(table)).Combine(table, symbol.GetName(table));
         }
 
@@ -358,7 +358,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public FullSymbol Concat(SymbolTable table, SymbolAtom addition)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
             Contract.Requires(addition.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
@@ -378,7 +378,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public FullSymbol GetParent(SymbolTable table)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
 
             return new FullSymbol(table.GetContainer(Value));
@@ -390,7 +390,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public SymbolAtom GetName(SymbolTable table)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
             Contract.Ensures(Contract.Result<SymbolAtom>().IsValid);
 
@@ -409,7 +409,7 @@ namespace BuildXL.Utilities
             FullSymbol source,
             FullSymbol destination)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
             Contract.Requires(source.IsValid);
             Contract.Requires(destination.IsValid);
@@ -461,7 +461,7 @@ namespace BuildXL.Utilities
             SymbolTable table,
             FullSymbol destination)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(destination.IsValid);
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
@@ -482,7 +482,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Design", "CA1011")]
         public bool IsWithin(SymbolTable table, FullSymbol potentialContainer)
         {
-            Contract.Requires(table != null, "table != null");
+            Contract.RequiresNotNull(table, "table != null");
             Contract.Requires(IsValid);
             Contract.Requires(potentialContainer.IsValid);
 

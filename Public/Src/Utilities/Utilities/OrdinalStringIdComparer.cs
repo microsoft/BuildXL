@@ -18,7 +18,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public OrdinalStringIdComparer(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             m_stringTable = stringTable;
         }

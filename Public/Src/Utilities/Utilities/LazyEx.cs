@@ -83,7 +83,7 @@ namespace BuildXL.Utilities
         /// <param name="valueFactory">the value factory for creating the value</param>
         public LazyEx(Func<T> valueFactory)
         {
-            Contract.Requires(valueFactory != null);
+            Contract.RequiresNotNull(valueFactory);
 
             m_value = valueFactory;
         }

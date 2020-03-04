@@ -98,7 +98,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public MonitoringState CheckStateForPath(string path)
         {
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(path);
 
             if (m_state == MonitoringState.Enabled)
             {

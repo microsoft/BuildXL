@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Tracing
                 EventLevel.Verbose)
         {
             m_baseTime = baseTime == default(DateTime) ? DateTime.Now : baseTime;
-            Contract.Requires(eventSource != null);
+            Contract.RequiresNotNull(eventSource);
             m_eventCounts.Initialize(MaxEventIdExclusive);
         }
 

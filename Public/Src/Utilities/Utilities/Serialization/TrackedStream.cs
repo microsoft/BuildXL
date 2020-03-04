@@ -32,7 +32,7 @@ namespace BuildXL.Utilities.Serialization
         /// </summary>
         public TrackedStream(Stream stream, bool leaveOpen = false, long? precomputedLength = null)
         {
-            Contract.Requires(stream != null);
+            Contract.RequiresNotNull(stream);
 
             BaseStream = stream;
             m_leaveOpen = leaveOpen;

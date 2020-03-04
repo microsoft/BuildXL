@@ -41,7 +41,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Possible(Failure failure)
         {
-            Contract.Requires(failure != null);
+            Contract.RequiresNotNull(failure);
             m_failure = failure;
             m_result = default(TResult);
         }
@@ -71,7 +71,7 @@ namespace BuildXL.Utilities
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates")]
         public static implicit operator Possible<TResult>(Failure failure)
         {
-            Contract.Requires(failure != null);
+            Contract.RequiresNotNull(failure);
             return new Possible<TResult>(failure);
         }
 
@@ -139,7 +139,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, Possible<TResult2>> binder)
         {
-            Contract.Requires(binder != null);
+            Contract.RequiresNotNull(binder);
             return Succeeded ? binder(m_result) : new Possible<TResult2>(m_failure);
         }
 
@@ -149,7 +149,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Task<Possible<TResult2>> ThenAsync<TResult2>(Func<TResult, Task<Possible<TResult2>>> binder)
         {
-            Contract.Requires(binder != null);
+            Contract.RequiresNotNull(binder);
             return Succeeded ? binder(m_result) : Task.FromResult(new Possible<TResult2>(m_failure));
         }
 
@@ -170,8 +170,8 @@ namespace BuildXL.Utilities
             Func<Failure, Possible<TResult2, TFailure2>> failureBinder)
             where TFailure2 : Failure
         {
-            Contract.Requires(resultBinder != null);
-            Contract.Requires(failureBinder != null);
+            Contract.RequiresNotNull(resultBinder);
+            Contract.RequiresNotNull(failureBinder);
             return Succeeded ? resultBinder(m_result) : failureBinder(m_failure);
         }
 
@@ -188,7 +188,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TResult2>(Func<TResult, TResult2> thenFunc)
         {
-            Contract.Requires(thenFunc != null);
+            Contract.RequiresNotNull(thenFunc);
             return Succeeded ? new Possible<TResult2>(thenFunc(m_result)) : new Possible<TResult2>(m_failure);
         }
 
@@ -205,7 +205,7 @@ namespace BuildXL.Utilities
         [Pure]
         public Possible<TResult2> Then<TData, TResult2>(TData data, Func<TData, TResult, TResult2> thenFunc)
         {
-            Contract.Requires(thenFunc != null);
+            Contract.RequiresNotNull(thenFunc);
             return Succeeded ? new Possible<TResult2>(thenFunc(data, m_result)) : new Possible<TResult2>(m_failure);
         }
     }

@@ -35,8 +35,8 @@ namespace BuildXL.Utilities
 
         internal PooledObjectWrapper(ObjectPool<T> pool, T instance)
         {
-            Contract.Requires(pool != null);
-            Contract.Requires(instance != null);
+            Contract.RequiresNotNull(pool);
+            Contract.RequiresNotNull(instance);
 
 #if DEBUG
             m_identity = new Identity { Pool = pool };

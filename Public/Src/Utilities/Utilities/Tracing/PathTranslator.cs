@@ -69,8 +69,8 @@ namespace BuildXL.Utilities.Tracing
         /// <param name="toPath">Root to translate paths to</param>
         public PathTranslator(string fromPath, string toPath)
         {
-            Contract.Requires(fromPath != null);
-            Contract.Requires(toPath != null);
+            Contract.RequiresNotNull(fromPath);
+            Contract.RequiresNotNull(toPath);
 
             String suffix = Path.DirectorySeparatorChar + string.Empty;
             FromPath = fromPath.EndsWith(suffix, StringComparison.Ordinal) ? fromPath : fromPath + suffix;

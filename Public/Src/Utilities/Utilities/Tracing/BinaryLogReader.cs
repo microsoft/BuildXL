@@ -104,8 +104,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public BinaryLogReader(Stream logStream, PipExecutionContext context, bool closeStreamOnDispose = true)
         {
-            Contract.Requires(logStream != null);
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(logStream);
+            Contract.RequiresNotNull(context);
 
             LogStream = logStream;
             m_context = context;

@@ -115,7 +115,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public ObjectPool(Func<T> creator, Func<T, T> cleanup, int size)
         {
-            Contract.Requires(creator != null);
+            Contract.RequiresNotNull(creator);
             Contract.Requires(size >= 1);
 
             m_creator = creator;

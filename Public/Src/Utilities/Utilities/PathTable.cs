@@ -36,7 +36,7 @@ namespace BuildXL.Utilities
         public PathTable(StringTable stringTable)
             : base(stringTable, ignoreCase: true, separator: System.IO.Path.DirectorySeparatorChar)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
             ExpandedPathComparer = new ExpandedAbsolutePathComparer(ExpandedNameComparer);
         }
 
@@ -65,7 +65,7 @@ namespace BuildXL.Utilities
 
             internal ExpandedAbsolutePathComparer(ExpandedHierarchicalNameComparer comparer)
             {
-                Contract.Requires(comparer != null);
+                Contract.RequiresNotNull(comparer);
                 m_comparer = comparer;
             }
 
@@ -84,8 +84,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static async Task<PathTable> DeserializeAsync(BuildXLReader reader, Task<StringTable> stringTableTask)
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(stringTableTask != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(stringTableTask);
 
             var state = await ReadSerializationStateAsync(reader, stringTableTask);
             var stringTable = await stringTableTask;

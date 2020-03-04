@@ -229,9 +229,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance(LoggingContext loggingContext, Action<LoggingContext, string, int, int> eventAction, PathTable pathTable, LocationData token)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position);
         }
 
@@ -240,9 +239,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0> eventAction, PathTable pathTable, LocationData token, T0 arg0)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0);
         }
 
@@ -251,9 +249,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0, T1>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0, T1> eventAction, PathTable pathTable, LocationData token, T0 arg0, T1 arg1)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0, arg1);
         }
 
@@ -262,9 +259,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static void LogWithProvenance<T0, T1, T2>(LoggingContext loggingContext, Action<LoggingContext, string, int, int, T0, T1, T2> eventAction, PathTable pathTable, LocationData token, T0 arg0, T1 arg1, T2 arg2)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, token.Path.ToString(pathTable), token.Line, token.Position, arg0, arg1, arg2);
         }
 
@@ -278,10 +274,8 @@ namespace BuildXL.Utilities.Tracing
             LocationData relatedLocation,
             LocationData alreadyReportedLocation)
         {
-            Contract.Requires(eventAction != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(relatedLocation != null);
-            Contract.Requires(alreadyReportedLocation != null);
+            Contract.RequiresNotNull(eventAction);
+            Contract.RequiresNotNull(pathTable);
             eventAction(loggingContext, relatedLocation.Path.ToString(pathTable), relatedLocation.Line, relatedLocation.Position, alreadyReportedLocation.Path.ToString(pathTable), alreadyReportedLocation.Line, alreadyReportedLocation.Position);
         }
 

@@ -29,7 +29,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<PathTable>() != null);
                 return m_pathTable;
             }
         }
@@ -41,7 +40,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<SymbolTable>() != null);
                 return m_symbolTable;
             }
         }
@@ -53,7 +51,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<QualifierTable>() != null);
                 return m_qualifierTable;
             }
         }
@@ -65,7 +62,6 @@ namespace BuildXL.Utilities
         {
             get
             {
-                Contract.Ensures(Contract.Result<StringTable>() != null);
                 return m_stringTable;
             }
         }
@@ -81,7 +77,7 @@ namespace BuildXL.Utilities
                 context.SymbolTable,
                 context.QualifierTable)
         {
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
         }
 
         /// <summary>
@@ -94,10 +90,10 @@ namespace BuildXL.Utilities
             SymbolTable symbolTable,
             QualifierTable qualifierTable)
         {
-            Contract.Requires(stringTable != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(symbolTable != null);
-            Contract.Requires(qualifierTable != null);
+            Contract.RequiresNotNull(stringTable);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(symbolTable);
+            Contract.RequiresNotNull(qualifierTable);
             Contract.Requires(stringTable == pathTable.StringTable);
             Contract.Requires(stringTable == symbolTable.StringTable);
             Contract.Requires(stringTable == qualifierTable.StringTable);

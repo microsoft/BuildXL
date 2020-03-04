@@ -51,8 +51,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public void AddTranslation(string sourcePath, string targetPath)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
-            Contract.Requires(!string.IsNullOrWhiteSpace(targetPath));
+            Contract.RequiresNotNullOrWhiteSpace(sourcePath);
+            Contract.RequiresNotNullOrWhiteSpace(targetPath);
             Contract.Assert(!Sealed);
 
             m_translations.Add(new Translation(
@@ -78,7 +78,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(sourcePath.IsValid);
             Contract.Requires(targetPath.IsValid);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
 
             AddTranslation(sourcePath.ToString(pathTable), targetPath.ToString(pathTable));
         }
@@ -90,7 +90,7 @@ namespace BuildXL.Utilities
         {
             // ReSharper disable once PossibleMultipleEnumeration
             Contract.RequiresForAll(translations, t => t.sourcePath.IsValid && t.targetPath.IsValid);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
 
             // ReSharper disable once PossibleMultipleEnumeration
             foreach (var translation in translations)
@@ -114,7 +114,7 @@ namespace BuildXL.Utilities
         {
             // ReSharper disable once PossibleMultipleEnumeration
             Contract.RequiresForAll(translations, t => t.SourcePath.IsValid && t.TargetPath.IsValid);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
 
             // ReSharper disable once PossibleMultipleEnumeration
             foreach (var translation in translations)
@@ -228,7 +228,7 @@ namespace BuildXL.Utilities
         public AbsolutePath Translate(AbsolutePath path, PathTable pathTable)
         {
             Contract.Requires(path.IsValid);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
             Contract.Assert(Sealed);
 
             return AbsolutePath.Create(pathTable, Translate(path.ToString(pathTable)));
@@ -244,7 +244,7 @@ namespace BuildXL.Utilities
         {
             // ReSharper disable once PossibleMultipleEnumeration
             Contract.RequiresForAll(translations, t => t != null);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
 
             error = null;
             var translationMapping = new Dictionary<AbsolutePath, AbsolutePath>();
@@ -322,7 +322,7 @@ namespace BuildXL.Utilities
         public static bool TestForJunctions(PathTable pathTable, IEnumerable<RawInputTranslation> translations, out string error)
         {
             Contract.RequiresForAll(translations, t => t != null);
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
 
             error = null;
             var errors = new List<string>();
@@ -421,8 +421,8 @@ namespace BuildXL.Utilities
             /// </summary>
             public Translation(string sourcePath, string targetPath)
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
-                Contract.Requires(!string.IsNullOrWhiteSpace(targetPath));
+                Contract.RequiresNotNullOrWhiteSpace(sourcePath);
+                Contract.RequiresNotNullOrWhiteSpace(targetPath);
 
                 SourcePath = sourcePath;
                 TargetPath = targetPath;

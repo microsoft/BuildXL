@@ -59,7 +59,7 @@ namespace BuildXL.Utilities
 
         internal RelativePath(params StringId[] components)
         {
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(components);
             Contract.RequiresForAll(components, component => component.IsValid);
 
             Components = components;
@@ -71,8 +71,8 @@ namespace BuildXL.Utilities
         /// <returns>Return false if the input path is not in a valid format.</returns>
         public static bool TryCreate(StringTable table, string relativePath, out RelativePath result)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(relativePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(relativePath);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)relativePath, out result);
@@ -85,7 +85,7 @@ namespace BuildXL.Utilities
         public static bool TryCreate<T>(StringTable table, T relativePath, out RelativePath result)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             ParseResult parseResult = TryCreate(table, relativePath, out result, out _);
@@ -114,7 +114,7 @@ namespace BuildXL.Utilities
         internal static ParseResult TryCreateInternal<T>(StringTable table, T relativePath, out RelativePath result, out int characterWithError, bool allowDotDotOutOfScope = false)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             using (var wrap = Pools.GetStringIdList())
@@ -240,8 +240,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static RelativePath Create(StringTable table, string relativePath)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(relativePath != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(relativePath);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             return Create(table, (StringSegment)relativePath);
@@ -256,7 +256,7 @@ namespace BuildXL.Utilities
         public static RelativePath Create<T>(StringTable table, T relativePath)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             bool f = TryCreate(table, relativePath, out RelativePath result);
@@ -284,7 +284,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static RelativePath Create(params PathAtom[] atoms)
         {
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
@@ -380,7 +380,7 @@ namespace BuildXL.Utilities
         public RelativePath Combine(params PathAtom[] atoms)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
@@ -408,7 +408,7 @@ namespace BuildXL.Utilities
         public RelativePath Concat(StringTable table, PathAtom addition)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(addition.IsValid);
             Contract.Requires(!IsEmpty);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
@@ -434,7 +434,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             if (extension.IsValid)
@@ -467,7 +467,7 @@ namespace BuildXL.Utilities
         public RelativePath RemoveExtension(StringTable table)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<RelativePath>().IsValid);
 
             if (Components.Length == 0)
@@ -552,7 +552,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public PathAtom GetExtension(StringTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(IsValid);
             Contract.Requires(!IsEmpty);
 
@@ -596,7 +596,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public bool CaseInsensitiveEquals(StringTable stringTable, RelativePath other)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             if (Components == null || other.Components == null)
             {
@@ -663,8 +663,7 @@ namespace BuildXL.Utilities
         public string ToString(StringTable table, PathFormat pathFormat = PathFormat.HostOs)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(table != null);
-            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.RequiresNotNull(table);
 
             var pathSeparator = PathFormatter.GetPathSeparator(pathFormat);
 

@@ -102,7 +102,7 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.WriteCompact(Line);
             writer.Write(Path);
             writer.WriteCompact(Position);
@@ -110,7 +110,7 @@ namespace BuildXL.Utilities
 
         internal static LocationData Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             var line = reader.ReadInt32Compact();
             var path = reader.ReadAbsolutePath();
             var position = reader.ReadInt32Compact();
@@ -123,8 +123,7 @@ namespace BuildXL.Utilities
         /// <param name="pathTable">The path table used when creating the AbsolutePath in the Path field.</param>
         public string ToString(PathTable pathTable)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(pathTable);
 
             return I($"{Path.ToString(pathTable)}({Line}, {Position})");
         }

@@ -33,7 +33,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public StringSegment(string value, int index, int length)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
             Contract.Requires(Range.IsValid(index, length, value.Length));
 
             m_value = value;
@@ -46,7 +46,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public StringSegment(string value)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
 
             m_value = value;
             m_index = 0;
@@ -68,7 +68,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public int IndexOf(string value)
         {
-            Contract.Requires(!string.IsNullOrEmpty(value));
+            Contract.RequiresNotNullOrEmpty(value);
 
             if (m_value != null)
             {
@@ -124,7 +124,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals8Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -145,7 +145,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public bool Equals16Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -214,7 +214,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static implicit operator StringSegment(string value)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
             Contract.Ensures(Contract.Result<StringSegment>().Length == value.Length);
 
             return new StringSegment(value);
@@ -239,7 +239,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs8Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -255,7 +255,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public void CopyAs16Bit(byte[] buffer, int index)
         {
-            Contract.Requires(buffer != null);
+            Contract.RequiresNotNull(buffer);
             Contract.Requires(Range.IsValid(index, Length, buffer.Length));
 
             int end = m_index + Length;
@@ -350,7 +350,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static StringSegment Subsegment(this string value, int index, int count)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
             Contract.Requires(Range.IsValid(index, count, value.Length));
             Contract.Ensures(Contract.Result<StringSegment>().Length == count);
 

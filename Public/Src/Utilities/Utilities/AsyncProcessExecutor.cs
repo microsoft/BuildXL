@@ -117,7 +117,7 @@ namespace BuildXL.Utilities
             string provenance = null,
             Action<string> logger = null)
         {
-            Contract.Requires(process != null);
+            Contract.RequiresNotNull(process);
 
             m_logger = logger;
             Process = process;
@@ -211,7 +211,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public Task KillAsync()
         {
-            Contract.Requires(Process != null);
+            Contract.RequiresNotNull(Process);
 
             try
             {

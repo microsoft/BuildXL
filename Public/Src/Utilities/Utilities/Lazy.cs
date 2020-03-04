@@ -21,7 +21,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static Lazy<T> Create<T>(Func<T> factory, LazyThreadSafetyMode mode = LazyThreadSafetyMode.ExecutionAndPublication)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
             return new Lazy<T>(factory, mode);
         }
 
@@ -33,7 +33,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static AsyncLazy<T> CreateAsync<T>(Func<Task<T>> factory)
         {
-            Contract.Requires(factory != null);
+            Contract.RequiresNotNull(factory);
             return new AsyncLazy<T>(factory);
         }
     }

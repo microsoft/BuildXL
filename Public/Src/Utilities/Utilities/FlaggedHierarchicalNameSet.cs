@@ -28,7 +28,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public FlaggedHierarchicalNameSet(HierarchicalNameTable nameTable, HierarchicalNameTable.NameFlags flags)
         {
-            Contract.Requires(nameTable != null);
+            Contract.RequiresNotNull(nameTable);
             m_nameTable = nameTable;
             m_memberFlags = flags;
         }

@@ -27,7 +27,7 @@ namespace BuildXL.Utilities
 
         private PartialSymbol(params StringId[] components)
         {
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(components);
             Contract.RequiresForAll(components, component => component.IsValid);
 
             m_components = components;
@@ -39,8 +39,8 @@ namespace BuildXL.Utilities
         /// <returns>Return false if the input identifier is not in a valid format.</returns>
         public static bool TryCreate(StringTable table, string partialSymbol, out PartialSymbol result)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(partialSymbol != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(partialSymbol);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             return TryCreate(table, (StringSegment)partialSymbol, out result);
@@ -53,7 +53,7 @@ namespace BuildXL.Utilities
         public static bool TryCreate<T>(StringTable table, T partialSymbol, out PartialSymbol result)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<bool>() == Contract.ValueAtReturn(out result).IsValid);
 
             int characterWithError;
@@ -68,7 +68,7 @@ namespace BuildXL.Utilities
         public static ParseResult TryCreate<T>(StringTable table, T partialSymbol, out PartialSymbol result, out int characterWithError)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures((Contract.Result<ParseResult>() == ParseResult.Success) == Contract.ValueAtReturn(out result).IsValid);
 
             using (var wrap = Pools.GetStringIdList())
@@ -165,8 +165,8 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static PartialSymbol Create(StringTable table, string partialSymbol)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(partialSymbol != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(partialSymbol);
             Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             return Create(table, (StringSegment)partialSymbol);
@@ -181,7 +181,7 @@ namespace BuildXL.Utilities
         public static PartialSymbol Create<T>(StringTable table, T partialSymbol)
             where T : struct, ICharSpan<T>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
             PartialSymbol result;
@@ -206,7 +206,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static PartialSymbol Create(params SymbolAtom[] atoms)
         {
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
@@ -302,7 +302,7 @@ namespace BuildXL.Utilities
         public PartialSymbol Combine(params SymbolAtom[] atoms)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(atoms != null);
+            Contract.RequiresNotNull(atoms);
             Contract.RequiresForAll(atoms, a => a.IsValid);
             Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
 
@@ -330,7 +330,7 @@ namespace BuildXL.Utilities
         public PartialSymbol Concat(StringTable table, SymbolAtom addition)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(addition.IsValid);
             Contract.Requires(!IsEmpty);
             Contract.Ensures(Contract.Result<PartialSymbol>().IsValid);
@@ -456,8 +456,7 @@ namespace BuildXL.Utilities
         public string ToString(StringTable table)
         {
             Contract.Requires(IsValid);
-            Contract.Requires(table != null);
-            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.RequiresNotNull(table);
 
             int length = 0;
             foreach (StringId component in m_components)

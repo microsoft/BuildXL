@@ -23,7 +23,7 @@ namespace BuildXL.Utilities
         /// <returns>the string representation of the path</returns>
         public virtual string ExpandPath(PathTable pathTable, AbsolutePath path)
         {
-            Contract.Requires(pathTable != null);
+            Contract.RequiresNotNull(pathTable);
             return path.ToString(pathTable);
         }
 
@@ -37,8 +37,8 @@ namespace BuildXL.Utilities
         /// <returns>true if the absolute path was successfully detokenized and retrieved from the path table</returns>
         public virtual bool TryGetPath(PathTable pathTable, string path, out AbsolutePath absolutePath)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(path);
             return AbsolutePath.TryGet(pathTable, (StringSegment)path, out absolutePath);
         }
 
@@ -52,8 +52,8 @@ namespace BuildXL.Utilities
         /// <returns>true if the absolute path was successfully detokenized and retrieved or created from the path table</returns>
         public virtual bool TryCreatePath(PathTable pathTable, string path, out AbsolutePath absolutePath)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(path != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(path);
             return AbsolutePath.TryCreate(pathTable, (StringSegment)path, out absolutePath);
         }
     }

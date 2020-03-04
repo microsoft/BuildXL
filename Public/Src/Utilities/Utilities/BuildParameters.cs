@@ -168,8 +168,6 @@ namespace BuildXL.Utilities
             /// </remarks>
             public IBuildParameters PopulateFromEnvironment()
             {
-                Contract.Ensures(Contract.Result<IBuildParameters>() != null);
-
                 return Create(m_environmentVariables.Value);
             }
 
@@ -183,8 +181,6 @@ namespace BuildXL.Utilities
             /// </remarks>
             public IBuildParameters PopulateFromDictionary(IEnumerable<KeyValuePair<string, string>> parameters)
             {
-                Contract.Ensures(Contract.Result<IBuildParameters>() != null);
-
                 return Create(parameters);
             }
 
@@ -217,8 +213,6 @@ namespace BuildXL.Utilities
 
             private IBuildParameters Create(IEnumerable<KeyValuePair<string, string>> value)
             {
-                Contract.Ensures(Contract.Result<IBuildParameters>() != null);
-
                 return CaseInsensitiveBuildParameters.PopulateFromDictionary(value, m_reporter);
             }
         }
@@ -269,8 +263,7 @@ namespace BuildXL.Utilities
             /// </summary>
             public static IBuildParameters PopulateFromDictionary(IEnumerable<KeyValuePair<string, string>> parameters, OnDuplicateParameter reporter)
             {
-                Contract.Requires(parameters != null);
-                Contract.Ensures(Contract.Result<IBuildParameters>() != null);
+                Contract.RequiresNotNull(parameters);
 
                 return Deduplicate(parameters, reporter);
             }
@@ -278,7 +271,7 @@ namespace BuildXL.Utilities
             /// <inheritdoc/>
             public IBuildParameters Select(IEnumerable<string> keys)
             {
-                Contract.Requires(keys != null);
+                Contract.RequiresNotNull(keys);
 
                 var result = new List<KeyValuePair<string, string>>(keys.Count());
                 foreach (var key in keys)
@@ -295,7 +288,7 @@ namespace BuildXL.Utilities
             /// <inheritdoc/>
             public IBuildParameters Override(IEnumerable<KeyValuePair<string, string>> parameters)
             {
-                Contract.Requires(parameters != null);
+                Contract.RequiresNotNull(parameters);
 
                 var result = new Dictionary<string, string>(s_parametersKeyComparer);
 
@@ -316,7 +309,7 @@ namespace BuildXL.Utilities
             {
                 get
                 {
-                    Contract.Requires(key != null);
+                    Contract.RequiresNotNull(key);
                     return m_parameters[key];
                 }
             }
@@ -324,7 +317,7 @@ namespace BuildXL.Utilities
             /// <inheritdoc/>
             public bool ContainsKey(string key)
             {
-                Contract.Requires(key != null);
+                Contract.RequiresNotNull(key);
                 return m_parameters.ContainsKey(key);
             }
 
@@ -359,7 +352,7 @@ namespace BuildXL.Utilities
 
             private static void ReportDuplicates(IReadOnlyList<DuplicateBuildParameter> duplicates, OnDuplicateParameter callback)
             {
-                Contract.Requires(duplicates != null);
+                Contract.RequiresNotNull(duplicates);
 
                 if (callback != null)
                 {

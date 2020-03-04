@@ -63,8 +63,8 @@ namespace BuildXL.Utilities.Tracing
                 pathTranslator: pathTranslator,
                 timeDisplay: timeDisplay)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
 
             m_logErrors = logErrors;
             m_logWarnings = logWarnings;

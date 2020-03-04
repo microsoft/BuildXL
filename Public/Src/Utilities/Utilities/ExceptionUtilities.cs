@@ -54,8 +54,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public static async Task<T> HandleRecoverableIOExceptionAsync<T>(Func<Task<T>> taskProducer, Action<Exception> handler)
         {
-            Contract.Requires(taskProducer != null);
-            Contract.Requires(handler != null);
+            Contract.RequiresNotNull(taskProducer);
+            Contract.RequiresNotNull(handler);
 
             // We re-throw in the catch blocks (versus capturing and re-throwing) to avoid stomping on the call stack, etc.).
             try
@@ -93,8 +93,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public static T HandleRecoverableIOException<T>(Func<T> func, Action<Exception> handler)
         {
-            Contract.Requires(func != null);
-            Contract.Requires(handler != null);
+            Contract.RequiresNotNull(func);
+            Contract.RequiresNotNull(handler);
 
             // We re-throw in the catch blocks (versus capturing and re-throwing) to avoid stomping on the call stack, etc.).
             try
@@ -132,8 +132,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public static T HandleRecoverableIOException<T, TState>(TState state, Func<TState, T> func, Action<TState, Exception> handler)
         {
-            Contract.Requires(func != null);
-            Contract.Requires(handler != null);
+            Contract.RequiresNotNull(func);
+            Contract.RequiresNotNull(handler);
 
             // We re-throw in the catch blocks (versus capturing and re-throwing) to avoid stomping on the call stack, etc.).
             try
@@ -171,8 +171,8 @@ namespace BuildXL.Utilities
         /// </summary>
         public static void HandleRecoverableIOException(Action action, Action<Exception> handler)
         {
-            Contract.Requires(action != null);
-            Contract.Requires(handler != null);
+            Contract.RequiresNotNull(action);
+            Contract.RequiresNotNull(handler);
 
             // We re-throw in the catch blocks (versus capturing and re-throwing) to avoid stomping on the call stack, etc.).
             try
@@ -214,7 +214,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static ExceptionRootCause AnalyzeExceptionRootCause(Exception ex)
         {
-            Contract.Requires(ex != null);
+            Contract.RequiresNotNull(ex);
 
             const int OutOfDiskSpaceHResult = unchecked((int)0x80070070);
             const int DataErrorCRCResult = unchecked((int)0x80070017);

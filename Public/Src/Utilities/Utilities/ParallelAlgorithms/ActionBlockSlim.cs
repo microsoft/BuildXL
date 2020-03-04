@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction)
         {
             Contract.Requires(degreeOfParallelism >= -1);
-            Contract.Requires(processItemAction != null);
+            Contract.RequiresNotNull(processItemAction);
 
             m_processItemAction = processItemAction;
             degreeOfParallelism = degreeOfParallelism == -1 ? Environment.ProcessorCount : degreeOfParallelism;

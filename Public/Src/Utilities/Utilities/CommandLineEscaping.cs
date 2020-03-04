@@ -20,12 +20,12 @@ namespace BuildXL.Utilities
         /// </summary>
         private static void AppendEscapedCreateProcessApplicationName(this StringBuilder appendTo, string exe)
         {
-            Contract.Requires(appendTo != null);
-            Contract.Requires(exe != null);
+            Contract.RequiresNotNull(appendTo);
+            Contract.RequiresNotNull(exe);
 
             string trimmedExe = exe.Trim();
 
-            Contract.Assume(!string.IsNullOrEmpty(trimmedExe), "Application names for CreateProcess cannot be empty (after whitespace is removed).");
+            Contract.AssertNotNullOrEmpty(trimmedExe, "Application names for CreateProcess cannot be empty (after whitespace is removed).");
             Contract.Assume(!trimmedExe.Contains("\""), "Application names for CreateProcess cannot be escaped to contain quotes.");
 
             bool quotesNeeded = ContainsDelimiter(trimmedExe);
@@ -52,8 +52,7 @@ namespace BuildXL.Utilities
         /// <returns>An escaped path</returns>
         public static string EscapeAsCreateProcessApplicationName(string exe)
         {
-            Contract.Requires(exe != null);
-            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.RequiresNotNull(exe);
 
             using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
             {
@@ -72,7 +71,7 @@ namespace BuildXL.Utilities
         /// <returns>Length of the escaped string</returns>
         public static int AppendEscapedCommandLineWord(this StringBuilder builder, string word)
         {
-            Contract.Requires(word != null);
+            Contract.RequiresNotNull(word);
 
             int length = 0;
 
@@ -153,7 +152,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int AppendEscapedCommandLineWordAndAssertPostcondition(this StringBuilder builder, string word)
         {
-            Contract.Requires(builder != null);
+            Contract.RequiresNotNull(builder);
 
             var originalLength = builder.Length;
             var numCharsAdded = builder.AppendEscapedCommandLineWord(word);
@@ -191,8 +190,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public static string EscapeAsCommandLineWord(string word)
         {
-            Contract.Requires(word != null);
-            Contract.Ensures(Contract.Result<string>() != null);
+            Contract.RequiresNotNull(word);
 
             using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
             {

@@ -17,8 +17,8 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public static void SerializeToFile(string file, object vmObject)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(file));
-            Contract.Requires(vmObject != null);
+            Contract.RequiresNotNullOrWhiteSpace(file);
+            Contract.RequiresNotNull(vmObject);
 
             var jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
             {
@@ -39,7 +39,7 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public static T DeserializeFromFile<T>(string file)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(file));
+            Contract.RequiresNotNullOrWhiteSpace(file);
             return JsonConvert.DeserializeObject<T>(File.ReadAllText(file));
         }
     }

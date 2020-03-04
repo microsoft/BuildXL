@@ -298,7 +298,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static int Combine<T>(T[] values, Func<T, int> converter)
         {
-            Contract.Requires(converter != null);
+            Contract.RequiresNotNull(converter);
             if (values == null)
             {
                 return 0;
@@ -387,7 +387,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static long Combine<T>(IEnumerable<T> values, Func<T, long> converter)
         {
-            Contract.Requires(converter != null);
+            Contract.RequiresNotNull(converter);
 
             if (values == null)
             {

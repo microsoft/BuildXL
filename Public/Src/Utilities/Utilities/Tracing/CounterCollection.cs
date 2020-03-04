@@ -206,7 +206,7 @@ namespace BuildXL.Utilities.Tracing
 
             internal Stopwatch(CounterCollection collection, ushort id)
             {
-                Contract.Requires(collection != null);
+                Contract.RequiresNotNull(collection);
 
                 m_collection = collection;
                 m_id = id;

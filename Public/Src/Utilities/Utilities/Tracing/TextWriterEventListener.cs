@@ -75,8 +75,8 @@ namespace BuildXL.Utilities.Tracing
                 onDisabledDueToDiskWriteFailure,
                 listenDiagnosticMessages)
         {
-            Contract.Requires(eventSource != null);
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(eventSource);
+            Contract.RequiresNotNull(writer);
 
             m_writer = writer;
 

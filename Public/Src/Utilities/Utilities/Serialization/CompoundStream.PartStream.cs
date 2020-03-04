@@ -177,7 +177,7 @@ namespace BuildXL.Utilities.Serialization
             /// <inheritdoc />
             public override int Read(byte[] buffer, int offset, int count)
             {
-                Contract.Assert(BaseGlobalReadStream != null, "Stream is not initialized");
+                Contract.AssertNotNull(BaseGlobalReadStream, "Stream is not initialized");
                 Contract.Assert(CanRead, "Stream is not readable");
                 Contract.Assert(!m_isClosed, "Cannot read stream. Stream is not closed.");
                 int totalReadBytes = 0;

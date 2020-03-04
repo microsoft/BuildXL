@@ -103,7 +103,7 @@ namespace BuildXL.Utilities.Tracing
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
             bool listenDiagnosticMessages = false)
         {
-            Contract.Requires(eventSource != null);
+            Contract.RequiresNotNull(eventSource);
 
             m_eventSource = eventSource;
             m_level = level;
@@ -340,7 +340,7 @@ namespace BuildXL.Utilities.Tracing
 
         private void OnDisabledDueToDiskWriteFailure()
         {
-            Contract.Requires(m_disabledDueToDiskWriteFailureEventHandler != null);
+            Contract.RequiresNotNull(m_disabledDueToDiskWriteFailureEventHandler);
 
             ThreadPool.QueueUserWorkItem(
                 state => m_disabledDueToDiskWriteFailureEventHandler(this));

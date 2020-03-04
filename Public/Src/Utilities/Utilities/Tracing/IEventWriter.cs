@@ -33,7 +33,7 @@ namespace BuildXL.Utilities.Tracing
 
         public TextEventWriter(TextWriter textWriter)
         {
-            Contract.Requires(textWriter != null);
+            Contract.RequiresNotNull(textWriter);
             m_textWriter = textWriter;
         }
 

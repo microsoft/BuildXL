@@ -21,7 +21,7 @@ namespace BuildXL.Utilities.Diagnostics
         /// or null if no explanation is provided.</param>
         public static void OnFatalException(Exception exception, string message = null)
         {
-            Contract.Requires(exception != null);
+            Contract.RequiresNotNull(exception);
 
             if (Debugger.IsAttached)
             {

@@ -32,7 +32,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public PathMapSerializer(string filePath)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(filePath));
+            Contract.RequiresNotNullOrWhiteSpace(filePath);
 
             m_filePath = filePath;
             m_pathTable = new PathTable();
@@ -42,7 +42,7 @@ namespace BuildXL.Utilities
         /// <inheritdoc />
         void IObserver<KeyValuePair<string, string>>.OnCompleted()
         {
-            Contract.Assert(m_filePath != null);
+            Contract.AssertNotNull(m_filePath);
             Save(m_filePath);
         }
 

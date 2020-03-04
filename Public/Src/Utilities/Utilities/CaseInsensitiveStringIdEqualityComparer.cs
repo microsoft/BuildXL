@@ -15,7 +15,7 @@ namespace BuildXL.Utilities
 
         public CaseInsensitiveStringIdEqualityComparer(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             m_stringTable = stringTable;
         }
@@ -45,7 +45,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public CaseInsensitiveStringIdComparer(StringTable stringTable)
         {
-            Contract.Requires(stringTable != null);
+            Contract.RequiresNotNull(stringTable);
 
             m_stringTable = stringTable;
         }

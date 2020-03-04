@@ -29,9 +29,9 @@ namespace BuildXL.Utilities.Tasks
             Func<T, Task<Possible<TResult>>> selector,
             CancellationToken token)
         {
-            Contract.Requires(source != null);
+            Contract.RequiresNotNull(source);
             Contract.Requires(degreeOfParallelism > 0);
-            Contract.Requires(selector != null);
+            Contract.RequiresNotNull(selector);
 
             if (source.Count == 0)
             {

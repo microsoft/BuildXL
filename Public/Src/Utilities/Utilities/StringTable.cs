@@ -219,7 +219,7 @@ namespace BuildXL.Utilities
         /// </summary>
         protected StringTable(SerializedState state)
         {
-            Contract.Requires(state != null);
+            Contract.RequiresNotNull(state);
 
 #if DebugStringTable
             DebugRegisterStringTable(this);
@@ -353,7 +353,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         internal bool Equals(string str, StringId id)
         {
-            Contract.Requires(str != null);
+            Contract.RequiresNotNull(str);
             Contract.Requires(id.IsValid);
             Contract.Requires(IsValid());
 
@@ -464,7 +464,7 @@ namespace BuildXL.Utilities
         /// <returns>The ID of the string within the table.</returns>
         public StringId AddString(string value)
         {
-            Contract.Requires(value != null);
+            Contract.RequiresNotNull(value);
             Contract.Requires(IsValid());
             Contract.Ensures(Contract.Result<StringId>().IsValid);
 
@@ -655,7 +655,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid());
             Contract.Requires(id.IsValid);
-            Contract.Requires(destination != null);
+            Contract.RequiresNotNull(destination);
             Contract.Requires(destinationIndex >= 0);
             Contract.Requires(
                 (!isEndIndex && (destinationIndex < destination.Length)) || (isEndIndex && (destinationIndex <= destination.Length)) ||
@@ -711,7 +711,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(IsValid());
             Contract.Requires(id.IsValid);
-            Contract.Requires(destination != null);
+            Contract.RequiresNotNull(destination);
 
             GetBytesCore(id, out byte[] buffer, out int index, out int length);
 
@@ -770,7 +770,6 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(id.IsValid);
             Contract.Requires(IsValid());
-            Contract.Ensures(Contract.Result<string>() != null);
 
             if (!m_expansionCache.TryGetValue(id, out string result))
             {
@@ -1148,7 +1147,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public static Task<StringTable> DeserializeAsync(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             var state = ReadSerializationState(reader);
             return Task.FromResult(new StringTable(state));
@@ -1190,7 +1189,7 @@ namespace BuildXL.Utilities
         /// </summary>
         protected static SerializedState ReadSerializationState(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
 
             SerializedState result = new SerializedState();
             result.NextId = reader.ReadInt32();
@@ -1229,7 +1228,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
 
             m_isSerializationInProgress = true;
             // Call a static method to do the actual serialization to ensure not state outside of SerializedState is used
@@ -1254,7 +1253,7 @@ namespace BuildXL.Utilities
 
         private static void Serialize(BuildXLWriter writer, SerializedState state)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
 
             writer.Write(state.NextId);
 

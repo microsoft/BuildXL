@@ -62,7 +62,7 @@ namespace BuildXL.Utilities
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             writer.WriteCompact(Line);
             writer.Write(Path);
             writer.Write(Text);
@@ -71,7 +71,7 @@ namespace BuildXL.Utilities
 
         internal static TokenData Deserialize(BuildXLReader reader)
         {
-            Contract.Requires(reader != null);
+            Contract.RequiresNotNull(reader);
             Contract.Ensures(Contract.Result<TokenData>().IsValid);
             var line = reader.ReadInt32Compact();
             var path = reader.ReadAbsolutePath();
@@ -103,7 +103,7 @@ namespace BuildXL.Utilities
         /// <returns>the token with the expanded</returns>
         public ExpandedTokenData<StringSegment> Expand(TokenTextTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             return !IsValid
                 ? default(ExpandedTokenData<StringSegment>)
                 : new ExpandedTokenData<StringSegment>(Path, Line, Position, Text.ToString(table));
@@ -122,7 +122,7 @@ namespace BuildXL.Utilities
         /// <returns>An updated token with recomputed line information</returns>
         public TokenData UpdateLineInformationForPosition(TokenTextTable table, int positionInToken)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(positionInToken >= 0);
             Contract.Requires(positionInToken <= Text.GetLength(table));
 
@@ -167,8 +167,7 @@ namespace BuildXL.Utilities
         /// <param name="pathTable">The path table used when creating the AbsolutePath in the Path field.</param>
         public string ToString(PathTable pathTable)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Ensures(!string.IsNullOrEmpty(Contract.Result<string>()));
+            Contract.RequiresNotNull(pathTable);
 
             return I($"{Path.ToString(pathTable)}({Line}, {Position})");
         }

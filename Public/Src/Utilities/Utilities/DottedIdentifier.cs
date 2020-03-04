@@ -23,8 +23,8 @@ namespace BuildXL.Utilities
         /// <param name="head">The head of the identifier</param>
         public DottedIdentifier(SymbolTable table, string head)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(!string.IsNullOrEmpty(head));
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNullOrEmpty(head);
 
             StringSegment seg = head;
 
@@ -56,7 +56,7 @@ namespace BuildXL.Utilities
         public static DottedIdentifier Create<TChars>(SymbolTable table, TChars head, DottedIdentifier tail = null)
             where TChars : struct, ICharSpan<TChars>
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
             Contract.Requires(head.Length != 0);
 
             return new DottedIdentifier(SymbolAtom.Create(table.StringTable, head), tail);
@@ -70,8 +70,8 @@ namespace BuildXL.Utilities
         /// <param name="tail">The tail of the identifier</param>
         public DottedIdentifier(SymbolTable table, IEnumerable<string> prefix, DottedIdentifier tail)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(prefix != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(prefix);
 
             // we'll need this argument in the future so prevent warnings until then.
             Analysis.IgnoreArgument(table);
@@ -93,7 +93,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(current != null, "Must have at least one element in the prefix enumeration");
+            Contract.AssertNotNull(current, "Must have at least one element in the prefix enumeration");
             current.m_tail = tail;
         }
 
@@ -105,8 +105,8 @@ namespace BuildXL.Utilities
         /// <param name="tail">The tail of the identifier</param>
         public DottedIdentifier(SymbolTable table, IEnumerable<SymbolAtom> prefix, DottedIdentifier tail)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(prefix != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(prefix);
 
             // we'll need this argument in the future so prevent warnings until then.
             Analysis.IgnoreArgument(table);
@@ -128,7 +128,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(current != null, "Must have at least one element in the prefix enumeration");
+            Contract.AssertNotNull(current, "Must have at least one element in the prefix enumeration");
             current.m_tail = tail;
         }
 
@@ -139,8 +139,8 @@ namespace BuildXL.Utilities
         /// <param name="components">The components of the identifier</param>
         public DottedIdentifier(SymbolTable table, IEnumerable<string> components)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(components);
 
             DottedIdentifier current = null;
             foreach (var s in components)
@@ -159,7 +159,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(current != null, "Must have at least one element in the components enumeration");
+            Contract.AssertNotNull(current, "Must have at least one element in the components enumeration");
         }
 
         /// <summary>
@@ -169,8 +169,8 @@ namespace BuildXL.Utilities
         /// <param name="components">The components of the identifier</param>
         public DottedIdentifier(SymbolTable table, IEnumerable<SymbolAtom> components)
         {
-            Contract.Requires(table != null);
-            Contract.Requires(components != null);
+            Contract.RequiresNotNull(table);
+            Contract.RequiresNotNull(components);
 
             // we'll need this argument in the future so prevent warnings until then.
             Analysis.IgnoreArgument(table);
@@ -192,7 +192,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(current != null, "Must have at least one element in the components enumeration");
+            Contract.AssertNotNull(current, "Must have at least one element in the components enumeration");
         }
 
         /// <summary>
@@ -281,7 +281,7 @@ namespace BuildXL.Utilities
             where TChars : struct, ICharSpan<TChars>
         {
             Contract.Requires(token.IsValid);
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
 
             PathTable pathTableForError = context.PathTable;
             SymbolTable symbolTable = context.SymbolTable;
@@ -404,7 +404,7 @@ namespace BuildXL.Utilities
             where TChars : struct, ICharSpan<TChars>
         {
             Contract.Requires(token.IsValid);
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(context);
 
             var pathTable = context.PathTable;
 
@@ -461,7 +461,7 @@ namespace BuildXL.Utilities
         [SuppressMessage("Microsoft.Performance", "CA1801")]
         public string ToString(HierarchicalNameTable symbolTable, char separator = '.')
         {
-            Contract.Requires(symbolTable != null);
+            Contract.RequiresNotNull(symbolTable);
 
             using (PooledObjectWrapper<StringBuilder> wrap = Pools.GetStringBuilder())
             {
@@ -550,7 +550,7 @@ namespace BuildXL.Utilities
         /// </remarks>
         public DottedIdentifier GetTail(SymbolTable table)
         {
-            Contract.Requires(table != null);
+            Contract.RequiresNotNull(table);
 
             Analysis.IgnoreArgument(table);
 
@@ -559,9 +559,8 @@ namespace BuildXL.Utilities
 
         internal static DottedIdentifier Deserialize(BuildXLReader reader, SymbolTable table)
         {
-            Contract.Requires(reader != null);
-            Contract.Requires(table != null);
-            Contract.Ensures(Contract.Result<DottedIdentifier>() != null);
+            Contract.RequiresNotNull(reader);
+            Contract.RequiresNotNull(table);
 
             // we'll need this argument in the future so prevent warnings until then.
             Analysis.IgnoreArgument(table);
@@ -591,13 +590,13 @@ namespace BuildXL.Utilities
                 }
             }
 
-            Contract.Assume(head != null);
+            Contract.AssertNotNull(head);
             return head;
         }
 
         internal void Serialize(BuildXLWriter writer)
         {
-            Contract.Requires(writer != null);
+            Contract.RequiresNotNull(writer);
             for (var i = this; i != null; i = i.m_tail)
             {
                 writer.Write(i.Head);

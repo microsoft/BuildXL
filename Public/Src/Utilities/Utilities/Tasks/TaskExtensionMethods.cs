@@ -22,8 +22,8 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static async Task<T[]> WhenStable<T>(this Func<Task<T>>[] taskProducers, IEqualityComparer<T> comparer)
         {
-            Contract.Requires(comparer != null);
-            Contract.Requires(taskProducers != null);
+            Contract.RequiresNotNull(comparer);
+            Contract.RequiresNotNull(taskProducers);
             Contract.RequiresForAll(taskProducers, producer => producer != null);
 
             T[] lastValues;
@@ -49,7 +49,7 @@ namespace BuildXL.Utilities.Tasks
         /// </remarks>
         public static Task<T[]> WhenStable<T>(this Func<Task<T>>[] taskProducers)
         {
-            Contract.Requires(taskProducers != null);
+            Contract.RequiresNotNull(taskProducers);
 
             return WhenStable(taskProducers, EqualityComparer<T>.Default);
         }

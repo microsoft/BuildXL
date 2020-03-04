@@ -57,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
                 var cacheResult = await MetadataCache.DeleteFingerprintAsync(context, strongFingerprint);
                 if (!cacheResult.Succeeded)
                 {
-                    Logger.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
+                    context.Error($"Error while removing fingerprint {strongFingerprint} from metadata cache. Result: {cacheResult}.");
                 }
 
                 return await _innerCacheSession.AddOrGetContentHashListAsync(context, strongFingerprint, contentHashListWithDeterminism, cts, urgencyHint);

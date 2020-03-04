@@ -12,11 +12,16 @@ namespace BuildXL.Cache.Logging.External
     /// <summary>
     ///     Provides an adapter between an NLog instance and our internal ILogger implementation
     /// </summary>
-    public sealed class NLogAdapter : ILogger
+    public sealed class NLogAdapter : ILogger, IStructuredLogger
     {
         private readonly ILogger _host;
         private readonly NLog.Logger _nlog;
         private int _errorCount;
+
+        /// <summary>
+        /// Used to prevent double-dispose from happening
+        /// </summary>
+        private int _disposed = 0;
 
         /// <summary>
         /// Whether to set unobserved task exceptions as observed.
@@ -46,58 +51,6 @@ namespace BuildXL.Cache.Logging.External
             AppDomain.CurrentDomain.DomainUnload += CurrentDomain_DomainUnload;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
-        }
-
-        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
-        {
-            Dispose();
-        }
-
-        private void CurrentDomain_DomainUnload(object sender, EventArgs e)
-        {
-            Dispose();
-        }
-
-        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
-        {
-            var exception = args.ExceptionObject as Exception;
-
-            string exitString = args.IsTerminating
-                                    ? "Process will exit"
-                                    : "Process will not exit";
-
-            try
-            {
-                _host.Error(exception, "An exception has occured and is unhandled. {0}", exitString);
-            }
-            catch (Exception loggerException)
-            {
-                Console.WriteLine("Logger threw exception: {0} while trying to log unhandled exception {1}. {2}",
-                                  loggerException,
-                                  exception ?? args.ExceptionObject,
-                                  exitString);
-            }
-        }
-
-        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
-        {
-            var exception = args.Exception;
-
-            try
-            {
-                _host.Error(exception, "An exception has occurred in an unobserved task. Process will exit");
-            }
-            catch (Exception loggerException)
-            {
-                Console.WriteLine("Logger threw exception: {0} while trying to log an unobserved task exception: {1}",
-                                  loggerException,
-                                  exception);
-            }
-
-            if (CatchUnobservedTaskExceptions && !args.Observed)
-            {
-                args.SetObserved();
-            }
         }
 
         /// <inheritdoc />
@@ -181,6 +134,20 @@ namespace BuildXL.Cache.Logging.External
         }
 
         /// <inheritdoc />
+        public void Log(Severity severity, string correlationId, string message)
+        {
+            var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: message);
+            logLine.Properties["CorrelationId"] = correlationId;
+
+            _nlog.Log(logLine);
+
+            if (severity == Severity.Error)
+            {
+                Interlocked.Increment(ref _errorCount);
+            }
+        }
+
+        /// <inheritdoc />
         public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
         {
             _nlog.Log(Translate(severity), messageFormat, messageArgs);
@@ -200,8 +167,83 @@ namespace BuildXL.Cache.Logging.External
         /// <inheritdoc />
         public void Dispose()
         {
-            _host.Info("Disposing NLog instance");
-            NLog.LogManager.Shutdown();
+            // The disposed field is about protecting from a double-dispose issue that can happen when shutting down,
+            // even if we don't have any errors. The CompareExchange is merely a mechanism 
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 0)
+            {
+#pragma warning disable CA1031 // Do not catch general exception types
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                try
+                {
+                    _host.Info("Disposing NLog instance");
+                }
+                catch (Exception)
+                {
+                }
+
+                try
+                {
+                    Flush();
+                    NLog.LogManager.Shutdown();
+                }
+                catch (Exception)
+                {
+                }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+#pragma warning restore CA1031 // Do not catch general exception types
+            }
+        }
+
+        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+
+        private void CurrentDomain_DomainUnload(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        {
+            var exception = args.ExceptionObject as Exception;
+
+            string exitString = args.IsTerminating
+                                    ? "Process will exit"
+                                    : "Process will not exit";
+
+            try
+            {
+                _host.Error(exception, "An exception has occured and is unhandled. {0}", exitString);
+            }
+            catch (Exception loggerException)
+            {
+                Console.WriteLine("Logger threw exception: {0} while trying to log unhandled exception {1}. {2}",
+                                  loggerException,
+                                  exception ?? args.ExceptionObject,
+                                  exitString);
+            }
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        {
+            var exception = args.Exception;
+
+            try
+            {
+                _host.Error(exception, "An exception has occurred in an unobserved task. Process will exit");
+            }
+            catch (Exception loggerException)
+            {
+                Console.WriteLine("Logger threw exception: {0} while trying to log an unobserved task exception: {1}",
+                                  loggerException,
+                                  exception);
+            }
+
+            if (CatchUnobservedTaskExceptions && !args.Observed)
+            {
+                args.SetObserved();
+            }
         }
 
         private void HandleConfigurationReload(object sender, NLog.Config.LoggingConfigurationReloadedEventArgs e)

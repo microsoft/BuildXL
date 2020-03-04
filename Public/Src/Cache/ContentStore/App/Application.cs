@@ -585,8 +585,8 @@ namespace BuildXL.Cache.ContentStore.App
 
         private void Trace(ResultBase result, Context context, string message)
         {
-            _tracer.Error(context, $"{message}, result=[{result}]");
-            _tracer.Debug(context, $"{result.Diagnostics}");
+            context.Error($"{message}, result=[{result}]");
+            context.Debug($"{result.Diagnostics}");
         }
 
         private void VerifyCachePathOrNameProvided(string name, string path)

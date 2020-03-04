@@ -16,15 +16,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
     public class Context
     {
         /// <summary>
+        ///     Cached string representation of <see cref="Id"/> property for performance reasons
+        /// </summary>
+        private readonly string _idAsString;
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
         /// <param name="logger">
         ///     Caller's logger to be invoked as processing occurs.
         /// </param>
         public Context(ILogger logger)
+            : this(Guid.NewGuid(), logger)
         {
-            Id = Guid.NewGuid();
-            Logger = logger;
         }
 
         /// <summary>
@@ -34,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         {
             Id = id;
             Logger = logger;
+            _idAsString = id.ToString();
         }
 
         /// <summary>
@@ -48,10 +53,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
         public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
+            : this(id, other.Logger)
         {
-            Id = id;
-            Logger = other.Logger;
-            Debug($"{caller}: {other.Id} parent to {Id}");
+            Debug($"{caller}: {other._idAsString} parent to {_idAsString}");
         }
 
         /// <nodoc />
@@ -94,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Always(string message)
         {
-            Logger?.Log(Severity.Always, message);
+            TraceMessage(Severity.Always, message);
         }
 
         /// <summary>
@@ -102,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Error(string message)
         {
-            Logger?.Log(Severity.Error, message);
+            TraceMessage(Severity.Error, message);
         }
 
         /// <summary>
@@ -110,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Warning(string message)
         {
-            Logger?.Log(Severity.Warning, message);
+            TraceMessage(Severity.Warning, message);
         }
 
         /// <summary>
@@ -118,7 +122,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Info(string message)
         {
-            Logger?.Log(Severity.Info, message);
+            TraceMessage(Severity.Info, message);
         }
 
         /// <summary>
@@ -126,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void Debug(string message)
         {
-            Logger?.Log(Severity.Debug, message);
+            TraceMessage(Severity.Debug, message);
         }
 
         /// <summary>
@@ -134,7 +138,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// </summary>
         public void TraceMessage(Severity severity, string message)
         {
-            Logger?.Log(severity, $"{Id} {message}");
+            if (Logger == null)
+            {
+                return;
+            }
+
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                structuredLogger.Log(severity, _idAsString, message);
+            }
+            else
+            {
+                Logger.Log(severity, $"{_idAsString} {message}");
+            }
         }
 
         /// <summary>

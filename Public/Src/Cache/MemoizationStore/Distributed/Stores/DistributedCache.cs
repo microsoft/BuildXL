@@ -94,14 +94,14 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 var innerCacheStarted = await _innerICache.StartupAsync(context);
                 if (!innerCacheStarted)
                 {
-                    _logger.Error("StartUp call on inner cache failed.");
+                    context.Error("StartUp call on inner cache failed.");
                     return new BoolResult(innerCacheStarted);
                 }
 
                 var metadataCacheStarted = await _metadataCache.StartupAsync(context);
                 if (!metadataCacheStarted)
                 {
-                    _logger.Error("StartUp call on metadata cache failed. Shutting down inner cache.");
+                    context.Error("StartUp call on metadata cache failed. Shutting down inner cache.");
                     await _innerICache.ShutdownAsync(context).ThrowIfFailure();
                     return new BoolResult(metadataCacheStarted);
                 }
@@ -135,13 +135,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 if (!innerCacheShutdown)
                 {
                     // TODO: should print errors as well.
-                    _logger.Error("Shutdown call on inner cache failed.");
+                    context.Error("Shutdown call on inner cache failed.");
                     return new BoolResult(innerCacheShutdown);
                 }
 
                 if (!metadataCacheShutdown)
                 {
-                    _logger.Error("Shutdown call on metadata cache failed.");
+                    context.Error("Shutdown call on metadata cache failed.");
                     return new BoolResult(metadataCacheShutdown);
                 }
 

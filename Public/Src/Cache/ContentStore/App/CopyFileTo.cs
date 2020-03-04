@@ -61,12 +61,12 @@ namespace BuildXL.Cache.ContentStore.App
                 var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, () => Task.FromResult(new Result<Stream>(stream)))).Result;
                 if (!copyFileResult.Succeeded)
                 {
-                    _logger.Error($"{copyFileResult}");
+                    context.Error($"{copyFileResult}");
                     throw new CacheException(copyFileResult.ErrorMessage);
                 }
                 else
                 {
-                    _logger.Info($"Copy of {sourcePath} was successful");
+                    context.Info($"Copy of {sourcePath} was successful");
                 }
             }
             catch (Exception ex)

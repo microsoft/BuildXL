@@ -37,7 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             {
                 var errorMessage =
                     $"Failed to get connection string from provider {connectionStringProvider.GetType().Name}. {connectionStringResult.ErrorMessage}. Diagnostics: {connectionStringResult.Diagnostics}";
-                context.Logger.Error(errorMessage);
+                context.Error(errorMessage);
                 throw new ArgumentException(errorMessage, nameof(connectionStringProvider));
             }
 

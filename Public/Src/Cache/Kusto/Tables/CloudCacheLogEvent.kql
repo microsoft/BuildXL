@@ -40,6 +40,15 @@
     // This log level corresponds to NLog's log level. See NLogAdapter.Translate
     LogLevel: int)
 
+.rename column CloudCacheLogEvent.ServiceName to Service
+
+.alter-merge table CloudCacheLogEvent (
+    // Obtained via ITelemetryFieldsProvider
+    MachineFunction: string,
+    // Obtained via ITelemetryFieldsProvider
+    Environment: string
+)
+
 // Create ingestion mapping.
 .create-or-alter table CloudCacheLogEvent ingestion csv mapping "Ingestion"  
 '['
@@ -61,9 +70,11 @@
 '    { "column": "Stamp", "Properties": { "Ordinal": "15" } },'
 '    { "column": "Ring", "Properties": { "Ordinal": "16" } },'
 '    { "column": "ConfigurationId", "Properties": { "Ordinal": "17" } },'
-'    { "column": "ServiceName", "Properties": { "Ordinal": "18" } },'
+'    { "column": "Service", "Properties": { "Ordinal": "18" } },'
 '    { "column": "ServiceVersion", "Properties": { "Ordinal": "19" } },'
 '    { "column": "CacheVersion", "Properties": { "Ordinal": "20" } },'
 '    { "column": "ProcessStartTimeUtc", "Properties": { "Ordinal": "21" } },'
 '    { "column": "LogLevel", "Properties": { "Ordinal": "22" } },'
+'    { "column": "MachineFunction", "Properties": { "Ordinal": "23" } },'
+'    { "column": "Environment", "Properties": { "Ordinal": "24" } },'
 ']';

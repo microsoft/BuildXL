@@ -26,7 +26,10 @@ namespace BuildXL.FrontEnd.MsBuild
         private readonly List<AbsolutePath> m_loadedMsBuildAssemblyLocations = new List<AbsolutePath>();
 
         /// <nodoc />
-        public const string Name = MsBuildWorkspaceResolver.MsBuildResolverName;
+        public override string Name => MsBuildWorkspaceResolver.MsBuildResolverName;
+
+        /// <inheritdoc />
+        public override bool ShouldRestrictBuildParameters { get; } = false;
 
         /// <inheritdoc/>
         public override IReadOnlyCollection<string> SupportedResolvers => new[] { MsBuildWorkspaceResolver.MsBuildResolverName };

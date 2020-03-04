@@ -167,7 +167,7 @@ namespace BuildXL.FrontEnd.CMake
         private async Task<Possible<Unit>> GenerateBuildDirectoryAsync()
         {
             Contract.Assert(m_buildDirectory.IsValid);
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(CMakeFrontEnd.Name);
+            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
             AbsolutePath argumentsFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
             if (!TryRetrieveCMakeSearchLocations(out IEnumerable<AbsolutePath> searchLocations))
             {
@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.CMake
                 return new CMakeGenerationError(m_resolverSettings.ModuleName, m_buildDirectory.ToString(m_context.PathTable));
             }
 
-            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, CMakeFrontEnd.Name, result.AllUnexpectedFileAccesses, outputDirectory);
+            FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, result.AllUnexpectedFileAccesses, outputDirectory);
             return Possible.Create(Unit.Void);
         }
 
@@ -219,7 +219,7 @@ namespace BuildXL.FrontEnd.CMake
                 }
             }
 
-            var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, CMakeFrontEnd.Name);
+            var environment = FrontEndUtilities.GetEngineEnvironment(m_host.Engine, Name);
 
             // TODO: This manual configuration is temporary. Remove after the cloud builders have the correct configuration
             var pathToManuallyDroppedTools = m_configuration.Layout.BuildEngineDirectory.Combine(m_context.PathTable, RelativePath.Create(m_context.StringTable, @"tools\CmakeNinjaPipEnvironment"));
@@ -292,7 +292,7 @@ namespace BuildXL.FrontEnd.CMake
 
 
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                CMakeFrontEnd.Name,
+                Name,
                 m_context,
                 m_host.Engine,
                 cmakeSearchLocations,

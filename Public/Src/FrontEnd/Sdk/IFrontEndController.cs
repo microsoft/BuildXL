@@ -60,6 +60,11 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>This method is assumed to be called after InitializeHost and ParseConfig</remarks>
         [NotNull]
         IReadOnlyList<string> GetNonScrubbablePaths();
+
+        /// <summary>
+        /// The collection of frontends that are registered with the controller.
+        /// </summary>
+        IEnumerable<IFrontEnd> RegisteredFrontEnds { get; }
     }
 
     /// <summary>

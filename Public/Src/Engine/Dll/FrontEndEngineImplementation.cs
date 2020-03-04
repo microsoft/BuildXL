@@ -47,6 +47,8 @@ namespace BuildXL.Engine
         private readonly Func<FileContentTable> m_getFileContentTable;
 
         private readonly bool m_isPartialReuse;
+        
+        private readonly IReadOnlyDictionary<string, bool> m_frontendsEnvironmentRestriction;
 
         /// <summary>
         /// All build parameters at creation time.
@@ -106,7 +108,8 @@ namespace BuildXL.Engine
             DirectoryTranslator directoryTranslator,
             Func<FileContentTable> getFileContentTable,
             int timerUpdatePeriod,
-            bool isPartialReuse)
+            bool isPartialReuse,
+            IEnumerable<IFrontEnd> registeredFrontends)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pathTable != null);
@@ -115,6 +118,7 @@ namespace BuildXL.Engine
             Contract.Requires(mountsTable != null);
             Contract.Requires(inputTracker != null);
             Contract.Requires(getFileContentTable != null);
+            Contract.Requires(registeredFrontends != null);
 
             m_loggingContext = loggingContext;
             PathTable = pathTable;
@@ -122,6 +126,7 @@ namespace BuildXL.Engine
             m_inputTracker = inputTracker;
             m_getFileContentTable = getFileContentTable;
             m_isPartialReuse = isPartialReuse;
+            m_frontendsEnvironmentRestriction = registeredFrontends.ToDictionary(frontend => frontend.Name, frontEnd => frontEnd.ShouldRestrictBuildParameters);
             m_snapshotCollector = snapshotCollector;
             GetTimerUpdatePeriod = timerUpdatePeriod;
             Layout = configuration.Layout;
@@ -401,9 +406,14 @@ namespace BuildXL.Engine
         {
             bool success;
 
-            // DScript, MSBuild, CMake, Ninja don't restrict accessing environment variables for now.
-            // TODO: we need something better than hardcoding front end names here
-            if (frontEnd == "DScript" || frontEnd == "MsBuild" || frontEnd == "CMake" || frontEnd == "Ninja")
+            // Build parameters are restricted depending on how the frontend is configured
+            var result = m_frontendsEnvironmentRestriction.TryGetValue(frontEnd, out bool restrictBuildParameters);
+            if (!result)
+            {
+                Contract.Assert(false, $"Frontend {frontEnd} should be registered. Registered front ends are: {string.Join(", ", m_frontendsEnvironmentRestriction.Keys)}");
+            }
+
+            if (!restrictBuildParameters)
             {
                 // Uses of environment variable can be get-value or has-variable, and both uses must be tracked.
                 var trackedValue = m_allBuildParameters.GetOrAdd(name, key => new TrackedValue(null, true));

@@ -16,7 +16,10 @@ namespace BuildXL.FrontEnd.Ninja
     public sealed class NinjaFrontEnd : FrontEnd<NinjaWorkspaceResolver>
     {
         /// <nodoc />
-        public const string Name = NinjaWorkspaceResolver.NinjaResolverName;
+        public override string Name => NinjaWorkspaceResolver.NinjaResolverName;
+
+        /// <inheritdoc />
+        public override bool ShouldRestrictBuildParameters { get; } = false;
 
         /// <inheritdoc/>
         public override IReadOnlyCollection<string> SupportedResolvers => new[] { NinjaWorkspaceResolver.NinjaResolverName };

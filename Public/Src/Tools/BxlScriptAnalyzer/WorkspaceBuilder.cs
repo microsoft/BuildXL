@@ -187,7 +187,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             null,
                             () => FileContentTable.CreateStub(),
                             5000,
-                            false);
+                            false,
+                            controller.RegisteredFrontEnds);
 
                         var searchPathToolsHash = new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable).ComputeSearchPathToolsHash();
                         pipGraphBuilder = new PipGraph.Builder(

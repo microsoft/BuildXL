@@ -307,6 +307,10 @@ namespace Test.BuildXL.FrontEnd.Core
 
         private class DummyFrontEnd1 : IFrontEnd
         {
+            public string Name { get; } = "DummyFrontEnd1";
+
+            public bool ShouldRestrictBuildParameters { get; } = false;
+
             public IReadOnlyCollection<string> SupportedResolvers => new[] { "UnitTest1" };
 
             public void InitializeFrontEnd(FrontEndHost host, FrontEndContext context, IConfiguration frontEndConfiguration)

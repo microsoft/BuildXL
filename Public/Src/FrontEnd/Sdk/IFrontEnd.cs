@@ -17,6 +17,11 @@ namespace BuildXL.FrontEnd.Sdk
     public interface IFrontEnd
     {
         /// <summary>
+        /// The name of the frontend
+        /// </summary>
+        string Name { get; }
+
+        /// <summary>
         /// Returns the supported resolvers
         /// </summary>
         /// <returns>The resulting collection is not null or empty.</returns>
@@ -45,5 +50,10 @@ namespace BuildXL.FrontEnd.Sdk
         /// Allows a frontend to log its statistics after evaluation
         /// </summary>
         void LogStatistics(Dictionary<string, long> statistics);
+
+        /// <summary>
+        /// Whether the use of environment variables are restricted during evaluation.
+        /// </summary>
+        bool ShouldRestrictBuildParameters { get; }
     }
 }

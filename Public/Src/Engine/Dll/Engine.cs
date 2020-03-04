@@ -2786,7 +2786,8 @@ namespace BuildXL.Engine
                         m_directoryTranslator,
                         () => FileContentTable,
                         Configuration.Logging.GetTimerUpdatePeriodInMs(),
-                        reuseResult?.IsPartialReuse == true))
+                        reuseResult?.IsPartialReuse == true,
+                        FrontEndController.RegisteredFrontEnds))
                     {
                         PipGraph newlyEvaluatedGraph;
                         if (TestHooks?.FrontEndEngineAbstraction != null)

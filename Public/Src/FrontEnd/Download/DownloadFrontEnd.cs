@@ -22,7 +22,10 @@ namespace BuildXL.FrontEnd.Download
         /// <summary>
         /// Gets or sets the name of the front-end.
         /// </summary>
-        public const string Name = KnownResolverKind.DownloadResolverKind;
+        public override string Name => KnownResolverKind.DownloadResolverKind;
+
+        /// <inheritdoc />
+        public override bool ShouldRestrictBuildParameters { get; } = true;
 
         /// <nodoc/>
         public DownloadFrontEnd()

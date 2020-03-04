@@ -151,6 +151,9 @@ namespace BuildXL.FrontEnd.Core
             DefaultEvaluationScheduler = EvaluationScheduler.Default;
         }
 
+        /// <inheritdoc/>
+        public IEnumerable<IFrontEnd> RegisteredFrontEnds => m_frontEndFactory.RegisteredFrontEnds;
+
         /// <summary>
         /// Ideally, Engine should be set in the constructor but parsing the config file prevents this ideal scenario.
         /// Until we create an engine before parsing the config, the engine can't be set in the constructor above.

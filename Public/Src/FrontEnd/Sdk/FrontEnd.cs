@@ -47,6 +47,12 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract IResolver CreateResolver([NotNull] string kind);
 
         /// <inheritdoc />
+        public abstract string Name { get; }
+
+        /// <inheritdoc />
+        public abstract bool ShouldRestrictBuildParameters { get; }
+
+        /// <inheritdoc />
         public virtual bool TryCreateWorkspaceResolver(
             [NotNull] IResolverSettings resolverSettings,
             [NotNull] out IWorkspaceModuleResolver workspaceResolver)

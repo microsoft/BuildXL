@@ -34,8 +34,6 @@ namespace BuildXL.FrontEnd.Script
             IDecorator<EvaluationResult> evaluationDecorator = null)
             : base(statistics, logger)
         {
-            Name = nameof(DScriptFrontEnd);
-
             m_customLogger = logger;
             m_evaluationDecorator = evaluationDecorator;
         }
@@ -110,5 +108,8 @@ namespace BuildXL.FrontEnd.Script
         {
             // Scripts statistics are still logged centrally for now.
         }
+
+        /// <inheritdoc/>
+        public bool ShouldRestrictBuildParameters { get; } = false;
     }
 }

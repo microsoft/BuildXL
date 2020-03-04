@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private async Task<Possible<ProjectGraphResult>> TryComputeBuildGraphAsync(IEnumerable<AbsolutePath> msBuildSearchLocations, IEnumerable<AbsolutePath> dotnetSearchLocations, IEnumerable<AbsolutePath> parsingEntryPoints, BuildParameters.IBuildParameters buildParameters)
         {
             // We create a unique output file on the obj folder associated with the current front end, and using a GUID as the file name
-            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(MsBuildFrontEnd.Name);
+            AbsolutePath outputDirectory = m_host.GetFolderForFrontEnd(Name);
             AbsolutePath outputFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
             // We create a unique response file that will contain the tool arguments
             AbsolutePath responseFile = outputDirectory.Combine(m_context.PathTable, Guid.NewGuid().ToString());
@@ -282,7 +282,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private bool TryRetrieveMsBuildSearchLocations(out IEnumerable<AbsolutePath> searchLocations)
         {
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                MsBuildFrontEnd.Name,
+                Name,
                 m_context,
                 m_host.Engine,
                 m_resolverSettings.MsBuildSearchLocations?.SelectList(directoryLocation => directoryLocation.Path),
@@ -301,7 +301,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private bool TryRetrieveDotNetSearchLocations(out IEnumerable<AbsolutePath> searchLocations)
         {
             return FrontEndUtilities.TryRetrieveExecutableSearchLocations(
-                MsBuildFrontEnd.Name,
+                Name,
                 m_context,
                 m_host.Engine,
                 m_resolverSettings.DotNetSearchLocations?.SelectList(directoryLocation => directoryLocation.Path),

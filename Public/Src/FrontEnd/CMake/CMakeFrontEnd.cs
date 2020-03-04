@@ -13,8 +13,11 @@ namespace BuildXL.FrontEnd.CMake
     /// </summary>
     public sealed class CMakeFrontEnd : FrontEnd<CMakeWorkspaceResolver>
     {
-        /// <nodoc />
-        public const string Name = CMakeWorkspaceResolver.CMakeResolverName;
+        /// <inheritdoc />
+        public override string Name => CMakeWorkspaceResolver.CMakeResolverName;
+
+        /// <inheritdoc />
+        public override bool ShouldRestrictBuildParameters { get; } = false;
 
         /// <inheritdoc/>
         public override IReadOnlyCollection<string> SupportedResolvers => new[] { CMakeWorkspaceResolver.CMakeResolverName };

@@ -281,7 +281,15 @@ if ($Vs -or $VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
-$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/exp:LazySODeletion", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
+$AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
+
+
+# Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
+# running under ADO (so we keep the feature out of PR validations for now).
+if (-not ($DominoArguments -like '*/ado*') -and $isMicrosoftInternal) {
+    $AdditionalBuildXLArguments += @("/exp:LazySODeletion");
+}
+
 $AdditionalBuildXLArguments += @("/p:[Sdk.BuildXL]useQTest=true");
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {

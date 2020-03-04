@@ -83,6 +83,8 @@ namespace BuildXL.Cache.Logging.Test
 
             public string ServiceName { get; } = "MockServiceName";
 
+            public string APEnvironment { get; } = "MockAPEnvironment";
+
             public string APCluster { get; } = "MockAPCluster";
 
             public string APMachineFunction { get; } = "MockAPMachineFunction";

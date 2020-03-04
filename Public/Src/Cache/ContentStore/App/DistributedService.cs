@@ -129,6 +129,8 @@ namespace BuildXL.Cache.ContentStore.App
 
             public string ServiceName => "DistributedService";
 
+            public string APEnvironment => "None";
+
             public string APCluster => "None";
 
             public string APMachineFunction => "None";

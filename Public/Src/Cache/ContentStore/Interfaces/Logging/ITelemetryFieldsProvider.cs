@@ -15,6 +15,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         public string BuildId { get; }
 
         /// <nodoc />
+        public string APEnvironment { get; }
+
+        /// <nodoc />
         public string APCluster { get; }
 
         /// <nodoc />

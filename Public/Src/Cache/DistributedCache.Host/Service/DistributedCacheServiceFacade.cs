@@ -173,17 +173,13 @@ namespace BuildXL.Cache.Host.Service
             // This is needed for dependency ingestion. See: https://github.com/NLog/NLog/wiki/Dependency-injection-with-NLog
             // The issue is that we need to construct a log, which requires access to both our config and the host. It
             // seems too much to put it into the AzureBlobStorageLogTarget itself, so we do it here.
-            var numBlobStorageTargets = 0;
             var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
             NLog.Config.ConfigurationItemFactory.Default.CreateInstance = type =>
             {
                 if (type == typeof(AzureBlobStorageLogTarget))
                 {
-                    // There shouldn't be more than one per instantiation, just a smoke test.
-                    Contract.Assert(numBlobStorageTargets == 0);
                     var log = CreateAzureBlobStorageLogAsync(operationContext, arguments, arguments.Configuration.LoggingSettings.Configuration).Result;
                     var target = new AzureBlobStorageLogTarget(log);
-                    numBlobStorageTargets++;
                     return target;
                 }
 
@@ -195,6 +191,7 @@ namespace BuildXL.Cache.Host.Service
             // This is done in order to allow our logging configuration to access key telemetry information.
             var telemetryFieldsProvider = arguments.TelemetryFieldsProvider;
             NLog.LayoutRenderers.LayoutRenderer.Register("BuildId", _ => telemetryFieldsProvider.BuildId);
+            NLog.LayoutRenderers.LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
             NLog.LayoutRenderers.LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
             NLog.LayoutRenderers.LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
             NLog.LayoutRenderers.LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);

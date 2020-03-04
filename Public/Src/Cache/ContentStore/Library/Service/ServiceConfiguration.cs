@@ -59,7 +59,8 @@ namespace BuildXL.Cache.ContentStore.Service
             int grpcPort,
             string grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? gzipBarrierSizeForGrpcCopies = null,
+            int? proactivePushCountLimit = null)
         {
             Contract.Requires(namedCacheRoots != null);
 
@@ -71,6 +72,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = proactivePushCountLimit;
             Initialize();
         }
 
@@ -129,6 +131,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         [DataMember]
         public int? BufferSizeForGrpcCopies { get; set; }
+
+        /// <summary>
+        /// The max number of proactive pushes that can happen at the same time.
+        /// </summary>
+        public int? ProactivePushCountLimit { get; set; }
 
         /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.

@@ -275,9 +275,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <summary>
-        /// Pushes content to another machine. Failure to open the source stream should return a null stream.
+        /// Pushes content to another machine.
         /// </summary>
-        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source)
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source)
         {
             try
             {
@@ -293,18 +293,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (!pushResponse.ShouldCopy)
                 {
                     context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
-                    return BoolResult.Success;
+                    return new PushFileResult(hash, result: false);
                 }
 
-                var stream = await source();
+                var streamResult = await source();
 
-                if (stream == null)
+                if (!streamResult)
                 {
                     await requestStream.CompleteAsync();
-                    return new BoolResult("Failed to retrieve source stream.");
+                    return new PushFileResult(hash, streamResult, "Failed to retrieve source stream.");
                 }
-
-                using (stream)
+                
+                using (var stream = streamResult.Value)
                 {
                     await StreamContentAsync(stream, new byte[_bufferSize], requestStream, context.Token);
                 }
@@ -316,12 +316,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var response = responseStream.Current;
 
                 return response.Header.Succeeded
-                    ? BoolResult.Success
-                    : new BoolResult(response.Header.ErrorMessage);
+                    ? new PushFileResult(hash, result: true)
+                    : new PushFileResult(hash, response.Header.ErrorMessage);
             }
             catch (RpcException r)
             {
-                return new BoolResult(r);
+                return new PushFileResult(hash, r);
             }
         }
 

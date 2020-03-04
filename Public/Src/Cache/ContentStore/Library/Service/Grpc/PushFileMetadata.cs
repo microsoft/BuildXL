@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public static PushResponse Copy { get; } = new PushResponse(shouldCopy: true);
 
         /// <nodoc />
-        public static PushResponse DontCopy { get; } = new PushResponse(shouldCopy: false);
+        public static PushResponse DoNotCopy { get; } = new PushResponse(shouldCopy: false);
 
         /// <nodoc />
         public static PushResponse FromMetadata(Metadata metadata)
@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     if (bool.TryParse(header.Value, out var shouldCopy))
                     {
-                        return shouldCopy ? Copy : DontCopy;
+                        return shouldCopy ? Copy : DoNotCopy;
                     }
                 }
             }

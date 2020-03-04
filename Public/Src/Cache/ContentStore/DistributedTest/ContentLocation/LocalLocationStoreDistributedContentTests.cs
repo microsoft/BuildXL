@@ -102,6 +102,7 @@ namespace ContentStoreTest.Distributed.Sessions
         /// <nodoc />
         protected bool EnableProactiveCopy { get; set; } = false;
         protected bool PushProactiveCopies { get; set; } = false;
+        protected int? ProactivePushCountLimit { get; set; }
         protected bool EnableProactiveReplication { get; set; } = false;
         protected bool ProactiveCopyOnPuts { get; set; } = true;
         protected bool ProactiveCopyOnPins { get; set; } = false;
@@ -310,6 +311,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     GrpcPort = grpcPort,
                     GrpcPortFileName = Guid.NewGuid().ToString(),
                     ScenarioName = Guid.NewGuid().ToString(),
+                    MaxProactivePushRequestHandlers = ProactivePushCountLimit, 
                 }
             };
 
@@ -816,6 +818,78 @@ namespace ContentStoreTest.Distributed.Sessions
                     await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication).ShouldBeSuccessAsync();
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
                 });
+        }
+
+        [Fact]
+        public async Task ProactiveCopyWithTooManyRequestsTest()
+        {
+            // This test adds a lot of files in a session (without proactive copies on put),
+            // and then explicitly forces a push to another session in parallel.
+            // The test expects that some of the operations would be rejected (even though the push itself is considered successful).
+
+            EnableProactiveReplication = false;
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
+            
+            ProactiveCopyOnPuts = false;
+            UseGrpcServer = true;
+
+            ConfigureWithOneMaster(dcs => dcs.TouchFrequencyMinutes = 1);
+
+            // Limiting the concurrency and expecting that at least some of them will fail.
+            ProactivePushCountLimit = 1;
+            await runTestAsync(count: 100, expectAllSuccesses: false);
+
+            // Increasing the concurrency to the number of operations. All the pushes should be successful and accepted.
+            ProactivePushCountLimit = 100;
+            await runTestAsync(count: 100, expectAllSuccesses: true);
+
+            Task runTestAsync(int count, bool expectAllSuccesses)
+            {
+                return RunTestAsync(
+                    new Context(Logger),
+                    storeCount: 2,
+                    iterations: 1,
+                    implicitPin: ImplicitPin.None,
+                    testFunc: async context =>
+                              {
+                                  var session0 = context.GetDistributedSession(0);
+
+                                  var putResults = new List<PutResult>();
+
+                                  for (int i = 0; i < count; i++)
+                                  {
+                                      putResults.Add(
+                                          await session0.PutRandomAsync(context, HashType.MD5, provideHash: false, size: 31, CancellationToken.None));
+                                  }
+
+                                  TestClock.Increment();
+
+                                  var tasks = putResults.Select(
+                                      async pr =>
+                                      {
+                                          var result = await session0.ProactiveCopyIfNeededAsync(
+                                              context,
+                                              pr.ContentHash,
+                                              tryBuildRing: false,
+                                              ProactiveCopyReason.Replication);
+                                          return result.OutsideRingCopyResult;
+                                      });
+
+                                  var results = await Task.WhenAll(tasks);
+                                  // We should have at least some skipped operations, because we tried 100 pushes at the same time with 1 as the push count limit.
+
+                                  var acceptedSuccesses = results.Count(r => r.Value);
+                                  if (expectAllSuccesses)
+                                  {
+                                      acceptedSuccesses.Should().Be(count);
+                                  }
+                                  else
+                                  {
+                                      acceptedSuccesses.Should().NotBe(count);
+                                  }
+                              });
+            }
         }
 
         private LocalRedisProcessDatabase GetDatabase(Context context, ref int index, bool useDatabasePool = true)

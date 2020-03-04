@@ -31,6 +31,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.WindowsAzure.Storage.Auth;
+using static BuildXL.Cache.Host.Service.Internal.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
@@ -602,22 +603,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
             return null;
 
-        }
-
-        private static void ApplyIfNotNull<T>(T value, Action<T> apply) where T : class
-        {
-            if (value != null)
-            {
-                apply(value);
-            }
-        }
-
-        private static void ApplyIfNotNull<T>(T? value, Action<T> apply) where T : struct
-        {
-            if (value != null)
-            {
-                apply(value.Value);
-            }
         }
 
         private static Secret GetRequiredSecret(Dictionary<string, Secret> secrets, string secretName)

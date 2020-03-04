@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -279,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Stream>> streamFactory, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
+        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Result<Stream>>> streamFactory, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
         {
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
             {

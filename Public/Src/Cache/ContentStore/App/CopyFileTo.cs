@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -57,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.App
                 using Stream stream = File.OpenRead(path.Path);
 
                 // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, () => Task.FromResult(stream))).Result;
+                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, () => Task.FromResult(new Result<Stream>(stream)))).Result;
                 if (!copyFileResult.Succeeded)
                 {
                     _logger.Error($"{copyFileResult}");

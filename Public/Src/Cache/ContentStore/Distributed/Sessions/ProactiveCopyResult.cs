@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
@@ -12,10 +13,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public bool WasProactiveCopyNeeded { get; }
 
         /// <nodoc />
-        public BoolResult RingCopyResult { get; }
+        public PushFileResult RingCopyResult { get; }
 
         /// <nodoc />
-        public BoolResult OutsideRingCopyResult { get; }
+        public PushFileResult OutsideRingCopyResult { get; }
 
         /// <nodoc />
         public static ProactiveCopyResult CopyNotRequiredResult { get; } = new ProactiveCopyResult();
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
+        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
             WasProactiveCopyNeeded = true;
@@ -40,26 +41,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
         }
 
-        private static string GetErrorMessage(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
+        private static string GetErrorMessage(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
             if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)
             {
                 return
                     $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)} " +
-                    $"RingMachineResult=[{(ringCopyResult.Succeeded ? "Success" : ringCopyResult.ErrorMessage)}] " +
-                    $"OutsideRingMachineResult=[{(outsideRingCopyResult.Succeeded ? "Success" : outsideRingCopyResult.ErrorMessage)}] ";
+                    $"RingMachineResult=[{ringCopyResult.GetSuccessOrErrorMessage()}] " +
+                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetSuccessOrErrorMessage()}] ";
             }
 
             return null;
         }
 
-        private static string GetDiagnostics(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
+        private static string GetDiagnostics(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
             if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)
             {
                 return
-                    $"RingMachineResult=[{(ringCopyResult.Succeeded ? "Success" : ringCopyResult.Diagnostics)}] " +
-                    $"OutsideRingMachineResult=[{(outsideRingCopyResult.Succeeded ? "Success" : outsideRingCopyResult.Diagnostics)}] ";
+                    $"RingMachineResult=[{ringCopyResult.GetSuccessOrDiagnostics()}] " +
+                    $"OutsideRingMachineResult=[{ringCopyResult.GetSuccessOrDiagnostics()}] ";
             }
 
             return null;

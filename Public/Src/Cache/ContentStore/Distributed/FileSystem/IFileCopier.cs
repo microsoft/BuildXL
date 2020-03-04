@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 // ReSharper disable All
@@ -62,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Copies files to another machine.
     /// </summary>
-    public interface IContentCommunicationManager // TODO: rename to IContentManager
+    public interface IContentCommunicationManager
     {
         /// <summary>
         /// Requests another machine to copy a file.
@@ -72,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Pushes content to a target machine.
         /// </summary>
-        Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source, MachineLocation targetMachine);
+        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source, MachineLocation targetMachine);
 
         /// <summary>
         /// Deletes content from a target machine

@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
@@ -121,10 +122,11 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
         }
 
-        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source, MachineLocation targetMachine)
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source, MachineLocation targetMachine)
         {
             var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
-            using var stream = await source();
+            var streamResult = await source();
+            using var stream = streamResult.Value;
             using (var file = File.OpenWrite(tempFile.Path))
             {
                 await stream.CopyToAsync(file);
@@ -134,7 +136,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             File.Delete(tempFile.Path);
 
-            return result ? BoolResult.Success : new BoolResult(result);
+            return result ? new PushFileResult(hash, result: true) : new PushFileResult(hash, result);
         }
 
         public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)

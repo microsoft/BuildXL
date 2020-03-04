@@ -14,13 +14,22 @@ namespace BuildXL.Cache.ContentStore.Service
     public sealed class LocalServerConfiguration
     {
         /// <nodoc />
-        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, IAbsFileSystem fileSystem, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
+        public LocalServerConfiguration(
+            AbsolutePath dataRootPath,
+            IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots,
+            int grpcPort,
+            IAbsFileSystem fileSystem,
+            int? bufferSizeForGrpcCopies = null,
+            int? gzipBarrierSizeForGrpcCopies = null,
+            int? proactivePushCountLimit = null
+            )
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = proactivePushCountLimit;
             FileSystem = fileSystem;
         }
 
@@ -45,6 +54,7 @@ namespace BuildXL.Cache.ContentStore.Service
             GrpcPortFileName = serviceConfiguration.GrpcPortFileName;
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
+            ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
             return this;
         }
 
@@ -96,6 +106,14 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public int? BufferSizeForGrpcCopies { get; private set; }
+
+        /// <nodoc />
+        public const int DefaultProactivePushCountLimit = 128;
+
+        /// <summary>
+        /// The max number of proactive pushes that can happen at the same time.
+        /// </summary>
+        public int? ProactivePushCountLimit { get; private set; }
 
         /// <summary>
         /// Files greater than this size will be compressed via GZip when GZip is enabled.

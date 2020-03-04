@@ -24,6 +24,8 @@ using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
 using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
+using static BuildXL.Scheduler.Tracing.FingerprintStoreTestHooks;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -520,6 +522,46 @@ namespace Test.BuildXL.FingerprintStore
                     new JProperty(nameof(CacheMissAnalysisDetail.Info), null));
 
             XAssert.AreEqual(detail.ToString(), m_cacheMissAnalysisDetail);
+        }
+
+        [Fact]
+        public void DirectoryMembershipExistenceTest()
+        {
+            CacheMissData cacheMiss;
+
+            DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(ReadonlyRoot));
+            Directory.CreateDirectory(ArtifactToString(dir));
+
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dir),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            }).Process;
+
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = true;
+            FileArtifact srcFile1 = CreateSourceFile(dir);
+            File.WriteAllText(ArtifactToString(srcFile1), "member1");
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            ScheduleRunResult buildA = RunScheduler().AssertCacheHit(pip.PipId);
+
+            FileArtifact srcFile2 = CreateSourceFile(dir);
+            File.WriteAllText(ArtifactToString(srcFile2), "member2");
+            ScheduleRunResult buildB = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out cacheMiss));
+            XAssert.Contains(cacheMiss.DetailAndResult.Detail.Info.ToString(), srcFile2.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable));
+
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = false;
+            ScheduleRunResult buildC = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out cacheMiss));
+            XAssert.Contains(cacheMiss.DetailAndResult.Detail.Info.ToString(), ObservedPathSet.Labels.UnsafeOptions);
+
+            FileArtifact srcFile3 = CreateSourceFile(dir);
+            File.WriteAllText(ArtifactToString(srcFile3), "member3");
+            ScheduleRunResult buildD = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
+
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out cacheMiss));
+            XAssert.Contains(cacheMiss.DetailAndResult.Detail.Info.ToString(), srcFile3.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable));
+            XAssert.ContainsNot(cacheMiss.DetailAndResult.Detail.Info.ToString(), RepeatedStrings.MissingDirectoryMembershipFingerprint);
         }
 
         private void MakeTwoPhaseCacheForgetEverything()

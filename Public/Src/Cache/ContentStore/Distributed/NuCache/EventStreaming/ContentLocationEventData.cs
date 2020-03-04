@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         Touch,
 
         /// <nodoc />
-        Reconcile,
+        Blob,
 
         /// <nodoc />
         AddLocationWithoutTouching,
@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public EventKind Kind { get; }
 
         /// <nodoc />
-        protected virtual EventKind SerializationKind => Kind;
+        protected internal virtual EventKind SerializationKind => Kind;
 
         /// <summary>
         /// A current machine id.
@@ -99,8 +99,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     return new RemoveContentLocationEventData(sender, hashes);
                 case EventKind.Touch:
                     return new TouchContentLocationEventData(sender, hashes, eventTimeUtc);
-                case EventKind.Reconcile:
-                    return new ReconcileContentLocationEventData(sender, reader.ReadString());
+                case EventKind.Blob:
+                    return new BlobContentLocationEventData(sender, reader.ReadString());
                 case EventKind.UpdateMetadataEntry:
                     return new UpdateMetadataEntryEventData(sender, reader);
                 default:
@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case TouchContentLocationEventData touchContentLocationEventData:
                     // Do nothing. No extra data. Touch timestamp is taken from event enqueue time
                     break;
-                case ReconcileContentLocationEventData reconcileContentLocationEventData:
+                case BlobContentLocationEventData reconcileContentLocationEventData:
                     writer.Write(reconcileContentLocationEventData.BlobId);
                     break;
             }
@@ -222,7 +222,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public bool Touch { get; }
 
         /// <inheritdoc />
-        protected override EventKind SerializationKind => Touch ? EventKind.AddLocation : EventKind.AddLocationWithoutTouching;
+        protected internal override EventKind SerializationKind => Touch ? EventKind.AddLocation : EventKind.AddLocationWithoutTouching;
 
         /// <nodoc />
         public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent, bool touch = true)
@@ -284,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
     }
 
     /// <nodoc />
-    public sealed class ReconcileContentLocationEventData : ContentLocationEventData
+    public sealed class BlobContentLocationEventData : ContentLocationEventData
     {
         /// <summary>
         /// The blob identifier of the reconciliation blob
@@ -292,8 +292,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public string BlobId { get; }
 
         /// <nodoc />
-        public ReconcileContentLocationEventData(MachineId sender, string blobId)
-            : base(EventKind.Reconcile, sender, CollectionUtilities.EmptyArray<ShortHash>())
+        public BlobContentLocationEventData(MachineId sender, string blobId)
+            : base(EventKind.Blob, sender, CollectionUtilities.EmptyArray<ShortHash>())
         {
             BlobId = blobId;
         }

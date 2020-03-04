@@ -105,6 +105,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             private readonly PropertyInfo _systemPropertiesPropertyInfo = typeof(EventData).GetProperty(nameof(EventData.SystemProperties));
             private readonly List<EventData> _eventStream = new List<EventData>();
 
+            internal IReadOnlyList<EventData> EventStream => _eventStream;
+
             private readonly object _syncLock = new object();
 
             private event Action<EventData> OnEvent;

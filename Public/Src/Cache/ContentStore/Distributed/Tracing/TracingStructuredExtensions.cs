@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Add, #{eventStoreCounters[DispatchAddLocations].Value}, #{eventStoreCounters[DispatchAddLocationsHashes].Value}, {(long)eventStoreCounters[DispatchAddLocations].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Remove, #{eventStoreCounters[DispatchRemoveLocations].Value}, #{eventStoreCounters[DispatchRemoveLocationsHashes].Value}, {(long)eventStoreCounters[DispatchRemoveLocations].Duration.TotalMilliseconds}ms], ")
                 .Append($"[Touch, #{eventStoreCounters[DispatchTouch].Value}, #{eventStoreCounters[DispatchTouchHashes].Value}, {(long)eventStoreCounters[DispatchTouch].Duration.TotalMilliseconds}ms], ")
-                .Append($"[Reconcile, #{eventStoreCounters[DispatchReconcile].Value}, N/A, {(long)eventStoreCounters[DispatchReconcile].Duration.TotalMilliseconds}ms].");
+                .Append($"[Stored, #{eventStoreCounters[DispatchBlob].Value}, N/A, {(long)eventStoreCounters[DispatchBlob].Duration.TotalMilliseconds}ms].");
             context.TraceInfo(
                 $"{nameof(EventHubContentLocationEventStore)}: processed {eventStoreCounters[ReceivedEventBatchCount].Value} message(s) by {duration}ms. {sb}");
         }
@@ -145,7 +145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                 .Append($"[Add, #{eventStoreCounters[SentAddLocationsEvents].Value}, #{eventStoreCounters[SentAddLocationsHashes].Value}], ")
                 .Append($"[Remove, #{eventStoreCounters[SentRemoveLocationsEvents].Value}, #{eventStoreCounters[SentRemoveLocationsHashes].Value}], ")
                 .Append($"[Touch, #{eventStoreCounters[SentTouchLocationsEvents].Value}, #{eventStoreCounters[SentTouchLocationsHashes].Value}], ")
-                .Append($"[Reconcile, #{eventStoreCounters[SentReconcileEvents].Value}, N/A].");
+                .Append($"[Stored, #{eventStoreCounters[SentStoredEvents].Value}, N/A].");
             context.TraceInfo($"{nameof(EventHubContentLocationEventStore)}: sent {eventStoreCounters[SentEventBatchCount].Value} message(s) by {duration}ms. {sb}");
         }
 

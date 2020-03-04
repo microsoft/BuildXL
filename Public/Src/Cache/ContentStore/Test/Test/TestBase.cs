@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -53,6 +54,9 @@ namespace ContentStoreTest.Test
         {
             Contract.Requires(logger != null);
             Logger = logger;
+
+            _fileSystem = _fileSystem ?? new Lazy<IAbsFileSystem>(() => new PassThroughFileSystem());
+            _testRootDirectory = new Lazy<DisposableDirectory>(() => new DisposableDirectory(FileSystem, Guid.NewGuid().ToString("N").Substring(0, 12)));
 
             TaskScheduler.UnobservedTaskException += OnTaskSchedulerOnUnobservedTaskException;
             FailFastContractChecker.RegisterForFailFastContractViolations();

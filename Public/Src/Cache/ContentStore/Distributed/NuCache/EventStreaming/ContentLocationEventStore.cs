@@ -34,11 +34,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly ContentLocationEventStoreConfiguration _configuration;
 
         /// <summary>
-        /// Indicates the maximum amount of content which will be sent via events vs storage for reconcilation.
+        /// Indicates the maximum amount of content which will be sent via events vs storage for reconcilation/update metadata entry.
         /// If under threshold, the events are sent via standard event streaming pipeline
-        /// If over threshold, the events are serialized to storage instead and a single reconcile event is sent with storage id.
+        /// If over threshold, the events are serialized to storage instead and a single event is sent with storage id.
         /// </summary>
-        public const int ReconcileContentCountEventThreshold = 10000;
+        public const int LargeEventContentCountThreshold = 10000;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; }
@@ -153,10 +153,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         EventHandler.ContentTouched(context, touchContent.Sender, touchContent.ContentHashes, touchContent.AccessTime);
                     }
                     break;
-                case ReconcileContentLocationEventData reconcileContent:
-                    using (counters[DispatchReconcile].Start())
+                case BlobContentLocationEventData blobEvent:
+                    using (counters[DispatchBlob].Start())
                     {
-                        await DeserializeAndDispatchReconcileEventAsync(context, reconcileContent, counters);
+                        await GetDeserializeAndDispatchBlobEventAsync(context, blobEvent, counters);
                     }
                     break;
                 case UpdateMetadataEntryEventData updateMetadata:
@@ -170,51 +170,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private Task DeserializeAndDispatchReconcileEventAsync(OperationContext context, ReconcileContentLocationEventData reconcileContent, CounterCollection<ContentLocationEventStoreCounters> counters)
+        private Task GetDeserializeAndDispatchBlobEventAsync(OperationContext context, BlobContentLocationEventData blobEvent, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
-                    IEnumerable<ContentLocationEventData> addOrRemoveEvents;
+                    IEnumerable<ContentLocationEventData> eventDatas;
 
-                    using (counters[GetAndDeserializeReconcileData].Start())
+                    using (counters[GetAndDeserializeEventData].Start())
                     {
-                        addOrRemoveEvents = await getAndDeserializeReconcileDataAsync();
+                        eventDatas = await getAndDeserializeLargeEventDataAsync();
                     }
 
-                    int added = 0;
-                    int removed = 0;
-
-                    foreach (var addOrRemoveEvent in addOrRemoveEvents)
+                    foreach (var eventData in eventDatas)
                     {
-                        if (addOrRemoveEvent.Kind == EventKind.AddLocation)
+                        if (eventData.Kind == EventKind.AddLocation
+                            || eventData.Kind == EventKind.AddLocationWithoutTouching
+                            || eventData.Kind == EventKind.RemoveLocation)
                         {
-                            added += addOrRemoveEvent.ContentHashes.Count;
-                        }
-                        else if (addOrRemoveEvent.Kind == EventKind.RemoveLocation)
-                        {
-                            removed += addOrRemoveEvent.ContentHashes.Count;
+                            // Add or remove events only go through this code path if reconciling
+                            eventData.Reconciling = true;
                         }
 
-                        addOrRemoveEvent.Reconciling = true;
-
-                        await DispatchAsync(context, addOrRemoveEvent, counters);
+                        await DispatchAsync(context, eventData, counters);
                     }
 
-                    // We don't know what is the total number of processed entries after deserialization.
-                    return new ReconciliationResult(addedCount: added, removedCount: removed, totalLocalContentCount: -1);
+                    return BoolResult.Success;
+
                 }).ThrowIfFailure();
 
-            async Task<IEnumerable<ContentLocationEventData>> getAndDeserializeReconcileDataAsync()
+            async Task<IEnumerable<ContentLocationEventData>> getAndDeserializeLargeEventDataAsync()
             {
-                var reconcileFilePath = _workingDirectory / Guid.NewGuid().ToString();
-                var blobName = reconcileContent.BlobId;
+                var blobFilePath = _workingDirectory / Guid.NewGuid().ToString();
+                var blobName = blobEvent.BlobId;
 
-                await _storage.TryGetFileAsync(context, blobName, reconcileFilePath).ThrowIfFailure();
+                await _storage.TryGetFileAsync(context, blobName, blobFilePath).ThrowIfFailure();
 
                 using var stream = await _fileSystem.OpenSafeAsync(
-                    reconcileFilePath,
+                    blobFilePath,
                     FileAccess.Read,
                     FileMode.Open,
                     FileShare.Read | FileShare.Delete,
@@ -222,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     AbsFileSystemExtension.DefaultFileStreamBufferSize);
                 using var reader = BuildXLReader.Create(stream, leaveOpen: true);
                 // Calling ToList to force materialization of IEnumerable to avoid access of disposed stream.
-                return EventDataSerializer.DeserializeReconcileData(reader).ToList();
+                return EventDataSerializer.DeserializeEvents(reader).ToList();
             }
         }
 
@@ -291,8 +285,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             localCounters[SentTouchLocationsEvents].Add(eventCount);
                             localCounters[SentTouchLocationsHashes].Add(hashCount);
                             break;
-                        case EventKind.Reconcile:
-                            localCounters[SentReconcileEvents].Add(eventCount);
+                        case EventKind.Blob:
+                            localCounters[SentStoredEvents].Add(eventCount);
                             break;
                         case EventKind.UpdateMetadataEntry:
                             localCounters[SentUpdateMetadataEntryEvents].Add(eventCount);
@@ -346,7 +340,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case EventKind.UpdateMetadataEntry:
                     return EntryOperation.UpdateMetadataEntry;
                 default:
-                    // NOTE: This is invalid because reconciliation events should not have associated hashes
+                    // NOTE: This is invalid because blob events should not have associated hashes
                     // The derived add/remove events will have the hashes
                     return EntryOperation.Invalid;
             }
@@ -362,49 +356,94 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 async () =>
                 {
                     // If under threshold just send reconcile events via normal events
-                    if (addedContent.Count + removedContent.Count < ReconcileContentCountEventThreshold)
+                    if (addedContent.Count + removedContent.Count < LargeEventContentCountThreshold)
                     {
                         return AddLocations(context, machine, addedContent, reconciling: true) & RemoveLocations(context, machine, removedContent, reconciling: true);
                     }
 
-                    var reconcileFilePath = _workingDirectory / $"reconcile.{Environment.MachineName}.{machine.Index}.blob";
-                    var blobName = $"reconciles/{Environment.MachineName}.{machine.Index}.blob";
-
-                    try
-                    {
-                        using (var stream = await _fileSystem.OpenSafeAsync(reconcileFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
-                        using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
+                    await StoreAndPublishLargeEventStreamAsync(
+                        context,
+                        machine,
+                        name: $"reconcile.{Environment.MachineName}.{machine.Index}",
+                        eventDatas: new ContentLocationEventData[]
                         {
-                            EventDataSerializer.SerializeReconcileData(context, writer, machine, addedContent, removedContent);
-                        }
+                            new AddContentLocationEventData(machine, addedContent),
+                            new RemoveContentLocationEventData(machine, removedContent)
+                        }).ThrowIfFailure();
 
-                        // Uploading the checkpoint
-                        var storageIdResult = await _storage.UploadFileAsync(context, reconcileFilePath, blobName).ThrowIfFailure();
-                        var storageId = storageIdResult.Value;
-
-                        Publish(context, new ReconcileContentLocationEventData(machine, storageId));
-
-                        return BoolResult.Success;
-                    }
-                    finally
-                    {
-                        _fileSystem.DeleteFile(reconcileFilePath);
-                    }
+                    return BoolResult.Success;
                 },
                 Counters[PublishReconcile],
                 extraEndMessage: _ => $"AddedContent={addedContent.Count}, RemovedContent={removedContent.Count}, TotalContent={addedContent.Count + removedContent.Count}");
         }
 
+
+        /// <summary>
+        /// Notifies about reconciliation of content
+        /// </summary>
+        public async Task<BoolResult> StoreAndPublishLargeEventStreamAsync(OperationContext context, MachineId machine, string name, IReadOnlyList<ContentLocationEventData> eventDatas)
+        {
+            return await context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    if (eventDatas.Count == 0)
+                    {
+                        return (0, "N/A");
+                    }
+
+                    var blobFilePath = _workingDirectory / $"event.{name}.blob";
+                    var blobName = $"events/{name}.blob";
+
+                    try
+                    {
+                        long size = 0;
+                        using (var stream = await _fileSystem.OpenSafeAsync(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
+                        using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
+                        {
+                            EventDataSerializer.SerializeEvents(writer, eventDatas);
+                            size = stream.Position;
+                        }
+
+                        // Uploading the checkpoint
+                        var storageIdResult = await _storage.UploadFileAsync(context, blobFilePath, blobName).ThrowIfFailure();
+                        var storageId = storageIdResult.Value;
+
+                        Publish(context, new BlobContentLocationEventData(machine, storageId));
+
+                        return Result.Success((size, storageId));
+                    }
+                    finally
+                    {
+                        _fileSystem.DeleteFile(blobFilePath);
+                    }
+                },
+                Counters[PublishLargeEvent],
+                extraEndMessage: r => $"Name={name}, Size={r.Value.size}, StorageId={r.Value.storageId}");
+        }
+
         /// <summary>
         /// Notify that the content hash list entry was updated.
         /// </summary>
-        public BoolResult UpdateMetadataEntry(OperationContext context, UpdateMetadataEntryEventData data)
+        public Task<BoolResult> UpdateMetadataEntryAsync(OperationContext context, UpdateMetadataEntryEventData data)
         {
-            return context.PerformOperation(
+            return context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
-                    Publish(context, data);
+                    if (data.Entry.ContentHashListWithDeterminism.ContentHashList?.Hashes.Count < LargeEventContentCountThreshold)
+                    {
+                        Publish(context, data);
+                    }
+                    else
+                    {
+                        await StoreAndPublishLargeEventStreamAsync(
+                            context,
+                            data.Sender,
+                            name: $"metadata.{Environment.MachineName}.{Guid.NewGuid()}",
+                            eventDatas: new[] { data }).ThrowIfFailure();
+                    }
+
                     return BoolResult.Success;
                 },
                 Counters[PublishUpdateContentHashList]);

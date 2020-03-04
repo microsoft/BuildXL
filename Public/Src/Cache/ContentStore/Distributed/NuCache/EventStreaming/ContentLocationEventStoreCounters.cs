@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        DispatchReconcile,
+        DispatchBlob,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        GetAndDeserializeReconcileData,
+        GetAndDeserializeEventData,
 
         //
         // Send events counters
@@ -97,6 +97,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         PublishReconcile,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        PublishLargeEvent,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -142,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         SentTouchLocationsHashes,
 
         /// <nodoc />
-        SentReconcileEvents,
+        SentStoredEvents,
 
         /// <nodoc />
         SentUpdateMetadataEntryEvents,

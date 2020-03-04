@@ -107,11 +107,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 return false;
             }
 
-            if (left.Kind == EventKind.Reconcile)
+            if (left.Kind == EventKind.Blob)
             {
                 // Reconcile blobs do not have hashes so just check blob id equality
-                var leftReconcile = (ReconcileContentLocationEventData)left;
-                var rightReconcile = (ReconcileContentLocationEventData)right;
+                var leftReconcile = (BlobContentLocationEventData)left;
+                var rightReconcile = (BlobContentLocationEventData)right;
                 return leftReconcile.BlobId == rightReconcile.BlobId;
             }
 
@@ -157,8 +157,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             switch (eventData)
             {
-                case ReconcileContentLocationEventData reconcile:
-                    return $"{reconcile.BlobId}";
+                case BlobContentLocationEventData blobEvent:
+                    return $"{blobEvent.BlobId}";
                 default:
                     return string.Join(", ", Enumerable.Range(0, eventData.ContentHashes.Count).Select(index => PrintHashInfo(eventData, index)));
             }
@@ -224,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     long newOffset = _writer.Buffer.Position;
                     long eventSize = newOffset - oldOffset;
-                    Contract.Assert(eventSize <= MaxEventDataPayloadSize, "No mitigation for single event that is too large");
+                    Contract.Assert(eventSize <= MaxEventDataPayloadSize, $"No mitigation for single {splittedEventEntries[currentCount].Kind} event that is too large");
 
                     bool isLast = currentCount == (splittedEventEntries.Count - 1);
                     bool isOverflow = newOffset > MaxEventDataPayloadSize;
@@ -257,27 +257,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public void SerializeReconcileData(OperationContext context, BuildXLWriter writer, MachineId machine, IReadOnlyList<ShortHashWithSize> addedContent, IReadOnlyList<ShortHash> removedContent)
+        public void SerializeEvents(BuildXLWriter writer, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
-            var entries = new ContentLocationEventData[]
-            {
-                new AddContentLocationEventData(machine, addedContent),
-                new RemoveContentLocationEventData(machine, removedContent)
-            };
-
-            var finalEntries = SplitLargeInstancesIfNeeded(entries);
-
-            context.TraceDebug($"{nameof(ContentLocationEventDataSerializer)}: EntriesCount={finalEntries.Count}");
-
-            writer.WriteCompact(finalEntries.Count);
-            foreach (var eventData in finalEntries)
+            writer.WriteCompact(eventDatas.Count);
+            foreach (var eventData in eventDatas)
             {
                 eventData.Serialize(writer);
             }
         }
 
         /// <nodoc />
-        public IEnumerable<ContentLocationEventData> DeserializeReconcileData(BuildXLReader reader)
+        public IEnumerable<ContentLocationEventData> DeserializeEvents(BuildXLReader reader)
         {
             var entriesCount = reader.ReadInt32Compact();
 

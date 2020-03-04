@@ -37,6 +37,18 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
           ],
           "SessionUri": "https://b/build/893bd151-fbb7-1bc0-c5e1-0f28f4f657e2",
           "ScheduledDeletionTimeUtc": "2020-03-14T19:01:03.0632939Z"
+        },
+        "Test.BuildXL.FrontEnd.Script.Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })": {
+          "Name": "Test.BuildXL.FrontEnd.Script.Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })",
+          "DetectionTimeUtc": "2020-03-04T03:00:56.3452501Z",
+          "QuarantineExpiryTimeUtc": "2020-08-31T03:00:56.3452503Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1686716",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\l\\#NUM#\\l#NUM#c#NUM#xz#NUM#p#NUM#rhnczqvrvoj#NUM#dw\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
+          ],
+          "SessionUri": "https://b/build/74fbb0f5-878d-c417-93a1-4536fd5b570a",
+          "ScheduledDeletionTimeUtc": null
         }
       },
       "Metadata": {

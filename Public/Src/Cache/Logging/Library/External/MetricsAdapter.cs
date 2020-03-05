@@ -11,13 +11,13 @@ namespace BuildXL.Cache.Logging.External
     /// <remarks>
     ///     The inner loggers are considered to not be owned by the current class. This means we do not dispose them.
     /// </remarks>
-    public sealed class MetricsAdapter : IOperationLogger
+    public sealed class MetricsAdapter : IOperationLogger, IStructuredLogger
     {
-        private readonly ILogger _logger;
+        private readonly IStructuredLogger _logger;
         private readonly IOperationLogger _operations;
 
         /// <nodoc />
-        public MetricsAdapter(ILogger logger, IOperationLogger operations)
+        public MetricsAdapter(IStructuredLogger logger, IOperationLogger operations)
         {
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(operations);
@@ -109,6 +109,12 @@ namespace BuildXL.Cache.Logging.External
         public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
         {
             _logger.LogFormat(severity, messageFormat, messageArgs);
+        }
+
+        /// <inheritdoc />
+        public void Log(Severity severity, string correlationId, string message)
+        {
+            _logger.Log(severity, correlationId, message);
         }
 
         /// <inheritdoc />

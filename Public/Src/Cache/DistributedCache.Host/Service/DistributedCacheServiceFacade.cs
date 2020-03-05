@@ -163,7 +163,7 @@ namespace BuildXL.Cache.Host.Service
             }
         }
 
-        private static ILogger CreateNLogAdapter(OperationContext operationContext, DistributedCacheServiceArguments arguments)
+        private static IStructuredLogger CreateNLogAdapter(OperationContext operationContext, DistributedCacheServiceArguments arguments)
         {
             Contract.RequiresNotNull(arguments.Configuration.LoggingSettings);
 

@@ -176,7 +176,8 @@ namespace BuildXL.FrontEnd.Nuget
 
             SupportedTargetRuntimes = new [] {
                 "win-x64",
-                "osx-x64"
+                "osx-x64",
+                "linux-x64"
             };
         }
 

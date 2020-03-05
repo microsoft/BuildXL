@@ -16,7 +16,7 @@ namespace BuildXL.Interop
         /// <summary>
         /// Standard C Library
         /// </summary>
-        public const string LibC = "libC";
+        public const string LibC = "libc";
 
         /// <summary>
         /// Windows Kernel32

@@ -26,9 +26,6 @@ namespace Tests.Linux {
             createDef(importFrom("BuildXL.Utilities.UnitTests").ToolSupport.dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Core.dll, true),
 
-            // // App
-            // createDef(importFrom("BuildXL.App").UnitTests.Bxl.dll, true),
-
             // // Cache
             // // DistributedTest
             // createDef(importFrom("BuildXL.Cache.ContentStore").DistributedTest.dll, true,
@@ -38,25 +35,28 @@ namespace Tests.Linux {
             //     /* noCategories */ ["LongRunningTest", "Simulation", "Performance"]
             // ),
 
-            // // GrpcTest
-            // createDef(importFrom("BuildXL.Cache.ContentStore").Test.dll, true),
-            // createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll, true),
+            // GrpcTest
+            createDef(importFrom("BuildXL.Cache.ContentStore").Test.dll, true),
+            createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll, true),
 
-            // // DistributedTest
-            // // VstsTest
-            // createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.dll, true),
-            // createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.dll, true),
+            // DistributedTest
+            // VstsTest
+            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.dll, true),
+            createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.dll, true),
 
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.dll, true),
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.dll, true),
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.dll, true),
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.dll, true),
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").MemoizationStoreAdapter.dll, true),
-            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").VerticalAggregator.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").MemoizationStoreAdapter.dll, true),
+            createDef(importFrom("BuildXL.Cache.Core.UnitTests").VerticalAggregator.dll, true),
 
-            // // Engine
-            // createDef(importFrom("BuildXL.Core.UnitTests").Cache.dll, true),
-            // createDef(importFrom("BuildXL.Core.UnitTests").Cache.Plugin.Core.dll, true),
+            // Pips
+            createDef(importFrom("BuildXL.Pips.UnitTests").Core.dll, true),
+
+            // Engine
+            createDef(importFrom("BuildXL.Core.UnitTests").Cache.dll, true),
+            createDef(importFrom("BuildXL.Core.UnitTests").Cache.Plugin.Core.dll, true),
             // createDef(importFrom("BuildXL.Core.UnitTests").Engine.dll, true,
             //     /* deploySeparately */ false,
             //     /* testClasses */ undefined,
@@ -75,6 +75,9 @@ namespace Tests.Linux {
             //     /* testClasses */ undefined,
             //     /* categories */ importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.categoriesToRunInParallel
             // ),
+
+            // // App
+            // createDef(importFrom("BuildXL.App").UnitTests.Bxl.dll, true),
 
             // // Frontend
             // createDef(importFrom("BuildXL.FrontEnd.SdkTesting").TestGenerator.dll, true),
@@ -98,9 +101,6 @@ namespace Tests.Linux {
 
             // // Ide
             // createDef(importFrom("BuildXL.Ide").LanguageService.Server.test, true),
-
-            // // Pips
-            // createDef(importFrom("BuildXL.Pips.UnitTests").Core.dll, true),
 
             // // Tools
             // createDef(importFrom("BuildXL.Tools.UnitTests").Test.Tool.Analyzers.dll, true),
@@ -191,7 +191,7 @@ namespace Tests.Linux {
     function createUnixTestRunnerScript(definitions: TestDeploymentDefinition[]): string {
         const runTestCommands = tests
             .filter(def => def.enabled)
-            .map(def => `run_xunit TestProj/tests/${def.subfolder}${' '}${def.assembly.name}${' '}${genXUnitExtraArgs(def)}`);
+            .map(def => `run_xunit "\${MY_DIR}/TestProj/tests/${def.subfolder}"${' '}${def.assembly.name}${' '}${genXUnitExtraArgs(def)}`);
 
         return [
             "#!/bin/bash",

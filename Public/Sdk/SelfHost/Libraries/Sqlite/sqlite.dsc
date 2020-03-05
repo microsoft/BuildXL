@@ -11,12 +11,19 @@ export declare const qualifier : {
 // Any qualifier will do here - we only want to directly access the contents.
 const pkgContents = importFrom("System.Data.SQLite.Core").Contents.all;
 
-function getInteropFile() : File {
+function getInteropFiles() : File | Deployment.Definition {
     switch (qualifier.targetFramework)
     {
         case "netcoreapp3.1":
         case "netstandard2.0":
-            return pkgContents.getFile(r`runtimes/${qualifier.targetRuntime}/native/netstandard2.0/SQLite.Interop.dll`);
+            return <Deployment.Definition>{
+                contents: [
+                    // add the entire 'runtimes' folder
+                    { subfolder: a`runtimes`, contents: [ Deployment.createFromDisk(d`${pkgContents.root}/runtimes`) ] },
+                    // pick the interop assembly from the corresponding target runtime folder 
+                    pkgContents.getFile(r`runtimes/${qualifier.targetRuntime}/native/netstandard2.0/SQLite.Interop.dll`)
+                ]
+            };
         case "net472":
             return pkgContents.getFile("build/net46/x64/SQLite.Interop.dll");
         default:
@@ -25,4 +32,4 @@ function getInteropFile() : File {
 }
 
 @@public
-export const runtimeLibs : Deployment.DeployableItem = getInteropFile();
+export const runtimeLibs : Deployment.DeployableItem = getInteropFiles();

@@ -5,16 +5,63 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.Constants;
+using static BuildXL.Interop.MacOS.Impl_Common;
 using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.MacOS.Constants;
+using static BuildXL.Interop.MacOS.Memory;
+using static BuildXL.Interop.MacOS.Process;
+using static BuildXL.Interop.MacOS.Processor;
 
 namespace BuildXL.Interop.MacOS
 {
     /// <summary>
     /// The IO class for Mac-specific operations
     /// </summary>
-    public static class IO_Mac
+    public static class Impl_Mac
     {
+        internal static int GetRamUsageInfo(ref RamUsageInfo buffer)
+        {
+            var buf = new MacRamUsageInfo();
+            var ret = GetRamUsageInfo(ref buf, Marshal.SizeOf(buf));
+            if (ret != 0) return ERROR;
+            buffer.TotalBytes = s_totalMemoryBytes.Value;
+            buffer.FreeBytes = s_totalMemoryBytes.Value - (buf.AppMemory + buf.Wired + buf.Compressed);
+            return 0;
+        }
+
+        private static readonly Lazy<ulong> s_totalMemoryBytes = new Lazy<ulong>(GetPhysicalMemoryBytes);
+
+        private const int _SC_PAGESIZE_OSX = 29;
+        private const int _SC_PHYS_PAGES_OSX = 200;
+
+        private static ulong GetPhysicalMemoryBytes()
+        {
+            long physicalPages = sysconf(_SC_PHYS_PAGES_OSX);
+            long pageSize = sysconf(_SC_PAGESIZE_OSX);
+            return (ulong)(physicalPages * pageSize);
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct MacRamUsageInfo
+        {
+            #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            public ulong Active;
+            public ulong Inactive;
+            public ulong Wired;
+            public ulong Speculative;
+            public ulong Free;
+            public ulong Purgable;
+            public ulong FileBacked;
+            public ulong Compressed;
+            public ulong Internal;
+            #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+
+            /// <summary>
+            /// The "AppMemory" is defined to be the difference of <see cref="Internal"/> and <see cref="Purgable"/>
+            /// </summary>
+            public ulong AppMemory => Internal - Purgable;
+        }
+
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
         private static extern int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf, long statBufferSize);
 
@@ -53,12 +100,20 @@ namespace BuildXL.Interop.MacOS
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
         internal static extern int SetTimeStampsForFilePath(string path, bool followSymlink, StatBuffer buffer);
 
-        /// <summary>OSX specific implementation of <see cref="IO.symlink"/> </summary>
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        internal static extern int symlink(string target, string symlinkFilePath);
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        private static extern int GetRamUsageInfo(ref MacRamUsageInfo buffer, long bufferSize);
 
-        /// <nodoc />
-        [DllImport(Libraries.LibC, SetLastError = true)]
-        internal static extern int link(string link, string hardlinkFilePath);
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer);
+
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern int GetMemoryPressureLevel(ref PressureLevel level);
+
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize);
+        
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
+
     }
 }

@@ -38,6 +38,7 @@ namespace BuildXL.Cache.BasicFilesystem
         internal const string WFP_TOKEN = "WFP";
         internal const string CAS_TOKEN = "CAS";
         internal const string END_TOKEN = "END";
+        internal const string SHARDS_FILE_NAME = "Shards";
 
         // Files that are pending delete in the GC are renamed with this extension
         // Renaming them back to the original name is how "pin" and other operations
@@ -155,7 +156,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
             m_sessionRoot = Path.Combine(m_cacheRoot, "Sessions");
 
-            string shardFile = Path.Combine(m_cacheRoot, "Shards");
+            string shardFile = Path.Combine(m_cacheRoot, SHARDS_FILE_NAME);
             if (File.Exists(shardFile))
             {
                 // Read the file containing sharding information

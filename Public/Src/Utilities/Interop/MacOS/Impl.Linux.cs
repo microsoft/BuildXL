@@ -8,25 +8,26 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Libraries;
 using static BuildXL.Interop.MacOS.Constants;
-
-using Mode=BuildXL.Interop.MacOS.IO.FilePermissions;
+using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.MacOS.Impl_Common;
+using static BuildXL.Interop.MacOS.Memory;
+using static BuildXL.Interop.MacOS.Processor;
 
 namespace BuildXL.Interop.MacOS
 {
     /// <summary>
     /// The IO class for Linux-specific operations
     /// </summary>
-    public static class IO_Linux
+    internal static class Impl_Linux
     {
-        /// <summary>Name of the standard C library</summary>
-        private const string LibC = "c";
-
         /// <summary>
         /// Version of __fxstatat syscalls to use.
         /// </summary>
         private const int __Ver = 1;
+
+        private const string ProcStatPath = "/proc/stat";
 
         /// <summary>Linux specific implementation of <see cref="IO.GetFileSystemType"/> </summary>
         internal static int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize)
@@ -157,6 +158,43 @@ namespace BuildXL.Interop.MacOS
             var atime = new Timespec { Tv_sec = buf.TimeLastAccess,       Tv_nsec = buf.TimeNSecLastAccess };
             var mtime = new Timespec { Tv_sec = buf.TimeLastModification, Tv_nsec = buf.TimeNSecLastModification };
             return utimensat(AT_FDCWD, path, new[] { atime, mtime }, flags);
+        }
+
+        /// <summary>Linux specific implementation of <see cref="Memory.GetRamUsageInfo"/> </summary>
+        internal static int GetRamUsageInfo(ref RamUsageInfo buffer)
+        {
+            var sysinfoBuf = new sysinfo_buf();
+            var ret = sysinfo(ref sysinfoBuf);
+            if (ret != 0) return ERROR;
+            buffer.TotalBytes = sysinfoBuf.totalram;
+            buffer.FreeBytes = sysinfoBuf.freeram;
+            return 0;
+        }
+
+        internal static int GetPeakWorkingSetSize(int pid, ref ulong buffer)
+        {
+            return -1; // TODO: not implemented
+        }
+
+        internal static int GetMemoryPressureLevel(ref PressureLevel level)
+        {
+            // there is no memory pressure level on Linux
+            level = PressureLevel.Normal;
+            return 0;
+        }
+
+        /// <summary>Linux specific implementation of <see cref="Processor.GetCpuLoadInfo"/> </summary>
+        internal static int GetCpuLoadInfo(ref CpuLoadInfo buffer, long bufferSize)
+        {
+            if (!File.Exists(ProcStatPath)) return ERROR;
+            var firstLine = File.ReadAllLines(ProcStatPath).FirstOrDefault();
+            if (string.IsNullOrEmpty(firstLine)) return ERROR;
+            var splits = firstLine.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToArray();
+            return  ulong.TryParse(splits[1], out buffer.UserTime) &&
+                    ulong.TryParse(splits[3], out buffer.SystemTime) &&
+                    ulong.TryParse(splits[4], out buffer.IdleTime)
+                ? 0 
+                : ERROR;
         }
 
         private static bool IsSymlink(string path)
@@ -301,17 +339,35 @@ namespace BuildXL.Interop.MacOS
             O_SYNC      = 1052672,
             O_PATH      = 2097152, // allow open of symlinks
         }
+
+        /// <summary>
+        /// struct stat from stat.h
+        /// </summary>
+        /// <remarks>
+        /// IMPORTANT: the explicitly specified size of 112 must match the value of 'sizeof(struct sysinfo)' in C
+        /// </remarks>
+        [StructLayout(LayoutKind.Sequential, Size = 112)]
+        internal struct sysinfo_buf
+        {
+            public Int64 uptime;     /* Seconds since boot */
+            public UInt64 load1, load2, load3; /* 1, 5, and 15 minute load averages */
+            public UInt64 totalram;  /* Total usable main memory size */
+            public UInt64 freeram;   /* Available memory size */
+            public UInt64 sharedram; /* Amount of shared memory */
+            public UInt64 bufferram; /* Memory used by buffers */
+            public UInt64 totalswap; /* Total swap space size */
+            public UInt64 freeswap;  /* Swap space still available */
+            public UInt16 procs;    /* Number of current processes */
+            public UInt64 totalhigh; /* Total high memory size */
+            public UInt64 freehigh;  /* Available high memory size */
+            public UInt32 mem_unit;   /* Memory unit size in bytes */
+            /* Padding */
+        };
         #endregion
 
         #region P-invoke function definitions
         [DllImport(LibC, SetLastError = true)]
         private static extern int open(string pathname, O_Flags flags, FilePermissions permission);
-
-        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
-        private static extern long readlink(string link, StringBuilder buffer, long length);
-
-        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
-        private static extern int chmod(string pathname, Mode mode);
 
         [DllImport(LibC, EntryPoint = "__fxstatat", SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int fstatat(int __ver, int fd, string pathname, ref stat_buf buff, int flags);
@@ -319,13 +375,8 @@ namespace BuildXL.Interop.MacOS
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
         private static extern int utimensat(int dirfd, string pathname, Timespec[] times, int flags);
 
-        /// <summary>Linux specific implementation of <see cref="IO.symlink"/> </summary>
         [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
-        internal static extern int symlink(string target, string symlinkFilePath);
-
-        /// <summary>Linux specific implementation of <see cref="IO.link"/> </summary>
-        [DllImport(LibC, SetLastError = true, CharSet = CharSet.Ansi)]
-        internal static extern int link(string link, string hardlinkFilePath);
+        private static extern int sysinfo(ref sysinfo_buf buf);
 
         #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         #endregion

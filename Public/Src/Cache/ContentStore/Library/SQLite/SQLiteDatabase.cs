@@ -91,6 +91,45 @@ namespace BuildXL.Cache.ContentStore.SQLite
         }
 
         /// <summary>
+        /// HACK for choosing the right SQLite.Interop.dll assembly when running on Linux.
+        ///
+        /// Setup: 
+        ///   - BuildXL build is supposed deploy the correct SQLite.Interop.dll next to this assembly;
+        ///   - however, at this time, we don't have a separate qualifier for the linux runtime;
+        ///   - introducing a new qualifier for targeting Linux would likely not be justifiable given 
+        ///     that for Linux we need only a handful of assemblies; so the idea is to be able to 
+        ///     use the BuildXL deployment for osx-x64 on Linux
+        ///   - with that, the SQLite.Interop.dll deployed next to this assembly will be the one that is
+        ///     appropriate for OSX but not for Linux; 
+        ///   - further, SQLite.Interop.dll for other platoforms will be deployed inside the appropriate
+        ///     runtimes/{platform}/native/{runtime}/ folders;
+        ///
+        /// Solution:
+        ///   - in this static constructor, when running on Linux, we fetch the appropriate SQLite.Interop.dll
+        ///     from runtimes/linux-x64/native/netstandard2.0 and place is next to this assembly (overwriting
+        ///     any other file that might exist at that location)
+        /// </summary>
+        static SQLiteDatabase()
+        {
+            if (BuildXL.Utilities.OperatingSystemHelper.IsLinuxOS)
+            {
+                var thisAssembly = System.Reflection.Assembly.GetAssembly(typeof(SQLiteDatabaseConfiguration));
+                var thisAssemblyDir = Path.GetDirectoryName(BuildXL.Utilities.AssemblyHelper.GetAssemblyLocation(thisAssembly));
+                var sqliteInteropName = "SQLite.Interop.dll";
+                var sqliteInteropLinuxPath = Path.Combine(thisAssemblyDir, "runtimes", "linux-x64", "native", "netstandard2.0", sqliteInteropName);
+                var sqliteInteropCurrent = Path.Combine(thisAssemblyDir, sqliteInteropName);
+                if (File.Exists(sqliteInteropLinuxPath))
+                {
+                    if (File.Exists(sqliteInteropCurrent))
+                    {
+                        File.Delete(sqliteInteropCurrent);
+                    }
+                    File.Copy(sqliteInteropLinuxPath, Path.Combine(thisAssemblyDir, Path.GetFileName(sqliteInteropLinuxPath)));
+                }
+            }
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="SQLiteDatabase{TTracer}"/> class.
         /// </summary>
         protected SQLiteDatabase(

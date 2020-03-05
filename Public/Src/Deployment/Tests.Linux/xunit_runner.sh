@@ -125,14 +125,15 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     xunitStderrFname="${dllName}.xunit.stderr"
     xunitResultFname="${dllName}.result.xml"
 
-    pushd $(pwd) > /dev/null
-    cd "$(MyDir)/$folderName"
+    pushd "${folderName}" > /dev/null
 
     # delete any previously left xunit result file because XUnit appends to it
     rm -f ${xunitResultFname}
 
     # run XUnit
-    echo "${tputBold}[Running]${tputReset} $dllName ..."
+    if [[ "$TERM" == "xterm-256color" ]]; then
+        echo "${tputBold}[Running]${tputReset} $dllName ..."
+    fi
 
     # Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
     # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
@@ -146,6 +147,7 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
         -noTrait "Category=QTestSkip"        \
         -noTrait "Category=DominoTestSkip"   \
         -noTrait "Category=SkipDotNetCore"   \
+        -noTrait "Category=SkipLinux"        \
         -xml $xunitResultFname               \
         "${extraXunitArgs[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
     exitCode=$?

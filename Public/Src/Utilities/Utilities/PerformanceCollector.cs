@@ -187,9 +187,13 @@ namespace BuildXL.Utilities
                 {
                     diskStats = GetDiskCountersMacOS();
                     machineCpu = GetMachineCpuMacOS();
-                    ulong totalPhysicalBytes = OperatingSystemHelper.GetPhysicalMemorySize().Bytes;
-                    machineTotalPhysicalBytes = totalPhysicalBytes;
-                    machineAvailablePhysicalBytes = GetAvailablePhysicalBytesMacOS(totalPhysicalBytes);
+
+                    RamUsageInfo ramUsageInfo = new RamUsageInfo();
+                    if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
+                    {
+                        machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
+                        machineAvailablePhysicalBytes = ramUsageInfo.FreeBytes;
+                    }
                 }
 
                 // stop network monitor measurement and gather data
@@ -486,27 +490,6 @@ namespace BuildXL.Utilities
             m_lastCpuLoadInfo = buffer;
 
             return machineCpu;
-        }
-
-        /// <summary>
-        /// Returns number of available physical bytes when running on macOS
-        /// </summary>
-        public static double? GetAvailablePhysicalBytesMacOS(ulong totalPhysicalBytes)
-        {
-            double? availableAvailablePhysicalBytes = null;
-            RamUsageInfo ramUsageInfo = new RamUsageInfo();
-
-            // The 'free' portion of GetRamUsageInfo() indicates how many physical RAM is still available,
-            // we have to look at VM statistics to calculate the actual available RAM though
-            if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
-            {
-                availableAvailablePhysicalBytes = totalPhysicalBytes
-                    - ramUsageInfo.AppMemory
-                    - ramUsageInfo.Wired
-                    - ramUsageInfo.Compressed;
-            }
-
-            return availableAvailablePhysicalBytes;
         }
 
         #endregion

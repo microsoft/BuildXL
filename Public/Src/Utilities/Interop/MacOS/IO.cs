@@ -231,15 +231,15 @@ namespace BuildXL.Interop.MacOS
         /// otherwise, a value of -1 is returned and <see cref="Marshal.GetLastWin32Error"/> is set to indicate the error.
         /// </returns>
         public static int StatFile(string path, bool followSymlink, ref StatBuffer statBuf) => IsMacOS
-            ? IO_Mac.StatFile(path, followSymlink, ref statBuf)
-            : IO_Linux.StatFile(path, followSymlink, ref statBuf);
+            ? Impl_Mac.StatFile(path, followSymlink, ref statBuf)
+            : Impl_Linux.StatFile(path, followSymlink, ref statBuf);
 
         /// <summary>
         /// Same as <see cref="StatFile" /> except that the target file is given as a file descriptor (<paramref name="fd" />).
         /// </summary>
         public static int StatFileDescriptor(SafeFileHandle fd, ref StatBuffer statBuf) => IsMacOS
-            ? IO_Mac.StatFileDescriptor(fd, ref statBuf)
-            : IO_Linux.StatFileDescriptor(fd, ref statBuf);
+            ? Impl_Mac.StatFileDescriptor(fd, ref statBuf)
+            : Impl_Linux.StatFileDescriptor(fd, ref statBuf);
 
         /// <summary>
         /// Gets the name (e.g., "EXT4", "APFS", etc.) of the filesystem on which file <paramref name="fd" /> resides.
@@ -249,8 +249,8 @@ namespace BuildXL.Interop.MacOS
         /// The return value is the length of that buffer or -1 upon error.
         /// </returns>
         public static int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize) => IsMacOS
-            ? IO_Mac.GetFileSystemType(fd, fsTypeName, bufferSize)
-            : IO_Linux.GetFileSystemType(fd, fsTypeName, bufferSize);
+            ? Impl_Mac.GetFileSystemType(fd, fsTypeName, bufferSize)
+            : Impl_Linux.GetFileSystemType(fd, fsTypeName, bufferSize);
 
         /// <summary>
         /// This routine returns information about a mounted file system.
@@ -286,8 +286,8 @@ namespace BuildXL.Interop.MacOS
         /// </summary>
         /// <returns>Returns zero in case of success, otherwise error</returns>
         public static int SetTimeStampsForFilePath(string path, bool followSymlink, StatBuffer buffer) => IsMacOS
-            ? IO_Mac.SetTimeStampsForFilePath(path, followSymlink, buffer)
-            : IO_Linux.SetTimeStampsForFilePath(path, followSymlink, buffer);
+            ? Impl_Mac.SetTimeStampsForFilePath(path, followSymlink, buffer)
+            : Impl_Linux.SetTimeStampsForFilePath(path, followSymlink, buffer);
 
         /// <summary>
         /// Sets atime and mtime to current time.
@@ -310,46 +310,44 @@ namespace BuildXL.Interop.MacOS
         /// Returns number of bytes placed in buf, and -1 otherwise.
         /// </summary>
         public static long SafeReadLink(string link, StringBuilder buffer, long length) => IsMacOS
-            ? IO_Mac.SafeReadLink(link, buffer, length)
-            : IO_Linux.SafeReadLink(link, buffer, length);
+            ? Impl_Mac.SafeReadLink(link, buffer, length)
+            : Impl_Linux.SafeReadLink(link, buffer, length);
 
         /// <summary>
         /// Gets the file permissions flag for the entry at <paramref name="path"/>
         /// </summary>
         /// <returns>Returns zero in case of success, otherwise error</returns>
         public static int GetFilePermissionsForFilePath(string path, bool followSymlink = true) => IsMacOS
-            ? IO_Mac.GetFilePermissionsForFilePath(path, followSymlink)
-            : IO_Linux.GetFilePermissionsForFilePath(path, followSymlink);
+            ? Impl_Mac.GetFilePermissionsForFilePath(path, followSymlink)
+            : Impl_Linux.GetFilePermissionsForFilePath(path, followSymlink);
 
         /// <summary>
         /// Sets the file permissions flag for the entry at <paramref name="path"/>
         /// </summary>
         public static int SetFilePermissionsForFilePath(string path, FilePermissions permissions, bool followSymlink = true) => IsMacOS
-            ? IO_Mac.SetFilePermissionsForFilePath(path, permissions, followSymlink)
-            : IO_Linux.SetFilePermissionsForFilePath(path, permissions, followSymlink);
+            ? Impl_Mac.SetFilePermissionsForFilePath(path, permissions, followSymlink)
+            : Impl_Linux.SetFilePermissionsForFilePath(path, permissions, followSymlink);
 
         /// <summary>
         /// Opens a file at a specified path.
         /// </summary>
         public static SafeFileHandle Open(string pathname, OpenFlags flags, FilePermissions permission) => IsMacOS
-            ? IO_Mac.Open(pathname, flags, permission)
-            : IO_Linux.Open(pathname, flags, permission);
+            ? Impl_Mac.Open(pathname, flags, permission)
+            : Impl_Linux.Open(pathname, flags, permission);
 
         /// <summary>
         /// Creates a symbolic link at <paramref name="symlinkFilePath"/> pointing to <paramref name="target"/>.
         /// Returns 0 upon successful completion, and -1 otherwise.
         /// </summary>
-        public static int symlink(string target, string symlinkFilePath) => IsMacOS
-            ? IO_Mac.symlink(target, symlinkFilePath)
-            : IO_Linux.symlink(target, symlinkFilePath);
+        public static int symlink(string target, string symlinkFilePath)
+            => Impl_Common.symlink(target, symlinkFilePath);
 
         /// <summary>
         /// Creates a new hardlink for file / directory specified by <paramref name="link"/> at <paramref name="hardlinkFilePath"/>.
         /// Returns 0 upon successful completion, and -1 otherwise.
         /// </summary>
-        public static int link(string link, string hardlinkFilePath) => IsMacOS
-            ? IO_Mac.link(link, hardlinkFilePath)
-            : IO_Linux.link(link, hardlinkFilePath);
+        public static int link(string link, string hardlinkFilePath)
+            => Impl_Common.link(link, hardlinkFilePath);
 
         /// <summary>
         /// Flags for <see cref="Open"/>

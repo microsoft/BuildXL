@@ -456,6 +456,7 @@ namespace BuildXL.Native.IO.Unix
                             DeleteFile(destination);
                         }
 
+                        s_fileSystem.CreateDirectory(Path.GetDirectoryName(destination));
                         File.Move(source, destination);
                     },
                     ex => { throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex); }));
@@ -517,12 +518,16 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
             Contract.Requires(path != null);
 
-            // We are immediately re-creating this path, therefore it is vital to ensure the delete is totally done
-            // (otherwise, we may transiently fail to recreate the path with ERROR_ACCESS_DENIED; see DeleteFile remarks)
+            // doing this create/delete/move dance to ensure that the replacement file at location 'path' gets
+            // a new inode and thus have a different identity from the old one (on EXT4 filesystems, a simple
+            // "rm file && touch file" is very likely to result in 'file' getting the same inode as it had before)
+            var tempFile = Path.GetTempFileName();
             DeleteFile(path, waitUntilDeletionFinished: true);
+            MoveFileAsync(tempFile, path).GetAwaiter().GetResult();
+
             return openAsync
-                ? CreateAsyncFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete)
-                : CreateFileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete);
+                ? CreateAsyncFileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete)
+                : CreateFileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, allowExcludeFileShareDelete: allowExcludeFileShareDelete);
         }
 
         /// <inheritdoc />

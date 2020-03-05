@@ -130,6 +130,7 @@ namespace Test.BuildXL.Engine.Cache
             harness.AssertContentIsInLocalCache(info.Hash);
         }
 
+        [Trait("Category", "SkipLinux")] // paths are case sensitive on Linux
         [Fact]
         public async Task StoreWorksWithReadOnlyAccess()
         {
@@ -314,6 +315,7 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Fact]
+        [Trait("Category", "SkipLinux")] // TODO: file replacement doesn't always create a file with a new FileId (i.e., inode)
         [SuppressMessage("AsyncUsage", "AsyncFixer02", Justification = "ReadAllText and WriteAllText have async versions in .NET Standard which cannot be used in full framework.")]
         public async Task MaterializingTransientWritableCopyReplacesFileIfUpToDate()
         {

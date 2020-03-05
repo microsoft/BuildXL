@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
+using BuildXL.Interop.MacOS;
 using static BuildXL.Interop.Windows.Memory;
 
 #pragma warning disable IDE1006 // Naming rule violation
@@ -157,7 +158,7 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        /// Gets the current physical memory size in MB
+        /// Gets the current physical memory size
         /// </summary>
         public static FileSize GetPhysicalMemorySize()
         {
@@ -165,9 +166,12 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-            else if (IsMacOS)
+            else
             {
-                return GetPhysicalMemorySizeMacOS();
+                var buf = new Memory.RamUsageInfo();
+                return BuildXL.Interop.MacOS.Memory.GetRamUsageInfo(ref buf) == 0
+                    ? new FileSize(buf.TotalBytes)
+                    : new FileSize(0);
             }
 
             // Extend this once we start supporting Linux etc.
@@ -175,18 +179,20 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
-        /// Gets the currently available physical memory size in MB
+        /// Gets the currently available physical memory size
         /// </summary>
-        /// <returns></returns>
         public static FileSize GetAvailablePhysicalMemorySize()
         {
             if (!IsUnixOS)
             {
                 return GetAvailablePhysicalMemorySizeWindows();
             }
-            else if (IsMacOS)
+            else
             {
-                return GetAvailablePhysicalMemorySizeMacOS();
+                var buf = new Memory.RamUsageInfo();
+                return Memory.GetRamUsageInfo(ref buf) == 0 
+                    ? new FileSize(buf.FreeBytes)
+                    : new FileSize(0);
             }
 
             // Extend this once we start supporting Linux etc.
@@ -437,7 +443,7 @@ namespace BuildXL.Utilities
         {
             try
             {
-                var process = new Process()
+                var process = new System.Diagnostics.Process()
                 {
                     StartInfo = new ProcessStartInfo()
                     {
@@ -471,25 +477,6 @@ namespace BuildXL.Utilities
                 return Tuple.Create(string.Empty, string.Empty);
             }
 #pragma warning restore ERP022
-        }
-
-        [DllImport("libc", SetLastError = true)]
-        private static extern long sysconf(int name);
-        private const int _SC_PAGESIZE_OSX = 29;
-        private const int _SC_PHYS_PAGES_OSX = 200;
-
-        private static FileSize GetPhysicalMemorySizeMacOS()
-        {
-            long physicalPages = sysconf(_SC_PHYS_PAGES_OSX);
-            long pageSize = sysconf(_SC_PAGESIZE_OSX);
-
-            return new FileSize(physicalPages * pageSize);
-        }
-
-        private static FileSize GetAvailablePhysicalMemorySizeMacOS()
-        {
-            double? bytes = PerformanceCollector.GetAvailablePhysicalBytesMacOS(GetPhysicalMemorySizeMacOS().Bytes);
-            return new FileSize(bytes.HasValue && bytes.Value < long.MaxValue && bytes.Value > 0 ? (long)bytes.Value : 0);
         }
 
         #endregion

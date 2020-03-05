@@ -528,7 +528,6 @@ namespace ContentStoreTest.FileSystem
             }
 
             Assert.False(FileSystem.FileExists(filePath));
-            Assert.False(FileSystem.FileExists(replacementFilePath));
         }
     }
 }

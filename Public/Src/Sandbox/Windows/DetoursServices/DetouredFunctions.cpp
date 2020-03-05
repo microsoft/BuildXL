@@ -39,11 +39,6 @@ using std::vector;
 /// </summary>
 static bool IsReparsePoint(_In_ LPCWSTR lpFileName)
 {
-    if (IgnoreReparsePoints())
-    {
-        return false;
-    }
-
     DWORD lastError = GetLastError();
     DWORD attributes;
     bool result = lpFileName != nullptr
@@ -62,24 +57,21 @@ static DWORD GetReparsePointType(_In_ LPCWSTR lpFileName)
 {
     DWORD ret = 0;
 
-    if (!IgnoreReparsePoints())
+    DWORD lastError = GetLastError();
+
+    if (IsReparsePoint(lpFileName))
     {
-        DWORD lastError = GetLastError();
+        WIN32_FIND_DATA findData;
 
-        if (IsReparsePoint(lpFileName))
+        HANDLE findDataHandle = FindFirstFileW(lpFileName, &findData);
+        if (findDataHandle != INVALID_HANDLE_VALUE)
         {
-            WIN32_FIND_DATA findData;
-
-            HANDLE findDataHandle = FindFirstFileW(lpFileName, &findData);
-            if (findDataHandle != INVALID_HANDLE_VALUE)
-            {
-                ret = findData.dwReserved0;
-                FindClose(findDataHandle);
-            }
+            ret = findData.dwReserved0;
+            FindClose(findDataHandle);
         }
-
-        SetLastError(lastError);
     }
+
+    SetLastError(lastError);
 
     return ret;
 }
@@ -95,11 +87,23 @@ static bool IsActionableReparsePointType(_In_ const DWORD reparsePointType)
 /// <summary>
 /// Checks if flags or attributes has reparse point.
 /// </summary>
-
 static bool AttributesHasReparsePoint(_In_ DWORD dwFlagsAndAttributes)
 {
     return ((dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0)
         || ((dwFlagsAndAttributes & FILE_OPEN_REPARSE_POINT) != 0);
+}
+
+/// <summary>
+/// Check if file access is trying to access reparse point target.
+/// </summary>
+static bool AccessReparsePointTarget(
+    _In_     LPCWSTR               lpFileName,
+    _In_     DWORD                 dwDesiredAccess,
+    _In_     DWORD                 dwFlagsAndAttributes)
+{
+    return IsReparsePoint(lpFileName) // File is a reparse point.
+        && (!WantsProbeOnlyAccess(dwDesiredAccess) // It's not probe-only access.
+            || !AttributesHasReparsePoint(dwFlagsAndAttributes)); // It's a probe-only access, but no reparse point flag is passed.
 }
 
 /// <summary>
@@ -111,9 +115,7 @@ static bool ShouldFollowSymlinkChain(
     _In_     DWORD                 dwFlagsAndAttributes)
 {
     return !IgnoreReparsePoints() // Reparse point should not be ignored.
-        && IsReparsePoint(lpFileName) // File is a reparse point.
-        && (!WantsProbeOnlyAccess(dwDesiredAccess) // It's not probe-only access.
-            || !AttributesHasReparsePoint(dwFlagsAndAttributes)); // It's a probe-only access, but no reparse point flag is passed.
+        && AccessReparsePointTarget(lpFileName, dwDesiredAccess, dwFlagsAndAttributes); // Trying to access reparse point target.
 }
 
 /// <summary>
@@ -660,9 +662,8 @@ static bool TryCheckHandleOfDirectory(_In_ HANDLE hFile, _In_ bool treatReparseP
         isHandleOfDirectory = (fileInfo.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
     }
 
-    return res ? true : false;
+    return res != 0;
 }
-
 
 /// <summary>
 /// Checks if a handle or a path points to a directory.
@@ -678,6 +679,21 @@ static bool IsHandleOrPathToDirectory(_In_ HANDLE hFile, _In_ LPCWSTR lpFileName
     return hFile == INVALID_HANDLE_VALUE || !TryCheckHandleOfDirectory(hFile, treatReparsePointAsFile, isHandleOfDirectory)
         ? IsPathToDirectory(lpFileName, treatReparsePointAsFile)
         : isHandleOfDirectory;
+}
+
+/// <summary>
+/// Checks if a handle or a path points to a directory but treat reparse point according to the desired accesses and flags.
+/// </summary>
+static bool IsHandleOrPathToDirectory(
+    _In_     HANDLE                hFile,
+    _In_     LPCWSTR               lpFileName,
+    _In_     DWORD                 dwDesiredAccess,
+    _In_     DWORD                 dwFlagsAndAttributes)
+{
+    return IsHandleOrPathToDirectory(
+        hFile,
+        lpFileName,
+        !ProbeDirectorySymlinkAsDirectory() && WantsProbeOnlyAccess(dwDesiredAccess) && AttributesHasReparsePoint(dwFlagsAndAttributes));
 }
 
 /// <summary>
@@ -734,23 +750,10 @@ static bool EnforceReparsePointAccess(
         if (WantsReadAccess(dwDesiredAccess) || WantsProbeOnlyAccess(dwDesiredAccess))
         {
             FileReadContext readContext;
-            WIN32_FIND_DATA findData;
-
-            HANDLE findDataHandle = FindFirstFileW(fullPath.c_str(), &findData);
-
-            if (findDataHandle != INVALID_HANDLE_VALUE)
-            {
-                readContext.FileExistence = FileExistence::Existent;
-                FindClose(findDataHandle);
-            }
-
-            // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-            // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-            // case we have a fallback to re-probe. See function remarks.
-            // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-            readContext.OpenedDirectory = 
-                (readContext.FileExistence == FileExistence::Existent) 
-                && IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), false);
+            readContext.FileExistence = GetFileAttributesW(fullPath.c_str()) != INVALID_FILE_ATTRIBUTES 
+                ? FileExistence::Existent
+                : FileExistence::Nonexistent;
+            readContext.OpenedDirectory = IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), dwDesiredAccess, dwFlagsAndAttributes);
 
             RequestedReadAccess requestedReadAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? RequestedReadAccess::Probe : RequestedReadAccess::Read;
             accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(requestedReadAccess, readContext));
@@ -2261,14 +2264,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     FileReadContext readContext;
     readContext.InferExistenceFromError(error);
-
-    // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-    // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-    // case we have a fallback to re-probe. See function remarks.
-    // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-    readContext.OpenedDirectory = 
-        (readContext.FileExistence == FileExistence::Existent) 
-        && IsHandleOrPathToDirectory(error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE, lpFileName, false);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE, lpFileName, dwDesiredAccess, dwFlagsAndAttributes);
 
     if (WantsReadAccess(dwDesiredAccess)) 
     {
@@ -2473,7 +2469,12 @@ DWORD WINAPI Detoured_GetFileAttributesW(_In_  LPCWSTR lpFileName)
     // Now we can make decisions based on the file's existence and type.
     FileReadContext fileReadContext;
     fileReadContext.InferExistenceFromError(error);
-    fileReadContext.OpenedDirectory = attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    fileReadContext.OpenedDirectory =
+        attributes != INVALID_FILE_ATTRIBUTES
+        && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        && (ProbeDirectorySymlinkAsDirectory() 
+            ? true 
+            : ((attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0));
 
     AccessCheckResult accessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, fileReadContext);
     ReportIfNeeded(accessCheck, fileOperationContext, policyResult, error);
@@ -2546,8 +2547,13 @@ BOOL WINAPI Detoured_GetFileAttributesExW(
     // Now we can make decisions based on existence and type.
     FileReadContext fileReadContext;
     fileReadContext.InferExistenceFromError(error);
-    fileReadContext.OpenedDirectory = querySucceeded && fileStandardInfo != nullptr &&
-        (fileStandardInfo->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    fileReadContext.OpenedDirectory = 
+        querySucceeded 
+        && fileStandardInfo != nullptr 
+        && (fileStandardInfo->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        && (ProbeDirectorySymlinkAsDirectory()
+            ? true
+            : ((fileStandardInfo->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0));
 
     AccessCheckResult accessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, fileReadContext);
     ReportIfNeeded(accessCheck, fileOperationContext, policyResult, error);
@@ -2715,8 +2721,7 @@ BOOL WINAPI Detoured_CopyFileExW(
         return FALSE;
     }
 
-    if ((!copySymlink || !IsReparsePoint(lpExistingFileName))
-        && IsReparsePoint(lpNewFileName))
+    if ((!copySymlink || !IsReparsePoint(lpExistingFileName)) && IsReparsePoint(lpNewFileName))
     {
         // If not copying symlink or the source of copy is not a symlink
         // but the destination of the copy is a symlink, then enforce chain of reparse point.
@@ -3165,7 +3170,12 @@ static AccessCheckResult DeleteFileSafeProbe(AccessCheckResult writeAccessCheck,
     }
 
     FileReadContext probeContext;
-    probeContext.OpenedDirectory = attributes != INVALID_FILE_ATTRIBUTES && ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+    probeContext.OpenedDirectory = 
+        attributes != INVALID_FILE_ATTRIBUTES
+        && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        && (ProbeDirectorySymlinkAsDirectory()
+            ? true
+            : ((attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0));
     probeContext.InferExistenceFromError(*probeError);
 
     AccessCheckResult probeAccessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, probeContext);
@@ -3632,7 +3642,14 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
 
         FileReadContext readContext;
         readContext.InferExistenceFromError(success ? ERROR_SUCCESS : error);
-        readContext.OpenedDirectory = success && (readContext.FileExistence == FileExistence::Existent) && ((findFileDataAtLevel->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        readContext.OpenedDirectory = 
+            success
+            && findFileDataAtLevel != nullptr
+            && findFileDataAtLevel->dwFileAttributes != INVALID_FILE_ATTRIBUTES
+            && (findFileDataAtLevel->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+            && (ProbeDirectorySymlinkAsDirectory()
+                ? true
+                : ((findFileDataAtLevel->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0));
 
         AccessCheckResult fileAccessCheck = filePolicyResult.CheckReadAccess(
             isEnumeration ? RequestedReadAccess::EnumerationProbe : RequestedReadAccess::Probe,
@@ -4278,8 +4295,13 @@ static AccessCheckResult CreateDirectorySafeProbe(
     }
     
     FileReadContext probeContext;
-    probeContext.OpenedDirectory = attributes != INVALID_FILE_ATTRIBUTES && ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
     probeContext.InferExistenceFromError(*probeError);
+    probeContext.OpenedDirectory =
+        attributes != INVALID_FILE_ATTRIBUTES
+        && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        && (ProbeDirectorySymlinkAsDirectory()
+            ? true
+            : ((attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0));
 
     // If we are checking all CreateDirectory calls, just reuse the writeAccessCheck we already have.
     // This will result in blocking CreateDirectory (i.e., returning ERROR_ACCESS_DENIED) if a directory already exists 
@@ -5220,7 +5242,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) || 
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -5327,15 +5349,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-
-        // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-        // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-        // case we have a fallback to re-probe.
-        // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-        readContext.OpenedDirectory = 
-            (readContext.FileExistence == FileExistence::Existent) 
-            && ((CreateOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-                || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile()) 
@@ -5388,15 +5402,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-
-    // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-    // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-    // case we have a fallback to re-probe.
-    // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-    readContext.OpenedDirectory = 
-        (readContext.FileExistence == FileExistence::Existent) 
-        && ((CreateOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-            || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile()) 
@@ -5512,7 +5518,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) || 
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -5619,16 +5625,8 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-
-        // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-        // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-        // case we have a fallback to re-probe.
-        // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-        readContext.OpenedDirectory = 
-            (readContext.FileExistence == FileExistence::Existent) 
-            && ((CreateOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-                || IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false));
-
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
+        
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile())
         {
@@ -5685,15 +5683,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-
-    // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-    // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-    // case we have a fallback to re-probe.
-    // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-    readContext.OpenedDirectory = 
-        (readContext.FileExistence == FileExistence::Existent) 
-        && ((CreateOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-            || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile())
@@ -5791,7 +5781,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(FILE_OPEN) || 
          CheckIfNtCreateMayDeleteFile(OpenOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions))
     {
         accessCheck = policyResult.CheckWriteAccess();
 
@@ -5890,16 +5880,8 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-
-        // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-        // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-        // case we have a fallback to re-probe.
-        // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-        readContext.OpenedDirectory = 
-            (readContext.FileExistence == FileExistence::Existent) 
-            && ((OpenOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-                || IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false));
-
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions);
+        
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorZwCreateOpenQueryFile())
         {
@@ -5954,15 +5936,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-
-    // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
-    // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
-    // case we have a fallback to re-probe.
-    // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-    readContext.OpenedDirectory = 
-        (readContext.FileExistence == FileExistence::Existent) 
-        && ((OpenOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-            || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorZwCreateOpenQueryFile())

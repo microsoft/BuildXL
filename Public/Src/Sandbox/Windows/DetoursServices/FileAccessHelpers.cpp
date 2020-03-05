@@ -39,6 +39,7 @@ static bool IsPathNonexistent(DWORD error)
     // drive will result in file Nonexistent.
     return error == ERROR_PATH_NOT_FOUND ||
            error == ERROR_FILE_NOT_FOUND ||
+           error == ERROR_DIRECTORY ||
            error == ERROR_NOT_READY ||
            error == FVE_E_LOCKED_VOLUME ||
            error == ERROR_BAD_PATHNAME;

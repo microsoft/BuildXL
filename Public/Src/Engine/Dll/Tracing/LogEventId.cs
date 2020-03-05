@@ -110,6 +110,7 @@ namespace BuildXL.Engine.Tracing
         WarnToNotUseProjectsField = 938,
 
         ConfigIgnoreCreateProcessReport = 939,
+        ConfigProbeDirectorySymlinkAsDirectory = 940,
 
 
         StartInitializingCache = 1502,

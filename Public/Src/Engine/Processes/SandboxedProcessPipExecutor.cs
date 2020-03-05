@@ -289,6 +289,7 @@ namespace BuildXL.Processes
                     PipId = m_pip.SemiStableHash != 0 ? m_pip.SemiStableHash : m_pip.PipId.Value,
                     QBuildIntegrated = isQbuildIntegrated,
                     IgnoreCreateProcessReport = sandBoxConfig.UnsafeSandboxConfiguration.IgnoreCreateProcessReport,
+                    ProbeDirectorySymlinkAsDirectory = sandBoxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory,
                     SubstituteProcessExecutionInfo = shimInfo,
                 };
 

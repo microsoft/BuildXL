@@ -54,7 +54,8 @@ namespace BuildXL.Pips.Graph
         /// 77: Change semantics related to tracking dependencies under untracked scopes.
         /// 78: Add session id and related session of the build.
         /// 79: Change the field name in unsafe option from "PreserveOutputInfo" to nameof(PreserveOutputsInfo)
+        /// 80: Added ProbeDirectorySymlinkAsDirectory in IUnsafeSandboxConfiguration.
         /// </remarks>
-        TwoPhaseV2 = 79,
+        TwoPhaseV2 = 80,
     }
 }

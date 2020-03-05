@@ -1245,6 +1245,9 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag);
     IF_COMMAND(CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks);
     IF_COMMAND(CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks);
+    IF_COMMAND(CallProbeDirectorySymlink);
+    IF_COMMAND(CallProbeDirectorySymlinkTargetWithReparsePointFlag);
+    IF_COMMAND(CallProbeDirectorySymlinkTargetWithoutReparsePointFlag);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2

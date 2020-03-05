@@ -3,6 +3,7 @@
 
 import * as DetoursTest from "BuildXL.Sandbox.Windows.DetoursTests";
 import * as Managed from "Sdk.Managed";
+import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 const DetoursTest86 = DetoursTest.withQualifier({platform: "x86"});
@@ -21,6 +22,10 @@ namespace Processes.Detours {
                     runWithUntrackedDependencies: true
                 },
             },
+            // Use XUnit because the unit tests create junction and directory symlinks. 
+            // QTest runs Robocopy on the temporary directory where the tests create those junctions and directory symlinks.
+            // Unfortunately, Robocopy does not know how to copy directory symlinks or junctions.
+            testFramework: XUnit.framework,
             assemblyName: assemblyName,
             sources: [
                 f`PipExecutorDetoursTest.cs`,

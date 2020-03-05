@@ -1126,6 +1126,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreCreateProcessReport(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConfigProbeDirectorySymlinkAsDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_ProbeDirectorySymlinkAsDirectory enabled: {ShortProductName} is configured to treat directory symlink probe as directory probe. This makes {ShortProductName} not track the target directory path. This can lead to incorrect builds.")]
+        public abstract void ConfigProbeDirectorySymlinkAsDirectory(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ConfigPreserveOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

@@ -1139,6 +1139,15 @@ namespace BuildXL.Engine
 
                 // Spec cache is disabled as most builds are happening on SSDs. 
                 mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
+
+                // In CloudBuild directory layouts are full of junctions and directory symlinks.
+                // Unfortunately many tools like to probe their parent directories, and those directories can in fact be junctions/directory symlinks.
+                // By probing, the tools calls CreateFile with probe only access (desiredAccess = 0/8/128), and with reparse point flag.
+                // e.g.,
+                // - csc.exe probes 'd:\dbs\el\bxlint\Out\frontend'.
+                // - node.js probes 'd:\dbs\el\bxlint\Out' and 'd:\dbs\sh\bxlint\0304_143726'.
+                // TODO: We need a mechanism to ignore directory symlinks.
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.ProbeDirectorySymlinkAsDirectory = true;
             }
             else
             {
@@ -2305,6 +2314,7 @@ namespace BuildXL.Engine
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
                 { "unsafe_PreserveOutputsTrustLevel", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
+                { "unsafe_ProbeDirectorySymlinkAsDirectory", Logger.Log.ConfigProbeDirectorySymlinkAsDirectory },
                 { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
                 { "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques", Logger.Log.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques },

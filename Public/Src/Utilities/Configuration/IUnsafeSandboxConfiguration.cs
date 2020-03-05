@@ -147,6 +147,14 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         bool IgnoreCreateProcessReport { get; }
 
+        /// <summary>
+        /// Treats directory symlink probes as directory probes instead of file probes.
+        /// </summary>
+        /// <remarks>
+        /// This configuration is unsafe because the target directory path may not be tracked.
+        /// </remarks>
+        bool ProbeDirectorySymlinkAsDirectory { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -196,6 +204,7 @@ namespace BuildXL.Utilities.Configuration
             }
             writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
             writer.Write(@this.IgnoreCreateProcessReport);
+            writer.Write(@this.ProbeDirectorySymlinkAsDirectory);
         }
 
         /// <nodoc/>
@@ -222,6 +231,7 @@ namespace BuildXL.Utilities.Configuration
                 DoubleWritePolicy = reader.ReadBoolean() ? (DoubleWritePolicy?)reader.ReadByte() : null,
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
+                ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
             };
         }
 
@@ -249,7 +259,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
                 && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
-                && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport);
+                && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
+                && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory);
         }
 
         /// <nodoc />

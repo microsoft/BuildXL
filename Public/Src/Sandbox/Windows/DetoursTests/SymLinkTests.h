@@ -24,3 +24,6 @@ int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag();
 int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag();
 int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks();
 int CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks();
+int CallProbeDirectorySymlink();
+int CallProbeDirectorySymlinkTargetWithReparsePointFlag();
+int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag();

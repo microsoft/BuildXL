@@ -1155,6 +1155,13 @@ namespace BuildXL
                             (opt) => sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel =
                             CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_ProbeDirectorySymlinkAsDirectory",
+                            sign =>
+                            {
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProbeDirectorySymlinkAsDirectory = sign;
+                            },
+                            isUnsafe: true),
                         // TODO: Remove this!
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_SourceFileCanBeInsideOutputDirectory",

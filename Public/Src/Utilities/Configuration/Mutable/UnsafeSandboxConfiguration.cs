@@ -28,6 +28,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
+            ProbeDirectorySymlinkAsDirectory = true;
 
             if (EngineVersion.Version < 1)
             {
@@ -45,7 +46,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             IgnorePreloadedDlls = false,
             IgnoreCreateProcessReport = false,
-            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing
+            IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing,
+            ProbeDirectorySymlinkAsDirectory = false
         };
 
         /// <nodoc />
@@ -70,6 +72,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DoubleWritePolicy = template.DoubleWritePolicy;
             IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
             IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
+            ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
         }
 
         /// <inheritdoc />
@@ -128,5 +131,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IgnoreCreateProcessReport { get; set; }
+
+        /// <inheritdoc />
+        public bool ProbeDirectorySymlinkAsDirectory { get; set; }
     }
 }

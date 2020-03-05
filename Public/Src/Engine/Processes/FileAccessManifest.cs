@@ -84,7 +84,11 @@ namespace BuildXL.Processes
             QBuildIntegrated = false;
             PipId = 0L;
             EnforceAccessPoliciesOnDirectoryCreation = false;
-            IgnoreCreateProcessReport = true;
+            IgnoreCreateProcessReport = false;
+
+            // Use unsafe probe by default for now because tests in CB probing parent directories that can be directory symlinks or junctions.
+            // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
+            ProbeDirectorySymlinkAsDirectory = true;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -251,6 +255,15 @@ namespace BuildXL.Processes
         {
             get => GetFlag(FileAccessManifestFlag.IgnoreCreateProcessReport);
             set => SetFlag(FileAccessManifestFlag.IgnoreCreateProcessReport, value);
+        }
+
+        /// <summary>
+        /// If true, probe directory symlink (or junction) as directory.
+        /// </summary>
+        public bool ProbeDirectorySymlinkAsDirectory
+        {
+            get => GetFlag(FileAccessManifestFlag.ProbeDirectorySymlinkAsDirectory);
+            set => SetFlag(FileAccessManifestFlag.ProbeDirectorySymlinkAsDirectory, value);
         }
 
         /// <summary>
@@ -1106,7 +1119,8 @@ namespace BuildXL.Processes
             IgnoreCreateProcessReport = 0x2000000,
             QBuildIntegrated = 0x4000000,
             IgnorePreloadedDlls = 0x8000000,
-            EnforceAccessPoliciesOnDirectoryCreation = 0x10000000
+            EnforceAccessPoliciesOnDirectoryCreation = 0x10000000,
+            ProbeDirectorySymlinkAsDirectory = 0x20000000
         }
 
         // CODESYNC: DataTypes.h

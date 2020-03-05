@@ -528,3 +528,49 @@ int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
 {
     return CallDetouredCreateFileWForSymlinkProbeOnly(false);
 }
+
+int CallProbeDirectorySymlink()
+{
+    DWORD attributes = GetFileAttributesW(L"directory.lnk");
+    if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+    {
+        return -1;
+    }
+
+    return (int)GetLastError();
+}
+
+int CallProbeDirectorySymlinkTarget(bool withReparsePointFlag)
+{
+    DWORD flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    flagsAndAttributes = withReparsePointFlag
+        ? flagsAndAttributes | FILE_FLAG_OPEN_REPARSE_POINT
+        : flagsAndAttributes;
+
+    HANDLE hFile = CreateFileW(
+        L"directory.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) 
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+    return (int)GetLastError();
+}
+
+int CallProbeDirectorySymlinkTargetWithReparsePointFlag()
+{
+    return CallProbeDirectorySymlinkTarget(true);
+}
+
+int CallProbeDirectorySymlinkTargetWithoutReparsePointFlag()
+{
+    return CallProbeDirectorySymlinkTarget(false);
+}

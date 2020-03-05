@@ -13,6 +13,12 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 
 # Upcoming release
 
+# 0.1.0-20200228.5 (Release [57057](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57057)).  Released 3/4/2020
+- Added an ExecuteConvergedProcessDuration counter.
+- Disable batch logging in cache miss analysis by default.
+- Added full eviction sort which ensures content is sorted by distributed age.
+- Added 'requiresMacOperatingSystem' to *IfSupported attributes.
+
 # 0.1.0-20200221.3.1 (Release [56624](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=56624)).  Released 2/26/2020
 - Directory scrubber can follow directory symlinks
 - A new dispatcher in scheduler for seal directory pips.

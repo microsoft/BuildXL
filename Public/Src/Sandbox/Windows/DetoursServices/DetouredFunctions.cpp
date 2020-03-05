@@ -666,6 +666,28 @@ static bool TryCheckHandleOfDirectory(_In_ HANDLE hFile, _In_ bool treatReparseP
 }
 
 /// <summary>
+/// Returns whether the handle can be successfully identified as a directory and
+/// returns in fileOrDirectoryAttribute FILE_ATTRIBUTE_NORMAL when false or 
+/// FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_DIRECTORY otherwise
+/// </summay>
+/// <remarks>
+/// Useful for rename/move operations when we are also interested in a file attribute that
+/// can distinsguish files vs directories
+/// </reamrks>
+static bool IsHandleOfDirectoryAndGetAttributes(_In_ HANDLE hFile, _In_ bool treatReparsePointAsFile, _Out_ DWORD& fileOrDirectoryAttribute)
+{
+    bool isHandleOfDirectory;
+    bool isDirectory = TryCheckHandleOfDirectory(hFile, treatReparsePointAsFile, isHandleOfDirectory) && isHandleOfDirectory;
+    fileOrDirectoryAttribute = FILE_ATTRIBUTE_NORMAL;
+    if (isDirectory)
+    {
+        fileOrDirectoryAttribute |= FILE_ATTRIBUTE_DIRECTORY;
+    }
+
+    return isDirectory;
+}
+
+/// <summary>
 /// Checks if a handle or a path points to a directory.
 /// </summary>
 /// <remarks>
@@ -910,7 +932,9 @@ static bool ValidateMoveDirectory(
             DELETE,
             0,
             OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
+            // We are interested in knowing whether the source path is a directory, so make sure
+            // we reflect that in the report
+            FILE_ATTRIBUTE_NORMAL | (fileAttributes & FILE_ATTRIBUTE_DIRECTORY),
             file.c_str());
 
         PolicyResult sourcePolicyResult;
@@ -943,7 +967,9 @@ static bool ValidateMoveDirectory(
                 GENERIC_WRITE,
                 0,
                 CREATE_ALWAYS,
-                FILE_ATTRIBUTE_NORMAL,
+                // We are interested in knowing whether the source path is a directory, so make sure
+                // we reflect that in the report
+                FILE_ATTRIBUTE_NORMAL | (fileAttributes & FILE_ATTRIBUTE_DIRECTORY),
                 file.c_str());
 
             PolicyResult destPolicyResult;
@@ -1199,12 +1225,15 @@ NTSTATUS HandleFileRenameInformation(
             FileInformationClass);
     }
 
+    DWORD flagsAndAttributes;
+    bool renameDirectory = IsHandleOfDirectoryAndGetAttributes(FileHandle, true, /*ref*/flagsAndAttributes);
+
     FileOperationContext sourceOpContext = FileOperationContext(
         L"ZwSetRenameInformationFile_Source",
         DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         sourcePath.c_str());
 
     PolicyResult sourcePolicyResult;
@@ -1220,7 +1249,7 @@ NTSTATUS HandleFileRenameInformation(
         GENERIC_WRITE,
         0,
         CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         targetPath.c_str());
 
     PolicyResult destPolicyResult;
@@ -1250,14 +1279,9 @@ NTSTATUS HandleFileRenameInformation(
         return destAccessCheck.DenialNtStatus();
     }
 
-    bool isHandleOfDirectory;
-    bool renameDirectory = false;
     vector<ReportData> filesAndDirectoriesToReport;
-
-    if (TryCheckHandleOfDirectory(FileHandle, true, isHandleOfDirectory) && isHandleOfDirectory)
+    if (renameDirectory)
     {
-        renameDirectory = true;
-
         if (!ValidateMoveDirectory(
                 L"ZwSetRenameInformationFile_Source", 
                 L"ZwSetRenameInformationFile_Dest",
@@ -1647,12 +1671,15 @@ NTSTATUS HandleFileNameInformation(
             FileInformationClass);
     }
 
+    DWORD flagsAndAttributes;
+    bool renameDirectory = IsHandleOfDirectoryAndGetAttributes(FileHandle, true, /*ref*/flagsAndAttributes);
+
     FileOperationContext sourceOpContext = FileOperationContext(
         L"ZwSetFileNameInformationFile_Source",
         DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         sourcePath.c_str());
 
     PolicyResult sourcePolicyResult;
@@ -1668,7 +1695,7 @@ NTSTATUS HandleFileNameInformation(
         GENERIC_WRITE,
         0,
         CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         targetPath.c_str());
 
     PolicyResult destPolicyResult;
@@ -1697,15 +1724,10 @@ NTSTATUS HandleFileNameInformation(
         destAccessCheck.SetLastErrorToDenialError();
         return destAccessCheck.DenialNtStatus();
     }
-
-    bool isHandleOfDirectory;
-    bool renameDirectory = false;
+    
     vector<ReportData> filesAndDirectoriesToReport;
-
-    if (TryCheckHandleOfDirectory(FileHandle, true, isHandleOfDirectory) && isHandleOfDirectory)
+    if (renameDirectory)
     {
-        renameDirectory = true;
-
         if (!ValidateMoveDirectory(
                 L"ZwSetFileNameInformationFile_Source", 
                 L"ZwSetFileNameInformationFile_Dest",
@@ -2925,12 +2947,23 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
             dwFlags);
     }
 
+    bool moveDirectory = false;
+    DWORD flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+
+    // TODO: unclear why we are using IsPathToDirectory and
+    // not TryCheckHandleOfDirectory. Revisit and unify if possible.
+    if (IsPathToDirectory(lpExistingFileName, true))
+    {
+        moveDirectory = true;
+        flagsAndAttributes |= FILE_ATTRIBUTE_DIRECTORY;
+    }
+
     FileOperationContext sourceOpContext = FileOperationContext(
         L"MoveFileWithProgress_Source",
         GENERIC_READ | DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         lpExistingFileName);
 
     PolicyResult sourcePolicyResult;
@@ -2950,7 +2983,7 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         GENERIC_WRITE,
         0,
         CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         lpNewFileName == NULL ? L"" : lpNewFileName);
 
     PolicyResult destPolicyResult;
@@ -2992,13 +3025,9 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         }
     }
 
-    bool moveDirectory = false;
     vector<ReportData> filesAndDirectoriesToReport;
-
-    if (IsPathToDirectory(lpExistingFileName, true))
+    if (moveDirectory)
     {
-        moveDirectory = true;
-
         // Verify move directory.
         // The destination of move directory must be on the same drive.
         if (!ValidateMoveDirectory(
@@ -3965,12 +3994,15 @@ static BOOL RenameUsingSetFileInformationByHandle(
     _In_ DWORD                     dwBufferSize,
     _In_ const wstring&            fullPath)
 {
+    DWORD flagsAndAttributes;
+    bool renameDirectory = IsHandleOfDirectoryAndGetAttributes(hFile, true, /*ref*/ flagsAndAttributes);
+
     FileOperationContext sourceOpContext = FileOperationContext(
         L"SetFileInformationByHandle_Source",
         DELETE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         fullPath.c_str());
 
     PolicyResult sourcePolicyResult;
@@ -4021,7 +4053,7 @@ static BOOL RenameUsingSetFileInformationByHandle(
         GENERIC_WRITE,
         0,
         CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
+        flagsAndAttributes,
         targetFileName.c_str());
 
     PolicyResult destPolicyResult;
@@ -4043,14 +4075,9 @@ static BOOL RenameUsingSetFileInformationByHandle(
         return FALSE;
     }
 
-    bool isHandleOfDirectory;
-    bool renameDirectory = false;
     vector<ReportData> filesAndDirectoriesToReport;
-
-    if (TryCheckHandleOfDirectory(hFile, true, isHandleOfDirectory) && isHandleOfDirectory)
+    if (renameDirectory)
     {
-        renameDirectory = true;
-
         if (!ValidateMoveDirectory(
                 L"SetFileInformationByHandle_Source", 
                 L"SetFileInformationByHandle_Dest",

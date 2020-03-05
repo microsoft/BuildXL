@@ -236,6 +236,46 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsFalse(File.Exists(ArtifactToString(outputArtifactLaterDeleted)));
         }
 
+        [Fact]
+        public void MoveDirectoryUnderASharedOpaqueBehavior()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            AbsolutePath subDirSrc = sharedOpaqueDirPath.Combine(Context.PathTable, "subdir-src");
+            AbsolutePath subDirTarget = sharedOpaqueDirPath.Combine(Context.PathTable, "subdir-target");
+
+            var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            var subDirSourceDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(subDirSrc);
+            var subDirTargetDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(subDirTarget);
+
+            var outputArtifact = CreateOutputFileArtifact(subDirSourceDirectoryArtifact);
+
+            // Create a directory, a file under it and then move the directory to a sibling place
+            var builderA = CreatePipBuilder(new List<Operation>
+                             {
+                                 Operation.CreateDir(subDirSourceDirectoryArtifact, doNotInfer: true),
+                                 Operation.WriteFile(outputArtifact, doNotInfer: true),
+                                 Operation.MoveDir(subDirSourceDirectoryArtifact, subDirTargetDirectoryArtifact),
+                             });
+            builderA.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            // Create a file with the same name as the directory originally created by pip A
+            var fileExDirectory = new FileArtifact(subDirSrc);
+            var builderB = CreatePipBuilder(new List<Operation>
+                             {
+                                 Operation.WriteFile(fileExDirectory, doNotInfer: true),
+                             });
+            builderB.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
+            // Avoid races
+            builderB.AddOrderDependency(pipA.Process.PipId);
+            SchedulePipBuilder(builderB);
+
+            // Everything should be fine. The directory move operation coming from pip A should be discarded for the directory itself,
+            // so pip B should be able to create a file with the same path without triggering a double write.
+            RunScheduler().AssertSuccess();
+        }
+
         /// <summary>
         /// Consumers can only read files in an opaque directoy that were produced by its declared producers
         /// </summary>

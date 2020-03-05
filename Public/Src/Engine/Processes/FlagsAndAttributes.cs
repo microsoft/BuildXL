@@ -32,6 +32,12 @@ namespace BuildXL.Processes
         FILE_ATTRIBUTE_SYSTEM = 0x00000004,
 
         /// <summary>
+        /// The path is a directory.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]
+        FILE_ATTRIBUTE_DIRECTORY = 0x00000010,
+
+        /// <summary>
         /// The file should be archived. Applications use this attribute to mark files for backup or removal.
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA1707:IdentifiersShouldNotContainUnderscores")]

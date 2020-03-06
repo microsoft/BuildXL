@@ -351,7 +351,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void WhitelistOnSpawnProcess(bool includeExecutableLink)

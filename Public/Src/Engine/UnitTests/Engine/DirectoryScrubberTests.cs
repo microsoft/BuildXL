@@ -299,7 +299,7 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(1, numDeleted);
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void DeleteFilesDeletesSymlinkButNotTarget(bool useRelativeTargetForSymlink)
@@ -323,7 +323,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(File.Exists(fullFilePath));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DeleteFilesCanDeleteDirectorySymlink()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteDirectorySymlink));
@@ -341,7 +341,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(Directory.Exists(fullTargetDirPath));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DirectorySymlinksAreTraversed()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksAreTraversed));
@@ -374,7 +374,7 @@ namespace Test.BuildXL.Engine
         /// On Windows, directories under shared opaques are always removed unless they have files underneath
         /// that shouldn't be removed. This test verifies this behavior also applies to symlink directories.
         /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
         public void DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty));
@@ -402,7 +402,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(Directory.Exists(fullSymlinkPath));
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void SymlinkDirectoriesDoNotIntroduceDuplicateWork()
         {
             // We are creating this layout
@@ -436,7 +436,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsFalse(Directory.Exists(symlinkDirectory));
         }
 
-        [Theory]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void DeleteFilesCanDeleteSymlinkToAbsentFile(bool declareSymlinkTargetAsFile)
@@ -478,7 +478,7 @@ namespace Test.BuildXL.Engine
             XAssert.AreEqual(0, numDeleted);
         }
 
-        [Fact]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DeleteFilesHandlesMixedEntries()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesHandlesMixedEntries));

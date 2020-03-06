@@ -712,15 +712,6 @@ namespace BuildXL.App.Tracing
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontendIOSlow(LoggingContext context, double factor);
 
-        [GeneratedEvent(
-            (ushort)LogEventId.ProblematicWorkerExitError,
-            EventGenerators = EventGenerators.LocalOnly,
-            Message = "One worker exited with a connection issue; caused some internal/infrastructure errors in the build: {errorMessage}",
-            EventLevel = Level.Error,
-            EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void ProblematicWorkerExitError(LoggingContext context, string errorMessage);
-
         /// <summary>
         /// Logging DominoCompletion with an extra CloudBuild event
         /// </summary>

@@ -61,6 +61,6 @@ namespace BuildXL.App.Tracing
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
-        ProblematicWorkerExitError = 14013,
+        // ProblematicWorkerExitError = 14013,
     }
 }

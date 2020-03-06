@@ -795,8 +795,11 @@ namespace BuildXL
                     listener.InternalErrorDetails.FirstErrorMessage :
                     listener.InfrastructureErrorDetails.FirstErrorMessage;
 
-                Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
-                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: AppLogEventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
+                string errorName = listener.InternalErrorDetails.Count > 0 ?
+                    listener.InternalErrorDetails.FirstErrorName :
+                    listener.InfrastructureErrorDetails.FirstErrorName;
+
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: $"{SchedulerLogEventId.ProblematicWorkerExit.ToString()}.{errorName}", BucketMessage: errorMessage);
             }
             else if (listener.InternalErrorDetails.Count > 0)
             {

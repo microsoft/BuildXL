@@ -4,8 +4,6 @@
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
     /// <summary>

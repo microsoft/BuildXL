@@ -39,13 +39,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
     public class SasToken
     {
         /// <nodoc />
-        public string Token { get; set; }
+        public string? Token { get; set; }
 
         /// <nodoc />
-        public string StorageAccount { get; set; }
+        public string? StorageAccount { get; set; }
 
         /// <nodoc />
-        public string ResourcePath { get; set; }
+        public string? ResourcePath { get; set; }
     }
 
     /// <nodoc />
@@ -55,18 +55,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         public SasToken Token { get; private set; }
 
         /// <nodoc />
-        public event EventHandler<SasToken> TokenUpdated;
+        public event EventHandler<SasToken>? TokenUpdated;
 
         /// <nodoc />
         public UpdatingSasToken(SasToken token)
         {
-            UpdateToken(token);
+            Token = token;
         }
 
         /// <nodoc />
         public void UpdateToken(SasToken token)
         {
-            Contract.Requires(token != null);
+            Contract.RequiresNotNull(token);
             Token = token;
             TokenUpdated?.Invoke(this, token);
         }

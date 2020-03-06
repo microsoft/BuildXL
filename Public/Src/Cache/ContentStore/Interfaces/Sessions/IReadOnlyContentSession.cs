@@ -10,8 +10,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>

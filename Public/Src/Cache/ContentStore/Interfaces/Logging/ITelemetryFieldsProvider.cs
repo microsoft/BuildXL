@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-namespace BuildXL.Cache.ContentStore.Interfaces.Logging
+﻿namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
     /// <summary>
     ///     Provides CASaaS with basic information about the environment it runs in. This is used to obtain logging

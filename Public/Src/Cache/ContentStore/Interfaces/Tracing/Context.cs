@@ -6,8 +6,6 @@ using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
     /// <summary>

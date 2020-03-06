@@ -5,8 +5,6 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>

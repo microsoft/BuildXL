@@ -6,8 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>

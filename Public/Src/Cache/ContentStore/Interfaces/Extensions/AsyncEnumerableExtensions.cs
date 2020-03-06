@@ -8,6 +8,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
+#nullable disable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
 {
 

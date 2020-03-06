@@ -5,8 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>

@@ -3,8 +3,6 @@
 
 using BuildXL.Cache.ContentStore.Hashing;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
 {
     /// <summary>

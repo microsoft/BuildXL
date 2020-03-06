@@ -4,6 +4,8 @@
 using System;
 using System.Threading;
 
+#nullable disable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Utils
 {
     /// <summary>

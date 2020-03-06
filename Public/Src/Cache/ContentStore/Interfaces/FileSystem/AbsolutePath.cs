@@ -9,8 +9,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>

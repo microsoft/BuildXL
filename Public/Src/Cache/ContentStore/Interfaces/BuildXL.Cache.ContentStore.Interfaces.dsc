@@ -27,6 +27,7 @@ namespace Interfaces {
             importFrom("System.Interactive.Async").pkg,
             importFrom("WindowsAzure.Storage").pkg,
         ],
+        nullable: true,
         allowUnsafeBlocks: true,
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore",

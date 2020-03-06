@@ -4,8 +4,6 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>

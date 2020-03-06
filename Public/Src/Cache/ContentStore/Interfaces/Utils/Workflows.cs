@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
             GetIndexedResults<TSource, TResult> initialFunc,
             GetIndexedResults<TSource, TResult> fallbackFunc,
             Func<TResult, bool> isSuccessFunc,
-            Func<IReadOnlyList<Indexed<TResult>>, Task> initialSuccessTaskFunc = null
+            Func<IReadOnlyList<Indexed<TResult>>, Task>? initialSuccessTaskFunc = null
             )
         {
             // Get results from first method

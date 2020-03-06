@@ -39,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

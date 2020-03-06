@@ -3,8 +3,6 @@
 
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
 {
     /// <summary>

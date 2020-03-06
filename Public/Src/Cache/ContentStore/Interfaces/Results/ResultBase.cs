@@ -8,8 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>

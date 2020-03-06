@@ -15,8 +15,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>

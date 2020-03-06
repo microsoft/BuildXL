@@ -7,8 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>
@@ -211,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Equality operator.
         /// </summary>
-        public static bool operator ==(PathBase left, PathBase right)
+        public static bool operator ==(PathBase? left, PathBase? right)
         {
             return Equals(left, right);
         }
@@ -219,7 +217,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     Inequality operator.
         /// </summary>
-        public static bool operator !=(PathBase left, PathBase right)
+        public static bool operator !=(PathBase? left, PathBase? right)
         {
             return !(left == right);
         }

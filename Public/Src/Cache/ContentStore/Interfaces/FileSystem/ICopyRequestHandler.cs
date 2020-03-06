@@ -8,8 +8,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
-#nullable enable
-
 // ReSharper disable All
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {

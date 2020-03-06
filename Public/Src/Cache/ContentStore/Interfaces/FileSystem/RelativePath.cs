@@ -6,8 +6,6 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
     /// <summary>

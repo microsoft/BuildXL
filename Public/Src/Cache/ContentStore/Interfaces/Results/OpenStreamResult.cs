@@ -4,8 +4,6 @@
 using System;
 using System.IO;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>

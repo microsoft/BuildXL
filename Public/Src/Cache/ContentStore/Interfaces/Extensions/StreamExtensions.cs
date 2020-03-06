@@ -6,8 +6,6 @@ using System.IO;
 using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
 {
     /// <summary>

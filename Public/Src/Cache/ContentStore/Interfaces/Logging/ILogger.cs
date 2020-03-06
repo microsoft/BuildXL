@@ -3,8 +3,6 @@
 
 using System;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
     /// <summary>

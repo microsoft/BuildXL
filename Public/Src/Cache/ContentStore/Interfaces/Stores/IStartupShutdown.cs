@@ -3,6 +3,8 @@
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
+#nullable disable
+
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores
 {
     /// <summary>

@@ -4,8 +4,6 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
 
-#nullable enable
-
 namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
 {
     /// <summary>
@@ -36,7 +34,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Secrets
         }
 
         /// <nodoc />
-        public AzureBlobStorageCredentials(UpdatingSasToken sasToken) : this(CreateStorageCredentialsFromSasToken(sasToken), sasToken.Token.StorageAccount)
+        public AzureBlobStorageCredentials(UpdatingSasToken sasToken) 
+            : this(CreateStorageCredentialsFromSasToken(sasToken), sasToken.Token.StorageAccount!)
         {
 
         }

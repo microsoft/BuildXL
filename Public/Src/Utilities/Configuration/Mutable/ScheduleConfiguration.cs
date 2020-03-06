@@ -151,6 +151,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxSealDirs = template.MaxSealDirs;
             EnableHistoricCommitMemoryProjection = template.EnableHistoricCommitMemoryProjection;
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
+            DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
+            DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
         }
 
         /// <inheritdoc />

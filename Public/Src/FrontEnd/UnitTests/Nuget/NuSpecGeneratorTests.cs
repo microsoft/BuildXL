@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Nuget;
@@ -44,8 +45,6 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void GenerateNuSpec()
         {
-            var expectedpackageRoot = "../../../pkgs/TestPkg.1.999";
-
             var pkg = m_packageGenerator.AnalyzePackage(
                 @"<?xml version='1.0' encoding='utf-8'?>
 <package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
@@ -73,7 +72,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             var text = spec.ToDisplayStringV2();
             m_output.WriteLine(text);
 
-            string expectedSpec = string.Format(@"import {{Transformer}} from ""Sdk.Transformers"";
+            string expectedSpec = $@"import {{Transformer}} from ""Sdk.Transformers"";
 import * as Managed from ""Sdk.Managed"";
 
 export declare const qualifier: {{
@@ -146,8 +145,48 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
             Contract.fail(""Unsupported target framework"");
     }};
 }}
-)();", expectedpackageRoot);
-            Assert.Equal(expectedSpec, text);
+)();";
+            XAssert.AreEqual(expectedSpec, text);
+            var hashingHelper = new global::BuildXL.Storage.Fingerprints.HashingHelper(m_context.PathTable, recordFingerprintString: false);
+            hashingHelper.Add(expectedSpec);
+            var hash = BitConverter.ToString(hashingHelper.GenerateHashBytes()).Replace("-", string.Empty);
+
+            const string CurrentSpecHash = "54628A3B7DB3041473955EE2FC145009CFD298A2";
+            const int CurrentSpecGenVersion = 6;
+            if (CurrentSpecHash != hash)
+            {
+                var hasFormatVersionIncreased = NugetSpecGenerator.SpecGenerationFormatVersion > CurrentSpecGenVersion;
+                if (!hasFormatVersionIncreased)
+                {
+                    XAssert.Fail(
+$@"
+**********************************************************************************
+** It looks like NuGet spec generation has changed but the version of 
+** '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}' didn't increase.
+**
+** Please bump up the spec generation format version from {CurrentSpecGenVersion} to {CurrentSpecGenVersion+1} and then
+** update the '{nameof(CurrentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}' values in this
+** test to '{hash}' and '{CurrentSpecGenVersion+1}' respectively.
+**********************************************************************************");
+                }
+                else
+                {
+                    var lines = new[]
+                    {
+                        $"Congratulations on remembering to increment '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}'",
+                        $"after updating NuGet spec generator!",
+                        $"",
+                        $"To keep this reminder working, please update the '{nameof(CurrentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}'",
+                        $"values in this unit test to '{hash}' and '{NugetSpecGenerator.SpecGenerationFormatVersion}' respectively.",
+                    };
+                    const int width = 94;
+                    var fst = " " + String.Concat(Enumerable.Repeat("_", width+2)) + " ";
+                    var snd = $"/ {' ',-width} \\";
+                    var aligned = lines.Select(l => $"| {l,-width} |");
+                    var last = "\\" + String.Concat(Enumerable.Repeat("_", width+2)) + "/";
+                    XAssert.Fail(string.Join(Environment.NewLine, new[] { fst, snd }.Concat(aligned).Concat(new[] {last})));
+                }
+            }
         }
 
         [Fact]

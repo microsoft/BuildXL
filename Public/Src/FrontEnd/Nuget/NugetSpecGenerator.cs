@@ -31,6 +31,9 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PathAtom m_xmlExtension;
         private readonly PathAtom m_pdbExtension;
 
+        /// <summary>Current spec generation format version</summary>
+        public const int SpecGenerationFormatVersion = 6;
+
         /// <nodoc />
         public NugetSpecGenerator(PathTable pathTable, NugetAnalyzedPackage analyzedPackage)
         {

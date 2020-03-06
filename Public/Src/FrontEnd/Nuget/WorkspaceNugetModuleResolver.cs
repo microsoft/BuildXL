@@ -60,7 +60,6 @@ namespace BuildXL.FrontEnd.Nuget
         private const int MaxRetryCount = 2;
         private const int RetryDelayMs = 100;
 
-        private const int SpecGenerationFormatVersion = 6;
         private const string SpecGenerationVersionFileSuffix = ".version";
 
         private NugetFrameworkMonikers m_nugetFrameworkMonikers;
@@ -943,7 +942,7 @@ namespace BuildXL.FrontEnd.Nuget
             //  * The package fingerprint is the same. This means the binaries are the same
             //  * Both the generated spec and package config file exist on disk
             // NOTE: This is not resilient to the specs being modified by other entities than the build engine.
-            if (fileFormat == SpecGenerationFormatVersion &&
+            if (fileFormat == NugetSpecGenerator.SpecGenerationFormatVersion &&
                 packageRestoreFingerprint != null && string.Equals(packageRestoreFingerprint, analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, StringComparison.Ordinal) &&
                 generateSpecFingerprint != null && string.Equals(generateSpecFingerprint, expectedGenerateSpecFingerprint, StringComparison.OrdinalIgnoreCase) &&
                 File.Exists(packageDsc) &&
@@ -1029,7 +1028,7 @@ namespace BuildXL.FrontEnd.Nuget
                 WriteGeneratedSpecStateFile(
                     possibleProjectFile.Result.ToString(PathTable) + SpecGenerationVersionFileSuffix, 
                     (
-                        SpecGenerationFormatVersion, 
+                        NugetSpecGenerator.SpecGenerationFormatVersion, 
                         analyzedPackage.PackageOnDisk.PackageDownloadResult.FingerprintHash, 
                         generateSpecFingerprint
                     )

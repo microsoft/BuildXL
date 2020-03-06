@@ -16,6 +16,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         public static long Constructed;
         public static long ProperlyClosed;
         public static long Leaked;
+        public static string LastLeakedFilePath;
 
         private string _path;
 
@@ -102,6 +103,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         ~TrackingFileStream()
         {
             Interlocked.Increment(ref Leaked);
+            // Saving the last leaked path for potential tracing purposes.
+            LastLeakedFilePath = Path;
 
             try
             {

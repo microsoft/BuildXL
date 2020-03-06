@@ -326,6 +326,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
             try
             {
+                TraceLeakedFilePath(context);
+
                 var statistics = new Dictionary<string, long>();
                 var previousStatistics = _previousStatistics;
 
@@ -356,6 +358,16 @@ namespace BuildXL.Cache.ContentStore.Service
             finally
             {
                 Volatile.Write(ref _loggingIncrementalStats, 0);
+            }
+        }
+
+        private void TraceLeakedFilePath(OperationContext context)
+        {
+            // Tracing the last leaked file name to understand what files are not closed properly.
+            var leakedPath = TrackingFileStream.LastLeakedFilePath;
+            if (!string.IsNullOrEmpty(leakedPath))
+            {
+                Tracer.Warning(context, $"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.LastLeakedFilePath)}: {leakedPath}");
             }
         }
 

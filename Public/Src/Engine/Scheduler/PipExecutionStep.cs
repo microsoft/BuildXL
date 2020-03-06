@@ -280,7 +280,8 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                 case PipExecutionStep.ExecuteProcess:
                     return toStep == PipExecutionStep.PostProcess
                         || toStep == PipExecutionStep.ChooseWorkerCpu /* retry */
-                        || toStep == PipExecutionStep.RunFromCache;   /* determinism probe - deploy outputs from cache after executing process to enable downstream determinism */
+                        || toStep == PipExecutionStep.RunFromCache    /* determinism probe - deploy outputs from cache after executing process to enable downstream determinism */
+                        || toStep == PipExecutionStep.HandleResult;   /* failure */
 
                 case PipExecutionStep.ExecuteNonProcessPip:
                 case PipExecutionStep.PostProcess:

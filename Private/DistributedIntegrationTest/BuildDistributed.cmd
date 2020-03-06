@@ -74,6 +74,16 @@ if %buildResult% NEQ 0 (
     endlocal && exit /b 1
 )
 
+echo.
+echo ################################################################################
+echo # Build is expected to pass with one worker failing.                           #
+echo ################################################################################
+echo #                                                                              #
+echo # Errors in the output are expected, do not worry this is not a false positive #
+echo #                                                                              #
+echo ################################################################################
+echo.
+
 REM if TF_ROLLING_DROPNAME was set --> check if the drop was finalized
 set BUILDXL_STATS_FILE=%TEST_SOLUTION_ROOT%\Out\M00\Logs\BuildXL.stats
 if DEFINED TF_ROLLING_DROPNAME (
@@ -101,6 +111,17 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     endlocal && exit /b 1
 )
+
+echo.
+echo ################################################################################
+echo # Build is expected to fail.                                                   #
+echo ################################################################################
+echo #                                                                              #
+echo # Errors in the output are expected, do not worry this is not a false positive #
+echo # This test should fail if the build succeeds.                                 #
+echo #                                                                              #
+echo ################################################################################
+echo.
 
 REM Ensure that the replicated output fail is replicated in all workers and its content is "FAIL"
 for /f "delims=" %%a in ('findstr /SPC:FAIL %OUTPUT_FILENAME_FOR_REPLICATION% ^| find /v /c ""') do set "numOfReplicatedFiles=%%a"

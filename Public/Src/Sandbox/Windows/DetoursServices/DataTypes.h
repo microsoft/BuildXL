@@ -94,7 +94,7 @@ enum class FileAccessManifestExtraFlag {
 };
 
 //
-// Keep this in sync with the C# version declared in FileAccessPolicy.cs
+// CODESYNC: Keep this in sync with the C# version declared in Public\Src\Engine\Processes\FileAccessPolicy.cs
 //
 enum FileAccessPolicy
 {
@@ -136,6 +136,9 @@ enum FileAccessPolicy
     // The way to determine undeclared inputs is based on file existence: if a pip tries to write into a file - allowed by policy - but
     // that was not created by the pip (i.e. the file was there before the first write), then it is a write on an undeclared input
     FileAccessPolicy_OverrideAllowWriteForExistingFiles = 0x400,
+
+    // When checking if a handle or path is a directory, treat directory symlink as directory.
+    FileAccessPolicy_TreatDirectorySymlinkAsDirectory = 0x800,
 
     // If set, then we will report all attempts to access files under this scope (whether existent or not).
     // BuildXL uses this information to discover dynamic dependencies, such as #include-ed files.

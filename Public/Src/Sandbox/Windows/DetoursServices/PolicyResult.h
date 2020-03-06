@@ -170,6 +170,7 @@ public:
     bool ReportUsnAfterOpen() const { return (m_policy & FileAccessPolicy_ReportUsnAfterOpen) != 0; }
     bool ReportDirectoryEnumeration() const { return (m_policy & FileAccessPolicy_ReportDirectoryEnumerationAccess) != 0; }
     bool IndicateUntracked() const { return ((m_policy & FileAccessPolicy_AllowAll) == FileAccessPolicy_AllowAll) && ((m_policy & FileAccessPolicy_ReportAccess) == 0); }
+    bool TreatDirectorySymlinkAsDirectory() const { return (m_policy & FileAccessPolicy_TreatDirectorySymlinkAsDirectory) != 0; }
     DWORD GetPathId() const { return m_policySearchCursor.IsValid() ? m_policySearchCursor.Record->GetPathId() : 0; }
     FileAccessPolicy GetPolicy() const { return m_policy; }
     USN GetExpectedUsn() const { return m_policySearchCursor.GetExpectedUsn(); }

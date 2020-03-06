@@ -9,7 +9,8 @@ namespace BuildXL.Processes
     // Keep this in sync with the C++ version declared in DataTypes.h
 
     /// <summary>
-    /// Flags indicating whether a file may be read or written
+    /// Policies for file accesses.
+    /// CODESYNC: Keep this in sync with the C++ version declared in \Public\Src\Sandbox\Windows\DetoursServices\DataTypes.h
     /// </summary>
     [SuppressMessage("Microsoft.Design", "CA1008:EnumsShouldHaveZeroValue", Justification = "We have 'Deny'.")]
     [SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames", Justification = "A policy comprises many things.")]
@@ -92,6 +93,11 @@ namespace BuildXL.Processes
         /// Observe that sandboxing never blocks in this case, denying the access is surfaced as a DFA after the write happened.
         /// </remarks>
         OverrideAllowWriteForExistingFiles = 0x400,
+
+        /// <summary>
+        /// When checking if a handle or path is a directory, treat directory symlink as directory.
+        /// </summary>
+        TreatDirectorySymlinkAsDirectory = 0x800,
 
         /// <summary>
         /// If set, then we will report attempts to access files under this scope, whether they exist or not (combination of <see cref="ReportAccessIfExistent"/>

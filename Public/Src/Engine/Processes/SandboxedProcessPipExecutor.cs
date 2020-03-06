@@ -24,7 +24,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
@@ -1926,6 +1925,23 @@ namespace BuildXL.Processes
                 }
             }
 
+            // Directories specified in the directory translator can be directory symlinks or junctions that are meant to be directories in normal circumstances.
+            if (m_fileAccessManifest.DirectoryTranslator != null) 
+            {
+                foreach (var translation in m_fileAccessManifest.DirectoryTranslator.Translations)
+                {
+                    var sourcePath = AbsolutePath.Create(m_pathTable, translation.SourcePath);
+                    var targetPath = AbsolutePath.Create(m_pathTable, translation.TargetPath);
+                    m_fileAccessManifest.AddPath(
+                        sourcePath,
+                        mask: FileAccessPolicy.MaskNothing,
+                        values: FileAccessPolicy.TreatDirectorySymlinkAsDirectory);
+                    m_fileAccessManifest.AddPath(
+                        targetPath,
+                        mask: FileAccessPolicy.MaskNothing,
+                        values: FileAccessPolicy.TreatDirectorySymlinkAsDirectory);
+                }
+            }
 
             if (!OperatingSystemHelper.IsUnixOS)
             {

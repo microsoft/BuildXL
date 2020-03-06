@@ -83,7 +83,7 @@ namespace Test.BuildXL.Processes.Detours
             bool isQuickBuildIntegrated = false,
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false,
-            bool probeDirectorySymlinkAsDirectory = true)
+            bool probeDirectorySymlinkAsDirectory = false)
         {
             errorString = null;
 
@@ -1596,6 +1596,7 @@ namespace Test.BuildXL.Processes.Detours
                         IgnoreNonCreateFileReparsePoints = false,
                         MonitorZwCreateOpenQueryFile = false,
                         MonitorNtCreateFile = true,
+                        ProbeDirectorySymlinkAsDirectory = false,
                     }
                 };
 
@@ -4686,6 +4687,9 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreRepPoints: false,
                     context: context,
                     pip: pip,
+                    // Use unsafe probe by default because this test probes parent directories that can be directory symlinks or junctions.
+                    // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
+                    probeDirectorySymlinkAsDirectory: true,
                     errorString: out errorString);
 
                 SetExpectedFailures(1, 0);

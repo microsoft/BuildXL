@@ -85,10 +85,7 @@ namespace BuildXL.Processes
             PipId = 0L;
             EnforceAccessPoliciesOnDirectoryCreation = false;
             IgnoreCreateProcessReport = false;
-
-            // Use unsafe probe by default for now because tests in CB probing parent directories that can be directory symlinks or junctions.
-            // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
-            ProbeDirectorySymlinkAsDirectory = true;
+            ProbeDirectorySymlinkAsDirectory = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;

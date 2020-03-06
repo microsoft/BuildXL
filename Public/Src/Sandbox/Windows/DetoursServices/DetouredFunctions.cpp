@@ -710,12 +710,17 @@ static bool IsHandleOrPathToDirectory(
     _In_     HANDLE                hFile,
     _In_     LPCWSTR               lpFileName,
     _In_     DWORD                 dwDesiredAccess,
-    _In_     DWORD                 dwFlagsAndAttributes)
+    _In_     DWORD                 dwFlagsAndAttributes,
+    _In_     PolicyResult*         policyResult)
 {
-    return IsHandleOrPathToDirectory(
-        hFile,
-        lpFileName,
-        !ProbeDirectorySymlinkAsDirectory() && WantsProbeOnlyAccess(dwDesiredAccess) && AttributesHasReparsePoint(dwFlagsAndAttributes));
+    bool treatReparsePointAsFile =
+        !ProbeDirectorySymlinkAsDirectory()                         // It is set globally that directory symlink probe should not be treated as directory.
+        && WantsProbeOnlyAccess(dwDesiredAccess)                    // Probe-only access.
+        && AttributesHasReparsePoint(dwFlagsAndAttributes)          // Open attribute has reparse point.
+        && (policyResult == nullptr                                 // No policy is specified,
+            || !policyResult->TreatDirectorySymlinkAsDirectory());  // or policy does not mandate directory symlink to be treated as directory.
+
+    return IsHandleOrPathToDirectory(hFile, lpFileName, treatReparsePointAsFile);
 }
 
 /// <summary>
@@ -775,7 +780,7 @@ static bool EnforceReparsePointAccess(
             readContext.FileExistence = GetFileAttributesW(fullPath.c_str()) != INVALID_FILE_ATTRIBUTES 
                 ? FileExistence::Existent
                 : FileExistence::Nonexistent;
-            readContext.OpenedDirectory = IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), dwDesiredAccess, dwFlagsAndAttributes);
+            readContext.OpenedDirectory = IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), dwDesiredAccess, dwFlagsAndAttributes, &policyResult);
 
             RequestedReadAccess requestedReadAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? RequestedReadAccess::Probe : RequestedReadAccess::Read;
             accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(requestedReadAccess, readContext));
@@ -2286,7 +2291,12 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     FileReadContext readContext;
     readContext.InferExistenceFromError(error);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE, lpFileName, dwDesiredAccess, dwFlagsAndAttributes);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(
+        error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE,
+        lpFileName,
+        dwDesiredAccess,
+        dwFlagsAndAttributes,
+        &policyResult);
 
     if (WantsReadAccess(dwDesiredAccess)) 
     {
@@ -5269,7 +5279,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) || 
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -5376,7 +5386,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile()) 
@@ -5429,7 +5439,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile()) 
@@ -5545,7 +5555,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) || 
          CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -5652,7 +5662,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
         
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile())
@@ -5710,7 +5720,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile())
@@ -5808,7 +5818,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
          CheckIfNtCreateDispositionImpliesWriteOrDelete(FILE_OPEN) || 
          CheckIfNtCreateMayDeleteFile(OpenOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult))
     {
         accessCheck = policyResult.CheckWriteAccess();
 
@@ -5907,7 +5917,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult);
         
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorZwCreateOpenQueryFile())
@@ -5963,7 +5973,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorZwCreateOpenQueryFile())

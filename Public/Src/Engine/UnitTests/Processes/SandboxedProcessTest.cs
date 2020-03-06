@@ -630,13 +630,7 @@ namespace Test.BuildXL.Processes
             {
                 string matchingFileName = "_buildc_dep_out.pass1";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(matchingFileName)
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, matchingFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -651,13 +645,7 @@ namespace Test.BuildXL.Processes
             {
                 string nulFileName = "NUL";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -672,13 +660,7 @@ namespace Test.BuildXL.Processes
             {
                 string nulFileName = "NUL:";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -695,13 +677,7 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = Path.Combine(windowsDirectory, "nul");
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
@@ -718,18 +694,29 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = windowsDirectory[0] + ":nul";
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-                    };
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 AddCmdDependencies(pt, info);
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.AreEqual(0, result.AllUnexpectedFileAccesses.Count);
             }
+        }
+
+        private SandboxedProcessInfo CreateCmdSandboxedProcessInfo(PathTable pt, TempFileStorage tempFiles, string fileName)
+        {
+            // Use unsafe probe by default because this test probes parent directories that can be directory symlinks or junctions.
+            // E.g., 'd:\dbs\el\bxlint\Out' with [C:\Windows\system32\cmd.exe:52040](Probe) FindFirstFileEx(...)
+            return new SandboxedProcessInfo(
+                pt,
+                tempFiles,
+                CmdHelper.CmdX64,
+                disableConHostSharing: false,
+                fileAccessManifest: new FileAccessManifest(pt) { ProbeDirectorySymlinkAsDirectory = true })
+            {
+                PipSemiStableHash = 0,
+                PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
+                Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(fileName),
+            };
         }
 
         private static void AddCmdDependencies(PathTable pt, SandboxedProcessInfo info)
@@ -1215,15 +1202,7 @@ namespace Test.BuildXL.Processes
 
                 string nulFileName = Path.Combine(windowsDirectory, "nul");
                 var pt = new PathTable();
-                var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
-                    {
-                        PipSemiStableHash = 0,
-                        PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                        Arguments = "/d /c echo >" + CommandLineEscaping.EscapeAsCommandLineWord(nulFileName),
-
-                    };
-
+                var info = CreateCmdSandboxedProcessInfo(pt, tempFiles, nulFileName);
                 info.FileAccessManifest.IgnorePreloadedDlls = false;
 
                 AddCmdDependencies(pt, info);

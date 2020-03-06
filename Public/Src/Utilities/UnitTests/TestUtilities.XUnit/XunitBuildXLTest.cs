@@ -16,7 +16,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
 #if PLATFORM_OSX
-using static BuildXL.Interop.MacOS.Sandbox;
+using static BuildXL.Interop.Unix.Sandbox;
 #endif
 
 namespace Test.BuildXL.TestUtilities.Xunit

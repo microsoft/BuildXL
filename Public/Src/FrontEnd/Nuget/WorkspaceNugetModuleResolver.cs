@@ -24,7 +24,7 @@ using BuildXL.FrontEnd.Sdk.Workspaces;
 using BuildXL.FrontEnd.Workspaces;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Interop;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;

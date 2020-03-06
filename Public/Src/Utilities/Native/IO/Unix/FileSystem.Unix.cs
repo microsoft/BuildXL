@@ -21,7 +21,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
@@ -668,7 +668,7 @@ namespace BuildXL.Native.IO.Unix
         {
             // POSIX systems use the opposite ordering of inputs as Windows for linking files
             // Function stub from GNU docs: int link (const char *oldname, const char *newname)
-            int result = BuildXL.Interop.MacOS.IO.link(linkTarget, link);
+            int result = BuildXL.Interop.Unix.IO.link(linkTarget, link);
             if (result != 0)
             {
                 var errno = Marshal.GetLastWin32Error();

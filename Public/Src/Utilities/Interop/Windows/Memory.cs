@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Runtime.InteropServices;
 
 namespace BuildXL.Interop.Windows
@@ -52,5 +53,16 @@ namespace BuildXL.Interop.Windows
         [DllImport(BuildXL.Interop.Libraries.WindowsKernel32, SetLastError = true, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
+
+        /// <summary>
+        /// Get memory usage with all counters for Windows
+        /// </summary>
+        public static Process.PROCESSMEMORYCOUNTERSEX GetMemoryUsageCounters(IntPtr handle)
+        {
+            Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
+            return Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb)
+                ? processMemoryCounters
+                : null;
+        }
     }
 }

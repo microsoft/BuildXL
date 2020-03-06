@@ -234,7 +234,7 @@ namespace BuildXL.Processes
                             continue;
                         }
 
-                        var memoryUsage = Interop.Dispatch.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                        var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                         if (memoryUsage != null)
                         {
                             currentPeakWorkingSet = (currentPeakWorkingSet ?? 0) + memoryUsage.PeakWorkingSetSize;

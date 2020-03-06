@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
 using Microsoft.Win32.SafeHandles;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Native.IO.Unix
@@ -466,7 +466,7 @@ namespace BuildXL.Native.IO.Unix
         public void CloneFile(string source, string destination, bool followSymlink)
         {
             var flags = followSymlink ? CloneFileFlags.CLONE_NONE : CloneFileFlags.CLONE_NOFOLLOW;
-            int result = Interop.MacOS.IO.CloneFile(source, destination, flags);
+            int result = Interop.Unix.IO.CloneFile(source, destination, flags);
             if (result != 0)
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), I($"Failed to clone '{source}' to '{destination}'"));

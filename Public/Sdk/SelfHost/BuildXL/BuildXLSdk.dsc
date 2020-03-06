@@ -94,12 +94,16 @@ export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
 
 @@public
+export const isTargetRuntimeLinux : boolean = qualifier.targetRuntime === "linux-x64";
+
+@@public
 export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
 
 @@public
 export const targetFrameworkMatchesCurrentHost = 
     (qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win")
- || (qualifier.targetRuntime === "osx-x64" && Context.getCurrentHost().os === "macOS");
+    || (qualifier.targetRuntime === "osx-x64" && Context.getCurrentHost().os === "macOS")
+    || (qualifier.targetRuntime === "linux-x64" && Context.getCurrentHost().os === "unix");
 
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */
 @@public

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using JetBrains.Annotations;

@@ -22,7 +22,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
 #if PLATFORM_OSX
-using static BuildXL.Interop.MacOS.Memory;
+using static BuildXL.Interop.Unix.Memory;
 #endif
 
 #pragma warning disable SA1649 // File name must match first type name

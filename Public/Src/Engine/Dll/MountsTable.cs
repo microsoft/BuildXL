@@ -17,7 +17,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
-using MacPaths = BuildXL.Interop.MacOS.IO;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Engine
 {

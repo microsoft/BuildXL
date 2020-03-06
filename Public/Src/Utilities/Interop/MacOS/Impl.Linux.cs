@@ -9,13 +9,13 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Libraries;
-using static BuildXL.Interop.MacOS.Constants;
-using static BuildXL.Interop.MacOS.IO;
-using static BuildXL.Interop.MacOS.Impl_Common;
-using static BuildXL.Interop.MacOS.Memory;
-using static BuildXL.Interop.MacOS.Processor;
+using static BuildXL.Interop.Unix.Constants;
+using static BuildXL.Interop.Unix.IO;
+using static BuildXL.Interop.Unix.Impl_Common;
+using static BuildXL.Interop.Unix.Memory;
+using static BuildXL.Interop.Unix.Processor;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The IO class for Linux-specific operations

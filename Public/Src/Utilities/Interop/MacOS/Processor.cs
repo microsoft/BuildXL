@@ -4,9 +4,9 @@
 using System.Runtime.InteropServices;
 
 using static BuildXL.Interop.Dispatch;
-using static BuildXL.Interop.MacOS.Constants;
+using static BuildXL.Interop.Unix.Constants;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Processor class offers interop calls for processor based tasks into operating system facilities

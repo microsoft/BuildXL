@@ -4,10 +4,10 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using static BuildXL.Interop.Dispatch;
-using static BuildXL.Interop.MacOS.Constants;
-using static BuildXL.Interop.MacOS.Impl_Common;
+using static BuildXL.Interop.Unix.Constants;
+using static BuildXL.Interop.Unix.Impl_Common;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Process class offers interop calls for process based tasks into operating system facilities

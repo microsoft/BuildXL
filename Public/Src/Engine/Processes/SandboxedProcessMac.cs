@@ -11,14 +11,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using static BuildXL.Interop.MacOS.Sandbox;
+using static BuildXL.Interop.Unix.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -163,7 +163,7 @@ namespace BuildXL.Processes
             var buffer = new Process.ProcessResourceUsage();
 
             // get processor times for the root process itself
-            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: false);
+            int errCode = Interop.Unix.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: false);
             if (errCode == 0)
             {
                 m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
@@ -171,7 +171,7 @@ namespace BuildXL.Processes
             }
 
             // get processor times for the process tree
-            errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: true);
+            errCode = Interop.Unix.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: true);
             if (errCode == 0)
             {
                 m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);

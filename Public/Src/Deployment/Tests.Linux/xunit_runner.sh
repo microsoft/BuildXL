@@ -121,11 +121,14 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
         return -1
     fi
 
-    xunitStdoutFname="${dllName}.xunit.stdout"
-    xunitStderrFname="${dllName}.xunit.stderr"
-    xunitResultFname="${dllName}.result.xml"
-
     pushd "${folderName}" > /dev/null
+
+    local logsDir="XunitLogs"
+    mkdir -p "$logsDir"
+
+    xunitStdoutFname="${logsDir}/${dllName}.xunit.stdout"
+    xunitStderrFname="${logsDir}/${dllName}.xunit.stderr"
+    xunitResultFname="${logsDir}/${dllName}.result.xml"
 
     # delete any previously left xunit result file because XUnit appends to it
     rm -f ${xunitResultFname}

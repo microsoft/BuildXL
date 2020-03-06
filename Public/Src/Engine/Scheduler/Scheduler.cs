@@ -22,7 +22,7 @@ using BuildXL.Engine.Cache.Artifacts;
 #if PLATFORM_OSX
 using BuildXL.Interop;
 #endif
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Multiplexing;

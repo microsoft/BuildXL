@@ -63,6 +63,15 @@ namespace NugetPackages {
         deploymentOptions: reducedDeploymentOptions
     });
 
+    const linuxX64 = pack({
+        id: `${packageNamePrefix}.linux-x64`,
+        deployment: BuildXL.withQualifier({
+            targetFramework: "netcoreapp3.1",
+            targetRuntime: "linux-x64"
+        }).deployment,
+        deploymentOptions: reducedDeploymentOptions
+    });
+
     const sdks = pack({
         id: `${packageNamePrefix}.Sdks`,
         deployment: Sdks.deployment,
@@ -285,7 +294,7 @@ namespace NugetPackages {
                 processes
             ]),
             sdks,
-            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
+            ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, linuxX64, toolsOrchestrator),
             toolsSandBoxExec,
         ]
     };

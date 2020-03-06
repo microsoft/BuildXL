@@ -20,7 +20,7 @@ export interface FullFrameworkQualifier extends Qualifier {
 export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "netcoreapp3.1";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 /**
@@ -30,7 +30,7 @@ export interface DefaultQualifier extends Qualifier {
 export interface DefaultQualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net472" | "netcoreapp3.1";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 /**
@@ -40,13 +40,13 @@ export interface DefaultQualifierWithNet472 extends Qualifier {
 export interface DefaultQualifierWithNetStandard20 extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net472" | "netcoreapp3.1" | "netstandard2.0";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net472" | "netcoreapp3.1" | "netstandard2.0";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 /**
@@ -62,7 +62,7 @@ export interface PlatformDependentQualifier extends Qualifier {
 export interface NetCoreAppQualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "netcoreapp3.1";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 /**

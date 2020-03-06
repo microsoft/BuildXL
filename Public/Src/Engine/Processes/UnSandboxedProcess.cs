@@ -18,8 +18,8 @@ using Microsoft.Win32.SafeHandles;
 #else
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
-#if PLATFORM_OSX
-using static BuildXL.Interop.MacOS.IO;
+#if !PLATFORM_WIN
+using static BuildXL.Interop.Unix.IO;
 #endif
 
 using static BuildXL.Utilities.FormattableStringEx;

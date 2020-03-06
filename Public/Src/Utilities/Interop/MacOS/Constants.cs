@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// Constants for interop purposes

@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using BuildXL.Utilities;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using static BuildXL.Utilities.FormattableStringEx;
 using JetBrains.Annotations;

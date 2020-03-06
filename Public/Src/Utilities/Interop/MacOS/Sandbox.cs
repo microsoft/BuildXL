@@ -7,7 +7,7 @@ using System.Text;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member 
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Sandbox class offers interop calls for sandbox based tasks into the macOS sandbox interop library

@@ -21,7 +21,7 @@ namespace Tests {
     });
 
     @@public
-    export const linuxTestsDeployed = (qualifier.targetRuntime === "osx-x64") && BuildXLSdk.DeploymentHelpers.deploy({
+    export const linuxTestsDeployed = (qualifier.targetRuntime === "linux-x64") && BuildXLSdk.DeploymentHelpers.deploy({
         definition: Tests.Linux.deployment,
         targetLocation: r`linux-x64-tests/${qualifier.configuration}`
     });

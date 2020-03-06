@@ -26,7 +26,7 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using MacPaths = BuildXL.Interop.MacOS.IO;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace Test.BuildXL.Scheduler
 {

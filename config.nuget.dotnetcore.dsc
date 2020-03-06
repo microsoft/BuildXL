@@ -44,6 +44,14 @@ export const pkgs = [
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersionPreviousVersion, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: coreVersion },
+    // // === the following Linux packages are not needed for now, but might be in the future
+    // { id: "Microsoft.NETCore.App.Host.linux-x64", version: coreVersion },
+    // { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
+    // { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
+    // // ===
+
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS" ]  },
     { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS" ]  },

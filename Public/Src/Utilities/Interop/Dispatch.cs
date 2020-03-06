@@ -2,15 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Interop.Windows;
-
-#if NET_CORE
 using System.Runtime.InteropServices;
-#endif
-
-#if FEATURE_SAFE_PROCESS_HANDLE
-using Microsoft.Win32.SafeHandles;
-#endif
 
 namespace BuildXL.Interop
 {
@@ -50,21 +42,17 @@ namespace BuildXL.Interop
         public static readonly bool IsMacOS = CurrentOS() == OperatingSystem.MacOS;
 
         /// <summary>
+        /// Returns true when executing on Windows.
+        /// </summary>
+        public static readonly bool IsWinOS = CurrentOS() == OperatingSystem.Win;
+
+        /// <summary>
         /// Gets the elevated status of the process.
         /// </summary>
         /// <returns>True if process is running elevated, otherwise false.</returns>
-        public static bool IsElevated()
-        {
-            switch (s_currentOS)
-            {
-                case OperatingSystem.MacOS:
-                    return MacOS.Process.IsElevated();
-                case OperatingSystem.Win:
-                    return Windows.Process.IsElevated();
-                default:
-                    throw new PlatformNotSupportedException();
-            }
-        }
+        public static bool IsElevated() => IsWinOS
+            ? Windows.Process.IsElevated()
+            : Unix.Process.IsElevated();
 
         /// <summary>
         /// Returns total processor time for a given process.  The process must be running or else an exception is thrown.
@@ -73,18 +61,14 @@ namespace BuildXL.Interop
         {
             switch (s_currentOS)
             {
-                case OperatingSystem.MacOS:
-                {
-                    var buffer = new MacOS.Process.ProcessResourceUsage();
-                    MacOS.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
-                    long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
-                    return new TimeSpan(ticks);
-                }
+                case OperatingSystem.Win:
+                    return proc.TotalProcessorTime;
 
                 default:
-                {
-                    return proc.TotalProcessorTime;
-                }
+                    var buffer = new Unix.Process.ProcessResourceUsage();
+                    Unix.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
+                    long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
+                    return new TimeSpan(ticks);
             }
         }
 
@@ -97,45 +81,14 @@ namespace BuildXL.Interop
         {
             switch (s_currentOS)
             {
-                case OperatingSystem.MacOS:
-                    {
-                        ulong peakMemoryUsage = 0;
-                        if (MacOS.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS)
-                        {
-                            return peakMemoryUsage;
-                        }
+                case OperatingSystem.Win:
+                    return Windows.Memory.GetMemoryUsageCounters(handle)?.PeakWorkingSetSize;
 
-                        return null;
-                    }
                 default:
-                    {
-                        return GetMemoryUsageCounters(handle)?.PeakWorkingSetSize;
-                    }
-            }
-        }
-
-        /// <summary>
-        /// Get memory usage with all counters for Windows
-        /// </summary>
-        public static Process.PROCESSMEMORYCOUNTERSEX GetMemoryUsageCounters(IntPtr handle)
-        {
-            switch (s_currentOS)
-            {
-                case OperatingSystem.MacOS:
-                {
-                    return null;
-                }
-                default:
-                {
-                    Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
-
-                    if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
-                    {
-                        return processMemoryCounters;
-                    }
-
-                    return null;
-                }
+                    ulong peakMemoryUsage = 0;
+                    return Unix.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS
+                        ? peakMemoryUsage
+                        : (ulong?)null;
             }
         }
     }

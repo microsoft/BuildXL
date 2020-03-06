@@ -118,7 +118,7 @@ namespace BuildXL.Processes
                 uint position,
                 int options);
 
-            private const Interop.MacOS.IO.FilePermissions S_IWUSR = Interop.MacOS.IO.FilePermissions.S_IWUSR;
+            private const Interop.Unix.IO.FilePermissions S_IWUSR = Interop.Unix.IO.FilePermissions.S_IWUSR;
 
             /// <summary>
             /// Flags the given path as being an output under a shared opaque by setting
@@ -127,13 +127,13 @@ namespace BuildXL.Processes
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
                 bool followSymlink = false;
-                var currentMode = (Interop.MacOS.IO.FilePermissions)Interop.MacOS.IO.GetFilePermissionsForFilePath(expandedPath, followSymlink);
+                var currentMode = (Interop.Unix.IO.FilePermissions)Interop.Unix.IO.GetFilePermissionsForFilePath(expandedPath, followSymlink);
                 bool isWritableByUser = (currentMode & S_IWUSR) != 0;
 
                 // set u+w if not already set
                 if (!isWritableByUser)
                 {
-                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode | S_IWUSR, followSymlink);
+                    Interop.Unix.IO.SetFilePermissionsForFilePath(expandedPath, currentMode | S_IWUSR, followSymlink);
                 }
 
                 // set xattr
@@ -144,7 +144,7 @@ namespace BuildXL.Processes
                 // reset permissions if we changed them
                 if (!isWritableByUser)
                 {
-                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
+                    Interop.Unix.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
                 }
 
                 // throw if neither SetXattr succeeded nor the path is properly marked

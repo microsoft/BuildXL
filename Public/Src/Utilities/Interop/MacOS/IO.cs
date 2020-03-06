@@ -10,7 +10,7 @@ using static BuildXL.Interop.Dispatch;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The IO class offers interop calls for I/O based tasks into operating system facilities

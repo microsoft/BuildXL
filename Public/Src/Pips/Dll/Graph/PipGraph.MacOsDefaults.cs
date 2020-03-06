@@ -7,7 +7,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using MacPaths = BuildXL.Interop.MacOS.IO;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Pips.Graph
 {

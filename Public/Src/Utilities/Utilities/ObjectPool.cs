@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-#if PLATFORM_OSX
+#if !PLATFORM_WIN
 using System.Collections.Concurrent;
 #endif
 

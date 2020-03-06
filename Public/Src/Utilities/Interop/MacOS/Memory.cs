@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 using static BuildXL.Interop.Dispatch;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The Memory class offers interop calls for memory based tasks into operating system facilities

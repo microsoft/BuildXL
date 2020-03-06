@@ -3,10 +3,10 @@
 
 using System.Runtime.InteropServices;
 using System.Text;
-using static BuildXL.Interop.MacOS.IO;
+using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Interop.Libraries;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {
     /// <summary>
     /// The IO class for Mac-specific operations

@@ -42,7 +42,7 @@ namespace BuildXL.OpNameGen
 //
 using System.Collections.Generic;
 
-namespace BuildXL.Interop.MacOS
+namespace BuildXL.Interop.Unix
 {{
 #pragma warning disable CS1591 // disabling warning about missing API documentation
     /// <summary>File operations reported by BuildXLSandbox.</summary>

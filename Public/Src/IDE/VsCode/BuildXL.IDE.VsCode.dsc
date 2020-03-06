@@ -61,7 +61,7 @@ namespace LanguageService.Server {
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,
-            fixUnixPermissions: qualifier.targetRuntime === "osx-x64",
+            fixUnixPermissions: [ "osx-x64", "linux-x64" ].indexOf(qualifier.targetRuntime) !== -1 ,
             additionalDependencies: vsixDeployment.targetOpaques
         });
 

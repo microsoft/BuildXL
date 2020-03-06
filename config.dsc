@@ -440,7 +440,11 @@ config({
                 targetFramework: "netcoreapp3.1",
                 targetRuntime: "osx-x64",
             },
-
+            DebugLinux: {
+                configuration: "debug",
+                targetFramework: "netcoreapp3.1",
+                targetRuntime: "linux-x64",
+            },
             // Release
             Release: {
                 configuration: "release",
@@ -462,6 +466,11 @@ config({
                 configuration: "release",
                 targetFramework: "netcoreapp3.1",
                 targetRuntime: "osx-x64",
+            },
+            ReleaseLinux: {
+                configuration: "release",
+                targetFramework: "netcoreapp3.1",
+                targetRuntime: "linux-x64",
             },
         }
     },

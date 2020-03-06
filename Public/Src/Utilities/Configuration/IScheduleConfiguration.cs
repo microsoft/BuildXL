@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 
 namespace BuildXL.Utilities.Configuration
 {

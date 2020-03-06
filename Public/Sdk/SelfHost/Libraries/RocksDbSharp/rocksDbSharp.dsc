@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: {
     targetFramework: "netcoreapp3.1" | "net472" | "netstandard2.0";
-    targetRuntime: "win-x64" | "osx-x64";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 };
 
 const nativePackage = importFrom("RocksDbNative").pkg;

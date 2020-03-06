@@ -581,6 +581,8 @@ function getTargetRuntimeDefines() : string[] {
             return ["PLATFORM_WIN", "PLATFORM_X64"];
         case "osx-x64":
             return ["PLATFORM_OSX", "PLATFORM_X64"];
+        case "linux-x64":
+            return ["PLATFORM_LINUX", "PLATFORM_X64"];
         default:
             Contract.fail("Unexpected targetRuntime");
     }

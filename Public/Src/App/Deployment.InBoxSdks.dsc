@@ -8,7 +8,6 @@ export const inBoxSdks = createSdkDeploymentDefinition(false);
 export const inBoxServerSdks = createSdkDeploymentDefinition(true);
 
 function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.Definition {
-
     return {
         contents: [
             {
@@ -22,36 +21,32 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                         subfolder: "Sdk.Transformers",
                         contents: glob(d`${sdkRoot}/Transformers`, "*.dsc")
                     },
-                    {
-                        subfolder: "Sdk.QTest",
-                        contents: [
-                            ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
-                                importFrom("BuildXL.Tools.QTest").deployment
-                            ]),
-                        ],
-                    },
-                    {
-                        subfolder: "Sdk.Drop",
-                        contents: [
-                            ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
+                    ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
+                        {
+                            subfolder: "Sdk.QTest",
+                            contents: [ 
+                                importFrom("BuildXL.Tools.QTest").deployment 
+                            ]
+                        },
+                        {
+                            subfolder: "Sdk.Drop",
+                            contents: [
                                 importFrom("BuildXL.Tools.DropDaemon").withQualifier({
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
                                 }).deployment
-                            ])
-                        ],
-                    },
-                    {
-                        subfolder: "Sdk.Symbols",
-                        contents: [
-                            ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
+                            ]
+                        },
+                        {
+                            subfolder: "Sdk.Symbols",
+                            contents: [
                                 importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
                                     targetFramework: "net472",
                                     targetRuntime: "win-x64"
                                 }).deployment
-                            ])
-                        ],
-                    },
+                            ]
+                        },
+                    ])
                 ]
             }
         ]

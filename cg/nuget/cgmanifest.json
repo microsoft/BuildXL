@@ -1796,6 +1796,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
+          "Version": "3.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
           "Version": "3.1.0"
         }

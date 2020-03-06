@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.Win32;
-using BuildXL.Interop.MacOS;
+using BuildXL.Interop.Unix;
 using static BuildXL.Interop.Windows.Memory;
 
 #pragma warning disable IDE1006 // Naming rule violation
@@ -169,7 +169,7 @@ namespace BuildXL.Utilities
             else
             {
                 var buf = new Memory.RamUsageInfo();
-                return BuildXL.Interop.MacOS.Memory.GetRamUsageInfo(ref buf) == 0
+                return BuildXL.Interop.Unix.Memory.GetRamUsageInfo(ref buf) == 0
                     ? new FileSize(buf.TotalBytes)
                     : new FileSize(0);
             }

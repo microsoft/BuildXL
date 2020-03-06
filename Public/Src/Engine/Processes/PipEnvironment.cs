@@ -9,7 +9,7 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.BuildParameters;
-using MacPaths = BuildXL.Interop.MacOS.IO;
+using MacPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Processes
 {

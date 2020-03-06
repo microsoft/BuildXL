@@ -61,11 +61,20 @@ namespace BuildXL.Scheduler.WorkDispatcher
         SealDirs,
 
         /// <summary>
+        /// Delayed cache lookup queue
+        /// </summary>
+        /// <remarks>
+        /// If the delayed cache lookup feature is enabled, pips are parked in this queue
+        /// if ChooseWorkerCpu already contains enough pips waiting.
+        /// </remarks>        
+        DelayedCacheLookup,
+
+        /// <summary>
         /// Queue for input/output materialization
         /// </summary>
         /// <remarks>
         /// WARNING: NoLimit must be the last member of the enum.
         /// </remarks>
-        Materialize
+        Materialize,
     }
 }

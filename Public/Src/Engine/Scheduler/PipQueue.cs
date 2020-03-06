@@ -73,6 +73,15 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// The total number of process slots in the build.
+        /// </summary>
+        /// <remarks>
+        /// For the master, this is a sum of process slots of all available workers.
+        /// For a worker, this is the number of process slots on that worker.
+        /// </remarks>
+        private int m_totalProcessSlots;
+
         /// <inheritdoc/>
         public int MaxProcesses => m_queuesByKind[DispatcherKind.CPU].MaxParallelDegree;
 
@@ -164,6 +173,7 @@ namespace BuildXL.Scheduler
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
+                                 {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, maxParallelDegree: 1)},
                                  {DispatcherKind.ChooseWorkerCacheLookup, m_chooseWorkerCacheLookupQueue},
                                  {DispatcherKind.CacheLookup, new DispatcherQueue(this, config.MaxCacheLookup)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
@@ -226,6 +236,26 @@ namespace BuildXL.Scheduler
                 Interlocked.Increment(ref m_dispatcherLoopCount);
 
                 m_hasAnyChange.Reset();
+
+                if (m_config.DelayedCacheLookupMinMultiplier.HasValue)
+                {
+                    int totalSlots = m_totalProcessSlots;
+                    int minElements = (int)(totalSlots * m_config.DelayedCacheLookupMinMultiplier.Value);
+                    int maxElements = (int)(totalSlots * m_config.DelayedCacheLookupMaxMultiplier.Value);
+                    
+                    Contract.Assert(minElements <= maxElements);                    
+                    
+                    if (m_chooseWorkerCpuQueue.NumProcessesQueued > maxElements)
+                    {
+                        // we have enough pips queued, pause adding new pips
+                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(0);
+                    }
+                    else if (m_chooseWorkerCpuQueue.NumProcessesQueued <= minElements)
+                    {
+                        // not enough pips are in the queue, start adding the pips
+                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(1);
+                    }
+                }
 
                 foreach (var queue in m_queuesByKind.Values)
                 {
@@ -384,6 +414,12 @@ namespace BuildXL.Scheduler
         {
             Interlocked.Increment(ref m_triggerDispatcherCount);
             m_hasAnyChange.Set();
+        }
+
+        /// <inheritdoc />
+        public void SetTotalProcessSlots(int totalProcessSlots)
+        {
+            Interlocked.Exchange(ref m_totalProcessSlots, totalProcessSlots);
         }
     }
 }

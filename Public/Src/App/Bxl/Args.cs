@@ -316,6 +316,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "debugScript",
                             opt => frontEndConfiguration.DebugScript = opt),
+                        OptionHandlerFactory.CreateOption(
+                            "delayCacheLookupMin",
+                            opt => schedulingConfiguration.DelayedCacheLookupMinMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 100)),
+                        OptionHandlerFactory.CreateOption(
+                            "delayCacheLookupMax",
+                            opt => schedulingConfiguration.DelayedCacheLookupMaxMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 100)),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowSlowest",
                             opt => frontEndConfiguration.ShowSlowestElementsStatistics = opt),
@@ -1304,6 +1310,17 @@ namespace BuildXL
                 if (failPipOnFileAccessErrorSet && unsafeUnexpectedFileAccessesAreErrorsSet)
                 {
                     throw CommandLineUtilities.Error(Strings.Args_FileAccessAsErrors_FailPipFlags);
+                }
+
+                if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue ^ schedulingConfiguration.DelayedCacheLookupMaxMultiplier.HasValue)
+                {
+                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin and /delayCacheLookupMax must be specified.");
+                }
+
+                if (schedulingConfiguration.DelayedCacheLookupMinMultiplier.HasValue
+                    && schedulingConfiguration.DelayedCacheLookupMinMultiplier.Value > schedulingConfiguration.DelayedCacheLookupMaxMultiplier.Value)
+                {
+                    throw CommandLineUtilities.Error("Both /delayCacheLookupMin cannot be bigger than /delayCacheLookupMax.");
                 }
 
                 // Validate logging configuration.

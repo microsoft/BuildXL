@@ -355,5 +355,22 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the maximum amount of commit memory which can be utilized before scheduling is paused to allow freeing resources.
         /// </summary>
         int MaximumCommitUtilizationPercentage { get; }
+
+        /// <summary>
+        /// Specifies the min multiplier for the number of elements in ChooseWorkerCPU queue
+        /// </summary>
+        /// <remarks>
+        /// The actual number is determined at runtime by applying the multiplier to the total number of CPU slots across all workers,
+        /// e.g., MinElements = multiplier * TotalCpuSlots;
+        /// 
+        /// The idea is to always have at least 'min' number of elements sitting in ChooseWorkerCPU queue, but stop populating
+        /// that queue if there are 'max' number of elements.
+        /// </remarks>
+        double? DelayedCacheLookupMinMultiplier { get; }
+
+        /// <summary>
+        /// Specifies the max multiplier for the number of elements in ChooseWorkerCPU queue
+        /// </summary>
+        double? DelayedCacheLookupMaxMultiplier { get; }
     }
 }

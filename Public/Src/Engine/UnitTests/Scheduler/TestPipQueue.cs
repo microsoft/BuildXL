@@ -282,6 +282,12 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <inheritdoc/>
+        public void SetTotalProcessSlots(int totalProcessSlots)
+        {
+            m_innerQueue.SetTotalProcessSlots(totalProcessSlots);
+        }
+
+        /// <inheritdoc/>
         public int MaxProcesses => 10;
 
         /// <inheritdoc/>

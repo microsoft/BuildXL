@@ -358,5 +358,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int MaximumCommitUtilizationPercentage { get; set; }
+
+        /// <inheritdoc />
+        public double? DelayedCacheLookupMinMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public double? DelayedCacheLookupMaxMultiplier { get; set; }
     }
 }

@@ -402,21 +402,24 @@ namespace BuildXL.Scheduler
             int targetProcessSlots = m_scheduleConfiguration.MaxProcesses;
             int targetCacheLookupSlots = m_scheduleConfiguration.MaxCacheLookup;
 
-
             // If the user does not pass masterCpuMultiplier, then the local worker slots are configured
             // based on the number of available workers.
             // If only local worker is available, then the multiplier would be 1.
             // If there is one available remote worker, then the multiplier would be 0.5; meaning that
             //  the local worker will do the half work.
-            double cpuMultiplier = m_scheduleConfiguration.MasterCpuMultiplier ?? (double)1 / availableWorkersCount;
+            double cpuMultiplier = m_scheduleConfiguration.MasterCpuMultiplier ?? 1.0 / availableWorkersCount;
 
-            double cacheLookupMultiplier = m_scheduleConfiguration.MasterCacheLookupMultiplier ?? (double)1 / availableWorkersCount;
+            double cacheLookupMultiplier = m_scheduleConfiguration.MasterCacheLookupMultiplier ?? 1.0 / availableWorkersCount;
 
             int newProcessSlots = (int)(targetProcessSlots * cpuMultiplier);
             int newCacheLookupSlots = (int)(targetCacheLookupSlots * cacheLookupMultiplier);
 
             LocalWorker.AdjustTotalProcessSlots(newProcessSlots);
             LocalWorker.AdjustTotalCacheLookupSlots(newCacheLookupSlots);
+
+            int totalProcessSlots = Workers.Where(w => w.IsAvailable).Sum(w => w.TotalProcessSlots);
+
+            m_pipQueue.SetTotalProcessSlots(totalProcessSlots);
         }
 
         private void SetQueueMaxParallelDegreeByKind(DispatcherKind kind, int maxConcurrency)
@@ -2091,7 +2094,7 @@ namespace BuildXL.Scheduler
                     default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
 
-                // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
+                // Of the pips in choose worker, how many could be executing on the local worker but are not due to
                 // resource constraints
                 int pipsWaitingOnResources = Math.Min(
                     m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu],
@@ -3405,6 +3408,9 @@ namespace BuildXL.Scheduler
                             throw Contract.AssertFailure(I($"Invalid pip type: '{runnablePip.PipType}'"));
                     }
 
+                case PipExecutionStep.DelayedCacheLookup:
+                    return DispatcherKind.DelayedCacheLookup;
+
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     // First attempt should be inlined; if it does not acquire a worker, then it should be enqueued to ChooseWorkerCacheLookup queue.
                     return AnyRemoteWorkers && runnablePip.IsWaitingForWorker ? DispatcherKind.ChooseWorkerCacheLookup : DispatcherKind.None;
@@ -3685,7 +3691,19 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    return pipType == PipType.Process ? PipExecutionStep.ChooseWorkerCacheLookup : PipExecutionStep.ExecuteNonProcessPip;
+                    if (pipType == PipType.Process)
+                    {
+                        return m_configuration.Schedule.DelayedCacheLookupMinMultiplier.HasValue ? PipExecutionStep.DelayedCacheLookup : PipExecutionStep.ChooseWorkerCacheLookup;
+                    }
+                    else
+                    {
+                        return PipExecutionStep.ExecuteNonProcessPip;
+                    }
+                }
+
+                case PipExecutionStep.DelayedCacheLookup:
+                {
+                    return PipExecutionStep.ChooseWorkerCacheLookup;
                 }
 
                 case PipExecutionStep.ChooseWorkerCacheLookup:

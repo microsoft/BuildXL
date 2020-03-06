@@ -16,53 +16,75 @@ namespace BuildXL.Scheduler
     /// The state diagram is below:
     /// </remarks>
     /*
-                                        +----+
-                                        |None|
-                                        +--+-+
-                                           |
-                                        +--v--+
-                                        |Start|
-        +-----------------------+-----------------------+--------------------+
-        |                       |                       |                    |
-        |                Process|Copy                   |MetaPip             |
-        |                       |Write                  |HashSource          |IpC
-        |                       |SealDir                |                    |
-+-------v-------+     +---------v-----+          +------v------+      +------v------+
-|SkipDueToFailed|     |Check          | Copy     |Execute      | Ipc  |Materialize* |
-|Dependencies   |     |IncrementalSkip+---------->NonProcessPip<----- +Inputs       |
-+-------+-------+     +---------+-----+ Write    +------+------+      +------+------+
-        |             |         |       SealDir         |
-        |             |         |                       |
-        +-------------+  Process|                       |
-        |                +------v----+                  |
-        |                |CacheLookup|                  |
-        |           +----------------------+            |
-        |           |                      |            |
-        |           |                 +----v-------+    |
-        |           |                 |Materialize*|    |
-        |           |                 |inputs      |    |
-        |           |                 +----+-------+    |
-        |           |                      |            |
-        |     +-----v------+   Det.  +-------v------+   |
-        |     |RunFromCache|<--------|ExecuteProcess|   |
-        |     +-----+------+  Probe  +-------+------+   |
-        |           |                      |            |
-        |           |                 +----v------+     |
-        |           |                 |PostProcess|     |
-        |           |                 +----+------+     |
-        |           |                      |            |
-        |           |             +--------v------+     |
-        |           +------------->  Materialize* <-----+
-        |                         |  Outputs      |     |
-        |                         +--------+------+     |             (Cancel is reachable from any step except Done and None)
-        |                                  |            |              +------+
-        |                           +------v-------+    |              |Cancel|
-        +---------------------------> HandleResult <----+---------------------+
-                                    +------+-------+
-                                           |
+                                                 +----+
+                                                 |None|
+                                                 +--+-+
+                                                    |
+                                                 +--v--+
+                                                 |Start|
+        +-----------------------+-------------------------------------+--------------------+
+        |                       |                                     |                    |
+        |                Process|Copy                                 |MetaPip             |
+        |                       |Write                                |HashSource          |IpC
+        |                       |SealDir                              |                    |
++-------v-------+     +---------v-----+                        +------v------+      +------v-----+
+|SkipDueToFailed|     |Check          | Copy                   |Execute      |      |ChooseWorker|
+|Dependencies   |     |IncrementalSkip+------------------------>NonProcessPip<--+   |    CPU     |
++-------+-------+     +---------+-----+ Write                  +------+------+  |   +------+-----+
+        |             |         |       SealDir                       |         |          |
+        +-------------+         |                                     |         |   +------v-----+
+        |                Process|                                     |         +---+Materialize*|
+        |          +----------------------+                           |             |Inputs      |
+        |          |  DelayedCacheLookup? |                           |             +------------+
+        |          |                      |                           |
+        |          |Disabled       Enabled|                           |
+        |   +------v-----+            +---v-------+                   |
+        |   |ChooseWorker<------------+Delayed    |                   |
+        |   |CacheLookup |            |CacheLookup|                   |
+        |   +------------+-----+      +-----------+                   |
+        |                      |                                      |
+        |                +-----v-----+                                |
+        |                |CacheLookup|                                |
+        |           +----------------------+                          |
+        |           |      CacheHit?       |                          |
+        |           |Yes                 No|                          |
+        |           |                      +----------------+         |
+        |           |                      |   CacheOnly?   |         |
+        |           |                      |No           Yes|         |
+        |           |                      |                |         |
+        |           |                      |                |         |
+        |           |                 +----v-------+        |         |
+        |           |                 |ChooseWorker|        |         |
+        |           |                 |    CPU     |        |         |
+        |           |                 +----+-------+        |         |
+        |           |                      |                |         |
+        |           |                 +----v-------+        |         |
+        |           |                 |Materialize*|        |         |
+        |           |                 |inputs      |        |         |
+        |           |                 +----+-------+        |         |
+        |           |                      |                |         |
+        |     +-----v------+   Det.  +-----v--------+    +--v-+       |
+        |     |RunFromCache+<--------+ExecuteProcess|    |Skip|       |
+        |     +-----+------+  Probe  +-----+--------+    +--+-+       |
+        |           |                      |                |         |
+        |           |                 +----v------+         |         |
+        |           |                 |PostProcess|         |         |
+        |           |                 +----+------+         |         |
+        |           |                      |                |         |
+        |           |             +--------v------+         |   +-----v---------+
+        |           +------------->  Materialize* |         |   |  Materialize* |
+        |                         |  Outputs      |         |   |  Outputs      |
+        |                         +--------+------+         |   +-----+---------+
+        |                                  |                |         |
+        |                           +------v-------+        |         |  +------+
+        +---------------------------> HandleResult <--------+---------+--+Cancel|
+                                    +------+-------+                     +------+
+                                           |                             (Cancel is reachable from any step except Done and None)
                                        +---v--+
                                        | Done |
-NOTE:                                  +------+
+                                       +------+
+
+NOTE:                                  
  *MaterializeOutputs is only run after PostProcess for cache convergence where the outputs from prior cache entry are used
     instead of newly produced reduced
  *MaterializeOutputs is only run if lazy materialization is DISABLED (otherwise goes directly to HandleResult)
@@ -165,6 +187,12 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
         ChooseWorkerCacheLookup,
 
         /// <summary>
+        /// Delayed cache lookup queue.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        DelayedCacheLookup,
+
+        /// <summary>
         /// Done executing pip
         /// </summary>
         /// <remarks>
@@ -188,6 +216,7 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
             {
                 // These steps pertain to distribution and thus should not be considered for running time
                 // which is expected to be comparable whether the pip runs remotely or not
+                case PipExecutionStep.DelayedCacheLookup:
                 case PipExecutionStep.ChooseWorkerCpu:
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     return false;
@@ -224,8 +253,12 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
 
                 case PipExecutionStep.CheckIncrementalSkip:
                     return toStep == PipExecutionStep.ExecuteNonProcessPip
+                        || toStep == PipExecutionStep.DelayedCacheLookup
                         || toStep == PipExecutionStep.ChooseWorkerCacheLookup
                         || toStep == PipExecutionStep.HandleResult;
+
+                case PipExecutionStep.DelayedCacheLookup:
+                    return toStep == PipExecutionStep.ChooseWorkerCacheLookup;
 
                 case PipExecutionStep.ChooseWorkerCacheLookup:
                     return toStep == PipExecutionStep.CacheLookup
@@ -325,6 +358,8 @@ WARNING: SYNC WITH PipExecutionUtils.AsString
                     return nameof(PipExecutionStep.Skip);
                 case PipExecutionStep.Start:
                     return nameof(PipExecutionStep.Start);
+                case PipExecutionStep.DelayedCacheLookup:
+                    return nameof(PipExecutionStep.DelayedCacheLookup);
                 default:
                     throw new NotImplementedException("Unknown PipExecutionStep type: " + step);
             }

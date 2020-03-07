@@ -67,6 +67,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private readonly ConcurrentDictionary<int, SessionHandle<TSession>> _sessionHandles;
         private IntervalTimer _sessionExpirationCheckTimer;
         private IntervalTimer _logIncrementalStatsTimer;
+        private IntervalTimer _logMachineStatsTimer;
+
         private Dictionary<string, long> _previousStatistics;
 
         private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
@@ -181,8 +183,6 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var counterSet = new CounterSet();
 
-            counterSet.Merge(_performanceCollector.GetPerformanceStats(), "MachinePerf.");
-
             foreach (var (name, store) in StoresByName)
             {
                 var stats = await GetStatsAsync(store, context);
@@ -286,6 +286,10 @@ namespace BuildXL.Cache.ContentStore.Service
                         () => LogIncrementalStatsAsync(context),
                         Config.LogIncrementalStatsInterval);
 
+                    _logMachineStatsTimer = new IntervalTimer(
+                        () => LogMachinePerformanceStatistics(context),
+                        Config.LogMachineStatsInterval);
+
                     return BoolResult.Success;
                 }
                 catch (Exception e)
@@ -369,6 +373,12 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 Tracer.Warning(context, $"{nameof(TrackingFileStream)}.{nameof(TrackingFileStream.LastLeakedFilePath)}: {leakedPath}");
             }
+        }
+
+        private void LogMachinePerformanceStatistics(OperationContext context)
+        {
+            var machineStatistics = _performanceCollector.GetMachinePerformanceStatistics();
+            Tracer.Info(context, "MachinePerformanceStatistics: " + machineStatistics);
         }
 
         private static void FillTrackingStreamStatistics(IDictionary<string, long> statistics)

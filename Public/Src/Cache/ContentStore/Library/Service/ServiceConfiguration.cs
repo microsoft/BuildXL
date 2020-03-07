@@ -60,7 +60,10 @@ namespace BuildXL.Cache.ContentStore.Service
             string grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
             int? gzipBarrierSizeForGrpcCopies = null,
-            int? proactivePushCountLimit = null)
+            int? proactivePushCountLimit = null,
+            TimeSpan? logIncrementalStatsInterval = null,
+            TimeSpan? logMachineStatsInterval = null
+            )
         {
             Contract.Requires(namedCacheRoots != null);
 
@@ -73,6 +76,8 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
+            LogMachineStatsInterval = logMachineStatsInterval;
+            LogIncrementalStatsInterval = logIncrementalStatsInterval;
             Initialize();
         }
 
@@ -174,6 +179,12 @@ namespace BuildXL.Cache.ContentStore.Service
                 return _dataRootPath;
             }
         }
+
+        /// <inheritdoc cref="LocalServerConfiguration.LogMachineStatsInterval"/>
+        public TimeSpan? LogMachineStatsInterval { get; set; }
+
+        /// <inheritdoc cref="LocalServerConfiguration.LogIncrementalStatsInterval"/>
+        public TimeSpan? LogIncrementalStatsInterval { get; set; }
 
         /// <summary>
         /// Gets the verb on ContentStoreApp.exe to use.

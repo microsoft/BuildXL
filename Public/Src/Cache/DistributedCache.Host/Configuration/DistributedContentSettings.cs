@@ -645,6 +645,18 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRedisMetadataStore { get; set; } = false;
 
+        /// <summary>
+        /// Gets or sets the time period between logging incremental stats
+        /// </summary>
+        [DataMember]
+        public TimeSpan? LogIncrementalStatsInterval { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time period between logging machine-specific performance statistics.
+        /// </summary>
+        [DataMember]
+        public TimeSpan? LogMachineStatsInterval { get; set; }
+
         #endregion
 
         #region Proactive Copy / Replication

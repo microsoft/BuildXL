@@ -21,8 +21,10 @@ namespace BuildXL.Cache.ContentStore.Service
             IAbsFileSystem fileSystem,
             int? bufferSizeForGrpcCopies = null,
             int? gzipBarrierSizeForGrpcCopies = null,
-            int? proactivePushCountLimit = null
-            )
+            int? proactivePushCountLimit = null,
+            TimeSpan? logIncrementalStatsInterval = null,
+            TimeSpan? logMachineStatsInterval = null
+        )
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
@@ -31,6 +33,9 @@ namespace BuildXL.Cache.ContentStore.Service
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = proactivePushCountLimit;
             FileSystem = fileSystem;
+
+            LogIncrementalStatsInterval = logIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
+            LogMachineStatsInterval = logMachineStatsInterval ?? DefaultLogMachineStatsInterval;
         }
 
         /// <nodoc />
@@ -55,6 +60,8 @@ namespace BuildXL.Cache.ContentStore.Service
             BufferSizeForGrpcCopies = serviceConfiguration.BufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = serviceConfiguration.GzipBarrierSizeForGrpcCopies;
             ProactivePushCountLimit = serviceConfiguration.ProactivePushCountLimit;
+            LogMachineStatsInterval = serviceConfiguration.LogMachineStatsInterval ?? DefaultLogMachineStatsInterval;
+            LogIncrementalStatsInterval = serviceConfiguration.LogIncrementalStatsInterval ?? DefaultLogIncrementalStatsInterval;
             return this;
         }
 
@@ -68,10 +75,21 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public IReadOnlyDictionary<string, AbsolutePath> NamedCacheRoots { get; private set; }
 
+        /// <nodoc />
+        public static TimeSpan DefaultLogIncrementalStatsInterval { get; } = TimeSpan.FromHours(2);
+
         /// <summary>
         /// Gets or sets the time period between logging incremental stats
         /// </summary>
-        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromDays(15); // Effectively disabling incremental statistics.
+        public TimeSpan LogIncrementalStatsInterval { get; set; } = DefaultLogIncrementalStatsInterval;
+
+        /// <nodoc />
+        public static TimeSpan DefaultLogMachineStatsInterval { get; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Gets or sets the time period between logging machine-specific performance statistics.
+        /// </summary>
+        public TimeSpan LogMachineStatsInterval { get; set; } = DefaultLogMachineStatsInterval;
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.

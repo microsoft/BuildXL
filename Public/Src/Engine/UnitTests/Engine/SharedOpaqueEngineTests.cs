@@ -67,7 +67,7 @@ namespace Test.BuildXL.Engine
             var anotherFile = X("out/MyOtherFile.txt");
             spec0 = ProduceFileUnderSharedOpaque(anotherFile);
 
-            // Overrite the spec with the new content and run the engine again
+            // Overwrite the spec with the new content and run the engine again
             File.WriteAllText(Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "spec0.dsc"), spec0);
 
             RunEngine(rememberAllChangedTrackedInputs: true);
@@ -127,7 +127,7 @@ namespace Test.BuildXL.Engine
             var anotherFile = X("out/MyOtherFile.txt");
             spec0 = ProduceFileUnderSharedOpaque(anotherFile, dependencies: "f`out/subdir1/subdir2`");
 
-            // Overrite the spec with the new content and run the engine again
+            // Overwrite the spec with the new content and run the engine again
             File.WriteAllText(Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "spec0.dsc"), spec0);
 
             RunEngine(rememberAllChangedTrackedInputs: true);
@@ -157,7 +157,7 @@ namespace Test.BuildXL.Engine
             var anotherFile = X("out/MyOtherFile.txt");
             spec0 = ProduceFileUnderSharedOpaque(anotherFile);
 
-            // Overrite the spec with the new content and run the engine again
+            // Overwrite the spec with the new content and run the engine again
             File.WriteAllText(Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "spec0.dsc"), spec0);
 
             RunEngine(rememberAllChangedTrackedInputs: true);

@@ -3527,11 +3527,11 @@ namespace BuildXL.Processes
             }
 
             // The only construct that defines a scope for detours that we allow under shared opaques is sealed directories
-            // (other constructs are allowed, but they don't affect detours manifest)
-            // This means we cannot directly use the manifest path to check if is the root of a shared opaque
-            // but we can start looking up from the reported manifest path
-            // Furthermore, nested shared opaques from the same pip are blocked, so the first shared opaque
-            // we find by walking up the path is the one
+            // (other constructs are allowed, but they don't affect detours manifest).
+            // This means we cannot directly use the manifest path to check if it is the root of a shared opaque,
+            // but we can start looking up from the reported manifest path.
+            // Because of bottom-up search, if a pip declares nested shared opaque directories, the innermost directory
+            // wins the ownership of a produced file.
 
             var initialNode = access.ManifestPath.Value;
 

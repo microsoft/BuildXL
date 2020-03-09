@@ -728,6 +728,25 @@ namespace Test.BuildXL.Scheduler
             return SchedulePipBuilder(builder);
         }
 
+        protected ProcessBuilder CreateOpaqueDirectoryConsumer(
+            FileArtifact outputFile,
+            FileArtifact? staticallyConsumedFile,
+            DirectoryArtifact opaqueDirectory,
+            params FileArtifact[] dynamicallyConsumedFiles)
+        {
+            var operations = dynamicallyConsumedFiles.Select(file => Operation.ReadFile(file, doNotInfer: true)).ToList();
+            if (staticallyConsumedFile.HasValue)
+            {
+                operations.Add(Operation.ReadFile(staticallyConsumedFile.Value));
+            }
+            operations.Add(Operation.WriteFile(outputFile));
+
+            var builder = CreatePipBuilder(operations);
+            builder.AddInputDirectory(opaqueDirectory);
+
+            return builder;
+        }
+
         protected void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
         {
             // Assert that shared opaque outputs were journaled and the explicitly declared ones were not

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1499,8 +1500,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expected, SharedOpaqueOutputHelper.IsSharedOpaqueOutput(ToString(finalPath)));
         }
 
-
-
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -1589,7 +1588,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void ProbesAndEnumerationsOnPathsLeadingToProducedFile()
         {
-            /* d
+            /*
                 pipA->sod\subDir\file1
                 pipB->sod\subDir\file2
 
@@ -1668,6 +1667,176 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // this asserts checks that the probes do not affect the cacheability of the pip
             result.AssertCacheHit(pipB.Process.PipId);
+        }
+
+        [Fact]
+        public void NestedSharedOpaqueDirectories()
+        {
+            /*
+                PipA -> [sod] \ sodFile
+                        [sod\subDir1] \ sodSubDir1File
+                        [sod\sibDir2] \ sodSubDir2File
+                
+                Allowed accesses:
+                PipB <- [sod] && sodFile
+                PipC <- [sod\subDir1] && sodSubDir1File
+                PipD <- [sod\sibDir2] && sodSubDir2File
+
+                Disallowed accesses:
+                PipE <- [sod] && sodSubDir2File
+             */
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(NestedSharedOpaqueDirectories)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var sharedOpaqueSubDir1 = Path.Combine(sharedOpaqueDir, "subDir1");
+            var sharedOpaqueSubDir1Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir1);
+            var sharedOpaqueSubDir1Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir1Path);
+
+            var sharedOpaqueSubDir2 = Path.Combine(sharedOpaqueDir, "subDir2");
+            var sharedOpaqueSubDir2Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir2);
+            var sharedOpaqueSubDir2Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir2Path);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var sodSubDir1File = CreateOutputFileArtifact(sharedOpaqueSubDir1);
+            var sodSubDir2File = CreateOutputFileArtifact(sharedOpaqueSubDir2);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sodFile, doNotInfer: true),
+                Operation.WriteFile(sodSubDir1File, doNotInfer: true),
+                Operation.WriteFile(sodSubDir2File, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir1Artifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir2Artifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
+            var pipB = SchedulePipBuilder(builderB);
+
+            var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir1Path), sodSubDir1File);
+            var pipC = SchedulePipBuilder(builderC);
+
+            var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir2Path), sodSubDir2File);
+            var pipD = SchedulePipBuilder(builderD);
+
+            RunScheduler().AssertSuccess();
+
+            ResetPipGraphBuilder();
+
+            pipA = SchedulePipBuilder(builderA);
+            pipB = SchedulePipBuilder(builderB);
+            pipC = SchedulePipBuilder(builderC);
+            pipD = SchedulePipBuilder(builderD);
+
+            // takes dependency on the root directory artifact, but tries to read a file from a subdirectory
+            // this should result in a DFA (since that artifact does not contain that file)
+            var builderE = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodSubDir2File);
+            var pipE = SchedulePipBuilder(builderE);
+
+            RunScheduler().AssertFailure().AssertCacheHitWithoutAssertingSuccess(
+                pipA.Process.PipId,
+                pipB.Process.PipId,
+                pipC.Process.PipId,
+                pipD.Process.PipId);
+
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
+            AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 1);
+        }
+
+        [Fact]
+        public void NestedSharedOpaquesProperContentMaterialization()
+        {
+            /*
+                PipA -> [sod] \ sodFile
+                        [sod\subDir1] \ sodSubDir1File
+                        [sod\sibDir2] \ sodSubDir2File                
+
+                PipB <- [sod] && sodFile && inputB
+                PipC <- [sod\subDir1] && sodSubDir1File && inputC
+                PipD <- [sod\sibDir2] && sodSubDir2File && inputD    
+             */
+            Configuration.Schedule.EnableLazyOutputMaterialization = true;
+            Configuration.Schedule.RequiredOutputMaterialization = RequiredOutputMaterialization.Minimal;
+
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(Test)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var sharedOpaqueSubDir1 = Path.Combine(sharedOpaqueDir, "subDir1");
+            var sharedOpaqueSubDir1Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir1);
+            var sharedOpaqueSubDir1Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir1Path);
+
+            var sharedOpaqueSubDir2 = Path.Combine(sharedOpaqueDir, "subDir2");
+            var sharedOpaqueSubDir2Path = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir2);
+            var sharedOpaqueSubDir2Artifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDir2Path);
+
+            var sodFile = CreateOutputFileArtifact(sharedOpaqueDir);
+            var sodSubDir1File = CreateOutputFileArtifact(sharedOpaqueSubDir1);
+            var sodSubDir2File = CreateOutputFileArtifact(sharedOpaqueSubDir2);
+            var inputB = CreateSourceFile();
+            var inputC = CreateSourceFile();
+            var inputD = CreateSourceFile();
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(sodFile, doNotInfer: true),
+                Operation.WriteFile(sodSubDir1File, doNotInfer: true),
+                Operation.WriteFile(sodSubDir2File, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir1Artifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDir2Artifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputB, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath), sodFile);
+            var pipB = SchedulePipBuilder(builderB);            
+                       
+            var builderC = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputC, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir1Path), sodSubDir1File);
+            var pipC = SchedulePipBuilder(builderC);
+                       
+            var builderD = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), inputD, pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDir2Path), sodSubDir2File);
+            var pipD = SchedulePipBuilder(builderD);
+
+            // populate the cache
+            RunScheduler().AssertSuccess();
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputB -> pipB is executed -> only sodFile is materialized
+            File.WriteAllText(ArtifactToString(inputB), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipC.Process.PipId, pipD.Process.PipId)
+                .AssertCacheMiss(pipB.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodFile)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodSubDir1File)) || File.Exists(ArtifactToString(sodSubDir2File)));
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputC -> pipC is executed -> only sodSubDir1File is materialized
+            File.WriteAllText(ArtifactToString(inputC), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipD.Process.PipId)
+                .AssertCacheMiss(pipC.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodSubDir1File)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodFile)) || File.Exists(ArtifactToString(sodSubDir2File)));
+
+            FileUtilities.DeleteDirectoryContents(sharedOpaqueDir, deleteRootDirectory: true);
+
+            // change inputD -> pipD is executed -> only sodSubDir2File is materialized
+            File.WriteAllText(ArtifactToString(inputD), Guid.NewGuid().ToString());
+
+            RunScheduler().AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId)
+                .AssertCacheMiss(pipD.Process.PipId);
+
+            XAssert.IsTrue(File.Exists(ArtifactToString(sodSubDir2File)));
+            XAssert.IsFalse(File.Exists(ArtifactToString(sodFile)) || File.Exists(ArtifactToString(sodSubDir1File)));
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);

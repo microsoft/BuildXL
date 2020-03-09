@@ -312,7 +312,7 @@ namespace Test.BuildXL.Scheduler
             const string File1 = @"file1";
             const string File2 = @"file2";
 
-            using (TestEnv env = new TestEnv("TestLazyHashingSealDirectory", TemporaryDirectory, enableLazyOutputMaterialization: true))
+            using (TestEnv env = new TestEnv("TestLazyHashingSealDirectory", TemporaryDirectory, customizeConfig: config => config.Schedule.EnableLazyOutputMaterialization = true))
             {
                 AbsolutePath dirPath = env.SourceRoot.Combine(env.PathTable, "myDir");
                 AbsolutePath file1Path = dirPath.Combine(env.PathTable, "file1.txt");

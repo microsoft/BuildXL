@@ -20,6 +20,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using Test.BuildXL.EngineTestUtilities;
@@ -97,18 +98,18 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static TestEnv CreateTestEnvWithPausedScheduler(List<IMount> mounts = null, PathTable pathTable = null)
+        public static TestEnv CreateTestEnvWithPausedScheduler(List<IMount> mounts = null, PathTable pathTable = null, Action<CommandLineConfiguration> customizeConfig = null)
         {
-            return CreateTestEnvWithPausedScheduler(GetTestNameGuess(), mounts, pathTable);
+            return CreateTestEnvWithPausedScheduler(GetTestNameGuess(), mounts, pathTable, customizeConfig: customizeConfig);
         }
 
         /// <summary>
         /// Creates a new test environment which schedules pips with full scheduler validation, but which cannot execute pips.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public static TestEnv CreateTestEnvWithPausedScheduler(string testName, List<IMount> mounts = null, PathTable pathTable = null, bool enableLazyOutputMaterialization = false)
+        public static TestEnv CreateTestEnvWithPausedScheduler(string testName, List<IMount> mounts = null, PathTable pathTable = null, Action<CommandLineConfiguration> customizeConfig = null)
         {
-            return new TestEnv(testName, FakeTestRoot, mounts: mounts, pathTable: pathTable, enableLazyOutputMaterialization: enableLazyOutputMaterialization);
+            return new TestEnv(testName, FakeTestRoot, mounts: mounts, pathTable: pathTable, customizeConfig: customizeConfig);
         }
 
         /// <summary>
@@ -131,23 +132,18 @@ namespace Test.BuildXL.TestUtilities
         /// <param name="rootPath">
         /// Path under which files will be written hypothetical files otherwise.
         /// </param>
-        /// <param name="enableLazyOutputMaterialization">Enable lazy outputs materialization</param>
-        /// <param name="maxRelativeOutputDirectoryLength">
-        /// The maximum length of output directories created under
-        /// <code>ObjectDirectoryPath</code>; long names will be shortened by hashing.
-        /// </param>
         /// <param name="mounts">Optional list of mounts to include in the configuration</param>
         /// <param name="pathTable">Optional path table to use. If not defined, a default one will be used.</param>
+        /// <param name="customizeConfig">Optional delegate that exposes the mutable config.</param>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "TestValue")]
         [SuppressMessage("Microsoft.Globalization", "CA1308:Normalize strings to uppercase")]
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public TestEnv(
             string name,
             string rootPath,
-            bool enableLazyOutputMaterialization = false,
-            int maxRelativeOutputDirectoryLength = 260,
             List<IMount> mounts = null,
-            PathTable pathTable = null)
+            PathTable pathTable = null,
+            Action<CommandLineConfiguration> customizeConfig = null)
         {
             Contract.Requires(name != null);
             Contract.Requires(!string.IsNullOrEmpty(rootPath));
@@ -168,11 +164,13 @@ namespace Test.BuildXL.TestUtilities
 
             var configuration = ConfigHelpers.CreateDefaultForXml(Context.PathTable, root);
             configuration.Layout.SourceDirectory = root.Combine(PathTable, PathAtom.Create(PathTable.StringTable, "src")); // These tests have non-standard src folder
-            configuration.Engine.MaxRelativeOutputDirectoryLength = maxRelativeOutputDirectoryLength;
-            configuration.Schedule.EnableLazyOutputMaterialization = enableLazyOutputMaterialization;
+            configuration.Engine.MaxRelativeOutputDirectoryLength = 260;
+            configuration.Schedule.EnableLazyOutputMaterialization = false;
             configuration.Schedule.UnsafeDisableGraphPostValidation = false;
             configuration.Schedule.ComputePipStaticFingerprints = true;
             configuration.Sandbox.FileAccessIgnoreCodeCoverage = true;
+
+            customizeConfig?.Invoke(configuration);
 
             BuildXLEngine.PopulateFileSystemCapabilities(configuration, configuration, Context.PathTable, LoggingContext);
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(configuration, Context.PathTable, bxlExeLocation: null, inTestMode: true);

@@ -2614,8 +2614,6 @@ EXIT /b 3
                 sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
 
-            // A bit of a hack for tests that validate things that get logged to the Static context
-            Events.StaticContext = env.LoggingContext;
             return env;
         }
 

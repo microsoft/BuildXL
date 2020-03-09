@@ -33,6 +33,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using TypeScript.Net.DScript;
@@ -1444,7 +1445,7 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
             public void NotifyPipProcessTerminated(long pipId, int processId) { }
 

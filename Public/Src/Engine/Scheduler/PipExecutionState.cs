@@ -13,6 +13,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -114,6 +115,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipExecutionState(
             IRootModuleConfiguration rootModuleConfiguration,
+            LoggingContext loggingContext,
             PipTwoPhaseCache cache,
             FileAccessWhitelist fileAccessWhitelist,
             IDirectoryMembershipFingerprinter directoryMembershipFingerprinter,
@@ -142,7 +144,7 @@ namespace BuildXL.Scheduler
             PathExistenceCache = new ConcurrentBigMap<AbsolutePath, PathExistence>();
             FileContentManager = fileContentManager;
             ServiceManager = serviceManager ?? ServiceManager.Default;
-            PipEnvironment = new PipEnvironment();
+            PipEnvironment = new PipEnvironment(loggingContext);
             FileSystemView = fileSystemView;
             m_unsafeConfiguration = unsafeConfiguration;
             m_preserveOutputsSalt = preserveOutputsSalt;

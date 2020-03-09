@@ -16,6 +16,7 @@ using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
@@ -268,16 +269,16 @@ namespace BuildXL.Processes
         /// Checks whether there are any active processes for this job
         /// </summary>
         /// <remarks>If in doubt, it returns <code>true</code>.</remarks>
-        internal bool HasAnyProcesses() => !TryGetProcessIds(out uint[] processIds) || processIds.Length > 0;
+        internal bool HasAnyProcesses(LoggingContext loggingContext) => !TryGetProcessIds(loggingContext, out uint[] processIds) || processIds.Length > 0;
 
-        internal bool TryGetProcessIds(out uint[] processIds)
+        internal bool TryGetProcessIds(LoggingContext loggingContext, out uint[] processIds)
         {
-            if (!TryGetProcessIds(InitialProcessIdListLength, out processIds, out uint requiredLength))
+            if (!TryGetProcessIds(loggingContext, InitialProcessIdListLength, out processIds, out uint requiredLength))
             {
                 if (requiredLength > 0)
                 {
                     // Try again with a bigger buffer.
-                    return TryGetProcessIds(requiredLength, out processIds, out _);
+                    return TryGetProcessIds(loggingContext, requiredLength, out processIds, out _);
                 }
                 else
                 {
@@ -293,7 +294,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Tries to retrieve the list of active process ids for this job.
         /// </summary>
-        private bool TryGetProcessIds(uint length, out uint[] processIds, out uint requiredLength)
+        private bool TryGetProcessIds(LoggingContext loggingContext, uint length, out uint[] processIds, out uint requiredLength)
         {
             Contract.Ensures(!Contract.Result<bool>() || Contract.ValueAtReturn(out processIds) != null);
 
@@ -333,7 +334,7 @@ namespace BuildXL.Processes
                     }
 
                     Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
-                        Events.StaticContext,
+                        loggingContext,
                         bytesWritten,
                         bufferSizeInBytes,
                         numAssignedProcesses,
@@ -586,7 +587,7 @@ namespace BuildXL.Processes
         /// This function may safely be invoked concurrently / multiple times.
         /// </remarks>
         /// <returns>Boolean indicating whether all processes have terminated (false indicates that a timeout occurred instead)</returns>
-        public Task<bool> WaitAsync(TimeSpan timeout)
+        public Task<bool> WaitAsync(LoggingContext loggingContext, TimeSpan timeout)
         {
             Contract.Requires(timeout >= TimeSpan.Zero);
             Contract.Requires(timeout.TotalMilliseconds < uint.MaxValue);
@@ -599,7 +600,7 @@ namespace BuildXL.Processes
 
                 doneEvent = m_doneEvent;
 
-                if (m_done || !HasAnyProcesses())
+                if (m_done || !HasAnyProcesses(loggingContext))
                 {
                     // Fast path: no need to wait
                     // Note that we check HasAnyProcesses() in addition to m_done so as to more likely avoid pathological behavior in which calls to WaitAsync

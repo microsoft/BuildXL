@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler
                 async () =>
                 {
                     int size = await ReadFileFormatMarkerAsync(fileStream);
-                    var table = new PipRuntimeTimeTable();
+                    var table = new PipRuntimeTimeTable(LoggingContext);
 
                     using (BuildXLReader reader = new BuildXLReader(false, fileStream, true))
                     {

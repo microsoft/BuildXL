@@ -127,7 +127,7 @@ namespace Test.BuildXL.Scheduler.Utils
             PipFragmentRenderer = this.CreatePipFragmentRenderer();
             IpcProvider = ipcProvider ?? IpcFactory.GetProvider();
 
-            FileContentTable = fileContentTable ?? FileContentTable.CreateNew();
+            FileContentTable = fileContentTable ?? FileContentTable.CreateNew(LoggingContext);
             Cache = pipCache;
             FileAccessWhitelist = fileAccessWhitelist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
@@ -154,6 +154,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
             State = new PipExecutionState(
                 config,
+                loggingContext,
                 cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
                 fileAccessWhitelist: FileAccessWhitelist,
                 directoryMembershipFingerprinter: this,

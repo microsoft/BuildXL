@@ -136,7 +136,7 @@ namespace PipExecutionSimulator
 
             Console.WriteLine("Saving runtime time table:");
 
-            PipRuntimeTimeTable runtimeTable = new PipRuntimeTimeTable();
+            PipRuntimeTimeTable runtimeTable = new PipRuntimeTimeTable(new LoggingContext("pxs"));
 
             foreach (var node in data.DataflowGraph.Nodes)
             {

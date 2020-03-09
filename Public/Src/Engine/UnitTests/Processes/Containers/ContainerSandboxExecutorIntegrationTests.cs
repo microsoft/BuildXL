@@ -191,25 +191,26 @@ namespace Test.BuildXL.Processes
         {
             var loggingContext = CreateLoggingContextForTest();
 
-            return new SandboxedProcessPipExecutor(
-                            context,
-                            loggingContext,
-                            pip,
-                            new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
-                            layoutConfig: null,
-                            loggingConfig: null,
-                            rootMappings: new Dictionary<string, string>(),
-                            processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
-                            whitelist: null,
-                            makeInputPrivate: null,
-                            makeOutputPrivate: null,
-                            semanticPathExpander: SemanticPathExpander.Default,
-                            disableConHostSharing: false,
-                            pipEnvironment: new PipEnvironment(),
-                            validateDistribution: false,
-                            isLazySharedOpaqueOutputDeletionEnabled: false,
-                            tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
-                            directoryArtifactContext: TestDirectoryArtifactContext.Empty).RunAsync();
+            var pipExecutor = new SandboxedProcessPipExecutor(
+                context,
+                loggingContext,
+                pip,
+                new SandboxConfiguration { FailUnexpectedFileAccesses = failUnexpectedFileAccesses },
+                layoutConfig: null,
+                loggingConfig: null,
+                rootMappings: new Dictionary<string, string>(),
+                processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
+                whitelist: null,
+                makeInputPrivate: null,
+                makeOutputPrivate: null,
+                semanticPathExpander: SemanticPathExpander.Default,
+                disableConHostSharing: false,
+                pipEnvironment: new PipEnvironment(loggingContext),
+                validateDistribution: false,
+                isLazySharedOpaqueOutputDeletionEnabled: false,
+                tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
+                directoryArtifactContext: TestDirectoryArtifactContext.Empty);
+            return pipExecutor.RunAsync();
         }
 
         private static Process CreateOutputFileProcess(BuildXLContext context, TempFileStorage tempFiles, AbsolutePath outputFilePath)

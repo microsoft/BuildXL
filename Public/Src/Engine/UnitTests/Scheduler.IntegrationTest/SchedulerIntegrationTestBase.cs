@@ -110,7 +110,7 @@ namespace Test.BuildXL.Scheduler
 
             Cache = InMemoryCacheFactory.Create();
 
-            FileContentTable = FileContentTable.CreateNew();
+            FileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             // Disable defaults that write disk IO but are not critical to correctness or performance
             Configuration.Logging.StoreFingerprints = false;
@@ -478,7 +478,7 @@ namespace Test.BuildXL.Scheduler
             testHooks.FingerprintStoreTestHooks ??= new FingerprintStoreTestHooks();
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
-            using (var queue = new PipQueue(config.Schedule))
+            using (var queue = new PipQueue(LoggingContext, config.Schedule))
             using (var testQueue = new TestPipQueue(queue, localLoggingContext, initiallyPaused: constraintExecutionOrder != null))
             using (var testScheduler = new TestScheduler(
                 graph: graph,

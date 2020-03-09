@@ -46,6 +46,12 @@ namespace BuildXL.Scheduler.Tracing
         private static bool s_enableDebugTracing = Environment.GetEnvironmentVariable("BuildXLTraceOperation") == "1";
 
         /// <summary>
+        /// LoggingCOntext to use when debugging the operation tracker. 
+        /// Okay to have a separate one since this should never go to telemetry anyway.
+        /// </summary>
+        public static LoggingContext s_debugTracingLoggingContext = new LoggingContext("BuildXLTraceOperationDebugging");
+
+        /// <summary>
         /// The minimum amount of time for an operation to run before reporting as a max operation
         /// </summary>
         private static readonly TimeSpan s_maxOpsThreshold = TimeSpan.FromMilliseconds(10);
@@ -1069,13 +1075,13 @@ namespace BuildXL.Scheduler.Tracing
 
                             if (builder.Length > 200000)
                             {
-                                Logger.Log.OperationTrackerAssert(Events.StaticContext, builder.ToString());
+                                Logger.Log.OperationTrackerAssert(s_debugTracingLoggingContext, builder.ToString());
                                 builder.Clear();
                             }
                         }
                     }
 
-                    Logger.Log.OperationTrackerAssert(Events.StaticContext, builder.ToString());
+                    Logger.Log.OperationTrackerAssert(s_debugTracingLoggingContext, builder.ToString());
                     builder.Clear();
 
                     message = message ?? string.Empty;

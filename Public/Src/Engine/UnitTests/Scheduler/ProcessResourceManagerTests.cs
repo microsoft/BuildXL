@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -93,7 +94,7 @@ namespace Test.BuildXL.Scheduler
 
         private ResourceManagerWorkItemTracker CreateWorkItem(ProcessResourceManager resourceManager, int estimatedRamUsage = 0, bool allowCancellation = true, int reportedRamUsage = 1)
         {
-            return new ResourceManagerWorkItemTracker(resourceManager, (uint)Interlocked.Increment(ref m_nextId), estimatedRamUsage, allowCancellation) { RamUsage = reportedRamUsage };
+            return new ResourceManagerWorkItemTracker(LoggingContext, resourceManager, (uint)Interlocked.Increment(ref m_nextId), estimatedRamUsage, allowCancellation) { RamUsage = reportedRamUsage };
         }
 
         private class ResourceManagerWorkItemTracker
@@ -110,12 +111,12 @@ namespace Test.BuildXL.Scheduler
 
             public int RamUsage { get; set; } = 1;
 
-            public ResourceManagerWorkItemTracker(ProcessResourceManager resourceManager, uint id, int estimatedRamUsage, bool allowCancellation)
+            public ResourceManagerWorkItemTracker(LoggingContext loggingContext, ProcessResourceManager resourceManager, uint id, int estimatedRamUsage, bool allowCancellation)
             {
                 ExecutionCompletionSource = TaskSourceSlim.Create<int>();
                 m_cancellationCompletionSource = TaskSourceSlim.Create<Unit>();
                 m_execute = () => ExecutionTask = resourceManager.ExecuteWithResources(
-                    OperationContext.CreateUntracked(Events.StaticContext),
+                    OperationContext.CreateUntracked(loggingContext),
                     new PipId(id),
                     ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage, estimatedRamUsage),
                     allowCancellation,

@@ -60,7 +60,7 @@ namespace Test.BuildXL.Processes.Detours
 
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             // have to force the config for truncation
             config.OutputReportingMode = OutputReportingMode.FullOutputOnWarningOrError;

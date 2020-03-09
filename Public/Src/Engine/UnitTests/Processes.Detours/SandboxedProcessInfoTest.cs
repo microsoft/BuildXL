@@ -74,6 +74,7 @@ namespace Test.BuildXL.Processes.Detours
                 fam,
                 true,
                 null,
+                LoggingContext,
                 sidebandWriter: sharedOpaqueOutputLogger)
             {
                 Arguments = @"/arg1:val1 /arg2:val2",

@@ -87,13 +87,16 @@ namespace BuildXL.Storage
 
         private readonly ObserverData m_observerData = new ObserverData();
 
+        private readonly LoggingContext m_loggingContext;
+
         /// <summary>
         /// Creates a table that can durably store file -> content hash mappings. The table is initially empty.
         /// </summary>
-        private FileContentTable(bool isStub = false, byte entryTimeToLive = DefaultTimeToLive)
+        private FileContentTable(LoggingContext loggingContext, bool isStub = false, byte entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(entryTimeToLive > 0);
-
+            
+            m_loggingContext = loggingContext;
             IsStub = isStub;
             EntryTimeToLive = entryTimeToLive;
         }
@@ -102,19 +105,19 @@ namespace BuildXL.Storage
         /// Creates a <see cref="FileContentTable"/> which is permanently empty. The table acts as if all change journals are disabled,
         /// but does not log a user-facing warning about misconfiguration.
         /// </summary>
-        public static FileContentTable CreateStub()
+        public static FileContentTable CreateStub(LoggingContext loggingContext)
         {
             Contract.Ensures(Contract.Result<FileContentTable>() != null);
 
-            return new FileContentTable(isStub: true);
+            return new FileContentTable(loggingContext, isStub: true);
         }
 
         /// <summary>
         /// Creates a new instance of <see cref="FileContentTable"/>.
         /// </summary>
-        public static FileContentTable CreateNew(byte entryTimeToLive = DefaultTimeToLive)
+        public static FileContentTable CreateNew(LoggingContext loggingContext, byte entryTimeToLive = DefaultTimeToLive)
         {
-            return new FileContentTable(isStub: false, entryTimeToLive: entryTimeToLive);
+            return new FileContentTable(loggingContext, isStub: false, entryTimeToLive: entryTimeToLive);
         }
 
         /// <summary>
@@ -206,7 +209,7 @@ namespace BuildXL.Storage
                     // We fail quietly for disabled journals on the query side; instead attempting to record a hash will fail.
                     Contract.Assume(
                         possibleVersionedIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported);
-                    Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(Events.StaticContext, path);
+                    Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(m_loggingContext, path);
                     return null;
                 }
 
@@ -224,7 +227,7 @@ namespace BuildXL.Storage
                 {
                     Counters.IncrementCounter(FileContentTableCounters.NumFileIdMismatch);
                     Tracing.Logger.Log.StorageUnknownFileMiss(
-                        Events.StaticContext,
+                        m_loggingContext,
                         path,
                         identity.FileId.High,
                         identity.FileId.Low,
@@ -239,7 +242,7 @@ namespace BuildXL.Storage
                 if (staleUsn)
                 {
                     Tracing.Logger.Log.StorageUnknownUsnMiss(
-                        Events.StaticContext,
+                        m_loggingContext,
                         path,
                         identity.FileId.High,
                         identity.FileId.Low,
@@ -253,7 +256,7 @@ namespace BuildXL.Storage
                 MarkEntryAccessed(fileIdInfo, knownEntry);
                 Counters.IncrementCounter(FileContentTableCounters.NumHit);
                 Tracing.Logger.Log.StorageKnownUsnHit(
-                    Events.StaticContext,
+                    m_loggingContext,
                     path,
                     identity.FileId.High,
                     identity.FileId.Low,
@@ -375,7 +378,7 @@ namespace BuildXL.Storage
                     if (Interlocked.CompareExchange(ref m_changeJournalWarningLogged, 1, 0) == 0)
                     {
                         Tracing.Logger.Log.StorageFileContentTableIgnoringFileSinceVersionedFileIdentityIsNotSupported(
-                            Events.StaticContext,
+                            m_loggingContext,
                             path,
                             possibleVersionedIdentity.Failure.DescribeIncludingInnerFailures());
                     }
@@ -409,7 +412,7 @@ namespace BuildXL.Storage
                         {
                             Counters.IncrementCounter(FileContentTableCounters.NumUsnMismatch);
                             Tracing.Logger.Log.StorageUsnMismatchButContentMatch(
-                                        Events.StaticContext,
+                                        m_loggingContext,
                                         path,
                                         existingEntry.Usn.Value,
                                         newEntry.Usn.Value,
@@ -425,7 +428,7 @@ namespace BuildXL.Storage
                     });
 
                 Tracing.Logger.Log.StorageRecordNewKnownUsn(
-                    Events.StaticContext,
+                    m_loggingContext,
                     path,
                     identity.FileId.High,
                     identity.FileId.Low,
@@ -511,7 +514,7 @@ namespace BuildXL.Storage
                             if (actualIdentity.Usn != entry.Value.Usn)
                             {
                                 Tracing.Logger.Log.StorageUnknownUsnMiss(
-                                    Events.StaticContext,
+                                    m_loggingContext,
                                     path,
                                     entry.Key.FileId.High,
                                     entry.Key.FileId.Low,
@@ -523,7 +526,7 @@ namespace BuildXL.Storage
                             else
                             {
                                 Tracing.Logger.Log.StorageKnownUsnHit(
-                                    Events.StaticContext,
+                                    m_loggingContext,
                                     path,
                                     entry.Key.FileId.High,
                                     entry.Key.FileId.Low,
@@ -543,7 +546,7 @@ namespace BuildXL.Storage
                         {
                             Contract.Assume(
                                 possibleActualIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported);
-                            Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(Events.StaticContext, path);
+                            Tracing.Logger.Log.StorageVersionedFileIdentityNotSupportedMiss(m_loggingContext, path);
                         }
                     }
                 }
@@ -559,13 +562,13 @@ namespace BuildXL.Storage
         /// re-thrown).
         /// </summary>
         /// <returns>A loaded table (possibly empty), or a newly created table (in the event of a load failure).</returns>
-        public static Task<FileContentTable> LoadOrCreateAsync(string fileContentTablePath, byte entryTimeToLive = DefaultTimeToLive)
+        public static Task<FileContentTable> LoadOrCreateAsync(LoggingContext loggingContext, string fileContentTablePath, byte entryTimeToLive = DefaultTimeToLive)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
             Contract.Requires(entryTimeToLive > 0);
 
-            return LoadAsync(fileContentTablePath, entryTimeToLive)
-                .ContinueWith(a => a.Result ?? CreateNew(entryTimeToLive: entryTimeToLive));
+            return LoadAsync(loggingContext, fileContentTablePath, entryTimeToLive)
+                .ContinueWith(a => a.Result ?? CreateNew(loggingContext, entryTimeToLive: entryTimeToLive));
         }
 
         /// <summary>
@@ -577,6 +580,7 @@ namespace BuildXL.Storage
         /// specified table or a deserialization failure.
         /// </exception>
         public static Task<FileContentTable> LoadAsync(
+            LoggingContext loggingContext,
             string fileContentTablePath,
             byte entryTimeToLive = DefaultTimeToLive)
         {
@@ -585,8 +589,8 @@ namespace BuildXL.Storage
 
             return Task.Run(() =>
             {
-                LoadResult loadResult = TryLoadInternal(fileContentTablePath, entryTimeToLive);
-                loadResult.Log(Events.StaticContext);
+                LoadResult loadResult = TryLoadInternal(loggingContext, fileContentTablePath, entryTimeToLive);
+                loadResult.Log(loggingContext);
 
                 if (!loadResult.Succeeded)
                 {
@@ -598,7 +602,7 @@ namespace BuildXL.Storage
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-        private static LoadResult TryLoadInternal(string fileContentTablePath, byte entryTimeToLive)
+        private static LoadResult TryLoadInternal(LoggingContext loggingContext, string fileContentTablePath, byte entryTimeToLive)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
             Contract.Requires(entryTimeToLive > 0);
@@ -631,7 +635,7 @@ namespace BuildXL.Storage
 
                     using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
                     {
-                        var loadedTable = new FileContentTable();
+                        var loadedTable = new FileContentTable(loggingContext);
 
                         uint numberOfEntries = reader.ReadUInt32();
                         int hashLength = ContentHashingUtilities.HashInfo.ByteLength;

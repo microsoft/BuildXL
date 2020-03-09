@@ -135,6 +135,8 @@ namespace BuildXL
         private const int LogFileBufferSize = 24 * 1024;
         private static Encoding s_utf8NoBom;
 
+        private LoggingContext m_loggingContextForCrashHandler;
+
         private readonly IAppHost m_appHost;
         private readonly IConsole m_console;
 
@@ -927,6 +929,8 @@ namespace BuildXL
                 (loggingContext) =>
                 {
                     m_appLoggingContext = loggingContext;
+                    // Note the m_appLoggingContext is cleaned up. In the initial implementation this was a static, but after pr comment it is now an instance.
+                    m_loggingContextForCrashHandler = loggingContext;
                     Events.StaticContext = loggingContext;
                     var utcNow = DateTime.UtcNow;
                     var localNow = utcNow.ToLocalTime();
@@ -1889,7 +1893,7 @@ namespace BuildXL
                     {
                         string[] filesToAttach = new[] { loggers.LogPath };
 
-                        WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, Events.StaticContext?.Session?.Id);
+                        WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, m_loggingContextForCrashHandler?.Session?.Id);
                     }
                 }
 

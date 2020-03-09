@@ -16,6 +16,7 @@ using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities
@@ -55,6 +56,7 @@ namespace Test.BuildXL.TestUtilities
             Justification = "Caller owns the returned disposables")]
         public static Tuple<Scheduler, EngineCache> Create(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             IConfiguration configuration,
             PipGraph.Builder graphBuilder,
             IPipQueue queue)
@@ -70,6 +72,7 @@ namespace Test.BuildXL.TestUtilities
 
             Scheduler scheduler = CreateInternal(
                 context,
+                loggingContext,
                 graphBuilder.Build(),
                 queue,
                 cache: cacheLayer,
@@ -88,6 +91,7 @@ namespace Test.BuildXL.TestUtilities
             Justification = "Caller owns the returned disposables")]
         public static Tuple<Scheduler, EngineCache> CreateWithCaching(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             IConfiguration configuration,
             PipGraph.Builder graphBuilder,
             IPipQueue queue)
@@ -102,6 +106,7 @@ namespace Test.BuildXL.TestUtilities
 
             Scheduler scheduler = CreateInternal(
                 context,
+                loggingContext,
                 graphBuilder.Build(),
                 queue,
                 cacheLayer,
@@ -112,6 +117,7 @@ namespace Test.BuildXL.TestUtilities
 
         private static Scheduler CreateInternal(
             PipExecutionContext context,
+            LoggingContext loggingContext,
             PipGraph pipGraph,
             IPipQueue queue,
             EngineCache cache,
@@ -122,7 +128,7 @@ namespace Test.BuildXL.TestUtilities
             Contract.Requires(cache != null);
             Contract.Requires(configuration != null);
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(loggingContext);
 
             var fileAccessWhiteList = new FileAccessWhitelist(context);
 
@@ -134,7 +140,7 @@ namespace Test.BuildXL.TestUtilities
                 context,
                 fileContentTable,
                 cache: cache,
-                loggingContext: Events.StaticContext,
+                loggingContext: loggingContext,
                 configuration: configuration,
                 fileAccessWhitelist: fileAccessWhiteList,
                 testHooks: testHooks,

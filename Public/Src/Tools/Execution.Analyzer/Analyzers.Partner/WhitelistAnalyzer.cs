@@ -202,7 +202,7 @@ namespace BuildXL.Execution.Analyzer
 
                 var accessLookup = ComputeAccesses(m_logWriter);
 
-                FileMonitoringViolationAnalyzer analyzer = new WhitelistFileMonitoringViolationAnalyzer(Events.StaticContext, CachedGraph.Context, CachedGraph.PipGraph, this);
+                FileMonitoringViolationAnalyzer analyzer = new WhitelistFileMonitoringViolationAnalyzer(LoggingContext, CachedGraph.Context, CachedGraph.PipGraph, this);
 
                 foreach (var pipReference in CachedGraph.PipGraph.RetrievePipReferencesOfType(PipType.Process))
                 {

@@ -818,7 +818,7 @@ namespace BuildXL.Scheduler
 
                 if (forceSkipDepsMode == ForceSkipDependenciesMode.Module)
                 {
-                    Logger.Log.DirtyBuildExplicitlyRequestedModules(Events.StaticContext, string.Join(",", explicitlyScheduledModules.Select(m => GetModuleName(m))));
+                    Logger.Log.DirtyBuildExplicitlyRequestedModules(m_loggingContext, string.Join(",", explicitlyScheduledModules.Select(m => GetModuleName(m))));
                 }
 
                 Task[] tasks = new Task[Environment.ProcessorCount];
@@ -929,11 +929,11 @@ namespace BuildXL.Scheduler
                         var tuple = state.MissingOutputs.TryGet(pipId).Item.Value;
                         var path = GetPathString(tuple.path);
                         var consumerDescription = GetDescription(tuple.id);
-                        Logger.Log.DirtyBuildProcessNotSkippedDueToMissingOutput(Events.StaticContext, description, path, consumerDescription);
+                        Logger.Log.DirtyBuildProcessNotSkippedDueToMissingOutput(m_loggingContext, description, path, consumerDescription);
                     }
                     else
                     {
-                        Logger.Log.DirtyBuildProcessNotSkipped(Events.StaticContext, description, reason.ToString());
+                        Logger.Log.DirtyBuildProcessNotSkipped(m_loggingContext, description, reason.ToString());
                     }
                 }
             }

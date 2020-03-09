@@ -311,7 +311,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.SetTempDirectory(tempdir);
             SchedulePipBuilder(builder);
 
-            using (var tempCleaner = new TempCleaner())
+            using (var tempCleaner = new TempCleaner(LoggingContext))
             {
                 if (shouldPipFail)
                 {

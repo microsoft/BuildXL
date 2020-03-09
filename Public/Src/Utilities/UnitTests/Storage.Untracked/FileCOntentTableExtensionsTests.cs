@@ -154,7 +154,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin sourceInfo =
@@ -189,7 +189,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin sourceInfo =
@@ -224,7 +224,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin sourceInfo =
@@ -245,7 +245,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
             WriteFile(FileB, TargetContent);
 
@@ -276,7 +276,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
             WriteFile(FileB, "Nope");
 
@@ -307,7 +307,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, TargetContent);
             WriteFile(FileB, "Nope");
 
@@ -327,7 +327,7 @@ namespace Test.BuildXL.Storage
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task GetAndRecordContentHashAsyncThrowsWithMissingFIle()
         {
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             try
             {
@@ -344,7 +344,7 @@ namespace Test.BuildXL.Storage
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task GetAndRecordContentHashAsyncWithEmptyFileContentTable()
         {
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, "Some string");
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin result =
@@ -360,7 +360,7 @@ namespace Test.BuildXL.Storage
         {
             ContentHash fakeHash = ContentHashingUtilities.CreateRandom();
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileA, "Some string");
 
             using (FileStream fs = File.OpenRead(GetFullPath(FileA)))
@@ -378,7 +378,7 @@ namespace Test.BuildXL.Storage
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public async Task GetAndRecordContentHashAsyncWithMismatch()
         {
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             using (FileStream fs = File.Open(GetFullPath(FileA), FileMode.CreateNew, FileAccess.Write))
             {
@@ -401,7 +401,7 @@ namespace Test.BuildXL.Storage
         public async Task WriteBytesIfContentMismatchedAsyncFixpoint()
         {
             const string TargetContent = "Target!!!!!!!!!";
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             await VerifyWriteBytesIfContentMismatchedAsync(fileContentTable, FileA, TargetContent, expectWrite: true);
             await VerifyWriteBytesIfContentMismatchedAsync(fileContentTable, FileA, TargetContent, expectWrite: false);
@@ -413,7 +413,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
             return VerifyWriteBytesIfContentMismatchedAsync(fileContentTable, FileB, TargetContent, expectWrite: true);
         }
@@ -423,7 +423,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileB, TargetContent);
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin targetInfo =
@@ -444,7 +444,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileB, "Nope");
 
             FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin targetInfo =
@@ -465,7 +465,7 @@ namespace Test.BuildXL.Storage
         {
             const string TargetContent = "Target!!!!!!!!!";
 
-            var fileContentTable = FileContentTable.CreateNew();
+            var fileContentTable = FileContentTable.CreateNew(LoggingContext);
             WriteFile(FileB, "Nope");
 
             return VerifyWriteBytesIfContentMismatchedAsync(fileContentTable, FileB, TargetContent, expectWrite: true);

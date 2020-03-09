@@ -328,7 +328,7 @@ namespace BuildXL.Execution.Analyzer
 
         private void SetupEnvironment(StreamWriter writer, Process pip, string outputFile)
         {
-            var pipEnviornment = new PipEnvironment();
+            var pipEnviornment = new PipEnvironment(LoggingContext);
             var environment = pipEnviornment.GetEffectiveEnvironmentVariables(PathTable, pip).ToDictionary();
 
             writer.WriteLine($"{CommentPrefix} Environment Variables");

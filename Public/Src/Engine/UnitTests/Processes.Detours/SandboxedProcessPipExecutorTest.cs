@@ -8,19 +8,20 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using BuildXL.Native.IO;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -688,6 +689,7 @@ namespace Test.BuildXL.Processes.Detours
         public async Task ProcessUnexpectedFileAccessWhitelistedByValue()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -776,6 +778,7 @@ namespace Test.BuildXL.Processes.Detours
         public async Task ProcessUnexpectedFileAccessWhitelistedByValueWithRegex()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -865,6 +868,7 @@ namespace Test.BuildXL.Processes.Detours
         public async Task ProcessUnexpectedFileAccessWhitelistedByExecutable()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var symbolTable = context.SymbolTable;
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -2190,7 +2194,7 @@ namespace Test.BuildXL.Processes.Detours
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,
                 expander,
                 false,
-                new PipEnvironment(),
+                new PipEnvironment(loggingContext),
                 isLazySharedOpaqueOutputDeletionEnabled: false,
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,

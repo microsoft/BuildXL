@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.BuildParameters;
 using MacPaths = BuildXL.Interop.Unix.IO;
 
@@ -43,12 +44,18 @@ namespace BuildXL.Processes
 
         private readonly IBuildParameters m_baseEnvironmentVariables;
 
+        private LoggingContext m_loggingContext;
+
         /// <summary>
         /// Constructor
         /// </summary>
-        public PipEnvironment()
+        public PipEnvironment(LoggingContext loggingContext)
         {
-            FullEnvironmentVariables = GetFactory(ReportDuplicateVariable).PopulateFromEnvironment();
+            m_loggingContext = loggingContext;
+
+            FullEnvironmentVariables = 
+                GetFactory(ReportDuplicateVariable)
+                .PopulateFromEnvironment();
 
 #if PLATFORM_WIN
             var comspec = Path.Combine(SpecialFolderUtilities.SystemDirectory, "cmd.exe");
@@ -140,13 +147,19 @@ namespace BuildXL.Processes
             return GetEffectiveEnvironmentVariables(pip, new PipFragmentRenderer(pathTable));
         }
 
+
+        private void ReportDuplicateVariable(string key, string existingValue, string ignoredValue)
+        {
+            ReportDuplicateVariable(m_loggingContext, key, existingValue, ignoredValue);
+        }
+
         /// <summary>
         /// Logs a message saying that a duplicate environment variable was encountered.
         /// </summary>
-        public static void ReportDuplicateVariable(string key, string existingValue, string ignoredValue)
+        public static void ReportDuplicateVariable(LoggingContext loggingContext, string key, string existingValue, string ignoredValue)
         {
             Tracing.Logger.Log.DuplicateWindowsEnvironmentVariableEncountered(
-                BuildXL.Utilities.Tracing.Events.StaticContext,
+                loggingContext,
                 key,
                 existingValue,
                 ignoredValue);

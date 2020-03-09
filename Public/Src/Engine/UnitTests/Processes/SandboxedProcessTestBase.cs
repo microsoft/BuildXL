@@ -57,7 +57,8 @@ namespace Test.BuildXL.Processes
                 detoursEventListener: detoursListener,
                 sandboxConnection: sandboxConnection ?? GetSandboxConnection(),
                 disableConHostSharing: disableConHostSharing,
-                fileAccessManifest: fileAccessManifest)
+                fileAccessManifest: fileAccessManifest,
+                loggingContext: LoggingContext)
             {
                 PipSemiStableHash = 0x1234,
                 PipDescription = pipDescription,

@@ -530,7 +530,7 @@ namespace BuildXL.Scheduler
         private bool TryGetAccessedAndProcessPaths(Process pip, ReportedFileAccess reportedAccess, out AbsolutePath accessedPath, out AbsolutePath processPath)
         {
             accessedPath = processPath = AbsolutePath.Invalid;
-            return reportedAccess.TryParseAbsolutePath(Context, pip, out accessedPath)
+            return reportedAccess.TryParseAbsolutePath(Context, LoggingContext, pip, out accessedPath)
                    && AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Process.Path, out processPath);
         }
 
@@ -1112,7 +1112,7 @@ namespace BuildXL.Scheduler
                 }
 
                 AbsolutePath path;
-                if (!violation.TryParseAbsolutePath(Context, pip, out path))
+                if (!violation.TryParseAbsolutePath(Context, LoggingContext, pip, out path))
                 {
                     continue;
                 }

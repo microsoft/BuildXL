@@ -19,6 +19,7 @@ using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
@@ -54,7 +55,7 @@ namespace BuildXL.Processes
 
         private readonly TextReader m_standardInputReader;
         private readonly TimeSpan m_nestedProcessTerminationTimeout;
-
+        private readonly LoggingContext m_loggingContext;
         private DetouredProcess m_detouredProcess;
         private bool m_processStarted;
         private bool m_disposeStarted;
@@ -96,6 +97,7 @@ namespace BuildXL.Processes
             m_bufferSize = SandboxedProcessInfo.BufferSize;
             m_allowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
+            m_loggingContext = info.LoggingContext;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;
@@ -203,7 +205,7 @@ namespace BuildXL.Processes
                 ulong? currentPeakPagefileUsage = null;
 
                 var jobObject = detouredProcess.GetJobObject();
-                if (jobObject == null || !jobObject.TryGetProcessIds(out uint[] childProcessIds) || childProcessIds.Length == 0)
+                if (jobObject == null || !jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds) || childProcessIds.Length == 0)
                 {
                     return null;
                 }
@@ -363,7 +365,7 @@ namespace BuildXL.Processes
                     ArraySegment<byte> manifestBytes = new ArraySegment<byte>();
                     if (m_fileAccessManifest != null)
                     {
-                        manifestBytes = m_fileAccessManifest.GetPayloadBytes(setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
+                        manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
                     }
 
                     if (!debugFlagsMatch)
@@ -476,7 +478,7 @@ namespace BuildXL.Processes
                 {
                     // If there are any remaining child processes, we wait for a moment.
                     // This should be a rare case, and even if we have to wait it should typically only be for a fraction of a second, so we simply wait synchronously (blocking the current thread).
-                    if (!(await jobObject.WaitAsync(m_nestedProcessTerminationTimeout)))
+                    if (!(await jobObject.WaitAsync(m_loggingContext, m_nestedProcessTerminationTimeout)))
                     {
                         HandleSurvivingChildProcesses(jobObject);
                     }
@@ -559,9 +561,9 @@ namespace BuildXL.Processes
             SetResult(result);
         }
 
-        private static Dictionary<uint, ReportedProcess> GetSurvivingChildProcesses(JobObject jobObject)
+        private Dictionary<uint, ReportedProcess> GetSurvivingChildProcesses(JobObject jobObject)
         {
-            if (!jobObject.TryGetProcessIds(out uint[] survivingChildProcessIds) || survivingChildProcessIds.Length == 0)
+            if (!jobObject.TryGetProcessIds(m_loggingContext, out uint[] survivingChildProcessIds) || survivingChildProcessIds.Length == 0)
             {
                 return null;
             }

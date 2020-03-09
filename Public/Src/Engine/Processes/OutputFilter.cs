@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text.RegularExpressions;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
 {

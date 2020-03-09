@@ -208,7 +208,7 @@ namespace BuildXL.Engine
                     }
                     catch (BuildXLException ex)
                     {
-                        return LogAndReturnFailure(ex);
+                        return LogAndReturnFailure(loggingContext, ex);
                     }
                 }
 
@@ -325,9 +325,9 @@ namespace BuildXL.Engine
             }
         }
 
-        private static Optional<CompositeGraphFingerprint> LogAndReturnFailure(BuildXLException ex)
+        private static Optional<CompositeGraphFingerprint> LogAndReturnFailure(LoggingContext loggingContext, BuildXLException ex)
         {
-            Tracing.Logger.Log.FailedToComputeGraphFingerprint(Events.StaticContext, ex.LogEventMessage);
+            Tracing.Logger.Log.FailedToComputeGraphFingerprint(loggingContext, ex.LogEventMessage);
             return Optional<CompositeGraphFingerprint>.Invalid;
         }
     }

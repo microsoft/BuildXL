@@ -185,7 +185,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             InputTracker.CreateDisabledTracker(loggingContext),
                             null,
                             null,
-                            () => FileContentTable.CreateStub(),
+                            () => FileContentTable.CreateStub(loggingContext),
                             5000,
                             false,
                             controller.RegisteredFrontEnds);

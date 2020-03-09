@@ -569,7 +569,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             SchedulePipBuilder(builderB);
 
             IgnoreWarnings();
-            RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(ToString(tempDirUnderSharedPath))).AssertFailure();
+            RunScheduler(tempCleaner: new global::BuildXL.Scheduler.TempCleaner(LoggingContext, ToString(tempDirUnderSharedPath))).AssertFailure();
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationSharedOpaqueWriteInTempDirectory);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);

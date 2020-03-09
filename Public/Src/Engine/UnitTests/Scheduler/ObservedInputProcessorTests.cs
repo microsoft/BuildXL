@@ -1130,6 +1130,7 @@ namespace Test.BuildXL.Scheduler
         {
             // Setup the environment for the tests
             BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var loggingContext = CreateLoggingContextForTest();
             var config = ConfigurationHelpers.GetDefaultForTesting(
                 context.PathTable,
                 AbsolutePath.Create(context.PathTable, Path.Combine(TestOutputDirectory, "config.dc")));
@@ -1193,6 +1194,7 @@ namespace Test.BuildXL.Scheduler
 
             PipExecutionState pes = new PipExecutionState(
                 config,
+                loggingContext,
                 cache: null,
                 fileAccessWhitelist: null,
                 directoryMembershipFingerprinter: fingerprinter,

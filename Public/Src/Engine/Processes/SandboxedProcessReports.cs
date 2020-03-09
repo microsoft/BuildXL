@@ -106,9 +106,10 @@ namespace BuildXL.Processes
             [CanBeNull] IDetoursEventListener detoursEventListener,
             [CanBeNull] SidebandWriter sharedOpaqueOutputLogger)
         {
-            Contract.Requires(manifest != null);
-            Contract.Requires(pathTable != null);
-            Contract.Requires(pipDescription != null);
+            Contract.RequiresNotNull(manifest);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(pipDescription);
+            Contract.RequiresNotNull(loggingContext);
 
             PipSemiStableHash = pipSemiStableHash;
             PipDescription = pipDescription;
@@ -118,9 +119,7 @@ namespace BuildXL.Processes
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
             m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
-
-            // For tests we need the StaticContext
-            m_loggingContext = loggingContext ?? BuildXL.Utilities.Tracing.Events.StaticContext;
+            m_loggingContext = loggingContext;
         }
 
         /// <summary>

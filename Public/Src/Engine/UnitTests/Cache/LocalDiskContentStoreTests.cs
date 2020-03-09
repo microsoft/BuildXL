@@ -838,12 +838,12 @@ namespace Test.BuildXL.Engine.Cache
                 // Dummy FCT should always prevent tracking from succeeding.
                 FilesShouldBeTracked = !useDummyFileContentTable;
 
-                FileContentTable = useDummyFileContentTable ? FileContentTable.CreateStub() : FileContentTable.CreateNew();
+                LoggingContext = new LoggingContext(nameof(Harness));
+                FileContentTable = useDummyFileContentTable ? FileContentTable.CreateStub(LoggingContext) : FileContentTable.CreateNew(LoggingContext);
                 Tracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
                 DisabledTracker = new FileChangeTrackingRecorder(verifyKnownIdentityOnTrackingFile);
                 ContentCache = contentCacheForTest ?? new InMemoryArtifactContentCache();
                 m_outputRoot = AbsolutePath.Create(Context.PathTable, outputRoot);
-                LoggingContext = new LoggingContext(nameof(Harness));
             }
 
             public AbsolutePath GetFullPath(params string[] relativePathSegments)

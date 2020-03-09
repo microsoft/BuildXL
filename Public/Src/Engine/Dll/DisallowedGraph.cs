@@ -10,6 +10,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine
@@ -22,11 +23,18 @@ namespace BuildXL.Engine
     /// </remarks>
     internal sealed class DisallowedGraph : IMutablePipGraph, IPipScheduleTraversal
     {
+        private LoggingContext m_loggingContext;
+
+        public DisallowedGraph(LoggingContext loggingContext)
+        {
+            m_loggingContext = loggingContext;
+        }
+
         /// <inheritdoc />
         public bool AddProcess(Process process, PipId valuePip)
         {
             Contract.Requires(process != null, "Argument process cannot be null");
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -34,7 +42,7 @@ namespace BuildXL.Engine
         public bool AddIpcPip(IpcPip ipcPip, PipId valuePip)
         {
             Contract.Requires(ipcPip != null, "Argument pip cannot be null");
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -42,7 +50,7 @@ namespace BuildXL.Engine
         public bool AddCopyFile(CopyFile copyFile, PipId valuePip)
         {
             Contract.Requires(copyFile != null, "Argument copyFile cannot be null");
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -50,7 +58,7 @@ namespace BuildXL.Engine
         public bool AddWriteFile(WriteFile writeFile, PipId valuePip)
         {
             Contract.Requires(writeFile != null, "Argument writeFile cannot be null");
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -58,7 +66,7 @@ namespace BuildXL.Engine
         public DirectoryArtifact AddSealDirectory(SealDirectory sealDirectory, PipId valuePip)
         {
             Contract.Requires(sealDirectory != null);
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return DirectoryArtifact.Invalid;
         }
 
@@ -85,7 +93,7 @@ namespace BuildXL.Engine
         public bool AddSpecFile(SpecFilePip specFile)
         {
             Contract.Requires(specFile != null, "Argument specFile cannot be null");
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -93,14 +101,14 @@ namespace BuildXL.Engine
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords")]
         public bool AddModule(ModulePip module)
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
         /// <inheritdoc />
         public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency)
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return false;
         }
 
@@ -108,21 +116,21 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public IEnumerable<Pip> RetrieveScheduledPips()
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             yield break;
         }
 
         /// <inheritdoc />
         public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip)
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             yield break;
         }
 
         /// <inheritdoc />
         public IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip)
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             yield break;
         }
 
@@ -141,14 +149,14 @@ namespace BuildXL.Engine
         public GraphPatchingStatistics PartiallyReloadGraph(HashSet<AbsolutePath> affectedSpecs)
         {
             Contract.Requires(affectedSpecs != null);
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
             return default(GraphPatchingStatistics);
         }
 
         /// <inheritdoc />
         public void SetSpecsToIgnore(IEnumerable<AbsolutePath> specsToIgnore)
         {
-            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(Events.StaticContext);
+            Tracing.Logger.Log.CannotAddCreatePipsDuringConfigOrModuleEvaluation(m_loggingContext);
         }
 
         /// <inheritdoc />

@@ -195,7 +195,7 @@ namespace BuildXL.Engine
             Contract.Requires(cacheInitializer != null);
             Contract.Requires(pipGraph != null);
 
-            var pipQueue = new PipQueue(configuration.Schedule);
+            var pipQueue = new PipQueue(loggingContext, configuration.Schedule);
 
             if (configuration.Schedule.IncrementalScheduling &&
                 (configuration.Distribution.BuildRole != DistributedBuildRoles.None ||
@@ -711,7 +711,7 @@ namespace BuildXL.Engine
 
                         try
                         {
-                            PipRuntimeTimeTable table = PipRuntimeTimeTable.Load(filePath);
+                            PipRuntimeTimeTable table = PipRuntimeTimeTable.Load(pm.LoggingContext, filePath);
                             Logger.Log.RunningTimesLoaded(pm.LoggingContext, table.Count);
                             context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataSuccessfullyLoaded);
                             return table;
@@ -1562,7 +1562,7 @@ namespace BuildXL.Engine
             // DeserializeFromFile() performs all exception handling so accessing Result is safe and will either return a valid object or null
             var configFileStateTask = serializer.DeserializeFromFileAsync<ConfigFileState>(
                 GraphCacheFile.ConfigState,
-                reader => ConfigFileState.DeserializeAsync(reader, pipExecutionContextTask));
+                reader => ConfigFileState.DeserializeAsync(reader, loggingContext, pipExecutionContextTask));
 
             Task<SymlinkDefinitions> symlinkDefinitionsTask = Task.Run(
                 async () =>
@@ -1677,7 +1677,7 @@ namespace BuildXL.Engine
                 await pipExecutionContextTask != null &&
                 await pipGraphTask != null)
             {
-                var pipQueue = new PipQueue(newConfiguration.Schedule);
+                var pipQueue = new PipQueue(loggingContext, newConfiguration.Schedule);
 
                 var pathTable = await pathTableTask;
 

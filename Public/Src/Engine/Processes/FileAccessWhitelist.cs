@@ -13,6 +13,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
@@ -228,17 +229,17 @@ namespace BuildXL.Processes
         /// A whitelist entry must match in value name, allowing this path to return false quickly after a failed Dictionary lookup
         /// in most cases.
         /// </remarks>
-        public MatchType Matches(ReportedFileAccess reportedFileAccess, Process pip)
+        public MatchType Matches(LoggingContext loggingContext, ReportedFileAccess reportedFileAccess, Process pip)
         {
             Contract.Requires(pip != null);
 
             IEnumerable<FileAccessWhitelistEntry> possibleEntries = new List<FileAccessWhitelistEntry>();
 
-            ConcatPossibleEntries(reportedFileAccess, pip, ref possibleEntries);
+            ConcatPossibleEntries(loggingContext, reportedFileAccess, pip, ref possibleEntries);
 
             if (m_parent != null)
             {
-                m_parent.ConcatPossibleEntries(reportedFileAccess, pip, ref possibleEntries);
+                m_parent.ConcatPossibleEntries(loggingContext, reportedFileAccess, pip, ref possibleEntries);
             }
 
             var strongestMatch = MatchType.NoMatch;
@@ -267,7 +268,7 @@ namespace BuildXL.Processes
             return strongestMatch;
         }
 
-        private void ConcatPossibleEntries(ReportedFileAccess reportedFileAccess, Process pip, ref IEnumerable<FileAccessWhitelistEntry> possibleEntries)
+        private void ConcatPossibleEntries(LoggingContext loggingContext, ReportedFileAccess reportedFileAccess, Process pip, ref IEnumerable<FileAccessWhitelistEntry> possibleEntries)
         {
             IReadOnlyList<ValuePathFileAccessWhitelistEntry> valuePathWhitelistList;
             if (m_valuePathEntries.TryGetValue(pip.Provenance.OutputValueSymbol, out valuePathWhitelistList))
@@ -280,7 +281,7 @@ namespace BuildXL.Processes
             if (AbsolutePath.TryCreate(m_context.PathTable, reportedFileAccess.Process.Path, out toolPath, out characterWithError) != AbsolutePath.ParseResult.Success)
             {
                 BuildXL.Processes.Tracing.Logger.Log.FileAccessWhitelistFailedToParsePath(
-                    Events.StaticContext,
+                    loggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(m_context),
                     reportedFileAccess.Describe(),
@@ -361,7 +362,7 @@ namespace BuildXL.Processes
             }
 
             return result;
-            }
+        }
 
         private static void DeserializeCore(BuildXLReader reader, FileAccessWhitelist whitelist)
         {

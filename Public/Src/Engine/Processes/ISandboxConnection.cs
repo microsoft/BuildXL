@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
 {
@@ -50,7 +51,7 @@ namespace BuildXL.Processes
         /// sandbox is notified about it being started, the process should be started in some kind of suspended mode, and
         /// resumed only after the sandbox has been notified.
         /// </summary>
-        bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process);
+        bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process);
 
         /// <summary>
         /// Notifies the sandbox that <paramref name="process"/> is done processing access reports

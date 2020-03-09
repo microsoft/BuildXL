@@ -51,7 +51,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             FileContentTable loadedTable = await SaveAndReloadTable(originalTable);
 
             ExpectHashUnknown(loadedTable, m_testFileA);
@@ -65,7 +65,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
 
             FileContentTable loadedTable = await SaveAndReloadTable(originalTable);
@@ -81,7 +81,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
 
@@ -98,7 +98,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew(entryTimeToLive: 1);
+            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 1);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
 
@@ -121,7 +121,7 @@ namespace Test.BuildXL.Storage
 
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew(entryTimeToLive: 1);
+            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 1);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
 
@@ -147,7 +147,7 @@ namespace Test.BuildXL.Storage
 
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew(entryTimeToLive: 1);
+            var originalTable = FileContentTable.CreateNew(LoggingContext, entryTimeToLive: 1);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
 
             FileContentTable loadedTable = null;
@@ -176,7 +176,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             ExpectHashKnown(originalTable, m_testFileA, s_hashA);
 
@@ -195,7 +195,7 @@ namespace Test.BuildXL.Storage
                 // Write at least one byte to avoid the check for null size hash.
                 fs.WriteByte(1);
 
-                var table = FileContentTable.CreateNew();
+                var table = FileContentTable.CreateNew(LoggingContext);
                 for (int i = 0; i < 10; i++)
                 {
                     table.RecordContentHash(fs, s_hashA);
@@ -221,7 +221,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             ExpectHashKnown(originalTable, m_testFileA, s_hashA);
             await SaveTable(originalTable);
@@ -239,7 +239,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             ExpectHashKnown(originalTable, m_testFileA, s_hashA);
 
@@ -256,7 +256,7 @@ namespace Test.BuildXL.Storage
             WriteTestFiles();
             SetIdenticalModificationTimestamps(m_testFileA, m_testFileB);
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
             ExpectHashKnown(originalTable, m_testFileA, s_hashA);
@@ -281,7 +281,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
             await SaveTable(originalTable);
@@ -296,7 +296,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateNew();
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             RecordContentHash(originalTable, m_testFileB, s_hashB);
             await SaveTable(originalTable);
@@ -314,7 +314,7 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void QueryingHashOfNonExistentFileShouldReturnNull()
         {
-            var table = FileContentTable.CreateNew();
+            var table = FileContentTable.CreateNew(LoggingContext);
             var knownContentHash = table.TryGetKnownContentHash(m_testFileA.ToString(m_pathTable));
             XAssert.IsFalse(knownContentHash.HasValue, "Table shouldn't have had that entry");
         }
@@ -329,7 +329,7 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void StubFileContentTableDoesNotThrowOnQuery()
         {
-            var table = FileContentTable.CreateStub();
+            var table = FileContentTable.CreateStub(LoggingContext);
 
             WriteTestFiles();
 
@@ -339,7 +339,7 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void StubFileContentTableDoesNotThrowWhenRecording()
         {
-            var table = FileContentTable.CreateStub();
+            var table = FileContentTable.CreateStub(LoggingContext);
 
             WriteTestFiles();
 
@@ -354,7 +354,7 @@ namespace Test.BuildXL.Storage
         {
             WriteTestFiles();
 
-            var originalTable = FileContentTable.CreateStub();
+            var originalTable = FileContentTable.CreateStub(LoggingContext);
             RecordContentHash(originalTable, m_testFileA, s_hashA);
             ExpectHashUnknown(originalTable, m_testFileA);
 
@@ -366,7 +366,7 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void StrictModeFlushesDirtyMemoryMappedPages()
         {
-            var table = FileContentTable.CreateNew();
+            var table = FileContentTable.CreateNew(LoggingContext);
 
             string testFileAExpandedPath = m_testFileA.ToString(m_pathTable);
 
@@ -416,7 +416,7 @@ namespace Test.BuildXL.Storage
                 return;
             }
 
-            var table = FileContentTable.CreateNew();
+            var table = FileContentTable.CreateNew(LoggingContext);
 
             const int ThreadCount = 16;
             const int IterationCount = 20;
@@ -554,12 +554,12 @@ namespace Test.BuildXL.Storage
 
         private Task<FileContentTable> LoadOrCreateTable(byte entryTimeToLive = FileContentTable.DefaultTimeToLive)
         {
-            return FileContentTable.LoadOrCreateAsync(GetFullPath(Table), entryTimeToLive: entryTimeToLive);
+            return FileContentTable.LoadOrCreateAsync(LoggingContext, GetFullPath(Table), entryTimeToLive: entryTimeToLive);
         }
 
         private Task<FileContentTable> LoadTable(byte entryTimeToLive = FileContentTable.DefaultTimeToLive)
         {
-            return FileContentTable.LoadAsync(GetFullPath(Table), entryTimeToLive);
+            return FileContentTable.LoadAsync(LoggingContext, GetFullPath(Table), entryTimeToLive);
         }
 
         private static void VerifyTable(FileContentTable table)

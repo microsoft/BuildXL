@@ -91,7 +91,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             m_fileContentTable = fileContentTable;
             m_pathToNormalizedPathTranslator = directoryTranslator;
             m_normalizedPathToRealPathTranslator = directoryTranslator?.GetReverseTranslator();
-            m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(pathTable, fileChangeTracker);
+            m_fileChangeTrackerSelector = changeTrackingFilter ?? FileChangeTrackingSelector.CreateAllowAllFilter(m_loggingContext, pathTable, fileChangeTracker);
             m_vfsCasRoot = vfsCasRoot.IsValid ? vfsCasRoot.ToString(pathTable) : null;
             if (m_vfsCasRoot != null && m_normalizedPathToRealPathTranslator != null)
             {
@@ -618,7 +618,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                             if (natEx != null)
                             {
                                 Tracing.Logger.Log.ClosingFileStreamAfterHashingFailed(
-                                    Events.StaticContext,
+                                    m_loggingContext,
                                     expandedPath,
                                     ioEx.Message + "|" + natEx.Message,
                                     natEx.ToStringDemystified());

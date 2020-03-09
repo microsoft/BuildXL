@@ -14,6 +14,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Diagnostics;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace Tool.VerifyFileContentTable
@@ -118,7 +119,7 @@ namespace Tool.VerifyFileContentTable
         {
             try
             {
-                return await FileContentTable.LoadAsync(path.ToString(pt));
+                return await FileContentTable.LoadAsync(new LoggingContext("VerifyContentTable"), path.ToString(pt));
             }
             catch (BuildXLException ex)
             {

@@ -744,8 +744,8 @@ namespace BuildXL.Processes
                         m_fileAccessManifest,
                         m_disableConHostSharing,
                         m_containerConfiguration,
-                        m_pip.TestRetries,
                         m_loggingContext,
+                        m_pip.TestRetries,
                         sandboxConnection: sandboxConnection,
                         sidebandWriter: sidebandWriter,
                         detoursEventListener: m_detoursListener)
@@ -3291,7 +3291,7 @@ namespace BuildXL.Processes
                     // We want an AbsolutePath for the full access. This may not be parse-able due to the accessed path
                     // being invalid, or a path format we do not understand. Note that TryParseAbsolutePath logs as appropriate
                     // in the latter case.
-                    if (!reported.TryParseAbsolutePath(m_context, m_pip, out parsedPath))
+                    if (!reported.TryParseAbsolutePath(m_context, m_loggingContext, m_pip, out parsedPath))
                     {
                         continue;
                     }

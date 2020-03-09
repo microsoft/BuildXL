@@ -195,7 +195,7 @@ namespace BuildXL.Engine
                 () => cacheGraphStats))
             {
                 var loggingContext = timeBlock.LoggingContext;
-                var effectiveEnvironmentVariables = FrontEndEngineImplementation.PopulateFromEnvironmentAndApplyOverrides(properties);
+                var effectiveEnvironmentVariables = FrontEndEngineImplementation.PopulateFromEnvironmentAndApplyOverrides(loggingContext, properties);
                 var availableMounts = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
 
                 if (!AddConfigurationMountsAndCompleteInitialization(loggingContext, availableMounts))

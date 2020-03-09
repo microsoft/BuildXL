@@ -217,7 +217,7 @@ namespace Test.BuildXL.Processes.Containers
             {
                 // Write an output file to the source dir, but pass remapping information so it actually gets written in the destination directory
                 var info =
-                new SandboxedProcessInfo(PathTable, tempFiles, m_testProcessPath, disableConHostSharing: false, containerConfiguration: containerConfiguration)
+                new SandboxedProcessInfo(PathTable, tempFiles, m_testProcessPath, disableConHostSharing: false, containerConfiguration: containerConfiguration, loggingContext: LoggingContext)
                 {
                     PipSemiStableHash = 0,
                     PipDescription = "TestContainer",

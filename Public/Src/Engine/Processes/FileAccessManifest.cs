@@ -12,6 +12,7 @@ using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 
 namespace BuildXL.Processes
@@ -727,7 +728,6 @@ namespace BuildXL.Processes
             writer.Write(CheckedCode.DebugOn);
             if (!ProcessUtilities.IsNativeInDebugConfiguration())
             {
-                Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(Utilities.Tracing.Events.StaticContext);
                 debugFlagsMatch = false;
             }
 #else
@@ -735,7 +735,6 @@ namespace BuildXL.Processes
             writer.Write(CheckedCode.DebugOff);
             if (ProcessUtilities.IsNativeInDebugConfiguration())
             {
-                Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(Utilities.Tracing.Events.StaticContext);
                 debugFlagsMatch = false;
             }
 #endif
@@ -921,7 +920,7 @@ namespace BuildXL.Processes
         /// native detour implementation
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-        public ArraySegment<byte> GetPayloadBytes(FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
+        public ArraySegment<byte> GetPayloadBytes(LoggingContext loggingContext, FileAccessSetup setup, MemoryStream stream, uint timeoutMins, ref bool debugFlagsMatch)
         {
             Contract.Requires(setup != null);
             Contract.Requires(stream != null);
@@ -929,6 +928,14 @@ namespace BuildXL.Processes
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
             {
                 WriteDebugFlagBlock(writer, ref debugFlagsMatch);
+                if (!debugFlagsMatch)
+                {
+#if DEBUG
+                Tracing.Logger.Log.PipInvalidDetoursDebugFlag1(loggingContext);
+#else
+                Tracing.Logger.Log.PipInvalidDetoursDebugFlag2(loggingContext);
+#endif
+                }
                 WriteInjectionTimeoutBlock(writer, timeoutMins);
                 WriteChildProcessesToBreakAwayFromSandbox(writer, ChildProcessesToBreakawayFromSandbox);
                 WriteTranslationPathStrings(writer, DirectoryTranslator);

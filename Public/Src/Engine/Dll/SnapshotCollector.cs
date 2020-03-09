@@ -446,11 +446,11 @@ namespace BuildXL.Engine
             }
             catch (IOException e)
             {
-                Tracing.Logger.Log.ErrorSavingSnapshot(Events.StaticContext, snapshotFile, e.Message);
+                Tracing.Logger.Log.ErrorSavingSnapshot(m_loggingContext, snapshotFile, e.Message);
             }
             catch (UnauthorizedAccessException e)
             {
-                Tracing.Logger.Log.ErrorSavingSnapshot(Events.StaticContext, snapshotFile, e.Message);
+                Tracing.Logger.Log.ErrorSavingSnapshot(m_loggingContext, snapshotFile, e.Message);
             }
         }
 

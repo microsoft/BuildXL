@@ -233,7 +233,7 @@ namespace Test.BuildXL.Scheduler
         {
             Contract.Ensures(Contract.Result<FileContentTable>() != null);
 
-            return FileContentTable.CreateNew();
+            return FileContentTable.CreateNew(LoggingContext);
         }
 
         /// <summary>

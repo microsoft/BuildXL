@@ -972,7 +972,7 @@ namespace Test.BuildXL.Scheduler
             private readonly MutableDirectedGraph m_graph;
 
             public TestBuildSetCalculator(MutableDirectedGraph graph, DirtyNodeTracker incrementalSchedulingState = null) 
-                : base(Events.StaticContext, graph, incrementalSchedulingState, new CounterCollection<PipExecutorCounter>())
+                : base(CreateLoggingContextForTest(), graph, incrementalSchedulingState, new CounterCollection<PipExecutorCounter>())
             {
                 m_graph = graph;
             }

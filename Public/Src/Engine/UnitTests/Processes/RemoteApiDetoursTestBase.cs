@@ -128,6 +128,7 @@ namespace Test.BuildXL.Processes
             params RemoteApi.Command[] commands)
         {
             return RemoteApi.RunInSandboxAsync(
+                LoggingContext,
                 pathTable,
                 workingDirectory: TemporaryDirectory,
                 sandboxStorage: this,

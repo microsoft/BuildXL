@@ -226,7 +226,7 @@ namespace BuildXL.Processes
 
             string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
 
-            if (!SandboxConnection.NotifyPipStarted(info.FileAccessManifest, this))
+            if (!SandboxConnection.NotifyPipStarted(info.LoggingContext, info.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to initialize the sandbox for process observation, make sure BuildXL is setup correctly!");
             }

@@ -179,7 +179,7 @@ namespace Test.BuildXL.Processes
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -238,7 +238,7 @@ namespace Test.BuildXL.Processes
 
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX86, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX86, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -387,7 +387,7 @@ namespace Test.BuildXL.Processes
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, cmdExeLocation, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -588,7 +588,7 @@ namespace Test.BuildXL.Processes
             {
                 var pt = new PathTable();
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -710,6 +710,7 @@ namespace Test.BuildXL.Processes
                 pt,
                 tempFiles,
                 CmdHelper.CmdX64,
+                loggingContext: LoggingContext,
                 disableConHostSharing: false,
                 fileAccessManifest: new FileAccessManifest(pt) { ProbeDirectorySymlinkAsDirectory = true })
             {
@@ -754,7 +755,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempFilePath = AbsolutePath.Create(pt, tempFileName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -871,7 +872,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempFilePath = AbsolutePath.Create(pt, tempFileName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -971,7 +972,7 @@ namespace Test.BuildXL.Processes
 
                 AbsolutePath tempDirPath = AbsolutePath.Create(pt, tempDirName);
                 var info =
-                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, CmdHelper.CmdX64, disableConHostSharing: false, loggingContext: LoggingContext)
                     {
                         // Adding \|Bad bit| to the end should result in ERROR_INVALID_NAME. The ^ hats are for cmd escaping. Note that type eats quotes, so we can't try those.
                         PipSemiStableHash = 0,
@@ -1008,7 +1009,7 @@ namespace Test.BuildXL.Processes
         public async Task StartFileDoesNotExist()
         {
             var pt = new PathTable();
-            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
+            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -1083,7 +1084,7 @@ namespace Test.BuildXL.Processes
                 var pt = new PathTable();
                 var info =
                     // 'time' uses vfork on macOS
-                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),

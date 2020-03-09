@@ -87,7 +87,7 @@ namespace BuildXL.PipGraphFragmentGenerator
                     InputTracker.CreateDisabledTracker(loggingContext),
                     null,
                     null,
-                    () => FileContentTable.CreateStub(),
+                    () => FileContentTable.CreateStub(loggingContext),
                     5000,
                     false,
                     controller.RegisteredFrontEnds);

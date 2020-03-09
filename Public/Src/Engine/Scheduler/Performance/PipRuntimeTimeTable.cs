@@ -61,11 +61,14 @@ namespace BuildXL.Scheduler
         /// </summary>
         private long m_numMisses;
 
+        private LoggingContext m_loggingContext;
+
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public PipRuntimeTimeTable(int initialCapacity = 0)
+        public PipRuntimeTimeTable(LoggingContext loggingContext, int initialCapacity = 0)
         {
+            m_loggingContext = loggingContext;
             m_runtimeData = new ConcurrentBigMap<long, PipHistoricPerfData>(capacity: initialCapacity);
         }
 
@@ -75,7 +78,7 @@ namespace BuildXL.Scheduler
         /// <exception cref="BuildXLException">
         /// Thrown if a recoverable error occurs while operating on the file.
         /// </exception>
-        public static PipRuntimeTimeTable Load(string fileName)
+        public static PipRuntimeTimeTable Load(LoggingContext loggingContext, string fileName)
         {
             Contract.Requires(fileName != null);
             using (
@@ -85,11 +88,11 @@ namespace BuildXL.Scheduler
                     FileAccess.Read,
                     FileShare.Read | FileShare.Delete))
             {
-                return Load(fileStream);
+                return Load(loggingContext, fileStream);
             }
         }
 
-        internal static PipRuntimeTimeTable Load(Stream stream)
+        internal static PipRuntimeTimeTable Load(LoggingContext loggingContext, Stream stream)
         {
             return ExceptionUtilities.HandleRecoverableIOException(
                 () =>
@@ -98,7 +101,7 @@ namespace BuildXL.Scheduler
                     using (BuildXLReader reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
                     {
                         int size = reader.ReadInt32();
-                        var table = new PipRuntimeTimeTable(initialCapacity: size);
+                        var table = new PipRuntimeTimeTable(loggingContext, initialCapacity: size);
 
                         for (int i = 0; i < size; ++i)
                         {
@@ -211,12 +214,12 @@ namespace BuildXL.Scheduler
                     var relativeDeviation = (int)(difference * 100 / Math.Max(milliseconds, oldMilliseconds));
                     Interlocked.Add(ref m_sumRelativeRunningTimeDeviation, relativeDeviation);
                     Interlocked.Increment(ref m_numRunningTimeUpdated);
-                    Tracing.Logger.Log.RunningTimeUpdated(Events.StaticContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
+                    Tracing.Logger.Log.RunningTimeUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
                 }
                 else
                 {
                     Interlocked.Increment(ref m_numRunningTimeAdded);
-                    Tracing.Logger.Log.RunningTimeAdded(Events.StaticContext, semiStableHash, value.DurationInMs);
+                    Tracing.Logger.Log.RunningTimeAdded(m_loggingContext, semiStableHash, value.DurationInMs);
                 }
             }
         }

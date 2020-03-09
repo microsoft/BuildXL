@@ -33,7 +33,7 @@ namespace Test.BuildXL
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep", "ArbitraryCaller");
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
 
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
+                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(loggingContext, listener);
                 XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
                 XAssert.AreEqual(global::BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), infrastructureErrorClassification.ErrorBucket);
             }

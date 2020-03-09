@@ -11,6 +11,7 @@ using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
@@ -480,7 +481,7 @@ namespace BuildXL.Processes
         /// an event is logged to attribute the unknown path to the reporting <paramref name="pip"/>.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
-        public bool TryParseAbsolutePath(PipExecutionContext context, Process pip, out AbsolutePath parsedPath)
+        public bool TryParseAbsolutePath(PipExecutionContext context, LoggingContext loggingContext, Process pip, out AbsolutePath parsedPath)
         {
             Contract.Requires(context != null);
             Contract.Requires(pip != null);
@@ -506,7 +507,7 @@ namespace BuildXL.Processes
                         if (IsSpecialDevicePath())
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathOfSpecialDeviceFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),
@@ -515,7 +516,7 @@ namespace BuildXL.Processes
                         else if (DoesPathContainsWildcards(Path))
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessIgnoringPathWithWildcardsFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),
@@ -524,7 +525,7 @@ namespace BuildXL.Processes
                         else
                         {
                             BuildXL.Processes.Tracing.Logger.Log.PipProcessFailedToParsePathOfFileAccess(
-                                Events.StaticContext,
+                                loggingContext,
                                 pip.SemiStableHash,
                                 pip.GetDescription(context),
                                 Describe(),

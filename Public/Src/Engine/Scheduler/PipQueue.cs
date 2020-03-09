@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
@@ -158,7 +159,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates instance
         /// </summary>
-        public PipQueue(IScheduleConfiguration config)
+        public PipQueue(LoggingContext loggingContext, IScheduleConfiguration config)
         {
             Contract.Requires(config != null);
 
@@ -186,7 +187,7 @@ namespace BuildXL.Scheduler
             m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
 
             Tracing.Logger.Log.PipQueueConcurrency(
-                Events.StaticContext,
+                loggingContext,
                 ioLimit,
                 config.MaxChooseWorkerCacheLookup,
                 config.MaxCacheLookup,

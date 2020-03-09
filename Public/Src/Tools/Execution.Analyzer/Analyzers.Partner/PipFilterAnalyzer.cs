@@ -129,7 +129,7 @@ namespace BuildXL.Execution.Analyzer
             var outputs = PipGraph.FilterOutputs(rootFilter);
             var pips = new List<PipId>();
 
-            if (PipGraph.FilterNodesToBuild(Events.StaticContext, rootFilter, out var nodes))
+            if (PipGraph.FilterNodesToBuild(LoggingContext, rootFilter, out var nodes))
             {
                 foreach (var node in nodes)
                 {

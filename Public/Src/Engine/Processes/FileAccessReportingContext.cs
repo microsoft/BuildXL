@@ -122,7 +122,7 @@ namespace BuildXL.Processes
                     m_config.FailUnexpectedFileAccesses == false,
                     "Having a file-access whitelist requires that Detours failure injection is off.");
 
-                FileAccessWhitelist.MatchType matchType = m_fileAccessWhitelist.Matches(unexpectedFileAccess, m_pip);
+                FileAccessWhitelist.MatchType matchType = m_fileAccessWhitelist.Matches(m_loggingContext, unexpectedFileAccess, m_pip);
                 switch (matchType)
                 {
                     case FileAccessWhitelist.MatchType.NoMatch:

@@ -192,8 +192,9 @@ namespace DetoursCrossBitTests
             using (var fileAccessListener = new FileAccessListener(Events.Log))
             {
                 fileAccessListener.RegisterEventSource(BuildXL.Processes.ETWLogger.Log);
-
-                var fileContentTable = FileContentTable.CreateNew();
+                
+                var loggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+                var fileContentTable = FileContentTable.CreateNew(loggingContext);
                 var config = ConfigurationHelpers.GetDefaultForTesting(context.PathTable, AbsolutePath.Create(context.PathTable, Path.Combine(tempDirectory, "config.dc")));
                 config.Sandbox.LogObservedFileAccesses = true;
 

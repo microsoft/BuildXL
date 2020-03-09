@@ -161,7 +161,7 @@ namespace Test.BuildXL.Storage.Admin
             public static ChangeTrackerSupport Initialize(FileContentTableWithTrackerTests test)
             {
                 var loggingContext = new LoggingContext("Dummy", "Dummy");
-                var fileContentTable = FileContentTable.CreateNew();
+                var fileContentTable = FileContentTable.CreateNew(loggingContext);
 
                 VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
                 XAssert.IsNotNull(volumeMap);
@@ -200,7 +200,7 @@ namespace Test.BuildXL.Storage.Admin
                     out m_fileChangeTracker);
                 XAssert.IsTrue(loadingTrackerResult.Succeeded);
 
-                m_fileContentTable = FileContentTable.LoadAsync(m_fileContentTablePath.ToString(m_pathTable)).Result;
+                m_fileContentTable = FileContentTable.LoadAsync(m_loggingContext, m_fileContentTablePath.ToString(m_pathTable)).Result;
             }
 
             public VersionedFileIdentityAndContentInfo RecordHashAndTrackFile(AbsolutePath path)

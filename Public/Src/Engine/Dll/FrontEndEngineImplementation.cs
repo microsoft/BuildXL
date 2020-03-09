@@ -142,7 +142,7 @@ namespace BuildXL.Engine
 
             m_allBuildParameters = new ConcurrentDictionary<string, TrackedValue>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var kvp in PopulateFromEnvironmentAndApplyOverrides(startupConfiguration.Properties).ToDictionary())
+            foreach (var kvp in PopulateFromEnvironmentAndApplyOverrides(loggingContext, startupConfiguration.Properties).ToDictionary())
             {
                 m_allBuildParameters.TryAdd(kvp.Key, new TrackedValue(kvp.Value, false));
             }
@@ -658,10 +658,10 @@ namespace BuildXL.Engine
         /// <summary>
         /// Populates environment variables from the current environment and applies overrides.
         /// </summary>
-        internal static IBuildParameters PopulateFromEnvironmentAndApplyOverrides(IReadOnlyDictionary<string, string> overrideVariables)
+        internal static IBuildParameters PopulateFromEnvironmentAndApplyOverrides(LoggingContext loggingContext, IReadOnlyDictionary<string, string> overrideVariables)
         {
             return BuildParameters
-                .GetFactory(BuildXL.Processes.PipEnvironment.ReportDuplicateVariable)
+                .GetFactory((key, existingValue, ignoredValue) =>  BuildXL.Processes.PipEnvironment.ReportDuplicateVariable(loggingContext, key, existingValue, ignoredValue))
                 .PopulateFromEnvironment()
                 .Override(overrideVariables);
         }

@@ -443,7 +443,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Historical estimation for duration of each pip, indexed by semi stable hashes
         /// </summary>
-        public PipRuntimeTimeTable RunningTimeTable => (m_runningTimeTable = (m_runningTimeTableTask?.Value ?? new PipRuntimeTimeTable()));
+        public PipRuntimeTimeTable RunningTimeTable => (m_runningTimeTable = (m_runningTimeTableTask?.Value ?? new PipRuntimeTimeTable(m_loggingContext)));
 
         /// <summary>
         /// Nodes that are explicitly scheduled by filtering.
@@ -1249,7 +1249,7 @@ namespace BuildXL.Scheduler
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
                 m_executionLogFileTarget,
                 m_fingerprintStoreTarget,
-                new ObservedInputAnomalyAnalyzer(graph),
+                new ObservedInputAnomalyAnalyzer(loggingContext, graph),
                 masterTarget,
                 fingerprintAugmentationTarget);
 
@@ -5391,6 +5391,7 @@ namespace BuildXL.Scheduler
 
                 State = new PipExecutionState(
                     m_configuration,
+                    loggingContext,
                     cache: m_pipTwoPhaseCache,
                     directoryMembershipFingerprinter: m_directoryMembershipFingerprinter,
                     fileAccessWhitelist: m_fileAccessWhitelist,

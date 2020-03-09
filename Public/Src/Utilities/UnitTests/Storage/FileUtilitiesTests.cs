@@ -27,7 +27,12 @@ namespace Test.BuildXL.Storage
         public FileUtilitiesTests()
         {
             RegisterEventSource(global::BuildXL.Native.ETWLogger.Log);
+            m_testFileSystem = OperatingSystemHelper.IsUnixOS
+                ? (IFileSystem)new global::BuildXL.Native.IO.Unix.FileSystemUnix()
+                : (IFileSystem)new global::BuildXL.Native.IO.Windows.FileSystemWin(LoggingContext);
         }
+
+        private IFileSystem m_testFileSystem;
 
         protected override void Dispose(bool disposing)
         {
@@ -51,21 +56,21 @@ namespace Test.BuildXL.Storage
 
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), "my text");
 
-            var entries = FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub*", recursive: true);
+            var entries = m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub*", recursive: true);
             XAssert.SetEqual(new []{"sub1", "sub2", "sub3", "sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
 
             // Enumerate directory does not provide the size.
             XAssert.AreEqual(0, entries.First(e => e.FileName == "sub_file.txt").Size);
 
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
 
             // Non recursive case
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
             
             // Pattern with 0 matches
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "foo", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateDirectories(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
         [Fact]
@@ -78,21 +83,21 @@ namespace Test.BuildXL.Storage
             const string Content = "my text";
             File.WriteAllText(Path.Combine(nestedDirectory, "sub_file.txt"), Content);
 
-            var entries = FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub*", recursive: true);
+            var entries = m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub*", recursive: true);
             XAssert.SetEqual(new []{"sub_file.txt"}, entries.Select(e => e.FileName).ToHashSet());
 
             // Checking the size of the file.
             XAssert.AreEqual(Content.Length, entries.First(e => e.FileName == "sub_file.txt").Size);
 
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
-            XAssert.AreEqual(1, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub1", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "sub_file*", recursive: true).Count);
+            XAssert.AreEqual(1, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: true).Count);
             
             // Non recursive case
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "*.txt", recursive: false).Count);
             
             // Pattern with 0 matches
-            XAssert.AreEqual(0, FileUtilities.FileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
+            XAssert.AreEqual(0, m_testFileSystem.EnumerateFiles(GetFullPath(Target), pattern: "foo", recursive: true).Count);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // can not make assumption about case - Mac OS Extended (Journaled) is not sensitive
@@ -772,7 +777,7 @@ namespace Test.BuildXL.Storage
         {
             expected = GetFullPath(expected);
             link = FL(link, target);
-            var maybeActual = FileUtilities.FileSystem.TryResolveReparsePointRelativeTarget(link, target);
+            var maybeActual = m_testFileSystem.TryResolveReparsePointRelativeTarget(link, target);
             XAssert.IsTrue(maybeActual.Succeeded, maybeActual.Succeeded ? string.Empty : maybeActual.Failure.Describe());
             XAssert.AreEqual(expected.ToUpperInvariant(), maybeActual.Result.ToUpperInvariant());
         }
@@ -1085,12 +1090,12 @@ namespace Test.BuildXL.Storage
 
         private string J(string path, string target)
         {
-            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            if (!m_testFileSystem.IsPathRooted(path))
             {
                 path = GetFullPath(path);
             }
 
-            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            if (!m_testFileSystem.IsPathRooted(target))
             {
                 target = GetFullPath(target);
             }
@@ -1109,7 +1114,7 @@ namespace Test.BuildXL.Storage
 
         private string DL(string path, string target)
         {
-            if (!FileUtilities.FileSystem.IsPathRooted(path))
+            if (!m_testFileSystem.IsPathRooted(path))
             {
                 path = GetFullPath(path);
             }
@@ -1119,7 +1124,7 @@ namespace Test.BuildXL.Storage
             var maybeSymlink = FileUtilities.TryCreateSymbolicLink(path, target, isTargetFile: false);
             XAssert.IsTrue(maybeSymlink.Succeeded, maybeSymlink.Succeeded ? string.Empty : maybeSymlink.Failure.Describe());
 
-            if (!FileUtilities.FileSystem.IsPathRooted(target))
+            if (!m_testFileSystem.IsPathRooted(target))
             {
                 FileUtilities.CreateDirectory(Path.GetFullPath(Path.Combine(parentPath, target)));
             }
@@ -1152,7 +1157,7 @@ namespace Test.BuildXL.Storage
         }
 
         private string C(string path, string relative) 
-            => FileUtilities.FileSystem.IsPathRooted(path) 
+            => m_testFileSystem.IsPathRooted(path) 
             ? Path.Combine(path, relative) 
             : Path.Combine(GetFullPath(path), relative);
 

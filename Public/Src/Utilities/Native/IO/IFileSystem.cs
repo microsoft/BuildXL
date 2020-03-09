@@ -14,7 +14,7 @@ namespace BuildXL.Native.IO
     /// <summary>
     /// Interface for file system related functions and calls
     /// </summary>
-    public interface IFileSystem
+    internal interface IFileSystem
     {
         #region Path related functions
 

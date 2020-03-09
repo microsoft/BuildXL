@@ -18,6 +18,7 @@ using System.Text.RegularExpressions;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
@@ -29,7 +30,7 @@ namespace BuildXL.Native.IO.Unix
     /// <summary>
     /// FileSystem related native implementations for Unix based systems
     /// </summary>
-    public sealed class FileSystemUnix : IFileSystem
+    internal sealed class FileSystemUnix : IFileSystem
     {
         /// <summary>
         /// The file name for met information added by macOS Finder on folder inspection.
@@ -573,7 +574,6 @@ namespace BuildXL.Native.IO.Unix
 
             OpenFileResult createErrorResult(int errorCode)
             {
-                Logger.Log.StorageTryOpenOrCreateFileFailure(Events.StaticContext, path, (int)fileMode, (int)errorCode);
                 return OpenFileResult.Create(path, (int)errorCode, fileMode, handleIsValid: false);
             }
         }

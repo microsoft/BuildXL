@@ -921,9 +921,6 @@ namespace BuildXL
                 Branding.ProductExecutableName,
                 new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
-            // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
-            FileUtilities.CreateCounters();
-
             using (PerformanceMeasurement pm = PerformanceMeasurement.StartWithoutStatistic(
                 topLevelContext,
                 (loggingContext) =>
@@ -932,6 +929,12 @@ namespace BuildXL
                     // Note the m_appLoggingContext is cleaned up. In the initial implementation this was a static, but after pr comment it is now an instance.
                     m_loggingContextForCrashHandler = loggingContext;
                     Events.StaticContext = loggingContext;
+                    FileUtilitiesStaticLoggingContext.LoggingContext = loggingContext;
+
+                    // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
+                    // We should do so after we have set the proper logging context.
+                    FileUtilities.CreateCounters();
+
                     var utcNow = DateTime.UtcNow;
                     var localNow = utcNow.ToLocalTime();
 

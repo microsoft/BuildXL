@@ -14,6 +14,7 @@ using System.Threading;
 using BuildXL.Native.Streams;
 using BuildXL.Native.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
@@ -59,6 +60,8 @@ namespace BuildXL.Native.IO.Windows
         private const int DefaultBufferSize = 4096;
 
         #endregion
+
+        private readonly LoggingContext m_loggingContext;
 
         #region PInvoke and structs
 
@@ -1069,8 +1072,9 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Creates an instance of <see cref="FileSystemWin"/>.
         /// </summary>
-        public FileSystemWin()
+        public FileSystemWin(LoggingContext loggingContext)
         {
+            m_loggingContext = loggingContext;
             m_supportUnprivilegedCreateSymbolicLinkFlag = new Lazy<bool>(CheckSupportUnprivilegedCreateSymbolicLinkFlag);
         }
 
@@ -1242,7 +1246,7 @@ namespace BuildXL.Native.IO.Windows
                 throw new InvalidOperationException("Unreachable");
             }
 
-            Logger.Log.StorageReadUsn(Events.StaticContext, resultRecord.FileId.High, resultRecord.FileId.Low, resultRecord.Usn.Value);
+            Logger.Log.StorageReadUsn(m_loggingContext, resultRecord.FileId.High, resultRecord.FileId.Low, resultRecord.Usn.Value);
             return resultRecord;
         }
 
@@ -1473,7 +1477,7 @@ namespace BuildXL.Native.IO.Windows
             }
 
             Contract.Assume(bytesReturned == sizeof(ulong));
-            Logger.Log.StorageCheckpointUsn(Events.StaticContext, writtenUsn);
+            Logger.Log.StorageCheckpointUsn(m_loggingContext, writtenUsn);
 
             return new Usn(writtenUsn);
         }
@@ -1676,7 +1680,7 @@ namespace BuildXL.Native.IO.Windows
                 int hr = Marshal.GetLastWin32Error();
                 if (handle.IsInvalid)
                 {
-                    Logger.Log.StorageTryOpenOrCreateFileFailure(Events.StaticContext, pathToDelete, (int)FileMode.Open, hr);
+                    Logger.Log.StorageTryOpenOrCreateFileFailure(m_loggingContext, pathToDelete, (int)FileMode.Open, hr);
                     openFileResult = OpenFileResult.Create(pathToDelete, hr, FileMode.Open, handleIsValid: false);
                     return false;
                 }
@@ -1860,7 +1864,7 @@ namespace BuildXL.Native.IO.Windows
 
             if (handle.IsInvalid)
             {
-                Logger.Log.StorageTryOpenDirectoryFailure(Events.StaticContext, directoryPath, hr);
+                Logger.Log.StorageTryOpenDirectoryFailure(m_loggingContext, directoryPath, hr);
                 handle = null;
                 Contract.Assume(hr != 0);
                 var result = OpenFileResult.Create(directoryPath, hr, fileMode, handleIsValid: false);
@@ -1904,7 +1908,7 @@ namespace BuildXL.Native.IO.Windows
 
             if (handle.IsInvalid)
             {
-                Logger.Log.StorageTryOpenOrCreateFileFailure(Events.StaticContext, path, (int)creationDisposition, hr);
+                Logger.Log.StorageTryOpenOrCreateFileFailure(m_loggingContext, path, (int)creationDisposition, hr);
                 handle = null;
                 Contract.Assume(hr != 0);
                 var result = OpenFileResult.Create(path, hr, creationDisposition, handleIsValid: false);
@@ -2524,7 +2528,7 @@ namespace BuildXL.Native.IO.Windows
                                 serial = GetVolumeSerialNumberByHandle(volumeRoot);
                             }
 
-                            Logger.Log.StorageFoundVolume(Events.StaticContext, volumeGuidPathString, serial);
+                            Logger.Log.StorageFoundVolume(m_loggingContext, volumeGuidPathString, serial);
                             volumeList.Add(Tuple.Create(volumeGuidPath, serial));
                         }
                     }
@@ -2567,7 +2571,7 @@ namespace BuildXL.Native.IO.Windows
 
             if (handle.IsInvalid)
             {
-                Logger.Log.StorageTryOpenFileByIdFailure(Events.StaticContext, fileId.High, fileId.Low, GetVolumeSerialNumberByHandle(existingHandleOnVolume), hr);
+                Logger.Log.StorageTryOpenFileByIdFailure(m_loggingContext, fileId.High, fileId.Low, GetVolumeSerialNumberByHandle(existingHandleOnVolume), hr);
                 handle = null;
                 Contract.Assume(hr != 0);
 

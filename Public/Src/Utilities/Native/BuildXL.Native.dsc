@@ -60,6 +60,9 @@ namespace Native {
         runtimeContent: [
             ...nativeMac,
             ...nativeWin,
+        ],
+        internalsVisibleTo: [
+            "Test.BuildXL.Storage"
         ]
     });
 }

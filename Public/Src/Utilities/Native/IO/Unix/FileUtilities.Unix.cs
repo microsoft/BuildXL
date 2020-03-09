@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.IO;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -23,7 +24,7 @@ namespace BuildXL.Native.IO.Unix
         /// <summary>
         /// A concrete native FileSystem implementation based on Unix APIs
         /// </summary>
-        private static readonly FileSystemUnix s_fileSystem = new FileSystemUnix();
+        private readonly FileSystemUnix m_fileSystem;
 
         /// <inheritdoc />
         public PosixDeleteMode PosixDeleteMode { get; set; }
@@ -33,8 +34,12 @@ namespace BuildXL.Native.IO.Unix
         /// </summary>
         public FileUtilitiesUnix()
         {
+            m_fileSystem = new Unix.FileSystemUnix();
             PosixDeleteMode = PosixDeleteMode.RunFirst;
         }
+
+        /// <inheritdoc />
+        internal IFileSystem FileSystem => m_fileSystem;
 
         /// <inheritdoc />
         public bool? DoesLogicalDriveHaveSeekPenalty(char driveLetter) => false;
@@ -66,7 +71,7 @@ namespace BuildXL.Native.IO.Unix
 
             shouldDelete = shouldDelete ?? (p => true);
 
-            EnumerateDirectoryResult result = s_fileSystem.EnumerateDirectoryEntries(
+            EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
                 path,
                 (name, attributes) =>
                 {
@@ -149,7 +154,7 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public bool Exists(string path)
         {
-            var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: false);
+            var maybeExistence = m_fileSystem.TryProbePathExistence(path, followSymlink: false);
             return maybeExistence.Succeeded && maybeExistence.Result != PathExistence.Nonexistent;
         }
 
@@ -327,7 +332,7 @@ namespace BuildXL.Native.IO.Unix
                     if (predicate != null)
                     {
                         SafeFileHandle destinationHandle;
-                        OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                        OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                             filePath,
                             FileDesiredAccess.GenericRead,
                             FileShare.Read | FileShare.Delete,
@@ -390,7 +395,7 @@ namespace BuildXL.Native.IO.Unix
                         if (predicate != null)
                         {
                             SafeFileHandle destinationHandle;
-                            OpenFileResult predicateQueryOpenResult = s_fileSystem.TryCreateOrOpenFile(
+                            OpenFileResult predicateQueryOpenResult = m_fileSystem.TryCreateOrOpenFile(
                                 destination,
                                 FileDesiredAccess.GenericRead,
                                 FileShare.Read | FileShare.Delete,
@@ -456,7 +461,7 @@ namespace BuildXL.Native.IO.Unix
                             DeleteFile(destination);
                         }
 
-                        s_fileSystem.CreateDirectory(Path.GetDirectoryName(destination));
+                        m_fileSystem.CreateDirectory(Path.GetDirectoryName(destination));
                         File.Move(source, destination);
                     },
                     ex => { throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex); }));
@@ -483,7 +488,7 @@ namespace BuildXL.Native.IO.Unix
             Func<SafeFileHandle, long, TResult> handleStream)
         {
             SafeFileHandle handle;
-            var openResult = s_fileSystem.TryCreateOrOpenFile(
+            var openResult = m_fileSystem.TryCreateOrOpenFile(
                        path,
                        desiredAccess,
                        shareMode,
@@ -495,14 +500,14 @@ namespace BuildXL.Native.IO.Unix
             {
                 openResult
                     .CreateFailureForError()
-                    .Annotate($"{nameof(s_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
+                    .Annotate($"{nameof(m_fileSystem.TryCreateOrOpenFile)} failed in {nameof(UsingFileHandleAndFileLength)}")
                     .Throw();
             }
 
             using (handle)
             {
                 Contract.Assert(handle != null && !handle.IsInvalid);
-                var maybeTarget = s_fileSystem.TryGetReparsePointTarget(path);
+                var maybeTarget = m_fileSystem.TryGetReparsePointTarget(path);
                 var length = maybeTarget.Succeeded ? maybeTarget.Result.Length : new FileInfo(path).Length;
                 return handleStream(handle, length);
             }
@@ -548,7 +553,7 @@ namespace BuildXL.Native.IO.Unix
             }
 
             var settingsFolder = Path.Combine(homeFolder, "." + ToCamelCase(appName));
-            s_fileSystem.CreateDirectory(settingsFolder);
+            m_fileSystem.CreateDirectory(settingsFolder);
             return settingsFolder;
         }
 
@@ -612,7 +617,7 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(allowExcludeFileShareDelete || ((fileShare & FileShare.Delete) != 0));
             Contract.EnsuresOnThrow<BuildXLException>(true);
 
-            return s_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
+            return m_fileSystem.CreateFileStream(path, fileMode, fileAccess, fileShare, options, force);
         }
 
         /// <inheritdoc />
@@ -620,7 +625,7 @@ namespace BuildXL.Native.IO.Unix
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
 
-            int result = s_fileSystem.GetFilePermission(path, false, true);
+            int result = m_fileSystem.GetFilePermission(path, false, true);
 
             FilePermissions permissions = checked((FilePermissions) result);
             return permissions.HasFlag(FilePermissions.S_IWUSR)
@@ -657,7 +662,7 @@ namespace BuildXL.Native.IO.Unix
                 permissions |= FilePermissions.S_IXGRP | FilePermissions.S_IXOTH;
             }
 
-            int result = s_fileSystem.GetFilePermission(path, false, true);
+            int result = m_fileSystem.GetFilePermission(path, false, true);
 
             FilePermissions currentPermissions = checked((FilePermissions) result);
 

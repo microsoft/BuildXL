@@ -50,7 +50,7 @@ namespace Test.BuildXL.Storage
     public static class EnumerateDirectoryExtensions
     {
         /// <nodoc />
-        public static List<EnumerateDirectoryEntry> EnumerateDirectories(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
+        internal static List<EnumerateDirectoryEntry> EnumerateDirectories(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
         {
             List<EnumerateDirectoryEntry> entries = new List<EnumerateDirectoryEntry>();
 
@@ -69,7 +69,7 @@ namespace Test.BuildXL.Storage
         }
 
         /// <nodoc />
-        public static List<EnumerateDirectoryEntry> EnumerateFiles(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
+        internal  static List<EnumerateDirectoryEntry> EnumerateFiles(this IFileSystem fileSystem, string directoryPath, string pattern, bool recursive)
         {
             List<EnumerateDirectoryEntry> entries = new List<EnumerateDirectoryEntry>();
 

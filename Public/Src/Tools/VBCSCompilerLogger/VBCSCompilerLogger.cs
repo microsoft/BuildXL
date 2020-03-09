@@ -251,7 +251,7 @@ namespace VBCSCompilerLogger
             }
 
             // If the path is already an absolute one, just return
-            if (FileUtilities.FileSystem.IsPathRooted(path))
+            if (Path.IsPathRooted(path))
             {
                 return path;
             }
@@ -280,8 +280,7 @@ namespace VBCSCompilerLogger
 
         private bool PathExistsAsFile(string path)
         {
-            var result = FileUtilities.FileSystem.TryProbePathExistence(path, followSymlink: false);
-            return result.Succeeded && result.Result == PathExistence.ExistsAsFile;
+            return FileUtilities.FileExistsNoFollow(path);
         }
 
         /// <summary>

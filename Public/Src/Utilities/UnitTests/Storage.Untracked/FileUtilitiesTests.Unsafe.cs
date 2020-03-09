@@ -1048,6 +1048,11 @@ namespace Test.BuildXL.Storage
                 return false;
             }
         }
+
+        private string NormalizeDirectoryPath(string path)
+        {
+            return new global::BuildXL.Native.IO.Windows.FileUtilitiesWin(LoggingContext).NormalizeDirectoryPath(path);
+        }
     }
 }
 

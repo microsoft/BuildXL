@@ -50,7 +50,7 @@ namespace BuildXL.Native.IO
     /// <summary>
     /// Utilities and helpers for manipulating files (I/O) leveraging IFileSystem facilities
     /// </summary>
-    public interface IFileUtilities
+    internal interface IFileUtilities
     {
         #region Directory specific utilities
 

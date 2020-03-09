@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
@@ -21,26 +22,26 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Native.IO
 {
     /// <summary>
+    /// Due to the clr's various static initialization order of members this one has to be held
+    /// in a separate static class so that setting this does not intiialize the members that depend on the
+    /// overwritten version of the LoggingContext
+    /// </summary>
+    public static class FileUtilitiesStaticLoggingContext
+    {
+        /// <summary>
+        /// The loggingcontext to use for file operations.
+        /// Anybody using the static filesystem MUST override this static member before calling any methods;
+        /// </summary>
+        public static LoggingContext LoggingContext = new LoggingContext("FileUtilities");
+    }
+
+    /// <summary>
     /// Static facade with utilities for manipulating files and directories. Also offers functions for directly calling filesystem level functionality.
     /// Serves as an entry point for direct I/O throughout BuildXL's code base and proxies its calls to platform specific implementations of IFileSystem and IFileUtilities.
     /// </summary>
     public static class FileUtilities
     {
-        /// <summary>
-        /// A platform specific concrete implementation of the file system layer functions
-        /// </summary>
-        /// <remarks>
-        /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
-        /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
-        /// </remarks>
-        private static readonly IFileSystem s_fileSystem = OperatingSystemHelper.IsUnixOS
-            ? (IFileSystem) new Unix.FileSystemUnix()
-            : (IFileSystem) new Windows.FileSystemWin();
-
-        /// <summary>
-        /// A platform specific implementation of the file system.
-        /// </summary>
-        public static IFileSystem FileSystem => s_fileSystem;
+        private static LoggingContext LoggingContext => FileUtilitiesStaticLoggingContext.LoggingContext;
 
         /// <summary>
         /// A platform specific concrete implementation of I/O helpers and utilities
@@ -51,7 +52,18 @@ namespace BuildXL.Native.IO
         /// </remarks>
         private static readonly IFileUtilities s_fileUtilities = OperatingSystemHelper.IsUnixOS
             ? (IFileUtilities) new Unix.FileUtilitiesUnix()
-            : (IFileUtilities) new Windows.FileUtilitiesWin();
+            : (IFileUtilities) new Windows.FileUtilitiesWin(LoggingContext);
+
+        /// <summary>
+        /// A platform specific concrete implementation of the file system layer functions
+        /// </summary>
+        /// <remarks>
+        /// When running on Windows but inside the CoreCLR, we use the same concrete implementation
+        /// as the vanilla BuildXL build for Windows and skip Unix implementations completely
+        /// </remarks>
+        private static readonly IFileSystem s_fileSystem =  OperatingSystemHelper.IsUnixOS
+            ? ((Unix.FileUtilitiesUnix)s_fileUtilities).FileSystem
+            : ((Windows.FileUtilitiesWin)s_fileUtilities).FileSystem;
 
         private static readonly ObjectPool<List<StringSegment>> StringSegmentListPool = Pools.CreateListPool<StringSegment>();
 

@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Sessions
+namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
 {
     /// <nodoc />
     [Flags]
@@ -19,6 +19,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         OutsideRing = 2,
 
         /// <nodoc />
-        Both = 3
+        Both = InsideRing | OutsideRing,
     }
 }

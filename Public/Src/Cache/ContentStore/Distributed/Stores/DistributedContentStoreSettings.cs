@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {

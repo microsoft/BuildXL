@@ -9,7 +9,8 @@ namespace Configuration {
         sources: globR(d`.`,"*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.Runtime.Serialization.dll
+                NetFx.System.Runtime.Serialization.dll,
+                NetFx.System.ComponentModel.DataAnnotations.dll
             ),
 
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

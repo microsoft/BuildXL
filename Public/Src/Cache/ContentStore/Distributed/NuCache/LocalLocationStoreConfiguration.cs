@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Utilities.Collections;
@@ -30,28 +29,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// A service may only produce but NOT consume state synchronization events.
         /// </summary>
         Worker,
-    }
-
-    /// <summary>
-    /// Defines a mode of <see cref="TransitioningContentLocationStore"/>.
-    /// </summary>
-    [Flags]
-    public enum ContentLocationMode
-    {
-        /// <summary>
-        /// Specifies that only <see cref="RedisContentLocationStore"/> be used.
-        /// </summary>
-        Redis = 1 << 0,
-
-        /// <summary>
-        /// Specifies that only <see cref="NuCache.LocalLocationStore"/> should be used
-        /// </summary>
-        LocalLocationStore = 1 << 1,
-
-        /// <summary>
-        /// Specifies that both stores should be used
-        /// </summary>
-        Both = Redis | LocalLocationStore
     }
 
     /// <summary>

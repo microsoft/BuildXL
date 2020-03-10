@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis

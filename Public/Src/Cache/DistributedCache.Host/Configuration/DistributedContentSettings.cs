@@ -290,6 +290,14 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? RetryWindowSeconds { get; set; }
 
+        /// <summary>
+        /// If this variable is set we perform periodic logging to a file, indicating CaSaaS is still running and accepting operations.
+        /// We then print the duration CaSaaS was just down, in the log message stating service has started.
+        /// Default with the variable being null, no periodic logging will occur, and CaSaaS start log message does not include duration of last down time.
+        /// </summary>
+        [DataMember]
+        public int? ServiceRunningLogInSeconds { get; set; }
+
         private int[] _retryIntervalForCopiesMs =
             new int[]
             {

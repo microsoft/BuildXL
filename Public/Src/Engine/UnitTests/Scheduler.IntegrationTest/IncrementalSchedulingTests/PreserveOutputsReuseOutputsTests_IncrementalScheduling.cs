@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {
-    [Trait("Category", "PreserveOutputsTests")]
+    [Trait("Category", "PreserveOutputsReuseIncSchedTests")]
     [Feature(Features.IncrementalScheduling)]
     [TestClassIfSupported(requiresJournalScan: true)]
     public class PreserveOutputsReuseOutputsTests_IncrementalScheduling : PreserveOutputsReuseOutputsTests

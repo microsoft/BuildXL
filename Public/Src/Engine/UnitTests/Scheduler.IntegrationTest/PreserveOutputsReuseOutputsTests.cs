@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [Trait("Category", "PreserveOutputsTests")]
+    [Trait("Category", "PreserveOutputsReuseOutputsTests")]
     public class PreserveOutputsReuseOutputsTests : PreserveOutputsTests
     {
         public PreserveOutputsReuseOutputsTests(ITestOutputHelper output) : base(output)

@@ -12,7 +12,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
     /// We test incremental scheduling in a separate class so that we can control the
     /// requirement of journal scanning (see: [TheoryIfSupported(requiresJournalScan: true)] in tests below).
     /// </summary>
-    [Trait("Category", "PreserveOutputsTests")]
+    [Trait("Category", "PreserveOutputsIncSchedTests")]
     [Feature(Features.IncrementalScheduling)]
     [TestClassIfSupported(requiresJournalScan: true)]
     public class PreserveOutputsTests_IncrementalScheduling : PreserveOutputsTests

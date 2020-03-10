@@ -25,6 +25,9 @@ namespace Scheduler.IntegrationTest {
                 "NonStandardOptionsTests",
                 "OpaqueDirectoryTests",
                 "PreserveOutputsTests",
+                "PreserveOutputsReuseOutputsTests",
+                "PreserveOutputsReuseIncSchedTests",
+                "PreserveOutputsIncSchedTests",
                 "SharedOpaqueDirectoryTests",
                 "StoreNoOutputsToCacheTests",
                 "WhitelistTests"

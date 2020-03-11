@@ -12,6 +12,7 @@ using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -60,6 +61,16 @@ namespace BuildXL.Processes
         }
 
         private bool m_isFrozen;
+        
+        /// <summary>
+        /// A denied access based on existence is not actually final until we have processed all accesses. This is because augmented file accesses coming from trusted tools
+        /// always override file existence denials. When accesses come in order, we can always count for trusted tools accesses to prevent the creation of file extistence denials.
+        /// But many times trusted tool accesses come out of order, since approaches like the VBCSCompilerLogger sends them all together when the project is done building. This forces
+        /// us to reconsider denials we have already created. This is fine since all reported file access collections this class manages are considered in flux until the instance is frozen
+        /// <see cref="Freeze"/>.
+        /// In this dictionary we store the aforementioned denials to be able to 'retract' them if needed.
+        /// </summary>
+        private readonly MultiValueDictionary<AbsolutePath, ReportedFileAccess> m_deniedAccessesBasedOnExistence = new MultiValueDictionary<AbsolutePath, ReportedFileAccess>();
 
         /// <summary>
         /// Gets whether the report is frozen for modification
@@ -819,14 +830,42 @@ namespace BuildXL.Processes
                     enumeratePattern,
                     method);
 
-            HandleReportedAccess(reportedAccess);
+            // The access was denied based on file existence. Store it since we can change our minds later if
+            // a trusted access arrives for the same path
+            if (status == FileAccessStatus.Denied && method == FileAccessStatusMethod.FileExistenceBased)
+            {
+                Contract.Assert(finalPath.IsValid);
+                m_deniedAccessesBasedOnExistence.Add(finalPath, reportedAccess);
+            }
+
+            HandleReportedAccess(finalPath, reportedAccess);
 
             return true;
         }
 
-        private void HandleReportedAccess(ReportedFileAccess access)
+        private void HandleReportedAccess(AbsolutePath finalPath, ReportedFileAccess access)
         {
             Contract.Assume(!IsFrozen, "HandleReportedAccess: !IsFrozen");
+
+            // If there is an allowed trusted tool access, it overrides any denials based on file existence that we may have found so far 
+            // for that path. We remove those accesses and replace them with allowed ones.
+            if (access.Method == FileAccessStatusMethod.TrustedTool && 
+                access.Status == FileAccessStatus.Allowed && 
+                finalPath.IsValid &&
+                m_deniedAccessesBasedOnExistence.TryGetValue(finalPath, out IReadOnlyList<ReportedFileAccess> deniedAccesses))
+            {
+                foreach (var deniedAccess in deniedAccesses)
+                {
+                    // Remove the denied access and add the corresponding allowed ones
+                    FileUnexpectedAccesses.Remove(deniedAccess);
+                    FileAccesses?.Remove(deniedAccess);
+                    HandleReportedAccess(finalPath, deniedAccess.CreateWithStatus(FileAccessStatus.Allowed));
+                    // Remove the denied accesses from the dictionary
+                    m_deniedAccessesBasedOnExistence.Remove(finalPath);
+                    // Block further file existence based denials on that path
+                    m_overrideAllowedWritePaths[finalPath] = false;
+                }
+            }
 
             if (access.Status == FileAccessStatus.Allowed)
             {

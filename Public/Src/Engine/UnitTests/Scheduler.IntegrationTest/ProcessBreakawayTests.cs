@@ -9,7 +9,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -174,6 +173,49 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             proc.Kill();
         }
+
+        /// <summary>
+        /// File based existence denials are windows only for now
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void AllowedTrustedAccessesTrumpFileBasedExistenceDenials()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact output = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // We spawn a process, since breakaway happens for child processes only
+                Operation.Spawn(Context.PathTable, waitToFinish: true, 
+                    // Write the output. This access will not be observed.
+                    Operation.WriteFile(output, doNotInfer: true)),
+                // Write the output again. This should normally generate a denial based on file existence
+                // since the file to be written looks like it was there before the pip started (because we missed 
+                // the access)
+                Operation.WriteFile(output, doNotInfer: true),
+                // Report the augmented write. Even happening later, this should change the previous denial into an allowed access
+                Operation.AugmentedWrite(output, doNotInfer: true),
+                Operation.Spawn(Context.PathTable, waitToFinish: true, 
+                    // Delete the output. This access will not be observed.
+                    Operation.DeleteFile(output, doNotInfer: true)),
+                // Write to the file again. This makes sure the augmented write is also affecting subsequent decisions
+                Operation.WriteFile(output, doNotInfer: true)
+            });
+
+            builder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            // File-existence-based denials for now only occur when allowed undeclared source reads is enabled
+            builder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            // Configure the test process itself to escape the sandbox
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+
+            SchedulePipBuilder(builder);
+            // No violations should occur
+            RunScheduler().AssertSuccess();
+        }
+
 
         private System.Diagnostics.Process TryGetProcessById(int pid)
         {

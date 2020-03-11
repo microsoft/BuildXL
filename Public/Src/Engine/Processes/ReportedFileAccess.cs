@@ -165,6 +165,27 @@ namespace BuildXL.Processes
             Method = fileAccessStatusMethod;
         }
 
+        /// <nodoc/>
+        public ReportedFileAccess CreateWithStatus(FileAccessStatus status)
+        {
+            return new ReportedFileAccess(
+                Operation, 
+                Process, 
+                RequestedAccess, 
+                status, 
+                ExplicitlyReported, 
+                Error, 
+                Usn, 
+                DesiredAccess, 
+                ShareMode, 
+                CreationDisposition, 
+                FlagsAndAttributes, 
+                ManifestPath, 
+                Path, 
+                EnumeratePattern, 
+                Method);
+        }
+
         /// <summary>
         /// Error code returned when probing for an absent file.
         /// </summary>

@@ -146,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Processing requests is a long running operation. Scheduling it into a dedicated thread to avoid thread pool exhaustion.
             _processReserveRequestsTask = Task.Factory.StartNew(
-                () => ProcessReserveRequestsAsync(context.CreateNested()),
+                () => ProcessReserveRequestsAsync(context.CreateNested(nameof(QuotaKeeper))),
                 TaskCreationOptions.LongRunning).Unwrap();
 
             // Start purging immediately on startup to clear out residual content in the cache

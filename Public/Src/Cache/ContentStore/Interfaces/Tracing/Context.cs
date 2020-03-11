@@ -42,8 +42,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, [CallerMemberName]string? caller = null)
-            : this(other, Guid.NewGuid(), caller)
+        public Context(Context other, string? componentName = null, [CallerMemberName]string? caller = null)
+            : this(other, Guid.NewGuid(), componentName, caller)
         {
         }
 
@@ -56,16 +56,31 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             Debug($"{caller}: {other._idAsString} parent to {_idAsString}");
         }
 
-        /// <nodoc />
-        public Context CreateNested([CallerMemberName]string? caller = null)
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Context"/> class.
+        /// </summary>
+        public Context(Context other, Guid id, string? componentName, [CallerMemberName]string? caller = null)
+            : this(id, other.Logger)
         {
-            return new Context(this, caller);
+            string prefix = caller!;
+            if (!string.IsNullOrEmpty(componentName))
+            {
+                prefix = string.Concat(componentName, ".", prefix);
+            }
+
+            Debug($"{prefix}: {other._idAsString} parent to {_idAsString}");
         }
 
         /// <nodoc />
-        public Context CreateNested(Guid id, [CallerMemberName]string? caller = null)
+        public Context CreateNested(string? componentName = null, [CallerMemberName]string? caller = null)
         {
-            return new Context(this, id, caller);
+            return new Context(this, componentName, caller);
+        }
+
+        /// <nodoc />
+        public Context CreateNested(Guid id, string? componentName = null, [CallerMemberName]string? caller = null)
+        {
+            return new Context(this, id, componentName, caller);
         }
 
         /// <summary>

@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected async Task SendEventsAsync(OperationContext context, ContentLocationEventData[] events)
         {
-            context = context.CreateNested();
+            context = context.CreateNested(nameof(ContentLocationEventStore));
 
             Tracer.Info(context, $"{Tracer.Name}: Sending {events.Length} event(s) to event hub.");
             var operations = events.SelectMany(
@@ -310,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             EventNagleQueue = NagleQueue<(OperationContext context, ContentLocationEventData data)>.Create(
                 // If nagle queue is triggered by time and has just one entry, we can use the context from that entry.
                 // Otherwise we'll create a nested context.
-                input => SendEventsAsync(input.Length == 1 ? input[0].context : context.CreateNested(), input.SelectArray(d => d.data)),
+                input => SendEventsAsync(input.Length == 1 ? input[0].context : context.CreateNested(nameof(ContentLocationEventStore)), input.SelectArray(d => d.data)),
                 maxDegreeOfParallelism: 1,
                 interval: _configuration.EventNagleInterval,
                 batchSize: _configuration.EventBatchSize);

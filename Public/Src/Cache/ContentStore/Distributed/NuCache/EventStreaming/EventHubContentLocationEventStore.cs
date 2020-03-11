@@ -241,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private async Task ProcessEventsAsync(OperationContext context, List<EventData> messages)
         {
             // Creating nested context for all the processing operations.
-            context = context.CreateNested();
+            context = context.CreateNested(nameof(EventHubContentLocationEventStore));
 
             if (messages.Count == 0)
             {
@@ -408,7 +408,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 guid = Guid.NewGuid();
             }
 
-            return context.CreateNested(guid, caller);
+            return context.CreateNested(guid, nameof(EventHubContentLocationEventStore), caller);
         }
 
         /// <inheritdoc />

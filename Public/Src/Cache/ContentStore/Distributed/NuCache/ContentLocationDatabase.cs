@@ -240,7 +240,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
-                    _ => GarbageCollect(context.CreateNested(caller: nameof(GarbageCollect))),
+                    _ => GarbageCollect(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(GarbageCollect))),
                     null,
                     IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
@@ -250,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
-                        ForceCacheFlush(context.CreateNested(caller: nameof(ForceCacheFlush)),
+                        ForceCacheFlush(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: nameof(ForceCacheFlush)),
                             counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer,
                             blocking: false);
                     },
@@ -262,7 +262,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _nagleOperationTracer = NagleQueue<(ShortHash, EntryOperation, OperationReason)>.Create(
                 ops =>
                 {
-                    LogContentLocationOperations(context.CreateNested(caller: "LogContentLocationOperations"), Tracer.Name, ops);
+                    LogContentLocationOperations(context.CreateNested(componentName: nameof(ContentLocationDatabase), caller: "LogContentLocationOperations"), Tracer.Name, ops);
                     return Unit.VoidTask;
                 },
                 maxDegreeOfParallelism: 1,
@@ -371,7 +371,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context.PerformOperation(Tracer,
                 () =>
                 {
-                    using (var cancellableContext = TrackShutdown(context.CreateNested()))
+                    using (var cancellableContext = TrackShutdown(context.CreateNested(nameof(ContentLocationDatabase))))
                     {
                         if (_isMetadataGarbageCollectionEnabled)
                         {

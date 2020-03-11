@@ -197,7 +197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (await TryAcquireGcRoleAsync(context))
             {
                 var tasks = _contentRedisDatabaseAdapter.GetServerKeys()
-                    .Select(tpl => Task.Run(() => GarbageCollectShardAsync(context.CreateNested(), tpl.serverId, tpl.serverSampleKey))).ToArray();
+                    .Select(tpl => Task.Run(() => GarbageCollectShardAsync(context.CreateNested(nameof(RedisContentLocationStore)), tpl.serverId, tpl.serverSampleKey))).ToArray();
 
                 var results = await Task.WhenAll(tasks);
                 return results.FirstOrDefault(r => !r) ?? BoolResult.Success;

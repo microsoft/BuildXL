@@ -735,7 +735,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var result = await QuotaKeeper.StartupAsync(context);
 
-            _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested());
+            _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested(nameof(FileSystemContentStoreInternal)));
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 
@@ -745,7 +745,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // Self check procedure is a long running operation that can take longer then an average process lifetime.
                 // So instead of relying on timers to recheck content directory, we rely on
                 // periodic service restarts.
-                SelfCheckContentDirectoryAsync(context.CreateNested(), context.Token).FireAndForget(context);
+                SelfCheckContentDirectoryAsync(context.CreateNested(nameof(FileSystemContentStoreInternal)), context.Token).FireAndForget(context);
             }
 
             return result;

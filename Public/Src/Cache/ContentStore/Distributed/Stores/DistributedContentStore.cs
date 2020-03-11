@@ -153,7 +153,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Task<Result<ReadOnlyDistributedContentSession<T>>> CreateCopySession(Context context)
         {
             var sessionId = Guid.NewGuid();
-            var operationContext = OperationContext(new Context(context, sessionId));
+            
+            var operationContext = OperationContext(context.CreateNested(sessionId, nameof(DistributedContentStore<T>)));
             return operationContext.PerformOperationAsync(_tracer,
                 async () =>
                 {
@@ -210,11 +211,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 && tcs.IsLocalLocationStoreEnabled 
                 && InnerContentStore is ILocalContentStore localContentStore)
             {
-                await ProactiveReplicationAsync(context.CreateNested(), localContentStore, tcs).ThrowIfFailure();
+                await ProactiveReplicationAsync(context.CreateNested(nameof(DistributedContentStore<T>)), localContentStore, tcs).ThrowIfFailure();
             }
 
             Func<ContentHash[], Task> evictionHandler;
-            var localContext = context.CreateNested();
+            var localContext = context.CreateNested(nameof(DistributedContentStore<T>));
             if (_enableDistributedEviction)
             {
                 evictionHandler = hashes => EvictContentAsync(localContext, hashes);
@@ -228,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // requires the context passed at startup. So we start the queue here.
             _evictionNagleQueue.Start(evictionHandler);
 
-            var touchContext = context.CreateNested();
+            var touchContext = context.CreateNested(nameof(DistributedContentStore<T>));
             _touchNagleQueue = NagleQueue<ContentHashWithSize>.Create(
                 hashes => TouchBulkAsync(touchContext, hashes),
                 Redis.RedisContentLocationStoreConstants.BatchDegreeOfParallelism,

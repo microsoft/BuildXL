@@ -152,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<BoolResult> ReconcileAfterInitializationAsync(OperationContext context)
         {
-            context = context.CreateNested();
+            context = context.CreateNested(nameof(TransitioningContentLocationStore));
 
             await Task.Yield();
 

@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
                 tasks.AddRange(
                     contentSizes.Select(
                         contentSize =>
-                            session.PutRandomAsync(context.CreateNested(), hashType, provideHash, contentSize, CancellationToken.None)));
+                            session.PutRandomAsync(context.CreateNested(nameof(ContentSessionExtensions)), hashType, provideHash, contentSize, CancellationToken.None)));
 
                 foreach (var task in tasks)
                 {
@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         {
             Contract.Requires(fileCount > 0);
 
-            var c = context.CreateNested();
+            var c = context.CreateNested(nameof(ContentSessionExtensions));
             var tasks = Enumerable.Range(0, fileCount).Select(_ => Task.Run(async () => await session.PutRandomAsync(
                 c,
                 hashType,
@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             Contract.RequiresNotNull(session);
             Contract.RequiresNotNull(context);
 
-            var c = context.CreateNested();
+            var c = context.CreateNested(nameof(ContentSessionExtensions));
 
             // TODO: Fix this to work with size > int.Max (bug 1365340)
             var data = ThreadSafeRandom.GetBytes((int)size);
@@ -180,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         public static async Task<PutResult> PutContentAsync(
             this IContentSession session, Context context, string content)
         {
-            var c = context.CreateNested();
+            var c = context.CreateNested(nameof(ContentSessionExtensions));
 
             var data = Encoding.UTF8.GetBytes(content);
             var hashType = HashType.SHA256;
@@ -209,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 
             using (var directory = new DisposableDirectory(fileSystem))
             {
-                var c = context.CreateNested();
+                var c = context.CreateNested(nameof(ContentSessionExtensions));
 
                 // TODO: Fix this to work with size > int.Max (bug 1365340)
                 var data = ThreadSafeRandom.GetBytes((int)size);

@@ -297,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _heartbeatTimer = new Timer(
                 _ =>
                 {
-                    var nestedContext = context.CreateNested();
+                    var nestedContext = context.CreateNested(nameof(LocalLocationStore));
                     HeartbeatAsync(nestedContext).FireAndForget(nestedContext);
                 }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 

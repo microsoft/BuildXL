@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
             {
                 _compactionTimer = new Timer(
-                    _ => FullRangeCompaction(context.CreateNested(caller: nameof(FullRangeCompaction))),
+                    _ => FullRangeCompaction(context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: nameof(FullRangeCompaction))),
                     null,
                     IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);

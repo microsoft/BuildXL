@@ -45,15 +45,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationContext CreateNested([CallerMemberName]string? caller = null)
+        public OperationContext CreateNested(string componentName, [CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext, caller), Token);
+            return new OperationContext(new Context(TracingContext, componentName, caller), Token);
         }
 
         /// <nodoc />
-        public OperationContext CreateNested(Guid id, [CallerMemberName]string? caller = null)
+        public OperationContext CreateNested(Guid id, string componentName, [CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext, id, caller), Token);
+            return new OperationContext(new Context(TracingContext, id, componentName, caller), Token);
         }
 
         /// <summary>

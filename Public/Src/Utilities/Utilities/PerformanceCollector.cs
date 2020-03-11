@@ -54,7 +54,7 @@ namespace BuildXL.Utilities
         private CpuLoadInfo m_lastCpuLoadInfo;
 
         // Used for collecting disk activity
-        private readonly Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>[] m_drives;
+        private readonly (DriveInfo driveInfo, SafeFileHandle safeFileHandle, DISK_PERFORMANCE diskPerformance)[] m_drives;
 
         // NetworkMonitor to measure network bandwidth of the computer.
         private NetworkMonitor m_networkMonitor;
@@ -69,8 +69,8 @@ namespace BuildXL.Utilities
         public IEnumerable<string> GetDrives()
         {
             return OperatingSystemHelper.IsUnixOS ? // Drive names are processed differently depending on OS
-                m_drives.Select(t => t.Item1.Name) : 
-                m_drives.Where(t => !t.Item2.IsInvalid && !t.Item2.IsClosed).Select(t => t.Item1.Name.TrimStart('\\').TrimEnd('\\').TrimEnd(':'));
+                m_drives.Select(t => t.driveInfo.Name) : 
+                m_drives.Where(t => !t.safeFileHandle.IsInvalid && !t.safeFileHandle.IsClosed).Select(t => t.driveInfo.Name.TrimStart('\\').TrimEnd('\\').TrimEnd(':'));
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace BuildXL.Utilities
             m_isUnitTest = isUnitTest;
 
             // Figure out which drives we want to get counters for
-            List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>> drives = new List<Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>>();
+            List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
 
             foreach (var drive in DriveInfo.GetDrives())
             {
@@ -94,7 +94,7 @@ namespace BuildXL.Utilities
                 {
                     if (OperatingSystemHelper.IsUnixOS)
                     {
-                        drives.Add(new Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>(drive, null, default));
+                        drives.Add((drive, null, default));
                     }
                     else if (drive.Name.Length == 3 && drive.Name.EndsWith(@":\", StringComparison.OrdinalIgnoreCase))
                     {
@@ -102,7 +102,7 @@ namespace BuildXL.Utilities
                         SafeFileHandle handle = CreateFileW(path, FileDesiredAccess.None, FileShare.Read, IntPtr.Zero, FileMode.Open, FileFlagsAndAttributes.FileAttributeNormal, IntPtr.Zero);
                         if (!handle.IsClosed && !handle.IsInvalid)
                         {
-                            drives.Add(new Tuple<DriveInfo, SafeFileHandle, DISK_PERFORMANCE>(drive, handle, default));
+                            drives.Add((drive, handle, default));
                         }
                         else
                         {
@@ -314,7 +314,7 @@ namespace BuildXL.Utilities
             {
                 foreach (var item in m_drives)
                 {
-                    item.Item2?.Dispose();
+                    item.safeFileHandle?.Dispose();
                 }
             }
         }
@@ -348,23 +348,23 @@ namespace BuildXL.Utilities
             for (int i = 0; i < m_drives.Length; i++)
             {
                 var drive = m_drives[i];
-                if (!drive.Item2.IsClosed && !drive.Item2.IsInvalid)
+                if (!drive.safeFileHandle.IsClosed && !drive.safeFileHandle.IsInvalid)
                 {
                     uint bytesReturned;
                     diskStats[i].DiskPerformance = default(DISK_PERFORMANCE);
 
                     try
                     {
-                        bool result = DeviceIoControl(drive.Item2, IOCTL_DISK_PERFORMANCE,
+                        bool result = DeviceIoControl(drive.safeFileHandle, IOCTL_DISK_PERFORMANCE,
                             inputBuffer: IntPtr.Zero,
                             inputBufferSize: 0,
                             outputBuffer: out diskStats[i].DiskPerformance,
                             outputBufferSize: Marshal.SizeOf(typeof(DISK_PERFORMANCE)),
                             bytesReturned: out bytesReturned,
                             overlapped: IntPtr.Zero);
-                        if (result && drive.Item1.TotalSize != 0)
+                        if (result && drive.driveInfo.TotalSize != 0)
                         {
-                            diskStats[i].AvailableSpaceGb = BytesToGigaBytes(drive.Item1.AvailableFreeSpace);
+                            diskStats[i].AvailableSpaceGb = BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace);
                         }
                     }
                     catch (ObjectDisposedException)
@@ -387,12 +387,22 @@ namespace BuildXL.Utilities
 
         private DiskStats[] GetDiskCountersMacOS()
         {
-            return m_drives
-                .Select(drive => new DiskStats
+            var stats = new List<DiskStats>();
+            foreach (var drive in m_drives)
+            {
+                try
                 {
-                    AvailableSpaceGb = BytesToGigaBytes(drive.Item1.AvailableFreeSpace)
-                })
-                .ToArray();
+                    stats.Add(new DiskStats
+                    {
+                        AvailableSpaceGb = BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace)
+                    });
+                }
+                catch (IOException)
+                {
+                    // No stats for DriveNotFoundException
+                }
+            }
+            return stats.ToArray();
         }
 
         private double? GetProcessCpu(Process currentProcess)

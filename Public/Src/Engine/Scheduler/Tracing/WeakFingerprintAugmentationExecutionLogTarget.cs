@@ -90,7 +90,9 @@ namespace BuildXL.Scheduler.Tracing
             }
             else if (data.Kind == FingerprintComputationKind.Execution)
             {
-                if (!m_augmentedPathSets.TryRemove(data.PipId, out var augmentedPathSets) || augmentedPathSets == null)
+                if (!m_augmentedPathSets.TryRemove(data.PipId, out var augmentedPathSets)
+                    // failed to compute SF (e.g., pip failure, DFAs, etc.)
+                    || data.StrongFingerprintComputations.Count == 0)
                 {
                     return;
                 }

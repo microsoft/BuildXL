@@ -482,68 +482,6 @@ namespace BuildXL.Engine.Tracing
             int port,
             string caller);
 
-        public void DistributionSendBondCallFormat(
-            LoggingContext context,
-            RpcMachineData receiverData,
-            string function,
-            Guid callId,
-            string formatMessage,
-            params object[] messageArgs)
-        {
-            DistributionBondCall(
-                context: context,
-                receiverName: receiverData.ToString(),
-                senderName: "SELF",
-                function: function,
-                callId: callId.ToString(),
-                message: string.Format(CultureInfo.InvariantCulture, formatMessage, messageArgs));
-        }
-
-        public void DistributionReceiveBondCallFormat(
-            LoggingContext context,
-            RpcMachineData senderData,
-            string function,
-            Guid callId,
-            string formatMessage,
-            params object[] messageArgs)
-        {
-            DistributionBondCall(
-                context: context,
-                receiverName: "SELF",
-                senderName: senderData.ToString(),
-                function: function,
-                callId: callId.ToString(),
-                message: string.Format(CultureInfo.InvariantCulture, formatMessage, messageArgs));
-        }
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionBondCall,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "[{senderName} -> {receiverName}] BONDCALL:{function}#{callId}: {message}.")]
-        public abstract void DistributionBondCall(
-            LoggingContext context,
-            string receiverName,
-            string senderName,
-            string function,
-            string callId,
-            string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.DistributionFailedToCallWorker,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Distribution,
-            Message = "Failed call to worker {name}: Function='{function}' Failure='{errorMessage}'")]
-        public abstract void DistributionFailedToCallWorker(
-            LoggingContext context,
-            string name,
-            string function,
-            string errorMessage);
-
         [GeneratedEvent(
             (ushort)LogEventId.DistributionCallWorkerCodeException,
             EventGenerators = EventGenerators.LocalOnly,

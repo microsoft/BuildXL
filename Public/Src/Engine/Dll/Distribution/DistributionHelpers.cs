@@ -38,7 +38,6 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public static readonly ReadOnlyArray<int> DistributionWarnings = ReadOnlyArray<int>.FromWithoutCopy(
                 (int)LogEventId.DistributionFailedToCallMaster,
-                (int)LogEventId.DistributionFailedToCallWorker,
                 (int)LogEventId.DistributionCallWorkerCodeException,
                 (int)LogEventId.DistributionCallMasterCodeException,
                 (int)LogEventId.DistributionSuccessfulRetryCallToWorker,
@@ -48,7 +47,6 @@ namespace BuildXL.Engine.Distribution
         /// Set of event ids for distribution informational messages
         /// </summary>
         public static readonly ReadOnlyArray<int> DistributionInfoMessages = ReadOnlyArray<int>.FromWithoutCopy(
-                (int)LogEventId.DistributionBondCall,
                 (int)LogEventId.DistributionDisableServiceProxyInactive,
                 (int)LogEventId.DistributionWaitingForMasterAttached,
                 (int)LogEventId.DistributionHostLog,

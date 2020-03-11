@@ -301,7 +301,7 @@ namespace BuildXL.Engine.Tracing
         // Distribution [7000, 7050]
         DistributionConnectedToWorker = 7000,
         DistributionWorkerChangedState = 7001,
-        DistributionFailedToCallWorker = 7002,
+        // Deprecated = 7002,
         DistributionFailedToCallMaster = 7003,
         DistributionInactiveMaster = 7004,
         DistributionStatistics = 7005,
@@ -339,7 +339,7 @@ namespace BuildXL.Engine.Tracing
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
         DistributionWorkerTimeoutFailure = 7040,
 
-        DistributionBondCall = 7041,
+        // Deprecated = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
         WorkerTotalRamMb = 7044,

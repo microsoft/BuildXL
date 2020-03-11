@@ -28,8 +28,6 @@ namespace Engine {
             Scheduler.dll,
             Distribution.Grpc.dll,
             ViewModel.dll,
-            importFrom("Bond.Core.CSharp").pkg,
-            importFrom("Bond.Runtime.CSharp").pkg,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

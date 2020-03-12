@@ -15,6 +15,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -299,6 +300,44 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             }
 
             FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, Name, fileAccesses, frontEndFolder);
+        }
+
+        /// <summary>
+        /// Creates a JSON serializer that can handle AbsolutePath and does profile redirection
+        /// </summary>
+        protected JsonSerializer ConstructProjectGraphSerializer(JsonSerializerSettings settings)
+        {
+            var serializer = JsonSerializer.Create(settings);
+
+            // If the user profile has been redirected, we need to catch any path reported that falls under it
+            // and relocate it to the redirected user profile.
+            // This allows for cache hits across machines where the user profile is not uniformly located, and MSBuild
+            // happens to read a spec under it (the typical case is a props/target file under the nuget cache)
+            // Observe that the env variable UserProfile is already redirected in this case, and the engine abstraction exposes it.
+            // However, tools like MSBuild very often manages to find the user profile by some other means
+            AbsolutePathJsonConverter absolutePathConverter;
+            if (m_configuration.Layout.RedirectedUserProfileJunctionRoot.IsValid)
+            {
+                // Let's get the redirected and original user profile folder
+                string redirectedUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string originalUserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+                absolutePathConverter = new AbsolutePathJsonConverter(
+                    m_context.PathTable,
+                    new[] {
+                        (AbsolutePath.Create(m_context.PathTable, originalUserProfile), AbsolutePath.Create(m_context.PathTable, redirectedUserProfile))
+                    });
+            }
+            else
+            {
+                absolutePathConverter = new AbsolutePathJsonConverter(m_context.PathTable);
+            }
+
+            serializer.Converters.Add(absolutePathConverter);
+            // Let's not add invalid absolute paths to any collection
+            serializer.Converters.Add(ValidAbsolutePathEnumerationJsonConverter.Instance);
+
+            return serializer;
         }
     }
 }

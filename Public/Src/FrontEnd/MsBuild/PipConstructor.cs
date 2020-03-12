@@ -481,41 +481,6 @@ namespace BuildXL.FrontEnd.MsBuild
             return AbsolutePathUtilities.CollapseDirectories(sharedOutputDirectories, PathTable);
         }
 
-        private void SetProcessEnvironmentVariables(IReadOnlyDictionary<string, string> environment, ProcessBuilder processBuilder)
-        {
-            foreach (KeyValuePair<string, string> kvp in environment)
-            {
-                if (kvp.Value != null)
-                {
-                    var envPipData = new PipDataBuilder(m_context.StringTable);
-
-                    // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
-                    // represents a path, and normalize it
-                    string value = kvp.Value;
-                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(PathTable, value, out var absolutePath))
-                    {
-                        envPipData.Add(absolutePath);
-                    }
-                    else
-                    {
-                        envPipData.Add(value);
-                    }
-
-                    processBuilder.SetEnvironmentVariable(
-                        StringId.Create(m_context.StringTable, kvp.Key),
-                        envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
-                }
-            }
-
-            if (m_userDefinedPassthroughVariables != null)
-            {
-                foreach (string passThroughVariable in m_userDefinedPassthroughVariables)
-                {
-                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, passThroughVariable));
-                }
-            }
-        }
-
         private bool TryConfigureProcessBuilder(
             ProcessBuilder processBuilder,
             PipConstructionHelper pipConstructionHelper,
@@ -633,7 +598,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // bit longer (and hopefully succeed)
             processBuilder.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(500);
 
-            SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), processBuilder);
+            FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(logDirectory, project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
 
             failureDetail = string.Empty;
             return true;

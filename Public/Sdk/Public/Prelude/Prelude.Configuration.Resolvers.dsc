@@ -267,6 +267,46 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
 
 
 /**
+ * Resolver for Rush project-level build execution
+ */
+interface RushResolver extends ResolverBase, UntrackingSettings {
+    kind: "Rush";
+
+    /**
+     * The directory where 'rush.json' is supposed to be found.
+     */
+    root: Directory;
+
+    /**
+     * The name of the module exposed to other DScript projects that will include all Rush projects found under
+     * the enlistment
+     */
+    moduleName: string;
+
+    /**
+     * Environment that is exposed to Rush. If not defined, the current process environment is exposed
+     * Note: if this field is not specified any change in an environment variable will potentially cause
+     * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
+     * Therefore, it is recommended to specify the environment explicitly.
+     * The value can be either a string or a PassthroughEnvironmentVariable, the latter representing that the associated variable will be exposed
+     * but its value won't be considered part of the build inputs for tracking purposes. This means that any change in the value of the 
+     * variable won't cause a rebuild.
+     */
+    environment?: Map<string, (PassthroughEnvironmentVariable | string)>;
+
+    /**
+     * For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted.
+     */
+    keepProjectGraphFile?: boolean;
+
+    /**
+     * The path to node.exe to use for discovering the Rush graph.
+     * If not provided, node.exe will be looked in PATH.
+     */
+    nodeExeLocation?: File;
+}
+
+/**
  * Resolver for projects specified for the Ninja build system
  */
 interface NinjaResolver extends ResolverBase {
@@ -420,4 +460,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver;

@@ -183,7 +183,7 @@ export function copyFileIntoSharedOpaqueDirectory(source: File, target: Path, ta
  * file accesses are almost certain to happen.
  */
 @@public
-export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): OpaqueDirectory {
+export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): SharedOpaqueDirectory {
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
         ? <Transformer.ExecuteArguments>{
             tool: {
@@ -235,7 +235,7 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
         };
 
     const result = Transformer.execute(args);
-    return result.getOutputDirectory(targetDir);
+    return <SharedOpaqueDirectory>result.getOutputDirectory(targetDir);
 }
 
 /**

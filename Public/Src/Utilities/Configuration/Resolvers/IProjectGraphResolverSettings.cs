@@ -17,21 +17,10 @@ namespace BuildXL.Utilities.Configuration
     public interface IProjectGraphResolverSettings : IResolverSettings, IUntrackingSettings
     {
         /// <summary>
-        /// The enlistment root. This may not be the location where parsing starts
-        /// <see cref="RootTraversal"/> can override that behavior.
+        /// The enlistment root. This may not be the location where parsing starts and a root traversal
+        /// can override that behavior.
         /// </summary>
         AbsolutePath Root { get; }
-
-        /// <summary>
-        /// The directory where the resolver starts parsing the enlistment
-        /// (including all sub-directories recursively). Not necessarily the
-        /// same as <see cref="Root"/> for cases where the codebase to process
-        /// starts in a subdirectory of the enlistment.
-        /// </summary>
-        /// <remarks>
-        /// If this is not specified, it will default to <see cref="Root"/>
-        /// </remarks>
-        AbsolutePath RootTraversal { get; }
 
         /// <summary>
         /// The name of the module exposed to other DScript projects that will include all Rush projects found under

@@ -213,7 +213,7 @@ function createNuSpecFile(
         dependencies = dependencies.push(opaque[1].opaque);
         fileElements = fileElements.push(
             Xml.elem("file",
-                Xml.attr("src", [opaque[1].opaque.path, "\\**"]),
+                Xml.attr("src", [p`${opaque[1].opaque.path}\${opaque[1].subDirectory || r`.`}`, "\\**"]),
                 Xml.attr("target", opaque[0])
             )
         );

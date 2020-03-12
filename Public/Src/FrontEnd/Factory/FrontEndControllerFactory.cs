@@ -13,6 +13,7 @@ using BuildXL.FrontEnd.Factory.Tracing;
 using BuildXL.FrontEnd.CMake;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Ninja;
+using BuildXL.FrontEnd.Rush;
 #endif
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script;
@@ -68,6 +69,7 @@ namespace BuildXL.FrontEnd.Factory
                 global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
                 global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Rush.ETWLogger.Log,
 #endif
             };
 
@@ -277,6 +279,7 @@ namespace BuildXL.FrontEnd.Factory
             frontEndFactory.AddFrontEnd(new MsBuildFrontEnd());
             frontEndFactory.AddFrontEnd(new NinjaFrontEnd());
             frontEndFactory.AddFrontEnd(new CMakeFrontEnd());
+            frontEndFactory.AddFrontEnd(new RushFrontEnd());
 #endif
 
             if (!frontEndFactory.TrySeal(loggingContext))

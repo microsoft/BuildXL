@@ -42,7 +42,7 @@ namespace Npm {
     }
 
     @@public
-    export function npmInstall(rootDir: StaticDirectory, dependencies: Transformer.InputArtifact[]): OpaqueDirectory {
+    export function npmInstall(rootDir: StaticDirectory, dependencies: Transformer.InputArtifact[]): SharedOpaqueDirectory {
         const wd = rootDir.root;
         const nodeModulesPath = d`${wd}/node_modules`;
         const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
@@ -69,7 +69,7 @@ namespace Npm {
             ],
         });
 
-        return result.getOutputDirectory(wd);
+        return <SharedOpaqueDirectory>result.getOutputDirectory(wd);
     }
 
     @@public

@@ -68,6 +68,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new NinjaResolverSettings(ninjaResolver, pathRemapper);
                 case ICMakeResolverSettings cmakeResolver:
                     return new CMakeResolverSettings(cmakeResolver, pathRemapper);
+                case IRushResolverSettings rushResolver:
+                    return new RushResolverSettings(rushResolver, pathRemapper);
                 default:
                     Contract.Assume(false, "Unexpected type of resolver settings.");
                     return null;

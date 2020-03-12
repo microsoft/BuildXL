@@ -4,12 +4,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Pips.Builders;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Utilities
 {
@@ -257,6 +261,51 @@ namespace BuildXL.FrontEnd.Utilities
             public string GetFileName(SandboxedProcessFile file)
             {
                 return Path.Combine(m_directory, file.DefaultFileName());
+            }
+        }
+
+        /// <summary>
+        /// Configure the environment for a process
+        /// </summary>
+        public static void SetProcessEnvironmentVariables(
+            IReadOnlyDictionary<string, string> userDefinedEnvironment,
+            [CanBeNull] IEnumerable<string> userDefinedPassthroughVariables,
+            ProcessBuilder processBuilder,
+            PathTable pathTable)
+        {
+            Contract.RequiresNotNull(userDefinedEnvironment);
+            Contract.RequiresNotNull(processBuilder);
+
+            foreach (KeyValuePair<string, string> kvp in userDefinedEnvironment)
+            {
+                if (kvp.Value != null)
+                {
+                    var envPipData = new PipDataBuilder(pathTable.StringTable);
+
+                    // Casing for paths is not stable as reported by BuildPrediction. So here we try to guess if the value
+                    // represents a path, and normalize it
+                    string value = kvp.Value;
+                    if (!string.IsNullOrEmpty(value) && AbsolutePath.TryCreate(pathTable, value, out var absolutePath))
+                    {
+                        envPipData.Add(absolutePath);
+                    }
+                    else
+                    {
+                        envPipData.Add(value);
+                    }
+
+                    processBuilder.SetEnvironmentVariable(
+                        StringId.Create(pathTable.StringTable, kvp.Key),
+                        envPipData.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+                }
+            }
+
+            if (userDefinedPassthroughVariables != null)
+            {
+                foreach (string passThroughVariable in userDefinedPassthroughVariables)
+                {
+                    processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(pathTable.StringTable, passThroughVariable));
+                }
             }
         }
     }

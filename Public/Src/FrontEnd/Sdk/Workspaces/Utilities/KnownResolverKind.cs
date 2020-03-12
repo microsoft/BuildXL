@@ -26,6 +26,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public const string MsBuildResolverKind = "MsBuild";
 
         /// <nodoc/>
+        public const string RushResolverKind = "Rush";
+
+        /// <nodoc/>
         public const string NinjaResolverKind = "Ninja";
 
         /// <nodoc/>
@@ -52,7 +55,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 value == DownloadResolverKind ||
                 value == MsBuildResolverKind ||
                 value == NinjaResolverKind ||
-                value == CMakeResolverKind;
+                value == CMakeResolverKind ||
+                value == RushResolverKind;
         }
     }
 }

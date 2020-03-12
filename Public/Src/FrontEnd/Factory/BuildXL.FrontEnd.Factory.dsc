@@ -28,6 +28,7 @@ namespace Factory {
                 MsBuild.dll,
                 Ninja.dll,
                 CMake.dll,
+                Rush.dll
             ]),
         ],
         internalsVisibleTo: [

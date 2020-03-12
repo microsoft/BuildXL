@@ -14,6 +14,17 @@ namespace BuildXL.Utilities.Configuration
     public interface IMsBuildResolverSettings : IProjectGraphResolverSettings, IUntrackingSettings
     {
         /// <summary>
+        /// The directory where the resolver starts parsing the enlistment
+        /// (including all sub-directories recursively). Not necessarily the
+        /// same as <see cref="IProjectGraphResolverSettings.Root"/> for cases where the codebase to process
+        /// starts in a subdirectory of the enlistment.
+        /// </summary>
+        /// <remarks>
+        /// If this is not specified, it will default to <see cref="IProjectGraphResolverSettings.Root"/>
+        /// </remarks>
+        AbsolutePath RootTraversal { get; }
+
+        /// <summary>
         /// Output directories to be added in addition to the ones BuildXL predicts
         /// </summary>
         IReadOnlyList<DirectoryArtifact> AdditionalOutputDirectories { get; }

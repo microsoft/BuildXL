@@ -100,7 +100,7 @@ namespace Node {
     }
 
     @@public
-    export function tscCompile(workingDirectory: Directory, dependencies: Transformer.InputArtifact[]) : OpaqueDirectory {
+    export function tscCompile(workingDirectory: Directory, dependencies: Transformer.InputArtifact[]) : SharedOpaqueDirectory {
         const outPath = d`${workingDirectory}/out`;
         const arguments: Argument[] = [
             Cmd.argument(Artifact.none(f`${workingDirectory}/node_modules/typescript/lib/tsc.js`)),
@@ -117,6 +117,6 @@ namespace Node {
             ]
         });
 
-        return result.getOutputDirectory(outPath);
+        return <SharedOpaqueDirectory>result.getOutputDirectory(outPath);
     }
 }

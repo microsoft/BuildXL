@@ -51,6 +51,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         public TimeSpan EffectiveAge { get; }
 
+        /// <summary>
+        /// Age used by full sort eviction (it is the minimum of effective age (<see cref="EffectiveAge"/>) and distributed age (<see cref="Age"/>))
+        /// </summary>
+        public TimeSpan FullSortAge => EffectiveAge < Age ? EffectiveAge : Age;
+
         /// <nodoc />
         public ContentEvictionInfo(
             ContentHash contentHash,
@@ -86,10 +91,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         }
 
         /// <nodoc />
-        public static readonly IComparer<ContentEvictionInfo> AgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.Age, c2.Age, reverse: false));
+        public static readonly IComparer<ContentEvictionInfo> FullSortAgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.FullSortAge, c2.FullSortAge, reverse: false));
 
         /// <nodoc />
-        public static readonly IComparer<ContentEvictionInfo> ReverseAgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.Age, c2.Age, reverse: true));
+        public static readonly IComparer<ContentEvictionInfo> ReverseFullSortAgeOnlyComparer = Comparer<ContentEvictionInfo>.Create((c1, c2) => (int)OrderAges(c1.FullSortAge, c2.FullSortAge, reverse: true));
 
         /// <summary>
         /// Object comparer for <see cref="ContentEvictionInfo"/>.

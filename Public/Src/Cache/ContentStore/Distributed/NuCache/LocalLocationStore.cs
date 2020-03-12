@@ -1270,8 +1270,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             bool reverse)
         {
             var ageOnlyComparer = reverse
-                ? ContentEvictionInfo.ReverseAgeOnlyComparer
-                : ContentEvictionInfo.AgeOnlyComparer;
+                ? ContentEvictionInfo.ReverseFullSortAgeOnlyComparer
+                : ContentEvictionInfo.FullSortAgeOnlyComparer;
 
             var ageSortingQueue = new PriorityQueue<ContentEvictionInfo>(_configuration.EvictionPoolSize, ageOnlyComparer);
 
@@ -1279,17 +1279,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 foreach (var item in GetEffectiveLastAccessTimes(operationContext, effectiveLastAccessTimeProvider, page).ThrowIfFailure())
                 {
-                    while (ageSortingQueue.Count != 0 && ContentEvictionInfo.OrderAges(ageSortingQueue.Top.Age, item.LocalAge, reverse) != OrderResult.PreferSecond)
+                    while (ageSortingQueue.Count != 0 && ContentEvictionInfo.OrderAges(ageSortingQueue.Top.FullSortAge, item.LocalAge, reverse) != OrderResult.PreferSecond)
                     {
                         // NOTE: Optimization to ensure we return elements as soon as possible rather than having to put all elements in the queue
                         // before a single element can be returned.
                         // The top item's distributed age from the queue is older than the current item's local age. This means the top item in the
                         // queue should be preferred to any other item that will be encountered because we that subsequent items will always be newer.
 
-                        // For all items, i: i.LocalAge >= i.Age (distributed age). In other words, distributed age is always equal or newer than local age.
+                        // For all items, i: i.LocalAge >= i.FullSortAge (distributed age or effective age). In other words, distributed age is always equal or newer than local age.
                         // Suppose the current item is i_n.
                         // Since we are traversing the items in oldest local age first order. For x > 0, i_n.LocalAge >= i_(n+x).LocalAge
-                        // We know from the condition that: ageSortingQueue.Top.Age >= i_n.LocalAge >= i_(n+x).LocalAge >= i_(n+x).Age
+                        // We know from the condition that: ageSortingQueue.Top.FullSortAge >= i_n.LocalAge >= i_(n+x).LocalAge >= i_(n+x).Age
                         yield return ageSortingQueue.Top;
                         ageSortingQueue.Pop();
                     }

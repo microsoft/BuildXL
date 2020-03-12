@@ -99,8 +99,8 @@ namespace BuildXL.Processes
              [CanBeNull] ISandboxedProcessFileStorage fileStorage,
              string fileName,
              bool disableConHostSharing,
-             LoggingContext loggingContext,
              bool testRetries = false,
+             LoggingContext loggingContext = null,
              IDetoursEventListener detoursEventListener = null,
              ISandboxConnection sandboxConnection = null,
              bool createJobObjectForCurrentProcess = true)
@@ -109,7 +109,7 @@ namespace BuildXL.Processes
                    fileStorage, 
                    fileName, 
                    disableConHostSharing, 
-                   loggingContext,
+                    loggingContext ?? new LoggingContext("ExternalComponent"),
                    testRetries,
                    detoursEventListener, 
                    sandboxConnection, 

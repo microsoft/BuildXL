@@ -15,7 +15,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             // We allow the source directory to be writable by default
             AllowWritableSourceDirectory = true;
-            // We want changes under program files to be tracked
         }
 
         /// <nodoc/>
@@ -32,6 +31,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Environment = resolverSettings.Environment;
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             NodeExeLocation = resolverSettings.NodeExeLocation;
+            AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories;
         }
 
         /// <inheritdoc/>
@@ -57,5 +57,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public FileArtifact? NodeExeLocation { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
     }
 }

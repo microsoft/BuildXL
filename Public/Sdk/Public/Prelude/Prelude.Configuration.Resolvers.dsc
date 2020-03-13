@@ -304,6 +304,12 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * If not provided, node.exe will be looked in PATH.
      */
     nodeExeLocation?: File;
+
+    /**
+     * Collection of additional output directories pips may write to.
+     * If a relative path is provided, it will be interpreted relative to every project root.
+     */
+    additionalOutputDirectories?: (Path | RelativePath)[];
 }
 
 /**

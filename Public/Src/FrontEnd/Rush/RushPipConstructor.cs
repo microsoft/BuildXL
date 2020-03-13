@@ -250,10 +250,14 @@ namespace BuildXL.FrontEnd.Rush
             // Some projects share their temp folder. So don't declare this as a temp location. Anyway, rush makes sure the right files are deleted
             processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder));
 
+            // Add all the additional output directories that the rush graph knows about
             foreach(var additionalOutput in project.AdditionalOutputDirectories)
             {
                 processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(additionalOutput), SealDirectoryKind.SharedOpaque);
             }
+
+            // Add additional output directories configured in the main config file
+            AddAdditionalOutputDirectories(processBuilder, project.ProjectFolder);
         }
 
         private void ComputeTransitiveDependenciesFor(RushProject project, HashSet<RushProject> accumulatedDependencies)
@@ -306,6 +310,29 @@ namespace BuildXL.FrontEnd.Rush
             processBuilder.AddOutputFile(logFile, FileExistence.Required);
 
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
+        }
+
+        private void AddAdditionalOutputDirectories(ProcessBuilder processBuilder, AbsolutePath projectFolder)
+        {
+            if (m_resolverSettings.AdditionalOutputDirectories == null)
+            {
+                return;
+            }
+
+            foreach (DiscriminatingUnion<AbsolutePath, RelativePath> directoryUnion in m_resolverSettings.AdditionalOutputDirectories)
+            {
+                object directory = directoryUnion.GetValue();
+                if (directory is AbsolutePath absolutePath)
+                {
+                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absolutePath), SealDirectoryKind.SharedOpaque);
+                }
+                else
+                {
+                    // The specified relative path is interpreted relative to the project directory folder
+                    AbsolutePath absoluteDirectory = projectFolder.Combine(PathTable, (RelativePath)directory);
+                    processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(absoluteDirectory), SealDirectoryKind.SharedOpaque);
+                }
+            }
         }
 
         private AbsolutePath GetLogDirectory(RushProject projectFile)

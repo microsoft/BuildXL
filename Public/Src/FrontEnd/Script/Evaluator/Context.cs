@@ -113,7 +113,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             {
                 // When subscribing to messages from the logger, it is important that each context has a its own unique logger,
                 // because otherwise each context would also receive messages that are pertinent to other contexts.
-                m_logger = Logger.CreateLogger(ContextTree.Logger.PreserveLogEvents, ContextTree.Logger);
+                m_logger = Logger.CreateLoggerWithTracking(true);
                 Logger.AddObserver(this);
             }
             else
@@ -162,6 +162,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <inheritdoc />
         void ILogMessageObserver.OnMessage(Diagnostic diagnostic)
         {
+            ContextTree.Logger.InspectMessage(diagnostic.ErrorCode, diagnostic.Level, diagnostic.Message, diagnostic.Location);
             Decorator.NotifyDiagnostics(this, diagnostic);
         }
 

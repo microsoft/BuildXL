@@ -1,11 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Tracing;
-using System.Linq;
-using BuildXL.FrontEnd.Factory;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -31,47 +26,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
         {
         }
 
-        /// <summary>
-        /// Set up console event listener for BuildXL's ETW event sources.
-        /// </summary>
-        /// <param name="level">The level of data to be sent to the listener.</param>
-        /// <returns>An <see cref="EventListener"/> with the appropriate event sources registered.</returns>
-        [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public static IDisposable SetupEventListener(EventLevel level)
-        {
-            var eventListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow, true, true, true, false, level: level);
-
-            var primarySource = bxlScriptAnalyzer.ETWLogger.Log;
-            if (primarySource.ConstructionException != null)
-            {
-                throw primarySource.ConstructionException;
-            }
-
-            eventListener.RegisterEventSource(primarySource);
-
-            eventListener.EnableTaskDiagnostics(BuildXL.Tracing.ETWLogger.Tasks.CommonInfrastructure);
-
-            var eventSources = new EventSource[]
-                               {
-                                   bxlScriptAnalyzer.ETWLogger.Log,
-                                   BuildXL.Engine.Cache.ETWLogger.Log,
-                                   BuildXL.Engine.ETWLogger.Log,
-                                   BuildXL.Scheduler.ETWLogger.Log,
-                                   BuildXL.Pips.ETWLogger.Log,
-                                   BuildXL.Tracing.ETWLogger.Log,
-                                   BuildXL.Storage.ETWLogger.Log,
-                               }.Concat(FrontEndControllerFactory.GeneratedEventSources);
-
-            using (var dummy = new TrackingEventListener(Events.Log))
-            {
-                foreach (var eventSource in eventSources)
-                {
-                    Events.Log.RegisterMergedEventSource(eventSource);
-                }
-            }
-
-            return eventListener;
-        }
+       
         
         [GeneratedEvent(
             (ushort)LogEventId.ErrorParsingFile,

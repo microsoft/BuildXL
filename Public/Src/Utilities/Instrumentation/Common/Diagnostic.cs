@@ -39,6 +39,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public string FullMessage => ToString();
 
         /// <nodoc />
+        public bool IsError => Level == EventLevel.Error || Level == EventLevel.Critical;
+
+        /// <nodoc />
         public Diagnostic(int errorCode, EventLevel level, string message, Location? location)
         {
             ErrorCode = errorCode;

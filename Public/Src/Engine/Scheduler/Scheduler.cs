@@ -55,7 +55,6 @@ using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -1669,7 +1668,7 @@ namespace BuildXL.Scheduler
                 long processPipsSum = m_numProcessPipsSatisfiedFromCache + m_numProcessPipsUnsatisfiedFromCache + m_numProcessPipsSkipped;
                 if (m_numProcessPipsCompleted != processPipsSum)
                 {
-                    BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, $"Total process pips != (pip cache hits + pip cache misses + service start/shutdown pips). Total: { m_numProcessPipsCompleted }, Sum: { processPipsSum }");
+                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"Total process pips != (pip cache hits + pip cache misses + service start/shutdown pips). Total: { m_numProcessPipsCompleted }, Sum: { processPipsSum }");
                 }
 
                 m_numProcessPipsSemaphoreQueued = m_pipQueue.TotalNumSemaphoreQueued;
@@ -1749,7 +1748,7 @@ namespace BuildXL.Scheduler
             // so don't check the sum for distributed builds
             if (!IsDistributedBuild && (processPipsExecutedDueToCacheMiss + processPipsSkippedExecutionDueToCacheOnly ) != cacheMissSum)
             {
-                BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " + 
+                BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, $"ProcessPipsExecutedDueToCacheMiss + ProcessPipsSkippedExecutionDueToCacheOnly != sum of counters for all cache miss types. " + 
                     "ProcessPipsExecutedDueToCacheMiss: {processPipsExecutedDueToCacheMiss}, ProcessPipsSkippedExecutionDueToCacheOnly: {processPipsSkippedExecutionDueToCacheOnly}, Sum: {cacheMissSum}");
             }
 
@@ -2128,7 +2127,7 @@ namespace BuildXL.Scheduler
                 writeFileStats.AggregateByPipTypes(m_pipStateCountersSnapshots, new PipType[] { PipType.WriteFile });
 
                 // Log pip statistics to Console
-                Logger.Log.LogPipStatus(
+                LogPipStatus(
                     m_executePhaseLoggingContext,
                     pipsSucceeded: m_pipTypesToLogCountersSnapshot.DoneCount,
                     pipsFailed: m_pipTypesToLogCountersSnapshot[PipState.Failed],
@@ -2247,6 +2246,107 @@ namespace BuildXL.Scheduler
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
+            }
+        }
+ 
+        /// <summary>
+        /// We have 2 versions of this message for the sake of letting one be overwriteable and the other not.
+        /// Other than they should always stay identical. So to enforce that we have them reference the same
+        /// set of attribute arguments and go through the same method
+        /// </summary>
+        public static void LogPipStatus(
+            LoggingContext loggingContext,
+            long pipsSucceeded,
+            long pipsFailed,
+            long pipsSkippedDueToFailedDependencies,
+            long pipsRunning,
+            long pipsReady,
+            long pipsWaiting,
+            long pipsWaitingOnSemaphore,
+            long servicePipsRunning,
+            string perfInfoForConsole,
+            long pipsWaitingOnResources,
+            long procsExecuting,
+            long procsSucceeded,
+            long procsFailed,
+            long procsSkippedDueToFailedDependencies,
+            long procsPending,
+            long procsWaiting,
+            long procsCacheHit,
+            long procsNotIgnored,
+            string limitingResource,
+            string perfInfoForLog,
+            bool overwriteable,
+            long copyFileDone,
+            long copyFileNotDone,
+            long writeFileDone,
+            long writeFileNotDone)
+        {
+            // Noop if no process information is included. This can happen for the last status event in a build using
+            // incremental scheduling if it goes through the codepath where zero files changed. All other codepaths
+            // compute the actual process count and can be logged
+            if (procsExecuting + procsSucceeded + procsFailed + procsSkippedDueToFailedDependencies + procsPending + procsWaiting + procsCacheHit == 0)
+            {
+                return;
+            }
+
+            if (overwriteable)
+            {
+                Logger.Log.PipStatus(
+                    loggingContext,
+                    pipsSucceeded,
+                    pipsFailed,
+                    pipsSkippedDueToFailedDependencies,
+                    pipsRunning,
+                    pipsReady,
+                    pipsWaiting,
+                    pipsWaitingOnSemaphore,
+                    servicePipsRunning,
+                    perfInfoForConsole,
+                    pipsWaitingOnResources,
+                    procsExecuting,
+                    procsSucceeded,
+                    procsFailed,
+                    procsSkippedDueToFailedDependencies,
+                    procsPending,
+                    procsWaiting,
+                    procsCacheHit,
+                    procsNotIgnored,
+                    limitingResource,
+                    perfInfoForLog,
+                    copyFileDone,
+                    copyFileNotDone,
+                    writeFileDone,
+                    writeFileNotDone);
+            }
+            else
+            {
+                Logger.Log.PipStatusNonOverwriteable(
+                    loggingContext,
+                    pipsSucceeded,
+                    pipsFailed,
+                    pipsSkippedDueToFailedDependencies,
+                    pipsRunning,
+                    pipsReady,
+                    pipsWaiting,
+                    pipsWaitingOnSemaphore,
+                    servicePipsRunning,
+                    perfInfoForConsole,
+                    pipsWaitingOnResources,
+                    procsExecuting,
+                    procsSucceeded,
+                    procsFailed,
+                    procsSkippedDueToFailedDependencies,
+                    procsPending,
+                    procsWaiting,
+                    procsCacheHit,
+                    procsNotIgnored,
+                    limitingResource,
+                    perfInfoForLog,
+                    copyFileDone,
+                    copyFileNotDone,
+                    writeFileDone,
+                    writeFileNotDone);
             }
         }
 
@@ -3950,7 +4050,7 @@ namespace BuildXL.Scheduler
                     // This allows the scrubber to remove those files as well in the next run.
                     var start = DateTime.UtcNow;
                     var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
-                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
+                    LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                     // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                     // case of processes executed remotely
@@ -4004,7 +4104,7 @@ namespace BuildXL.Scheduler
                             processRunnable.Process,
                             out pipIsSafeToCache,
                             out allowedSameContentDoubleWriteViolations);
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));
+                        LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));
 
                         processRunnable.SetExecutionResult(executionResult);
 
@@ -4045,7 +4145,7 @@ namespace BuildXL.Scheduler
                                executionResult,
                                processRunnable.Process,
                                allowedSameContentDoubleWriteViolations);
-                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
+                            LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -4080,7 +4180,7 @@ namespace BuildXL.Scheduler
                         processRunnable.Pip.SemiStableHash,
                         executionResult,
                         processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
-                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
+                    LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
 
                     return processRunnable.SetPipResult(executionResult);
                 }

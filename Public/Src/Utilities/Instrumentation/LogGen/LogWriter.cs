@@ -137,6 +137,7 @@ namespace BuildXL.LogGen
             {
                 gen.GenerateSummaryComment("The static logger this delegates to");
                 gen.Ln($"private {loggerClass.Symbol.Name} m_logger;");
+                gen.Ln();
 
                 gen.GenerateSummaryComment("The logging context to use.");
                 gen.Ln($"public {GlobalInstrumentationNamespace}.LoggingContext LoggingContext {{ get; }}");
@@ -181,11 +182,6 @@ namespace BuildXL.LogGen
                 gen.Ln("static private Logger m_log = new {0}Impl();", symbol.Name);
                 gen.Ln();
 
-                gen.Ln("private bool m_preserveLogEvents;");
-                gen.Ln("private bool m_inspectMessageEnabled;");
-                gen.Ln($"private readonly global::System.Collections.Concurrent.ConcurrentQueue<{GlobalInstrumentationNamespace}.Diagnostic> m_capturedDiagnostics = new global::System.Collections.Concurrent.ConcurrentQueue<{GlobalInstrumentationNamespace}.Diagnostic>();");
-                gen.Ln();
-
                 gen.GenerateSummaryComment("Factory method that creates instances of the logger.");
                 gen.Ln($"public static {symbol.Name} CreateLogger(bool preserveLogEvents = false)");
                 using (gen.Br)
@@ -193,37 +189,25 @@ namespace BuildXL.LogGen
                     gen.Ln($"return new {symbol.Name}Impl");
                     using (gen.Br)
                     {
-                        gen.Ln("m_preserveLogEvents = preserveLogEvents,");
-                        gen.Ln("m_inspectMessageEnabled = preserveLogEvents,");
+                        gen.Ln("PreserveLogEvents = preserveLogEvents,");
+                        gen.Ln("InspectMessageEnabled = preserveLogEvents,");
                     }
                     gen.Ln(";");
                 }
                 gen.Ln();
 
-                gen.GenerateSummaryComment($@"Provides diagnostics captured by the logger.
-            Would be non-empty only when preserveLogEvents flag was specified in the <see cref=""{symbol.Name}.CreateLogger(bool)"" /> factory method.");
-                gen.Ln($"public global::System.Collections.Generic.IReadOnlyList<{GlobalInstrumentationNamespace}.Diagnostic> CapturedDiagnostics => global::System.Linq.Enumerable.ToList(m_capturedDiagnostics);");
-                gen.Ln();
-
-                gen.GenerateInheritDoc();
-                gen.Ln("public override bool InspectMessageEnabled => m_inspectMessageEnabled;");
-                gen.Ln();
-
-                gen.GenerateInheritDoc();
-                gen.Ln($"protected override void InspectMessage(int logEventId, global::System.Diagnostics.Tracing.EventLevel level, string message, {GlobalInstrumentationNamespace}.Location? location = null)");
+                gen.GenerateSummaryComment("Factory method that creates instances of the logger that tracks errors and allows for observers");
+                gen.Ln($"public static {symbol.Name} CreateLoggerWithTracking(bool preserveLogEvents = false)");
                 using (gen.Br)
                 {
-                    gen.Ln("InspectMessageCustom(logEventId, level, message, location);");
-                    gen.Ln("if (m_preserveLogEvents)");
+                    gen.Ln($"return new {symbol.Name}Impl");
                     using (gen.Br)
                     {
-                        gen.Ln($"m_capturedDiagnostics.Enqueue(new {GlobalInstrumentationNamespace}.Diagnostic(logEventId, level, message, location));");
+                        gen.Ln("PreserveLogEvents = preserveLogEvents,");
+                        gen.Ln("InspectMessageEnabled = true,");
                     }
+                    gen.Ln(";");
                 }
-                gen.Ln();
-                
-                gen.GenerateSummaryComment($@"Allows customization by loggers for extra processing");
-                gen.Ln($"partial void InspectMessageCustom(int logEventId, global::System.Diagnostics.Tracing.EventLevel level, string message, {GlobalInstrumentationNamespace}.Location? location);");
                 gen.Ln();
 
                 var notifyContextWhenErrorsAreLoggedIsUsed = false;

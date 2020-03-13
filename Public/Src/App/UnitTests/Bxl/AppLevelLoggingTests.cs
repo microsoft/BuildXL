@@ -18,11 +18,11 @@ namespace Test.BuildXL
             {
                 listener.RegisterEventSource(global::BuildXL.Tracing.ETWLogger.Log);
                 LoggingContext context = new LoggingContext("Test");
-                int maxTelemetryUnexpectedConditions = global::BuildXL.Tracing.Logger.MaxTelemetryUnexpectedConditions;
+                int maxTelemetryUnexpectedConditions = global::BuildXL.Tracing.UnexpectedCondition.MaxTelemetryUnexpectedConditions;
 
                 for (int i = 0; i < maxTelemetryUnexpectedConditions + 1; i++)
                 {
-                    global::BuildXL.Tracing.Logger.Log.UnexpectedCondition(context, "UnexpectedConditionTest");
+                    global::BuildXL.Tracing.UnexpectedCondition.Log(context, "UnexpectedConditionTest");
                 }
 
                 // Make sure only 5 of the 6 events went to telemetry. The 6th events should only go local
@@ -31,7 +31,7 @@ namespace Test.BuildXL
 
                 // Now change the logging context for a new session and make sure the event goes to telemetry again
                 context = new LoggingContext("Test2");
-                global::BuildXL.Tracing.Logger.Log.UnexpectedCondition(context, "UnexpectedConditionTest");
+                global::BuildXL.Tracing.UnexpectedCondition.Log(context, "UnexpectedConditionTest");
                 XAssert.AreEqual(maxTelemetryUnexpectedConditions + 1, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionTelemetry));
                 XAssert.AreEqual(1, listener.CountsPerEventId((int)LogEventId.UnexpectedConditionLocal));
             }

@@ -3,7 +3,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
-//using BuildXL.Pips;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 

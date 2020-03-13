@@ -1138,7 +1138,7 @@ namespace BuildXL.Processes
                             cancellationTokenSource.Token,
                             process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
                             allInputPathsUnderSharedOpaques);
-                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
+                LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
                 return ValidateDetoursCommunication(
                     executionResult,
@@ -1633,7 +1633,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, DateTime.UtcNow.Subtract(start));
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, DateTime.UtcNow.Subtract(start));
 
             start = DateTime.UtcNow;
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
@@ -1642,7 +1642,7 @@ namespace BuildXL.Processes
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
                     out var sharedDynamicDirectoryWriteAccesses);
-            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
 
             start = DateTime.UtcNow;
 
@@ -1690,7 +1690,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseLoggingOutputs, DateTime.UtcNow.Subtract(start));
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseLoggingOutputs, DateTime.UtcNow.Subtract(start));
 
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
@@ -2743,7 +2743,7 @@ namespace BuildXL.Processes
                     .Where(FileUtilities.FileExistsNoFollow)
                     .Select(path => FileUtilities.TryDeleteFile(path)) // TODO: what about deleting directories?
                     .ToArray();
-                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start));
+                LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseDeletingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start));
 
                 // select failures
                 var failures = deletionResults

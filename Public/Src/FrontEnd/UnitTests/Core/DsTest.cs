@@ -98,7 +98,7 @@ namespace Test.BuildXL.FrontEnd.Core
         /// <summary>
         /// Logger that is used for capturing diagnostics for parsing and evaluation phases.
         /// </summary>
-        protected Logger ParseAndEvaluateLogger { get; } = Logger.CreateLogger(preserveLogEvents: true);
+        protected Logger ParseAndEvaluateLogger { get; } = Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
         /// <summary>
         /// Logger that is used for capturing diagnostics during initialization.

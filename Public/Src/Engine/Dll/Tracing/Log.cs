@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.Globalization;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
@@ -1719,12 +1717,6 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Keywords.UserMessage,
             Message = "{ShortProductName} failed to run because only 'case-insensitive' file-systems are currently supported on non-windows hosts.")]
         public abstract void ErrorCaseSensitiveFileSystemDetected(LoggingContext context);
-
-        public void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception)
-        {
-            BusyOrUnavailableOutputDirectories(context, objectDirectoryPath);
-            BusyOrUnavailableOutputDirectoriesException(context, objectDirectoryPath, exception);
-        }
 
         [GeneratedEvent(
             (int)LogEventId.BusyOrUnavailableOutputDirectories,

@@ -109,7 +109,7 @@ namespace BuildXL.Processes
                    fileStorage, 
                    fileName, 
                    disableConHostSharing, 
-                    loggingContext ?? new LoggingContext("ExternalComponent"),
+                   loggingContext ?? new LoggingContext("ExternalComponent"),
                    testRetries,
                    detoursEventListener, 
                    sandboxConnection, 

@@ -67,15 +67,22 @@ namespace BuildXL.Engine
             }
             catch (IOException ex)
             {
-                Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
+                BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
                 return new FolderLock();
             }
             catch (UnauthorizedAccessException ex)
             {
-                Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
+                BusyOrUnavailableOutputDirectories(loggingContext, path, ex.ToString());
                 return new FolderLock();
             }
         }
+
+        private static void BusyOrUnavailableOutputDirectories(LoggingContext context, string objectDirectoryPath, string exception)
+        {
+            Tracing.Logger.Log.BusyOrUnavailableOutputDirectories(context, objectDirectoryPath);
+            Tracing.Logger.Log.BusyOrUnavailableOutputDirectoriesException(context, objectDirectoryPath, exception);
+        }
+
 
         private static FileStream TakeInternal(
             LoggingContext loggingContext,

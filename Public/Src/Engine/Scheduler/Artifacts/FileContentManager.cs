@@ -3080,11 +3080,13 @@ namespace BuildXL.Scheduler.Artifacts
                     else
                     {
                         // We may fail to access a file due to permissions issues, or due to some other process that has the file locked (opened for writing?)
+                        var ex = possiblyDiscovered.Failure.CreateException();
                         Logger.Log.FailedToHashInputFile(
                             operationContext,
                             GetAssociatedPipDescription(declaredArtifact, consumerDescription),
                             artifactFullPath,
-                            possiblyDiscovered.Failure.CreateException());
+                            ex.LogEventErrorCode,
+                            ex.LogEventMessage);
                         return null;
                     }
 

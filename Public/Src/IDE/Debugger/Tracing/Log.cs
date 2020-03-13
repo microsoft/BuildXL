@@ -17,14 +17,6 @@ namespace BuildXL.FrontEnd.Script.Debugger.Tracing
     [LoggingDetails("DScriptDebuggerLogger")]
     public abstract partial class Logger
     {
-        /// <summary>
-        /// Factory method that creates instances of this logger.
-        /// </summary>
-        public static Logger CreateLogger()
-        {
-            return new LoggerImpl();
-        }
-
         [GeneratedEvent(
             (ushort)LogEventId.DebuggerServerStarted,
             EventGenerators = EventGenerators.LocalOnly,

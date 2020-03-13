@@ -54,7 +54,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         public TestRunner(Action<Diagnostic> diagnosticHandler, bool updateFailedTests)
         {
             m_tracingLogger = BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(true);
-            m_astLogger = Script.Tracing.Logger.CreateLogger(true);
+            m_astLogger = Script.Tracing.Logger.CreateLoggerWithTracking(true);
             m_schedulerLogger = BuildXL.Scheduler.Tracing.Logger.CreateLogger(true);
             m_pipLogger = BuildXL.Pips.Tracing.Logger.CreateLogger(true);
             m_diagnosticHandler = diagnosticHandler;

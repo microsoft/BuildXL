@@ -2005,7 +2005,7 @@ namespace BuildXL.Engine
                                 }
                                 catch (Exception e)
                                 {
-                                    BuildXL.Tracing.Logger.Log.UnexpectedCondition(loggingContext, e.ToString());
+                                    BuildXL.Tracing.UnexpectedCondition.Log(loggingContext, e.ToString());
                                 }
 
                                 // Ensure the execution log supporting graph files have finished copying to the logs directory

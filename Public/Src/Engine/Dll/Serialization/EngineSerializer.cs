@@ -103,7 +103,7 @@ namespace BuildXL.Engine
                 catch (Exception ex)
                 {
                     ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(ex);
-                    BuildXL.Tracing.Logger.Log.UnexpectedCondition(LoggingContext, ex.ToStringDemystified()  + Environment.NewLine + rootCause);
+                    BuildXL.Tracing.UnexpectedCondition.Log(LoggingContext, ex.ToStringDemystified()  + Environment.NewLine + rootCause);
                     throw new BuildXLException("Unable to create engine serializer cache directory: ", ex);
                 }
             }
@@ -293,7 +293,7 @@ namespace BuildXL.Engine
                         // Since the malformed file will always cause a crash until someone removes the file from the cache, allow BuildXL to recover
                         // by eating the exception. However remember to log it in order to keep track of bugs.
                         ExceptionRootCause rootCause = ExceptionUtilities.AnalyzeExceptionRootCause(ex);
-                        BuildXL.Tracing.Logger.Log.UnexpectedCondition(LoggingContext, ex.ToStringDemystified() + Environment.NewLine + rootCause);
+                        BuildXL.Tracing.UnexpectedCondition.Log(LoggingContext, ex.ToStringDemystified() + Environment.NewLine + rootCause);
                         Tracing.Logger.Log.FailedToDeserializePipGraph(LoggingContext, path, ex.Message);
                         return result;
                     }

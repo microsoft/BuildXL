@@ -24,6 +24,7 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Tracing;
@@ -951,7 +952,7 @@ namespace BuildXL
                         translatedLogDirectory = pathTranslator != null ? pathTranslator.Translate(logDirectory) : logDirectory;
                     }
 
-                    Logger.LogDominoInvocation(
+                    LogDominoInvocation(
                         loggingContext,
                         GetExpandedCmdLine(m_commandLineArguments),
                         s_buildInfo,
@@ -976,7 +977,7 @@ namespace BuildXL
                 {
                     var exitKind = result.ExitKind;
                     var utcNow = DateTime.UtcNow;
-                    Logger.LogDominoCompletion(
+                    LogDominoCompletion(
                         loggingContext,
                         ExitCode.FromExitKind(exitKind),
                         exitKind,
@@ -1018,6 +1019,91 @@ namespace BuildXL
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Logging DominoCompletion with an extra CloudBuild event
+        /// </summary>
+        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
+        {
+            Logger.Log.DominoCompletion(context,
+                exitCode,
+                exitKind.ToString(),
+                errorBucket,
+                // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
+                ScrubCommandLine(bucketMessage, 1000, 1000),
+                processRunningTime);
+
+            // Sending a different event to CloudBuild ETW listener.
+            if (inCloudBuild)
+            {
+                BuildXL.Tracing.CloudBuildEventSource.Log.DominoCompletedEvent(new  BuildXL.Tracing.CloudBuild.DominoCompletedEvent
+                {
+                    ExitCode = exitCode,
+                    UtcTicks = utcTicks,
+                    ExitKind = cloudBuildExitKind,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Logging DominoInvocation with an extra CloudBuild event
+        /// </summary>
+        public static void LogDominoInvocation(
+            LoggingContext context,
+            string commandLine,
+            BuildInfo buildInfo,
+            MachineInfo machineInfo,
+            string sessionIdentifier,
+            string relatedSessionIdentifier,
+            ExecutionEnvironment environment,
+            long utcTicks,
+            string logDirectory,
+            bool inCloudBuild,
+            string startupDirectory,
+            string mainConfigurationFile)
+        {
+            Logger.Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Logger.Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+
+            if (inCloudBuild)
+            {
+                // Sending a different event to CloudBuild ETW listener.
+                BuildXL.Tracing.CloudBuildEventSource.Log.DominoInvocationEvent(new BuildXL.Tracing.CloudBuild.DominoInvocationEvent
+                {
+                    UtcTicks = utcTicks,
+
+                    // Truncate the command line that gets to the CB event to avoid exceeding the max event payload of 64kb
+                    CommandLineArgs = commandLine?.Substring(0, Math.Min(commandLine.Length, 4 * 1024)),
+                    DominoVersion = buildInfo.CommitId,
+                    Environment = environment,
+                    LogDirectory = logDirectory,
+                });
+            }
+        }
+
+        /// <summary>
+        /// Scrubs the command line to make it amenable (short enough) to be sent to telemetry
+        /// </summary>
+        internal static string ScrubCommandLine(string rawCommandLine, int leadingChars, int trailingChars)
+        {
+            Contract.RequiresNotNull(rawCommandLine);
+            Contract.Requires(leadingChars >= 0);
+            Contract.Requires(trailingChars >= 0);
+
+            if (rawCommandLine.Length < leadingChars + trailingChars)
+            {
+                return rawCommandLine;
+            }
+
+            int indexOfBreakWithinPrefix = rawCommandLine.LastIndexOf(' ', leadingChars);
+            string prefix = indexOfBreakWithinPrefix == -1 ? rawCommandLine.Substring(0, leadingChars) : rawCommandLine.Substring(0, indexOfBreakWithinPrefix);
+            string breakMarker = indexOfBreakWithinPrefix == -1 ? "[...]" : " [...]";
+
+            int indexOfBreakWithinSuffix = rawCommandLine.IndexOf(' ', rawCommandLine.Length - trailingChars);
+            string suffix = indexOfBreakWithinSuffix == -1 ? rawCommandLine.Substring(rawCommandLine.Length - trailingChars) : rawCommandLine.Substring(indexOfBreakWithinSuffix, rawCommandLine.Length - indexOfBreakWithinSuffix);
+
+            return prefix + breakMarker + suffix;
         }
 
         /// <summary>
@@ -1710,7 +1796,7 @@ namespace BuildXL
         {
             if (m_appLoggingContext != null)
             {
-                BuildXL.Tracing.Logger.Log.UnexpectedCondition(m_appLoggingContext, condition);
+                BuildXL.Tracing.UnexpectedCondition.Log(m_appLoggingContext, condition);
             }
         }
 
@@ -2052,11 +2138,236 @@ namespace BuildXL
                         Value = engineRunDuration,
                     });
 
-                Logger.Log.AnalyzeAndLogPerformanceSummary(loggingContext, configuration, appPerfInfo);
+                AnalyzeAndLogPerformanceSummary(loggingContext, configuration, appPerfInfo);
             }
 
             return result.EngineState;
         }
+
+        /// <summary>
+        /// Analyzes and logs a performance summary. All of the data logged in this message is available in various places in
+        /// the standard and stats log. This just consolidates it together in a human consumable format
+        /// </summary>
+        public void AnalyzeAndLogPerformanceSummary(LoggingContext context, ICommandLineConfiguration config, AppPerformanceInfo perfInfo)
+        {
+            // Don't bother logging this stuff if we don't actually have the data
+            if (perfInfo == null || perfInfo.EnginePerformanceInfo == null || perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo == null)
+            {
+                return;
+            }
+
+            // Various heuristics for what caused the build to be slow.
+            using (var sbPool = Pools.GetStringBuilder())
+            {
+                SchedulerPerformanceInfo schedulerInfo = perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo;
+                Contract.RequiresNotNull(schedulerInfo);
+
+                long loadOrConstructGraph = perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs +
+                    perfInfo.EnginePerformanceInfo.GraphReloadDurationMs +
+                    perfInfo.EnginePerformanceInfo.GraphConstructionDurationMs;
+
+                // Log the summary
+
+                // High level
+                var graphConstruction = ComputeTimePercentage(loadOrConstructGraph, perfInfo.EngineRunDurationMs);
+                var appInitialization = ComputeTimePercentage(perfInfo.AppInitializationDurationMs, perfInfo.EngineRunDurationMs);
+                var scrubbing = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ScrubbingDurationMs, perfInfo.EngineRunDurationMs);
+                var schedulerInit = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.SchedulerInitDurationMs, perfInfo.EngineRunDurationMs);
+                var executePhase = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.ExecutePhaseDurationMs, perfInfo.EngineRunDurationMs);
+                var highLevelOther = Math.Max(0, 100 - appInitialization.Item1 - graphConstruction.Item1 - scrubbing.Item1 - schedulerInit .Item1 - executePhase.Item1);
+
+                // Graph construction
+                var checkingForPipGraphReuse = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphCacheCheckDurationMs, loadOrConstructGraph);
+                var reloadingPipGraph = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphReloadDurationMs, loadOrConstructGraph);
+                var createGraph = ComputeTimePercentage(perfInfo.EnginePerformanceInfo.GraphConstructionDurationMs, loadOrConstructGraph);
+                var graphConstructionOtherPercent = Math.Max(0, 100 - checkingForPipGraphReuse.Item1 - reloadingPipGraph.Item1 - createGraph.Item1);
+
+                // Process Overhead
+                long allStepsDuration = 0;
+                foreach (var enumValue in Enum.GetValues(typeof(PipExecutionStep)))
+                {
+                    if (enumValue is PipExecutionStep step)
+                    {
+                        allStepsDuration += (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(step).TotalMilliseconds;
+                    }
+                }
+
+                // ExecuteProcessDuration comes from the PipExecutionCounters and is a bit tighter around the actual external
+                // process invocation than the corresponding counter in PipExecutionStepCounters;
+                long allStepsMinusPipExecution = allStepsDuration - schedulerInfo.ExecuteProcessDurationMs;
+
+                var hashingInputs = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.Start).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var checkingForCacheHit = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.CacheLookup).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.CheckIncrementalSkip).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var processOutputs = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.PostProcess).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var replayFromCache = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.RunFromCache).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.MaterializeOutputs).TotalMilliseconds +
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.MaterializeInputs).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var prepareSandbox = ComputeTimePercentage(
+                    schedulerInfo.SandboxedProcessPrepDurationMs,
+                    allStepsMinusPipExecution);
+                var nonProcessPips = ComputeTimePercentage(
+                    (long)schedulerInfo.PipExecutionStepCounters.GetElapsedTime(PipExecutionStep.ExecuteNonProcessPip).TotalMilliseconds,
+                    allStepsMinusPipExecution);
+                var processOverheadOther = Math.Max(0, 100 - hashingInputs.Item1 - checkingForCacheHit.Item1 - processOutputs.Item1 - replayFromCache.Item1 - prepareSandbox.Item1 - nonProcessPips.Item1);
+
+                StringBuilder sb = new StringBuilder();
+                if (schedulerInfo.DiskStatistics != null)
+                {
+                    foreach (var item in schedulerInfo.DiskStatistics)
+                    {
+                        sb.AppendFormat("{0}:{1}% ", item.Drive, item.CalculateActiveTime(lastOnly: false));
+                    }
+                }
+
+                // The performance summary looks at counters that don't get aggregated and sent back to the master from
+                // all workers. So it only applies to single machine builds.
+                if (config.Distribution.BuildWorkers == null || config.Distribution.BuildWorkers.Count == 0)
+                {
+                    Logger.Log.DominoPerformanceSummary(
+                        context,
+                        processPipsCacheHit: (int)schedulerInfo.ProcessPipCacheHits,
+                        cacheHitRate: ComputeTimePercentage(schedulerInfo.ProcessPipCacheHits, schedulerInfo.TotalProcessPips).Item1,
+                        incrementalSchedulingPrunedPips: (int)schedulerInfo.ProcessPipIncrementalSchedulingPruned,
+                        incrementalSchedulingPruneRate: ComputeTimePercentage(schedulerInfo.ProcessPipIncrementalSchedulingPruned, schedulerInfo.TotalProcessPips).Item1,
+                        totalProcessPips: (int)schedulerInfo.TotalProcessPips,
+                        serverUsed: perfInfo.ServerModeUsed,
+                        graphConstructionPercent: graphConstruction.Item3,
+                        appInitializationPercent: appInitialization.Item3,
+                        scrubbingPercent: scrubbing.Item3,
+                        schedulerInitPercent: schedulerInit.Item3,
+                        executePhasePercent: executePhase.Item3,
+                        highLevelOtherPercent: highLevelOther,
+                        checkingForPipGraphReusePercent: checkingForPipGraphReuse.Item3,
+                        reloadingPipGraphPercent: reloadingPipGraph.Item3,
+                        createGraphPercent: createGraph.Item3,
+                        graphConstructionOtherPercent: graphConstructionOtherPercent,
+                        processExecutePercent: ComputeTimePercentage(schedulerInfo.ExecuteProcessDurationMs, allStepsDuration).Item1,
+                        telemetryTagsPercent: ComputeTelemetryTagsPerformanceSummary(schedulerInfo),
+                        processRunningPercent: ComputeTimePercentage(allStepsMinusPipExecution, allStepsDuration).Item1,
+                        hashingInputs: hashingInputs.Item1,
+                        checkingForCacheHit: checkingForCacheHit.Item1,
+                        processOutputs: processOutputs.Item1,
+                        replayFromCache: replayFromCache.Item1,
+                        prepareSandbox: prepareSandbox.Item1,
+                        processOverheadOther: processOverheadOther,
+                        nonProcessPips: nonProcessPips.Item1,
+                        averageCpu: schedulerInfo.AverageMachineCPU,
+                        minAvailableMemoryMb: (int)schedulerInfo.MachineMinimumAvailablePhysicalMB,
+                        diskUsage: sb.ToString(),
+                        limitingResourcePercentages: perfInfo.EnginePerformanceInfo.LimitingResourcePercentages ?? new LimitingResourcePercentages());
+                }
+
+                if (schedulerInfo.ProcessPipsUncacheable > 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.ProcessPipsUncacheable(context, schedulerInfo.ProcessPipsUncacheable));
+                }
+
+                // Make sure there were some misses since a complete noop with incremental scheduling shouldn't cause this to trigger
+                if (schedulerInfo.CriticalPathTableHits == 0 && schedulerInfo.CriticalPathTableMisses != 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.NoCriticalPathTableHits(context));
+                }
+
+                // Make sure some source files were hashed since a complete noop build with incremental scheduling shouldn't cause this to trigger
+                if (schedulerInfo.FileContentStats.SourceFilesUnchanged == 0 && schedulerInfo.FileContentStats.SourceFilesHashed != 0)
+                {
+                    LogPerfSmell(context, () => Logger.Log.NoSourceFilesUnchanged(context));
+                }
+
+                if (!perfInfo.ServerModeEnabled)
+                {
+                    LogPerfSmell(context, () => Logger.Log.ServerModeDisabled(context));
+                }
+
+                if (!perfInfo.EnginePerformanceInfo.GraphCacheCheckJournalEnabled)
+                {
+                    LogPerfSmell(context, () => Logger.Log.GraphCacheCheckJournalDisabled(context));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.CacheInitializationDurationMs > 5000)
+                {
+                    LogPerfSmell(context, () => Logger.Log.SlowCacheInitialization(context, perfInfo.EnginePerformanceInfo.CacheInitializationDurationMs));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.HitLowMemorySmell)
+                {
+                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.HitLowMemorySmell(context));
+                }
+
+                if (config.Sandbox.LogProcesses)
+                {
+                    LogPerfSmell(context, () => Logger.Log.LogProcessesEnabled(context));
+                }
+
+                if (perfInfo.EnginePerformanceInfo.FrontEndIOWeight > 5)
+                {
+                    LogPerfSmell(context, () => Logger.Log.FrontendIOSlow(context, perfInfo.EnginePerformanceInfo.FrontEndIOWeight));
+                }
+            }
+        }
+
+        private static string ComputeTelemetryTagsPerformanceSummary(SchedulerPerformanceInfo schedulerInfo)
+        {
+            string telemetryTagPerformanceSummary = string.Empty;
+            if (schedulerInfo != null && schedulerInfo.ProcessPipCountersByTelemetryTag != null && schedulerInfo.ExecuteProcessDurationMs > 0)
+            {
+                var elapsedTimesByTelemetryTag = schedulerInfo.ProcessPipCountersByTelemetryTag.GetElapsedTimes(PipCountersByGroup.ExecuteProcessDuration);
+
+                // TelemetryTag counters get incremented when a pip is cancelled due to ctrl-c or resource exhaustion. Make sure to include the total
+                // cancelled time in the denomenator when calculating the time percentage
+                var executeAndCancelledExecuteDuration = schedulerInfo.ExecuteProcessDurationMs + schedulerInfo.CanceledProcessExecuteDurationMs;
+
+                int percentagesTotal = 0;
+                telemetryTagPerformanceSummary = string.Join(Environment.NewLine, elapsedTimesByTelemetryTag.Select(
+                    elapedTime =>
+                    {
+                        var computedPercentages = ComputeTimePercentage((long)elapedTime.Value.TotalMilliseconds, executeAndCancelledExecuteDuration);
+                        percentagesTotal += computedPercentages.Item1;
+                        return string.Format("{0,-12}{1,-39}{2}%", string.Empty, elapedTime.Key, computedPercentages.Item1);
+                    }));
+
+                // Humans are picky about percentages adding up neatly to 100%. Make sure other accounts for any rounding slop
+                telemetryTagPerformanceSummary += string.Format("{0}{1,-12}{2,-39}{3}%{0}", Environment.NewLine, string.Empty, "Other:", 100 - percentagesTotal);
+            }
+
+            return telemetryTagPerformanceSummary;
+        }
+
+        private void LogPerfSmell(LoggingContext context, Action action)
+        {
+            if (m_firstSmell)
+            {
+                Logger.Log.BuildHasPerfSmells(context);
+                m_firstSmell = false;
+            }
+
+            action();
+        }
+
+        private bool m_firstSmell = true;
+
+        private static Tuple<int, string, string> ComputeTimePercentage(long numerator, long denominator)
+        {
+            int percent = 0;
+            if (denominator > 0)
+            {
+                percent = (int)(100.0 * numerator / denominator);
+            }
+
+            string time = (int)TimeSpan.FromMilliseconds(numerator).TotalSeconds + "sec";
+            string combined = percent + "% (" + time + ")";
+            return new Tuple<int, string, string>(percent, time, combined);
+        }
+
 
         private void ReportStatsForBuildSummary(AppPerformanceInfo appInfo)
         {

@@ -22,7 +22,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     public sealed class DScriptExprEvaluator : IExpressionEvaluator
     {
         // The logger is reused across invocations, so it needs to be cleared out before parsing/evaluation occurs
-        private readonly Logger m_logger = Logger.CreateLogger(preserveLogEvents: true, forwardDiagnosticsTo: null, notifyContextWhenErrorsAreLogged: false);
+        private readonly Logger m_logger = Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
         private static readonly ConfigurationImpl s_configuration = new ConfigurationImpl();
 

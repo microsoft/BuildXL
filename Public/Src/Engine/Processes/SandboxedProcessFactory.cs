@@ -6,8 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Operations;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Processes
@@ -272,6 +275,15 @@ namespace BuildXL.Processes
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Logs a process sub phase and ensures the time is recored in the Counters
+        /// </summary>
+        public static void LogSubPhaseDuration(LoggingContext context, Pip pip, SandboxedProcessCounters counter, TimeSpan duration, string extraInfo = "")
+        {
+            Counters.AddToCounter(counter, duration);
+            Logger.Log.LogPhaseDuration(context, pip.FormattedSemiStableHash, counter.ToString(), duration.ToString(), extraInfo);
         }
     }
 }

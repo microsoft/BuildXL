@@ -127,6 +127,13 @@ namespace BuildXL.LogGen
                     {
                         if (member is IMethodSymbol method)
                         {
+                            if (!method.IsAbstract && 
+                                method.MethodKind != MethodKind.Constructor && method.MethodKind != MethodKind.StaticConstructor &&  // okay to have constructores
+                                method.MethodKind != MethodKind.PropertyGet && method.MethodKind != MethodKind.PropertySet)  // okay to have properties (for now).
+                            {
+                                m_errorReport.ReportError(member, $"All methods must be abstract. Invalid method: {method.Name}");
+                            }
+
                             if (GetAttribute(method, errorsByFile, nameof(GeneratedEventAttribute), out var generatedEventData))
                             {
                                 if (!ParseAndValidateLogSite(method, generatedEventData, out var site))
@@ -320,7 +327,6 @@ namespace BuildXL.LogGen
 
             return true;
         }
-
 
         public bool TryParseLoggingDetailsAttribute(ISymbol symbolForError, AttributeData attributeData, out LoggingDetailsAttribute result)
         {

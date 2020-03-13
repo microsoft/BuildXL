@@ -99,7 +99,7 @@ namespace Test.BuildXL
                 var processPercent = (100.0 * done) / (total * 1.0);
                 var currentProgress = Convert.ToInt32(Math.Floor(processPercent));
 
-                global::BuildXL.Scheduler.Tracing.Logger.Log.LogPipStatus(LoggingContext,
+                global::BuildXL.Scheduler.Scheduler.LogPipStatus(LoggingContext,
                     pipsSucceeded: 10,
                     pipsFailed: 10,
                     pipsSkippedDueToFailedDependencies: 10,

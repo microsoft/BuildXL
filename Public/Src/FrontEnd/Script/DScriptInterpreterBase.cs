@@ -72,7 +72,7 @@ namespace BuildXL.FrontEnd.Script
 
             Name = "DScript";
             FrontEndStatistics = statistics;
-            Logger = logger ?? Logger.CreateLogger();
+            Logger = logger ?? Logger.CreateLoggerWithTracking();
             Statistics = new EvaluationStatistics();
         }
 

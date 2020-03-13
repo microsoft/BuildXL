@@ -55,7 +55,7 @@ namespace Test.DScript.Ast.PartialEvaluation
 
         public WorkspaceEvaluationHelper(string testOutputDirectory, FrontEndContext context = null, bool forTesting = false)
         {
-            AstLogger = global::BuildXL.FrontEnd.Script.Tracing.Logger.CreateLogger(preserveLogEvents: true);
+            AstLogger = global::BuildXL.FrontEnd.Script.Tracing.Logger.CreateLoggerWithTracking(preserveLogEvents: true);
             FrontEndLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(preserveLogEvents: true);
 
             var pathTable = new PathTable();

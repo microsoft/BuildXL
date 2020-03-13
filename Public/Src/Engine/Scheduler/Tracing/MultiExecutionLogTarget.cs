@@ -99,7 +99,7 @@ namespace BuildXL.Scheduler.Tracing
                     {
                         // FingerprintStore sometimes throws when we are logging an event.
                         // Log the even for further investigation, but do not crash the build.
-                        BuildXL.Tracing.Logger.Log.UnexpectedCondition(
+                        BuildXL.Tracing.UnexpectedCondition.Log(
                             fpStoreTarget.LoggingContext,
                             $"An exception occurred while logging '{data.GetType()}' to FingerrintStore:{Environment.NewLine}{e.ToStringDemystified()}");
                     }

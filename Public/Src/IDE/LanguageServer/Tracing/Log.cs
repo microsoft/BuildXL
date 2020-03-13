@@ -26,14 +26,6 @@ namespace BuildXL.Ide.LanguageServer.Tracing
         internal Logger()
         { }
 
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        public static Logger CreateLogger()
-        {
-            return new LoggerImpl();
-        }
-
         [GeneratedEvent(
             (ushort)LogEventId.LanguageServerStarted,
             EventGenerators = EventGenerators.LocalAndTelemetry,

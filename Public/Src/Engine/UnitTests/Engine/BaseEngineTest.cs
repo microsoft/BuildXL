@@ -16,7 +16,6 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -66,7 +65,7 @@ namespace Test.BuildXL.Engine
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
-            ParseAndEvaluateLogger = Logger.CreateLogger();
+            ParseAndEvaluateLogger = Logger.CreateLoggerWithTracking();
             InitializationLogger = InitializationLogger.CreateLogger();
 
             var pathTable = new PathTable();

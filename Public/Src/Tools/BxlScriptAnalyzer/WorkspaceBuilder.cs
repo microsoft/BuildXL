@@ -540,7 +540,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             IFrontEndConfiguration configuration,
             PathTable pathTable)
         {
-            var logger = BuildXL.FrontEnd.Script.Tracing.Logger.CreateLogger(preserveLogEvents: true);
+            var logger = BuildXL.FrontEnd.Script.Tracing.Logger.CreateLoggerWithTracking(preserveLogEvents: true);
 
             var linter = DiagnosticAnalyzer.Create(
                 logger,

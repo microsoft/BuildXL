@@ -47,7 +47,7 @@ namespace Test.Tool.DScript.Analyzer
                 {
                     var errors = string.Join(Environment.NewLine, logger.CapturedDiagnostics.Select(d => d.Message));
                     Assert.True(success, "Expect to have successful run. Encountered:\r\n" + errors);
-                    Assert.False(logger.HasErrors(), "Expect to have no errors. Encountered:\r\n" + errors);
+                    Assert.False(logger.HasErrors, "Expect to have no errors. Encountered:\r\n" + errors);
 
                     var writer = new ScriptWriter();
                     var visitor = new DScriptPrettyPrintVisitor(writer, attemptToPreserveNewlinesForListMembers: true);
@@ -104,7 +104,7 @@ namespace Test.Tool.DScript.Analyzer
                 (success, logger, sourceFile) =>
                 {
                     Assert.False(success, "Expect to fail");
-                    Assert.True(logger.HasErrors(), "Expect to have errors");
+                    Assert.True(logger.HasErrors, "Expect to have errors");
 
                     var actualDiagnostics = logger.CapturedDiagnostics.Select(d => d.Message).ToArray();
                     Assert.Equal(expectedErrorMessages, actualDiagnostics);

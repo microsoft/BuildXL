@@ -4,9 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
-using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591
 #pragma warning disable CA1823 // Unused field
@@ -53,15 +51,6 @@ namespace BuildXL.Scheduler.Tracing
 
         #region PipExecutor
 
-        internal void PipWriteFileFailed(LoggingContext loggingContext, string pipDescription, string path, BuildXLException ex)
-        {
-            PipWriteFileFailed(loggingContext, pipDescription, path, ex.LogEventErrorCode, ex.LogEventMessage);
-        }
-
-        internal static string PipWriteFileFailedMessage(string pipDescription, string path, BuildXLException ex)
-        {
-            return I($"[{pipDescription}] Write file '{path}' failed with error code {ex.LogEventErrorCode:X8}: {ex.LogEventMessage}");
-        }
 
         [GeneratedEvent(
             (ushort)LogEventId.PipWriteFileFailed,
@@ -71,16 +60,6 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Write file '{path}' failed with error code {errorCode:X8}: {message}")]
         internal abstract void PipWriteFileFailed(LoggingContext loggingContext, string pipDescription, string path, int errorCode, string message);
-
-        internal void PipCopyFileFailed(
-            LoggingContext loggingContext,
-            string pipDescription,
-            string source,
-            string destination,
-            BuildXLException ex)
-        {
-            PipCopyFileFailed(loggingContext, pipDescription, source, destination, ex.LogEventErrorCode, ex.LogEventMessage);
-        }
 
         [GeneratedEvent(
             (ushort)LogEventId.PipCopyFileFailed,
@@ -1454,11 +1433,6 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{pipDescription}] Hash '{hash}' computed for prior output file '{relativeSourceFilePath}'")]
         internal abstract void ScheduleHashedOutputFile(LoggingContext loggingContext, string pipDescription, string relativeSourceFilePath, string hash);
 
-        internal void FailedToHashInputFile(LoggingContext loggingContext, string pipDescription, string path, BuildXLException ex)
-        {
-            FailedToHashInputFile(loggingContext, pipDescription, path, ex.LogEventErrorCode, ex.LogEventMessage);
-        }
-
         [GeneratedEvent(
             (ushort)LogEventId.FailedToHashInputFile,
             EventGenerators = EventGenerators.LocalOnly,
@@ -1737,107 +1711,6 @@ namespace BuildXL.Scheduler.Tracing
         #endregion
 
         #region Status updating
-
-        /// <summary>
-        /// We have 2 versions of this message for the sake of letting one be overwriteable and the other not.
-        /// Other than they should always stay identical. So to enforce that we have them reference the same
-        /// set of attribute arguments and go through the same method
-        /// </summary>
-        internal void LogPipStatus(
-            LoggingContext loggingContext,
-            long pipsSucceeded,
-            long pipsFailed,
-            long pipsSkippedDueToFailedDependencies,
-            long pipsRunning,
-            long pipsReady,
-            long pipsWaiting,
-            long pipsWaitingOnSemaphore,
-            long servicePipsRunning,
-            string perfInfoForConsole,
-            long pipsWaitingOnResources,
-            long procsExecuting,
-            long procsSucceeded,
-            long procsFailed,
-            long procsSkippedDueToFailedDependencies,
-            long procsPending,
-            long procsWaiting,
-            long procsCacheHit,
-            long procsNotIgnored,
-            string limitingResource,
-            string perfInfoForLog,
-            bool overwriteable,
-            long copyFileDone,
-            long copyFileNotDone,
-            long writeFileDone,
-            long writeFileNotDone)
-        {
-            // Noop if no process information is included. This can happen for the last status event in a build using
-            // incremental scheduling if it goes through the codepath where zero files changed. All other codepaths
-            // compute the actual process count and can be logged
-            if (procsExecuting + procsSucceeded + procsFailed + procsSkippedDueToFailedDependencies + procsPending + procsWaiting + procsCacheHit == 0)
-            {
-                return;
-            }
-
-            if (overwriteable)
-            {
-                PipStatus(
-                    loggingContext,
-                    pipsSucceeded,
-                    pipsFailed,
-                    pipsSkippedDueToFailedDependencies,
-                    pipsRunning,
-                    pipsReady,
-                    pipsWaiting,
-                    pipsWaitingOnSemaphore,
-                    servicePipsRunning,
-                    perfInfoForConsole,
-                    pipsWaitingOnResources,
-                    procsExecuting,
-                    procsSucceeded,
-                    procsFailed,
-                    procsSkippedDueToFailedDependencies,
-                    procsPending,
-                    procsWaiting,
-                    procsCacheHit,
-                    procsNotIgnored,
-                    limitingResource,
-                    perfInfoForLog,
-                    copyFileDone,
-                    copyFileNotDone,
-                    writeFileDone,
-                    writeFileNotDone);
-            }
-            else
-            {
-                PipStatusNonOverwriteable(
-                    loggingContext,
-                    pipsSucceeded,
-                    pipsFailed,
-                    pipsSkippedDueToFailedDependencies,
-                    pipsRunning,
-                    pipsReady,
-                    pipsWaiting,
-                    pipsWaitingOnSemaphore,
-                    servicePipsRunning,
-                    perfInfoForConsole,
-                    pipsWaitingOnResources,
-                    procsExecuting,
-                    procsSucceeded,
-                    procsFailed,
-                    procsSkippedDueToFailedDependencies,
-                    procsPending,
-                    procsWaiting,
-                    procsCacheHit,
-                    procsNotIgnored,
-                    limitingResource,
-                    perfInfoForLog,
-                    copyFileDone,
-                    copyFileNotDone,
-                    writeFileDone,
-                    writeFileNotDone);
-            }
-        }
 
         /// <summary>
         /// Generally we feel that reporting the number of processes is the most externally useful data. The count

@@ -104,12 +104,12 @@ ghi");
 
             if (message == null)
             {
-                Assert.False(logger.HasErrors(), "Did not expect to encounter errors");
+                Assert.False(logger.HasErrors, "Did not expect to encounter errors");
             }
             else
             {
-                Assert.True(logger.HasErrors(), "Expected to encounter an error");
-                Assert.Equal(1, logger.ErrorCount());
+                Assert.True(logger.HasErrors, "Expected to encounter an error");
+                Assert.Equal(1, logger.ErrorCount);
                 var diagnostic = logger.CapturedDiagnostics[0];
                 var msg = OperatingSystemHelper.IsUnixOS ? diagnostic.Message.Replace("\r", "") : diagnostic.Message;
                 Assert.Equal(message, msg);

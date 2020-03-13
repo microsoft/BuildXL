@@ -1,12 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Threading;
-using BuildXL.FrontEnd.Sdk.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -25,91 +20,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
     [LoggingDetails("DScriptLogger")]
     public abstract partial class Logger : LoggerBase
     {
-        private Logger? m_forwardDiagnosticsTo;
-        private int m_errorCount;
-
-        private readonly ConcurrentBag<ILogMessageObserver> m_messageObservers = new ConcurrentBag<ILogMessageObserver>();
-
         // Internal logger will prevent public users from creating an instance of the logger
         internal Logger()
         { }
-
-        /// <summary>
-        /// True when at least one error occurred.
-        /// </summary>
-        public bool HasErrors => ErrorCount != 0;
-
-        /// <summary>
-        /// Returns number of errors.
-        /// </summary>
-        public int ErrorCount => m_errorCount;
-
-        /// <nodoc />
-        public bool PreserveLogEvents => m_preserveLogEvents;
-
-        /// <summary>
-        /// Factory method that creates instances of the logger.
-        /// </summary>
-        /// <param name="preserveLogEvents">When specified all logged events would be stored in the internal data structure.</param>
-        /// <param name="forwardDiagnosticsTo">Logger to forward diagnostics to.</param>
-        /// <param name="notifyContextWhenErrorsAreLogged">Whether to notify the logging context that errors are logged.</param>
-        public static Logger CreateLogger(bool preserveLogEvents, Logger? forwardDiagnosticsTo = null, bool notifyContextWhenErrorsAreLogged = true)
-        {
-            return new LoggerImpl()
-            {
-                m_inspectMessageEnabled = true,
-                m_preserveLogEvents = preserveLogEvents,
-                m_forwardDiagnosticsTo = forwardDiagnosticsTo,
-                m_notifyContextWhenErrorsAreLogged = notifyContextWhenErrorsAreLogged,
-            };
-        }
-
-        /// <inheritdoc />
-        partial void InspectMessageCustom(int logEventId, EventLevel level, string message, Location? location)
-        {
-            m_forwardDiagnosticsTo?.InspectMessage(logEventId, level, message, location);
-
-            var diagnostic = new Diagnostic(logEventId, level, message, location);
-            foreach (var observer in m_messageObservers)
-            {
-                observer.OnMessage(diagnostic);
-            }
-
-            if (level.IsError())
-            {
-                Interlocked.Increment(ref m_errorCount);
-            }
-        }
-
-        /// <summary>
-        /// Tries to empty the collection of diagnostics.
-        /// </summary>
-        /// <returns>Whether it succeeded emptying the diagnostics</returns>
-        public bool TryClearCapturedDiagnostics()
-        {
-            while (!m_capturedDiagnostics.IsEmpty)
-            {
-                if (!m_capturedDiagnostics.TryDequeue(out Diagnostic result))
-                {
-                    return false;
-                }
-
-                if (result.Level.IsError())
-                {
-                    Interlocked.Decrement(ref m_errorCount);
-                }
-            }
-
-            return true;
-        }
-
-        public void AddObserver(ILogMessageObserver observer)
-        {
-            if (observer != null && !m_messageObservers.Contains(observer))
-            {
-                m_messageObservers.Add(observer);
-            }
-        }
 
         [GeneratedEvent(
             (ushort)LogEventId.ScriptDebugLog,
@@ -447,12 +360,6 @@ namespace BuildXL.FrontEnd.Script.Tracing
         /// The set of legal values
         /// </summary>
         public string LegalValues { get; set; }
-    }
-
-    /// <nodoc />
-    public interface ILogMessageObserver
-    {
-        void OnMessage(Diagnostic diagnostic);
     }
 }
 

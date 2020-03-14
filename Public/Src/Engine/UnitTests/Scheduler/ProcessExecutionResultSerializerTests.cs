@@ -95,7 +95,8 @@ namespace Test.BuildXL.Scheduler
                 pathSet: null,
                 cacheLookupStepDurations: null,
                 pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
-                hasUserRetries: true);
+                hasUserRetries: true,
+                isCancelledDueToResourceExhaustion: false);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -153,7 +154,8 @@ namespace Test.BuildXL.Scheduler
                 r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length,
 
                 r => r.PipProperties.Count,
-                r => r.HasUserRetries
+                r => r.HasUserRetries,
+                r => r.IsCancelledDueToResourceExhaustion
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)

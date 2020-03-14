@@ -626,7 +626,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Gets the estimated memory counters for the process
         /// </summary>
-        public ProcessMemoryCounters GetExpectedMemoryCounters(ProcessRunnablePip runnableProcess)
+        public ProcessMemoryCounters GetExpectedMemoryCounters(ProcessRunnablePip runnableProcess, bool isCancelledDueToResourceExhaustion = false)
         {
             if (TotalRamMb == null || TotalCommitMb == null)
             {
@@ -643,11 +643,13 @@ namespace BuildXL.Scheduler.Distribution
 
             var expectedMemoryCounters = runnableProcess.ExpectedMemoryCounters.Value;
 
-            // 5% more to give some slack
+            // If the process is cancelled due to resource exhaustion, multiply the memory usage by 1.25; otherwise use the historic memory.
+            double multiplier = isCancelledDueToResourceExhaustion ? 1.25 : 1;
+
             return ProcessMemoryCounters.CreateFromMb(
-                peakVirtualMemoryUsageMb: (int) (expectedMemoryCounters.PeakVirtualMemoryUsageMb * 1.05),
-                peakWorkingSetMb: (int)(expectedMemoryCounters.PeakWorkingSetMb * 1.05),
-                peakCommitUsageMb: (int)(expectedMemoryCounters.PeakCommitUsageMb * 1.05));
+                peakVirtualMemoryUsageMb: (int) (expectedMemoryCounters.PeakVirtualMemoryUsageMb * multiplier),
+                peakWorkingSetMb: (int)(expectedMemoryCounters.PeakWorkingSetMb * multiplier),
+                peakCommitUsageMb: (int)(expectedMemoryCounters.PeakCommitUsageMb * multiplier));
         }
 
         /// <summary>

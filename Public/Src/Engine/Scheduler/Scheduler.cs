@@ -4014,7 +4014,7 @@ namespace BuildXL.Scheduler
                         }
 
                         // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
-                        var expectedCounters = worker.GetExpectedMemoryCounters(processRunnable);
+                        var expectedCounters = worker.GetExpectedMemoryCounters(processRunnable, executionResult.IsCancelledDueToResourceExhaustion);
                         var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
                         processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
                             peakVirtualMemoryUsageMb: Math.Max(expectedCounters.PeakVirtualMemoryUsageMb, actualCounters?.PeakVirtualMemoryUsageMb ?? 0),

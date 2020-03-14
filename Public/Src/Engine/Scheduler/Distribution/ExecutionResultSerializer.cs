@@ -157,6 +157,7 @@ namespace BuildXL.Scheduler.Distribution
 
             var pipProperties = ReadPipProperties(reader);
             var hasUserRetries = reader.ReadBoolean();
+            var isCancelledDueToResourceExhaustion = reader.ReadBoolean();
 
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
@@ -179,7 +180,8 @@ namespace BuildXL.Scheduler.Distribution
                 pathSet,
                 cacheLookupCounters,
                 pipProperties,
-                hasUserRetries);
+                hasUserRetries,
+                isCancelledDueToResourceExhaustion);
 
             return processExecutionResult;
         }
@@ -242,6 +244,7 @@ namespace BuildXL.Scheduler.Distribution
 
             WritePipProperties(writer, result.PipProperties);
             writer.Write(result.HasUserRetries);
+            writer.Write(result.IsCancelledDueToResourceExhaustion);
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)

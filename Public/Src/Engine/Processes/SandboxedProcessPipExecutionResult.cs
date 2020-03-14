@@ -311,6 +311,11 @@ namespace BuildXL.Processes
         /// </summary>
         public bool HadUserRetries { get; set; }
 
+        /// <summary>
+        /// Whether it is cancelled due to resource exhaustion
+        /// </summary>
+        public bool IsCancelledDueToResourceExhaustion { get; set; }
+
 
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(

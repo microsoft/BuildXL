@@ -1588,6 +1588,8 @@ namespace BuildXL.Scheduler
 
                             counters.DecrementCounter(PipExecutorCounter.ExternalProcessCount);
 
+                            result.IsCancelledDueToResourceExhaustion = resourceLimitCancellationToken.IsCancellationRequested;
+
                             if (result.Status == SandboxedProcessPipExecutionStatus.Canceled)
                             {
                                 if (resourceLimitCancellationToken.IsCancellationRequested)

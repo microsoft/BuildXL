@@ -58,6 +58,7 @@ namespace BuildXL.Scheduler
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
+        private bool m_isCancelledDueToResourceExhaustion;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -399,6 +400,17 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Whether it is cancelled due to resource exhaustion
+        /// </summary>
+        public bool IsCancelledDueToResourceExhaustion
+        {
+            get
+            {
+                return m_isCancelledDueToResourceExhaustion;
+            }
+        }
+
+        /// <summary>
         /// Returns any pip properties (with their counts) extracted from the process output
         /// </summary>
         public IReadOnlyDictionary<string, int> PipProperties
@@ -436,7 +448,8 @@ namespace BuildXL.Scheduler
             ObservedPathSet? pathSet,
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
-            bool hasUserRetries)
+            bool hasUserRetries,
+            bool isCancelledDueToResourceExhaustion)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -463,7 +476,8 @@ namespace BuildXL.Scheduler
                     m_pathSet = pathSet,
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
-                    m_hasUserRetries = hasUserRetries
+                    m_hasUserRetries = hasUserRetries,
+                    m_isCancelledDueToResourceExhaustion = isCancelledDueToResourceExhaustion
                 };
             return processExecutionResult;
         }
@@ -505,7 +519,8 @@ namespace BuildXL.Scheduler
                 pathSet: convergedCacheResult.PathSet,
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
-                HasUserRetries);
+                HasUserRetries,
+                IsCancelledDueToResourceExhaustion);
         }
 
         /// <summary>
@@ -537,7 +552,8 @@ namespace BuildXL.Scheduler
                 PathSet,
                 CacheLookupPerfInfo,
                 PipProperties,
-                HasUserRetries);
+                HasUserRetries,
+                IsCancelledDueToResourceExhaustion);
         }
 
         /// <summary>
@@ -583,6 +599,7 @@ namespace BuildXL.Scheduler
             m_numberOfWarnings = executionResult.NumberOfWarnings;
             m_pipProperties = executionResult.PipProperties;
             m_hasUserRetries = executionResult.HadUserRetries;
+            m_isCancelledDueToResourceExhaustion = executionResult.IsCancelledDueToResourceExhaustion;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
         }

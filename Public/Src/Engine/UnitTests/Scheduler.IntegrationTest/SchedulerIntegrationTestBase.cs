@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
+using BuildXL.App.Tracing;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine;
@@ -428,7 +429,7 @@ namespace Test.BuildXL.Scheduler
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
             // be validated against the LoggingContext to make sure the scheduler's return result and error logging
             // are in agreement.
-            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest();
+            var localLoggingContext = BuildXLTestBase.CreateLoggingContextForTest(new AppLogger());
             var config = new CommandLineConfiguration(Configuration);
 
             // Populating the configuration may modify the configuration, so it should occur first.

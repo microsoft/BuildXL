@@ -121,7 +121,7 @@ namespace BuildXL.LogGen
                         return false;
                     }
 
-                    var loggingClass = new LoggingClass(loggingDetails.Name, symbol);
+                    var loggingClass = new LoggingClass(loggingDetails, symbol);
 
                     foreach (var member in symbol.GetMembers())
                     {
@@ -354,26 +354,76 @@ namespace BuildXL.LogGen
                 switch (argument.Key)
                 {
                     case nameof(LoggingDetailsAttribute.Name):
-                        var value = argument.Value.Value;
-                        if (value.GetType() != typeof(string))
+                        if (!ParseValue<string>(
+                            argument.Value, 
+                            symbolForError,
+                            value => string.IsNullOrEmpty(value) ? $"'{nameof(LoggingDetailsAttribute.Name)}' cannot be null or empty." : null,
+                            out var name))
                         {
-                            m_errorReport.ReportError(symbolForError, "Unsupported constructor argument type: '{0}'", argument.Value.Value.ToString());
-                            return false;
-                        }
-
-                        result.Name = (string)value;
-                        if (string.IsNullOrEmpty(result.Name))
-                        {
-                            m_errorReport.ReportError(symbolForError, $"Unsupported property '{nameof(LoggingDetailsAttribute.Name)}': Cannot be null or empty.");
                             result = null;
                             return false;
                         }
 
+                        result.Name = name;
+
                         break;
+                    case nameof(LoggingDetailsAttribute.InstanceBasedLogging):
+                        if (!ParseValue<bool>(
+                            argument.Value,
+                            symbolForError,
+                            _ => null,
+                            out var instanceBasedLogging))
+                        {
+                            result = null;
+                            return false;
+                        }
+
+                        result.InstanceBasedLogging = instanceBasedLogging;
+                        break;
+
+                    case nameof(LoggingDetailsAttribute.EmitDebuggingInfo):
+                        if (!ParseValue<bool>(
+                            argument.Value,
+                            symbolForError,
+                            _ => null,
+                            out var emitDebuggingInfo))
+                        {
+                            result = null;
+                            return false;
+                        }
+
+                        result.EmitDebuggingInfo = emitDebuggingInfo;
+                        break;
+
                     default:
                         m_errorReport.ReportError(symbolForError, $"Unsupported attribute property '{argument.Key}' with value '{argument.Value.Value.ToString()}'");
                         result = null;
                         return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool ParseValue<TResult>(TypedConstant argument, ISymbol symbolForError, Func<TResult, string> validate, out TResult result)
+        {
+            var value = argument.Value;
+            if (value.GetType() != typeof(TResult))
+            {
+                m_errorReport.ReportError(symbolForError, $"Unsupported argument '{value.ToString()}'. Argument is of  type: '{value.GetType().FullName}', expected: '{typeof(TResult).FullName}'.");
+                result = default(TResult);
+                return false;
+            }
+
+            result = (TResult)value;
+
+            if (validate != null)
+            {
+                var errorMessage = validate(result);
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    m_errorReport.ReportError(symbolForError, $"Unsupported argument. Invalid value: '{errorMessage}'.");
+                    return false;
                 }
             }
 

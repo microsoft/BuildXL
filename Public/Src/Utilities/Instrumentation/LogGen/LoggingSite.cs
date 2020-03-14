@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
+using System.Xml.Linq;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.CodeAnalysis;
 using EventGenerators = BuildXL.Utilities.Instrumentation.Common.Generators;
@@ -138,6 +139,14 @@ namespace BuildXL.LogGen
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Gets the doc comments for the generated logging methods.
+        /// </summary>
+        public string GetDocComment()
+        {
+            return $"{Level.ToString()} DX{Id:D4}: {SpecifiedMessageFormat}";
         }
 
         /// <summary>

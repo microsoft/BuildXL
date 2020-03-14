@@ -25,6 +25,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Strings = bxl.Strings;
+using Logger = BuildXL.App.Tracing.Logger;
 
 namespace BuildXL
 {

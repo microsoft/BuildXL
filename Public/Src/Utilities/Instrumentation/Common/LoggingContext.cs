@@ -115,6 +115,11 @@ namespace BuildXL.Utilities.Instrumentation.Common
         public bool IsAsyncLoggingEnabled => m_loggingQueue != null;
 
         /// <summary>
+        /// The single logger instance to use when calling logging methods.
+        /// </summary>
+        public readonly ILogger? Logger;
+
+        /// <summary>
         /// Errors logged by event ID.
         /// This will only be populated for the root context and should be exclusively accessed through <see cref="ErrorsLoggedById"/>.
         /// Lazy since most of the time there will be no errors.
@@ -135,7 +140,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <summary>
         /// Creates an instance of Context
         /// </summary>
-        public LoggingContext(Guid activityId, string? loggerComponentInfo, SessionInfo session, LoggingContext? parent = null, ILoggingQueue? loggingQueue = null)
+        public LoggingContext(Guid activityId, string? loggerComponentInfo, SessionInfo session, LoggingContext? parent = null, ILoggingQueue? loggingQueue = null, ILogger? logger = null)
         {
             // TODO: we want to always have a component info for debugging purposes.
             // However right now, PerformanceMeasurement and TimedBlock allow nulls and their behavior depends on whether this vaslue is null.
@@ -148,6 +153,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             Session = session;
             Parent = parent;
             m_loggingQueue = loggingQueue ?? parent?.m_loggingQueue;
+            Logger = logger ?? parent?.Logger;
         }
 
         /// <summary>
@@ -156,8 +162,9 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <param name="loggerComponentInfo">The component that calls the log, e.g. Class.Method.</param>
         /// <param name="environment">Identifies the environment the code is being run in, e.g., dev, test, prod.
         /// It is best to limit the variability of these identifiers if bucketing by them in SkypeRV's heuristics API</param>
-        public LoggingContext(string loggerComponentInfo, string? environment = null)
-            : this(Guid.NewGuid(), loggerComponentInfo, new SessionInfo(Guid.NewGuid().ToString(), environment ?? DefaultEnvironment, Guid.Empty))
+        /// <param name="logger">The logger instance to delegate to.</param>
+        public LoggingContext(string loggerComponentInfo, string? environment = null, ILogger? logger = null)
+            : this(Guid.NewGuid(), loggerComponentInfo, new SessionInfo(Guid.NewGuid().ToString(), environment ?? DefaultEnvironment, Guid.Empty), logger: logger)
         {
         }
 

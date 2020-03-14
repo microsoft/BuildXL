@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Xml.Linq;
 
 namespace BuildXL.Utilities.CodeGenerationHelper
 {
@@ -170,7 +171,7 @@ namespace BuildXL.Utilities.CodeGenerationHelper
         /// <param name="xmlComment">The XML comment needs to be written.</param>
         public void NormalizeAndWriteXmlComment(string xmlComment)
         {
-            NormalizeAndWriteComment(xmlComment, "///");
+            NormalizeAndWriteComment(new XText(xmlComment).ToString(), "///");
         }
 
         /// <summary>

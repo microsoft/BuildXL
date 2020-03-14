@@ -7,6 +7,11 @@ namespace CodeGenerationHelper {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Utilities.CodeGenerationHelper",
         sources: globR(d`.`, "*.cs"),
-        references: [$.dll],
+        references: [
+            ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Xml.Linq.dll
+            ),
+            $.dll
+        ],
     });
 }

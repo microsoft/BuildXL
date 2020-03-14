@@ -95,7 +95,15 @@ namespace BuildXL.LogGen
                         gen.Ln();
 
                         GenerateInterface(gen, loggingClass);
-                        GenerateLoggerInstance(gen, loggingClass, generatorMap);
+                        if (loggingClass.InstanceBasedLogging)
+                        {
+                            GenerateStaticLogMethods(gen, loggingClass, generatorMap);
+                        }
+                        else
+                        {
+                            GenerateLoggerInstance(gen, loggingClass, generatorMap);
+                        }
+                        
                         GenerateImplementations(gen, loggingClass, generatorMap);
                     }
                 }
@@ -114,7 +122,7 @@ namespace BuildXL.LogGen
         {
             gen.GenerateSummaryComment("Logger interface");
             gen.WriteGeneratedAttribute(includeCodeCoverageExclusion: false);
-            gen.Ln($"{GetAccessibilityString(loggingClass.Symbol.DeclaredAccessibility)} interface I{loggingClass.Name} : {GlobalInstrumentationNamespace}.ILogger");
+            gen.Ln($"{GetAccessibilityString(loggingClass.Symbol.DeclaredAccessibility)} interface {loggingClass.InterfaceName} : {GlobalInstrumentationNamespace}.ILogger");
             using (gen.Br)
             {
                 // Log methods
@@ -155,7 +163,7 @@ namespace BuildXL.LogGen
                 {
                     List<GeneratorBase> generators = generatorMap[site];
 
-                    gen.GenerateSummaryComment("Logging implementation");
+                    gen.GenerateSummaryComment(site.GetDocComment());
 
                     gen.Ln($"{GetAccessibilityString(site.Method.DeclaredAccessibility)} void {site.Method.Name}({GenerateParameterString(site, includeContext: true)})");
                     using (gen.Br)
@@ -167,48 +175,97 @@ namespace BuildXL.LogGen
             }
         }
 
+        private void GenerateStaticLogMethods(CodeGenerator gen, LoggingClass loggingClass, Dictionary<LoggingSite, List<GeneratorBase>> generatorMap)
+        {
+            var symbol = loggingClass.Symbol;
+            gen.Ln("namespace Logger");
+            using (gen.Br)
+            {
+                gen.GenerateSummaryComment("Static Logging class");
+                gen.WriteGeneratedAttribute();
+                gen.Ln($"{GetAccessibilityString(symbol.DeclaredAccessibility)} static class Log");
+                using (gen.Br)
+                {
+                    foreach (LoggingSite site in loggingClass.Sites)
+                    {
+                        List<GeneratorBase> generators = generatorMap[site];
+
+                        gen.GenerateSummaryComment(site.GetDocComment());
+
+                        gen.Ln($"{GetAccessibilityString(site.Method.DeclaredAccessibility)} static void {site.Method.Name}({GenerateParameterString(site, includeContext: true)})");
+                        using (gen.Br)
+                        {
+                            if (loggingClass.EmitDebuggingInfo)
+                            {
+                                gen.Ln($"if ({site.LoggingContextParameterName}.Logger as {loggingClass.InterfaceName} == null)");
+                                using (gen.Br)
+                                {
+                                    gen.Ln("System.Diagnostics.Debugger.Launch();");
+                                }
+                                gen.Ln();
+                            }
+
+                            gen.Ln($"(({loggingClass.InterfaceName}){site.LoggingContextParameterName}.Logger!).{site.Method.Name}({GenerateArgumentString(site, includeContext: true)});");
+                        }
+                        gen.Ln();
+                    }
+                }
+            }
+        }
+
         private void GenerateImplementations(CodeGenerator gen, LoggingClass loggingClass, Dictionary<LoggingSite, List<GeneratorBase>> generatorMap)
         {
             var symbol = loggingClass.Symbol;
+            var useInstanceBasedLogging = loggingClass.InstanceBasedLogging;
             gen.GenerateSummaryComment("Logging Instantiation");
             gen.WriteGeneratedAttribute();
-            gen.Ln(
-                "{0} partial class {1} : {2}.LoggerBase",
-                GetAccessibilityString(symbol.DeclaredAccessibility),
-                symbol.Name,
-                GlobalInstrumentationNamespace);
+            if (useInstanceBasedLogging)
+            {
+                gen.Ln($"{GetAccessibilityString(symbol.DeclaredAccessibility)} class {loggingClass.Name} : {GlobalInstrumentationNamespace}.LoggerBase, {loggingClass.InterfaceName}");
+            }
+            else
+            {
+                gen.Ln(
+                    "{0} partial class {1} : {2}.LoggerBase",
+                    GetAccessibilityString(symbol.DeclaredAccessibility),
+                    symbol.Name,
+                    GlobalInstrumentationNamespace);
+            }
             using (gen.Br)
             {
-                gen.Ln("static private Logger m_log = new {0}Impl();", symbol.Name);
-                gen.Ln();
-
-                gen.GenerateSummaryComment("Factory method that creates instances of the logger.");
-                gen.Ln($"public static {symbol.Name} CreateLogger(bool preserveLogEvents = false)");
-                using (gen.Br)
+                if (!useInstanceBasedLogging)
                 {
-                    gen.Ln($"return new {symbol.Name}Impl");
+                    gen.Ln("static private Logger m_log = new {0}Impl();", symbol.Name);
+                    gen.Ln();
+
+                    gen.GenerateSummaryComment("Factory method that creates instances of the logger.");
+                    gen.Ln($"public static {symbol.Name} CreateLogger(bool preserveLogEvents = false)");
                     using (gen.Br)
                     {
-                        gen.Ln("PreserveLogEvents = preserveLogEvents,");
-                        gen.Ln("InspectMessageEnabled = preserveLogEvents,");
+                        gen.Ln($"return new {symbol.Name}Impl");
+                        using (gen.Br)
+                        {
+                            gen.Ln("PreserveLogEvents = preserveLogEvents,");
+                            gen.Ln("InspectMessageEnabled = preserveLogEvents,");
+                        }
+                        gen.Ln(";");
                     }
-                    gen.Ln(";");
-                }
-                gen.Ln();
+                    gen.Ln();
 
-                gen.GenerateSummaryComment("Factory method that creates instances of the logger that tracks errors and allows for observers");
-                gen.Ln($"public static {symbol.Name} CreateLoggerWithTracking(bool preserveLogEvents = false)");
-                using (gen.Br)
-                {
-                    gen.Ln($"return new {symbol.Name}Impl");
+                    gen.GenerateSummaryComment("Factory method that creates instances of the logger that tracks errors and allows for observers");
+                    gen.Ln($"public static {symbol.Name} CreateLoggerWithTracking(bool preserveLogEvents = false)");
                     using (gen.Br)
                     {
-                        gen.Ln("PreserveLogEvents = preserveLogEvents,");
-                        gen.Ln("InspectMessageEnabled = true,");
+                        gen.Ln($"return new {symbol.Name}Impl");
+                        using (gen.Br)
+                        {
+                            gen.Ln("PreserveLogEvents = preserveLogEvents,");
+                            gen.Ln("InspectMessageEnabled = true,");
+                        }
+                        gen.Ln(";");
                     }
-                    gen.Ln(";");
+                    gen.Ln();
                 }
-                gen.Ln();
 
                 var notifyContextWhenErrorsAreLoggedIsUsed = false;
                 var notifyContextWhenWarningsAreLoggedIsUsed = false;
@@ -218,20 +275,29 @@ namespace BuildXL.LogGen
                     generator.GenerateAdditionalLoggerMembers();
                 }
 
-                gen.GenerateSummaryComment("Logging implementation");
-                gen.WriteGeneratedAttribute();
-                gen.Ln("private class {0}Impl: {0}", symbol.Name);
-                using (gen.Br)
+                if (!useInstanceBasedLogging)
+                {
+                    gen.GenerateSummaryComment("Logging implementation");
+                    gen.WriteGeneratedAttribute();
+                    gen.Ln("private class {0}Impl: {0}", symbol.Name);
+                }
+                using (useInstanceBasedLogging ? null : gen.Br)
                 {
                     foreach (LoggingSite site in loggingClass.Sites)
                     {
                         List<GeneratorBase> generators = generatorMap[site];
 
                         gen.GenerateSummaryComment("Logging implementation");
-                        
-                        var parametersWithContext = GenerateParameterString(site, includeContext: true);
 
-                        gen.Ln(I($"{GetAccessibilityString(site.Method.DeclaredAccessibility)} override void {site.Method.Name}({parametersWithContext})"));
+                        var parametersWithContext = GenerateParameterString(site, includeContext: true);
+                        if (useInstanceBasedLogging)
+                        {
+                            gen.Ln(I($"public void {site.Method.Name}({parametersWithContext})"));
+                        }
+                        else
+                        {
+                            gen.Ln(I($"{GetAccessibilityString(site.Method.DeclaredAccessibility)} override void {site.Method.Name}({parametersWithContext})"));
+                        }
                         using (gen.Br)
                         {
                             var argsWithContext = GenerateArgumentString(site, includeContext: true);
@@ -352,7 +418,7 @@ namespace BuildXL.LogGen
                     {
                         typeValue += "?";
                     }
-                    var defaultValue = parameter.HasExplicitDefaultValue 
+                    var defaultValue = parameter.HasExplicitDefaultValue
                         ? " = " + (parameter.ExplicitDefaultValue == null ? "null" : parameter.ExplicitDefaultValue.ToString())
                         : string.Empty;
                     return $"{modifier}{typeValue} {parameter.Name}{defaultValue}";
@@ -362,9 +428,9 @@ namespace BuildXL.LogGen
 
         public static string GenerateArgumentString(LoggingSite site, bool includeContext)
         {
-             var contextArgument = includeContext
-                ? site.LoggingContextParameterName + (site.Payload.Any() ? ", " : string.Empty)
-                : string.Empty;
+            var contextArgument = includeContext
+               ? site.LoggingContextParameterName + (site.Payload.Any() ? ", " : string.Empty)
+               : string.Empty;
 
             return contextArgument + string.Join(", ", site.Payload.Select(
                 parameter =>

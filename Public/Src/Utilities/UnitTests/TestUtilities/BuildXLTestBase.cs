@@ -497,9 +497,9 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Creates a LoggingContext for use by tests
         /// </summary>
-        public static LoggingContext CreateLoggingContextForTest()
+        public static LoggingContext CreateLoggingContextForTest(ILogger logger = null)
         {
-            return new LoggingContext(loggerComponentInfo: "BuildXLTest", environment: "BuildXLTest");
+            return new LoggingContext(loggerComponentInfo: "BuildXLTest", environment: "BuildXLTest", logger: logger);
         }
 
         /// <summary>

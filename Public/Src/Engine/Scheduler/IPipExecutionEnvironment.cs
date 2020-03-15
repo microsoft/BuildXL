@@ -204,6 +204,16 @@ namespace BuildXL.Scheduler
         /// Temp directory cleaner
         /// </summary>
         ITempCleaner TempCleaner { get; }
+
+        /// <summary>
+        /// Retruns the declared producer pip of <paramref name="artifact"/>, if one exists.
+        /// </summary>
+        bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer);
+
+        /// <summary>
+        /// Returns whether pip <paramref name="to"/> is reachable from pip <paramref name="from"/>
+        /// </summary>
+        bool IsReachableFrom(PipId from, PipId to);
     }
 
     /// <summary>

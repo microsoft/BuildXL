@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.FileSystem;
@@ -22,6 +23,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using RocksDbSharp;
 using static BuildXL.Utilities.FormattableStringEx;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -137,6 +139,9 @@ namespace BuildXL.Scheduler.Fingerprints
             where TEnv : IObservedInputProcessingEnvironment
         {
             Contract.Requires(!isCacheLookup ^ observedAccessedFileNames.IsValid);
+
+            var envAdapter = environment as ObservedInputProcessingEnvironmentAdapter;
+
             using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorProcessInternalDuration))
             using (var processingState = ObservedInputProcessingState.GetInstance())
             {
@@ -407,6 +412,29 @@ namespace BuildXL.Scheduler.Fingerprints
                             if (allowUndeclaredSourceReads)
                             {
                                 allowedUndeclaredSourceReads.Add(path);
+                            }
+                            // reclassify ExistingFileProbe as AbsentPathProbe if
+                            //   - file doesn't actually exist on disk
+                            //   - file is under an output directory
+                            //   - lazy shared opaque output deletion is disabled
+                            //   - the declared producer of the file is a pip downstream of the prober pip
+                            // reason:
+                            //   - access was originally classified as ExistingFileProbe despite the file being absent
+                            //     because the path is a declared ouput in the pip graph
+                            //   - however, if that path is under an opaque directory and lazy deletion is disabled,
+                            //     the file will always be scrubbed before the build so to this pip it will always be absent.
+                            else if (
+                                type == ObservedInputType.ExistingFileProbe &&
+                                envAdapter?.IsLazySODeletionEnabled == false &&
+                                !FileUtilities.FileExistsNoFollow(path.ToString(pathTable)) &&
+                                envAdapter.IsPathUnderOutputDirectory(path, out var isItSharedOpaque) &&
+                                isItSharedOpaque &&
+                                envAdapter.TryGetFileProducerPip(path, out var producerPipId) &&
+                                envAdapter.IsReachableFrom(from: pip.PipId, to: producerPipId))
+                            {
+                                environment.Counters.IncrementCounter(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput);
+                                observationTypes[i] = ObservedInputType.AbsentPathProbe;
+                                continue;
                             }
                             else if (type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe)
                             {
@@ -1585,6 +1613,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
         public ICacheConfiguration Configuration => m_env.Configuration.Cache;
 
+        public bool IsLazySODeletionEnabled => m_env.Configuration.Schedule.UnsafeLazySODeletion;
+
         public CounterCollection<PipExecutorCounter> Counters => m_env.Counters;
 
         public PipExecutionState.PipScopeState State => m_state;
@@ -1693,6 +1723,34 @@ namespace BuildXL.Scheduler.Fingerprints
         public bool IsPathUnderOutputDirectory(AbsolutePath path)
         {
             return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out _);
+        }
+
+        /// <summary>
+        /// <see cref="Pips.Graph.IPipGraphFileSystemView.IsPathUnderOutputDirectory(AbsolutePath, out bool)"/>
+        /// </summary>
+        internal bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItSharedOpaque)
+        {
+            return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out isItSharedOpaque);
+        }
+
+        /// <summary>
+        /// Returns the producer pip of a file at location <paramref name="filePath"/>, if one exists.
+        /// </summary>
+        internal bool TryGetFileProducerPip(AbsolutePath filePath, out PipId producer)
+        {
+            producer = PipId.Invalid;
+            var fileArtifact = m_env.PipGraphView.TryGetLatestFileArtifactForPath(filePath);
+            return 
+                fileArtifact.IsValid && 
+                m_env.TryGetProducerPip(fileArtifact, out producer);
+        }
+
+        /// <summary>
+        /// Returns if pip <paramref name="to"/> is reachable from pip <paramref name="from"/>.
+        /// </summary>
+        internal bool IsReachableFrom(PipId from, PipId to)
+        {
+            return m_env.IsReachableFrom(from: from, to: to);
         }
 
         /// <summary>

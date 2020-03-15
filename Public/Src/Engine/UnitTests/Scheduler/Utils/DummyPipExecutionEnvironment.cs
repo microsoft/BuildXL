@@ -707,6 +707,16 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
+
+        public bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsReachableFrom(PipId from, PipId to)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     internal sealed class DummyServiceManager : ServiceManager

@@ -380,6 +380,20 @@ namespace Test.BuildXL.Scheduler
                 return m_expectedWrittenContent[file];
             }
 
+            public bool TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer)
+            {
+                producer = PipId.Invalid;
+                if (artifact.IsDirectory) return false;
+                var found = m_producers.TryGetValue(artifact.FileArtifact, out var pip);
+                if (found) producer = pip.PipId;
+                return found;
+            }
+
+            public bool IsReachableFrom(PipId from, PipId to)
+            {
+                throw new NotImplementedException();
+            }
+
             public PipExecutionState State { get; }
 
             public PipTable PipTable { get; }

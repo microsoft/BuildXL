@@ -1196,6 +1196,12 @@ namespace BuildXL.Scheduler
         /// Number of times when the available commit is in the critical level.
         /// </summary>
         CriticalLowCommitMemory,
+
+        /// <summary>
+        /// Number of times ExistingFileProbe was reclassified as AbsentPathProbe due to path being both
+        /// an explicitly declared output and inside a shared opaque directory.
+        /// </summary>
+        ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput,
     }
 
     /// <summary>

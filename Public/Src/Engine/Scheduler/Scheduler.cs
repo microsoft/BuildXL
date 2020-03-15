@@ -4670,6 +4670,21 @@ namespace BuildXL.Scheduler
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !SandboxingWithKextEnabled ? null : SandboxConnection;
 
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.TryGetProducerPip(in FileOrDirectoryArtifact artifact, out PipId producer)
+        {
+            producer = PipGraph.TryGetProducer(in artifact);
+            return producer.IsValid;
+        }
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.IsReachableFrom(PipId from, PipId to)
+        {
+            return PipGraph.IsReachableFrom(from: from.ToNodeId(), to: to.ToNodeId());
+        }
+
         /// <summary>
         /// Content and metadata cache for prior pip outputs.
         /// </summary>

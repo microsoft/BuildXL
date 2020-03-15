@@ -1389,6 +1389,54 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
+        [MemberData(
+            nameof(CrossProduct),
+            new object[] { true, false },
+            new object[] { true, false })]
+        public void ProbeBeforeWriteIsAllowedWhenLazyDeletionIsDisabled(bool isLazyDeletionEnabled, bool areDependent)
+        {
+            Configuration.Schedule.UnsafeLazySODeletion = isLazyDeletionEnabled;
+
+            var sod = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "sod-read-cycle"));
+            var outFile = CreateOutputFileArtifact(root: sod, prefix: "sod-file");
+
+            var proberPip = CreateAndSchedulePipBuilder(new[]
+            {
+                // probe the file produced by its downstream pip
+                Operation.Probe(outFile, doNotInfer: true),
+
+                // some output
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            var producerBuilder = CreatePipBuilder(new[]
+            {
+                // establish dependency to prober
+                Operation.ReadFile(areDependent 
+                    ? proberPip.ProcessOutputs.GetOutputFiles().First()
+                    : CreateSourceFile()),
+
+                // produce the file the prober probed
+                Operation.WriteFile(outFile),
+            });
+            producerBuilder.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(producerBuilder);
+
+            var result = RunScheduler();
+            if (!isLazyDeletionEnabled && areDependent)
+            {
+                result.AssertSuccess();
+                result.AssertPipExecutorStatCounted(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput, 1);
+            }
+            else
+            {
+                result.AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            }
+        }
+
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void ProbingDirectoryUnderSharedOpaque(bool enableLazyOutputMaterialization)

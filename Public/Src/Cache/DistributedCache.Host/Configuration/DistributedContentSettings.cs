@@ -695,7 +695,6 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(-1, long.MaxValue)]
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
-
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;
 
@@ -711,6 +710,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
+        [DataMember]
+        public bool TraceProactiveCopy { get; set; } = false;
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
@@ -790,8 +792,8 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EnableProactiveReplication { get; set; } = false;
 
         [DataMember]
-        [Validation.Range(0, int.MaxValue)]
-        public int ProactiveReplicationDelaySeconds { get; set; } = 30;
+        [Validation.Range(0, double.MaxValue)]
+        public double ProactiveReplicationDelaySeconds { get; set; } = 30;
 
         [DataMember]
         [Validation.Range(0, int.MaxValue)]
@@ -802,7 +804,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
+        public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
 

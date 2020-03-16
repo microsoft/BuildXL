@@ -818,7 +818,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 var contentHash = contentHashes[i];
-                results.Add(new ContentHashWithSizeAndLocations(contentHash, entry.ContentSize, GetMachineList(contentHash, entry)));
+                results.Add(new ContentHashWithSizeAndLocations(contentHash, entry.ContentSize, GetMachineList(contentHash, entry), entry));
             }
 
             // Machine locations are resolved lazily by MachineList.

@@ -195,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     if (originalEntry != null)
                                     {
                                         // Existing entry was there. Merge the entries.
-                                        entry = MergeEntries(entry, originalEntry);
+                                        entry = ContentLocationEntry.MergeEntries(entry, originalEntry);
                                         results[indexedHash.Index] = entry;
                                         Interlocked.Increment(ref dualResultCount);
                                     }
@@ -224,21 +224,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 Counters[GlobalStoreCounters.GetBulk],
                 traceErrorsOnly: true);
-        }
-
-        private ContentLocationEntry MergeEntries(ContentLocationEntry entry, ContentLocationEntry originalEntry)
-        {
-            if (entry.IsMissing)
-            {
-                return originalEntry;
-            }
-
-            if (originalEntry.IsMissing)
-            {
-                return entry;
-            }
-
-            return entry.SetMachineExistence(originalEntry.Locations, exists: true); ;
         }
 
         /// <inheritdoc />

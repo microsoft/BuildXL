@@ -142,6 +142,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
+        public static ContentLocationEntry MergeEntries(ContentLocationEntry entry1, ContentLocationEntry entry2)
+        {
+            if (entry1 == null || entry1.IsMissing)
+            {
+                return entry2;
+            }
+
+            if (entry2 == null || entry2.IsMissing)
+            {
+                return entry1;
+            }
+
+            return new ContentLocationEntry(
+                entry1.Locations.SetExistence(entry2.Locations, true),
+                entry1.ContentSize,
+                UnixTime.Min(entry1.LastAccessTimeUtc, entry2.LastAccessTimeUtc),
+                UnixTime.Min(entry1.CreationTimeUtc, entry2.CreationTimeUtc));
+        }
+
+        /// <nodoc />
         public ContentLocationEntry Touch(UnixTime accessTime)
         {
             return new ContentLocationEntry(Locations, ContentSize, accessTime > LastAccessTimeUtc ? accessTime : LastAccessTimeUtc, CreationTimeUtc);
@@ -210,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override string ToString()
         {
-            return IsMissing ? "Missing location" : $"Count: {Locations.Count}, Size: {ContentSize}, Accessed at: {LastAccessTimeUtc}";
+            return IsMissing ? "Missing location" : $"Size: {ContentSize}b*{Locations.Count}, Created: {CreationTimeUtc}, Accessed at: {LastAccessTimeUtc}";
         }
     }
 }

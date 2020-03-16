@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 
@@ -19,6 +20,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public PushFileResult OutsideRingCopyResult { get; }
 
         /// <nodoc />
+        public ContentLocationEntry Entry { get; }
+
+        /// <nodoc />
         public static ProactiveCopyResult CopyNotRequiredResult { get; } = new ProactiveCopyResult();
 
         private ProactiveCopyResult()
@@ -27,12 +31,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
+        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, ContentLocationEntry entry)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
-            WasProactiveCopyNeeded = true;
+            // If either inside or outside ring performs copy, indicate that copy was needed
+            WasProactiveCopyNeeded = (ringCopyResult && ringCopyResult.Value)
+                || (outsideRingCopyResult && outsideRingCopyResult.Value);
+
             RingCopyResult = ringCopyResult;
             OutsideRingCopyResult = outsideRingCopyResult;
+            Entry = entry ?? ContentLocationEntry.Missing;
         }
 
         /// <nodoc />
@@ -46,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)
             {
                 return
-                    $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)} " +
+                    $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)}" +
                     $"RingMachineResult=[{ringCopyResult.GetSuccessOrErrorMessage()}] " +
                     $"OutsideRingMachineResult=[{outsideRingCopyResult.GetSuccessOrErrorMessage()}] ";
             }
@@ -60,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 return
                     $"RingMachineResult=[{ringCopyResult.GetSuccessOrDiagnostics()}] " +
-                    $"OutsideRingMachineResult=[{ringCopyResult.GetSuccessOrDiagnostics()}] ";
+                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetSuccessOrDiagnostics()}] ";
             }
 
             return null;
@@ -70,6 +78,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected override string GetSuccessString()
         {
             return WasProactiveCopyNeeded ? $"Success" : "Success: No copy needed";
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{base.ToString()} Entry=[{Entry}]";
         }
     }
 }

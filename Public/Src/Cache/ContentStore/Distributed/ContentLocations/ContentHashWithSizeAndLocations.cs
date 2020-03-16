@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 #nullable enable
 
@@ -30,6 +31,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public long Size { get; }
 
+        /// <summary>
+        /// Optional underlying entry
+        /// </summary>
+        public ContentLocationEntry? Entry { get; }
+
         /// <nodoc />
         public ContentHashWithSizeAndLocations(ContentHash contentHash, long size = -1)
         {
@@ -38,11 +44,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         }
 
         /// <nodoc />
-        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations)
+        public ContentHashWithSizeAndLocations(ContentHash contentHash, long size, IReadOnlyList<MachineLocation> locations, ContentLocationEntry? entry = null)
         {
             ContentHash = contentHash;
             Size = size;
             Locations = locations;
+            Entry = entry;
         }
 
         /// <inheritdoc />

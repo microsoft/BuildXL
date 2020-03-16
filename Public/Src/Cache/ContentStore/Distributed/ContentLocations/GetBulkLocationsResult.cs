@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Cache.ContentStore.Distributed
@@ -108,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Contract.Requires(left.ContentHash == right.ContentHash);
             Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
             var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>());
-            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList());
+            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList(), ContentLocationEntry.MergeEntries(left.Entry, right.Entry));
         }
 
         /// <summary>

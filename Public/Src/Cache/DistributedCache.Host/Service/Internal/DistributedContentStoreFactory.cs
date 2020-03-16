@@ -368,6 +368,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 DelayForProactiveReplication = TimeSpan.FromSeconds(distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
                 EnableProactiveReplication = distributedSettings.EnableProactiveReplication,
+                TraceProactiveCopy = distributedSettings.TraceProactiveCopy,
             };
 
             if (distributedSettings.EnableProactiveReplication && redisContentLocationStoreConfiguration.Checkpoint != null)

@@ -1208,7 +1208,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return UpdateContentTrackerWithNewReplicaAsync(context, hashesToEagerUpdate, cts, urgencyHint);
         }
 
-        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, bool tryBuildRing, ProactiveCopyReason reason, string path = null)
+        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(
+            OperationContext context, 
+            ContentHash hash, 
+            bool tryBuildRing, 
+            ProactiveCopyReason reason, 
+            string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -1217,7 +1222,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             return context.PerformOperationAsync(
                 Tracer,
-                traceErrorsOnly: true,
+                traceErrorsOnly: !Settings.TraceProactiveCopy,
                 operation: async () =>
                 {
                     try
@@ -1340,13 +1345,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             outsideRingCopyTask = Task.FromResult(new PushFileResult(hash, result: false));
                         }
 
-                        return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask);
+                        return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask, getLocationsResult.ContentHashesInfo[0].Entry);
                     }
                     finally
                     {
                         _pendingProactivePuts.Remove(hash);
                     }
-                });
+                },
+                extraEndMessage: r => $"Reason=[{reason}]");
         }
 
         private async Task<PushFileResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)

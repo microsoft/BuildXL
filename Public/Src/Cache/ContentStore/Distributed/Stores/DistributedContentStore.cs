@@ -153,7 +153,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Task<Result<ReadOnlyDistributedContentSession<T>>> CreateCopySession(Context context)
         {
             var sessionId = Guid.NewGuid();
-            
+
             var operationContext = OperationContext(context.CreateNested(sessionId, nameof(DistributedContentStore<T>)));
             return operationContext.PerformOperationAsync(_tracer,
                 async () =>
@@ -207,8 +207,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             await _contentLocationStore.StartupAsync(context).ThrowIfFailure();
 
             if (_settings.EnableProactiveReplication
-                &&_contentLocationStore is TransitioningContentLocationStore tcs 
-                && tcs.IsLocalLocationStoreEnabled 
+                && _contentLocationStore is TransitioningContentLocationStore tcs
+                && tcs.IsLocalLocationStoreEnabled
                 && InnerContentStore is ILocalContentStore localContentStore)
             {
                 await ProactiveReplicationAsync(context.CreateNested(nameof(DistributedContentStore<T>)), localContentStore, tcs).ThrowIfFailure();
@@ -245,9 +245,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             if (sessionResult)
             {
                 return await sessionResult.Value.ProactiveCopyIfNeededAsync(
-                    operationContext, 
-                    hash, 
-                    tryBuildRing: false, 
+                    operationContext,
+                    hash,
+                    tryBuildRing: false,
                     reason: ProactiveCopyReason.Replication);
             }
 
@@ -290,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         private Task<ProactiveReplicationResult> ProactiveReplicationIterationAsync(
-            OperationContext context, 
+            OperationContext context,
             ILocalContentStore localContentStore,
             TransitioningContentLocationStore contentLocationStore)
         {
@@ -311,54 +311,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var succeeded = 0;
                     var failed = 0;
                     var scanned = 0;
+                    var rejected = 0;
                     var delayTask = Task.CompletedTask;
                     var wasPreviousCopyNeeded = true;
+                    ContentEvictionInfo? lastVisited = default;
                     foreach (var content in contents)
                     {
                         context.Token.ThrowIfCancellationRequested();
 
+                        lastVisited = content;
+
                         scanned++;
 
-                        if (contentLocationStore.LocalLocationStore.Database.TryGetEntry(context, content.ContentHash, out var entry))
+                        if (content.ReplicaCount < _settings.ProactiveCopyLocationsThreshold)
                         {
-                            if (entry.Locations.Count < _settings.ProactiveCopyLocationsThreshold)
+                            if (wasPreviousCopyNeeded)
                             {
-                                if (wasPreviousCopyNeeded)
-                                {
-                                    await delayTask;
-                                    delayTask = Task.Delay(_settings.DelayForProactiveReplication, context.Token);
-                                }
+                                await delayTask;
+                                delayTask = Task.Delay(_settings.DelayForProactiveReplication, context.Token);
+                            }
 
-                                var result = await ProactiveCopyIfNeededAsync(context, content.ContentHash);
+                            var result = await ProactiveCopyIfNeededAsync(context, content.ContentHash);
 
-                                wasPreviousCopyNeeded = true;
-                                if (result.Succeeded)
+                            wasPreviousCopyNeeded = true;
+                            if (result.Succeeded)
+                            {
+                                if (result.WasProactiveCopyNeeded)
                                 {
-                                    if (result.WasProactiveCopyNeeded)
-                                    {
-                                        CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
-                                        succeeded++;
-                                    }
-                                    else
-                                    {
-                                        wasPreviousCopyNeeded = false;
-                                    }
+                                    CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
+                                    succeeded++;
                                 }
                                 else
                                 {
-                                    CounterCollection[Counters.ProactiveReplication_Failed].Increment();
-                                    failed++;
+                                    rejected++;
+                                    wasPreviousCopyNeeded = false;
                                 }
+                            }
+                            else
+                            {
+                                CounterCollection[Counters.ProactiveReplication_Failed].Increment();
+                                failed++;
+                            }
 
-                                if ((succeeded + failed) >= _settings.ProactiveReplicationCopyLimit)
-                                {
-                                    break;
-                                }
+                            if ((succeeded + failed) >= _settings.ProactiveReplicationCopyLimit)
+                            {
+                                break;
                             }
                         }
                     }
 
-                    return new ProactiveReplicationResult(succeeded, failed, localContent.Length, scanned);
+                    return new ProactiveReplicationResult(succeeded, failed, rejected, localContent.Length, scanned, lastVisited);
                 },
                 counter: CounterCollection[Counters.ProactiveReplication]);
         }
@@ -468,7 +470,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     return new CreateSessionResult<IReadOnlyContentSession>(session);
                 }
 
-            return new CreateSessionResult<IReadOnlyContentSession>(innerSessionResult, "Could not initialize inner content session with error");
+                return new CreateSessionResult<IReadOnlyContentSession>(innerSessionResult, "Could not initialize inner content session with error");
             });
         }
 
@@ -733,7 +735,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions)
         {
             var operationContext = OperationContext(context);
-            deleteOptions ??= new DeleteContentOptions() {DeleteLocalOnly = true};
+            deleteOptions ??= new DeleteContentOptions() { DeleteLocalOnly = true };
 
             return operationContext.PerformOperationAsync(Tracer,
                 async () =>

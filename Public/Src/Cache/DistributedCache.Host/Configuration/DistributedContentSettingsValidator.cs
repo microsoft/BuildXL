@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BuildXL.Cache.Host.Configuration
 {
-    internal static class DistributedContentSettingsValidator
+    public static class DistributedContentSettingsValidator
     {
         public static IReadOnlyList<string> Validate(this DistributedContentSettings settings)
         {

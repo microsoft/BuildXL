@@ -115,6 +115,24 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
+        public void CreateHardLinkFromFileWithDenyWrites()
+        {
+            // This test mimics an actual behavior:
+            // The content inside the cache is ackled with deny writes.
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var sourcePath = testDirectory.Path /  "source.txt";
+                var destinationPath = testDirectory.Path /  "destination.txt";
+                
+                FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
+                FileSystem.DenyFileWrites(sourcePath);
+
+                var result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
+                result.Should().Be(CreateHardLinkResult.Success, $"SourcePath='{sourcePath}', DestinationPath={destinationPath}");
+            }
+        }
+
+        [Fact]
         [Trait("Category", "WindowsOSOnly")] 
         public void CreateHardLinkResultsBasedOnDestinationDirectoryExistence()
         {
@@ -122,16 +140,15 @@ namespace ContentStoreTest.FileSystem
             {
                 var sourcePath = testDirectory.Path / "source.txt";
                 FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
-                FileUtilities.SetFileAccessControl(sourcePath.Path, FileSystemRights.Write | FileSystemRights.ReadAndExecute, false);
 
                 // Covering short path case
-                CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 10));
+                createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 10));
 
                 // Covering long path case
-                CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 200));
+                createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(testDirectory.Path, sourcePath, new string('a', 200));
             }
 
-            void CreateHardLinkResultsBasedOnDestinationDirectoryExistenceCore(AbsolutePath root, AbsolutePath sourcePath, string pathSegment)
+            void createHardLinkResultsBasedOnDestinationDirectoryExistenceCore(AbsolutePath root, AbsolutePath sourcePath, string pathSegment)
             {
                 var destinationPath = root / pathSegment / pathSegment / "destination.txt";
                 
@@ -149,7 +166,7 @@ namespace ContentStoreTest.FileSystem
 
                 FileSystem.CreateDirectory(destinationPath.Parent);
                 result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
-                Assert.Equal(CreateHardLinkResult.Success, result);
+                result.Should().Be(CreateHardLinkResult.Success, $"SourcePath='{sourcePath}', DestinationPath={destinationPath}");
             }
         }
 
@@ -228,21 +245,6 @@ namespace ContentStoreTest.FileSystem
                     var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(a);
                     exception.Message.Should().ContainAny("Handle was used by", "Did not find any actively running processes using the handle");
                 }
-            }
-        }
-
-        [Fact]
-        public void CreateHardLinkFromFileWithDenyWriteReadExecute()
-        {
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                var sourcePath = testDirectory.Path / "source.txt";
-                var destinationPath = testDirectory.Path / "destination.txt";
-                FileSystem.WriteAllBytes(sourcePath, ThreadSafeRandom.GetBytes(10));
-                FileUtilities.SetFileAccessControl(sourcePath.Path, FileSystemRights.Write | FileSystemRights.ReadAndExecute, false);
-
-                var result = FileSystem.CreateHardLink(sourcePath, destinationPath, false);
-                Assert.Equal(CreateHardLinkResult.Success, result);
             }
         }
 

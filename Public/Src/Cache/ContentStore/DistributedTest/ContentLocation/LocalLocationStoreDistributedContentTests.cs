@@ -1441,6 +1441,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
             ConfigureWithOneMaster(s =>
             {
+                s.LogReconciliationHashes = true;
+                s.UseContextualEntryDatabaseOperationLogging = true;
                 s.Unsafe_DisableReconciliation = false;
                 if (slowReconciliation)
                 {

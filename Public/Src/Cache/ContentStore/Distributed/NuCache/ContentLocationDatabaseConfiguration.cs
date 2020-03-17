@@ -101,6 +101,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Should be false for Content, true for Metadata.
         /// </remarks>
         public bool OnFailureDeleteExistingStoreAndRetry { get; set; } = false;
+
+        /// <summary>
+        /// Specifies whether the context operation guid is used when logging entry operations
+        /// </summary>
+        public bool UseContextualEntryOperationLogging { get; set; } = false;
     }
 
     /// <summary>

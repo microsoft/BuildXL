@@ -191,6 +191,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseMdmCounters { get; set; } = true;
 
+        [DataMember]
+        public bool UseContextualEntryDatabaseOperationLogging { get; set; } = false;
+
+        [DataMember]
+        public bool LogReconciliationHashes { get; set; } = false;
+
         /// <summary>
         /// The TTL of blobs in Redis. Setting to 0 will disable blobs.
         /// </summary>

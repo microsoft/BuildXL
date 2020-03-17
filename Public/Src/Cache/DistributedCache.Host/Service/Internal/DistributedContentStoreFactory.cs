@@ -156,6 +156,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var redisContentLocationStoreConfiguration = new RedisMemoizationStoreConfiguration
             {
+                LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
                 BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
@@ -193,6 +194,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase,
                     LogsKeepLongTerm = true,
+                    UseContextualEntryOperationLogging = _distributedSettings.UseContextualEntryDatabaseOperationLogging
                 };
 
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)

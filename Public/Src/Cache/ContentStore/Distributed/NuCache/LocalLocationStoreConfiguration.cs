@@ -195,6 +195,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool AllowSkipReconciliation { get; set; } = true;
 
         /// <summary>
+        /// Diagnostic purposes only (extremely verbose). Gets or sets whether to log hashes which are added/removed in reconcile events.
+        /// </summary>
+        public bool LogReconciliationHashes { get; set; } = false;
+
+        /// <summary>
         /// The amount of events that should be sent per reconciliation cycle.
         /// </summary>
         public int ReconciliationMaxCycleSize { get; set; } = 100000;

@@ -35,6 +35,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 
@@ -1484,6 +1485,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
 
                                     await reconciliationEventStore.ReconcileAsync(context, machineId, addedContent, removedContent).ThrowIfFailure();
+
+                                    if (Configuration.LogReconciliationHashes)
+                                    {
+                                        LogContentLocationOperations(
+                                            context,
+                                            $"{Tracer.Name}.ReconcileAsync",
+                                            addedContent.Select(s => (s.Hash, EntryOperation.AddMachine, OperationReason.Reconcile))
+                                                .Concat(removedContent.Select(s => (s, EntryOperation.RemoveMachine, OperationReason.Reconcile))));
+                                    }
                                 }
                                 finally
                                 {

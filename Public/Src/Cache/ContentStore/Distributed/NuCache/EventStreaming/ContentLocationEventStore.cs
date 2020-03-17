@@ -34,11 +34,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly ContentLocationEventStoreConfiguration _configuration;
 
         /// <summary>
-        /// Indicates the maximum amount of content which will be sent via events vs storage for reconcilation/update metadata entry.
+        /// Indicates the maximum amount of content which will be sent via events vs storage for reconcilation.
         /// If under threshold, the events are sent via standard event streaming pipeline
         /// If over threshold, the events are serialized to storage instead and a single event is sent with storage id.
         /// </summary>
         public const int LargeEventContentCountThreshold = 10000;
+
+        /// <summary>
+        /// Indicates the maximum amount of content which will be sent via events vs storage for update metadata entry.
+        /// If under threshold, the events are sent via standard event streaming pipeline
+        /// If over threshold, the events are serialized to storage instead and a single event is sent with storage id.
+        /// </summary>
+        public const int LargeUpdateMetadataEventHashCountThreshold = 5000;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; }
@@ -431,7 +438,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 Tracer,
                 async () =>
                 {
-                    if (data.Entry.ContentHashListWithDeterminism.ContentHashList?.Hashes.Count < LargeEventContentCountThreshold)
+                    if (data.Entry.ContentHashListWithDeterminism.ContentHashList?.Hashes.Count < LargeUpdateMetadataEventHashCountThreshold)
                     {
                         Publish(context, data);
                     }

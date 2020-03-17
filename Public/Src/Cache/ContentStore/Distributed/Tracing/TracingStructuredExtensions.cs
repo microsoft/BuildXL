@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
         /// <nodoc />
         public static void LogContentLocationOperations(
-            OperationContext context,
+            Context context,
             string tracerName,
             IEnumerable<(ShortHash hash, EntryOperation op, OperationReason reason)> operations)
         {
@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
                     sb.AppendSequence(page.Select(p => p.hash), (builder, hash) => hash.ToString(builder));
 
                     sb.Append("]");
-                    context.TraceDebug(sb.ToString());
+                    context.Debug(sb.ToString());
                 }
             }
         }

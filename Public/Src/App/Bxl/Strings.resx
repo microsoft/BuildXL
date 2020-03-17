@@ -246,6 +246,9 @@
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
   </data>
+   <data name="HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory" xml:space="preserve">
+    <value>When enabled, pips with duplicate temporary directories are allowed. Defaults to true.</value>
+  </data>
   <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
     <value>When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on.</value>
   </data>

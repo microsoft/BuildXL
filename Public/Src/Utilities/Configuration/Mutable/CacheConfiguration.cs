@@ -82,7 +82,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool AllowFetchingCachedGraphFromContentCache { get; set; }
-
+        
         /// <inheritdoc />
         public bool CacheGraph { get; set; }
 

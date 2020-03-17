@@ -165,5 +165,10 @@ namespace BuildXL.Utilities.Configuration
         /// Whether or not to use file content table.
         /// </summary>
         bool? UseFileContentTable { get; }
+
+        /// <summary>
+        /// Whether or not duplicate temporary directories are allowed between Pips.
+        /// </summary>
+        bool? AllowDuplicateTemporaryDirectory { get; }
     }
 }

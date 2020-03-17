@@ -400,12 +400,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             PipGraphBuilder.Build();
         }
 
-        [Theory(Skip = "Bug 1463540")]
-        [InlineData(TempArtifactType.AdditionalTempDirectory)]
-        [InlineData(TempArtifactType.TempDirectory)]
-        public void FailWhenTwoPipsHaveSameTempDirectory(int tempArtifactType)
+        /// <summary>
+        /// This tests verifies that multiple pips are unable to use same temporary directory according to flag.
+        /// </summary>
+        [Theory]
+        [InlineData(true,  TempArtifactType.AdditionalTempDirectory)]
+        [InlineData(false, TempArtifactType.AdditionalTempDirectory)]
+        [InlineData(true,  TempArtifactType.TempDirectory)]
+        [InlineData(false, TempArtifactType.TempDirectory)]
+        public void FailWhenTwoPipsHaveSameTempDirectory(bool allowDuplicateTemporaryDirectory, int tempArtifactType)
         {
-            Exception exception = null;
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = allowDuplicateTemporaryDirectory;
+            Exception caughtExpection = null;
             try
             {
                 CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut1);
@@ -413,12 +419,21 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 PipGraphBuilder.Build();
             }
-            catch (Exception ex)
+            catch(Exception e)
             {
-                exception = ex;
+                caughtExpection = e;
             }
 
-            XAssert.AreNotEqual(null, exception);
+            if (!allowDuplicateTemporaryDirectory)
+            {
+                AssertTrue(caughtExpection != null, "Expected PipGraph Builder Exception, but Graph built successfully");
+                AssertErrorEventLogged(LogEventId.MultiplePipsUsingSameTemporaryDirectory);
+            }
+            else
+            {
+                AssertTrue(caughtExpection == null, "Expected PipGraph Builder to pass, but Graph built failed with exception: " + caughtExpection?.Message);
+            }
+            
         }
 
         /// <summary>

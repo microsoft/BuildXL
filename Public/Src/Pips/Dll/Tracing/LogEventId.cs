@@ -82,5 +82,7 @@ namespace BuildXL.Pips.Tracing
 
         PerformanceDataCacheTrace = 14409,
         PipStaticFingerprint = 14410,
+
+        MultiplePipsUsingSameTemporaryDirectory = 14411,
     }
 }

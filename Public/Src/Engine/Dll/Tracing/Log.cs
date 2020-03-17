@@ -2755,6 +2755,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Tasks.Engine,
             Message = "Initializing VM: {message}")]
         internal abstract void InitializingVm(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeAllowDuplicateTemporaryDirectory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_AllowDuplicateTemporaryDirectory enabled: Duplicate temporary directory detection between pips is disabled.")]
+        public abstract void ConfigUnsafeAllowDuplicateTemporaryDirectory(LoggingContext context);
     }
 
     /// <summary>

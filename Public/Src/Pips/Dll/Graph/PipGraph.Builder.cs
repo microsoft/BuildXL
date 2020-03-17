@@ -162,6 +162,8 @@ namespace BuildXL.Pips.Graph
 
             private readonly PipStaticFingerprinter m_pipStaticFingerprinter;
 
+            private readonly ConcurrentDictionary<AbsolutePath, PipId> m_uniqueTempDirPaths = new ConcurrentDictionary<AbsolutePath, PipId>();
+
             /// <summary>
             /// Class constructor
             /// </summary>
@@ -1211,7 +1213,6 @@ namespace BuildXL.Pips.Graph
                 outputsByPath = new Dictionary<AbsolutePath, FileArtifact>(process.FileOutputs.Length);
                 var outputDirectorySet = new HashSet<AbsolutePath>();
 
-
                 // Process dependencies.
                 foreach (FileArtifact dependency in process.Dependencies)
                 {
@@ -2029,6 +2030,25 @@ namespace BuildXL.Pips.Graph
                         foreach (var tempDirectory in process.AdditionalTempDirectories)
                         {
                             TemporaryPaths.TryAdd(tempDirectory, process.PipId);
+                        }
+
+                        if (m_configuration.Engine.AllowDuplicateTemporaryDirectory == false) // The default is currently 'null' but we explicitly require the option to be turned off to validate duplicates
+                        {
+                            // Check if temp directories are unique between pips
+                            var tempDirs = process
+                                .AdditionalTempDirectories
+                                .Concat(process.TempDirectory.IsValid ? new[] { process.TempDirectory } : new AbsolutePath[] { })
+                                .Where(dir => dir.IsValid);
+
+                            foreach (var tempDir in tempDirs)
+                            {
+                                var existingPipId = m_uniqueTempDirPaths.GetOrAdd(tempDir, process.PipId);
+                                if (process.PipId != existingPipId)
+                                {
+                                    Logger.Log.MultiplePipsUsingSameTemporaryDirectory(LoggingContext, tempDir.ToString(Context.PathTable), process.PipId.ToString(), existingPipId.ToString());
+                                    return false;
+                                }
+                            }
                         }
                     }
 

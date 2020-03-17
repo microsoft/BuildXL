@@ -519,6 +519,10 @@ namespace BuildXL
 
             #region ExecutionControl
             hw.WriteOption(
+                "/unsafe_AllowDuplicateTemporaryDirectory[+|-]",
+                Strings.HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory);
+
+            hw.WriteOption(
                 "/incremental[+|-]",
                 Strings.HelpText_DisplayHelp_Incremental);
 

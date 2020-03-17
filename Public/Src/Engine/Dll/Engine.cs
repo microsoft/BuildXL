@@ -2312,6 +2312,7 @@ namespace BuildXL.Engine
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
                 { "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques", Logger.Log.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques },
                 { "unsafe_OptimizedAstConversion", Logger.Log.ConfigUnsafeOptimizedAstConversion },
+                { "unsafe_AllowDuplicateTemporaryDirectory", Logger.Log.ConfigUnsafeAllowDuplicateTemporaryDirectory },
             };
         }
 

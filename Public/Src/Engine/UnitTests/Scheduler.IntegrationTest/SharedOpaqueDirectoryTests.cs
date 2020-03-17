@@ -1720,6 +1720,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void NestedSharedOpaqueDirectories()
         {
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
             /*
                 PipA -> [sod] \ sodFile
                         [sod\subDir1] \ sodSubDir1File

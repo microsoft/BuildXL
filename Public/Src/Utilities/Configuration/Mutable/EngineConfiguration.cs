@@ -34,6 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
             UseFileContentTable = default;
+            AllowDuplicateTemporaryDirectory = null; // TODO: Change this default to false when all consumers have been updated (and change default value in help text)
         }
 
         /// <nodoc />
@@ -72,6 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStatistics = template.LogStatistics;
             TrackBuildsInUserFolder = template.TrackBuildsInUserFolder;
             UseFileContentTable = template.UseFileContentTable;
+            AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
         }
 
         /// <inheritdoc />
@@ -120,6 +122,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ReuseEngineState { get; set; }
+
+        /// <inheritdoc />
+        public bool? AllowDuplicateTemporaryDirectory { get; set; }
 
         /// <inheritdoc />
         public int BuildLockPollingIntervalSec { get; set; }

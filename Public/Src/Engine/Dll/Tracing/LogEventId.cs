@@ -112,6 +112,8 @@ namespace BuildXL.Engine.Tracing
         ConfigIgnoreCreateProcessReport = 939,
         ConfigProbeDirectorySymlinkAsDirectory = 940,
 
+        ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
+
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,
@@ -395,6 +397,7 @@ namespace BuildXL.Engine.Tracing
 
         LogAndRemoveEngineStateOnBuildFailure = 10011,
         CacheIsStillBeingInitialized = 13200,
+
         //was: StringTableConfiguration = 7127,
         // max 7200
     }

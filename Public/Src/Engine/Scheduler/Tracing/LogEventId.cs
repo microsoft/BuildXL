@@ -455,7 +455,7 @@ namespace BuildXL.Scheduler.Tracing
         ProcessRetries = 14504,
         ProcessPattern = 14505,
         OperationTrackerAssert = 14506,
-        
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

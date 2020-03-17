@@ -269,6 +269,7 @@ interface EngineConfiguration {
     maxRelativeOutputDirectoryLength?: number;
     cleanTempDirectories?: boolean;
     defaultFilter?: string;
+    allowDuplicateTemporaryDirectory? : boolean;
 }
 
 interface SandboxConfiguration {

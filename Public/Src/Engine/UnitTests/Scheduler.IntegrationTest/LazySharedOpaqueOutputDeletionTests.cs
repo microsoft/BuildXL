@@ -151,6 +151,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void TestPipAddedToGraphForcesEagerDeletion()
         {
+            Configuration.Engine.AllowDuplicateTemporaryDirectory = true;
             // Setup: PipA => sharedOpaqueDir; reset; reschedule PipA and add PipB => sharedOpaqueDir
             var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(TestPipAddedToGraphForcesEagerDeletion)}");
             var sodOutA = CreateOutputFileArtifact(sharedOpaqueDir, prefix: "PipA");

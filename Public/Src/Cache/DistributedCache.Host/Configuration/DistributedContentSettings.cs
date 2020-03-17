@@ -414,6 +414,10 @@ namespace BuildXL.Cache.Host.Configuration
         public double? PinRisk { get; set; }
 
         [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? PinMinUnverifiedCount { get; set; }
+
+        [DataMember]
         [Validation.Range(0, 1, minInclusive: false, maxInclusive: false)]
         public double? MachineRisk { get; set; }
 

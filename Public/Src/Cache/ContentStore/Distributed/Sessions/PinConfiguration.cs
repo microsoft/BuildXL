@@ -15,6 +15,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public double PinRisk { get; set; } = 1.0E-5;
 
         /// <summary>
+        /// Minimum number of records to proceed with a pin without record verification
+        /// </summary>
+        public int? PinMinUnverifiedCount { get; set; }
+
+        /// <summary>
         /// Gets or sets the presumed risk of a machine being inaccessible.
         /// </summary>
         public double MachineRisk { get; set; } = 0.02;

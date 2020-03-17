@@ -47,6 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             GetLocationsSatisfiedFromLocal,
             GetLocationsSatisfiedFromRemote,
+            PinUnverifiedCountSatisfied,
             ProactiveCopy_OutsideRingFromPreferredLocations
         }
 
@@ -1005,42 +1006,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return DistributedPinResult.Success($"{locations.Count} replicas (global succeeds)");
             }
 
-            // Calculate the minimum number of remote verified and unverified copies for us to
-            // return a successful pin at the given risk level.
-            ComputePinThresholds(remote, Settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
-            Contract.Assert(minVerifiedCount > 0);
-            Contract.Assert(minUnverifiedCount >= minVerifiedCount);
-
-            // If we have enough records globally, we are satisfied without further action.
-            if (locations.Count >= minUnverifiedCount)
+            // TODO (minlam): Transitional phase, we will be removing the logic that uses PinRisk to compute MinVerifiedCount, MinUnverifiedCount, and PinCacheTimeToLive
+            if (Settings.PinConfiguration.PinMinUnverifiedCount.HasValue)
             {
-                _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
-                return DistributedPinResult.Success($"{locations.Count} replicas");
+                var minUnverifiedCount = Settings.PinConfiguration.PinMinUnverifiedCount.Value;
+                if (locations.Count >= minUnverifiedCount)
+                {
+                    _counters[Counters.PinUnverifiedCountSatisfied].Increment();
+                    return DistributedPinResult.Success($"Replica Count={locations.Count}");
+                }
+
             }
-
-            // If we have enough records that we would be satisfied if they were verified, verify them.
-            // Skip this step if no IO slots are available; if we would have to spend time waiting on them, we might as well just move on to copying.
-            if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
+            else
             {
-                var verify = await VerifyAsync(operationContext, remote, cancel);
+                // Calculate the minimum number of remote verified and unverified copies for us to
+                // return a successful pin at the given risk level.
+                ComputePinThresholds(remote, Settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
+                Contract.Assert(minVerifiedCount > 0);
+                Contract.Assert(minUnverifiedCount >= minVerifiedCount);
 
-                if (verify.Present.Count >= minVerifiedCount)
+                // If we have enough records globally, we are satisfied without further action.
+                if (locations.Count >= minUnverifiedCount)
                 {
-                    return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
+                    _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
+                    return DistributedPinResult.Success($"{locations.Count} replicas");
                 }
 
-                if (verify.Present.Count == 0 && verify.Unknown.Count == 0 && isLocal)
+                // If we have enough records that we would be satisfied if they were verified, verify them.
+                // Skip this step if no IO slots are available; if we would have to spend time waiting on them, we might as well just move on to copying.
+                if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
                 {
-                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
-                    return PinResult.ContentNotFound;
+                    var verify = await VerifyAsync(operationContext, remote, cancel);
+
+                    if (verify.Present.Count >= minVerifiedCount)
+                    {
+                        return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
+                    }
+
+                    if (verify.Present.Count == 0 && verify.Unknown.Count == 0 && isLocal)
+                    {
+                        Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
+                        return PinResult.ContentNotFound;
+                    }
+
+                    // We are going to try to copy. Have the copier try the verified present locations first, then the unknown locations.
+                    // Don't give it the verified absent locations.
+                    List<MachineLocation> newLocations = new List<MachineLocation>();
+                    newLocations.AddRange(verify.Present);
+                    newLocations.AddRange(verify.Unknown);
+                    remote = new ContentHashWithSizeAndLocations(remote.ContentHash, remote.Size, newLocations);
                 }
 
-                // We are going to try to copy. Have the copier try the verified present locations first, then the unknown locations.
-                // Don't give it the verified absent locations.
-                List<MachineLocation> newLocations = new List<MachineLocation>();
-                newLocations.AddRange(verify.Present);
-                newLocations.AddRange(verify.Unknown);
-                remote = new ContentHashWithSizeAndLocations(remote.ContentHash, remote.Size, newLocations);
             }
 
             if (isLocal)

@@ -318,6 +318,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 pinConfiguration = new PinConfiguration();
                 ApplyIfNotNull(distributedSettings.PinRisk, v => pinConfiguration.PinRisk = v);
+                ApplyIfNotNull(distributedSettings.PinMinUnverifiedCount, v => pinConfiguration.PinMinUnverifiedCount = v);
                 ApplyIfNotNull(distributedSettings.MachineRisk, v => pinConfiguration.MachineRisk = v);
                 ApplyIfNotNull(distributedSettings.FileRisk, v => pinConfiguration.FileRisk = v);
                 ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);

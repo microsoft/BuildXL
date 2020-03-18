@@ -22,10 +22,10 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
-using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using static BuildXL.Scheduler.Tracing.FingerprintStoreTestHooks;
 using BuildXL.Scheduler.Fingerprints;
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.FingerprintStore
 {
@@ -562,6 +562,60 @@ namespace Test.BuildXL.FingerprintStore
             XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out cacheMiss));
             XAssert.Contains(cacheMiss.DetailAndResult.Detail.Info.ToString(), srcFile3.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable));
             XAssert.ContainsNot(cacheMiss.DetailAndResult.Detail.Info.ToString(), RepeatedStrings.MissingDirectoryMembershipFingerprint);
+        }
+
+        [Fact]
+        public void FailurePipCachemissAnalysisTest()
+        {
+            var inFile = CreateSourceFile();
+            var outFile = CreateOutputFileArtifact();
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(inFile),
+                Operation.WriteFile(outFile),
+                Operation.Fail()
+            });
+            SchedulePipBuilder(builderA);
+            RunScheduler().AssertFailure();
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(inFile),
+                Operation.WriteFile(outFile),
+            });
+
+            ResetPipGraphBuilder();
+
+            var pip = SchedulePipBuilder(builderB).Process;
+            RunScheduler(m_testHooks).AssertCacheMiss();
+
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.PipId, out var cacheMiss));
+            XAssert.AreEqual(cacheMiss.DetailAndResult.Result, CacheMissAnalysisResult.MissingFromOldBuild);
+        }
+
+        /// <summary>
+        /// Cachemiss analysis won't perform for fail pips. 
+        /// We don't know at which point the pip will fail. 
+        /// The ProcessFingerprintComputationData can be incomplete. 
+        /// Performing cache miss analysis with incomplete data can give misleading result to users.
+        /// </summary>
+        [Fact]
+        public void MissDueToFailedPipInPreviousBuildHasAnalysisOutput()
+        {
+            var failPip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.Fail(),
+            }).Process;
+
+            // Both builds will fail to cache any output to the cache due to the pip failure
+            var buildA = RunScheduler().AssertFailure();
+            var buildB = RunScheduler().AssertFailure();
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, 2);
+
+            XAssert.IsFalse(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(failPip.PipId, out var cacheMiss));
         }
 
         private void MakeTwoPhaseCacheForgetEverything()

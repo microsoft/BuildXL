@@ -1882,7 +1882,11 @@ namespace BuildXL.Scheduler
 
                 // Log the fingerprint computation
                 start = DateTime.UtcNow;
-                environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
+                if (succeeded)
+                {
+                    environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
+                }
+
                 LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseStoringStrongFingerprintToXlg, DateTime.UtcNow.Subtract(start));
 
                 if (!outputHashSuccess)

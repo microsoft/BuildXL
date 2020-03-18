@@ -72,6 +72,11 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         public List<MsbuildFile> ProjectReferences { get; private set; }
 
+        /// <summary>
+        /// The Sdk to emit
+        /// </summary>
+        public string Sdk { get; protected set;}
+
         internal MsbuildFile(
             Context context,
             AbsolutePath specFilePath,
@@ -114,7 +119,7 @@ namespace BuildXL.Ide.Generator
         internal Project CreateProject(Process process)
         {
             var project = new Project(process.Provenance.QualifierId);
-
+            
             // All projects in a msbuild file must use the same BuildXL value.
             // TODO: Check whether this is the same BuildXL value as the other projects in this msbuild file
             var value = process.Provenance.OutputValueSymbol.ToString(Context.SymbolTable);
@@ -182,6 +187,13 @@ namespace BuildXL.Ide.Generator
             {
                 item.SetMetadata("Link", System.IO.Path.Combine(".generated", path.GetName(Context.PathTable).ToString(Context.StringTable)));
             }
+        }
+
+        internal Item AddPackageReference(Project project, string package, string version)
+        {
+            var item = project.AddItem("PackageReference", package);
+            item.SetMetadata("version", version);
+            return item;
         }
 
         internal object GetObjectValue(PipFragment arg)

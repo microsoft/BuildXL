@@ -21,7 +21,6 @@ namespace BuildXL.Ide.Generator
         public Dictionary<QualifierId, List<EmbeddedResource>> ResourcesByQualifier { get; }
 
         private bool m_isTestProject;
-        private bool m_isXunitTestProject;
 
         private readonly HashSet<string> m_projectTypeGuids = new HashSet<string>();
 
@@ -39,6 +38,8 @@ namespace BuildXL.Ide.Generator
             // I filter *.dll files because there were some dlls as inputs (e.g., System.dll in the project file directory) for the OSGTools
             m_inputs = context.EnumeratePipGraphFilesUnderDirectory(directory).Where(a => a.GetExtension(context.PathTable) != context.DllExtensionName).ToList();
             ResourcesByQualifier = new Dictionary<QualifierId, List<EmbeddedResource>>();
+
+            Sdk = "Microsoft.NET.Sdk";
         }
 
         internal override void VisitProcess(Process process, ProcessType pipCategory)
@@ -69,7 +70,7 @@ namespace BuildXL.Ide.Generator
             switch (pipCategory)
             {
                 case ProcessType.XUnit:
-                    //WriteXunitDiscoverPackage();
+                    AddXunitIdePackages(friendlyQualifier);
                     ExtractOutputPathFromUnitTest(process, friendlyQualifier, 1);
                     break;
                 case ProcessType.VsTest:
@@ -88,15 +89,14 @@ namespace BuildXL.Ide.Generator
             }
         }
 
-        private void WriteXunitDiscoverPackage()
+        private void AddXunitIdePackages(QualifierId qualifier)
         {
-            if (!m_isXunitTestProject)
+            if (ProjectsByQualifier.TryGetValue(qualifier, out var project))
             {
-                var projectDir = Path.GetParent(Context.PathTable).ToString(Context.PathTable);
-                Directory.CreateDirectory(projectDir);
-                var path = System.IO.Path.Combine(projectDir, "packages.config");
-                MsbuildWriter.WriteFile("BuildXL.Ide.Generator.CommonBuildFiles.packages.config", path);
-                m_isXunitTestProject = true;
+                AddPackageReference(project, "Microsoft.NET.Test.Sdk", "16.5.0");
+                var pkgRef = AddPackageReference(project, "xunit.runner.visualstudio", "2.4.1");
+                    pkgRef.SetMetadata("PrivateAssets", "all");
+                    pkgRef.SetMetadata("IncludeAssets", "runtime; build; native; contentfiles; analyzers; buildtransitive");
             }
         }
 

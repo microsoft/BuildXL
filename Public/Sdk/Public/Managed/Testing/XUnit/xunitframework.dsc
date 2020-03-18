@@ -30,7 +30,10 @@ export const xunitReferences : Managed.Reference[] =
 function processArguments(args: Managed.TestArguments): Managed.TestArguments {
     return Object.merge<Managed.TestArguments>(
         {
-            references: xunitReferences,
+            references: [
+                ...xunitReferences,
+                importFrom("Microsoft.TestPlatform.TestHost").pkg,
+            ],
         },
         isDotNetCore
             ? {

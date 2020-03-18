@@ -42,7 +42,6 @@ export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.T
                     {
                         references: [
                             importFrom("Microsoft.NET.Test.Sdk").pkg,
-                            importFrom("Microsoft.TestPlatform.TestHost").pkg,
                             importFrom("Microsoft.TestPlatform.ObjectModel").pkg,
                             importFrom("NuGet.Frameworks").pkg
                             // importFrom("Microsoft.CodeCoverage").pkg, // TODO: NuGet spec generator fails to realize that this package does support netcoreapp1.0

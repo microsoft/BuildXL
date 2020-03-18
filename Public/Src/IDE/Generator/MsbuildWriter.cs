@@ -128,7 +128,7 @@ namespace BuildXL.Ide.Generator
                 var projectFile = new XDocument(
                     new XElement(
                         ProjectXName,
-                        targetFrameworks != null ? new[] { new XAttribute("Sdk", "Microsoft.NET.Sdk") } : new XAttribute[0],
+                        targetFrameworks != null ? new[] { new XAttribute("Sdk", msbuildFile.Sdk) } : new XAttribute[0],
                         new XElement(
                             PropertyGroupXName,
                             new XElement(XName.Get("SolutionRoot"), solutionRootExpression),

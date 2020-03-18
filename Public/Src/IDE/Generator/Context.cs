@@ -53,8 +53,17 @@ namespace BuildXL.Ide.Generator
         /// <summary>"xunit.console.dll"</summary>
         internal readonly PathAtom XunitConsoleDllName;
 
+        /// <summary>"xunit.console.exe"</summary>
+        internal readonly PathAtom XunitConsoleExeName;
+
+        /// <summary>"dbs.qtest.exe"</summary>
+        internal readonly PathAtom QtestExeName;
+
         /// <summary>"dotnet"</summary>
         internal readonly PathAtom DotnetName;
+
+        /// <summary>"dotnet.exe"</summary>
+        internal readonly PathAtom DotnetExeName;
 
         /// <summary>
         /// "cl.exe"
@@ -143,7 +152,10 @@ namespace BuildXL.Ide.Generator
             CscExeName = PathAtom.Create(StringTable, "csc.exe");
             CscDllName = PathAtom.Create(StringTable, "csc.dll");
             XunitConsoleDllName = PathAtom.Create(StringTable, "xunit.console.dll");
+            XunitConsoleExeName = PathAtom.Create(StringTable, "xunit.console.exe");
+            QtestExeName = PathAtom.Create(StringTable, "DBS.QTest.exe");
             DotnetName = PathAtom.Create(StringTable, "dotnet");
+            DotnetExeName = PathAtom.Create(StringTable, "dotnet.exe");
             ResgenExeName = PathAtom.Create(StringTable, "ResGen.exe");
             ResourcesExtensionName = PathAtom.Create(StringTable, ".resources");
             CsExtensionName = PathAtom.Create(StringTable, ".cs");

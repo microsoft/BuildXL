@@ -50,13 +50,21 @@ namespace BuildXL.Ide.Generator
 
             var toolName = process.GetToolName(context.PathTable);
             if (toolName.CaseInsensitiveEquals(stringTable, context.CscExeName) ||
-                (toolName.CaseInsensitiveEquals(stringTable, context.DotnetName) &&
+                (IsDotNetTool(toolName, context) &&
                  FirstArgIsPathWithFileName(context, process, context.CscDllName)))
             {
                 type = ProcessType.Csc;
             }
-            else if (toolName.CaseInsensitiveEquals(stringTable, context.DotnetName) &&
+            else if (IsDotNetTool(toolName, context) &&
                 FirstArgIsPathWithFileName(context, process, context.XunitConsoleDllName))
+            {
+                type = ProcessType.XUnit;
+            }
+            else if (toolName.CaseInsensitiveEquals(stringTable, context.XunitConsoleExeName))
+            {
+                type = ProcessType.XUnit;
+            }
+            else if (toolName.CaseInsensitiveEquals(stringTable, context.QtestExeName))
             {
                 type = ProcessType.XUnit;
             }
@@ -78,6 +86,11 @@ namespace BuildXL.Ide.Generator
             }
 
             return new ProcessWithType(type, process);
+        }
+
+        private static bool IsDotNetTool(PathAtom toolName, Context context) 
+        {
+            return toolName.CaseInsensitiveEquals(context.StringTable, context.DotnetName) || toolName.CaseInsensitiveEquals(context.StringTable, context.DotnetExeName);
         }
 
         private static bool FirstArgIsPathWithFileName(Context context, Process process, PathAtom name)

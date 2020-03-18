@@ -1381,6 +1381,8 @@ namespace BuildXL.Engine
             }
             catch (Exception e)
             {
+                // If we successfully create a directory and the junction creation fails, we need to delete that directory.
+                FileUtilities.TryRemoveDirectory(redirectedProfile, out var _);
                 Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create a junction from '{redirectedProfile}' to '{currentUserProfile}': {e.ToString()}"));
                 return false;
             }

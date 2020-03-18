@@ -27,8 +27,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     public class DistributedContentSession<T> : ReadOnlyDistributedContentSession<T>, IContentSession
         where T : PathBase
     {
-        private readonly SemaphoreSlim _putFileGate;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -53,7 +51,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 contentTrackerUpdater: contentTrackerUpdater,
                 settings)
         {
-            _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
         }
 
         /// <inheritdoc />
@@ -98,16 +95,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task<PutResult> PerformPutFileGatedOperationAsync(OperationContext operationContext, Func<Task<PutResult>> func)
         {
-            return _putFileGate.GatedOperationAsync(async (timeWaiting) =>
+            return PutAndPlaceFileGate.GatedOperationAsync(async (timeWaiting) =>
             {
-                var gateOccupiedCount = Settings.MaximumConcurrentPutFileOperations - _putFileGate.CurrentCount;
+                var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - PutAndPlaceFileGate.CurrentCount;
 
                 var result = await func();
-                result.Metadata = new PutResult.ExtraMetadata()
-                {
-                    GateWaitTime = timeWaiting,
-                    GateOccupiedCount = gateOccupiedCount,
-                };
+                result.MetaData = new ResultMetaData(timeWaiting, gateOccupiedCount);
 
                 return result;
             }, operationContext.Token);

@@ -357,7 +357,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxConcurrentProactiveCopyOperations = distributedSettings.MaxConcurrentProactiveCopyOperations,
                 ProactiveCopyLocationsThreshold = distributedSettings.ProactiveCopyLocationsThreshold,
                 ProactiveCopyRejectOldContent = distributedSettings.ProactiveCopyRejectOldContent,
-                MaximumConcurrentPutFileOperations = distributedSettings.MaximumConcurrentPutFileOperations,
                 ReplicaCreditInMinutes = distributedSettings.IsDistributedEvictionEnabled ? distributedSettings.ReplicaCreditInMinutes : null,
                 EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                 ContentHashBumpTime = lazyTouchContentHashBumpTime,
@@ -378,6 +377,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 distributedContentStoreSettings.ProactiveReplicationInterval = redisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointInterval;
             }
+
+            ApplyIfNotNull(distributedSettings.MaximumConcurrentPutAndPlaceFileOperations, v => distributedContentStoreSettings.MaximumConcurrentPutAndPlaceFileOperations = v);
 
             arguments.Overrides.Override(distributedContentStoreSettings);
 

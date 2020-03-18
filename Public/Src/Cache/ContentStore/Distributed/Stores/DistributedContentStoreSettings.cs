@@ -258,9 +258,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
 
         /// <summary>
-        /// Maximum number of PutFile operations that can happen concurrently.
+        /// Maximum number of PutFile and PlaceFile operations that can happen concurrently.
         /// </summary>
-        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+        public int MaximumConcurrentPutAndPlaceFileOperations { get; set; } = 512;
 
         /// <summary>
         /// Name of the blob with the snapshot of the content placement predictions.

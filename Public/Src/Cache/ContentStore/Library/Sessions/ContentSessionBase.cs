@@ -162,7 +162,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PlaceFileRetries]),
                     extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceOperationStarted: TraceOperationStarted,
-                    extraEndMessage: (_) => $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
+                    extraEndMessage: result =>
+                                     {
+                                         var message = $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})";
+                                         if (result.Metadata == null)
+                                         {
+                                             return message;
+                                         }
+
+                                         return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
+                                     },
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.PlaceFile]));
         }
@@ -230,12 +239,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     extraEndMessage: result =>
                     {
                         var message = $"({path},{realizationMode}) trusted=false";
-                        if (result.Metadata == null)
+                        if (result.MetaData == null)
                         {
                             return message;
                         }
 
-                        return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
+                        return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
                     },
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.PutFile]));
@@ -271,7 +280,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
                     extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
-                    extraEndMessage: _ => $"({path},{realizationMode}) trusted=false",
+                    extraEndMessage: result =>
+                                     {
+                                         var message = $"({path},{realizationMode}) trusted=false";
+                                         if (result.MetaData == null)
+                                         {
+                                             return message;
+                                         }
+
+                                         return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
+                                     },
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.PutFile]));
         }

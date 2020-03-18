@@ -167,5 +167,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                     return $"{Code} Size={FileSize}{this.GetDiagnosticsMessageForTracing()}";
             }
         }
+
+        internal ResultMetaData? Metadata { get; set; }
     }
 }

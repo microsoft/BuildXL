@@ -33,6 +33,7 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
+using PlaceBulkResult = System.Collections.Generic.IEnumerable<System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Interfaces.Results.Indexed<BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult>>>;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
@@ -108,6 +109,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected override bool TraceOperationStarted => false;
 
         /// <summary>
+        /// Semaphore that limits the maximum number of concurrent put and place operations
+        /// </summary>
+        protected readonly SemaphoreSlim PutAndPlaceFileGate;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
         /// </summary>
         public ReadOnlyDistributedContentSession(
@@ -146,6 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             _contentTrackerUpdater = contentTrackerUpdater;
             DistributedCopier = contentCopier;
+            PutAndPlaceFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutAndPlaceFileOperations);
         }
 
         /// <inheritdoc />
@@ -401,29 +408,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
-            OperationContext operationContext,
-            ContentHash contentHash,
-            AbsolutePath path,
-            FileAccessMode accessMode,
-            FileReplacementMode replacementMode,
-            FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint,
-            Counter retryCounter)
-        {
-            // Calling a core version instead of PlaceFileAsync, to avoid double tracing.
-            var results = await PlaceFileCoreAsync(
-                operationContext,
-                new[] { new ContentHashWithPath(contentHash, path) },
-                accessMode,
-                replacementMode,
-                realizationMode,
-                urgencyHint,
-                BaseCounters[ContentSessionBaseCounters.PlaceFileBulkRetries]);
-            return await results.SingleAwaitIndexed();
-        }
-
-        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
         {
             return PinHelperAsync(operationContext, contentHashes, pinOperationConfiguration.UrgencyHint, pinOperationConfiguration);
@@ -482,7 +466,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        protected override Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileCoreAsync(
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(
+            OperationContext operationContext,
+            ContentHash contentHash,
+            AbsolutePath path,
+            FileAccessMode accessMode,
+            FileReplacementMode replacementMode,
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
+        {
+            var resultWithData = await PerformPlaceFileGatedOperationAsync(
+                operationContext,
+                () => PlaceHelperAsync(
+                    operationContext,
+                    new[] { new ContentHashWithPath(contentHash, path) },
+                    accessMode,
+                    replacementMode,
+                    realizationMode,
+                    urgencyHint,
+                    retryCounter
+                ));
+
+            var result = await resultWithData.Result.SingleAwaitIndexed();
+            result.Metadata = resultWithData.Metadata;
+            return result;
+        }
+
+        /// <inheritdoc />
+        protected override async Task<PlaceBulkResult> PlaceFileCoreAsync(
             OperationContext operationContext,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             FileAccessMode accessMode,
@@ -493,15 +505,57 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             // The fallback is invoked for cache misses only. This preserves existing behavior of
             // bubbling up errors with Inner store instead of trying remote.
+            var resultWithData = await PerformPlaceFileGatedOperationAsync(
+                operationContext,
+                () => PlaceHelperAsync(
+                    operationContext,
+                    hashesWithPaths,
+                    accessMode,
+                    replacementMode,
+                    realizationMode,
+                    urgencyHint,
+                    retryCounter
+                ));
 
+            // We are trying tracing here we did not want to change the signature for PlaceFileCoreAsync, which is implemented in multiple locations
+            operationContext.TraceDebug($"PlaceFileBulk, Gate.OccupiedCount={resultWithData.Metadata.GateOccupiedCount} Gate.Wait={resultWithData.Metadata.GateWaitTime.TotalMilliseconds}ms");
+
+            return resultWithData.Result;
+        }
+
+        private Task<PlaceBulkResult> PlaceHelperAsync(
+            OperationContext operationContext,
+            IReadOnlyList<ContentHashWithPath> hashesWithPaths,
+            FileAccessMode accessMode,
+            FileReplacementMode replacementMode,
+            FileRealizationMode realizationMode,
+            UrgencyHint urgencyHint,
+            Counter retryCounter)
+        {
             return Workflows.RunWithFallback(
                 hashesWithPaths,
-                args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
+                args => Inner.PlaceFileAsync(
+                    operationContext,
+                    args,
+                    accessMode,
+                    replacementMode,
+                    realizationMode,
+                    operationContext.Token,
+                    urgencyHint),
                 args => fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(args),
                 result => IsPlaceFileSuccess(result),
-                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Select(x => new ContentHashWithSizeAndLastAccessTime(hashesWithPaths[x.Index].Hash, x.Item.FileSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(
+                    operationContext,
+                    hits.Select(
+                            x => new ContentHashWithSizeAndLastAccessTime(
+                                hashesWithPaths[x.Index].Hash,
+                                x.Item.FileSize,
+                                x.Item.LastAccessTime))
+                        .ToList(),
+                    operationContext.Token,
+                    urgencyHint));
 
-            Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
+            Task<PlaceBulkResult> fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
             {
                 return MultiLevelUtilities.RunMultiLevelAsync(
                     fetchedContentInfo,
@@ -513,8 +567,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private static bool IsPlaceFileSuccess(PlaceFileResult result)
+        private Task<ResultWithMetaData<PlaceBulkResult>> PerformPlaceFileGatedOperationAsync(OperationContext operationContext, Func<Task<PlaceBulkResult>> func, bool bulkPlace = true)
         {
+            return PutAndPlaceFileGate.GatedOperationAsync( async(timeWaiting) =>
+            {
+                var gateOccupiedCount = Settings.MaximumConcurrentPutAndPlaceFileOperations - PutAndPlaceFileGate.CurrentCount;
+
+                var result = await func();
+
+                return new ResultWithMetaData<PlaceBulkResult>(
+                    new ResultMetaData(timeWaiting, gateOccupiedCount),
+                    result);
+            }, operationContext.Token);
+        }
+
+        private static bool IsPlaceFileSuccess(PlaceFileResult result)
+        { 
             return result.Code != PlaceFileResult.ResultCode.Error && result.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound;
         }
 
@@ -535,7 +603,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 : Task.FromResult(0);
         }
 
-        private Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromMultiLevelContentLocationStoreThenPutAsync(
+        private Task<PlaceBulkResult> FetchFromMultiLevelContentLocationStoreThenPutAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             UrgencyHint urgencyHint,
@@ -564,7 +632,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 isSuccessFunc: result => IsPlaceFileSuccess(result));
         }
 
-        private async Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromContentLocationStoreThenPutAsync(
+        private async Task<PlaceBulkResult> FetchFromContentLocationStoreThenPutAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,
             bool isLocal,
@@ -645,7 +713,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 // TODO: Better way ? (bug 1365340)
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
-                Indexed<PlaceFileResult>[] copyFilesLocally =
+                var copyFilesLocally =
                     await Task.WhenAll(
                         Enumerable.Range(0, getBulkResult.ContentHashesInfo.Count).Select(i => copyFilesLocallyBlock.ReceiveAsync(token)));
                 copyFilesLocallyBlock.Complete();

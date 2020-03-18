@@ -733,7 +733,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+        public int? MaximumConcurrentPutAndPlaceFileOperations { get; set; } 
 
         [DataMember]
         public bool EnableMetadataStore { get; set; } = false;

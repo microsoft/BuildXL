@@ -65,7 +65,7 @@ namespace PrivatePackages {
                     ]
                 },
                 
-                // Net Core App 3.0
+                // Net Core App 3.1
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(winx64Qualifier).Processes.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(winx64Qualifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).ImplementationSupport.dll),

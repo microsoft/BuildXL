@@ -84,8 +84,8 @@ export function crossgenProvider(runtimeVersion: Shared.RuntimeVersion): Shared.
 export const framework : Shared.Framework = {
     targetFramework: qualifier.targetFramework,
 
-    supportedRuntimeVersion: "v3.0",
-    assemblyInfoTargetFramework: ".NETCoreApp,Version=v3.0",
+    supportedRuntimeVersion: "v3.1",
+    assemblyInfoTargetFramework: ".NETCoreApp,Version=v3.1",
     assemblyInfoFrameworkDisplayName: ".NET Core App",
 
     standardReferences: defaultAssemblies,

@@ -13,6 +13,27 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 
 # Upcoming release
 
+# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)).  Released 3/18/2020
+-	Add support for nested shared opaque directories.
+-	Add Rush frontend.
+-	Optimizations for trusted file accesses.
+-	Improvements for memory estimation for cancelled process pips.
+-	Relax probing explicitly declared outputs that are also under an output directory.
+-	Various bug fixes and improvements.
+
+
+# 0.1.0-20200306.7 (Release [57833](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57833)).  Released 3/11/2020
+-	Introduce EngineVersion feature to help management of breaking changes
+-	Check file existence or executable before reporting access in CreateProcess()
+-	Improve memory throttling and cancellation for dev builds
+-	[QTest] Update to 20.3.2.221403
+-	Progress towards Linux support for ContentStore layer
+-	Enable pip retry on another worker by default in CloudBuild
+-	Improve classification for failures that get retries on other workers
+-	Experiment for closing timing gap between cache lookup and execution to reduce redundant work across build sessions
+-	Fix CacheMiss bug around directory membership fingerprint missing
+
+
 # 0.1.0-20200228.5 (Release [57057](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=57057)).  Released 3/4/2020
 - Added an ExecuteConvergedProcessDuration counter.
 - Disable batch logging in cache miss analysis by default.

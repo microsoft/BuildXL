@@ -511,7 +511,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var blobStoreConfiguration = new BlobCentralStoreConfiguration(
                 credentials: storageCredentials,
-                containerName: "checkpoints",
+                containerName: _arguments.HostInfo.AppendRingSpecifierIfNeeded("checkpoints", _distributedSettings.UseRingIsolation),
                 checkpointsKey: "checkpoints-eventhub");
 
             ApplyIfNotNull(
@@ -524,8 +524,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 var distributedCentralStoreConfiguration = new DistributedCentralStoreConfiguration(localCacheRoot)
                 {
                     MaxRetentionGb = _distributedSettings.MaxCentralStorageRetentionGb,
-                    PropagationDelay = TimeSpan.FromSeconds(
-                                                                _distributedSettings.CentralStoragePropagationDelaySeconds),
+                    PropagationDelay = TimeSpan.FromSeconds(_distributedSettings.CentralStoragePropagationDelaySeconds),
                     PropagationIterations = _distributedSettings.CentralStoragePropagationIterations,
                     MaxSimultaneousCopies = _distributedSettings.CentralStorageMaxSimultaneousCopies
                 };

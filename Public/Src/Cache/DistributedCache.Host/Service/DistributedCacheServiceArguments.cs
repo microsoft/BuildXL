@@ -112,6 +112,8 @@ namespace BuildXL.Cache.Host.Service
                 keySpaceString = hostInfo.StampId + keySpaceString;
             }
 
+            keySpaceString = hostInfo.AppendRingSpecifierIfNeeded(keySpaceString, configuration.DistributedContentSettings.UseRingIsolation);
+
             return keySpaceString;
         }
     }

@@ -66,7 +66,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         // When test directory is untracked, declare dependencies to individual files instead of the seal directory.
         // Reason: if the same directory is both untracked and declared as a dependency it's not clear which one takes
         //         precedence in terms of allowed/disallowed file accesses.
-        dependencies: args.untrackTestDirectory ? testDeployment.contents.contents : [ testDeployment.contents ], 
+        dependencies: args.untrackTestDirectory ? testDeployment.contents.contents : [ testDeployment.contents, ...(testDeployment.targetOpaques || []) ], 
         warningRegex: "^(?=a)b", // This is a never matching warning regex. StartOfLine followed by the next char must be 'a' (look ahead), and the next char must be a 'b'.
         workingDirectory: testDeployment.contents.root,
         retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1] : [],

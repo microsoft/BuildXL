@@ -7,7 +7,7 @@ namespace Npm {
 
     @@public
     export function install(args: Arguments) : Result {
-        const folder = Context.getNewOutputDirectory(`npm-${args.name}`);
+        const folder = args.destinationFolder || Context.getNewOutputDirectory(`npm-${args.name}`);
         const nodeModulesPath = d`${folder}/node_modules`;
         const npmCachePath = d`${folder}/npm-cache`;
 
@@ -76,6 +76,7 @@ namespace Npm {
     export interface Arguments {
         name: string,
         version: string,
+        destinationFolder?: Directory,
     }
 
     export interface Result {

@@ -1354,17 +1354,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 }
                                 else
                                 {
-                                    insideRingCopyTask = Task.FromResult(new PushFileResult(hash, $"Could not find any machines belonging to the build ring for build {_buildId}."));
+                                    insideRingCopyTask = Task.FromResult(new PushFileResult($"Could not find any machines belonging to the build ring for build {_buildId}."));
                                 }
                             }
                             else
                             {
-                                insideRingCopyTask = Task.FromResult(new PushFileResult(hash, "BuildId was not specified, so machines in the build ring cannot be found."));
+                                insideRingCopyTask = Task.FromResult(new PushFileResult("BuildId was not specified, so machines in the build ring cannot be found."));
                             }
                         }
                         else
                         {
-                            insideRingCopyTask = Task.FromResult(new PushFileResult(hash, result: false));
+                            insideRingCopyTask = Task.FromResult(PushFileResult.Disabled());
                         }
 
                         buildRingMachines ??= new[] { LocalCacheRootMachineLocation };
@@ -1421,12 +1421,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             }
                             else
                             {
-                                outsideRingCopyTask = Task.FromResult(new PushFileResult(hash, getLocationResult));
+                                outsideRingCopyTask = Task.FromResult(new PushFileResult(getLocationResult));
                             }
                         }
                         else
                         {
-                            outsideRingCopyTask = Task.FromResult(new PushFileResult(hash, result: false));
+                            outsideRingCopyTask = Task.FromResult(PushFileResult.Disabled());
                         }
 
                         return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask, getLocationsResult.ContentHashesInfo[0].Entry);
@@ -1466,10 +1466,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var requestResult = await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing);
                 if (requestResult)
                 {
-                    return new PushFileResult(hash, result: true);
+                    return PushFileResult.PushSucceeded();
                 }
 
-                return new PushFileResult(hash, requestResult, "Failed requesting a copy");
+                return new PushFileResult(requestResult, "Failed requesting a copy");
             }
         }
 

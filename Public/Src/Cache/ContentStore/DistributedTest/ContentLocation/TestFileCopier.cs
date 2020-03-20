@@ -136,7 +136,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
             File.Delete(tempFile.Path);
 
-            return result ? new PushFileResult(hash, result: true) : new PushFileResult(hash, result);
+            return result ? PushFileResult.PushSucceeded() : new PushFileResult(result);
         }
 
         public async Task<DeleteResult> DeleteFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)

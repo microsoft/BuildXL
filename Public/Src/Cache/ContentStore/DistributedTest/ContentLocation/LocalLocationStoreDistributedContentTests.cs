@@ -1,3 +1,4 @@
+
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
@@ -27,6 +28,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -835,7 +837,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult2 = await session1.PutRandomAsync(context, HashType.MD5, provideHash: false, size: largeFileSize, CancellationToken.None);
 
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(0);
-                    await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication).ShouldBeSuccessAsync();
+                    var result = await session0.ProactiveCopyIfNeededAsync(context, oldHash, tryBuildRing: false, ProactiveCopyReason.Replication);
+                    result.Succeeded.Should().BeFalse();
                     store1.CounterCollection[DistributedContentStore<AbsolutePath>.Counters.RejectedPushCopyCount_OlderThanEvicted].Value.Should().Be(1);
 
                     TestClock.UtcNow += TimeSpan.FromMinutes(2); // Need to increase to make checkpoints happen.
@@ -911,7 +914,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                   var results = await Task.WhenAll(tasks);
                                   // We should have at least some skipped operations, because we tried 100 pushes at the same time with 1 as the push count limit.
 
-                                  var acceptedSuccesses = results.Count(r => r.Value);
+                                  var acceptedSuccesses = results.Count(r => r.Status == PushFileResultStatus.Success);
                                   if (expectAllSuccesses)
                                   {
                                       acceptedSuccesses.Should().Be(count);

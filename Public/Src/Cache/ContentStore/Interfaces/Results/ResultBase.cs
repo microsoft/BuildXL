@@ -192,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Create a string describing the error (and diagnostics, if applicable)
         /// </summary>
-        protected string GetErrorString()
+        protected virtual string GetErrorString()
         {
             if (IsCancelled)
             {

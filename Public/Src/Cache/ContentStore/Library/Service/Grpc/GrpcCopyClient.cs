@@ -289,11 +289,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 var responseHeaders = await call.ResponseHeadersAsync;
 
+                // If the remote machine couldn't be contacted, GRPC returns an empty
+                // header collection. To avoid an exception, exit early instead.
+                if (responseHeaders.Count == 0)
+                {
+                    return PushFileResult.ServerUnavailable();
+                }
+
                 var pushResponse = PushResponse.FromMetadata(responseHeaders);
                 if (!pushResponse.ShouldCopy)
                 {
                     context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
-                    return new PushFileResult(hash, result: false);
+                    return PushFileResult.Rejected();
                 }
 
                 var streamResult = await source();
@@ -301,7 +308,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (!streamResult)
                 {
                     await requestStream.CompleteAsync();
-                    return new PushFileResult(hash, streamResult, "Failed to retrieve source stream.");
+                    return new PushFileResult(streamResult, "Failed to retrieve source stream.");
                 }
                 
                 using (var stream = streamResult.Value)
@@ -316,12 +323,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var response = responseStream.Current;
 
                 return response.Header.Succeeded
-                    ? new PushFileResult(hash, result: true)
-                    : new PushFileResult(hash, response.Header.ErrorMessage);
+                    ? PushFileResult.PushSucceeded()
+                    : new PushFileResult(response.Header.ErrorMessage);
             }
             catch (RpcException r)
             {
-                return new PushFileResult(hash, r);
+                return new PushFileResult(r);
             }
         }
 

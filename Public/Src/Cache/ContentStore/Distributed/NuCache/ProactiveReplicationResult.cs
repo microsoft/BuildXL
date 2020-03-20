@@ -18,6 +18,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public int FailCount { get; }
 
         /// <nodoc />
+        public int SkippedCount { get; }
+
+        /// <nodoc />
+        public int TotalCount => SuccessCount + FailCount + SkippedCount + RejectedCount;
+        
+        /// <nodoc />
         public int RejectedCount { get; }
 
         /// <nodoc />
@@ -30,11 +36,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public ContentEvictionInfo? LastVisited { get; }
 
         /// <nodoc />
-        public ProactiveReplicationResult(int succeeded, int failed, int rejected, int totalLocalContent, int totalContentScanned, ContentEvictionInfo? lastVisited)
+        public ProactiveReplicationResult(int succeeded, int failed, int skipped, int rejected, int totalLocalContent, int totalContentScanned, ContentEvictionInfo? lastVisited)
         {
             SuccessCount = succeeded;
             FailCount = failed;
             RejectedCount = rejected;
+            SkippedCount = skipped;
             TotalLocalContent = totalLocalContent;
             TotalContentScanned = totalContentScanned;
             LastVisited = lastVisited;
@@ -46,6 +53,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override string GetSuccessString() => $"{base.GetSuccessString()} (Succeeded={SuccessCount}, Failed={FailCount}, Rejected={RejectedCount}, Total={SuccessCount + FailCount}, TotalContentScanned={TotalContentScanned}, TotalLocalContent={TotalLocalContent}, LastVisited=[{LastVisited}])";
+        protected override string GetSuccessString() => $"{base.GetSuccessString()} (Succeeded={SuccessCount}, Failed={FailCount}, Skipped={SkippedCount}, Rejected={RejectedCount}, Total={SuccessCount + FailCount}, TotalContentScanned={TotalContentScanned}, TotalLocalContent={TotalLocalContent}, LastVisited=[{LastVisited}])";
     }
 }

@@ -10,7 +10,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public static class ResultTestExtensions
     {
-        public static BoolResult ShouldBeError(this BoolResult result, string expectedMessageFragment = null)
+        public static TResult ShouldBeError<TResult>(this TResult result, string expectedMessageFragment = null) where TResult : ResultBase
         {
             Assert.NotNull(result);
             Assert.False(result.Succeeded, "The operation should be successful, but it failed.");
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             return result;
         }
         
-        public static async Task<T> ShouldBeError<T>(this Task<T> result, string expectedMessageFragment = null) where T: BoolResult
+        public static async Task<T> ShouldBeError<T>(this Task<T> result, string expectedMessageFragment = null) where T: ResultBase
         {
             var r = await result;
             r.ShouldBeError(expectedMessageFragment);

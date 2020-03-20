@@ -2,74 +2,123 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using BuildXL.Cache.ContentStore.Hashing;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
+    /// A status code for push file operation.
+    /// </summary>
+    public enum PushFileResultStatus
+    {
+        /// <summary>
+        /// The push operation is successful.
+        /// </summary>
+        Success,
+
+        /// <summary>
+        /// The server is unavailable.
+        /// </summary>
+        ServerUnavailable,
+
+        /// <summary>
+        /// The server is available but can't process the request.
+        /// </summary>
+        RejectedByServer,
+
+        /// <summary>
+        /// Push copy is disabled for a given space (in-ring or outside the ring).
+        /// </summary>
+        Disabled,
+
+        /// <summary>
+        /// Error occurred during a push file.
+        /// </summary>
+        Error,
+    }
+
+    /// <summary>
     /// Represents a result of pushing a file.
     /// </summary>
-    /// <remarks>
-    /// If <code>Value == true</code> then the file was successfully pushed.
-    /// If <code>Value == false</code> then the file was not pushed (it was rejected by the server).
-    /// </remarks>
-    /// Consider having an enum here and propagate the rejection reason from the server.
-    public sealed class PushFileResult : Result<bool>
+    public sealed class PushFileResult : ResultBase
     {
         /// <nodoc />
-        public ContentHash Hash { get; }
+        public PushFileResultStatus Status { get; }
 
         /// <inheritdoc />
-        public PushFileResult(ContentHash hash, bool result)
-            : base(result)
+        private PushFileResult(PushFileResultStatus status)
         {
-            Hash = hash;
+            Status = status;
+        }
+
+        /// <nodoc />
+        public static PushFileResult ServerUnavailable()
+            => CreateUnsuccessful(PushFileResultStatus.ServerUnavailable);
+
+        /// <nodoc />
+        public static PushFileResult PushSucceeded()
+            => new PushFileResult(PushFileResultStatus.Success);
+
+        /// <nodoc />
+        public static PushFileResult Rejected()
+            => CreateUnsuccessful(PushFileResultStatus.RejectedByServer);
+
+        /// <nodoc />
+        public static PushFileResult Disabled()
+            => CreateUnsuccessful(PushFileResultStatus.Disabled);
+
+        private static PushFileResult CreateUnsuccessful(PushFileResultStatus status)
+        {
+            Contract.Requires(status != PushFileResultStatus.Success);
+
+            return new PushFileResult(status, status.ToString());
         }
 
         /// <inheritdoc />
-        public PushFileResult(ContentHash hash, string errorMessage, string diagnostics = null)
+        private PushFileResult(PushFileResultStatus status, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Hash = hash;
+            Contract.Requires(status != PushFileResultStatus.Success);
+
+            Status = status;
         }
 
         /// <inheritdoc />
-        public PushFileResult(ContentHash hash, Exception exception, string message = null)
+        public PushFileResult(string errorMessage, string? diagnostics = null)
+            : base(errorMessage, diagnostics)
+        {
+            Status = PushFileResultStatus.Error;
+        }
+
+        /// <inheritdoc />
+        public PushFileResult(Exception exception, string? message = null)
             : base(exception, message)
         {
-            Hash = hash;
+            Status = PushFileResultStatus.Error;
         }
 
         /// <inheritdoc />
-        public PushFileResult(ContentHash hash, ResultBase other, string message = null)
+        public PushFileResult(ResultBase other, string? message = null)
             : base(other, message)
         {
-            Hash = hash;
+            Status = PushFileResultStatus.Error;
         }
 
         /// <inheritdoc />
-        public PushFileResult(ResultBase other, string message = null)
-            : base(other, message)
-        {
-        }
+        public override bool Succeeded => Status == PushFileResultStatus.Success;
+
+        /// <inheritdoc />
+        protected override string GetSuccessString() => Status.ToString();
 
         /// <nodoc />
-        public string GetSuccessOrDiagnostics()
-            => this switch
-                {
-                    { Succeeded: false } => Diagnostics,
-                    { Value: true } => "Success",
-                    { Value: false } => "Skipped/Rejected",
-                };
+        public string GetStatusOrDiagnostics()
+            => Diagnostics ?? Status.ToString();
 
         /// <nodoc />
-        public string GetSuccessOrErrorMessage()
-            => this switch
-                {
-                    { Succeeded: false } => ErrorMessage,
-                    { Value: true } => "Success",
-                    { Value: false } => "Skipped/Rejected",
-                };
+        public string GetStatusOrErrorMessage()
+            => ErrorMessage ?? Status.ToString();
     }
 }

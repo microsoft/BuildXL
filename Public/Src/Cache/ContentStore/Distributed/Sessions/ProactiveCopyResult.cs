@@ -1,74 +1,130 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using static BuildXL.Cache.ContentStore.Service.Grpc.PushFileResultStatus;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
-    /// <nodoc />
+    /// <summary>
+    /// A status code for push file operation.
+    /// </summary>
+    public enum ProactiveCopyStatus
+    {
+        /// <summary>
+        /// A location was pushed successfully at least to one machine.
+        /// </summary>
+        Success,
+
+        /// <summary>
+        /// The hole proactive copy operation was skipped, for instance, because there is enough locations for a given hash.
+        /// </summary>
+        Skipped,
+
+        /// <summary>
+        /// At least one target machine rejected the content and the other machine either rejected the content or the operation failed.
+        /// </summary>
+        Rejected,
+
+        /// <summary>
+        /// Proactive copy failed.
+        /// </summary>
+        Error,
+    }
+
+    /// <summary>
+    /// Represents a result of a proactive copy.
+    /// </summary>
+    /// <remarks>
+    /// The operation is considered unsuccessful only when one of the operations (inside the ring or outside the ring)
+    /// ended up with an error.
+    /// </remarks>
     public class ProactiveCopyResult : ResultBase
     {
         /// <nodoc />
-        public bool WasProactiveCopyNeeded { get; }
+        public ProactiveCopyStatus Status { get; }
+
+        /// <inheritdoc />
+        public override bool Succeeded => Status == ProactiveCopyStatus.Success || Status == ProactiveCopyStatus.Skipped;
 
         /// <nodoc />
-        public PushFileResult RingCopyResult { get; }
+        public PushFileResult? RingCopyResult { get; }
 
         /// <nodoc />
-        public PushFileResult OutsideRingCopyResult { get; }
+        public PushFileResult? OutsideRingCopyResult { get; }
 
         /// <nodoc />
-        public ContentLocationEntry Entry { get; }
+        public ContentLocationEntry? Entry { get; }
 
         /// <nodoc />
         public static ProactiveCopyResult CopyNotRequiredResult { get; } = new ProactiveCopyResult();
 
         private ProactiveCopyResult()
         {
-            WasProactiveCopyNeeded = false;
+            Status = ProactiveCopyStatus.Skipped;
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, ContentLocationEntry entry)
+        public ProactiveCopyResult(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult, ContentLocationEntry? entry = null)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
-            // If either inside or outside ring performs copy, indicate that copy was needed
-            WasProactiveCopyNeeded = (ringCopyResult && ringCopyResult.Value)
-                || (outsideRingCopyResult && outsideRingCopyResult.Value);
-
             RingCopyResult = ringCopyResult;
             OutsideRingCopyResult = outsideRingCopyResult;
             Entry = entry ?? ContentLocationEntry.Missing;
+
+            var results = new[] {ringCopyResult, outsideRingCopyResult};
+
+            if (results.Any(r => r.Succeeded))
+            {
+                Status = ProactiveCopyStatus.Success;
+            }
+            else if (results.Any(r => r.Status == RejectedByServer))
+            {
+                Status = ProactiveCopyStatus.Rejected;
+            }
+            else if (results.All(r => r.Status == Disabled))
+            {
+                Status = ProactiveCopyStatus.Skipped;
+            }
+            else
+            {
+                Status = ProactiveCopyStatus.Error;
+            }
         }
 
         /// <nodoc />
-        public ProactiveCopyResult(ResultBase other, string message = null)
+        public ProactiveCopyResult(ResultBase other, string? message = null)
             : base(other, message)
         {
+            Status = ProactiveCopyStatus.Error;
         }
 
-        private static string GetErrorMessage(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
+        private static string? GetErrorMessage(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
-            if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)
+            if (ringCopyResult.Status == Error || outsideRingCopyResult.Status == Error)
             {
                 return
-                    $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)}" +
-                    $"RingMachineResult=[{ringCopyResult.GetSuccessOrErrorMessage()}] " +
-                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetSuccessOrErrorMessage()}] ";
+                    $"Success count: {(ringCopyResult.Succeeded ^ outsideRingCopyResult.Succeeded ? 1 : 0)} " +
+                    $"RingMachineResult=[{ringCopyResult.GetStatusOrErrorMessage()}] " +
+                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetStatusOrErrorMessage()}] ";
             }
 
             return null;
         }
 
-        private static string GetDiagnostics(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
+        private static string? GetDiagnostics(PushFileResult ringCopyResult, PushFileResult outsideRingCopyResult)
         {
-            if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)
+            if (ringCopyResult.Status == Error || outsideRingCopyResult.Status == Error)
             {
                 return
-                    $"RingMachineResult=[{ringCopyResult.GetSuccessOrDiagnostics()}] " +
-                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetSuccessOrDiagnostics()}] ";
+                    $"RingMachineResult=[{ringCopyResult.GetStatusOrDiagnostics()}] " +
+                    $"OutsideRingMachineResult=[{outsideRingCopyResult.GetStatusOrDiagnostics()}] ";
             }
 
             return null;
@@ -77,7 +133,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <inheritdoc />
         protected override string GetSuccessString()
         {
-            return WasProactiveCopyNeeded ? $"Success" : "Success: No copy needed";
+            if (Status == ProactiveCopyStatus.Skipped)
+            {
+                return "Success: No copy needed";
+            }
+
+            Contract.AssertNotNull(RingCopyResult);
+            Contract.AssertNotNull(OutsideRingCopyResult);
+
+            // This must be the case when ring copy and outside ring copy succeeded or were gracefully rejected.
+            return (RingCopyResult.Status == Success && OutsideRingCopyResult.Status == Success)
+                ? "Success"
+                : $"[{RingCopyResult.Status}, {OutsideRingCopyResult.Status}]";
+        }
+
+        /// <inheritdoc />
+        protected override string GetErrorString()
+        {
+            if (Status == ProactiveCopyStatus.Error)
+            {
+                return base.GetErrorString();
+            }
+
+            Contract.AssertNotNull(RingCopyResult);
+            Contract.AssertNotNull(OutsideRingCopyResult);
+
+            return $"[{RingCopyResult.Status}, {OutsideRingCopyResult.Status}]";
         }
 
         /// <inheritdoc />

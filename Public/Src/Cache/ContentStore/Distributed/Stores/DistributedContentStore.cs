@@ -40,6 +40,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             ProactiveReplication_Succeeded,
             ProactiveReplication_Failed,
+            ProactiveReplication_Skipped,
+            ProactiveReplication_Rejected,
             RejectedPushCopyCount_OlderThanEvicted,
             ProactiveReplication
         }
@@ -310,6 +312,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     var succeeded = 0;
                     var failed = 0;
+                    var skipped = 0;
                     var scanned = 0;
                     var rejected = 0;
                     var delayTask = Task.CompletedTask;
@@ -334,23 +337,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             var result = await ProactiveCopyIfNeededAsync(context, content.ContentHash);
 
                             wasPreviousCopyNeeded = true;
-                            if (result.Succeeded)
+                            switch (result.Status)
                             {
-                                if (result.WasProactiveCopyNeeded)
-                                {
+                                case ProactiveCopyStatus.Success:
                                     CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
                                     succeeded++;
-                                }
-                                else
-                                {
-                                    rejected++;
+                                    break;
+                                case ProactiveCopyStatus.Skipped:
+                                    CounterCollection[Counters.ProactiveReplication_Skipped].Increment();
+                                    skipped++;
                                     wasPreviousCopyNeeded = false;
-                                }
-                            }
-                            else
-                            {
-                                CounterCollection[Counters.ProactiveReplication_Failed].Increment();
-                                failed++;
+                                    break;
+                                case ProactiveCopyStatus.Rejected:
+                                    rejected++;
+                                    CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
+                                    break;
+                                case ProactiveCopyStatus.Error:
+                                    CounterCollection[Counters.ProactiveReplication_Failed].Increment();
+                                    failed++;
+                                    break;
                             }
 
                             if ((succeeded + failed) >= _settings.ProactiveReplicationCopyLimit)
@@ -360,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         }
                     }
 
-                    return new ProactiveReplicationResult(succeeded, failed, rejected, localContent.Length, scanned, lastVisited);
+                    return new ProactiveReplicationResult(succeeded, failed, skipped, rejected, localContent.Length, scanned, lastVisited);
                 },
                 counter: CounterCollection[Counters.ProactiveReplication]);
         }

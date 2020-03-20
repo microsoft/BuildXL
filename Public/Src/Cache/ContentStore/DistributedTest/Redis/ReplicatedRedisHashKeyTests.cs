@@ -48,7 +48,10 @@ namespace ContentStoreTest.Distributed.Redis
             var primaryDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData) {FailingQuery = 1, ThrowRedisException = false};
 
             var primaryConnection = MockRedisDatabaseFactory.CreateConnection(primaryDb, throwConnectionExceptionOnGet: true);
-            var primaryAdapter = new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), primaryConnection), DefaultKeySpace, retryCount: 1);
+            var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace, retryCount: 1);
+            var primaryAdapter = new RedisDatabaseAdapter(
+                await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), primaryConnection),
+                adapterConfiguration);
 
             var raidedDatabaseAdapter = new RaidedRedisDatabase(new Tracer("Test"), primaryAdapter, null);
             var context = new OperationContext(new Context(Logger));

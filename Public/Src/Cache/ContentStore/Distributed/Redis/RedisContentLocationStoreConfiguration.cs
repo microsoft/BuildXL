@@ -92,6 +92,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int RedisConnectionErrorLimit { get; set; } = int.MaxValue;
 
         /// <summary>
+        /// Whether to trace failures in redis access layer.
+        /// </summary>
+        public bool TraceRedisFailures { get; set; } = false;
+
+        /// <summary>
+        /// Whether to trace transient failures in redis access layer.
+        /// </summary>
+        public bool TraceRedisTransientFailures { get; set; } = false;
+
+        /// <summary>
         /// Indicates the mode used when writing content locations
         /// </summary>
         public ContentLocationMode WriteMode { get; set; } = ContentLocationMode.Redis;

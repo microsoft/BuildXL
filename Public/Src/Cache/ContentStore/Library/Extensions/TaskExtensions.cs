@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// If the task is given up on, this prevents any unhandled exception from bringing down
         /// the process (if ThrowOnUnobservedTaskException is set) by observing any exception.
         /// </remarks>
-        public static void FireAndForget(this Task task, Context context, [CallerMemberName]string operation = null, Severity failureSeverity = Severity.Warning, bool traceFailures = true)
+        public static void FireAndForget(this Task task, Context context, [CallerMemberName]string operation = null, Severity failureSeverity = Severity.Warning, bool traceFailures = true, string tracePrefix = null)
         {
             // Since we're no longer going to wait for this task, we need to handle the case where it later throws
             // an exception as ThrowOnUnobservedTaskException is usually set in Q services.
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                     {
                         context.TraceMessage(
                             failureSeverity,
-                            $"Unhandled exception in fire and forget task for operation '{operation}': {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                            $"{(string.IsNullOrEmpty(tracePrefix) ? string.Empty : tracePrefix + ": ")}Unhandled exception in fire and forget task for operation '{operation}': {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
                     }
                 },
             TaskContinuationOptions.OnlyOnFaulted);

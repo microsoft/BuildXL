@@ -94,6 +94,53 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             fullOutput.Should().Contain("SlowOperation");
         }
 
+        [Fact]
+        public void TraceErrorsOnly()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            // Running a successful operation first
+            var result = context.CreateOperation(
+                    tracer,
+                    () => new CustomResult())
+                .TraceErrorsOnlyIfEnabled(enableTracing: true)
+                .Run(caller: "success");
+
+            // The operation should not be traced, because it was successful.
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().NotContain("success");
+
+            // Running an operation that fails.
+            string error = "My Error";
+            
+            result = context.CreateOperation(
+                    tracer,
+                    () => new CustomResult(new BoolResult(error), error))
+                .TraceErrorsOnlyIfEnabled(enableTracing: true)
+                .Run(caller: "failure");
+            result.Succeeded.Should().BeFalse();
+
+            // The output should have an error
+            fullOutput = GetFullOutput();
+            fullOutput.Should().Contain("failure");
+            fullOutput.Should().Contain(error);
+
+            // Running an operation that fails another time, but this time the tracing is off
+            error = "My Error2";
+            result = context.CreateOperation(
+                    tracer,
+                    () => new CustomResult(new BoolResult(error), error))
+                .TraceErrorsOnlyIfEnabled(enableTracing: true)
+                .Run(caller: "failure2");
+            result.Succeeded.Should().BeFalse();
+
+            // The error should not be in the output
+            fullOutput = GetFullOutput();
+            fullOutput.Should().Contain("failure2");
+            fullOutput.Should().Contain(error);
+        }
+
         private class CustomResult : BoolResult
         {
             public CustomResult() { }

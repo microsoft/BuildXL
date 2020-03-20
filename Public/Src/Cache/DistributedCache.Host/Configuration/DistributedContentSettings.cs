@@ -146,6 +146,12 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public int? RedisConnectionErrorLimit { get; set; }
 
+        [DataMember]
+        public bool? TraceRedisFailures { get; set; }
+
+        [DataMember]
+        public bool? TraceRedisTransientFailures { get; set; }
+
         // TODO: file a work item to remove the flag!
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;

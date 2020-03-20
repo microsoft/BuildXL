@@ -5,10 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -112,12 +110,11 @@ namespace ContentStoreTest.Distributed.Redis
             };
 
             var redisDatabaseFactory = await RedisDatabaseFactory.CreateAsync(connectionMultiplexerFactory, connectionMultiplexer => BoolResult.SuccessTask);
-            var dbAdapter = new RedisDatabaseAdapter(
-                redisDatabaseFactory,
-                DefaultKeySpace,
+            var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace,
                 // If the operation fails we'll retry once and after that we should reset the connection multiplexer so the next operation should create a new one.
                 redisConnectionErrorLimit: 2,
                 retryCount: 1);
+            var dbAdapter = new RedisDatabaseAdapter(redisDatabaseFactory, adapterConfiguration);
 
             // Create a batch query
             var redisBatch = dbAdapter.CreateBatchOperation(RedisOperation.All);

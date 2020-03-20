@@ -308,9 +308,10 @@ return { requestedIncrement, currentValue }";
         }
 
         private readonly List<IRedisOperationAndResult> _redisOperations = new List<IRedisOperationAndResult>();
+        private readonly string _databaseName;
 
         /// <inheritdoc />
-        public RedisBatch(RedisOperation operation, string keySpace) => (Operation, KeySpace) = (operation, keySpace);
+        public RedisBatch(RedisOperation operation, string keySpace, string databaseName) => (Operation, KeySpace, _databaseName) = (operation, keySpace, databaseName);
 
         /// <inheritdoc />
         public RedisOperation Operation { get; }
@@ -333,7 +334,7 @@ return { requestedIncrement, currentValue }";
         public void AddOperationAndTraceIfFailure<T>(Context context, string key, Func<IBatch, Task<T>> operation, [CallerMemberName]string operationName = null)
         {
             // Trace failure using 'Debug' severity to avoid pollution of warning traces.
-            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Severity.Debug);
+            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Severity.Debug, tracePrefix: _databaseName);
         }
 
         /// <inheritdoc />

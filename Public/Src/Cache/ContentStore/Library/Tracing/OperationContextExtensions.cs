@@ -52,6 +52,21 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
     }
 
+    /// <nodoc />
+    public static class PerformOperationExtensions
+    {
+        /// <summary>
+        /// Create a builder that will trace only operation completion failures and ONLY when the <paramref name="enableTracing"/> is true.
+        /// </summary>
+        public static TBuilder TraceErrorsOnlyIfEnabled<TResult, TBuilder>(
+            this PerformOperationBuilderBase<TResult, TBuilder> builder,
+            bool enableTracing,
+            Func<TResult, string>? endMessageFactory = null)
+            where TBuilder : PerformOperationBuilderBase<TResult, TBuilder>
+        {
+            return builder.WithOptions(traceOperationStarted: false, traceOperationFinished: enableTracing, traceErrorsOnly: true, endMessageFactory: endMessageFactory);
+        }
+    }
     /// <summary>
     /// A builder pattern used for perform operations with configurable tracings.
     /// </summary>

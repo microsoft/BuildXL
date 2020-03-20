@@ -144,14 +144,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Task secondResult = await Task.WhenAny(slowerResultTask, Task.Delay(retryWindow.Value, context.Token));
                 if (secondResult != slowerResultTask)
                 {
+                    var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
                     Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Increment();
 
                     // Avoiding task unobserved exception if the second task will fail.
-                    slowerResultTask.FireAndForget(context, failureSeverity: Severity.Info);
+                    slowerResultTask.FireAndForget(context, failureSeverity: Severity.Info, tracePrefix: $"{failingRedisDb}");
 
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();
-                    var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
+
                     Tracer.Info(context, $"{Tracer.Name}.{caller}: Cancelling redis db: {failingRedisDb}, using result: {fasterResultTask.Result} from other redis db");
 
                     if (fasterResultTask == primaryResultTask)
@@ -172,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (primaryResult.Succeeded != secondaryResult.Succeeded)
             {
                 var failingRedisDb = GetDbName(primaryResult.Succeeded ? SecondaryRedisDb : PrimaryRedisDb);
-                Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {primaryResult & secondaryResult}");
+                Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {(primaryResult.Succeeded ? primaryResult : secondaryResult)}");
             }
 
             return (primaryResult, secondaryResult);
@@ -196,7 +197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public string GetDbName(RedisDatabaseAdapter redisDb)
         {
-            return redisDb == PrimaryRedisDb ? "primary" : "secondary";
+            return redisDb.DatabaseName;
         }
 
         /// <nodoc />

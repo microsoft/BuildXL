@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestJobGroup>
+    <ResourceSpec>
+        <Resource Image="Windows-10" SKU="19h1-pro"/>
+    </ResourceSpec>
+
+    <Setup TimeoutMins="3">
+        <BuildFiles>
+            <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\Gvfs\*"/>
+        </BuildFiles>
+    </Setup>
+
+    <TestJob OwnerAliases="buildxl-cloudtest" Name="BuildXL.CloudTest.Gvfs">
+        <Execution Path="[WorkingDirectory]\BuildXL.CloudTest.Gvfs.dll" Type="Xunit"/>
+    </TestJob>
+
+    <Cleanup TimeoutMins="3"/>
+
+</TestJobGroup>

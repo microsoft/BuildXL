@@ -12,6 +12,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using static Test.BuildXL.Utilities.TestEvents;
 
 namespace Test.BuildXL.Utilities
 {
@@ -150,6 +151,15 @@ namespace Test.BuildXL.Utilities
                                     i);
                             }
                         }
+                    }
+
+                    if (eventAttribute.EventId != (int)EventId.ErrorEvent)
+                    {
+                        XAssert.IsTrue(
+                            eventAttribute.Level != EventLevel.Error ||
+                            (eventAttribute.Keywords & Keywords.UserMessage) == Keywords.UserMessage,
+                            "Event {0} marked as Error must be Keywords.UserMessage",
+                            eventMethod.Name);
                     }
                 }
             }

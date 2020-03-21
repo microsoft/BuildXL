@@ -159,6 +159,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool CleanOnInitialize { get; set; } = true;
 
         /// <summary>
+        /// Specifies a opaque value which can be used to determine if database can be reused when <see cref="CleanOnInitialize"/> is false.
+        /// </summary>
+        public string Epoch { get; set; }
+
+        /// <summary>
         /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
         /// 
         /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper

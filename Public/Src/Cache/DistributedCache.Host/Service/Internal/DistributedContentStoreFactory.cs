@@ -37,6 +37,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 {
     public sealed class DistributedContentStoreFactory
     {
+        /// <summary>
+        /// Salt to determine keyspace's current version
+        /// </summary>
+        public const string RedisKeySpaceSalt = "V4";
+
         private readonly RedisContentSecretNames _redisContentSecretNames;
         private readonly string _keySpace;
         private readonly IAbsFileSystem _fileSystem;
@@ -144,7 +149,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 machineLocationsConnectionStringProvider,
                 _arguments.Overrides.Clock,
                 contentHashBumpTime,
-                _keySpace,
                 configuration: RedisContentLocationStoreConfiguration,
                 copier: _copier
             );
@@ -156,6 +160,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var redisContentLocationStoreConfiguration = new RedisMemoizationStoreConfiguration
             {
+                Keyspace = _keySpace + RedisKeySpaceSalt,
                 LogReconciliationHashes = _distributedSettings.LogReconciliationHashes,
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
                 BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
@@ -542,6 +547,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 eventHubConnectionString: ((PlainTextSecret)GetRequiredSecret(secrets, _distributedSettings.EventHubSecretName)).Secret,
                 consumerGroupName: "$Default",
                 epoch: _keySpace + _distributedSettings.EventHubEpoch);
+
+            dbConfig.Epoch = eventStoreConfiguration.Epoch;
 
             configuration.EventStore = eventStoreConfiguration;
             ApplyIfNotNull(

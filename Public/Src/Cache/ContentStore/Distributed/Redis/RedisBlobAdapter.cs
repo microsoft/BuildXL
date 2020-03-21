@@ -30,14 +30,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             DownloadedBlobs
         }
 
-        private readonly CounterCollection<RedisBlobAdapterCounters> _counters = new CounterCollection<RedisBlobAdapterCounters>();
-
         private readonly RedisDatabaseAdapter _redis;
         private readonly TimeSpan _blobExpiryTime;
         private readonly TimeSpan _capacityExpiryTime;
         private string? _lastFailedReservationKey;
         private readonly long _maxCapacityPerTimeBox;
         private readonly IClock _clock;
+
+        internal CounterCollection<RedisBlobAdapterCounters> Counters { get; } = new CounterCollection<RedisBlobAdapterCounters>();
 
         internal static string GetBlobKey(ContentHash hash) => $"Blob-{hash}";
 
@@ -63,14 +63,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 if (await _redis.KeyExistsAsync(context, key, context.Token))
                 {
 
-                    _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
+                    Counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
                     return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
                 }
 
                 var reservationResult = await TryReserveAsync(context, blob.Length, hash);
                 if (!reservationResult)
                 {
-                    _counters[RedisBlobAdapterCounters.FailedReservations].Increment();
+                    Counters[RedisBlobAdapterCounters.FailedReservations].Increment();
                     return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage!);
                 }
 
@@ -139,8 +139,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     return new GetBlobResult(hash, blob: null);
                 }
 
-                _counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
-                _counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
+                Counters[RedisBlobAdapterCounters.DownloadedBytes].Add(result.Length);
+                Counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
                 return new GetBlobResult(hash, result);
             }
             catch (Exception e)
@@ -149,6 +149,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
         }
 
-        public CounterSet GetCounters() => _counters.ToCounterSet();
+        public CounterSet GetCounters() => Counters.ToCounterSet();
     }
 }

@@ -63,8 +63,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public RedisKey FullyQualifiedClusterStateKey => _clusterStateKey.UnsafeGetFullKey();
 
+        internal RedisContentLocationStoreConfiguration Configuration => _configuration;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
+        internal RedisBlobAdapter BlobAdapter => _blobAdapter;
         private readonly RedisBlobAdapter _blobAdapter;
 
         private Role? _role = null;

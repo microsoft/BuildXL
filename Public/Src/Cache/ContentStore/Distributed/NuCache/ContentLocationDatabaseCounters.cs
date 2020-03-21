@@ -72,6 +72,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         TotalNumberOfCacheMiss,
 
+        /// <summary>
+        /// Number of times database has been cleaned and loaded empty
+        /// </summary>
+        DatabaseCleans,
+
+        /// <summary>
+        /// Number of times database epoch has not matched prior loaded instance
+        /// </summary>
+        EpochMismatches,
+
+        /// <summary>
+        /// Number of times database epoch has matched prior loaded instance
+        /// </summary>
+        EpochMatches,
+
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         CacheFlush,

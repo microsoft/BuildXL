@@ -13,6 +13,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     public class RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
     {
         /// <summary>
+        /// The keyspace under which all keys in redis are stored
+        /// </summary>
+        public string Keyspace { get; set; }
+
+        /// <summary>
         /// Gets or sets size of batch calls to Redis.
         /// </summary>
         public int RedisBatchPageSize { get; set; } = RedisContentLocationStoreConstants.DefaultBatchSize;
@@ -52,7 +57,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Default configuration instance.
         /// </summary>
-        public static RedisContentLocationStoreConfiguration Default { get; } = new RedisContentLocationStoreConfiguration();
+        public static RedisContentLocationStoreConfiguration Default { get; } = new RedisContentLocationStoreConfiguration()
+        {
+            Keyspace = "Default:"
+        };
 
         /// <summary>
         /// Configuration of redis garbage collection.

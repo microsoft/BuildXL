@@ -84,7 +84,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private enum ClusterStateKeys
         {
-            MaxMachineId
+            MaxMachineId,
+            StoredEpoch
         }
 
         /// <inheritdoc />
@@ -121,19 +122,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override BoolResult InitializeCore(OperationContext context)
         {
-            if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
-            {
-                _compactionTimer = new Timer(
-                    _ => FullRangeCompaction(context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: nameof(FullRangeCompaction))),
-                    null,
-                    IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
-                    Timeout.InfiniteTimeSpan);
-            }
-
             var result = InitialLoad(context, GetActiveSlot(context.TracingContext));
-            if (result && _configuration.TestInitialCheckpointPath != null)
+            if (result)
             {
-                return RestoreCheckpoint(context, _configuration.TestInitialCheckpointPath);
+                if (_configuration.TestInitialCheckpointPath != null)
+                {
+                    return RestoreCheckpoint(context, _configuration.TestInitialCheckpointPath);
+                }
+
+                if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
+                {
+                    _compactionTimer = new Timer(
+                        _ => FullRangeCompaction(context.CreateNested(nameof(RocksDbContentLocationDatabase), caller: nameof(FullRangeCompaction))),
+                        null,
+                        IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
+                        Timeout.InfiniteTimeSpan);
+                }
             }
 
             return result;
@@ -162,15 +166,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var result = Load(context, activeSlot, clean);
 
-            if (!clean && !result.Succeeded)
-            {
-                context.TracingContext.Warning($"Failed to load database without cleaning. Retrying with clean=true. Failure: {result}");
+            bool reload = false;
 
+            if (!clean)
+            {
+                if (result.Succeeded)
+                {
+                    if (IsStoredEpochInvalid(out var epoch))
+                    {
+                        Counters[ContentLocationDatabaseCounters.EpochMismatches].Increment();
+                        context.TraceDebug($"Stored epoch '{epoch}' does not match configured epoch '{_configuration.Epoch}'. Retrying with clean=true.");
+                        reload = true;
+                    }
+                    else
+                    {
+                        Counters[ContentLocationDatabaseCounters.EpochMatches].Increment();
+                    }
+                }
+
+                if (!result.Succeeded)
+                {
+                    context.TracingContext.Warning($"Failed to load database without cleaning. Retrying with clean=true. Failure: {result}");
+                    reload = true;
+                }
+            }
+
+            if (reload)
+            {
                 // If failed when cleaning is disabled, try again with forcing a clean
-                return Load(context, activeSlot, clean: true);
+                return Load(context, GetNextSlot(activeSlot), clean: true);
             }
 
             return result;
+        }
+
+        private bool IsStoredEpochInvalid(out string epoch)
+        {
+            TryGetGlobalEntry(nameof(ClusterStateKeys.StoredEpoch), out epoch);
+            return _configuration.Epoch != epoch;
         }
 
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean)
@@ -179,9 +212,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var storeLocation = GetStoreLocation(activeSlot);
 
-                if (Directory.Exists(storeLocation))
+                if (clean)
                 {
-                    if (clean)
+                    Counters[ContentLocationDatabaseCounters.DatabaseCleans].Increment();
+
+                    if (Directory.Exists(storeLocation))
                     {
                         FileUtilities.DeleteDirectoryContents(storeLocation, deleteRootDirectory: true);
                     }
@@ -189,7 +224,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 Directory.CreateDirectory(storeLocation);
 
-                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'.");
+                Tracer.Info(context, $"Creating RocksDb store at '{storeLocation}'. Clean={clean}, Configured Epoch='{_configuration.Epoch}'");
 
                 var possibleStore = KeyValueStoreAccessor.Open(
                     new KeyValueStoreAccessor.RocksDbStoreArguments()
@@ -309,6 +344,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
+                if (IsStoredEpochInvalid(out var storedEpoch))
+                {
+                    SetGlobalEntry(nameof(ClusterStateKeys.StoredEpoch), _configuration.Epoch);
+                    Tracer.Info(context.TracingContext, $"Updated stored epoch from '{storedEpoch}' to '{_configuration.Epoch}'.");
+                }
+
                 var targetDirectory = checkpointDirectory.ToString();
                 Tracer.Info(context.TracingContext, $"Saving content location database checkpoint to '{targetDirectory}'.");
 

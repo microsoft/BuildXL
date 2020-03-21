@@ -75,7 +75,7 @@ namespace ContentStoreTest.Distributed.Sessions
             = new Dictionary<int, RedisContentLocationStoreConfiguration>();
 
         private Func<AbsolutePath, int, RedisContentLocationStoreConfiguration> CreateContentLocationStoreConfiguration { get; set; }
-        private LocalRedisProcessDatabase _primaryGlobalStoreDatabase;
+        protected LocalRedisProcessDatabase PrimaryGlobalStoreDatabase { get; private set; }
         private LocalRedisProcessDatabase _secondaryGlobalStoreDatabase;
 
         /// <nodoc />
@@ -113,7 +113,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected bool UseRealStorage { get; set; } = false;
         protected bool UseRealEventHub { get; set; } = false;
 
-        private Action<DistributedContentSettings> _overrideDistributed = null;
+        private Action<TestDistributedContentSettings> _overrideDistributed = null;
         private Action<RedisContentLocationStoreConfiguration> _overrideRedis = null;
 
         private MemoryContentLocationEventStoreConfiguration MemoryEventStoreConfiguration { get; } = new MemoryContentLocationEventStoreConfiguration();
@@ -171,6 +171,13 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
+        protected class TestDistributedContentSettings : DistributedContentSettings
+        {
+            public int TestMachineIndex { get; set; }
+
+            public int TestIteration { get; set; } = 0;
+        }
+
         protected class TestHost : IDistributedCacheServiceHost
         {
             private readonly Dictionary<string, string> _secrets = new Dictionary<string, string>();
@@ -201,11 +208,8 @@ namespace ContentStoreTest.Distributed.Sessions
             IAbsolutePathFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
-            bool enableDistributedEviction,
-            int? replicaCreditInMinutes,
-            bool enableRepairHandling,
-            uint grpcPort,
-            object additionalArgs)
+            int iteration,
+            uint grpcPort)
         {
             var rootPath = testDirectory.Path / "Root";
             var configurationModel = new ConfigurationModel(Config);
@@ -214,14 +218,16 @@ namespace ContentStoreTest.Distributed.Sessions
             int dbIndex = 0;
             var localDatabase = GetDatabase(context, ref dbIndex);
             var localMachineDatabase = GetDatabase(context, ref dbIndex);
-            _primaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
+            PrimaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex);
             if (_enableSecondaryRedis)
             {
                 _secondaryGlobalStoreDatabase = GetDatabase(context, ref dbIndex, _poolSecondaryRedisDatabase);
             }
 
-            var settings = new DistributedContentSettings()
+            var settings = new TestDistributedContentSettings()
             {
+                TestMachineIndex = index,
+                TestIteration = iteration,
                 ConnectionSecretNamesMap = new Dictionary<string, RedisContentSecretNames>()
                 {
                     {
@@ -237,7 +243,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 // By default, only first store is master eligible
                 IsMasterEligible = index == 0,
 
-                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", _primaryGlobalStoreDatabase.ConnectionString),
+                GlobalRedisSecretName = Host.StoreSecret("PrimaryRedis", PrimaryGlobalStoreDatabase.ConnectionString),
                 SecondaryGlobalRedisSecretName = _enableSecondaryRedis ? Host.StoreSecret("SecondaryRedis", _secondaryGlobalStoreDatabase.ConnectionString) : null,
 
                 // Specify event hub and storage secrets even thoug they are not used in tests to satisfy DistributedContentStoreFactory
@@ -251,6 +257,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 ContentHashBumpTimeMinutes = 60,
                 MachineExpiryMinutes = 10,
                 IsDistributedEvictionEnabled = true,
+                IsRepairHandlingEnabled = true,
 
                 SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,
 
@@ -282,8 +289,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 ProactiveCopyRejectOldContent = true,
                 ProactiveCopyOnPut = ProactiveCopyOnPuts,
                 ProactiveCopyOnPin = ProactiveCopyOnPins,
-                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations,
-                IsRepairHandlingEnabled = enableRepairHandling,
+                ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations
             };
 
             _overrideDistributed?.Invoke(settings);
@@ -358,7 +364,7 @@ namespace ContentStoreTest.Distributed.Sessions
             }
         }
 
-        protected bool ConfigureWithRealEventHubAndStorage(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        protected bool ConfigureWithRealEventHubAndStorage(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
         {
             UseRealStorage = true;
             UseRealEventHub = true;
@@ -378,7 +384,7 @@ namespace ContentStoreTest.Distributed.Sessions
             return true;
         }
 
-        protected void ConfigureWithOneMaster(Action<DistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
+        protected void ConfigureWithOneMaster(Action<TestDistributedContentSettings> overrideDistributed = null, Action<RedisContentLocationStoreConfiguration> overrideRedis = null)
         {
             _overrideDistributed = s =>
             {
@@ -481,14 +487,21 @@ namespace ContentStoreTest.Distributed.Sessions
             task.Should().BeNull("Task is not set when inline is true");
         }
 
-        [Fact]
-        public async Task SkipRestoreCheckpointTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task SkipRestoreCheckpointTest(bool changeKeyspace)
         {
             // Ensure master lease is long enough that role doesn't switch between machines
             var masterLeaseExpiryTime = TimeSpan.FromMinutes(60);
             ConfigureWithOneMaster(
                 s =>
                 {
+                    if (changeKeyspace && s.TestIteration == 2)
+                    {
+                        s.KeySpacePrefix += s.TestIteration;
+                    }
+
                     s.RestoreCheckpointAgeThresholdMinutes = 60;
                 },
                 r =>
@@ -517,20 +530,42 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Iteration 0: No checkpoint to restore
                     // Iteration 1: Restore checkpoint created during iteration 0
-                    // Iteration 2: Skip Restore checkpoint created during iteration 1
-                    if (context.Iteration == 2)
-                    {
-                        // Should skip the restore checkpoint for startup
-                        workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(1);
-                    }
-                    else
-                    {
-                        if (context.Iteration == 1)
-                        {
-                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Value.Should().Be(1);
-                        }
+                    // Iteration 2 (changeKeyspace = false): Skip Restore checkpoint created during iteration 1
+                    // Iteration 2 (changeKeyspace = true): No checkpoint to restore
 
-                        workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(0);
+                    switch (context.Iteration)
+                    {
+                        case 0:
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.DatabaseCleans].Value.Should().Be(1);
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMismatches].Value.Should().Be(1);
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMatches].Value.Should().Be(0);
+
+                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(0);
+                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Value.Should().Be(0);
+                            break;
+                        case 1:
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.DatabaseCleans].Value.Should().Be(1);
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMismatches].Value.Should().Be(1);
+                            workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMatches].Value.Should().Be(0);
+
+                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(0);
+                            workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSucceeded].Value.Should().Be(1);
+                            break;
+                        case 2:
+                            if (changeKeyspace)
+                            {
+                                // Same as case 0.
+                                goto case 0;
+                            }
+                            else
+                            {
+                                workerStore.Database.Counters[ContentLocationDatabaseCounters.DatabaseCleans].Value.Should().Be(0);
+                                workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMismatches].Value.Should().Be(0);
+                                workerStore.Database.Counters[ContentLocationDatabaseCounters.EpochMatches].Value.Should().Be(1);
+
+                                workerStore.Counters[ContentLocationStoreCounters.RestoreCheckpointsSkipped].Value.Should().Be(1);
+                                break;
+                            }
                     }
                 });
         }
@@ -1185,8 +1220,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     locationsResult.ContentHashesInfo[2].Locations.Count.Should().Be(machineCount - 1, "Master should have evicted newer content because effective age due to replicas was older than other content");
                     locationsResult.ContentHashesInfo[3].Locations.Should().NotBeEmpty();
                 },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
+                implicitPin: ImplicitPin.None);
         }
 
         [Fact]
@@ -2427,10 +2461,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
                     await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
 
-                    var keys = _primaryGlobalStoreDatabase.Keys.ToList();
+                    var keys = PrimaryGlobalStoreDatabase.Keys.ToList();
 
                     // Delete cluster state from primary
-                    (await _primaryGlobalStoreDatabase.KeyDeleteAsync(masterGlobalStore.FullyQualifiedClusterStateKey)).Should().BeTrue();
+                    (await PrimaryGlobalStoreDatabase.KeyDeleteAsync(masterGlobalStore.FullyQualifiedClusterStateKey)).Should().BeTrue();
 
                     var masterClusterState = master.LocalLocationStore.ClusterState;
 
@@ -2468,8 +2502,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     newMachineId2.Id.Index.Should().Be(newMachineId1.Id.Index + 1);
 
                     // Ensure resiliency to removal from both primary and secondary
-                    await verifyContentResiliency(_primaryGlobalStoreDatabase, _secondaryGlobalStoreDatabase);
-                    await verifyContentResiliency(_secondaryGlobalStoreDatabase, _primaryGlobalStoreDatabase);
+                    await verifyContentResiliency(PrimaryGlobalStoreDatabase, _secondaryGlobalStoreDatabase);
+                    await verifyContentResiliency(_secondaryGlobalStoreDatabase, PrimaryGlobalStoreDatabase);
 
                     async Task verifyContentResiliency(LocalRedisProcessDatabase redis1, LocalRedisProcessDatabase redis2)
                     {
@@ -2723,8 +2757,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     worker1GlobalResult.ContentHashesInfo[0].Locations.Should()
                         .NotBeNullOrEmpty("Putting content on worker 0 after inactivity should eagerly go to global store.");
 
-                },
-                enableRepairHandling: true);
+                });
         }
 
         [Theory]

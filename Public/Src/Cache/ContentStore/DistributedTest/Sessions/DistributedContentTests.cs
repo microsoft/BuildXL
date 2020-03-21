@@ -54,11 +54,8 @@ namespace ContentStoreTest.Distributed.Sessions
             IAbsolutePathFileCopier fileCopier,
             DisposableDirectory testDirectory,
             int index,
-            bool enableDistributedEviction,
-            int? replicaCreditInMinutes,
-            bool enableRepairHandling,
-            uint grpcPort,
-            object additionalArgs);
+            int iteration,
+            uint grpcPort);
 
         public class TestContext
         {
@@ -180,6 +177,9 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).LocalLocationStore;
+
+            internal RedisGlobalStore GetRedisGlobalStore(int idx) =>
+                (RedisGlobalStore)GetLocalLocationStore(idx).GlobalStore;
 
             internal RedisContentLocationStore GetRedisLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).RedisContentLocationStore;
@@ -436,8 +436,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     // Wipe all hashes registered at the local machine from the content tracker
                     var removeFromTrackerResult = await store.RemoveFromTrackerAsync(context);
                     removeFromTrackerResult.ShouldBeSuccess();
-                },
-                enableRepairHandling: true);
+                });
 
             await RunTestAsync(
                 loggingContext,
@@ -571,8 +570,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, Config.MaxSizeQuota.Hard, Token);
                     Assert.True(putResult.Succeeded, putResult.ErrorMessage + " " + putResult.Diagnostics);
                 },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
+                implicitPin: ImplicitPin.None);
 
             // Content hash should be set to random file #1 from first session
             contentHash.Should().NotBe(randomHash);
@@ -638,8 +636,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
                     contentHashes.Add(putResult.ContentHash);
                 },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
+                implicitPin: ImplicitPin.None);
 
             await RunTestAsync(
                 loggingContext,
@@ -659,74 +656,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     locationsResult.ContentHashesInfo.Count.Should().Be(4);
 
                     locationsResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-                    locationsResult.ContentHashesInfo[2].Locations.Should().BeNullOrEmpty();
-                    locationsResult.ContentHashesInfo[3].Locations.Count.Should().Be(1);
-                });
-        }
-
-        [Fact(Skip = "Flaky and becoming obselete with LLS.")]
-        public async Task EvictContentBasedOnLastAccessTimeWithPriorityQueue()
-        {
-            // Use the same context in two sessions when checking for file existence
-            var loggingContext = new Context(Logger);
-
-            var contentHashes = new List<ContentHash>();
-
-            // HACK: Existing purge code removes an extra file. Testing with this in mind.
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-                    var store = context.GetRedisStore(session);
-
-                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
-
-                    // Insert random file #1 into session
-                    store.ContentHashBumpTime = TimeSpan.FromHours(1);
-                    var putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #2 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #3 into session.
-                    store.ContentHashBumpTime = TimeSpan.FromMinutes(15);
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult.ContentHash);
-
-                    // Put random large file #4 into session that will evict file #2 and #3.
-                    // Changing the ContentHashBumpTime tricks the store into believing that #1 was accessed the latest.
-                    putResult = await session.PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-
-                    contentHashes.Add(putResult.ContentHash);
-                },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true,
-                replicaCreditInMinutes: 10);
-
-            await RunTestAsync(
-                loggingContext,
-                1,
-                async context =>
-                {
-                    var session = context.GetDistributedSession(0);
-
-                    var locationsResult = await session.ContentLocationStore.GetBulkAsync(
-                        context,
-                        contentHashes,
-                        Token,
-                        UrgencyHint.Nominal);
-
-                    // Random file #2 and 3 should not be found
-                    Assert.True(locationsResult.Succeeded, locationsResult.ErrorMessage + " " + locationsResult.Diagnostics);
-                    locationsResult.ContentHashesInfo.Count.Should().Be(4);
-
-                    locationsResult.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-                    locationsResult.ContentHashesInfo[1].Locations.Should().BeNullOrEmpty();
                     locationsResult.ContentHashesInfo[2].Locations.Should().BeNullOrEmpty();
                     locationsResult.ContentHashesInfo[3].Locations.Count.Should().Be(1);
                 });
@@ -776,8 +705,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     contentHashes.Add(putResult.ContentHash);
                 },
-                implicitPin: ImplicitPin.None,
-                enableDistributedEviction: true);
+                implicitPin: ImplicitPin.None);
 
             await RunTestAsync(
                 loggingContext,
@@ -1024,20 +952,14 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
-        protected virtual object PrepareAdditionalCreateStoreArgs(int storeCount) => null;
-
         public async Task RunTestAsync(
             Context context,
             int storeCount,
             Func<TestContext, Task> testFunc,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
-            bool enableDistributedEviction = false,
-            int? replicaCreditInMinutes = null,
-            bool enableRepairHandling = false,
             int iterations = 1,
             TestContext outerContext = null)
         {
-            var additionalArgs = PrepareAdditionalCreateStoreArgs(storeCount);
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / (i + startIndex).ToString()) })
@@ -1073,11 +995,8 @@ namespace ContentStoreTest.Distributed.Sessions
                                 testFileCopiers[directory.Index],
                                 directory.Directory,
                                 directory.Index,
-                                enableDistributedEviction,
-                                replicaCreditInMinutes,
-                                enableRepairHandling,
-                                (uint)ports[directory.Index],
-                                additionalArgs)).ToList();
+                                iteration: iteration,
+                                grpcPort: (uint)ports[directory.Index])).ToList();
 
                     var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
 

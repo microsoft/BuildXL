@@ -116,6 +116,10 @@ namespace BuildXL.Utilities
             {
                 return string.Format("macOS {0}.{1}.{2}", CurrentMacOSVersion.Value.Major, CurrentMacOSVersion.Value.Minor, CurrentMacOSVersion.Value.Build);
             }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetOSVersion();
+            }
 
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting OS version string is not supported on this platform!");
@@ -133,6 +137,10 @@ namespace BuildXL.Utilities
             else if (IsMacOS)
             {
                 return ProcessorNameAndIdentifierMacOS.Item1;
+            }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetProcessorName();
             }
 
             // Extend this once we start supporting Linux etc.
@@ -152,6 +160,10 @@ namespace BuildXL.Utilities
             {
                 return ProcessorNameAndIdentifierMacOS.Item2;
             }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetProcessorIdentifier();
+            }
 
             // Extend this once we start supporting Linux etc.
             throw new NotImplementedException("Getting CPU identifier is not supported on this platform!");
@@ -166,12 +178,16 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-            else
+            else if (IsMacOS)
             {
                 var buf = new Memory.RamUsageInfo();
                 return BuildXL.Interop.Unix.Memory.GetRamUsageInfo(ref buf) == 0
                     ? new FileSize(buf.TotalBytes)
                     : new FileSize(0);
+            }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetPhysicalMemorySize();
             }
 
             // Extend this once we start supporting Linux etc.
@@ -187,12 +203,16 @@ namespace BuildXL.Utilities
             {
                 return GetAvailablePhysicalMemorySizeWindows();
             }
-            else
+            else if (IsMacOS)
             {
                 var buf = new Memory.RamUsageInfo();
                 return Memory.GetRamUsageInfo(ref buf) == 0 
                     ? new FileSize(buf.FreeBytes)
                     : new FileSize(0);
+            }
+            else if (IsLinuxOS)
+            {
+                return LinuxSystemInfo.GetAvailablePhysicalMemorySize();
             }
 
             // Extend this once we start supporting Linux etc.

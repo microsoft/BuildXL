@@ -17,13 +17,13 @@ if NOT DEFINED DROP_CONTENT_DIR (
 SET DROP_NAME=%USERNAME%/%FEATURE_NAME%
 
 echo Creating drop %DROP_NAME%
-echo https://mseng.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/%DROP_NAME%
+echo https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/%DROP_NAME%
 
-call %~dp0\drop.cmd create -a -s https://mseng.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%"
+call %~dp0\drop.cmd create -a -s https://cloudbuild.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%"
 
-call %~dp0\drop.cmd publish -a -s https://mseng.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%" -d %DROP_CONTENT_DIR%
+call %~dp0\drop.cmd publish -a -s https://cloudbuild.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%" -d %DROP_CONTENT_DIR%
 
-call %~dp0\drop.cmd finalize -a -s https://mseng.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%"
+call %~dp0\drop.cmd finalize -a -s https://cloudbuild.artifacts.visualstudio.com/DefaultCollection  -n "%DROP_NAME%"
 
 echo Created drop %DROP_NAME%
 

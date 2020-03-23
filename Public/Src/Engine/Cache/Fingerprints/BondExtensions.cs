@@ -8,6 +8,7 @@ using Bond.IO.Unsafe;
 using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
@@ -86,8 +87,9 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// Bond-serializes a given <typeparamref name="T"/> and hashes the result.
         /// </summary>
         public static async Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
+            IArtifactContentCache contentCache,
             T valueToSerialize,
-            Func<ContentHash, ArraySegment<byte>, Task<Possible<Unit>>> storeAsync,
+            Func<IArtifactContentCache, ContentHash, ArraySegment<byte>, Task<Possible<Unit>>> storeAsync,
             BoxRef<long> contentSize = null)
         {
             var valueBuffer = Serialize(valueToSerialize);
@@ -102,7 +104,7 @@ namespace BuildXL.Engine.Cache.Fingerprints
                 valueBuffer.Offset,
                 valueBuffer.Count);
 
-            Possible<Unit> maybeStored = await storeAsync(valueHash, valueBuffer);
+            Possible<Unit> maybeStored = await storeAsync(contentCache, valueHash, valueBuffer);
             if (!maybeStored.Succeeded)
             {
                 return maybeStored.Failure;

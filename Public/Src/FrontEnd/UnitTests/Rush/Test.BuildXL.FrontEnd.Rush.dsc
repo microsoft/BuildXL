@@ -22,7 +22,10 @@ namespace Test.Rush {
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: true,
+                // Running rush seems to be creating temporary files (or something equivalent) under the npm-installed 
+                // rush folder that causes scrubbing of stale files to fail in a non-deterministic way. 
+                doNotScrubTestDeployment: true
             },
         },
         assemblyName: "Test.BuildXL.FrontEnd.Rush",

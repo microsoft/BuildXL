@@ -48,7 +48,11 @@ export function test(args: TestArguments) : TestResult {
         primaryFile: assembly.runtime.binary.name,
         deploymentOptions: args.deploymentOptions,
         // Tag is required by ide generator to generate the right csproj file.
-        tags: [ "testDeployment" ]
+        tags: [ "testDeployment" ],
+        sealPartialWithoutScrubbing: 
+            args.runTestArgs && 
+            args.runTestArgs.unsafeTestRunArguments && 
+            args.runTestArgs.unsafeTestRunArguments.doNotScrubTestDeployment
     });
 
     return assembly.merge<TestResult>(runTestOnly(
@@ -298,6 +302,11 @@ export interface UnsafeTestRunArguments {
 
     /** When set, XUnit test framework is used for running admin tests irrespective of any other settings */
     forceXunitForAdminTests?: boolean;
+
+    /** Blocks scrubbing of stale files under the test deployment. Useful when the test happens to create or lock files
+     * under the deployment root
+    */
+    doNotScrubTestDeployment?: boolean;
 }
 
 @@public

@@ -1464,28 +1464,57 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        /// <nodoc />
+        public enum ReconciliationTestMode
+        {
+            Normal,
+            Slow,
+
+            /// <summary>
+            /// Tests reconciliation when machines are mass-reimaged
+            /// </summary>
+            Reimage,
+        }
 
         [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public async Task ReconciliationTest(bool slowReconciliation)
+        [InlineData(ReconciliationTestMode.Normal)]
+        [InlineData(ReconciliationTestMode.Slow)]
+        [InlineData(ReconciliationTestMode.Reimage)]
+        public async Task ReconciliationTest(ReconciliationTestMode testMode)
         {
+            bool slowReconciliation = testMode == ReconciliationTestMode.Slow;
+
             var removeCount = 100;
             var addCount = 10;
             _enableSecondaryRedis = false;
 
-            var reconciliationMaxCycleSize = 50;
+            var reconciliationMaxCycleSize = 100_000;
+            int? reconciliationMaxRemoveHashesCycleSize = null;
+            var reconciliationCycleFrequencyMinutes = 30;
+
+            if (slowReconciliation)
+            {
+                reconciliationMaxCycleSize = 50;
+                reconciliationCycleFrequencyMinutes = 1;
+            }
+
+            if (testMode == ReconciliationTestMode.Reimage)
+            {
+                removeCount = 1000;
+                addCount = 0;
+                reconciliationMaxRemoveHashesCycleSize = int.MaxValue;
+                reconciliationMaxCycleSize = 10;
+                reconciliationCycleFrequencyMinutes = 1;
+            }
 
             ConfigureWithOneMaster(s =>
             {
                 s.LogReconciliationHashes = true;
                 s.UseContextualEntryDatabaseOperationLogging = true;
                 s.Unsafe_DisableReconciliation = false;
-                if (slowReconciliation)
-                {
-                    s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
-                    s.ReconciliationCycleFrequencyMinutes = 1;
-                }
+                s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
+                s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
+                s.ReconciliationCycleFrequencyMinutes = reconciliationCycleFrequencyMinutes;
             },
             r =>
             {
@@ -1514,6 +1543,11 @@ namespace ContentStoreTest.Distributed.Sessions
                     var master = context.GetMaster();
                     var worker = context.GetFirstWorker();
                     var workerId = worker.LocalMachineId;
+
+                    // We will always have exactly one reconciliation call as we start up. Since we don't have any
+                    // content, it should do a single cycle.
+                    var initialReconciliationCycles = worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value;
+                    initialReconciliationCycles.Should().Be(1);
 
                     var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
 
@@ -1551,6 +1585,13 @@ namespace ContentStoreTest.Distributed.Sessions
                     {
                         var expectedCycles = ((removeCount + addCount) / reconciliationMaxCycleSize) + 2;
                         worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(expectedCycles);
+                    }
+
+                    if (testMode == ReconciliationTestMode.Reimage)
+                    {
+                        // When doing a reimage test, we should only have deletes. Since the deletes are less than the
+                        // maximum deletion-only cycle, we should do only one reconciliation cycle on the worker.
+                        worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(initialReconciliationCycles + 1);
                     }
 
                     int removedIndex = 0;

@@ -520,7 +520,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int ReconciliationMaxCycleSize { get; set; } = 100000;
+        public int ReconciliationMaxCycleSize { get; set; } = 100_000;
+
+        [DataMember]
+        public int? ReconciliationMaxRemoveHashesCycleSize { get; set; } = null;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;

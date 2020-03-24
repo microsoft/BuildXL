@@ -205,6 +205,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ReconciliationMaxCycleSize { get; set; } = 100000;
 
         /// <summary>
+        /// The amount of events that should be sent per reconciliation cycle if the reconciliation cycle consists only
+        /// of removes.
+        /// </summary>
+        public int? ReconciliationMaxRemoveHashesCycleSize { get; set; } = null;
+
+        /// <summary>
         /// Threshold under which proactive replication will be activated.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -12,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
@@ -1368,6 +1366,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     traceErrorsOnly: true);
         }
 
+        private enum ReconciliationCycleCounters
+        {
+            Limit,
+            Adds,
+            Deletes,
+        }
+
         /// <summary>
         /// Forces reconciliation process between local content store and LLS.
         /// </summary>
@@ -1410,7 +1415,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Tracer,
                             operation: performReconciliationCycleAsync,
                             caller: "PerformReconciliationCycleAsync",
-                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles]).ThrowIfFailure();
+                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles],
+                            extraEndMessage: r =>
+                            {
+                                if (!r.Succeeded)
+                                {
+                                    return string.Empty;
+                                }
+
+                                var c = r.Value;
+                                return $"Limit=[{c[ReconciliationCycleCounters.Limit].Value}] Adds=[{c[ReconciliationCycleCounters.Adds].Value}] Deletes=[{c[ReconciliationCycleCounters.Deletes].Value}]";
+                            }).ThrowIfFailure();
 
                         if (!isFinished)
                         {
@@ -1421,7 +1436,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     MarkReconciled(machineId);
                     return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
 
-                    async Task<BoolResult> performReconciliationCycleAsync()
+                    async Task<Result<CounterCollection<ReconciliationCycleCounters>>> performReconciliationCycleAsync()
                     {
                         // Pause events in main event store while sending reconciliation events via temporary event store
                         // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
@@ -1447,25 +1462,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // Diff the two views of the local machines content (left = local store, right = content location db)
                             // Then send changes as events
                             var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
-                            diffedContent = diffedContent.Take(_configuration.ReconciliationMaxCycleSize);
 
                             var addedContent = new List<ShortHashWithSize>();
                             var removedContent = new List<ShortHash>();
 
+                            var removalsOnlyLimit = _configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
+                            var mixedLimit = _configuration.ReconciliationMaxCycleSize;
+                            var limit = mixedLimit;
                             foreach (var diffItem in diffedContent)
                             {
-                                lastProcessedHash = diffItem.item.hash;
+                                if (addedContent.Count + removedContent.Count >= limit)
+                                {
+                                    break;
+                                }
 
                                 if (diffItem.mode == MergeMode.LeftOnly)
                                 {
                                     // Content is not in DB but is in the local store need to send add event
                                     addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
+                                    limit = mixedLimit;
                                 }
                                 else
                                 {
                                     // Content is in DB but is not local store need to send remove event
                                     removedContent.Add(diffItem.item.hash);
+
+                                    if (addedContent.Count == 0)
+                                    {
+                                        limit = removalsOnlyLimit;
+                                    }
                                 }
+
+                                lastProcessedHash = diffItem.item.hash;
                             }
 
                             Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
@@ -1502,9 +1530,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             }
 
                             // Corner case where they are equal and we have finished should be very unlikely.
-                            isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
+                            isFinished = (addedContent.Count + removedContent.Count) < limit;
 
-                            return BoolResult.Success;
+                            var counters = new CounterCollection<ReconciliationCycleCounters>();
+                            counters[ReconciliationCycleCounters.Limit].Add(limit);
+                            counters[ReconciliationCycleCounters.Adds].Add(addedContent.Count);
+                            counters[ReconciliationCycleCounters.Deletes].Add(removedContent.Count);
+                            return counters;
                         }
                     }
                 },

@@ -17,15 +17,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </remarks>
     public class ComChunker : IChunker, IDisposable
     {
-        /// <summary>
-        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
-        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
-        /// </summary>
-        /// TODO: use object pool here. Bug #1331905
-        public const uint MinPushBufferSize = 1024 * 1024;
-
         private static readonly Guid IteratorComGuid = new Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8");
-        private readonly byte[] _pushBuffer = new byte[MinPushBufferSize];
+        private readonly byte[] _pushBuffer = new byte[Chunker.MinPushBufferSize];
         private readonly IDedupIterateChunksHash32 _chunkHashIterator;
         private IDedupChunkLibrary _chunkLibrary;
         private long _totalBytes;
@@ -96,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 byte* pushBufferTail = pushBuffer + _bytesInPushBuffer;
                 while (count > 0)
                 {
-                    while (count > 0 && _bytesInPushBuffer < MinPushBufferSize)
+                    while (count > 0 && _bytesInPushBuffer < Chunker.MinPushBufferSize)
                     {
                         *pushBufferTail = *incomingBufferHead;
                         incomingBufferHead++;
@@ -105,7 +98,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         count--;
                     }
 
-                    if (_bytesInPushBuffer == MinPushBufferSize)
+                    if (_bytesInPushBuffer == Chunker.MinPushBufferSize)
                     {
                         _chunkHashIterator.PushBuffer(_pushBuffer, _bytesInPushBuffer);
                         _totalBytes += _bytesInPushBuffer;
@@ -148,13 +141,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public void Dispose()
         {
-            if (_chunkLibrary == null)
+            if (_chunkLibrary != null)
             {
-                throw new ObjectDisposedException(nameof(_chunkLibrary));
+                _chunkLibrary.Uninitialize();
+                _chunkLibrary = null;
             }
-
-            _chunkLibrary.Uninitialize();
-            _chunkLibrary = null;
         }
 
         private void ProcessChunks(Action<ChunkInfo> chunkCallback)
@@ -264,25 +255,45 @@ namespace BuildXL.Cache.ContentStore.Hashing
             public const int DDP_E_MORE_BUFFERS = unchecked((int)0x8056531b);
 #pragma warning restore SA1310 // Field names must not contain underscore
 
+            private static IntPtr LoadNativeLibrary(string libraryName)
+            {
+                // First, try to load from the system directory or the folder this library is in.
+                // See https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order
+                IntPtr hLib = LoadLibrary(libraryName);
+                if (hLib == IntPtr.Zero)
+                {
+                    // If not there, we carry a copy with us in the x64 folder.
+                    hLib = LoadLibrary($"x64\\{libraryName}");
+                    if (hLib == IntPtr.Zero)
+                    {
+                        throw new Win32Exception($"Could not load {libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
+                    }
+                }
+
+                return hLib;
+            }
+
             private static readonly Lazy<IClassFactory> ClassFactory = new Lazy<IClassFactory>(
                 () =>
                 {
-                    IntPtr hDdpTraceLib = LoadLibrary("ddptrace.dll");
-                    if (hDdpTraceLib == IntPtr.Zero)
+                    if (!Environment.Is64BitOperatingSystem)
                     {
-                        throw new Win32Exception($"Could not load 'ddptrace.dll': {Marshal.GetLastWin32Error()}");
+                        throw new NotSupportedException("Azure DevOps chunker requires a 64-bit operating system.");
                     }
 
-                    IntPtr hDdpChunkLib = LoadLibrary("ddpchunk.dll");
-                    if (hDdpChunkLib == IntPtr.Zero)
+                    if (!Environment.Is64BitProcess)
                     {
-                        throw new Win32Exception($"Could not load 'ddpchunk.dll': {Marshal.GetLastWin32Error()}");
+                        throw new NotSupportedException("Azure DevOps chunker must be run as a 64-bit process.");
                     }
+
+                    IntPtr hDdpTraceLib = LoadNativeLibrary("ddptrace.dll");
+
+                    IntPtr hDdpChunkLib = LoadNativeLibrary("ddpchunk.dll");
 
                     IntPtr pDllGetClassObject = GetProcAddress(hDdpChunkLib, "DllGetClassObject");
                     if (pDllGetClassObject == IntPtr.Zero)
                     {
-                        throw new Win32Exception($"Could not find 'DllGetClassObject': {Marshal.GetLastWin32Error()}");
+                        throw new Win32Exception($"Could not find 'DllGetClassObject' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
                     }
 
                     var dllGetClassObject = Marshal.GetDelegateForFunctionPointer<DllGetClassObjectDelegate>(pDllGetClassObject);
@@ -294,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         out callFactoryObj);
                     if (hresult < 0)
                     {
-                        throw new Win32Exception($"Failed to get class factory for '{ChunkLibraryClsId}': {hresult}");
+                        throw new Win32Exception($"Failed to get class factory for '{ChunkLibraryClsId}' on {Environment.OSVersion}: {hresult}");
                     }
 
                     return (IClassFactory)callFactoryObj;

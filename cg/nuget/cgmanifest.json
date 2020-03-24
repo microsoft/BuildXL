@@ -158,6 +158,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "DeduplicationSigned",
+          "Version": "1.0.14"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Desktop.Analyzers",
           "Version": "1.1.0"
         }

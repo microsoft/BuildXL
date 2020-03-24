@@ -25,6 +25,15 @@ namespace Hashing {
             ]),
             importFrom("System.Interactive.Async").pkg,
         ],
+        runtimeContent: Context.getCurrentHost().os !== "win" ? [] : [
+            {
+                subfolder: "x64",
+                contents: [
+                    BuildXLSdk.Factory.createBinary(importFrom("DeduplicationSigned").pkg.contents, r`build/net45/x64/ddpchunk.dll`),
+                    BuildXLSdk.Factory.createBinary(importFrom("DeduplicationSigned").pkg.contents, r`build/net45/x64/ddptrace.dll`)
+                ]
+            },
+        ],
         allowUnsafeBlocks: true,
     });
 }

@@ -21,12 +21,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private readonly SHA512Managed _shaHasher = new SHA512Managed();
 
         /// <summary>
-        /// To get deterministic chunks out of the chunker, only give it buffers of at least 256KB, unless EOF.
-        /// Cosmin Rusu recommends larger buffers for performance, so going with 1MB.
-        /// </summary>
-        public const uint MinPushBufferSize = 1024 * 1024;
-
-        /// <summary>
         /// Gets total number of bytes chunked.
         /// </summary>
         public long TotalBytes { get; private set; }
@@ -56,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private sealed class Session : IChunkerSession
         {
-            private static readonly ByteArrayPool pool = new ByteArrayPool((int)MinPushBufferSize);
+            private static readonly ByteArrayPool pool = new ByteArrayPool((int)Chunker.MinPushBufferSize);
             private readonly ManagedChunker _parent;
             private readonly RegressionChunking _regressionChunker;
             private readonly Action<ChunkInfo> _chunkCallback;
@@ -138,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {
                     while (count > 0)
                     {
-                        while (count > 0 && _bytesInPushBuffer < MinPushBufferSize)
+                        while (count > 0 && _bytesInPushBuffer < Chunker.MinPushBufferSize)
                         {
                             _pushBuffer.Value[_bytesInPushBuffer] = buffer[startOffset];
                             startOffset++;
@@ -146,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                             count--;
                         }
 
-                        if (_bytesInPushBuffer == MinPushBufferSize)
+                        if (_bytesInPushBuffer == Chunker.MinPushBufferSize)
                         {
                             _regressionChunker.PushBuffer(new ArraySegment<byte>(_pushBuffer.Value));
 
@@ -154,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                             _lastPushBuffer?.Dispose();
                             _lastPushBuffer = _pushBuffer;
 
-                            _bufferFileOffset += MinPushBufferSize;
+                            _bufferFileOffset += Chunker.MinPushBufferSize;
                             _pushBuffer = pool.Get();
                             _bytesInPushBuffer = 0;
                         }

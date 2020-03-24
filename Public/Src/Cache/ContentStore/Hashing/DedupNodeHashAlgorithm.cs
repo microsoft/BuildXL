@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -17,14 +18,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static IChunker CreateChunker()
         {
-            bool tryLoadComChunker = 
-#if NET_FRAMEWORK
-                true;
-#else
-                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-#endif
-
-            if (tryLoadComChunker)
+            if (IsComChunkerSupported)
             {
                 try
                 {
@@ -39,6 +33,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return new ManagedChunker();
         }
 
+        /// <summary>
+        /// Returns whether or not this environment supports chunking via the COM library
+        /// </summary>
+        public static readonly bool IsComChunkerSupported =
+#if NET_FRAMEWORK
+            true;
+#else
+            System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+#endif
+
         private readonly List<ChunkInfo> _chunks = new List<ChunkInfo>();
         private readonly DedupNodeTree.Algorithm _treeAlgorithm;
         private readonly IChunker _chunker;
@@ -52,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Initializes a new instance of the <see cref="DedupNodeHashAlgorithm"/> class.
         /// </summary>
         public DedupNodeHashAlgorithm()
-            : this(DedupNodeTree.Algorithm.MaximallyPacked)
+            : this(DedupNodeTree.Algorithm.MaximallyPacked, CreateChunker())
         {
         }
 
@@ -60,9 +64,25 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// Initializes a new instance of the <see cref="DedupNodeHashAlgorithm"/> class.
         /// </summary>
         public DedupNodeHashAlgorithm(DedupNodeTree.Algorithm treeAlgorithm)
+            : this(treeAlgorithm, CreateChunker())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DedupNodeHashAlgorithm"/> class.
+        /// </summary>
+        public DedupNodeHashAlgorithm(IChunker chunker)
+            : this(DedupNodeTree.Algorithm.MaximallyPacked, chunker)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DedupNodeHashAlgorithm"/> class.
+        /// </summary>
+        public DedupNodeHashAlgorithm(DedupNodeTree.Algorithm treeAlgorithm, IChunker chunker)
         {
             _treeAlgorithm = treeAlgorithm;
-            _chunker = CreateChunker();
+            _chunker = chunker;
             Initialize();
         }
 

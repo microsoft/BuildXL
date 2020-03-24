@@ -203,6 +203,7 @@ config({
                     dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },
 
                 // CloudStore dependencies
+                { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
                 { id: "Microsoft.Bcl.AsyncInterfaces", version: "1.1.0" },

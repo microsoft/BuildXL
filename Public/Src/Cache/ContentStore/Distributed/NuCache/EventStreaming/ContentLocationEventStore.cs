@@ -426,7 +426,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
                 },
                 Counters[PublishLargeEvent],
-                extraEndMessage: r => $"Name={name}, Size={r.Value.size}, StorageId={r.Value.storageId}");
+                extraEndMessage: r => $"Name={name}{resultToString(r)}");
+
+            static string resultToString(Result<(long size, string? storageId)> result)
+            {
+                if (result)
+                {
+                    return $", Size={result.Value.size}, StorageId={result.Value.storageId}";
+                }
+
+                return string.Empty;
+            }
         }
 
         /// <summary>

@@ -24,6 +24,27 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         }
 
         [Fact]
+        public void EndMessageFactoryIsCalledForFailedCase()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            var result = context.CreateOperation(
+                    tracer,
+                    () =>
+                    {
+                        return new Result<int>(new Exception("Error42"));
+                    })
+                .WithOptions(endMessageFactory: r => r.Succeeded ? "ExtraSuccess" : "ExtraFailure")
+                .Run();
+
+            // Check that the exception's stack trace appears in the final output only ones.
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().Contain("ExtraFailure");
+            fullOutput.Should().Contain("Error42");
+        }
+
+        [Fact]
         public void TestCriticalErrorsDiagnosticTracedOnlyOnce()
         {
             var tracer = new Tracer("MyTracer");

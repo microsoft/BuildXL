@@ -254,7 +254,8 @@ namespace BuildXL.Engine
                                         string realPath = fullPath;
                                         
                                         // If this is a symlinked directory, get the final real target directory that it points to, so we can track duplicate work properly
-                                        if (FileUtilities.IsDirectorySymlinkOrJunction(fullPath) &&
+                                        var isDirectorySymlink = FileUtilities.IsDirectorySymlinkOrJunction(fullPath);
+                                        if (isDirectorySymlink &&
                                             FileUtilities.TryGetLastReparsePointTargetInChain(handle: null, sourcePath: fullPath) is var maybeRealPath &&
                                             maybeRealPath.Succeeded)
                                         {
@@ -262,7 +263,8 @@ namespace BuildXL.Engine
                                         }
 
                                         // If the current path is a directory, only follow it if we haven't followed it before (making sure we use the real path in case of symlinks)
-                                        if ((attributes & FileAttributes.Directory) == FileAttributes.Directory && !allEnumeratedDirectories.GetOrAdd(realPath).IsFound)
+                                        var shouldEnumerateDirectory = (attributes & FileAttributes.Directory) == FileAttributes.Directory && !allEnumeratedDirectories.GetOrAdd(realPath).IsFound;
+                                        if (shouldEnumerateDirectory)
                                         {
                                             if (nondeletableDirectories.ContainsKey(fullPath))
                                             {
@@ -294,7 +296,14 @@ namespace BuildXL.Engine
                                                 shouldDeleteCurrentDirectory = false;
                                             }
                                         }
-                                        else 
+
+                                        // On Mac directory symlinks are treated like any files, and so we must delete them if 
+                                        // when they happen to be marked as shared opaque directory output.  
+                                        //
+                                        // When 'fullPath' is a directory symlink the 'if' right above this 'if' will add it to 
+                                        // 'deletableDirectoryCandidates'; there is code that deletes all directories added to this
+                                        // list but that code expects a real directory and so might fail to delete a directory symlink.
+                                        if (!shouldEnumerateDirectory || (isDirectorySymlink && OperatingSystemHelper.IsMacOS))
                                         {
                                             Interlocked.Increment(ref filesEncountered);
 

@@ -369,12 +369,7 @@ namespace Test.BuildXL.Engine
             XAssert.IsFalse(Directory.Exists(fullSymlinkPath));
         }
 
-        /// <summary>
-        /// On Mac this happens naturally since directory symlinks are fully supported.
-        /// On Windows, directories under shared opaques are always removed unless they have files underneath
-        /// that shouldn't be removed. This test verifies this behavior also applies to symlink directories.
-        /// </summary>
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DirectorySymlinksUnderSharedOpaquesArePreservedIfNonEmpty));
@@ -388,6 +383,12 @@ namespace Test.BuildXL.Engine
             string fullSymlinkPath = WriteSymlink(Path.Combine(rootDir, "directory symlink"), fullTargetDirPath, isTargetFile: false);
             XAssert.IsTrue(FileUtilities.FileExistsNoFollow(fullSymlinkPath));
 
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(fullSymlinkPath);
+                XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(fullSymlinkPath));
+            }
+
             // This is somewhat subtle. On Windows, IsSharedOpaqueOutput will say yes for any directory, including symlink directories. This means they won't be
             // considered part of the build and therefore should be traversed.
             // So if the symlink is traversed, fileUnderTarget will be found, which is not a shared opaque output. So the file won't be deleted. And
@@ -398,8 +399,15 @@ namespace Test.BuildXL.Engine
                 blockedPaths: CollectionUtilities.EmptyArray<string>(), 
                 nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
-            XAssert.IsTrue(File.Exists(fileUnderTarget));
-            XAssert.IsTrue(Directory.Exists(fullSymlinkPath));
+            XAssert.FileExists(fileUnderTarget);
+
+            // On Mac:
+            //   - any symlink is a file, any file under shared opaque dir gets scrubber ==> fullSymlinkPath should be scrubbed
+            //
+            // On Windows:
+            //   - directories under shared opaques are always removed unless they have files underneath that shouldn't be 
+            //     removed. This test verifies this behavior also applies to symlink directories
+            XAssert.AreEqual(!OperatingSystemHelper.IsMacOS, Directory.Exists(fullSymlinkPath));
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]

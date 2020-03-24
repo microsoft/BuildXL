@@ -71,7 +71,7 @@ namespace Test.BuildXL.Processes
             {
                 // If we did let it escape, then nothing should have been killed (nor tried to survive and later killed, from the job object point of view)
                 XAssert.IsFalse(result.Killed);
-                if (result.SurvivingChildProcesses != null)
+                if (result.SurvivingChildProcesses != null && result.SurvivingChildProcesses.Any())
                 {
                     var survivors = string.Join(
                         ", ",

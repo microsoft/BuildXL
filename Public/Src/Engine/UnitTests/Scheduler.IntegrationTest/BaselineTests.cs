@@ -1388,12 +1388,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(PipResultStatus.Skipped, cacheOnlyRun.PipResults[pipC.Process.PipId]);
         }
 
-        [Fact]
-        public void RetryPipSuccessOnHighMemoryUsage()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
             Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
+
+            Configuration.Schedule.NumRetryFailedPipsDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
 
             var processA = CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -1452,6 +1456,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
             AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
             AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
+
+            if (!allowLowMemoryRetry)
+            {
+                AssertWarningEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
+            }
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

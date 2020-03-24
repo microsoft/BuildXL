@@ -670,7 +670,7 @@ namespace BuildXL.Engine.Distribution
 
             var pip = runnable.Pip;
             if (pip.Tags.Any(a => a.ToString(runnable.Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
-                runnable.RetryCount == 0)
+                runnable.RetryCountDueToStoppedWorker == 0)
             {
                 // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
                 // It is expected to lose the connection with the worker, so that we force the pips 
@@ -855,13 +855,13 @@ namespace BuildXL.Engine.Distribution
                 return;
             }
 
-            if (runnablePip.ShouldRetry())
+            if (runnablePip.ShouldRetryDueToStoppedWorker())
             {
                 Logger.Log.DistributionExecutePipFailedNetworkFailureWarning(
                     operationContext,
                     runnablePip.Description,
                     Name,
-                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCount + " out of " + runnablePip.MaxRetryLimit,
+                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCountDueToStoppedWorker + " out of " + runnablePip.MaxRetryLimitForStoppedWorker,
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
@@ -875,7 +875,7 @@ namespace BuildXL.Engine.Distribution
                     operationContext,
                     runnablePip.Description,
                     Name,
-                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCount + " out of " + runnablePip.MaxRetryLimit,
+                    errorMessage: errorMessage + " Retry Number: " + runnablePip.RetryCountDueToStoppedWorker + " out of " + runnablePip.MaxRetryLimitForStoppedWorker,
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 

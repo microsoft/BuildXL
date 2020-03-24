@@ -456,6 +456,8 @@ namespace BuildXL.Scheduler.Tracing
         ProcessPattern = 14505,
         OperationTrackerAssert = 14506,
 
+        ExcessivePipRetriesDueToLowMemory = 14507,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

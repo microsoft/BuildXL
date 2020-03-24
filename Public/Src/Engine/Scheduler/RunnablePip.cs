@@ -62,12 +62,17 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Number of retries attempted for this pip
         /// </summary>
-        public int RetryCount { get; private set; }
+        public int RetryCountDueToStoppedWorker { get; private set; }
 
         /// <summary>
         /// Number of retries attempted for this pip
         /// </summary>
-        public readonly int MaxRetryLimit;
+        public int RetryCountDueToLowMemory { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        public readonly int MaxRetryLimitForStoppedWorker;
 
         /// <summary>
         /// The underlying pip
@@ -188,7 +193,7 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
-            int maxRetryLimit,
+            int maxRetryLimitForStoppedWorker,
             Pip pip = null)
         {
             Contract.Requires(phaseLoggingContext != null);
@@ -204,8 +209,9 @@ namespace BuildXL.Scheduler
             ScheduleTime = DateTime.UtcNow;
             Performance = new RunnablePipPerformanceInfo(ScheduleTime);
             m_pip = pip;
-            RetryCount = 0;
-            MaxRetryLimit = maxRetryLimit;
+            RetryCountDueToStoppedWorker = 0;
+            RetryCountDueToLowMemory = 0;
+            MaxRetryLimitForStoppedWorker = maxRetryLimitForStoppedWorker;
         }
 
         /// <summary>
@@ -294,7 +300,16 @@ namespace BuildXL.Scheduler
                 !Environment.IsTerminating)
             {
                 SetWorker(null);
-                RetryCount++;
+
+                if (ExecutionResult?.IsCancelledDueToResourceExhaustion == true)
+                {
+                    RetryCountDueToLowMemory++;
+                }
+                else
+                {
+                    RetryCountDueToStoppedWorker++;
+                }
+
                 return DecideNextStepForRetry();
             }
 
@@ -321,9 +336,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Returns if the failed pip should be retired on a different worker
         /// </summary>
-        public bool ShouldRetry()
+        public bool ShouldRetryDueToStoppedWorker()
         {
-            return MaxRetryLimit > RetryCount;
+            return MaxRetryLimitForStoppedWorker > RetryCountDueToStoppedWorker;
         }
 
         /// <summary>
@@ -477,14 +492,14 @@ namespace BuildXL.Scheduler
             Pip pip,
             int priority,
             Func<RunnablePip, Task> executionFunc,
-            int maxRetryLimit = 0)
+            int maxRetryLimitForStoppedWorker = 0)
         {
             switch (pip.PipType)
             {
                 case PipType.Process:
-                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, maxRetryLimit, pip: pip);
+                    return new ProcessRunnablePip(loggingContext, pip.PipId, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip: pip);
                 default:
-                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, maxRetryLimit, pip);
+                    return new RunnablePip(loggingContext, pip.PipId, pip.PipType, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip);
             }
         }
 

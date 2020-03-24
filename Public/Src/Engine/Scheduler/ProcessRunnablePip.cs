@@ -74,10 +74,10 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
-            int maxRetryLimit = 0,
+            int maxRetryLimitForStoppedWorker = 0,
             ushort cpuUsageInPercents = 0,
             Pip pip = null)
-            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, maxRetryLimit, pip)
+            : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, maxRetryLimitForStoppedWorker, pip)
         {
             if (cpuUsageInPercents > 100)
             {

@@ -332,6 +332,12 @@ namespace BuildXL.Utilities.Configuration
         int? MinimumDiskSpaceForPipsGb { get; }
 
         /// <summary>
+        /// Number of retires allowed per Pip failing due to low memory. 
+        /// null represents inifinite attempts.
+        /// </summary>
+        int? NumRetryFailedPipsDueToLowMemory { get; }
+
+        /// <summary>
         /// Instructs the scheduler to only perform cache lookup and skip execution of pips that are cache misses.
         /// </summary>
         bool CacheOnly { get; }

@@ -972,9 +972,11 @@ namespace BuildXL.Scheduler
         private readonly CounterCollection<FingerprintStoreCounters> m_fingerprintStoreCounters = new CounterCollection<FingerprintStoreCounters>();
 
         /// <summary>
-        /// Counts the number of Pips failing 0 times, 1 time, 2 times, etc. upto Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker
+        /// Counts the number of Pips failing due to network failures 0 times, 1 time, 2 times, etc. upto Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker
         /// </summary>
-        private int[] m_pipRetryCounters;
+        private int[] m_pipRetryCountersDueToNetworkFailures;
+
+        private readonly ConcurrentDictionary<int, int> m_pipRetryCountersDueToLowMemory = new ConcurrentDictionary<int, int>();
 
         private sealed class CriticalPathStats
         {
@@ -1272,7 +1274,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
-            m_pipRetryCounters = new int[(m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
+            m_pipRetryCountersDueToNetworkFailures = new int[(m_configuration.Distribution.NumRetryFailedPipsOnAnotherWorker ?? 0) + 1];
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
@@ -1704,10 +1706,16 @@ namespace BuildXL.Scheduler
             statistics.Add("DirectoryMembershipFingerprinter.DirectoryContentCacheHits", m_directoryMembershipFingerprinter.CachedDirectoryContents.Hits);
 
             int numOfRetires = 0;
-            foreach (int retryCount in m_pipRetryCounters)
+            foreach (int retryCount in m_pipRetryCountersDueToNetworkFailures)
             {
-                statistics.Add("NumPipsRetry_" + numOfRetires, retryCount);
+                statistics.Add("RetriedDueToStoppedWorker_" + numOfRetires, retryCount);
                 numOfRetires++;
+            }
+
+            SortedDictionary<int, int> sortedLowMemoryRetryCounters = new SortedDictionary<int, int>(m_pipRetryCountersDueToLowMemory);
+            foreach (var current in sortedLowMemoryRetryCounters)
+            {
+                statistics.Add("RetriedDueToLowMemory_" + current.Key, current.Value);
             }
 
             Logger.Log.CacheFingerprintHitSources(loggingContext, m_cacheIdHits);
@@ -2604,10 +2612,12 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (runnablePip.RetryCount < m_pipRetryCounters.Length)
+            if (runnablePip.RetryCountDueToStoppedWorker < m_pipRetryCountersDueToNetworkFailures.Length)
             {
-                m_pipRetryCounters[runnablePip.RetryCount]++;
+                m_pipRetryCountersDueToNetworkFailures[runnablePip.RetryCountDueToStoppedWorker]++;
             }
+
+            m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
 
             using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.OnPipCompletedDuration))
             {
@@ -4011,6 +4021,12 @@ namespace BuildXL.Scheduler
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
                             var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
                             ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                        }
+
+                        if (m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory.HasValue &&
+                            processRunnable.RetryCountDueToLowMemory == m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory)
+                        {
+                            Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.RetryCountDueToLowMemory);
                         }
 
                         // Use the max of the observed peak memory and the worker's expected RAM usage for the pip

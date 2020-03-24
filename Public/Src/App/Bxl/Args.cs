@@ -725,6 +725,9 @@ namespace BuildXL
                             "minimumDiskSpaceForPipsGb",
                             opt => schedulingConfiguration.MinimumDiskSpaceForPipsGb = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "numRetryFailedPipsDueToLowMemory",
+                            opt => schedulingConfiguration.NumRetryFailedPipsDueToLowMemory = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "minWorkers",
                             opt => distributionConfiguration.MinimumWorkers = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(

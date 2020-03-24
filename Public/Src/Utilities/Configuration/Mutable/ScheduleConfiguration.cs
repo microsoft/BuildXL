@@ -153,6 +153,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
             DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
+            NumRetryFailedPipsDueToLowMemory = template.NumRetryFailedPipsDueToLowMemory;
         }
 
         /// <inheritdoc />
@@ -346,6 +347,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public int? MinimumDiskSpaceForPipsGb { get; set; }
 
+        /// <inheritdoc />
+        public int? NumRetryFailedPipsDueToLowMemory { get; set; }
+        
         /// <inheritdoc />
         public bool CacheOnly { get; set; }
 

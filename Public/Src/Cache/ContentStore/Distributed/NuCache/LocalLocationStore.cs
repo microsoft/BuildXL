@@ -31,7 +31,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.UtilitiesCore.Internal.CollectionUtilities;
@@ -389,6 +388,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (switchedRoles)
                     {
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
+
+                        // Saving a global information about the new role of a current service.
+                        context.TracingContext.ChangeRole(newRole.ToString());
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
                         Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master);

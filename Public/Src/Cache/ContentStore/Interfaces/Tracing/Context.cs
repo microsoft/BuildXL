@@ -182,12 +182,32 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 severity = result.IsCriticalFailure ? Severity.Error : (kind == OperationKind.Startup ? Severity.Warning : Severity.Info);
             }
 
-            TraceMessage(severity, message);
+            bool messageWasTraced = false;
 
-            if (Logger is IOperationLogger operationLogger)
+            // The Logger instance may implement both IOperationLogger and IStructuredLogger
+            // (this is actually the case right now for the new logging infrastructure).
+            // And to get correct behavior in this case we need to check IStructuredLogger
+            // first because that kind of logger does two things:
+            // 1. Traces the operation and
+            // 2. Emit metrics.
+            // But other IOperationLogger implementation just trace the metrics and a text racing should be done separately.
+            if (Logger is IStructuredLogger structuredLogger)
             {
-                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, Id, severity);
+                // Note, that 'message' here is a plain message from the client
+                // without correlation id.
+                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
+                structuredLogger.LogOperationFinished(operationResult);
+                messageWasTraced = true;
+            }
+            else if (Logger is IOperationLogger operationLogger)
+            {
+                var operationResult = new OperationResult(message, operationName, componentName, statusFromResult(result), duration, kind, result.Exception, _idAsString, severity);
                 operationLogger.OperationFinished(operationResult);
+            }
+
+            if (!messageWasTraced)
+            {
+                TraceMessage(severity, message);
             }
 
             static OperationStatus statusFromResult(ResultBase resultBase)
@@ -232,12 +252,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
+        public void ChangeRole(string role)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole, role);
+        }
+
+        /// <nodoc />
         public void RegisterBuildId(string buildId)
         {
             if (Logger is IOperationLogger operationLogger)
             {
                 operationLogger.RegisterBuildId(buildId);
             }
+
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, buildId);
         }
 
         /// <nodoc />
@@ -247,6 +275,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
             {
                 operationLogger.UnregisterBuildId();
             }
+
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, value: null);
         }
     }
 }

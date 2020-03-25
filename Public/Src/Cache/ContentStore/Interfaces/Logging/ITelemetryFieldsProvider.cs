@@ -1,42 +1,42 @@
 ﻿namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
     /// <summary>
-    ///     Provides CASaaS with basic information about the environment it runs in. This is used to obtain logging
-    ///     information.
+    /// Provides CASaaS with basic information about the environment it runs in. This is used to obtain logging
+    /// information.
     /// </summary>
     /// <remarks>
-    ///     See CloudCacheLogEvent.kql to understand where these fields go in actual telemetry.
+    /// See CloudCacheLogEvent.kql to understand where these fields go in actual telemetry.
     /// </remarks>
     public interface ITelemetryFieldsProvider
     {
         /// <nodoc />
-        public string BuildId { get; }
+        string BuildId { get; }
 
         /// <nodoc />
-        public string APEnvironment { get; }
+        string APEnvironment { get; }
 
         /// <nodoc />
-        public string APCluster { get; }
+        string APCluster { get; }
 
         /// <nodoc />
-        public string APMachineFunction { get; }
+        string APMachineFunction { get; }
 
         /// <nodoc />
-        public string MachineName { get; }
+        string MachineName { get; }
 
         /// <nodoc />
-        public string ServiceName { get; }
+        string ServiceName { get; }
 
         /// <nodoc />
-        public string ServiceVersion { get; }
+        string ServiceVersion { get; }
 
         /// <nodoc />
-        public string Ring { get; }
+        string Ring { get; }
 
         /// <nodoc />
-        public string Stamp { get; }
+        string Stamp { get; }
 
         /// <nodoc />
-        public string ConfigurationId { get; }
+        string ConfigurationId { get; }
     }
 }

@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <summary>
         /// Id of an operation.
         /// </summary>
-        public Guid OperationId { get; }
+        public string OperationId { get; }
 
         /// <nodoc />
         public OperationResult(
@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
             TimeSpan duration,
             OperationKind operationKind,
             Exception? exception,
-            Guid operationId,
+            string operationId,
             Severity severity)
         {
             Contract.RequiresNotNullOrEmpty(message, "message should not be null or empty");

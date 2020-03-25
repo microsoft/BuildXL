@@ -34,118 +34,70 @@ namespace BuildXL.Cache.Logging.External
         public int ErrorCount => _logger.ErrorCount;
 
         /// <inheritdoc />
-        public void Diagnostic(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Diagnostic(messageFormat, messageArgs);
-        }
+        public void Diagnostic(string messageFormat, params object[] messageArgs) => _logger.Diagnostic(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Debug(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Debug(messageFormat, messageArgs);
-        }
+        public void Debug(string messageFormat, params object[] messageArgs) => _logger.Debug(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Debug(Exception exception)
-        {
-            _logger.Debug(exception);
-        }
+        public void Debug(Exception exception) => _logger.Debug(exception);
 
         /// <inheritdoc />
-        public void Info(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Info(messageFormat, messageArgs);
-        }
+        public void Info(string messageFormat, params object[] messageArgs) => _logger.Info(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Warning(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Warning(messageFormat, messageArgs);
-        }
+        public void Warning(string messageFormat, params object[] messageArgs) => _logger.Warning(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Error(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Error(messageFormat, messageArgs);
-        }
+        public void Error(string messageFormat, params object[] messageArgs) => _logger.Error(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Error(Exception exception, string messageFormat, params object[] messageArgs)
-        {
-            _logger.Error(exception, messageFormat, messageArgs);
-        }
+        public void Error(Exception exception, string messageFormat, params object[] messageArgs) => _logger.Error(exception, messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs)
-        {
-            _logger.Error(exception, messageFormat, messageArgs);
-        }
+        public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs) => _logger.Error(exception, messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Fatal(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Fatal(messageFormat, messageArgs);
-        }
+        public void Fatal(string messageFormat, params object[] messageArgs) => _logger.Fatal(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Always(string messageFormat, params object[] messageArgs)
-        {
-            _logger.Always(messageFormat, messageArgs);
-        }
+        public void Always(string messageFormat, params object[] messageArgs) => _logger.Always(messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Flush()
-        {
-            _logger.Flush();
-        }
+        public void Flush() => _logger.Flush();
 
         /// <inheritdoc />
-        public void Log(Severity severity, string message)
-        {
-            _logger.Log(severity, message);
-        }
+        public void Log(Severity severity, string message) => _logger.Log(severity, message);
 
         /// <inheritdoc />
-        public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
-        {
-            _logger.LogFormat(severity, messageFormat, messageArgs);
-        }
+        public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs) => _logger.LogFormat(severity, messageFormat, messageArgs);
 
         /// <inheritdoc />
-        public void Log(Severity severity, string correlationId, string message)
-        {
-            _logger.Log(severity, correlationId, message);
-        }
+        public void Log(Severity severity, string correlationId, string message) => _logger.Log(severity, correlationId, message);
 
         /// <inheritdoc />
-        public void OperationFinished(in OperationResult result)
+        public void LogOperationFinished(in OperationResult result)
         {
+            // Need to call the both loggers, because the first one will write to the file and
+            // will emit telemetry and the operations logger will write to MDM.
+            _logger.LogOperationFinished(result);
             _operations.OperationFinished(result);
         }
 
         /// <inheritdoc />
-        public void TrackMetric(in Metric metric)
-        {
-            _operations.TrackMetric(metric);
-        }
+        public void OperationFinished(in OperationResult result) => _operations.OperationFinished(result);
 
         /// <inheritdoc />
-        public void TrackTopLevelStatistic(in Statistic statistic)
-        {
-            _operations.TrackTopLevelStatistic(statistic);
-        }
+        public void TrackMetric(in Metric metric) => _operations.TrackMetric(metric);
 
         /// <inheritdoc />
-        public void RegisterBuildId(string buildId)
-        {
-            _operations.RegisterBuildId(buildId);
-        }
+        public void TrackTopLevelStatistic(in Statistic statistic) => _operations.TrackTopLevelStatistic(statistic);
 
         /// <inheritdoc />
-        public void UnregisterBuildId()
-        {
-            _operations.UnregisterBuildId();
-        }
+        public void RegisterBuildId(string buildId) => _operations.RegisterBuildId(buildId);
+
+        /// <inheritdoc />
+        public void UnregisterBuildId() => _operations.UnregisterBuildId();
 
         /// <inheritdoc />
         public void Dispose()

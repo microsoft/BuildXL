@@ -449,6 +449,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configuration.Checkpoint.Role = Role.Worker;
             }
 
+            // It is important to set the current role of the service, to have non-null Role column
+            // in all the tracing messages emitted to Kusto.
+            GlobalInfoStorage.SetServiceRole(configuration.Checkpoint.Role?.ToString() ?? "MasterEligible");
+
             var checkpointConfiguration = configuration.Checkpoint;
 
             ApplyIfNotNull(_distributedSettings.MirrorClusterState, value => configuration.MirrorClusterState = value);

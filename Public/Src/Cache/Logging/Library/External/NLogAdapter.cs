@@ -137,7 +137,31 @@ namespace BuildXL.Cache.Logging.External
         public void Log(Severity severity, string correlationId, string message)
         {
             var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: message);
-            logLine.Properties["CorrelationId"] = correlationId;
+            logLine.Properties[MetaData.OperationCorrelationId] = correlationId;
+
+            _nlog.Log(logLine);
+
+            if (severity == Severity.Error)
+            {
+                Interlocked.Increment(ref _errorCount);
+            }
+        }
+
+        /// <inheritdoc />
+        public void LogOperationFinished(in OperationResult result)
+        {
+            var severity = result.Severity;
+
+            var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: result.Message);
+            logLine.Exception = result.Exception;
+            logLine.Properties[MetaData.OperationCorrelationId] = result.OperationId;
+            logLine.Properties[MetaData.OperationName] = result.OperationName;
+            logLine.Properties[MetaData.OperationComponent] = result.TracerName;
+            // Arguments can take arbitrary information. It should be space separated
+            // key values.
+            logLine.Properties[MetaData.OperationArguments] = "Kind=" + result.OperationKind;
+            logLine.Properties[MetaData.OperationResult] = result.Status;
+            logLine.Properties[MetaData.OperationDuration] = result.Duration;
 
             _nlog.Log(logLine);
 
@@ -317,6 +341,36 @@ namespace BuildXL.Cache.Logging.External
                 Severity.Always => NLog.LogLevel.Info,
                 _ => throw new NotImplementedException("Missing log level translation"),
             };
+        }
+
+        /// <summary>
+        /// Contains information about extra columns emitted by the logger.
+        /// </summary>
+        /// <remarks>
+        /// The names here should match the layout of NLog.config file.
+        /// </remarks>
+        public class MetaData
+        {
+            /// <nodoc />
+            public const string OperationCorrelationId = nameof(OperationCorrelationId);
+
+            /// <nodoc />
+            public const string OperationComponent = nameof(OperationComponent);
+
+            /// <nodoc />
+            public const string OperationName = nameof(OperationName);
+
+            /// <nodoc />
+            public const string OperationArguments = nameof(OperationArguments);
+
+            /// <nodoc />
+            public const string OperationResult = nameof(OperationResult);
+
+            /// <nodoc />
+            public const string OperationDuration = nameof(OperationDuration);
+
+            /// <nodoc />
+            public const string OperationException = nameof(OperationException);
         }
     }
 }

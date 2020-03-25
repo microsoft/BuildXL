@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
             UseFileContentTable = default;
-            AllowDuplicateTemporaryDirectory = null; // TODO: Change this default to false when all consumers have been updated (and change default value in help text)
+            AllowDuplicateTemporaryDirectory = false;
         }
 
         /// <nodoc />

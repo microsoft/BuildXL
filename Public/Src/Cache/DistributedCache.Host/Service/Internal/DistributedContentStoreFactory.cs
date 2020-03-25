@@ -193,6 +193,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisContentLocationStoreConfiguration.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisContentLocationStoreConfiguration.RetryWindow = TimeSpan.FromSeconds(v));
 
+            ApplyIfNotNull(_distributedSettings.RedisGetBlobTimeoutMilliseconds, v => redisContentLocationStoreConfiguration.GetBlobTimeout = TimeSpan.FromMilliseconds(v));
+
             redisContentLocationStoreConfiguration.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
 
             if (_distributedSettings.IsContentLocationDatabaseEnabled)

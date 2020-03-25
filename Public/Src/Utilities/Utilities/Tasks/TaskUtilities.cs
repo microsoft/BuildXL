@@ -294,6 +294,11 @@ namespace BuildXL.Utilities.Tasks
         /// </summary>
         public static async Task<T> WithTimeoutAsync<T>(Func<CancellationToken, Task<T>> taskFactory, TimeSpan timeout, CancellationToken token = default)
         {
+            if (timeout == Timeout.InfiniteTimeSpan)
+            {
+                return await taskFactory(token);
+            }
+
             using (var timeoutTokenSource = new CancellationTokenSource(timeout))
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutTokenSource.Token, token))
             {

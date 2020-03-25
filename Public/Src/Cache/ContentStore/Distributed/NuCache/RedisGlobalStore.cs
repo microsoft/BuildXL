@@ -630,7 +630,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return context.PerformOperationAsync(
                 Tracer,
-                () => _blobAdapter.GetBlobAsync(context, hash),
+                () => TaskUtilities.WithTimeoutAsync(_ => _blobAdapter.GetBlobAsync(context, hash), _configuration.GetBlobTimeout, context.Token),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.GetBlob]);
         }

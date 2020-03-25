@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
@@ -192,6 +193,34 @@ namespace ContentStoreTest.Distributed.Sessions
                     var openStreamResult = await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
                     Assert.Equal(0, redisStore1.BlobAdapter.Counters[RedisBlobAdapter.RedisBlobAdapterCounters.DownloadedBlobs].Value);
                     Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.PutBlob].Value);
+                });
+        }
+
+        [Fact]
+        public Task SmallPutFileTimesOut()
+        {
+            // Set an unrealistically low timeout and ensure that the task does throw TimeoutException
+            ConfigureWithOneMasterAndSmallBlobs(s =>
+            {
+                s.RedisGetBlobTimeoutMilliseconds = 0;
+            });
+
+            return RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var session0 = context.GetDistributedSession(0);
+                    var redisStore0 = context.GetRedisGlobalStore(0);
+
+                    var session1 = context.GetDistributedSession(1);
+                    var redisStore1 = context.GetRedisGlobalStore(1);
+
+                    var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
+                    Assert.Equal(1, redisStore0.Counters[GlobalStoreCounters.PutBlob].Value);
+
+                    await redisStore1.GetBlobAsync(context, putResult.ContentHash).ShouldBeError("TimeoutException");
+                    Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.GetBlob].Value);
                 });
         }
     }

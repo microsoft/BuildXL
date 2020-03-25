@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -108,6 +109,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Whether to trace transient failures in redis access layer.
         /// </summary>
         public bool TraceRedisTransientFailures { get; set; } = false;
+
+        /// <summary>
+        /// Timeout for GetBlob operations.
+        /// </summary>
+        public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;
 
         /// <summary>
         /// Indicates the mode used when writing content locations

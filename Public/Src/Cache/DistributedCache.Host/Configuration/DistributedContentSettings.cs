@@ -152,6 +152,10 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool? TraceRedisTransientFailures { get; set; }
 
+        [DataMember]
+        [Validation.Range(-1, int.MaxValue)]
+        public int? RedisGetBlobTimeoutMilliseconds { get; set; }
+
         // TODO: file a work item to remove the flag!
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;

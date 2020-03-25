@@ -60,11 +60,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private static readonly string PredictionBlobNameFile = "blobName.txt";
 
-        /// <summary>
-        /// Caches pin operations
-        /// </summary>
-        private readonly PinCache _pinCache;
-
         // The method used for remote pins depends on which pin configuraiton is enabled.
         private readonly RemotePinAsync _remotePinner;
 
@@ -123,7 +118,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier<T> contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
-            PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
             : base(name)
@@ -138,18 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             LocalCacheRootMachineLocation = localMachineLocation;
             Settings = settings;
             _copierHost = copierHost;
-            _pinCache = pinCache;
-
-            // If no better pin configuration is supplied, fall back to the old remote pinning logic.
-            if (pinCache != null)
-            {
-                _remotePinner = _pinCache.CreatePinner(PinFromMultiLevelContentLocationStore);
-            }
-            else
-            {
-                _remotePinner = PinFromMultiLevelContentLocationStore;
-            }
-
+            _remotePinner = PinFromMultiLevelContentLocationStore;
             _contentTrackerUpdater = contentTrackerUpdater;
             DistributedCopier = contentCopier;
             PutAndPlaceFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutAndPlaceFileOperations);
@@ -276,14 +259,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var contentHashInfo = new ContentHashWithSizeAndLastAccessTime(contentHash, local.ContentSize, local.LastAccessTime);
                 await UpdateContentTrackerWithLocalHitsAsync(operationContext, new[] { contentHashInfo }, operationContext.Token, urgencyHint);
                 return local;
-            }
-
-            // Next try the pin cache
-            if (_pinCache?.TryPinFromCachedResult(contentHash).Succeeded == true)
-            {
-                Tracer.Info(operationContext, $"Pin succeeded for {contentHash.ToShortString()}: satisfied from cache.");
-
-                return PinResult.Success;
             }
 
             // Then try to find remote copies from the distributed directory.
@@ -930,7 +905,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var pinnings = new List<RemotePinning>(hashes.Count);
             var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
             var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
-            
+
             // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
             foreach (IReadOnlyList<ContentHash> pageHashes in hashes.GetPages(ContentLocationStore.PageSize))
             {
@@ -1044,28 +1019,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PinResult.ContentNotFound;
             }
 
-            if (Settings.PinConfiguration == null)
-            {
-                if (Settings.ContentAvailabilityGuarantee == ContentAvailabilityGuarantee.FileRecordsExist)
-                {
-                    return PinResult.Success;
-                }
-                else if (Settings.ContentAvailabilityGuarantee == ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence)
-                {
-                    if (locations.Count >= Settings.AssumeAvailableReplicaCount)
-                    {
-                        return PinResult.Success;
-                    }
-
-                    var verify = await VerifyAsync(operationContext, remote, cancel);
-                    return verify.Present.Count > 0 ? PinResult.Success : PinResult.ContentNotFound;
-                }
-                else
-                {
-                    throw Contract.AssertFailure($"Unknown enum value: {Settings.ContentAvailabilityGuarantee}");
-                }
-            }
-
             // When we only require the content to exist at least once anywhere, we can ignore pin thresholds
             // and return success after finding a single location.
             if (succeedWithOneLocation && locations.Count >= 1)
@@ -1074,57 +1027,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return DistributedPinResult.Success($"{locations.Count} replicas (global succeeds)");
             }
 
-            // TODO (minlam): Transitional phase, we will be removing the logic that uses PinRisk to compute MinVerifiedCount, MinUnverifiedCount, and PinCacheTimeToLive
-            if (Settings.PinConfiguration.PinMinUnverifiedCount.HasValue)
+            if (locations.Count >= Settings.PinConfiguration.PinMinUnverifiedCount)
             {
-                var minUnverifiedCount = Settings.PinConfiguration.PinMinUnverifiedCount.Value;
-                if (locations.Count >= minUnverifiedCount)
-                {
-                    _counters[Counters.PinUnverifiedCountSatisfied].Increment();
-                    return DistributedPinResult.Success($"Replica Count={locations.Count}");
-                }
-
-            }
-            else
-            {
-                // Calculate the minimum number of remote verified and unverified copies for us to
-                // return a successful pin at the given risk level.
-                ComputePinThresholds(remote, Settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
-                Contract.Assert(minVerifiedCount > 0);
-                Contract.Assert(minUnverifiedCount >= minVerifiedCount);
-
-                // If we have enough records globally, we are satisfied without further action.
-                if (locations.Count >= minUnverifiedCount)
-                {
-                    _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
-                    return DistributedPinResult.Success($"{locations.Count} replicas");
-                }
-
-                // If we have enough records that we would be satisfied if they were verified, verify them.
-                // Skip this step if no IO slots are available; if we would have to spend time waiting on them, we might as well just move on to copying.
-                if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
-                {
-                    var verify = await VerifyAsync(operationContext, remote, cancel);
-
-                    if (verify.Present.Count >= minVerifiedCount)
-                    {
-                        return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
-                    }
-
-                    if (verify.Present.Count == 0 && verify.Unknown.Count == 0 && isLocal)
-                    {
-                        Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
-                        return PinResult.ContentNotFound;
-                    }
-
-                    // We are going to try to copy. Have the copier try the verified present locations first, then the unknown locations.
-                    // Don't give it the verified absent locations.
-                    List<MachineLocation> newLocations = new List<MachineLocation>();
-                    newLocations.AddRange(verify.Present);
-                    newLocations.AddRange(verify.Unknown);
-                    remote = new ContentHashWithSizeAndLocations(remote.ContentHash, remote.Size, newLocations);
-                }
-
+                _counters[Counters.PinUnverifiedCountSatisfied].Increment();
+                return DistributedPinResult.Success($"Replica Count={locations.Count}");
             }
 
             if (isLocal)
@@ -1189,70 +1095,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
                 return PinResult.ContentNotFound;
             }
-        }
-
-        // Compute the minimum number of records for us to proceed with a pin with and without record verification.
-        // In this implementation, there are two risks: the machineRisk that a machine cannot be contacted when the file is needed (e.g. network error or service reboot), and
-        // the fileRisk that the file is not actually present on the machine despite the record (e.g. the file has been deleted or the machine re-imaged). The second risk
-        // can be mitigated by verifying that the files actually exist, but the first cannot. The verifiedRisk of not getting the file from a verified location is thus equal to
-        // the machineRisk, while the unverfiedRisk of not getting a file from an unverified location is larger. Given n machines each with risk q, the risk Q of not getting
-        // the file from any of them is Q = q^n. Solving for n to get the number of machines required to achieve a given overall risk tolerance gives n = ln Q / ln q.
-        // In this way we can compute the minimum number of verified and unverified records to return a successful pin.
-        // Future refinements of this method could use machine reputation and file lifetime knowledge to improve this model.
-        private void ComputePinThresholds(ContentHashWithSizeAndLocations remote, double risk, out int minVerifiedCount, out int minUnverifiedCount, out TimeSpan pinCacheTimeToLive)
-        {
-            Contract.Assert(Settings.PinConfiguration != null);
-            Contract.Assert(remote != null);
-            Contract.Assert((risk > 0.0) && (risk < 1.0));
-
-            double verifiedRisk = Settings.PinConfiguration.MachineRisk;
-            double unverifiedRisk = Settings.PinConfiguration.MachineRisk + (Settings.PinConfiguration.FileRisk * (1.0 - Settings.PinConfiguration.MachineRisk));
-
-            Contract.Assert((verifiedRisk > 0.0) && (verifiedRisk < 1.0));
-            Contract.Assert((unverifiedRisk > 0.0) && (unverifiedRisk < 1.0));
-            Contract.Assert(unverifiedRisk >= verifiedRisk);
-
-            double lnRisk = Math.Log(risk);
-            double lnVerifiedRisk = Math.Log(verifiedRisk);
-            double lnUnverifiedRisk = Math.Log(unverifiedRisk);
-
-            minVerifiedCount = (int)Math.Ceiling(lnRisk / lnVerifiedRisk);
-            minUnverifiedCount = (int)Math.Ceiling(lnRisk / lnUnverifiedRisk);
-
-            if (_pinCache == null || Settings.PinConfiguration.PinCachePerReplicaRetentionCreditMinutes <= 0)
-            {
-                pinCacheTimeToLive = TimeSpan.Zero;
-            }
-            else
-            {
-                // Pin cache time to live is:
-                // r * (1 + d + d^2 + ... + d^n-1) = r * (1 - d^n) / (1 - d)
-                // where
-                // r = PinCachePerReplicaRetentionCreditMinutes
-                // d = PinCacheReplicaCreditRetentionFactor
-                // n = replica count
-                var decay = Settings.PinConfiguration.PinCacheReplicaCreditRetentionFactor;
-                var pinCacheTimeToLiveMinutes = Settings.PinConfiguration.PinCachePerReplicaRetentionCreditMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
-                pinCacheTimeToLive = TimeSpan.FromMinutes(pinCacheTimeToLiveMinutes);
-            }
-        }
-
-        // Given a content record set, check all the locations and determine, for each location, whether the file is actually
-        // present, actually absent, or if its presence or absence cannot be determined in the alloted time.
-        // The CheckFileExistsAsync method that is called in this implementation may be doing more complicated stuff (retries, queuing,
-        // throttling, its own timeout) than we want or expect; we should dig into this.
-        private async Task<DistributedContentCopier<T>.VerifyResult> VerifyAsync(Context context, ContentHashWithSizeAndLocations remote, CancellationToken cancel)
-        {
-            var verifyResult = await DistributedCopier.VerifyAsync(context, remote, cancel);
-
-            var absent = verifyResult.Absent;
-            if (absent.Count > 0)
-            {
-                Tracer.Info(context, $"For hash {remote.ContentHash.ToShortString()}, removing records for locations from which content is verified missing: {string.Join(",", absent)}");
-                _backgroundTaskTracker.Add(() => ContentLocationStore.TrimBulkAsync(context, new[] { new ContentHashAndLocations(remote.ContentHash, absent) }, CancellationToken.None, UrgencyHint.Low));
-            }
-
-            return verifyResult;
         }
 
         private Task UpdateContentTrackerWithLocalHitsAsync(Context context, IReadOnlyList<ContentHashWithSizeAndLastAccessTime> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint)

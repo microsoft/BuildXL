@@ -37,7 +37,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier<T> contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
-            PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
             : base(
@@ -47,7 +46,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 contentCopier,
                 copierHost,
                 localMachineLocation,
-                pinCache: pinCache,
                 contentTrackerUpdater: contentTrackerUpdater,
                 settings)
         {

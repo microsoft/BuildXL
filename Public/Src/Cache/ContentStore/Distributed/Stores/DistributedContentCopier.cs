@@ -58,9 +58,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private Tracer Tracer { get; } = new Tracer(nameof(DistributedContentCopier<T>));
 
         /// <nodoc />
-        public int CurrentIoGateCount => _ioGate.CurrentCount;
-
-        /// <nodoc />
         public DistributedContentCopier(
             DistributedContentStoreSettings settings,
             IAbsFileSystem fileSystem,

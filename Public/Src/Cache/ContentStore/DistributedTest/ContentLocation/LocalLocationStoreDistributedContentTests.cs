@@ -274,14 +274,9 @@ namespace ContentStoreTest.Distributed.Sessions
                 Unsafe_DisableReconciliation = true,
 
                 IsPinBetterEnabled = false,
-                ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.ToString(),
-                PinCacheReplicaCreditRetentionMinutes = 30,
-
+                PinMinUnverifiedCount = 1,
                 // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
                 MachineRisk = 0.0000001,
-                FileRisk = 0.0000001,
-                PinRisk = 0.9999,
-                IsPinCachingEnabled = false,
 
                 ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = PushProactiveCopies,
@@ -391,7 +386,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.IsPinBetterEnabled = true;
                 s.ContentLocationReadMode = nameof(ContentLocationMode.LocalLocationStore);
                 s.ContentLocationWriteMode = nameof(ContentLocationMode.LocalLocationStore);
-                s.ContentAvailabilityGuarantee = nameof(ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence);
                 overrideDistributed?.Invoke(s);
             };
             _overrideRedis = overrideRedis;
@@ -981,24 +975,48 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public Task PinLargeSetsSucceeds()
+        {
+            // This test puts a large amount of random content on the first session (master)
+            // Then tries to perform a pinBulk on another session (worker0 by pinning all of the previously put content
+
+            ConfigureWithOneMaster();
+
+            return RunTestAsync(new Context(Logger), 2, async context =>
+            {
+                var sessions = context.Sessions;
+
+                // Insert random file in session 0
+                List<ContentHash> contentHashes = new List<ContentHash>();
+
+                for (int i = 0; i < 250; i++)
+                {
+                    var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
+                    var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token).ShouldBeSuccess();
+                    contentHashes.Add(putResult1.ContentHash);
+                }
+
+                // Insert same file in session 1
+                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[1].PinAsync(context, contentHashes, Token);
+
+                foreach (var pinResultTask in pinResultTasks)
+                {
+                    Assert.True((await pinResultTask).Item.Succeeded);
+                }
+            });
+        }
+
+        [Fact]
         public async Task PinWithUnverifiedCountTest()
         {
-            var startTime = TestClock.UtcNow;
-            TimeSpan pinCacheTimeToLive = TimeSpan.FromMinutes(30);
-
             _overrideDistributed = s =>
-                                   {
-                                       // Enable pin better to ensure pin configuration is passed to distributed store,
-                                       // but defaults use low risk and high risk tolerance for machine 
-                                       // or file loss to prevent pin better from kicking in.
-                                       s.IsPinBetterEnabled = true;
-                                       s.ContentAvailabilityGuarantee = nameof(ContentAvailabilityGuarantee.FileRecordsExist);
-                                       s.PinCacheReplicaCreditRetentionMinutes = (int)pinCacheTimeToLive.TotalMinutes;
-                                       s.PinMinUnverifiedCount = 2;
-                                       s.IsPinCachingEnabled = true;
-                                   };
-
-            ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist;
+            {
+                // Enable pin better to ensure pin configuration is passed to distributed store,
+                // but defaults use low risk and high risk tolerance for machine 
+                // or file loss to prevent pin better from kicking in.
+                s.IsPinBetterEnabled = true;
+                s.PinMinUnverifiedCount = 2;
+            };
 
             await RunTestAsync(
                 new Context(Logger),
@@ -1030,74 +1048,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var result1 = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
                     var counters1 = session2.GetCounters().ToDictionaryIntegral();
                     counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
-                });
-        }
-
-        [Fact]
-        public async Task PinCacheTests()
-        {
-            var startTime = TestClock.UtcNow;
-            TimeSpan pinCacheTimeToLive = TimeSpan.FromMinutes(30);
-
-            _overrideDistributed = s =>
-            {
-                // Enable pin better to ensure pin configuration is passed to distributed store,
-                // but defaults use low risk and high risk tolerance for machine 
-                // or file loss to prevent pin better from kicking in.
-                s.IsPinBetterEnabled = true;
-                s.ContentAvailabilityGuarantee = nameof(ContentAvailabilityGuarantee.FileRecordsExist);
-                s.PinCacheReplicaCreditRetentionMinutes = (int)pinCacheTimeToLive.TotalMinutes;
-                s.IsPinCachingEnabled = true;
-            };
-
-            await RunTestAsync(
-                new Context(Logger),
-                3,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-                    var session0 = context.GetDistributedSession(0);
-
-                    var redisStore0 = context.GetRedisStore(session0);
-
-                    // Insert random file in session 0
-                    var putResult0 = await sessions[0].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
-
-                    // Pinning the file on another machine should succeed
-                    await sessions[1].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
-
-                    // Remove the location from backing content location store so that in the absence of pin caching the
-                    // result of pin should be false.
-                    var getBulkResult = await redisStore0.GetBulkAsync(context, new[] { putResult0.ContentHash }, Token, UrgencyHint.Nominal).ShouldBeSuccess();
-                    Assert.True(getBulkResult.ContentHashesInfo[0].Locations.Count == 1);
-
-                    await redisStore0.TrimBulkAsync(
-                        context,
-                        getBulkResult.ContentHashesInfo.Select(c => c.ContentHash).ToList(),
-                        Token,
-                        UrgencyHint.Nominal).ShouldBeSuccess();
-
-                    // Verify no locations for the content
-                    var postTrimGetBulkResult = await redisStore0.GetBulkAsync(context, new[] { putResult0.ContentHash }, Token, UrgencyHint.Nominal).ShouldBeSuccess();
-                    Assert.True((postTrimGetBulkResult.ContentHashesInfo[0].Locations?.Count ?? 0) == 0);
-
-                    // Simulate calling pin within pin cache TTL
-                    TestClock.UtcNow = startTime + TimeSpan.FromMinutes(pinCacheTimeToLive.TotalMinutes * .99);
-
-                    // Now try to pin/pin bulk again (within pin cache TTL)
-                    await sessions[1].PinAsync(context.Context, putResult0.ContentHash, Token).ShouldBeSuccess();
-
-                    var pinBulkResult1withinTtl = await sessions[1].PinAsync(context.Context, new[] { putResult0.ContentHash }, Token);
-                    Assert.True((await pinBulkResult1withinTtl.Single()).Item.Succeeded);
-
-                    // Simulate calling pin within pin cache TTL
-                    TestClock.UtcNow = startTime + TimeSpan.FromMinutes(pinCacheTimeToLive.TotalMinutes * 1.01);
-
-                    var pinResult1afterTtl = await sessions[1].PinAsync(context.Context, putResult0.ContentHash, Token);
-                    Assert.False(pinResult1afterTtl.Succeeded);
-
-                    var pinBulkResult1afterTtl = await sessions[1].PinAsync(context.Context, new[] { putResult0.ContentHash }, Token);
-                    Assert.False((await pinBulkResult1afterTtl.Single()).Item.Succeeded);
                 });
         }
 
@@ -1798,9 +1748,7 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             ConfigureWithOneMaster(s =>
             {
-                // Disable test pin better logic which currently succeeds if there is one replica registered. This will cause the pin
-                // logic to fall back to verifying when the number of replicas is below 3
-                s.IsPinBetterEnabled = false;
+                s.PinMinUnverifiedCount = 3;
             });
 
             int storeCount = 3;

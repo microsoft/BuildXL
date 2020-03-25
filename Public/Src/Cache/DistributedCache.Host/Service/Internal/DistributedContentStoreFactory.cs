@@ -314,30 +314,11 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var distributedSettings = arguments.Configuration.DistributedContentSettings;
 
-            ContentAvailabilityGuarantee contentAvailabilityGuarantee;
-            if (string.IsNullOrEmpty(distributedSettings.ContentAvailabilityGuarantee))
-            {
-                contentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist;
-            }
-            else if (!Enum.TryParse(distributedSettings.ContentAvailabilityGuarantee, true, out contentAvailabilityGuarantee))
-            {
-                throw new ArgumentException($"Unable to parse {nameof(distributedSettings.ContentAvailabilityGuarantee)}: [{distributedSettings.ContentAvailabilityGuarantee}]");
-            }
-
-            PinConfiguration pinConfiguration = null;
+            PinConfiguration pinConfiguration = new PinConfiguration();
             if (distributedSettings.IsPinBetterEnabled)
             {
-                pinConfiguration = new PinConfiguration();
-                ApplyIfNotNull(distributedSettings.PinRisk, v => pinConfiguration.PinRisk = v);
                 ApplyIfNotNull(distributedSettings.PinMinUnverifiedCount, v => pinConfiguration.PinMinUnverifiedCount = v);
-                ApplyIfNotNull(distributedSettings.MachineRisk, v => pinConfiguration.MachineRisk = v);
-                ApplyIfNotNull(distributedSettings.FileRisk, v => pinConfiguration.FileRisk = v);
                 ApplyIfNotNull(distributedSettings.MaxIOOperations, v => pinConfiguration.MaxIOOperations = v);
-
-                pinConfiguration.IsPinCachingEnabled = distributedSettings.IsPinCachingEnabled;
-
-                ApplyIfNotNull(distributedSettings.PinCacheReplicaCreditRetentionMinutes, v => pinConfiguration.PinCachePerReplicaRetentionCreditMinutes = v);
-                ApplyIfNotNull(distributedSettings.PinCacheReplicaCreditRetentionDecay, v => pinConfiguration.PinCacheReplicaCreditRetentionFactor = v);
             }
 
             var contentHashBumpTime = TimeSpan.FromMinutes(distributedSettings.ContentHashBumpTimeMinutes);
@@ -370,7 +351,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                 ContentHashBumpTime = lazyTouchContentHashBumpTime,
                 LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
-                ContentAvailabilityGuarantee = contentAvailabilityGuarantee,
                 PrioritizeDesignatedLocationsOnCopies = distributedSettings.PrioritizeDesignatedLocationsOnCopies,
                 RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                 CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,

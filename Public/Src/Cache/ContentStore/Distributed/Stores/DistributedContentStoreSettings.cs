@@ -9,22 +9,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 namespace BuildXL.Cache.ContentStore.Distributed.Stores
 {
     /// <summary>
-    /// The content guarantee checks for content locations found.
-    /// </summary>
-    public enum ContentAvailabilityGuarantee
-    {
-        /// <summary>
-        /// The content location cache has locations registered for each hash
-        /// </summary>
-        FileRecordsExist = 0,
-
-        /// <summary>
-        /// The content has locations over a specified threshold of locations or a file existence check passes
-        /// </summary>
-        RedundantFileRecordsOrCheckFileExistence = 1
-    }
-
-    /// <summary>
     /// Configuration object for <see cref="DistributedContentCopier{T}"/> and <see cref="DistributedContentStore{T}"/> classes.
     /// </summary>
     public sealed class DistributedContentStoreSettings
@@ -68,11 +52,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         };
 
         /// <summary>
-        /// Default for <see cref="_assumeAvailableReplicaCount"/>
-        /// </summary>
-        public const int DefaultAssumeAvailableReplicaCount = 3;
-
-        /// <summary>
         /// For file existence check, perform a quick check initially that allows iteration
         /// over multiple replicas first.
         /// </summary>
@@ -90,7 +69,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public static readonly TimeSpan VerifyTimeout = FileExistenceTimeoutSlowPath;
 
         private int? _proactiveReplicationParallelism = null;
-        private int? _assumeAvailableReplicaCount = null;
         //    PinConfiguration pinConfiguration = null,
 
         /// <summary>
@@ -100,15 +78,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             get => _proactiveReplicationParallelism.GetValueOrDefault(Environment.ProcessorCount);
             set => _proactiveReplicationParallelism = value;
-        }
-
-        /// <summary>
-        /// Number of replicas at or above the content is considered available (when pin better is disabled)
-        /// </summary>
-        public int AssumeAvailableReplicaCount
-        {
-            get => Math.Max(_assumeAvailableReplicaCount ?? DefaultAssumeAvailableReplicaCount, 1);
-            set => _assumeAvailableReplicaCount = value;
         }
 
         /// <summary>
@@ -252,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Defines pinning behavior
         /// </summary>
-        public PinConfiguration PinConfiguration { get; set; } // Can be null.
+        public PinConfiguration PinConfiguration { get; set; }
 
         /// <nodoc />
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
@@ -297,11 +266,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// The time to live after last use for content entries in Redis
         /// </summary>
         public TimeSpan? ContentHashBumpTime { get; set; }
-
-        /// <summary>
-        /// Specifies the guarantees for determining content availability
-        /// </summary>
-        public ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
 
         /// <summary>
         /// Max size for storing blobs in the ContentLocationStore

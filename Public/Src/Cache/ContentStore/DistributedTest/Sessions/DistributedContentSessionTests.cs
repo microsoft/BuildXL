@@ -90,7 +90,6 @@ namespace ContentStoreTest.Distributed.Sessions
         {
             return new DistributedContentStoreSettings
             {
-                ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.FileRecordsExist,
                 LocationStoreBatchSize = RedisContentLocationStoreConstants.DefaultBatchSize,
                 RetryIntervalForCopies = DefaultRetryIntervalsForTest,
                 SetPostInitializationCompletionAfterStartup = true

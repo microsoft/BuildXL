@@ -47,8 +47,6 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public MemoryClock TestClock { get; } = new MemoryClock();
 
-        protected ContentAvailabilityGuarantee ContentAvailabilityGuarantee { get; set; } = ContentAvailabilityGuarantee.FileRecordsExist;
-
         protected abstract (IContentStore store, IStartupShutdown server) CreateStore(
             Context context,
             IAbsolutePathFileCopier fileCopier,
@@ -312,53 +310,6 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
-        public async Task PinWithRedundantRecordAvailability()
-        {
-            ContentAvailabilityGuarantee = ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence;
-
-            await RunTestAsync(
-                new Context(Logger),
-                3,
-                async context =>
-                {
-                    var sessions = context.Sessions;
-
-                    // Insert random file in session 0
-                    var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                    var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                    var localContentPath1 = PathUtilities.GetContentPath(context.Directories[0].Path / "Root", putResult1.ContentHash);
-                    Assert.True(putResult1.Succeeded);
-
-                    // Case 1: Underreplicated file exists
-                    context.TestFileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileExists);
-                    var pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.Success, pinResult.Code);
-
-                    // Case 2: Underreplicated file does not exist
-                    context.TestFileCopier.SetNextFileExistenceResult(localContentPath1, FileExistenceResult.ResultCode.FileNotFound);
-                    pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.ContentNotFound, pinResult.Code);
-
-                    // Now insert the content into session 1 to ensure it is sufficiently replicated
-                    var putResult2 = await sessions[1].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                    var localContentPath2 = PathUtilities.GetContentPath(context.Directories[1].Path / "Root", putResult2.ContentHash);
-                    Assert.True(putResult2.Succeeded);
-
-                    // Ensure both files don't exist from file copier's point of view to verify that existence isn't checked
-                    var priorExistenceCheckCount1 = context.TestFileCopier.GetExistenceCheckCount(localContentPath1);
-
-                    // Should have checked existence already for content in session0 for Case1 and Case 2
-                    Assert.Equal(2, priorExistenceCheckCount1);
-
-                    var priorExistenceCheckCount2 = context.TestFileCopier.GetExistenceCheckCount(localContentPath2);
-                    Assert.Equal(0, priorExistenceCheckCount2);
-
-                    pinResult = await sessions[2].PinAsync(context, putResult1.ContentHash, Token);
-                    Assert.Equal(PinResult.ResultCode.Success, pinResult.Code);
-                });
-        }
-
-        [Fact]
         public Task RemoteFileAddedToLocalBeforePlace()
         {
             return RunTestAsync(new Context(Logger), 2, async context =>
@@ -501,33 +452,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 var randomBytesForPut = ThreadSafeRandom.GetBytes(0x40);
                 var putResult1 = await sessions[1].PutStreamAsync(testContext.Context, putResult0.ContentHash, new MemoryStream(randomBytesForPut), Token).ShouldBeError();
                 File.Exists(PathUtilities.GetContentPath(testContext.Directories[1].Path / "Root", putResult0.ContentHash).Path).Should().BeFalse();
-            });
-        }
-
-        [Fact]
-        public Task PinLargeSetsSucceeds()
-        {
-            return RunTestAsync(new Context(Logger), 3, async context =>
-            {
-                var sessions = context.Sessions;
-
-                // Insert random file in session 0
-                List<ContentHash> contentHashes = new List<ContentHash>();
-
-                for (int i = 0; i < 250; i++)
-                {
-                    var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                    var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token).ShouldBeSuccess();
-                    contentHashes.Add(putResult1.ContentHash);
-                }
-
-                // Insert same file in session 1
-                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[1].PinAsync(context, contentHashes, Token);
-
-                foreach (var pinResultTask in pinResultTasks)
-                {
-                    Assert.True((await pinResultTask).Item.Succeeded);
-                }
             });
         }
 
@@ -759,33 +683,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 var result = await redisStore.GetBulkAsync(new Context(Logger), new[] { putResult1.ContentHash }, CancellationToken.None, UrgencyHint.Nominal);
                 Assert.True(result.Succeeded);
                 Assert.Equal(putResult1.ContentSize, result.ContentHashesInfo[0].Size);
-            });
-        }
-
-        [Fact]
-        public async Task PinUpdatesExpiryWhenFoundRemote()
-        {
-            await RunTestAsync(new Context(Logger), 2, async context =>
-            {
-                var sessions = context.Sessions;
-
-                var session = context.GetDistributedSession(0);
-                var redisStore = context.GetRedisStore(session);
-
-                // Insert random file in session 0 with expiry of 30 minutes
-                redisStore.ContentHashBumpTime = TimeSpan.FromMinutes(30);
-                var randomBytes1 = ThreadSafeRandom.GetBytes(0x40);
-                var putResult1 = await sessions[0].PutStreamAsync(context, HashType.Vso0, new MemoryStream(randomBytes1), Token);
-                Assert.True(putResult1.Succeeded);
-
-                // Insert same file in session 1 and update expiry to 1 hour
-                redisStore.ContentHashBumpTime = TimeSpan.FromHours(1);
-                IEnumerable<Task<Indexed<PinResult>>> pinResultTasks = await sessions[1].PinAsync(context, new[] { putResult1.ContentHash }, Token);
-                Assert.True((await pinResultTasks.First()).Item.Succeeded);
-
-                var expiry = await redisStore.GetContentHashExpiryAsync(new Context(Logger), putResult1.ContentHash, CancellationToken.None);
-                Assert.True(expiry.HasValue);
-                Assert.InRange(expiry.Value, redisStore.ContentHashBumpTime - TimeSpan.FromSeconds(15), redisStore.ContentHashBumpTime + TimeSpan.FromSeconds(15));
             });
         }
 

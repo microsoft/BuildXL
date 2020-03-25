@@ -59,7 +59,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private NagleQueue<ContentHashWithSize> _touchNagleQueue;
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
         private readonly bool _enableDistributedEviction;
-        private readonly PinCache _pinCache;
         private readonly IClock _clock;
 
         private DateTime? _lastEvictedEffectiveLastAccessTime;
@@ -129,11 +128,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             TrimBulkAsync trimBulkAsync = null;
             InnerContentStore = innerContentStoreFunc(_evictionNagleQueue, distributedEvictionSettings, contentStoreSettings, trimBulkAsync);
-
-            if (settings.PinConfiguration?.IsPinCachingEnabled == true)
-            {
-                _pinCache = new PinCache(clock: _clock);
-            }
         }
 
         #region IDistributedContentCopierHost Members
@@ -469,7 +463,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             _distributedCopier,
                             this,
                             LocalMachineLocation,
-                            pinCache: _pinCache,
                             contentTrackerUpdater: _contentTrackerUpdater,
                             settings: _settings);
                     return new CreateSessionResult<IReadOnlyContentSession>(session);
@@ -495,7 +488,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             _distributedCopier,
                             this,
                             LocalMachineLocation,
-                            pinCache: _pinCache,
                             contentTrackerUpdater: _contentTrackerUpdater,
                             settings: _settings);
                     return new CreateSessionResult<IContentSession>(session);
@@ -518,11 +510,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         var contentLocationStoreCounters = _contentLocationStore.GetCounters(context);
                         counterSet.Merge(contentLocationStoreCounters, "ContentLocationStore.");
-                    }
-
-                    if (_pinCache != null)
-                    {
-                        counterSet.Merge(_pinCache.GetCounters(context), "PinCache.");
                     }
 
                     return new GetStatsResult(counterSet);

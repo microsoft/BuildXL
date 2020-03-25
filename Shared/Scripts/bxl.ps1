@@ -370,6 +370,7 @@ function Get-CacheConfig {
         RemoteIsReadOnly = !($PublishToSharedCache);
         LocalCache = $localCache;
         RemoteCache = $remoteCache;
+        RemoteConstructionTimeoutMilliseconds = 5000;
     };
 }
 

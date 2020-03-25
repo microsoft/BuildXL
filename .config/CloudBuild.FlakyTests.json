@@ -37,6 +37,30 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
           ],
           "SessionUri": "https://b/build/74fbb0f5-878d-c417-93a1-4536fd5b570a",
           "ScheduledDeletionTimeUtc": null
+        },
+        "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.bc, config({});), (MyModule/module.config.bm, \r\nmodule({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (MyModule/build.dsc, @@public export const x = 42;)] })": {
+          "Name": "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.bc, config({});), (MyModule/module.config.bm, \r\nmodule({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (MyModule/build.dsc, @@public export const x = 42;)] })",
+          "DetectionTimeUtc": "2020-03-25T05:00:47.4736875Z",
+          "QuarantineExpiryTimeUtc": "2020-09-21T05:00:47.4736876Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1700737",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\v\\n\\xn#NUM#vtpoan#NUM#wx#NUM#pyva#NUM#d#NUM#lm\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
+          ],
+          "SessionUri": "https://b/build/5f1d196f-24fa-b204-24f4-71736bbfff89",
+          "ScheduledDeletionTimeUtc": null
+        },
+        "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })": {
+          "Name": "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })",
+          "DetectionTimeUtc": "2020-03-25T05:00:47.4736807Z",
+          "QuarantineExpiryTimeUtc": "2020-09-21T05:00:47.4736809Z",
+          "BugReportUri": "https://dev.azure.com/mseng//1ES/_workitems/edit/1700736",
+          "ModuleBugReportUris": [],
+          "ErrorSignatures": [
+            "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\v\\n\\xn#NUM#vtpoan#NUM#wx#NUM#pyva#NUM#d#NUM#lm\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
+          ],
+          "SessionUri": "https://b/build/5f1d196f-24fa-b204-24f4-71736bbfff89",
+          "ScheduledDeletionTimeUtc": null
         }
       },
       "Metadata": {

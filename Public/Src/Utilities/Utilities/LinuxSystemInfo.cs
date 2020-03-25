@@ -22,8 +22,6 @@ namespace BuildXL.Utilities
         private const string InfoNotAvailable = "'NOT AVAILABLE'";
 
         private const string RegexValueGroupName = "value";
-        private static readonly Regex TotalPhysicalMemoryRegex = new Regex(@$"^MemTotal:\s+(?<{RegexValueGroupName}>\d+)\s.*$", RegexOptions.Compiled, TimeSpan.FromMinutes(1));
-        private static readonly Regex AvailablePhysicalMemoryRegex = new Regex(@$"^MemAvailable:\s+(?<{RegexValueGroupName}>\d+)\s.*$", RegexOptions.Compiled, TimeSpan.FromMinutes(1));
 
         /// <summary>
         /// Cached OS version value.
@@ -95,29 +93,6 @@ namespace BuildXL.Utilities
 
             m_processorIdentifier = $"Family {cpu_family} Model {model} Stepping {stepping}, {vendor_id}";
             return m_processorIdentifier;
-        }
-
-
-        public static OperatingSystemHelper.FileSize GetPhysicalMemorySize()
-        {
-            return new OperatingSystemHelper.FileSize(GetValueOrDefault(File.ReadLines("/proc/meminfo"), TotalPhysicalMemoryRegex));
-        }
-
-        public static OperatingSystemHelper.FileSize GetAvailablePhysicalMemorySize()
-        {
-            return new OperatingSystemHelper.FileSize(GetValueOrDefault(File.ReadLines("/proc/meminfo"), AvailablePhysicalMemoryRegex));
-        }
-
-        private static ulong GetValueOrDefault(IEnumerable<string> lines, Regex regex)
-        {
-            ulong value = 0;
-            string valueString = FirstMatchOrDefault(lines, regex);
-            if (valueString != null)
-            {
-                ulong.TryParse(valueString, out value);
-            }
-
-            return value;
         }
 
         private static string FirstMatchOrDefault(IEnumerable<string> lines, Regex regex)

@@ -178,16 +178,12 @@ namespace BuildXL.Utilities
             {
                 return GetPhysicalMemorySizeWindows();
             }
-            else if (IsMacOS)
+            else
             {
                 var buf = new Memory.RamUsageInfo();
                 return BuildXL.Interop.Unix.Memory.GetRamUsageInfo(ref buf) == 0
                     ? new FileSize(buf.TotalBytes)
                     : new FileSize(0);
-            }
-            else if (IsLinuxOS)
-            {
-                return LinuxSystemInfo.GetPhysicalMemorySize();
             }
 
             // Extend this once we start supporting Linux etc.
@@ -203,16 +199,12 @@ namespace BuildXL.Utilities
             {
                 return GetAvailablePhysicalMemorySizeWindows();
             }
-            else if (IsMacOS)
+            else
             {
                 var buf = new Memory.RamUsageInfo();
                 return Memory.GetRamUsageInfo(ref buf) == 0 
                     ? new FileSize(buf.FreeBytes)
                     : new FileSize(0);
-            }
-            else if (IsLinuxOS)
-            {
-                return LinuxSystemInfo.GetAvailablePhysicalMemorySize();
             }
 
             // Extend this once we start supporting Linux etc.

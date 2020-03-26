@@ -3,6 +3,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.DataDeduplication.Interop;
@@ -15,27 +16,35 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <remarks>
     /// Windows Server Deduplication: https://technet.microsoft.com/en-us/library/hh831602(v=ws.11).aspx
     /// </remarks>
-    public class ComChunker : IChunker, IDisposable
+    public sealed class ComChunker : IChunker
+    {
+        private readonly DeterministicChunker _inner = new DeterministicChunker(new ComChunkerNonDeterministic());
+
+        /// <inheritdoc/>
+        public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
+        {
+            return _inner.BeginChunking(chunkCallback);
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            _inner.Dispose();
+        }
+    }
+
+    internal class ComChunkerNonDeterministic : IChunker, IDisposable
     {
         private static readonly Guid IteratorComGuid = new Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8");
-        private readonly byte[] _pushBuffer = new byte[Chunker.MinPushBufferSize];
         private readonly IDedupIterateChunksHash32 _chunkHashIterator;
         private IDedupChunkLibrary _chunkLibrary;
-        private long _totalBytes;
-        private uint _bytesInPushBuffer;
-
-        /// <summary>
-        /// Gets total number of bytes chunked.
-        /// </summary>
-        public long TotalBytes => _totalBytes;
+        private bool _pushBufferCalled;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Chunker"/> class.
         /// </summary>
-        public ComChunker()
+        public ComChunkerNonDeterministic()
         {
-            _bytesInPushBuffer = 0;
-            _totalBytes = 0;
             _chunkLibrary = NativeMethods.CreateChunkLibrary();
             _chunkLibrary.InitializeForPushBuffers();
 
@@ -44,9 +53,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _chunkHashIterator = (IDedupIterateChunksHash32)chunksEnum;
         }
 
-        /// <summary>
-        /// Creates a session for chunking a stream from a series of buffers.
-        /// </summary>
+        /// <inheritdoc/>
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
             Reset();
@@ -58,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private void Reset()
         {
-            _totalBytes = 0;
+            _pushBufferCalled = false;
             _chunkHashIterator.Reset();
         }
 
@@ -72,7 +79,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return;
             }
 
-            if (startOffset < 0 || count < 0)
+            if (count < 0)
+            {
+                throw new IndexOutOfRangeException();
+            }
+
+            if (startOffset < 0)
             {
                 throw new IndexOutOfRangeException();
             }
@@ -82,34 +94,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new IndexOutOfRangeException();
             }
 
-            fixed (byte* incomingBuffer = &buffer[startOffset])
-            fixed (byte* pushBuffer = _pushBuffer)
+            if (_pushBufferCalled)
             {
-                byte* incomingBufferHead = incomingBuffer;
-                byte* pushBufferTail = pushBuffer + _bytesInPushBuffer;
-                while (count > 0)
-                {
-                    while (count > 0 && _bytesInPushBuffer < Chunker.MinPushBufferSize)
-                    {
-                        *pushBufferTail = *incomingBufferHead;
-                        incomingBufferHead++;
-                        pushBufferTail++;
-                        _bytesInPushBuffer++;
-                        count--;
-                    }
-
-                    if (_bytesInPushBuffer == Chunker.MinPushBufferSize)
-                    {
-                        _chunkHashIterator.PushBuffer(_pushBuffer, _bytesInPushBuffer);
-                        _totalBytes += _bytesInPushBuffer;
-
-                        _bytesInPushBuffer = 0;
-                        pushBufferTail = pushBuffer;
-
-                        ProcessChunks(chunkCallback);
-                    }
-                }
+                throw new InvalidOperationException("PushBuffer can only be called once.");
             }
+
+            _pushBufferCalled = true;
+
+            fixed (byte* ptr = &buffer[startOffset])
+            {
+                _chunkHashIterator.PushBuffer(ptr, (uint)count);
+            }
+
+            ProcessChunks(chunkCallback);
         }
 
         /// <summary>
@@ -117,28 +114,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private unsafe void DonePushing(Action<ChunkInfo> chunkCallback)
         {
-            if (_bytesInPushBuffer > 0)
+            if (_pushBufferCalled)
             {
-                _chunkHashIterator.PushBuffer(_pushBuffer, _bytesInPushBuffer);
-                _totalBytes += _bytesInPushBuffer;
-
-                _bytesInPushBuffer = 0;
-
+                _chunkHashIterator.Drain();
                 ProcessChunks(chunkCallback);
             }
-
-            if (TotalBytes == 0)
-            {
-                return;
-            }
-
-            _chunkHashIterator.Drain();
-            ProcessChunks(chunkCallback);
         }
 
-        /// <summary>
-        /// Disposes this instance.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (_chunkLibrary != null)
@@ -150,10 +133,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void ProcessChunks(Action<ChunkInfo> chunkCallback)
         {
-            if (TotalBytes == 0)
-            {
-                return;
-            }
+            Contract.Assert(_pushBufferCalled);
 
             uint ulFetchedChunks;
             do
@@ -185,26 +165,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
             while (ulFetchedChunks > 0);
         }
 
-        /// <summary>
-        /// A session for chunking a stream from a series of buffers
-        /// </summary>
+        /// <inheritdoc/>
         public readonly struct Session : IChunkerSession, IDisposable
         {
-            private readonly ComChunker _chunker;
+            private readonly ComChunkerNonDeterministic _chunker;
             private readonly Action<ChunkInfo> _chunkCallback;
 
-            /// <summary>
-            /// Initializes a new instance of the <see cref="Session"/> struct.
-            /// </summary>
-            public Session(ComChunker chunker, Action<ChunkInfo> chunkCallback)
+            /// <inheritdoc/>
+            public Session(ComChunkerNonDeterministic chunker, Action<ChunkInfo> chunkCallback)
             {
                 _chunker = chunker;
                 _chunkCallback = chunkCallback;
             }
 
-            /// <summary>
-            /// Chunks the buffer, calling back when chunks complete.
-            /// </summary>
+            /// <inheritdoc/>
             public void PushBuffer(byte[] buffer, int startOffset, int count)
             {
                 _chunker.PushBuffer(buffer, startOffset, count, _chunkCallback);
@@ -287,7 +261,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     }
 
                     IntPtr hDdpTraceLib = LoadNativeLibrary("ddptrace.dll");
-
                     IntPtr hDdpChunkLib = LoadNativeLibrary("ddpchunk.dll");
 
                     IntPtr pDllGetClassObject = GetProcAddress(hDdpChunkLib, "DllGetClassObject");
@@ -408,12 +381,11 @@ namespace Microsoft.DataDeduplication.Interop
     
     /// <nodoc />
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8")]
-    public interface IDedupIterateChunksHash32
+    unsafe public interface IDedupIterateChunksHash32
     {
         /// <nodoc />
         void PushBuffer(
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)]
-            byte[] data,
+            byte* data,
             uint dataLength);
 
         /// <nodoc />

@@ -36,10 +36,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             );    
         }
 
-        [Fact]
-        public void HashOfChunksInNodeMatchesChunkHashAlgorithm()
+        private void HashOfChunksInNodeMatchesChunkHashAlgorithmInner(IChunker chunker)
         {
-            using (var nodeHasher = new DedupNodeHashAlgorithm())
+            using (var nodeHasher = new DedupNodeHashAlgorithm(chunker))
             using (var chunkHasher = new DedupChunkHashAlgorithm())
             {
                 byte[] bytes = new byte[2 * DedupNode.MaxDirectChildrenPerNode * (64 * 1024 /* avg chunk size */)];
@@ -55,10 +54,22 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 foreach (var chunkInNode in node.EnumerateChunkLeafsInOrder())
                 {
                     byte[] chunkHash = chunkHasher.ComputeHash(bytes, (int)offset, (int)chunkInNode.TransitiveContentBytes);
-                    Assert.Equal(chunkHash, chunkInNode.Hash);
+                    Assert.Equal(chunkHash.ToHex(), chunkInNode.Hash.ToHex());
                     offset += chunkInNode.TransitiveContentBytes;
                 }
+                Assert.Equal(offset, node.TransitiveContentBytes);
             }
+        }
+
+        [Fact]
+        public void HashOfChunksInNodeMatchesChunkHashAlgorithm()
+        {
+            if (DedupNodeHashAlgorithm.IsComChunkerSupported)
+            {
+                HashOfChunksInNodeMatchesChunkHashAlgorithmInner(new ComChunker());
+            }
+
+            HashOfChunksInNodeMatchesChunkHashAlgorithmInner(new ManagedChunker());
         }
 
         private DedupNode HashIsStable(uint byteCount, string expectedHash, int seed = 0)
@@ -103,6 +114,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 hasher.Initialize();
                 hasher.ComputeHash(bytes, 0, bytes.Length);
                 var node = hasher.GetNode();
+                Assert.Equal<long>((long)byteCount, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
+
                 string header = $"Chunker:{chunker.GetType().Name} Seed:{seed} Length:{byteCount} Hash:";
                 Assert.Equal<string>($"{header}{expectedHash}", $"{header}{node.Hash.ToHex()}");
                 return node;
@@ -130,12 +143,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             HashIsStable(byteCount, expectedHash);
         }
 
-        // working on fix here: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/542288
-        [Fact(Skip = "This is a known discrepency between ManagedChunker and ComChunker.")]
+        [Fact]
         public void TestMismatch()
         {
-            // Found using FindMismatch below
-
             // ManagedChunker = 3C46AECFB2872004ADA998A1DAB7D03FB13E9B1A2D316B230EB673B8D8839CAB
             // ComChunker = DDD18C25F8EDE1AA79CB3401560764470316F4CA52167CD529B6E58726800255
             HashIsStable(1254972, "DDD18C25F8EDE1AA79CB3401560764470316F4CA52167CD529B6E58726800255", seed: 69519);
@@ -235,14 +245,20 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 {
                     FillBufferWithTestContent(seed: r.Next(), bytes);
 
-                    mgdHasher.TransformBlock(bytes, 0, bytes.Length, null, 0);
-                    comHasher?.TransformBlock(bytes, 0, bytes.Length, null, 0);
+                    Task.WaitAll(
+                        Task.Run(() => mgdHasher.TransformBlock(bytes, 0, bytes.Length, null, 0)),
+                        Task.Run(() => comHasher?.TransformBlock(bytes, 0, bytes.Length, null, 0))
+                    );
                 }
 
                 mgdHasher.TransformFinalBlock(new byte[0], 0, 0);
                 comHasher?.TransformFinalBlock(new byte[0], 0, 0);
 
                 var node = mgdHasher.GetNode();
+                Assert.Equal<long>(
+                    (long)blockSize * blockCount,
+                    node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
+
                 Assert.Equal<string>(expected, node.Hash.ToHex());
                 if (comHasher != null)
                 {
@@ -258,12 +274,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [Fact]
         public void CanChunkLargeFiles()
         {
-            uint size = 2 * DedupNode.MaxDirectChildrenPerNode * (64 * 1024 /* avg chunk size */);
             var node = CanChunkLargeFilesHelper(
                 AverageChunkSize,
                 2 * DedupNode.MaxDirectChildrenPerNode,
                 "E0DFD15C22AB95F46A26B3ECCCE42008058FCAA06AE0CB2B56B13411A32A4592");
-            Assert.Equal<long>((long)size, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
             var chunks = new HashSet<string>(node.EnumerateChunkLeafsInOrder().Select(n => n.Hash.ToHex()));
             Assert.True(chunks.Count > DedupNode.MaxDirectChildrenPerNode, $"{chunks.Count} should be > DedupNode.MaxDirectChildrenPerNode");
         }

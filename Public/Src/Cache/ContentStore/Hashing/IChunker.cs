@@ -15,11 +15,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public interface IChunker : IDisposable
     {
         /// <summary>
-        /// Gets total number of bytes chunked.
-        /// </summary>
-        long TotalBytes { get; }
-
-        /// <summary>
         /// Creates a session for chunking a stream from a series of buffers.
         /// </summary>
         IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback);

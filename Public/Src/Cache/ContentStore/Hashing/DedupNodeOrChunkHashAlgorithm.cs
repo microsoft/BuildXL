@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -50,16 +51,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _chunks.Clear();
             _session = _chunker.BeginChunking(SaveChunks);
+            _lastNode = null;
         }
 
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
         {
-            if (_chunker.TotalBytes == 0)
-            {
-                _lastNode = null;
-            }
-
             _session.PushBuffer(array, ibStart, cbSize);
         }
 
@@ -71,17 +68,20 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _session.Dispose();
 
-            if (_chunker.TotalBytes == 0)
+            if (_chunks.Count == 0)
             {
                 _chunks.Add(new ChunkInfo(0, 0, DedupChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
             }
 
-            _lastNode = DedupNodeTree.Create(_chunks, _treeAlgorithm);
-
-            if (_lastNode.Value.ChildNodes.Count == 1)
+            if (_chunks.Count == 1)
             {
                 // Content is small enough to track as a chunk.
-                _lastNode = _lastNode.Value.ChildNodes.Single();
+                _lastNode = new DedupNode(_chunks.Single());
+                Contract.Assert(_lastNode.Value.Type == DedupNode.NodeType.ChunkLeaf);
+            }
+            else
+            {
+                _lastNode = DedupNodeTree.Create(_chunks, _treeAlgorithm);
             }
 
             return SerializeHashAndId();

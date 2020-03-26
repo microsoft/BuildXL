@@ -102,10 +102,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
         {
-            if (_chunker.TotalBytes == 0)
-            {
-                _lastNode = null;
-            }
+            _lastNode = null;
 
             _session.PushBuffer(array, ibStart, cbSize);
         }
@@ -115,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _session.Dispose();
 
-            if (_chunker.TotalBytes == 0)
+            if (_chunks.Count == 0)
             {
                 _chunks.Add(new ChunkInfo(0, 0, DedupChunkHashInfo.Instance.EmptyHash.ToHashByteArray()));
             }

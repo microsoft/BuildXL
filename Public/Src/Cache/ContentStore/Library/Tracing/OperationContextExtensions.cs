@@ -92,6 +92,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         protected Func<TResult, string>? _endMessageFactory;
         /// <nodoc />
         protected TimeSpan _silentOperationDurationThreshold = DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+        /// <nodoc />
+        protected bool _isCritical;
 
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
@@ -124,7 +126,8 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
             Func<TResult, string>? endMessageFactory = null,
-            TimeSpan? silentOperationDurationThreshold = null)
+            TimeSpan? silentOperationDurationThreshold = null,
+            bool isCritical = false)
         {
             _counter = counter;
             _traceErrorsOnly = traceErrorsOnly;
@@ -133,6 +136,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             _extraStartMessage = extraStartMessage;
             _endMessageFactory = endMessageFactory;
             _silentOperationDurationThreshold = silentOperationDurationThreshold ?? DefaultTracingConfiguration.DefaultSilentOperationDurationThreshold;
+            _isCritical = isCritical;
 
             return (TBuilder)this;
         }
@@ -153,6 +157,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             {
                 string message = _endMessageFactory?.Invoke(result) ?? string.Empty;
                 var traceableResult = _resultBaseFactory?.Invoke(result) ?? BoolResult.Success;
+
+                if (_isCritical)
+                {
+                    traceableResult.MakeCritical();
+                }
 
                 // Ignoring _traceErrorsOnly flag if the operation is too long.
                 bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
@@ -224,11 +233,36 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
                 TraceOperationStarted(caller!);
                 var stopwatch = StopwatchSlim.Start();
 
-                var result = await _asyncOperation();
+                try
+                {
+                    var result = await _asyncOperation();
+                    TraceOperationFinished(result, stopwatch.Elapsed, caller!);
 
-                TraceOperationFinished(result, stopwatch.Elapsed, caller!);
+                    return result;
+                }
+                catch (Exception e)
+                {
+                    var resultBase = new BoolResult(e);
 
-                return result;
+                    if (_isCritical)
+                    {
+                        resultBase.MakeCritical();
+                    }
+
+                    TraceResultOperationFinished(resultBase, stopwatch.Elapsed, caller!);
+
+                    throw;
+                }
+            }
+        }
+
+        private void TraceResultOperationFinished<TOther>(TOther result, TimeSpan duration, string caller) where TOther : ResultBase
+        {
+            if (_traceOperationFinished || duration > _silentOperationDurationThreshold)
+            {
+                // Ignoring _traceErrorsOnly flag if the operation is too long.
+                bool traceErrorsOnly = duration > _silentOperationDurationThreshold ? false : _traceErrorsOnly;
+                _tracer.OperationFinished(_context, result, duration, message: string.Empty, caller, traceErrorsOnly: traceErrorsOnly);
             }
         }
     }

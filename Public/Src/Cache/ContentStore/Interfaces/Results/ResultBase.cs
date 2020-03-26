@@ -22,6 +22,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         internal static Func<Exception, string>? ResultExceptionTextProcessor { get; set; }
 
+        private bool _isCritical = false;
+
+        /// <summary>
+        /// Mark the result as critical for tracing purposes.
+        /// </summary>
+        public void MakeCritical() => _isCritical = true;
+
         /// <summary>
         /// Constructor for creating successful result instances.
         /// </summary>
@@ -99,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if the error occurred and the error is a critical (i.e. not-recoverable) exception.
         /// </summary>
-        public bool IsCriticalFailure => IsCancelled ? !NonCriticalForCancellation(Exception) : IsCritical(Exception);
+        public bool IsCriticalFailure => (!Succeeded && _isCritical) || (IsCancelled ? !NonCriticalForCancellation(Exception) : IsCritical(Exception));
 
         /// <summary>
         /// Returns true if the error occurred because of an exception.

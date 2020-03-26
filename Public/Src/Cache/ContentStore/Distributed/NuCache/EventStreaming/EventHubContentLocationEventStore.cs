@@ -391,7 +391,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     },
                     counters[ProcessEvents],
                     extraStartMessage: $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}",
-                    extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}"
+                    extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}",
+                    isCritical: true
                     ).IgnoreFailure(); // The error is logged
             }
             finally

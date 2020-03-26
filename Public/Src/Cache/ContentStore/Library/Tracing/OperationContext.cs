@@ -111,10 +111,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             Func<T, string>? messageFactory = null,
             string? extraStartMessage = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, messageFactory, isCritical: isCritical)
                 .Run(caller);
         }
 
@@ -128,10 +129,11 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceOperationFinished = true,
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null) where T : ResultBase
         {
             return this.CreateOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
                 .RunAsync(caller);
         }
 
@@ -146,11 +148,12 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             string? extraStartMessage = null,
             Func<T, string>? extraEndMessage = null,
             Func<T, ResultBase>? resultBaseFactory = null,
+            bool isCritical = false,
             [CallerMemberName]string? caller = null)
         {
 
             return this.CreateNonResultOperation(operationTracer, operation, resultBaseFactory)
-                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage)
+                .WithOptions(counter, traceErrorsOnly, traceOperationStarted, traceOperationFinished, extraStartMessage, extraEndMessage, isCritical: isCritical)
                 .RunAsync(caller);
         }
     }

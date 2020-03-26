@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,13 +55,9 @@ namespace Test.BuildXL.Utilities
             var task = TaskUtilities.WithTimeoutAsync(
                 async token =>
                 {
-                    try
-                    {
-                        await Task.Delay(/* milliseconds */200000, token);
-                    }
-                    catch (TaskCanceledException) { }
+                    token.Register(() => { cancellationRequested = true; });
+                    await Task.Delay(/* milliseconds */200000);
 
-                    cancellationRequested = token.IsCancellationRequested;
                     return 42;
                 },
                 TimeSpan.FromMilliseconds(10),

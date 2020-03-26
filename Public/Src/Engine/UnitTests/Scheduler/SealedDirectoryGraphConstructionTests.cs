@@ -375,8 +375,7 @@ namespace Test.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true)]
-        // TODO: uncomment when the new LKG containing fully sealed with output dirs is ready
-        //[InlineData(false)]
+        [InlineData(false)]
         public void ScheduleFullSealDirectoryWithOpaqueAsContentBehavior(bool includeOpaqueAsContent)
         {
             using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())

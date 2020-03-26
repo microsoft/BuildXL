@@ -278,6 +278,7 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
         : Transformer.sealDirectory({
             root: rootDir,
             files: targetFiles,
+            outputDirectories: targetOpaques,
             scrub: true,
             tags: args.tags
             })

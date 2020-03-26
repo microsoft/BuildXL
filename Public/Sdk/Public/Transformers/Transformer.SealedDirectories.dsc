@@ -58,7 +58,7 @@ namespace Transformer {
         /** Whether the directory should be scrubbed of files present on disk that are not part of the sealed directory */
         scrub?: boolean;
 
-        /** The output directories that are part of the fully seal directory. Files contained under them will be stil opaque
+        /** The output directories that are part of the fully seal directory. Files contained under them will be still opaque
          * and therefore not visible from the seal directory.
         */
         outputDirectories?: OpaqueDirectory[]

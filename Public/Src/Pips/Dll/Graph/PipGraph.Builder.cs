@@ -1103,11 +1103,10 @@ namespace BuildXL.Pips.Graph
                             var childAsPath = new AbsolutePath(child);
                             childError = EnsureFullySealDirectoriesIncludeAllFilePaths(directory, sealDirectoryProvenance, fullSealContents, childAsPath);
 
-                            // TODO: uncomment when the new LKG containing fully sealed with output dirs is ready
-                            //if (!childError)
-                            //{
-                            //    childError = EnsureFullySealDirectoriesIncludeAllOutputDirectories(directory, childAsPath, sealDirectory.OutputDirectoryContents, sealDirectoryProvenance);
-                            //}
+                            if (!childError)
+                            {
+                                childError = EnsureFullySealDirectoriesIncludeAllOutputDirectories(directory, childAsPath, sealDirectory.OutputDirectoryContents, sealDirectoryProvenance);
+                            }
 
                             if (!childError && visited.TryAdd(child, true))
                             {

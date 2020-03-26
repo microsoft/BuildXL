@@ -217,7 +217,13 @@ namespace BuildXL.Utilities.Tracing
             {
                 if (m_warningMapper != null)
                 {
-                    switch (m_warningMapper(eventData.EventId))
+                    int actualEventId = eventData.EventId;
+                    if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
+                    {
+                        actualEventId = (int)eventData.Payload[1];
+                    }
+                    
+                    switch (m_warningMapper(actualEventId))
                     {
                         case WarningState.AsError:
                             {

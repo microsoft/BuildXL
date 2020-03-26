@@ -4,7 +4,9 @@
 using System;
 using BuildXL;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using TestEvents = Test.BuildXL.Utilities.TestEvents;
@@ -102,36 +104,49 @@ namespace Test.BuildXL
             }
         }
 
-        [Fact]
-        public void NoWarningsToConsole()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void NoWarningsToConsole(bool isFromWorker)
         {
             string warningMessage = "I'm a warning you want to ignore; it hurts.";
-
+            string warningName = "IgnoreWarning";
             var warningManager = new WarningManager();
             warningManager.SetState((int)TestEvents.EventId.WarningEvent, WarningState.Suppressed);
 
-
             // suppress the warning and check that it is not printed
             using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, warningMapper: warningManager.GetState))
             {
-                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false, warningMapper: warningManager.GetState))
-                {
-                    listener.RegisterEventSource(TestEvents.Log);
-
-                    TestEvents.Log.WarningEvent(warningMessage);
-                    console.ValidateNoCall();
-                }
+                logWarning(console, listener);
+                console.ValidateNoCall();
             }
 
             // allow the warning
             using (var console = new MockConsole())
+            using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false))
             {
-                using (var listener = new ConsoleEventListener(Events.Log, console, DateTime.UtcNow, false))
-                {
-                    listener.RegisterEventSource(TestEvents.Log);
+                logWarning(console, listener);
+                console.ValidateCall(MessageLevel.Warning, warningMessage);
+            }
 
+            void logWarning(MockConsole console, ConsoleEventListener listener)
+            {
+                listener.RegisterEventSource(TestEvents.Log);
+                listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
+                if (isFromWorker)
+                {
+                    global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedWarning(BuildXLTestBase.CreateLoggingContextForTest(), new WorkerForwardedEvent()
+                    {
+                        EventId = (int)TestEvents.EventId.WarningEvent,
+                        EventName = warningName,
+                        EventKeywords = 0,
+                        Text = warningMessage,
+                    });
+                }
+                else
+                {
                     TestEvents.Log.WarningEvent(warningMessage);
-                    console.ValidateCall(MessageLevel.Warning, warningMessage);
                 }
             }
         }

@@ -317,7 +317,6 @@ namespace BuildXL.Engine.Tracing
         DistributionTryMaterializeInputsFailedRetry = 7013,
         DistributionTryMaterializeInputsSuccessfulRetry = 7014,
 
-        DistributionWorkerForwardedWarning = 7016,
         DistributionWorkerUnexpectedFailureAfterMasterExits = 7017,
         DistributionWorkerFinish = 7018,
         DistributionWorkerExecutePipRequest = 7019,

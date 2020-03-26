@@ -754,7 +754,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerForwardedError(LoggingContext context, WorkerForwardedEvent workerForwardedEvent);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerForwardedWarning,
+            (ushort)SharedLogEventId.DistributionWorkerForwardedWarning,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged warning:\n{workerForwardedEvent.Text}",
             EventLevel = Level.Warning,
@@ -3227,38 +3227,6 @@ If you can't update and need this feature after July 2018 please reach out to th
                 text = stringBuilder.ToString();
             }
         }
-    }
-
-    /// <summary>
-    /// Represents an event forwarded from a worker
-    /// </summary>
-    [SuppressMessage("Microsoft.Performance", "CA1815")]
-    public struct WorkerForwardedEvent
-    {
-        /// <summary>
-        /// The worker name
-        /// </summary>
-        public string WorkerName;
-
-        /// <summary>
-        /// The message of the worker event
-        /// </summary>
-        public string Text { get; set; }
-
-        /// <summary>
-        /// The ID of the original event
-        /// </summary>
-        public int EventId { get; set; }
-
-        /// <summary>
-        /// The name of the original event
-        /// </summary>
-        public string EventName { get; set; }
-
-        /// <summary>
-        /// The keywords of the original event
-        /// </summary>
-        public long EventKeywords { get; set; }
     }
 
     /// <summary>

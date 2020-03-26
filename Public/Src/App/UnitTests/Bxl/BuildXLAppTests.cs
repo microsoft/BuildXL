@@ -51,7 +51,7 @@ namespace Test.BuildXL
                 const string ErrorName = "MyTestEvent";
                 const string ErrorText = "Event logged from worker";
                 LoggingContext loggingContext = BuildXL.TestUtilities.Xunit.XunitBuildXLTest.CreateLoggingContextForTest();
-                global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(loggingContext, new global::BuildXL.Engine.Tracing.WorkerForwardedEvent()
+                global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(loggingContext, new WorkerForwardedEvent()
                 {
                     EventId = 100,
                     EventName = ErrorName,

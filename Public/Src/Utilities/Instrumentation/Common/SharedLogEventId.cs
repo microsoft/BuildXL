@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.Utilities.Instrumentation.Common
 {
@@ -34,6 +35,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
         // This one is used by the cache to report to ETW
         CacheFileLog = 451,
         DistributionWorkerForwardedError = 7015,
+        DistributionWorkerForwardedWarning = 7016,
         PipSpecifiedToRunInContainerButIsolationIsNotSupported = 12208,
         /*
          *********************************************

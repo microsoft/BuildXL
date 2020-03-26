@@ -4,25 +4,19 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Pips;
 using BuildXL.Pips.Graph;
-using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
+namespace Test.DScript.Ast.Scheduling
 {
     /// <summary>
-    /// The result of scheduling a set of <see cref="ProjectWithPredictions{TPathType}"/>
+    /// The result of scheduling a set of projects
     /// </summary>
-    public sealed class MsBuildSchedulingResult
+    public sealed class SchedulingResult<TProject>
     {
-        private readonly PathTable m_pathTable;
-        private readonly Dictionary<ProjectWithPredictions, (bool success, string failureDetail, Process process)> m_schedulingResult;
+        private readonly Dictionary<TProject, (bool success, string failureDetail, Process process)> m_schedulingResult;
 
         /// <summary>
         /// The scheduled graph
@@ -30,12 +24,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         public IMutablePipGraph PipGraph { get; }
 
         /// <nodoc/>
-        internal MsBuildSchedulingResult(PathTable pathTable, IMutablePipGraph pipGraph, Dictionary<ProjectWithPredictions, (bool, string, Process)> schedulingResult)
+        internal SchedulingResult(IMutablePipGraph pipGraph, Dictionary<TProject, (bool, string, Process)> schedulingResult)
         {
-            Contract.Requires(pathTable != null);
             Contract.Requires(schedulingResult != null);
 
-            m_pathTable = pathTable;
             PipGraph = pipGraph;
             m_schedulingResult = schedulingResult;
         }
@@ -43,11 +35,11 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <summary>
         /// Asserts that all scheduled projects suceeded
         /// </summary>
-        public MsBuildSchedulingResult AssertSuccess()
+        public SchedulingResult<TProject> AssertSuccess()
         {
             foreach (var entry in m_schedulingResult)
             {
-                XAssert.IsTrue(entry.Value.success, I($"Expected to schedule '{entry.Key.FullPath.ToString(m_pathTable)}' but scheduling failed. Details: {entry.Value.failureDetail}"));
+                XAssert.IsTrue(entry.Value.success, I($"Expected to schedule '{entry.Key}' but scheduling failed. Details: {entry.Value.failureDetail}"));
             }
 
             return this;
@@ -56,7 +48,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <summary>
         /// Retrieves the successfully scheduled process corresponding to the specified project
         /// </summary>
-        public Process RetrieveSuccessfulProcess(ProjectWithPredictions project)
+        public Process RetrieveSuccessfulProcess(TProject project)
         {
             if (!m_schedulingResult.TryGetValue(project, out var result))
             {
@@ -83,7 +75,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// Asserts the occurrence of at least one scheduled failured and retrieves all the failed projects
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<ProjectWithPredictions> AssertFailureAndRetrieveFailedProjects()
+        public IEnumerable<TProject> AssertFailureAndRetrieveFailedProjects()
         {
             var result = m_schedulingResult.Where(kvp => !kvp.Value.success).Select(kvp => kvp.Key).ToList();
 

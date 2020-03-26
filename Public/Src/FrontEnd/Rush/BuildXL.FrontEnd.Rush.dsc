@@ -35,6 +35,9 @@ namespace Rush {
         ],
         runtimeContent:[
             importFrom("BuildXL.Tools").RushGraphBuilder.deployment
-        ]
+        ],
+        internalsVisibleTo: [
+            "Test.BuildXL.FrontEnd.Rush",
+        ],
     });
 }

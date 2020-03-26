@@ -134,8 +134,7 @@ namespace BuildXL.FrontEnd.Rush
                 env[envVarName] = input.Value;
             }
 
-            // node_modules/.bin is expected to be part of the project path
-            // TODO: is this standard? Revisit
+            // node_modules/.bin is expected to be part of the project path. This is standard for JavaScript projects.
             string nodeModulesBin = project.ProjectFolder.Combine(PathTable, RelativePath.Create(PathTable.StringTable, "node_modules/.bin")).ToString(PathTable);
             env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $";{env["PATH"]}" : string.Empty);
             // redirect the user profile so it points under the temp folder
@@ -202,8 +201,8 @@ namespace BuildXL.FrontEnd.Rush
             
             IEnumerable<RushProject> references;
 
-            // In this case all the transitive closure is automatically exposed to the project as direct references
-            // TODO: make it opt-in
+            // In this case all the transitive closure is automatically exposed to the project as direct references. This is standard for
+            // JavaScript projects.
             var transitiveReferences = new HashSet<RushProject>();
             ComputeTransitiveDependenciesFor(project, transitiveReferences);
             references = transitiveReferences;
@@ -247,8 +246,8 @@ namespace BuildXL.FrontEnd.Rush
                 processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.d.ts"), 0), FileExistence.Optional);
             }
 
-            // Some projects share their temp folder. So don't declare this as a temp location. Anyway, rush makes sure the right files are deleted
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder));
+            // Some projects share their temp folder and some files might get consumed across. So treat it as a regular output directory
+            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder), SealDirectoryKind.SharedOpaque);
 
             // Add all the additional output directories that the rush graph knows about
             foreach(var additionalOutput in project.AdditionalOutputDirectories)

@@ -3,32 +3,34 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration.Mutable;
-using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
+using BuildXL.Utilities.Configuration;
 
-namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
+namespace Test.DScript.Ast.Scheduling
 {
     /// <summary>
-    /// Allows for adding project files and scheduling using <see cref="MsBuildPipSchedulingTestBase"/> in a fluent-like style
+    /// Allows for adding project files and scheduling using <see cref="PipSchedulingTestBase{TProject, TResolverSettings}"/> in a fluent-like style
     /// </summary>
-    public sealed class MsBuildProjectBuilder
+    public sealed class ProjectBuilder<TProject, TResolverSettings> 
+        where TProject : IProjectWithDependencies<TProject>
+        where TResolverSettings : class, IProjectGraphResolverSettings
     {
-        private readonly HashSet<ProjectWithPredictions> m_projects;
-        private readonly MsBuildPipSchedulingTestBase m_testBase;
-        private readonly MsBuildResolverSettings m_resolverSettings;
+        private readonly HashSet<TProject> m_projects;
+        private readonly PipSchedulingTestBase<TProject, TResolverSettings> m_testBase;
+        private readonly TResolverSettings m_resolverSettings;
         private readonly QualifierId m_qualifierId;
         private readonly QualifierId[] m_requestedQualifiers;
 
         /// <nodoc/>
-        public MsBuildProjectBuilder(MsBuildPipSchedulingTestBase testBase, MsBuildResolverSettings resolverSettings, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
+        public ProjectBuilder(PipSchedulingTestBase<TProject, TResolverSettings> testBase, TResolverSettings resolverSettings, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(testBase != null);
             Contract.Requires(resolverSettings != null);
             Contract.Requires(currentQualifier != QualifierId.Invalid);
             Contract.Requires(requestedQualifiers?.Length > 0);
 
-            m_projects = new HashSet<ProjectWithPredictions>();
+            m_projects = new HashSet<TProject>();
             m_testBase = testBase;
             m_resolverSettings = resolverSettings;
             m_qualifierId = currentQualifier;
@@ -38,7 +40,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <summary>
         /// Projects should be added in orded, where all dependencies have to be added before dependents
         /// </summary>
-        public MsBuildProjectBuilder Add(ProjectWithPredictions project)
+        public ProjectBuilder<TProject, TResolverSettings> Add(TProject project)
         {
             Contract.Requires(project != null);
             m_projects.Add(project);
@@ -46,7 +48,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         }
 
         /// <nodoc/>
-        internal MsBuildSchedulingResult ScheduleAll()
+        public SchedulingResult<TProject> ScheduleAll()
         {
             return m_testBase.ScheduleAll(m_resolverSettings, m_projects, m_qualifierId, m_requestedQualifiers);
         }

@@ -39,6 +39,8 @@ namespace Test.Rush {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").Rush.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
+            importFrom("BuildXL.FrontEnd").Utilities.dll,
+            importFrom("BuildXL.FrontEnd").SdkProjectGraph.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,

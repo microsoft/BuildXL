@@ -61,24 +61,5 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var projectADependsOnC = IsDependencyAndDependent(projectC, projectA, result);
             XAssert.AreEqual(enableTransitiveProjectReferences, projectADependsOnC);
         }
-
-        #region Helpers
-
-        private static void AssertDependencyAndDependent(ProjectWithPredictions<AbsolutePath> dependency, ProjectWithPredictions<AbsolutePath> dependent, MsBuildSchedulingResult result)
-        {
-            XAssert.IsTrue(IsDependencyAndDependent(dependency, dependent, result));
-        }
-
-        private static bool IsDependencyAndDependent(ProjectWithPredictions<AbsolutePath> dependency, ProjectWithPredictions<AbsolutePath> dependent, MsBuildSchedulingResult result)
-        {
-            // Unfortunately the test pip graph we are using doesn't keep track of dependencies/dependents. So we check there is a directory output of the dependency 
-            // that is a directory input for a dependent
-            var dependencyProcess = result.RetrieveSuccessfulProcess(dependency);
-            var dependentProcess = result.RetrieveSuccessfulProcess(dependent);
-
-            return dependencyProcess.DirectoryOutputs.Any(directoryOutput => dependentProcess.DirectoryDependencies.Any(directoryDependency => directoryDependency == directoryOutput));
-        }
-
-        #endregion
     }
 }

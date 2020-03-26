@@ -1,30 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Pips;
-using BuildXL.Pips.Graph;
-using BuildXL.Pips.DirectedGraph;
-using BuildXL.Pips.Operations;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Qualifier;
-using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.MsBuild.Serialization;
 using BuildXL.FrontEnd.Sdk;
-using BuildXL.Scheduler.Graph;
-using Test.DScript.Ast;
-using Test.BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
+using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.DScript.Ast.Scheduling;
 using Xunit.Abstractions;
-using static Test.BuildXL.TestUtilities.TestEnv;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.AbsolutePath>;
 
 namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
@@ -38,13 +28,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
-    public abstract class MsBuildPipSchedulingTestBase : DsTestWithCacheBase
+    public abstract class MsBuildPipSchedulingTestBase : PipSchedulingTestBase<ProjectWithPredictions, MsBuildResolverSettings>
     {
-        private readonly ModuleDefinition m_testModule;
-        private readonly AbsolutePath m_configFilePath;
-
-        protected AbsolutePath TestPath { get; }
-
         // Keep the paths below in sync with Public\Src\FrontEnd\UnitTests\MsBuild\Test.BuildXL.FrontEnd.MsBuild.dsc
         private AbsolutePath FullframeworkMSBuild => AbsolutePath.Create(PathTable, TestDeploymentDir)
             .Combine(PathTable, "msbuild")
@@ -61,28 +46,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         /// <nodoc/>
         public MsBuildPipSchedulingTestBase(ITestOutputHelper output, bool usePassThroughFileSystem = false) : base(output, usePassThroughFileSystem)
         {
-            TestPath = AbsolutePath.Create(PathTable, TestRoot);
-
-            m_testModule = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
-                ModuleDescriptor.CreateForTesting("Test"),
-                TestPath,
-                TestPath.Combine(PathTable, "module.config.bm"),
-                new[] { TestPath.Combine(PathTable, "spec.dsc") },
-                allowedModuleDependencies: null,
-                cyclicalFriendModules: null);
-
-            m_configFilePath = TestPath.Combine(PathTable, "config.dsc");
-
-            PopulateMainConfigAndPrelude();
         }
-
-        protected override TestPipGraph GetPipGraph() => new TestPipGraph();
 
         /// <summary>
         /// Starts the addition of projects
         /// </summary>
         /// <returns></returns>
-        public MsBuildProjectBuilder Start(MsBuildResolverSettings resolverSettings = null, QualifierId currentQualifier = default, QualifierId[] requestedQualifiers = default)
+        public override ProjectBuilder<ProjectWithPredictions, MsBuildResolverSettings> Start(
+            MsBuildResolverSettings resolverSettings = null, 
+            QualifierId currentQualifier = default, 
+            QualifierId[] requestedQualifiers = default)
         {
             var settings = resolverSettings ?? new MsBuildResolverSettings();
             // Make sure the Root is set
@@ -91,17 +64,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                 settings.Root = AbsolutePath.Create(PathTable, TestRoot);
             }
 
-            if (currentQualifier == default)
-            {
-                currentQualifier = FrontEndContext.QualifierTable.EmptyQualifierId;
-            }
-
-            if (requestedQualifiers == default)
-            {
-                requestedQualifiers = new QualifierId[] { FrontEndContext.QualifierTable .EmptyQualifierId };
-            }
-
-            return new MsBuildProjectBuilder(this, settings, currentQualifier, requestedQualifiers);
+            return base.Start(settings, currentQualifier, requestedQualifiers);
         }
 
         /// <summary>
@@ -135,94 +98,42 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
             return projectWithPredictions;
         }
 
-        /// <summary>
-        /// Uses <see cref="MsBuildPipConstructor"/> to schedule the specified projects and retrieves the result
-        internal MsBuildSchedulingResult ScheduleAll(MsBuildResolverSettings resolverSettings, IEnumerable<ProjectWithPredictions> projectsWithPredictions, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
+        protected override IProjectToPipConstructor<ProjectWithPredictions> CreateProjectToPipConstructor(
+            FrontEndContext context,
+            FrontEndHost frontEndHost,
+            ModuleDefinition moduleDefinition,
+            MsBuildResolverSettings resolverSettings,
+            IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
+            IEnumerable<string> userDefinedPassthroughVariables)
         {
-            var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
-            var frontEndFactory = CreateFrontEndFactoryForEvaluation(ParseAndEvaluateLogger);
+            return new PipConstructor(
+                   context,
+                   frontEndHost,
+                   moduleDefinition,
+                   resolverSettings,
+                   resolverSettings.ShouldRunDotNetCoreMSBuild() ? DotnetCoreMSBuild : FullframeworkMSBuild,
+                   resolverSettings.ShouldRunDotNetCoreMSBuild() ? DotnetExe : AbsolutePath.Invalid,
+                   nameof(MsBuildFrontEnd),
+                   userDefinedEnvironment,
+                   userDefinedPassthroughVariables);
+        }
 
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
+        protected override SchedulingResult<ProjectWithPredictions> ScheduleAll(
+            MsBuildResolverSettings resolverSettings,
+            IEnumerable<ProjectWithPredictions> projects,
+            QualifierId currentQualifier,
+            QualifierId[] requestedQualifiers)
+        {
+            foreach(var project in projects)
             {
-                resolverSettings.ComputeEnvironment(out var trackedEnv, out var passthroughVars, out _);
-
-                var pipConstructor = new PipConstructor(
-                    FrontEndContext,
-                    controller,
-                    m_testModule,
-                    resolverSettings,
-                    resolverSettings.ShouldRunDotNetCoreMSBuild()? DotnetCoreMSBuild : FullframeworkMSBuild,
-                    resolverSettings.ShouldRunDotNetCoreMSBuild()? DotnetExe : AbsolutePath.Invalid,
-                    nameof(MsBuildFrontEnd),
-                    trackedEnv,
-                    passthroughVars);
-
-                var schedulingResults = new Dictionary<ProjectWithPredictions, (bool, string, Process)>();
-
-                foreach (var projectWithPredictions in projectsWithPredictions)
+                // Is some tests projects are not finalized. Let's do it here.
+                if (!project.IsDependenciesSet)
                 {
-                    // Is some tests projects are not finalized. Let's do it here.
-                    if (!projectWithPredictions.IsDependenciesSet)
-                    {
-                        projectWithPredictions.SetDependencies(CollectionUtilities.EmptyArray<ProjectWithPredictions>());
-                    }
-
-                    var result = pipConstructor.TrySchedulePipForProject(projectWithPredictions, currentQualifier);
-                    schedulingResults[projectWithPredictions] = (result.Succeeded, result.Succeeded? null : result.Failure.Describe(), result.Succeeded? result.Result : null);
+                    project.SetDependencies(CollectionUtilities.EmptyArray<ProjectWithPredictions>());
                 }
-
-                return new MsBuildSchedulingResult(PathTable, controller.PipGraph, schedulingResults);
             }
-        }
-        private void PopulateMainConfigAndPrelude()
-        {
-            FileSystem.WriteAllText(m_configFilePath, "config({});");
 
-            var preludeDir = TestPath.Combine(PathTable, FrontEndHost.PreludeModuleName);
-            FileSystem.CreateDirectory(preludeDir);
-            var preludeModule = ModuleConfigurationBuilder.V1Module(FrontEndHost.PreludeModuleName, mainFile: "Prelude.dsc");
-            FileSystem.WriteAllText(preludeDir.Combine(PathTable, "package.config.dsc"), preludeModule.ToString());
-            FileSystem.WriteAllText(preludeDir.Combine(PathTable, "Prelude.dsc"), SpecEvaluationBuilder.FullPreludeContent);
-        }
-
-        private CommandLineConfiguration GetDefaultCommandLine()
-        {
-            return new CommandLineConfiguration
-            {
-                Startup =
-                    {
-                        ConfigFile = m_configFilePath,
-                    },
-                FrontEnd = new FrontEndConfiguration
-                    {
-                        ConstructAndSaveBindingFingerprint = false,
-                        EnableIncrementalFrontEnd = false,
-                    },
-                Engine =
-                    {
-                        TrackBuildsInUserFolder = false,
-                        Phase = EnginePhases.Schedule,
-                    },
-                Schedule =
-                    {
-                        MaxProcesses = DegreeOfParallelism
-                    },
-                Layout =
-                    {
-                        SourceDirectory = m_configFilePath.GetParent(PathTable),
-                        OutputDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out"),
-                        PrimaryConfigFile = m_configFilePath,
-                        BuildEngineDirectory = TestPath.Combine(PathTable, "bin")
-                    },
-                Cache =
-                    {
-                        CacheSpecs = SpecCachingOption.Disabled
-                    },
-                Logging =
-                    {
-                        LogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs")
-                    }
-            };
+            return base.ScheduleAll(resolverSettings, projects, currentQualifier, requestedQualifiers);
         }
     }
 }

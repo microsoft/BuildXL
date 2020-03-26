@@ -1482,7 +1482,9 @@ namespace BuildXL
             // Sort ABTesting args.
             var randomOption = startupConfiguration.ABTestingArgs.OrderBy(a => a.Key).ToList()[randomNum];
             string abTestingKey = randomOption.Key;
-            string abTestingArgs = randomOption.Value;
+            // If an A/B testing argument is coming from a response file, the option's value might be wrapped in quotes.
+            // Need to remove them so the parser can properly split the string into individual arguments.
+            string abTestingArgs = randomOption.Value.Trim('"');
 
             using (var helper = new HashingHelper(pathTable, false))
             {

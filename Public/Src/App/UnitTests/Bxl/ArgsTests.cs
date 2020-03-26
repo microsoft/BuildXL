@@ -169,14 +169,18 @@ namespace Test.BuildXL
             HelpText.DisplayHelp(global::BuildXL.ToolSupport.HelpLevel.Verbose);
         }
 
-        [Fact]
-        public void ABTestingOption()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ABTestingOption(bool wrapInQuotes)
         {
             ICommandLineConfiguration config;
             PathTable pt = new PathTable();
             var argsParser = new Args();
 
-            string abTestingArg = "/incrementalScheduling+ /maxIO:1";
+            string args = "/incrementalScheduling+ /maxIO:1";
+
+            string abTestingArg = wrapInQuotes ? $"\"{args}\"" : args;
 
             XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, $"/abTesting:Id1={abTestingArg}" }, pt, out config));
             XAssert.IsTrue(config.Schedule.IncrementalScheduling);
@@ -208,6 +212,6 @@ namespace Test.BuildXL
 
             XAssert.IsTrue(argsParser.TryParse(args, pt, out var config4));
             XAssert.Equals(chosen, config4.Startup.ChosenABTestingKey);
-        }
+        }        
     }
 }

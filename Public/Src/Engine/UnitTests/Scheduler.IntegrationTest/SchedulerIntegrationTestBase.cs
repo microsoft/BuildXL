@@ -275,6 +275,7 @@ namespace Test.BuildXL.Scheduler
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
                     contents,
                     OrdinalFileArtifactComparer.Instance),
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind,
                 tags,
                 description,

@@ -27,7 +27,8 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<StringId> tags) 
                 : base(
                     directoryRoot, 
-                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance), 
+                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
+                    CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                     SealDirectoryKind.SharedOpaque, 
                     provenance, 
                     tags, 

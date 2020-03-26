@@ -150,6 +150,7 @@ namespace BuildXL.Pips.Builders
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
                     contents,
                     OrdinalFileArtifactComparer.Instance),
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind,
                 tags,
                 description,
@@ -175,6 +176,7 @@ namespace BuildXL.Pips.Builders
             if (!pipConstructionHelper.TrySealDirectory(
                 directoryRoot,
                 CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind,
                 tags,
                 description,

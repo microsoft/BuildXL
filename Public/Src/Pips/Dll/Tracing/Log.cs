@@ -310,6 +310,24 @@ namespace BuildXL.Pips.Tracing
             string missingFile);
 
         [GeneratedEvent(
+            (int)LogEventId.InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "Fully sealed directories must specify all output directories contained within the directory. Directory '{sealedDirectory}' does not contain '{missingOutputDirectory}' which is a directory referenced by pip {referencingPip}. Add that output directory to the Sealed Directory definition to fix this error.")]
+        public abstract void InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            string sealedDirectory,
+            string referencingPip,
+            string missingOutputDirectory);
+
+        [GeneratedEvent(
             (int)LogEventId.InvalidPipDueToInvalidServicePipDependency,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -968,6 +986,48 @@ namespace BuildXL.Pips.Tracing
             string pipDescription,
             string pipValueId,
             string rewrittenFile,
+            string sealedDirectoryPath);
+
+        [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot seal the directory '{directoryOutput}' as part of directory '{sealedDirectoryPath}' since the directory is not an output directory. " +
+                "Only directories of opaque type can be part of a fully seal directory.")]
+        public abstract void ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string directoryOutput,
+            string sealedDirectoryPath);
+
+        [GeneratedEvent(
+            (int)LogEventId.InvalidSealDirectoryDirectoryOutputContentSinceNotUnderRoot,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot seal the output directory '{directoryOutput}' as part of directory '{sealedDirectoryPath}' since that directory is not a descendant. "
+                + "When sealing a directory, all content under that directory must be specified (but no others outside of it).")]
+        public abstract void ScheduleFailAddPipInvalidSealDirectoryOutputContentSinceNotUnderRoot(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string directoryOutput,
             string sealedDirectoryPath);
 
         [GeneratedEvent(

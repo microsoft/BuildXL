@@ -962,6 +962,7 @@ namespace Test.BuildXL.Scheduler
 
             var kind = source.Vary(sd => sd.Kind);
             var contents = source.Vary(sd => sd.Contents);
+            var directoryContents = source.Vary(sd => sd.OutputDirectoryContents);
             var patterns = source.Vary(sd => sd.Patterns);
             var composedDirectories = source.Vary(sd => sd.ComposedDirectories);
             var isComposite = source.Vary(sd => sd.IsComposite);
@@ -974,17 +975,22 @@ namespace Test.BuildXL.Scheduler
                 {
                     return null;
                 }
+
+                if (kind == SealDirectoryKind.Partial && directoryContents.Any())
+                {
+                    return null;
+                }
             }
             else if (kind == SealDirectoryKind.Opaque)
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any())
                 {
                     return null;
                 }
             }
             else if (kind.IsSourceSeal())
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || directoryContents.Any())
                 {
                     return null;
                 }
@@ -993,14 +999,14 @@ namespace Test.BuildXL.Scheduler
             {
                 if (isComposite)
                 {
-                    if (contents.Any() || patterns.Any())
+                    if (contents.Any() || patterns.Any() || directoryContents.Any())
                     {
                         return null;
                     }
                 }
                 else
                 {
-                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any())
+                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any())
                     {
                         return null;
                     }
@@ -1019,6 +1025,7 @@ namespace Test.BuildXL.Scheduler
             var sealDirectory = new SealDirectory(
                 root,
                 contents,
+                directoryContents,
                 kind,
                 PipProvenance.CreateDummy(m_context),
                 ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)),
@@ -1620,6 +1627,22 @@ namespace Test.BuildXL.Scheduler
                             .Cast<ReadOnlyArray<FileArtifact>>()
                             .Select(arr => SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>
                             .CloneAndSort(arr, OrdinalFileArtifactComparer.Instance)),
+                        ec.ContentHashOverlays,
+                        ec.FingerprintOverlays)));
+            }
+
+            if (type == typeof(SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>))
+            {
+                return new FingerprintingTypeDescriptor<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>(
+                    baseVal: SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.FromSortedArrayUnsafe(
+                        ReadOnlyArray<DirectoryArtifact>.Empty,
+                        OrdinalDirectoryArtifactComparer.Instance),
+                    generateClasses: role => GenerateArrayVariants<DirectoryArtifact>(descriptors, role)
+                    .Select(ec => new EquivalenceClass<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>(
+                        ec.Values
+                            .Cast<ReadOnlyArray<DirectoryArtifact>>()
+                            .Select(arr => SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>
+                            .CloneAndSort(arr, OrdinalDirectoryArtifactComparer.Instance)),
                         ec.ContentHashOverlays,
                         ec.FingerprintOverlays)));
             }

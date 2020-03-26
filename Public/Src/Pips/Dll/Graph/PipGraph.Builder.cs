@@ -51,6 +51,9 @@ namespace BuildXL.Pips.Graph
                     CollectionUtilities.EmptyArray<FileArtifact>(),
                     OrdinalFileArtifactComparer.Instance);
 
+            private static readonly SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> s_emptyOutputDirectoryContents =
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance);
+
             private IScheduleConfiguration ScheduleConfiguration => m_configuration.Schedule;
 
             private readonly NodeId m_dummyHashSourceFileNode;
@@ -526,7 +529,7 @@ namespace BuildXL.Pips.Graph
                                 isValid = EnsureSharedOpaqueDirectoriesHaveNoDisallowedChildren(queuePool, visitedOutputDirectories, sealDirectory);
                                 break;
                             case SealDirectoryKind.Full:
-                                isValid = EnsureFullSealDirectoriesCoverAllPathsUnderneath(queuePool, visitedFullSealDirectories, sealDirectory);
+                                isValid = EnsureFullSealDirectoriesHaveNoDisallowedChildren(queuePool, visitedFullSealDirectories, sealDirectory);
                                 break;
                             case SealDirectoryKind.SourceAllDirectories:
                             case SealDirectoryKind.SourceTopDirectoryOnly:
@@ -1059,7 +1062,7 @@ namespace BuildXL.Pips.Graph
                 return producerChildNode;
             }
 
-            private bool EnsureFullSealDirectoriesCoverAllPathsUnderneath(
+            private bool EnsureFullSealDirectoriesHaveNoDisallowedChildren(
                 ObjectPool<Queue<HierarchicalNameId>> queuePool,
                 ConcurrentDictionary<HierarchicalNameId, bool> visited,
                 SealDirectory sealDirectory)
@@ -1096,60 +1099,15 @@ namespace BuildXL.Pips.Graph
 
                         foreach (var child in Context.PathTable.EnumerateImmediateChildren(current))
                         {
-                            bool childError = false;
+                            bool childError;
                             var childAsPath = new AbsolutePath(child);
+                            childError = EnsureFullySealDirectoriesIncludeAllFilePaths(directory, sealDirectoryProvenance, fullSealContents, childAsPath);
 
-                            int latestRewriteCount;
-                            if (!LatestWriteCountsByPath.TryGetValue(childAsPath, out latestRewriteCount))
-                            {
-                                // Since paths that get validated are created by enumerating the path table, intermediate directory paths
-                                // will be included in addition to file paths. Those intermediate directories won't have any producing
-                                // pip and should therefore be omitted from the validation, but we need to keep following down to their children.
-                                //
-                                // For example:
-                                //      SealedDirectory: c:\foo
-                                //      Files:           c:\foo\1.txt, c:\foo\bar\2.txt
-                                // c:\foo\bar will be a path that gets checked since it exists in the PathTable. But that's a directory
-                                // so it shouldn't flag a warning about not having a fully specified sealed directory.
-                                if (visited.TryAdd(child, true))
-                                {
-                                    queue.Enqueue(child);
-                                }
-
-                                continue;
-                            }
-
-                            var childAsLatestFileVersion = new FileArtifact(childAsPath, latestRewriteCount);
-
-                            if (!fullSealContents.Contains(childAsLatestFileVersion))
-                            {
-                                NodeId pipReferencingUnsealedFile;
-
-                                if (!PipProducers.TryGetValue(childAsLatestFileVersion, out pipReferencingUnsealedFile))
-                                {
-                                    Contract.Assume(false, "Should have found a producer for the referenced path.");
-                                }
-
-                                if (pipReferencingUnsealedFile.IsValid
-                                    // Ignore this for Source files, they should be okay.
-                                    && PipTable.GetPipType(pipReferencingUnsealedFile.ToPipId()) != PipType.HashSourceFile)
-                                {
-                                    var pip = PipTable.HydratePip(
-                                        pipReferencingUnsealedFile.ToPipId(),
-                                        PipQueryContext.PipGraphPostValidation);
-
-                                    Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
-                                        LoggingContext,
-                                        sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
-                                        sealDirectoryProvenance.Token.Line,
-                                        sealDirectoryProvenance.Token.Position,
-                                        directory.Path.ToString(Context.PathTable),
-                                        pip.GetDescription(Context),
-                                        childAsPath.ToString(Context.PathTable));
-
-                                    childError = true;
-                                }
-                            }
+                            // TODO: uncomment when the new LKG containing fully sealed with output dirs is ready
+                            //if (!childError)
+                            //{
+                            //    childError = EnsureFullySealDirectoriesIncludeAllOutputDirectories(directory, childAsPath, sealDirectory.OutputDirectoryContents, sealDirectoryProvenance);
+                            //}
 
                             if (!childError && visited.TryAdd(child, true))
                             {
@@ -1165,6 +1123,99 @@ namespace BuildXL.Pips.Graph
                 }
 
                 return errorCount == 0;
+            }
+
+            /// <summary>
+            /// Since paths that get validated are created by enumerating the path table, intermediate directory paths
+            /// will be included in addition to file paths. Those intermediate directories won't have any producing
+            /// pip and should therefore be omitted from the validation, but we need to keep following down to their children.
+            ///
+            /// For example:
+            ///      SealedDirectory: c:\foo
+            ///      Files:           c:\foo\1.txt, c:\foo\bar\2.txt
+            /// c:\foo\bar will be a path that gets checked since it exists in the PathTable. But that's a directory
+            /// so it shouldn't flag a warning about not having a fully specified sealed directory.
+            /// </summary>
+            private bool EnsureFullySealDirectoriesIncludeAllFilePaths(
+                DirectoryArtifact directory,
+                PipProvenance sealDirectoryProvenance,
+                HashSet<FileArtifact> fullSealContents,
+                AbsolutePath directoryChild)
+            {
+                if (LatestWriteCountsByPath.TryGetValue(directoryChild, out int latestRewriteCount))
+                {
+                    var childAsLatestFileVersion = new FileArtifact(directoryChild, latestRewriteCount);
+
+                    if (!fullSealContents.Contains(childAsLatestFileVersion))
+                    {
+                        NodeId pipReferencingUnsealedFile;
+
+                        if (!PipProducers.TryGetValue(childAsLatestFileVersion, out pipReferencingUnsealedFile))
+                        {
+                            Contract.Assume(false, "Should have found a producer for the referenced path.");
+                        }
+
+                        if (pipReferencingUnsealedFile.IsValid
+                            // Ignore this for Source files, they should be okay.
+                            && PipTable.GetPipType(pipReferencingUnsealedFile.ToPipId()) != PipType.HashSourceFile)
+                        {
+                            var pip = PipTable.HydratePip(
+                                pipReferencingUnsealedFile.ToPipId(),
+                                PipQueryContext.PipGraphPostValidation);
+
+                            Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
+                                LoggingContext,
+                                sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
+                                sealDirectoryProvenance.Token.Line,
+                                sealDirectoryProvenance.Token.Position,
+                                directory.Path.ToString(Context.PathTable),
+                                pip.GetDescription(Context),
+                                directoryChild.ToString(Context.PathTable));
+
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            private bool EnsureFullySealDirectoriesIncludeAllOutputDirectories(
+                DirectoryArtifact directory,
+                AbsolutePath directoryChild,
+                SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> outputDirectoryContents,
+                PipProvenance sealDirectoryProvenance)
+            {
+                // We need to check whether there is an output directory with root under the fully seal directory that is not already part of 
+                // the output directory content of the seal
+                // Observe we don't need to check for composite ones, since those contain regular ones.
+                if (OutputDirectoryRoots.TryGetValue(directoryChild, out (bool _, HashSet<DirectoryArtifact> allDirectoryOutputsRootedInChild) value) && 
+                    !value.allDirectoryOutputsRootedInChild.IsSubsetOf(outputDirectoryContents))
+                {
+                    // Let's report the first culprit of this problem
+                    DirectoryArtifact missingDirectory = value.allDirectoryOutputsRootedInChild.Except(outputDirectoryContents).First();
+                    if (!OutputDirectoryProducers.TryGetValue(missingDirectory, out var nodeId))
+                    {
+                        Contract.Assume(false, 
+                            $"Directory '{missingDirectory.Path}' with seal id {missingDirectory.PartialSealId} should be part of output directory producers");
+                    }
+
+                    var pip = PipTable.HydratePip(
+                                nodeId.ToPipId(),
+                                PipQueryContext.PipGraphPostValidation);
+
+                    Logger.Log.InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories(
+                                LoggingContext,
+                                sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
+                                sealDirectoryProvenance.Token.Line,
+                                sealDirectoryProvenance.Token.Position,
+                                directory.Path.ToString(Context.PathTable),
+                                pip.GetDescription(Context),
+                                directoryChild.ToString(Context.PathTable));
+                    return true;
+                }
+
+                return false;
             }
 
             private bool IsValidIpc(IpcPip ipcPip, LockManager.PathAccessGroupLock pathAccessLock)
@@ -2057,9 +2108,9 @@ namespace BuildXL.Pips.Graph
                         OutputDirectoryProducers.Add(directory, processNode);
                         OutputDirectoryRoots.AddOrUpdate(
                             key: directory.Path,
-                            data: directory.IsSharedOpaque,
-                            addValueFactory: (p, isShared) => isShared,
-                            updateValueFactory: (p, isShared, oldValue) => oldValue || isShared);
+                            data: directory,
+                            addValueFactory: (p, directory) => (directory.IsSharedOpaque, new HashSet<DirectoryArtifact> { directory }),
+                            updateValueFactory: (p, directory, oldValue) => ConstructOutputDirectoryRootElement(oldValue, directory));
                     }
 
                     // Link to value pip
@@ -2133,6 +2184,14 @@ namespace BuildXL.Pips.Graph
                 }
 
                 return true;
+            }
+
+            private (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts) ConstructOutputDirectoryRootElement(
+                (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts) oldValue, 
+                DirectoryArtifact directory)
+            {
+                oldValue.directoryArtifacts.Add(directory);
+                return (oldValue.anyIsSharedOpaque || directory.IsSharedOpaque, oldValue.directoryArtifacts);
             }
 
             public bool AddIpcPip(IpcPip ipcPip, PipId valuePipId = default)
@@ -2461,6 +2520,28 @@ namespace BuildXL.Pips.Graph
                     }
                 }
 
+                foreach (DirectoryArtifact artifact in sealDirectory.OutputDirectoryContents)
+                {
+                    if (!artifact.IsValid || !artifact.Path.IsWithin(Context.PathTable, root))
+                    {
+                        LogEventWithPipProvenance(
+                            Logger.ScheduleFailAddPipInvalidSealDirectoryOutputContentSinceNotUnderRoot,
+                            sealDirectory,
+                            artifact,
+                            root);
+                        return DirectoryArtifact.Invalid;
+                    }
+                    else if (!OutputDirectoryProducers.ContainsKey(artifact))
+                    {
+                        LogEventWithPipProvenance(
+                            Logger.ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput,
+                            sealDirectory,
+                            artifact,
+                            root);
+                        return DirectoryArtifact.Invalid;
+                    }
+                }
+
                 DirectoryArtifact artifactForNewSeal;
 
                 using (LockManager.PathAccessGroupLock pathAccessLock = LockManager.AcquirePathAccessLock(sealDirectory))
@@ -2536,6 +2617,9 @@ namespace BuildXL.Pips.Graph
 
                     using (var edgeScope = MutableDataflowGraph.AcquireExclusiveIncomingEdgeScope(sealDirectoryNode))
                     {
+                        Contract.Assume(sealDirectory.OutputDirectoryContents.Length == 0 || sealDirectory.Kind.IsFull(), 
+                            "Output directories can only be sealed as part of a fully sealed directory");
+
                         if (!sealDirectory.Kind.IsDynamicKind())
                         {
                             foreach (FileArtifact artifact in sealDirectory.Contents)
@@ -2546,6 +2630,17 @@ namespace BuildXL.Pips.Graph
                                     sealDirectoryNode,
                                     artifact,
                                     edgeScope: edgeScope);
+                            }
+
+                            // All output directories part of the content of the fully seal directories are added as dependencies
+                            foreach (DirectoryArtifact directoryArtifact in sealDirectory.OutputDirectoryContents)
+                            {
+                                if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out PipId opaqueOutput))
+                                {
+                                    Contract.Assert(false, I($"Producer of output directory '{directoryArtifact.Path.ToString(Context.PathTable)}' must have been added"));
+                                }
+
+                                AddPipProducerConsumerDependency(opaqueOutput.ToNodeId(), sealDirectoryNode, ignoreTopologicalCheck: false, edgeScope: edgeScope);
                             }
                         }
                         else
@@ -2597,14 +2692,10 @@ namespace BuildXL.Pips.Graph
                                     }
 
                                     // First check if the element is a regular shared opaque, i.e. it is part of the directory outputs
-                                    // populated by process pips
-                                    if (!OutputDirectoryProducers.TryGetValue(directoryElement, out NodeId directoryElementProducer))
+                                    // populated by process pips, otherwise, the element has to be a composite shared opaque
+                                    if (!TryGetOutputDirectoryPip(directoryElement, out NodeId directoryElementProducer))
                                     {
-                                        // Otherwise, the element has to be a composite shared opaque
-                                        if (!CompositeOutputDirectoryProducers.TryGetValue(directoryElement, out directoryElementProducer))
-                                        {
-                                            Contract.Assert(false, I($"Producer of output directory '{directoryElement.Path.ToString(Context.PathTable)}' must have been added"));
-                                        }
+                                        Contract.Assert(false, I($"Producer of output directory '{directoryElement.Path.ToString(Context.PathTable)}' must have been added"));
                                     }
 
                                     AddPipProducerConsumerDependency(directoryElementProducer, sealDirectoryNode, ignoreTopologicalCheck: false, edgeScope: edgeScope);
@@ -2636,6 +2727,19 @@ namespace BuildXL.Pips.Graph
                 ComputeAndStorePipStaticFingerprint(sealDirectory);
 
                 return artifactForNewSeal;
+            }
+
+            /// <summary>
+            /// Looks into OutputDirectoryProducers and CompositeOutputDirectoryProducers for the given directory artifact
+            /// </summary>
+            private bool TryGetOutputDirectoryPip(DirectoryArtifact directoryArtifact, out NodeId nodeId)
+            {
+                if (OutputDirectoryProducers.TryGetValue(directoryArtifact, out nodeId))
+                {
+                    return true;
+                }
+
+                return CompositeOutputDirectoryProducers.TryGetValue(directoryArtifact, out nodeId);
             }
 
             /// <summary>
@@ -2842,7 +2946,15 @@ namespace BuildXL.Pips.Graph
                     (int)PipType.SealDirectory,
                     (int)dynamicKind));
 
-                var sealedDirectory = new SealDirectory(directory.Path, s_emptySealContents, dynamicKind, provenance, producer.Tags, patterns: ReadOnlyArray<StringId>.Empty);
+                var sealedDirectory = new SealDirectory(
+                    directory.Path, 
+                    s_emptySealContents, 
+                    s_emptyOutputDirectoryContents, 
+                    dynamicKind, 
+                    provenance, 
+                    producer.Tags, 
+                    patterns: ReadOnlyArray<StringId>.Empty);
+
                 // For the case of shared dynamic directory, the directory artifact already
                 // has the proper seal id, so the seal directory can be initialized here
                 if (dynamicKind == SealDirectoryKind.SharedOpaque)

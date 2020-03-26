@@ -186,7 +186,16 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             var sortedFileContents = SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(fileContents, OrdinalFileArtifactComparer.Instance);
 
-            if (!context.GetPipConstructionHelper().TrySealDirectory(filterPath, sortedFileContents, SealDirectoryKind.Partial, null, null, null, out var sealedDirectoryArtifact, false))
+            if (!context.GetPipConstructionHelper().TrySealDirectory(
+                directoryRoot: filterPath,
+                contents: sortedFileContents,
+                outputDirectorycontents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
+                kind: SealDirectoryKind.Partial,
+                tags: null,
+                description: null,
+                patterns: null,
+                sealedDirectory: out var sealedDirectoryArtifact,
+                scrub: false))
             {
                 // Error has been logged
                 return EvaluationResult.Error;

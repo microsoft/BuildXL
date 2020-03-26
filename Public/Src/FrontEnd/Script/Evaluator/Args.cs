@@ -301,5 +301,16 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
             return AsBool(args, index);
         }
+
+        /// <nodoc/>
+        public static ArrayLiteral AsArrayLiteralOptional(EvaluationStackFrame args, int index)
+        {
+            if (index >= args.Length || args[index].IsUndefined)
+            {
+                return null;
+            }
+
+            return AsArrayLiteral(args, index);
+        }
     }
 }

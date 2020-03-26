@@ -254,6 +254,7 @@ namespace BuildXL.Pips.Graph
             // Sort the contents based on their members' expanded paths so that they are stable across different path tables.
             var sortedContents = SortedReadOnlyArray<FileArtifact, ExpandedPathFileArtifactComparer>.CloneAndSort(sealDirectory.Contents, m_expandedPathFileArtifactComparer);
 
+            fingerprinter.AddCollection<DirectoryArtifact, IReadOnlyList<DirectoryArtifact>>(nameof(SealDirectory.OutputDirectoryContents), sealDirectory.OutputDirectoryContents, (fp, d) => AddDirectoryDependency(fp, d));
             fingerprinter.AddCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(nameof(SealDirectory.Contents), sortedContents, (fp, f) => AddFileDependency(fp, f));
             fingerprinter.AddCollection<StringId, ReadOnlyArray<StringId>>(nameof(SealDirectory.Patterns), sealDirectory.Patterns, (fp, p) => fp.Add(p));
             fingerprinter.Add(nameof(SealDirectory.IsComposite), sealDirectory.IsComposite.ToString());

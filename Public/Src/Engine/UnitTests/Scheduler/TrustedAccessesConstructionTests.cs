@@ -46,6 +46,7 @@ namespace Test.BuildXL.Scheduler
                 var sourceSealedDirectory = new SealDirectory(
                     env.SourceRoot,
                     CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
+                    outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                     kind: SealDirectoryKind.SourceAllDirectories,
                     provenance: env.CreatePipProvenance(StringId.Invalid),
                     tags: ReadOnlyArray<StringId>.Empty,

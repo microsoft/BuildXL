@@ -2503,6 +2503,7 @@ namespace Test.BuildXL.Scheduler
                 new SealDirectory(
                     sealDirectoryInput.Path,
                     SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new[] { sealDirectoryInput }, OrdinalFileArtifactComparer.Instance),
+                    CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                     SealDirectoryKind.Full,
                     sharedProvenance,
                     ReadOnlyArray<StringId>.Empty,

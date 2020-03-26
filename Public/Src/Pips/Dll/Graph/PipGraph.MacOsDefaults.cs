@@ -19,6 +19,9 @@ namespace BuildXL.Pips.Graph
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
 
+            private static readonly SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> s_emptyOutputDirectoryContents
+                = CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance);
+
             private class DefaultSourceSealDirectories
             {
                 public readonly bool IsValid;
@@ -158,6 +161,7 @@ namespace BuildXL.Pips.Graph
                 var sealDirectory = new SealDirectory(
                     path,
                     contents: s_emptySealContents,
+                    outputDirectoryContents: s_emptyOutputDirectoryContents,
                     kind: SealDirectoryKind.SourceAllDirectories,
                     provenance: m_provenance,
                     tags: ReadOnlyArray<StringId>.Empty,

@@ -268,6 +268,7 @@ namespace BuildXL.Pips
         public bool TrySealDirectory(
             AbsolutePath directoryRoot,
             SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> contents,
+            SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> outputDirectorycontents,
             SealDirectoryKind kind,
             string[] tags,
             string description,
@@ -277,14 +278,17 @@ namespace BuildXL.Pips
         {
             Contract.Requires(directoryRoot.IsValid);
             Contract.Requires(contents.IsValid);
+            Contract.Requires(outputDirectorycontents.IsValid);
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files - ", 
+                    outputDirectorycontents.Length.ToString(CultureInfo.InvariantCulture), " output directories]" });
 
             var pip = new SealDirectory(
                 directoryRoot,
                 contents,
+                outputDirectorycontents,
                 kind,
                 CreatePipProvenance(usage),
                 ToStringIds(tags),

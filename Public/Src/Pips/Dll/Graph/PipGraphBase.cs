@@ -108,9 +108,9 @@ namespace BuildXL.Pips.Graph
 
         /// <summary>
         /// All roots in <see cref="OutputDirectoryProducers"/> keys.
-        /// The value indicates if any of the corresponding output directories is shared opaque.
+        /// The value indicates if any of the corresponding output directories is shared opaque, plus all the output directory artifacts for that root.
         /// </summary>
-        protected readonly ConcurrentBigMap<AbsolutePath, bool> OutputDirectoryRoots;
+        protected readonly ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> OutputDirectoryRoots;
 
         /// <summary>
         /// Set of pips that rewrite their inputs.
@@ -174,7 +174,7 @@ namespace BuildXL.Pips.Graph
             Modules = new ConcurrentBigMap<ModuleId, NodeId>();
             PipProducers = new ConcurrentBigMap<FileArtifact, NodeId>();
             OutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
-            OutputDirectoryRoots = new ConcurrentBigMap<AbsolutePath, bool>();
+            OutputDirectoryRoots = new ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)>();
             CompositeOutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
             SourceSealedDirectoryRoots = new ConcurrentBigMap<AbsolutePath, DirectoryArtifact>();
             TemporaryPaths = new ConcurrentBigMap<AbsolutePath, PipId>();
@@ -198,7 +198,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> outputDirectoryProducers,
-                ConcurrentBigMap<AbsolutePath, bool> outputDirectoryRoots,
+                ConcurrentBigMap<AbsolutePath, (bool isSharedOpaque, HashSet<DirectoryArtifact> artifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
                 ConcurrentBigMap<AbsolutePath, PipId> temporaryPaths,
@@ -283,9 +283,9 @@ namespace BuildXL.Pips.Graph
             foreach (var current in Context.PathTable.EnumerateHierarchyBottomUp(path.Value))
             {
                 var currentPath = new AbsolutePath(current);
-                if (OutputDirectoryRoots.TryGetValue(currentPath, out bool isSharedOpaque))
+                if (OutputDirectoryRoots.TryGetValue(currentPath, out (bool isSharedOpaque, HashSet<DirectoryArtifact> artifacts) tuple))
                 {
-                    return new Optional<(AbsolutePath path, bool isShared)>((currentPath, isSharedOpaque));
+                    return new Optional<(AbsolutePath path, bool isShared)>((currentPath, tuple.isSharedOpaque));
                 }
             }
 

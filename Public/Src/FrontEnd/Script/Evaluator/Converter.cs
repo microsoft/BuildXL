@@ -391,6 +391,20 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// <see cref="ExtractArrayLiteral(ObjectLiteral, SymbolAtom, bool)"/>, but returns null if undefined
+        /// </summary>
+        public static ArrayLiteral ExtractOptionalArrayLiteral(ObjectLiteral literal, SymbolAtom property, bool allowUndefined = false)
+        {
+            var value = literal[property];
+            if (value.IsUndefined)
+            {
+                return null;
+            }
+
+            return ExtractArrayLiteral(literal, property, allowUndefined);
+        }
+
+        /// <summary>
         /// Extracts <see cref="ArrayLiteral"/> instance from a given object.
         /// </summary>
         /// <remarks>

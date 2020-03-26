@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Storage.Fingerprints;
@@ -29,7 +30,7 @@ namespace BuildXL.Pips.Graph
             /// <summary>
             /// The value indicates if any of the corresponding output directories is shared opaque.
             /// </summary>
-            public readonly ConcurrentBigMap<AbsolutePath, bool> OutputDirectoryRoots;
+            public readonly ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> OutputDirectoryRoots;
             public readonly ConcurrentBigMap<DirectoryArtifact, NodeId> CompositeOutputDirectoryProducers;
             public readonly ConcurrentBigMap<AbsolutePath, DirectoryArtifact> SourceSealedDirectoryRoots;
             public readonly ConcurrentBigMap<AbsolutePath, PipId> TemporaryPaths;
@@ -52,7 +53,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
-                ConcurrentBigMap<AbsolutePath, bool> outputDirectoryRoots,
+                ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeSharedOpaqueProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
                 ConcurrentBigMap<AbsolutePath, PipId> temporaryPaths,
@@ -98,7 +99,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> opaqueDirectoryProducers,
-                ConcurrentBigMap<AbsolutePath, bool> outputDirectoryRoots,
+                ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
                 ConcurrentBigMap<AbsolutePath, PipId> temporaryPaths,
@@ -180,11 +181,11 @@ namespace BuildXL.Pips.Graph
                         reader.ReadDirectoryArtifact(),
                         new NodeId(reader.ReadUInt32())));
 
-                var outputDirectoryRoots = ConcurrentBigMap<AbsolutePath, bool>.Deserialize(
+                var outputDirectoryRoots = ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)>.Deserialize(
                     reader,
-                    () => new KeyValuePair<AbsolutePath, bool>(
+                    () => new KeyValuePair<AbsolutePath, (bool, HashSet<DirectoryArtifact>)>(
                         reader.ReadAbsolutePath(),
-                        reader.ReadBoolean()));
+                        (reader.ReadBoolean(), new HashSet<DirectoryArtifact>(reader.ReadArray(_reader => _reader.ReadDirectoryArtifact())))));
 
                 var compositeOutputDirectoryProducers = ConcurrentBigMap<DirectoryArtifact, NodeId>.Deserialize(
                     reader,
@@ -338,7 +339,8 @@ namespace BuildXL.Pips.Graph
                     kvp =>
                     {
                         writer.Write(kvp.Key);
-                        writer.Write(kvp.Value);
+                        writer.Write(kvp.Value.anyIsSharedOpaque);
+                        writer.Write(kvp.Value.directoryArtifacts.ToArray(), (_writer, directoryArtifact) => _writer.Write(directoryArtifact));
                     });
 
                 CompositeOutputDirectoryProducers.Serialize(

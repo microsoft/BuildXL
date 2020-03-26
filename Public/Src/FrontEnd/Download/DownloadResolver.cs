@@ -771,6 +771,7 @@ namespace BuildXL.FrontEnd.Download
             if (!pipConstructionHelper.TrySealDirectory(
                 directory,
                 files,
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 Pips.Operations.SealDirectoryKind.Partial,
                 null,
                 null,

@@ -157,6 +157,7 @@ namespace Test.BuildXL.Scheduler
             var seal = new SealDirectory(
                 path,
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents, OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: partial ? SealDirectoryKind.Partial : SealDirectoryKind.Full,
                 provenance: env.CreatePipProvenance(StringId.Invalid),
                 tags: ReadOnlyArray<StringId>.Empty,

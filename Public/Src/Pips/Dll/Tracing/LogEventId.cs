@@ -30,6 +30,8 @@ namespace BuildXL.Pips.Tracing
         InvalidWriteFilePipSinceOutputIsRewritten = 221,
         InvalidOutputSinceDirectoryHasBeenSealed = 246,
         InvalidSealDirectoryContentSinceNotUnderRoot = 247,
+        InvalidSealDirectoryDirectoryOutputContentSinceNotUnderRoot = 14412,
+        ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput = 14413,
         InvalidOutputSinceFileHasBeenPartiallySealed = 248,
 
         StartFilterApplyTraversal = 282,
@@ -65,6 +67,7 @@ namespace BuildXL.Pips.Tracing
         InvalidGraphSinceOutputDirectoryContainsSealedDirectory = 14102,
 
         InvalidGraphSinceFullySealedDirectoryIncomplete = 14103,
+        InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories = 14114,
         InvalidGraphSinceSourceSealedDirectoryContainsOutputFile = 14104,
         InvalidGraphSinceSourceSealedDirectoryContainsOutputDirectory = 14105,
         InvalidGraphSinceSharedOpaqueDirectoryContainsExclusiveOpaqueDirectory = 14106,

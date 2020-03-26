@@ -373,51 +373,157 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        private static void ScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        [Theory]
+        [InlineData(true)]
+        // TODO: uncomment when the new LKG containing fully sealed with output dirs is ready
+        //[InlineData(false)]
+        public void ScheduleFullSealDirectoryWithOpaqueAsContentBehavior(bool includeOpaqueAsContent)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents);
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath sod = env.Paths.CreateAbsolutePath(directoryPath, "sod");
+
+                // A pip that produces an output directory under the seal root
+                var pip = CreatePipBuilderWithTag(env, "test");
+                pip.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+                var pipResult = env.PipConstructionHelper.AddProcess(pip);
+                var sharedOpaqueArtifact = pipResult.GetOpaqueDirectory(sod);
+
+                FileArtifact a = ScheduleWriteOutputFileUnderDirectory(env, directoryPath, "a");
+
+                // We should be able to schedule a seal directory with the produced file and optionally the opaque as content
+                DirectoryArtifact sealDirectory = ScheduleSealDirectory(
+                    env, 
+                    directoryPath, 
+                    new[] { a }, 
+                    includeOpaqueAsContent? new[] { sharedOpaqueArtifact } : new DirectoryArtifact[] { });
+
+                var graph = env.PipGraph.Build();
+                if (includeOpaqueAsContent)
+                {
+                    // Everything should be good in this case
+                    Assert.NotNull(graph);
+
+                    // The fully seal directory should have a dependency on the opaque
+                    Assert.True(graph.DataflowGraph.IsReachableFrom(graph.GetSealedDirectoryNode(sharedOpaqueArtifact), graph.GetSealedDirectoryNode(sealDirectory)));
+                }
+                else
+                {
+                    // We should fail at scheduling the graph because of a missing output directory
+                    Assert.Null(graph);
+                    AssertErrorEventLogged(LogEventId.InvalidGraphSinceFullySealedDirectoryIncompleteDueToMissingOutputDirectories);
+                }
+            }
+        }
+
+        [Fact]
+        public void TestFailedScheduleFullSealDirectoryWithOpaqueAsContentOutsideRoot()
+        {
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath sod = env.Paths.CreateAbsolutePath(env.ObjectRoot, "sod");
+
+                // A pip that produces an output directory
+                var pip = CreatePipBuilderWithTag(env, "test");
+                pip.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
+                var pipResult = env.PipConstructionHelper.AddProcess(pip);
+                var sharedOpaqueArtifact = pipResult.GetOpaqueDirectory(sod);
+
+                FileArtifact a = ScheduleWriteOutputFileUnderDirectory(env, directoryPath, "a");
+
+                // We shouldn't be able to schedule a seal directory with an opaque outside its root
+                var result = TryScheduleSealDirectory(env, directoryPath, SealDirectoryKind.Full, new[] { a }, new[] { sharedOpaqueArtifact }, out _);
+                Assert.False(result);
+                AssertErrorEventLogged(LogEventId.InvalidSealDirectoryDirectoryOutputContentSinceNotUnderRoot);
+            }
+        }
+
+        [Fact]
+        public void TestFailedScheduleFullSealDirectoryWithNonOpaqueAsContent()
+        {
+            using (TestEnv env = TestEnv.CreateTestEnvWithPausedScheduler())
+            {
+                AbsolutePath directoryPath = env.Paths.CreateAbsolutePath(env.ObjectRoot, "seal");
+                AbsolutePath nestedDirectoryPath = env.Paths.CreateAbsolutePath(directoryPath, "another-seal");
+
+                FileArtifact write = ScheduleWriteOutputFileUnderDirectory(env, nestedDirectoryPath, "file");
+
+                DirectoryArtifact nestedSealDirectory = ScheduleSealDirectory(env, nestedDirectoryPath, write);
+                
+                // We shouldn't be able to schedule a seal directory with a directory as content that is not an output directory
+                var result = TryScheduleSealDirectory(env, directoryPath, SealDirectoryKind.Full, new[] { write }, new[] { nestedSealDirectory }, out _);
+                Assert.False(result);
+                AssertErrorEventLogged(LogEventId.ScheduleFailAddPipInvalidSealDirectoryContentIsNotOutput);
+            }
+        }
+
+        private static DirectoryArtifact ScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        {
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents,
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
             XAssert.IsTrue(result, "Unexpectedly failed to seal the directory at " + env.Paths.Expand(path));
+            
+            return directoryArtifact;
         }
 
-        private static void ScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        private static DirectoryArtifact ScheduleSealDirectory(TestEnv env, AbsolutePath path, FileArtifact[] contents, DirectoryArtifact[] outputDirectoryContent)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents);
-            XAssert.IsTrue(result, "Unexpectedly failed to seal a partial directory at " + env.Paths.Expand(path));
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents,
+                outputDirectoryContents: outputDirectoryContent, out var directoryArtifact);
+            XAssert.IsTrue(result, "Unexpectedly failed to seal the directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
         }
 
-        private static void ScheduleSourceSealDirectory(TestEnv env, AbsolutePath path, bool allDirectories)
+        private static DirectoryArtifact ScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
+        {
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents, 
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
+            XAssert.IsTrue(result, "Unexpectedly failed to seal a partial directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
+        }
+
+        private static DirectoryArtifact ScheduleSourceSealDirectory(TestEnv env, AbsolutePath path, bool allDirectories)
         {
             bool result = TryScheduleSealDirectory(
                 env,
                 path,
                 allDirectories ? SealDirectoryKind.SourceAllDirectories : SealDirectoryKind.SourceTopDirectoryOnly,
-                contents: new FileArtifact[0]);
+                contents: new FileArtifact[0],
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out var directoryArtifact);
             XAssert.IsTrue(result, "Unexpectedly failed to seal a source directory at " + env.Paths.Expand(path));
+
+            return directoryArtifact;
         }
 
         private static void AssertCannotScheduleSealDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents);
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Full, contents: contents, 
+                outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out _);
             XAssert.IsFalse(result, "Unexpectedly succedeeded at sealing the directory " + env.Paths.Expand(path));
         }
 
         private static void AssertCannotScheduleSealPartialDirectory(TestEnv env, AbsolutePath path, params FileArtifact[] contents)
         {
-            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents);
+            bool result = TryScheduleSealDirectory(env, path, SealDirectoryKind.Partial, contents: contents, outputDirectoryContents: CollectionUtilities.EmptyArray<DirectoryArtifact>(), out _);
             XAssert.IsFalse(result, "Unexpectedly succedeeded at sealing a partial directory at " + env.Paths.Expand(path));
         }
 
-        private static bool TryScheduleSealDirectory(TestEnv env, AbsolutePath path, SealDirectoryKind partial, FileArtifact[] contents)
+        private static bool TryScheduleSealDirectory(TestEnv env, AbsolutePath path, SealDirectoryKind partial, FileArtifact[] contents, DirectoryArtifact[] outputDirectoryContents, out DirectoryArtifact artifact)
         {
             var pip = new SealDirectory(
                 path,
                 SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents, OrdinalFileArtifactComparer.Instance),
+                SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.CloneAndSort(outputDirectoryContents, OrdinalDirectoryArtifactComparer.Instance),
                 kind: partial,
                 provenance: env.CreatePipProvenance(StringId.Invalid),
                 tags: ReadOnlyArray<StringId>.Empty,
                 patterns: ReadOnlyArray<StringId>.Empty);
 
-            DirectoryArtifact artifact = env.PipGraph.AddSealDirectory(pip, PipId.Invalid);
+            artifact = env.PipGraph.AddSealDirectory(pip, PipId.Invalid);
             bool succeeded = artifact.IsValid;
 
             if (succeeded)

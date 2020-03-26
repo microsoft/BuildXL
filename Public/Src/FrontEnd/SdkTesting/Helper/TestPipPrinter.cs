@@ -205,7 +205,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
             if (pip.Provenance.Usage.IsValid)
             {
                 var description = pip.Provenance.Usage.ToString(m_pathTable);
-                if (!description.EndsWith(" files]"))
+                if (!description.EndsWith(" output directories]"))
                 {
                     args.Add(new PropertyAssignment("description", new LiteralExpression(pip.Provenance.Usage.ToString(m_pathTable))));
                 }

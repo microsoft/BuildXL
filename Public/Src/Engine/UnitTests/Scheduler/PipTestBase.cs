@@ -474,6 +474,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryPath,
                 sortedFileArtifacts,
+                CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 partial ? SealDirectoryKind.Partial : SealDirectoryKind.Full,
                 CreateProvenance(StringId.Create(Context.PathTable.StringTable, SealDirectoryDescription)),
                 ConvertToStringIdArray(tags),
@@ -755,6 +756,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryRoot: root,
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(files, OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ReadOnlyArray<StringId>.Empty,
@@ -773,6 +775,7 @@ namespace Test.BuildXL.Scheduler
             return new SealDirectory(
                 directoryRoot: root,
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(files, OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ConvertToStringIdArray(new[] { tag }),
@@ -787,6 +790,7 @@ namespace Test.BuildXL.Scheduler
                 contents: SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(
                     CollectionUtilities.EmptyArray<FileArtifact>(),
                     OrdinalFileArtifactComparer.Instance),
+                outputDirectoryContents: CollectionUtilities.EmptySortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>(OrdinalDirectoryArtifactComparer.Instance),
                 kind: sealDirectoryKind,
                 provenance: CreateProvenance(),
                 tags: ReadOnlyArray<StringId>.Empty,

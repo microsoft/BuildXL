@@ -370,6 +370,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             try
             {
+                LogMemoryUsage(context);
+
                 var activeSlot = _activeSlot;
 
                 var newActiveSlot = GetNextSlot(activeSlot);
@@ -400,6 +402,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             catch (Exception ex) when (ex.IsRecoverableIoException())
             {
                 return new BoolResult(ex, "Restore checkpoint failed.");
+            }
+        }
+
+        private void LogMemoryUsage(OperationContext context)
+        {
+            if (_keyValueStore != null)
+            {
+                try
+                {
+                    var usage = _keyValueStore.Use(store =>
+                    {
+                        // From the docs:
+                        // 
+                        // There are a couple of components in RocksDB that contribute to memory usage:
+                        // Block cache
+                        // Indexes and bloom filters
+                        // Memtables
+                        // Blocks pinned by iterators
+                        // 
+                        // Since we never create a cache, we don't need to check those.
+
+                        long? indexesAndBloomFilters = null;
+                        long? memtables = null;
+                        if (long.TryParse(store.GetProperty("rocksdb.estimate-table-readers-mem"), out var val))
+                        {
+                            indexesAndBloomFilters = val;
+                        }
+                        if (long.TryParse(store.GetProperty("rocksdb.cur-size-all-mem-tables"), out val))
+                        {
+                            memtables = val;
+                        }
+
+                        return (indexesAndBloomFilters, memtables);
+                    });
+
+                    if (usage.Succeeded)
+                    {
+                        var (indexesAndBloomFilters, memtables) = usage.Result;
+                        Tracer.Debug(context, $"Loading next checkpoint. Current database memory usage: IndexesAndBloomFilters={indexesAndBloomFilters}bytes, Memtables={memtables}bytes");
+                    }
+                    else
+                    {
+                        Tracer.Debug(context, $"Failed to get database memory usage: {usage.Failure.DescribeIncludingInnerFailures()}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Tracer.Debug(context, $"Failed to get database memory usage. Exception: {e}");
+                }
             }
         }
 

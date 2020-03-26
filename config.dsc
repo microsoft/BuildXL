@@ -70,7 +70,7 @@ config({
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.1.9.1" },
+                { id: "RuntimeContracts", version: "0.1.10" },
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},

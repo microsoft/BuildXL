@@ -30,56 +30,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool StoreClusterState { get; set; } = true;
 
         /// <summary>
-        /// When activated, the requests effectively sent to the database will be initally done in memory and later on
-        /// flushed to the underlying store.
-        /// </summary>
-        public bool ContentCacheEnabled { get; set; } = false;
-
-        /// <summary>
-        /// Number of threads to use when flushing updates to the underlying storage
-        ///
-        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
-        /// </summary>
-        public int FlushDegreeOfParallelism { get; set; } = 1;
-
-        /// <summary>
-        /// Number of entries to pool together into a single transaction when doing multithreaded transactional flush.
-        /// </summary>
-        public int FlushTransactionSize { get; set; } = 100_000;
-
-        /// <summary>
-        /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per
-        /// change.
-        ///
-        /// When this setting is on, there is no parallelism done, regardless of
-        /// <see cref="FlushDegreeOfParallelism"/>.
-        ///
-        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
-        /// </summary>
-        public bool FlushSingleTransaction { get; set; } = true;
-
-        /// <summary>
-        /// Percentage of records to maintain in memory after flush
-        ///
-        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
-        /// </summary>
-        public double FlushPreservePercentInMemory = 0.5;
-
-        /// <summary>
-        /// The maximum number of updates that we are willing to perform in memory before flushing.
-        ///
-        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
-        /// </summary>
-        public int CacheMaximumUpdatesPerFlush { get; set; } = 2_500_000;
-
-        /// <summary>
-        /// The maximum amount of time that can pass without a flush.
-        ///
-        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
-        /// </summary>
-        public TimeSpan CacheFlushingMaximumInterval { get; set; } = TimeSpan.FromMinutes(1);
-
-        /// <summary>
         /// Whether to enable garbage collection of metadata
         /// </summary>
         public bool MetadataGarbageCollectionEnabled { get; set; } = false;

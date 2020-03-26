@@ -19,7 +19,6 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using Xunit;
-using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace ContentStoreTest.Distributed.Sessions

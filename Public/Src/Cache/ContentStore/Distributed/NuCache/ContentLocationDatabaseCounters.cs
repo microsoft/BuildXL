@@ -88,38 +88,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         EpochMatches,
 
         /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        CacheFlush,
-
-        /// <nodoc />
-        TotalNumberOfCacheFlushes,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByUpdates,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByTimer,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByReconciliation,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByCheckpoint,
-
-        /// <nodoc />
-        NumberOfCacheFlushesTriggeredByContentEnumeration,
-
-        /// <nodoc />
-        NumberOfPersistedEntries,
-
-        /// <nodoc />
         NumberOfGetOperations,
 
         /// <nodoc />
         NumberOfStoreOperations,
-
-        /// <nodoc />
-        TotalNumberOfCompletedCacheFlushes,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]

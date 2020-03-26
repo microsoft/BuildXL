@@ -19,7 +19,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -31,6 +30,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+
+#nullable enable annotations
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -92,8 +93,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RocksDbContentLocationDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
             : base(clock, configuration, getInactiveMachines)
         {
-            Contract.Requires(configuration.FlushPreservePercentInMemory >= 0 && configuration.FlushPreservePercentInMemory <= 1);
-            Contract.Requires(configuration.FlushDegreeOfParallelism > 0);
             Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
 
             _configuration = configuration;
@@ -522,7 +521,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(
             OperationContext context,
-            EnumerationFilter valueFilter,
+            EnumerationFilter? valueFilter,
             bool returnKeysOnly)
         {
             var token = context.Token;
@@ -625,7 +624,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        internal override void Persist(OperationContext context, ShortHash hash, ContentLocationEntry? entry)
         {
             if (entry == null)
             {

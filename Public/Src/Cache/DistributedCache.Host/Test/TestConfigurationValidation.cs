@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.Host.Configuration;
 using FluentAssertions;
@@ -91,23 +92,26 @@ namespace BuildXL.Cache.Host.Test
         {
             var settings = DistributedContentSettings.CreateDisabled();
 
-            settings.ContentLocationDatabaseFlushPreservePercentInMemory = -1;
+            settings.BlobExpiryTimeMinutes = -1;
             var errors = settings.Validate();
             errors.Count.Should().Be(1);
-            errors[0].Should().Contain(nameof(settings.ContentLocationDatabaseFlushPreservePercentInMemory));
+            errors[0].Should().Contain(nameof(settings.BlobExpiryTimeMinutes));
 
-            settings.ContentLocationDatabaseFlushPreservePercentInMemory = 1.1F;
+            settings = DistributedContentSettings.CreateDisabled();
+            settings.MinimumSpeedInMbPerSec = -1F;
             errors = settings.Validate();
             errors.Count.Should().Be(1);
-            errors[0].Should().Contain(nameof(settings.ContentLocationDatabaseFlushPreservePercentInMemory));
+            errors[0].Should().Contain(nameof(settings.MinimumSpeedInMbPerSec));
 
-            settings.ContentLocationDatabaseFlushPreservePercentInMemory = 0;
+            settings = DistributedContentSettings.CreateDisabled();
+            settings.CentralStoragePropagationDelaySeconds = 0;
             errors = settings.Validate();
-            errors.Should().BeEmpty();
+            errors.Should().BeEmpty(string.Join(", ", errors));
 
-            settings.ContentLocationDatabaseFlushPreservePercentInMemory = 1;
+            settings = DistributedContentSettings.CreateDisabled();
+            settings.BandwidthCheckIntervalSeconds = 1;
             errors = settings.Validate();
-            errors.Should().BeEmpty();
+            errors.Should().BeEmpty(string.Join(", ", errors));
         }
     }
 }

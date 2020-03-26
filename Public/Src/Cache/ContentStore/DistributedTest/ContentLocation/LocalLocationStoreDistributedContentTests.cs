@@ -2723,8 +2723,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(0, "No entries should be cleaned before GC is called");
 
-                    master.LocalLocationStore.Database.ForceCacheFlush(context);
-
                     master.LocalLocationStore.Database.GarbageCollect(context);
 
                     master.LocalLocationStore.Database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value.Should().Be(1, "After GC, the entry with only a location from the expired machine should be collected");
@@ -3250,7 +3248,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var master = context.GetMaster();
                     var sessions = context.Sessions;
                     Warmup(context, maximumBatchSize, warmupBatches);
-                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -3269,7 +3266,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                 context.SendEventToMaster(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;
@@ -3367,7 +3363,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var sessions = context.Sessions;
                     var master = context.GetMaster();
                     Warmup(context, maximumBatchSize, warmupBatches);
-                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -3386,7 +3381,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                 context.SendEventToMaster(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;
@@ -3513,7 +3507,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var sessions = context.Sessions;
                     var master = context.GetMaster();
                     Warmup(context, maximumBatchSize, warmupBatches);
-                    context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                     PrintCacheStatistics(context);
 
                     {
@@ -3532,7 +3525,6 @@ namespace ContentStoreTest.Distributed.Sessions
                                 context.SendEventToMaster(ev);
                             }
                         });
-                        context.GetMaster().LocalLocationStore.Database.ForceCacheFlush(context);
                         stopWatch.Stop();
 
                         var ts = stopWatch.Elapsed;
@@ -3553,15 +3545,6 @@ namespace ContentStoreTest.Distributed.Sessions
             var db = context.GetMaster().LocalLocationStore.Database;
             var counters = db.Counters;
 
-            if (db.IsInMemoryCacheEnabled)
-            {
-                Output.WriteLine("CACHE ENABLED");
-            }
-            else
-            {
-                Output.WriteLine("CACHE DISABLED");
-            }
-
             Output.WriteLine("[Statistics] NumberOfStoreOperations: " + counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].ToString());
             Output.WriteLine("[Statistics] NumberOfGetOperations: " + counters[ContentLocationDatabaseCounters.NumberOfGetOperations].ToString());
             Output.WriteLine("[Statistics] TotalNumberOfCacheHit: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].ToString());
@@ -3572,15 +3555,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 double cacheHitRate = ((double)counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value) / ((double)totalCacheRequests);
                 Output.WriteLine("[Statistics] Cache Hit Rate: " + cacheHitRate.ToString());
             }
-
-            Output.WriteLine("[Statistics] NumberOfPersistedEntries: " + counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].ToString());
-            Output.WriteLine("[Statistics] TotalNumberOfCacheFlushes: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].ToString());
-            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByUpdates: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByUpdates].ToString());
-            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByTimer: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer].ToString());
-            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByGarbageCollection: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByReconciliation].ToString());
-            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByCheckpoint: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].ToString());
-
-            Output.WriteLine("[Statistics] CacheFlush: " + counters[ContentLocationDatabaseCounters.CacheFlush].ToString());
         }
 
         private static List<List<ContentLocationEventData>> GenerateUniquenessWorkload(int numberOfMachines, float cacheHitRatio, int maximumBatchSize, int operationsPerMachine, int? randomSeedOverride = null)

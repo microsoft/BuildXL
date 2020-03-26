@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -30,7 +29,6 @@ using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Microsoft.Practices.TransientFaultHandling;
-using Microsoft.WindowsAzure.Storage.Auth;
 using static BuildXL.Cache.Host.Service.Internal.ConfigurationHelper;
 
 namespace BuildXL.Cache.Host.Service.Internal
@@ -216,14 +214,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     dbConfig.MetadataGarbageCollectionEnabled = true;
                     dbConfig.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = _distributedSettings.MaximumNumberOfMetadataEntriesToStore;
                 }
-
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheEnabled, v => dbConfig.ContentCacheEnabled = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism, v => dbConfig.FlushDegreeOfParallelism = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushTransactionSize, v => dbConfig.FlushTransactionSize = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushSingleTransaction, v => dbConfig.FlushSingleTransaction = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushPreservePercentInMemory, v => dbConfig.FlushPreservePercentInMemory = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
-                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval, v => dbConfig.CacheFlushingMaximumInterval = v);
 
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionIntervalMinutes,

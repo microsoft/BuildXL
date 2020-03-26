@@ -10,7 +10,7 @@ using BuildXL.Utilities;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// Set of extension methods for <see cref="BuildXL.Cache.ContentStore.Distributed.NuCache.ContentLocationDatabase"/>
+    /// Set of extension methods for <see cref="ContentLocationDatabase"/>
     /// </summary>
     public static class ContentLocationDatabaseExtensions
     {
@@ -44,11 +44,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineId currentMachineId,
             ShortHash? startingPoint)
         {
-            var filter = new ContentLocationDatabase.EnumerationFilter
-            {
-                ShouldEnumerate = rawValue => database.HasMachineId(rawValue, currentMachineId.Index),
-                StartingPoint = startingPoint
-            };
+            var filter = new ContentLocationDatabase.EnumerationFilter(
+                rawValue => database.HasMachineId(rawValue, currentMachineId.Index),
+                startingPoint);
 
             foreach (var (key, entry) in database.EnumerateEntriesWithSortedKeys(context, filter))
             {

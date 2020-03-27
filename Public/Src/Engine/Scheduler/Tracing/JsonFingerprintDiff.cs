@@ -20,6 +20,12 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     internal static class JsonFingerprintDiff
     {
+        public const string FieldNew = "New";
+        public const string FieldOld = "Old";
+        public const string FieldChanged = "Changed";
+        public const string FieldAdded = "Added";
+        public const string FieldRemoved = "Removed";
+
         #region Diff-ing
 
         /// <summary>
@@ -563,7 +569,7 @@ namespace BuildXL.Scheduler.Tracing
             if (changed != null && changed.Count > 0)
             {
                 changedProperty = new JProperty(
-                    "Changed",
+                    FieldChanged,
                     new JObject(changed.Select(c => RenderSingleValueDiff(
                         renderKey(c),
                         describeValueDiff(oldData[c], newData[c]),
@@ -594,8 +600,8 @@ namespace BuildXL.Scheduler.Tracing
             IReadOnlyList<string> removed,
             Func<string, string> renderItem)
         {
-            JProperty addedProperty = added != null && added.Count > 0 ? new JProperty("Added", new JArray(added.Select(a => renderItem(a)).ToArray())) : null;
-            JProperty removedProperty = removed != null && removed.Count > 0 ? new JProperty("Removed", new JArray(removed.Select(a => renderItem(a)).ToArray())) : null;
+            JProperty addedProperty = added != null && added.Count > 0 ? new JProperty(FieldAdded, new JArray(added.Select(a => renderItem(a)).ToArray())) : null;
+            JProperty removedProperty = removed != null && removed.Count > 0 ? new JProperty(FieldRemoved, new JArray(removed.Select(a => renderItem(a)).ToArray())) : null;
 
             if (addedProperty == null && removedProperty == null)
             {
@@ -627,8 +633,8 @@ namespace BuildXL.Scheduler.Tracing
 
             var diff = new []
                 {
-                    new JProperty("Old", oldValue),
-                    new JProperty("New", newValue)
+                    new JProperty(FieldOld, oldValue),
+                    new JProperty(FieldNew, newValue)
                 };
 
             var diffObject = new JObject(diff);

@@ -185,7 +185,7 @@ namespace BuildXL.Engine.Cache.Serialization
         /// This function is recursive to allow re-using <see cref="JsonFingerprinter"/> helper functions for nested objects instead of having to re-build the JSON string from scratch.
         /// The max nested depth for JSON representation of fingerprints is relatively low (~5 stacks), so stack memory should be trivial.
         /// </remarks>
-        public static string Serialize(JsonNode root)
+        public static string Serialize(JsonNode root, Formatting format = Formatting.Indented)
         {
             return JsonFingerprinter.CreateJsonString(wr =>
             {
@@ -202,7 +202,7 @@ namespace BuildXL.Engine.Cache.Serialization
                     BuildStringHelper(root, wr);
                 }
             },
-            Formatting.Indented);
+            format);
         }
 
         private static void BuildStringHelper(JsonNode root, IFingerprinter wr)

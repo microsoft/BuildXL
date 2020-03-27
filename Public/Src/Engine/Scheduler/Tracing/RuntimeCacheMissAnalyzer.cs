@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Engine.Cache;
+using BuildXL.Engine.Cache.Serialization;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
@@ -22,6 +23,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using static BuildXL.Scheduler.Tracing.CacheMissAnalysisUtilities;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -233,16 +235,11 @@ namespace BuildXL.Scheduler.Tracing
                 var sw = new StringWriter(sb);
                 var writer = new JsonTextWriter(sw);
                 var logStarted = false;
+                var hasProperty = false;
                 var lenSum = 0;
-                for (int i = 0; i < results.Length;)
+                for (int i = 0; i < results.Length; i++)
                 {
-                    if (!logStarted)
-                    {
-                        writer.WriteStartObject();
-                        writer.WritePropertyName("CacheMissAnalysisResults");
-                        writer.WriteStartObject();
-                        logStarted = true;
-                    }
+                    startLoggingIfNot();
 
                     var name = results[i].Name.ToString();
                     var value = results[i].Value.ToString();
@@ -250,41 +247,89 @@ namespace BuildXL.Scheduler.Tracing
                     if (lenSum < maxLogSize)
                     {
                         writeProperty(name, value);
-                        i++;
                     }
                     else
                     {
-                        // Give warning instead of a single result if max length exceeded, 
-                        // otherwise finish this batch without i++. 
-                        // So this item will go to next batch.
-                        if ((name.Length + value.Length) > maxLogSize)
+                        // End the current batch before start a new one.                     
+                        endLoggingIfStarted();
+
+                        // Log a single event, if this single result itself is too big.
+                        if ((name.Length + value.Length) >= maxLogSize)
                         {
-                            writeProperty(name, "Warning: The actual cache miss analysis result is too long to present.");
-                            i++;
+                            // Have to shorten the result to fit the telemetry.
+                            var marker = "[...]";
+                            var prefix = value.Substring(0, maxLogSize / 2);
+                            var suffix = value.Substring(value.Length - maxLogSize / 2);
+                            logAsSingle(name, prefix + marker + suffix);
                         }
-                        lenSum = 0;
-                        endLogging();
+                        else
+                        {
+                            // Start a new batch.
+                            startLoggingIfNot();
+                            writeProperty(name, value);
+                            lenSum = name.Length + value.Length;
+                        }
                     }
                 }
 
-                endLogging();
+                endLoggingIfStarted();
 
                 void writeProperty(string name, string value)
                 {
                     writer.WritePropertyName(name);
                     writer.WriteRawValue(value);
+                    hasProperty = true;
                 }
 
                 void endLogging()
                 {
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                    // Only log when has result in it.
+                    if (hasProperty)
+                    {
+                        Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());
+                    }
+                    logStarted = false;
+                    hasProperty = false;
+                    lenSum = 0;
+                    writer.Flush();
+                    sb.Clear();
+                }
+
+                void endLoggingIfStarted()
+                {
                     // Only log when at least one result has been written to the Json string
                     if (logStarted)
                     {
-                        writer.WriteEndObject();
-                        writer.WriteEndObject();
-                        logStarted = false;
-                        Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());                      
+                        endLogging();
                     }
+                }
+
+                void startLogging()
+                {
+                    writer.Flush();
+                    sb.Clear();
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("CacheMissAnalysisResults");
+                    writer.WriteStartObject();
+                    logStarted = true;
+                }
+
+                void startLoggingIfNot()
+                {
+                    // Only log when at least one result has been written to the Json string
+                    if (!logStarted)
+                    {
+                        startLogging();
+                    }
+                }
+
+                void logAsSingle(string name, string value)
+                {
+                    startLogging();
+                    writeProperty(name, value);
+                    endLogging();
                 }
             }
         }

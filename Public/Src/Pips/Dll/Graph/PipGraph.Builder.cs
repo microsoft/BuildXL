@@ -2095,7 +2095,8 @@ namespace BuildXL.Pips.Graph
                                 var existingPipId = m_uniqueTempDirPaths.GetOrAdd(tempDir, process.PipId);
                                 if (process.PipId != existingPipId)
                                 {
-                                    Logger.Log.MultiplePipsUsingSameTemporaryDirectory(LoggingContext, tempDir.ToString(Context.PathTable), process.PipId.ToString(), existingPipId.ToString());
+                                    Pip existingPip = PipTable.HydratePip(existingPipId, PipQueryContext.PipGraphAddPipToPipDependency);
+                                    Logger.Log.MultiplePipsUsingSameTemporaryDirectory(LoggingContext, tempDir.ToString(Context.PathTable), process.GetDescription(Context), existingPip.GetDescription(Context));
                                     return false;
                                 }
                             }

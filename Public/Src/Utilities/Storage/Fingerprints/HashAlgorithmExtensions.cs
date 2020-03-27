@@ -20,7 +20,7 @@ namespace BuildXL.Storage.Fingerprints
                 case HashAlgorithmType.MurmurHash3:
                     return new MurmurHashEngine();
                 default:
-                    Contract.Assert(false, $"Unknown hash algorithm type: {type}");
+                    Contract.Check(false)?.Assert($"Unknown hash algorithm type: {type}");
                     return null;
             }
         }

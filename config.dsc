@@ -70,7 +70,7 @@ config({
                 { id: "CLAP", version: "4.6" },
                 { id: "CLAP-DotNetCore", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.1.10" },
+                { id: "RuntimeContracts", version: "0.3.0" },
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
@@ -108,7 +108,7 @@ config({
 
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
-                { id: "RuntimeContracts.Analyzer", version: "0.1.10" },
+                { id: "RuntimeContracts.Analyzer", version: "0.3.0" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 

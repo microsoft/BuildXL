@@ -91,11 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
             var contentHashInfo = new List<ContentHashWithSizeAndLocations>(left.ContentHashesInfo);
 
-            if (left.Count != right.Count)
-            {
-                Contract.Assert(false, $"Can't merge results of different sizes. left.Count is {left.Count}, right.Count is {right.Count}");
-            }
-
+            Contract.Check(left.Count == right.Count)?.Assert($"Can't merge results of different sizes. left.Count is {left.Count}, right.Count is {right.Count}");
             for (int i = 0; i < contentHashInfo.Count; i++)
             {
                 contentHashInfo[i] = Merge(left.ContentHashesInfo[i], right.ContentHashesInfo[i]);
@@ -136,11 +132,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
             var contentHashInfo = new List<ContentHashWithSizeAndLocations>(left.ContentHashesInfo);
 
-            if (left.Count != right.Count)
-            {
-                Contract.Assert(false, $"Can't subtract results of different sizes. left.Count is {left.Count}, right.Count is {right.Count}");
-            }
-
+            Contract.Check(left.Count == right.Count)?.Assert($"Can't subtract results of different sizes. left.Count is {left.Count}, right.Count is {right.Count}");
             for (int i = 0; i < contentHashInfo.Count; i++)
             {
                 contentHashInfo[i] = Subtract(left.ContentHashesInfo[i], right.ContentHashesInfo[i]);

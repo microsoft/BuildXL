@@ -891,11 +891,7 @@ return { requestedIncrement, currentValue }";
         {
             var callingAssembly = typeof(RedisBatch).GetTypeInfo().Assembly;
             var stream = callingAssembly.GetManifestResourceStream(resourceKey);
-            if (stream == null)
-            {
-                Contract.Assert(false, $"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
-                return null;
-            }
+            Contract.Check(stream != null)?.Assert($"Expected embedded resource key '{resourceKey}' not found in assembly {callingAssembly.FullName}. Valid resource names are: {string.Join(",", callingAssembly.GetManifestResourceNames())}");
 
             using (var sr = new StreamReader(stream))
             {

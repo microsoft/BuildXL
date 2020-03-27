@@ -128,11 +128,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         private void AssertNotCompleted([CallerMemberName]string callerName = null)
         {
             bool schedulingCompleted = Volatile.Read(ref m_schedulingCompleted);
-            if (schedulingCompleted)
-            {
-                Contract.Assert(false, $"Operation '{callerName}' is invalid because 'Complete' method was already called.");
-            }
-            
+            Contract.Check(!schedulingCompleted)?.Assert($"Operation '{callerName}' is invalid because 'Complete' method was already called.");
         }
 
         private Task CreateProcessorItemTask(int degreeOfParallelism)

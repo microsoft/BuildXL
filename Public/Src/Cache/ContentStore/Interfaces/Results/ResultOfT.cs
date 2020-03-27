@@ -87,11 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             get
             {
                 // Using Assert instead of Requires in order to skip message computation for successful cases.
-                if (!Succeeded)
-                {
-                    Contract.Assert(false, $"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
-                }
-
+                Contract.Check(Succeeded)?.Assert($"The operation should succeed in order to get the resulting value. Failure: {ToString()}.");
                 return _result;
             }
         }

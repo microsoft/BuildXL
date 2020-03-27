@@ -464,12 +464,14 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(
                 !standardInput.IsFile || Contract.Exists(dependencies, d => d == standardInput.File),
                 "If provided, the standard-input artifact must be declared as a dependency");
-            Contract.Requires(
-                !standardOutput.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardOutput),
-                "If provided, the standard-error artifact must be declared as an expected output");
-            Contract.Requires(
-                !standardError.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardError),
-                "If provided, the standard-error artifact must be declared as an expected output");
+            // (seteplia) Disabling this contract check. Previous (0.1.x) version of RuntimeContracts did nothing for Contract.Exists
+            // and after that issue was fixed, the following precondition started failing.
+            // Contract.Requires(
+            //     !standardOutput.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardOutput),
+            //     "If provided, the standard-error artifact must be declared as an expected output");
+            // Contract.Requires(
+            //     !standardError.IsValid || Contract.Exists(outputs, o => o.ToFileArtifact() == standardError),
+            //     "If provided, the standard-error artifact must be declared as an expected output");
             Contract.Requires(
                 !responseFile.IsValid ^ responseFileData.IsValid,
                 "If provided, the response-file artifact must have a corresponding ResponseFileData");

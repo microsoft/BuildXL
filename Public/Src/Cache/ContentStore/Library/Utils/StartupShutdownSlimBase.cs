@@ -74,11 +74,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 Interlocked.Increment(ref _refCount);
             }
-            else if (StartupStarted)
+            else 
             {
-                Contract.Assert(false, $"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
+                Contract.Check(!StartupStarted)?.Assert($"Cannot start '{Tracer.Name}' because StartupAsync method was already called on this instance.");
             }
-
             StartupStarted = true;
 
             LazyInitializer.EnsureInitialized(ref _lazyStartupTask, () =>
@@ -109,11 +108,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
             }
 
-            if (ShutdownStarted)
-            {
-                Contract.Assert(false, $"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on this instance.");
-            }
-
+            Contract.Check(!ShutdownStarted)?.Assert($"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on this instance.");
             TriggerShutdownStarted();
 
             if (ShutdownCompleted)

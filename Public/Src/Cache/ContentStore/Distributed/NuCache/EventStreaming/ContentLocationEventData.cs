@@ -74,7 +74,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected ContentLocationEventData(EventKind kind, MachineId sender, IReadOnlyList<ShortHash> contentHashes)
         {
             Contract.Requires(contentHashes != null);
-            Contract.RequiresDebug(contentHashes.Count != 0); // We want to detect this precondition in tests/debug mode, but don't want to break in prod because of this.
 
             Kind = kind;
             Sender = sender;

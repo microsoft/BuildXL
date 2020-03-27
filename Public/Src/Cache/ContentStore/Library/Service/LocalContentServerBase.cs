@@ -695,13 +695,7 @@ namespace BuildXL.Cache.ContentStore.Service
                         GetTimeoutForCapabilities(capabilities));
 
                     bool added = _sessionHandles.TryAdd(id, handle);
-                    if (!added)
-                    {
-                        // CreateSession should not be called for an id that is already presented in the internal map.
-                        // The class members fully control the creation process, and the fact that the session is created is indication of a bug.
-                        Contract.Assert(false, $"The session with id '{id}' is already created.");
-                    }
-
+                    Contract.Check(added)?.Assert($"The session with id '{id}' is already created.");
                     Tracer.Debug(context, $"{nameof(CreateSessionAsync)} created session {handle.ToString(id)}.");
                     return Result.Success(session);
                 });

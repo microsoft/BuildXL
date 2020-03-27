@@ -23,5 +23,7 @@ export const dll = BuildXLSdk.library({
     ],
     runtimeContent: [
         f`BuildXL.CloudTest.Gvfs.JobGroup.xml`,
+        f`setup.cmd`,
+        ...importFrom("Sdk.Managed.Testing.XUnit").additionalNetCoreRuntimeContent,
     ]
 });

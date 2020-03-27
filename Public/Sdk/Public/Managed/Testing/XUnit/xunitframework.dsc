@@ -54,17 +54,19 @@ const xunitConsoleRuntimeConfigFiles: File[] = Managed.RuntimeConfigFiles.create
     undefined  // nopappConfig
 );
 
+@@public
+export const additionalNetCoreRuntimeContent = 
+    [
+        // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
+        // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
+        ...xunitConsoleRuntimeConfigFiles,
+        xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
+        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
+    ];
+    
 // For the DotNetCore run we need to copy a bunch more files:
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
-    return isDotNetCore 
-        ? [
-            // Unfortunately xUnit console runner comes as a precompiled assembly for .NET Core, we could either go and package it
-            // into a self-contained deployment or treat it as a framework-dependent deployment as intended, let's do the latter
-            ...xunitConsoleRuntimeConfigFiles,
-            xunitConsolePackage.getFile(r`/tools/netcoreapp2.0/xunit.runner.utility.netcoreapp10.dll`),
-            xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
-        ]
-        : [];
+    return isDotNetCore ? additionalNetCoreRuntimeContent : [];
 }
 
 function runTest(args : TestRunArguments) : File[] {

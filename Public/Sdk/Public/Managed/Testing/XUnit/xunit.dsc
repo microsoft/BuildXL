@@ -148,7 +148,7 @@ function runMultipleConsoleTests(args: TestRunArguments) : Result
             // Avoid double-writes
             xmlFile: renameOutputFile(testGroup, args.xmlFile),
             xmlV1File: renameOutputFile(testGroup, args.xmlV1File),
-            xmlFnunitFileile: renameOutputFile(testGroup, args.nunitFile),
+            nunitFile: renameOutputFile(testGroup, args.nunitFile),
             htmlFile: renameOutputFile(testGroup, args.htmlFile),
 
             traits: [

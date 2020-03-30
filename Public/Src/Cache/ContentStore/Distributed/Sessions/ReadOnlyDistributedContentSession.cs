@@ -35,6 +35,8 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using PlaceBulkResult = System.Collections.Generic.IEnumerable<System.Threading.Tasks.Task<BuildXL.Cache.ContentStore.Interfaces.Results.Indexed<BuildXL.Cache.ContentStore.Interfaces.Results.PlaceFileResult>>>;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
     /// <summary>
@@ -53,8 +55,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
-        private RocksDbContentPlacementPredictionStore _predictionStore;
-        private string _buildId = null;
+        private RocksDbContentPlacementPredictionStore? _predictionStore;
+        private string? _buildId = null;
         private ContentHash? _buildIdHash = null;
         private readonly ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
 
@@ -63,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // The method used for remote pins depends on which pin configuraiton is enabled.
         private readonly RemotePinAsync _remotePinner;
 
-        private BackgroundTaskTracker _backgroundTaskTracker;
+        private BackgroundTaskTracker? _backgroundTaskTracker;
 
         /// <summary>
         /// The store that persists content locations to a persistent store.
@@ -91,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <summary>
         /// Updates content tracker lazily or eagerly based on local age.
         /// </summary>
-        private readonly ContentTrackerUpdater _contentTrackerUpdater;
+        private readonly ContentTrackerUpdater? _contentTrackerUpdater;
 
         /// <summary>
         /// Settings for the session.
@@ -118,8 +120,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier<T> contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
-            ContentTrackerUpdater contentTrackerUpdater = null,
-            DistributedContentStoreSettings settings = default)
+            ContentTrackerUpdater? contentTrackerUpdater = null,
+            DistributedContentStoreSettings? settings = default)
             : base(name)
         {
             Contract.Requires(name != null);
@@ -130,12 +132,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Inner = inner;
             ContentLocationStore = contentLocationStore;
             LocalCacheRootMachineLocation = localMachineLocation;
-            Settings = settings;
+            Settings = settings ?? DistributedContentStoreSettings.DefaultSettings;
             _copierHost = copierHost;
             _remotePinner = PinFromMultiLevelContentLocationStore;
             _contentTrackerUpdater = contentTrackerUpdater;
             DistributedCopier = contentCopier;
-            PutAndPlaceFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutAndPlaceFileOperations);
+            PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
         }
 
         /// <inheritdoc />
@@ -182,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     var centralStorage = (ContentLocationStore as TransitioningContentLocationStore)?.LocalLocationStore?.CentralStorage;
 
-                    if (Settings.ContentPlacementPredictionsBlob != null)
+                    if (centralStorage != null && Settings.ContentPlacementPredictionsBlob != null)
                     {
                         var checkpointDirectory = Path.Combine(LocalCacheRootMachineLocation.Path, "PlacementPredictions");
                         _predictionStore = new RocksDbContentPlacementPredictionStore(checkpointDirectory, clean: false);
@@ -310,7 +312,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             long? size = null;
-            GetBulkLocationsResult localGetBulkResult = null;
+            GetBulkLocationsResult? localGetBulkResult = null;
 
             // First try to fetch file based on locally stored locations for the hash
             // Then fallback to fetching file based on global locations  (i.e. Redis) minus the locally stored locations which were already checked
@@ -398,9 +400,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             Contract.Requires(contentHashes != null);
 
-            IEnumerable<Task<Indexed<PinResult>>> pinResults = null;
+            IEnumerable<Task<Indexed<PinResult>>>? pinResults = null;
 
-            IEnumerable<Task<Indexed<PinResult>>> intermediateResult = null;
+            IEnumerable<Task<Indexed<PinResult>>>? intermediateResult = null;
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
                 // Check globally for existence, but do not copy locally and do not update content tracker.
@@ -742,7 +744,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             if (trace)
             {
-                Tracer.Debug(context, $"Copying {hashInfo.ContentHash.ToShortString()} with {hashInfo.Locations.Count} locations");
+                Tracer.Debug(context, $"Copying {hashInfo.ContentHash.ToShortString()} with {hashInfo.Locations?.Count ?? 0 } locations");
             }
 
             using (var operationContext = TrackShutdown(context, cts))
@@ -751,7 +753,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     var smallFileResult = await ContentLocationStore.GetBlobAsync(operationContext, hashInfo.ContentHash);
 
-                    if (smallFileResult.Succeeded && smallFileResult.Found)
+                    if (smallFileResult.Succeeded && smallFileResult.Found && smallFileResult.Blob != null)
                     {
                         using (var stream = new MemoryStream(smallFileResult.Blob))
                         {
@@ -761,7 +763,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     }
                 }
 
-                byte[] bytes = null;
+                byte[]? bytes = null;
 
                 var putResult = await DistributedCopier.TryCopyAndPutAsync(
                     operationContext,
@@ -792,7 +794,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             // Also, record the bytes if the file is small enough to be put into the ContentLocationStore.
                             if (actualSize >= 0 && actualSize <= ContentLocationStore.MaxBlobSize && ContentLocationStore.AreBlobsSupported && Inner is IDecoratedStreamContentSession decoratedStreamSession)
                             {
-                                RecordingStream recorder = null;
+                                RecordingStream? recorder = null;
                                 innerPutResult = await decoratedStreamSession.PutFileAsync(
                                     context,
                                     tempLocation,
@@ -825,7 +827,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         Tracer.Debug(
                             operationContext.Context,
                             $"Removing bad content locations for content hash {hashInfo.ContentHash.ToShortString()}: {string.Join(",", badContentLocations)}");
-                        _backgroundTaskTracker.Add(
+                        _backgroundTaskTracker?.Add(
                             () =>
                                 ContentLocationStore.TrimBulkAsync(
                                     operationContext.Context,
@@ -918,7 +920,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     foreach (ContentHashWithSizeAndLocations record in pageLookup.ContentHashesInfo)
                     {
-                        RemotePinning pinning = new RemotePinning() { Record = record };
+                        RemotePinning pinning = new RemotePinning(record);
                         pinnings.Add(pinning);
                         bool accepted = await pinningAction.SendAsync(pinning, cancel);
                         Contract.Assert(accepted);
@@ -929,7 +931,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     foreach (ContentHash hash in pageHashes)
                     {
                         Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
-                        RemotePinning pinning = new RemotePinning() { Record = new ContentHashWithSizeAndLocations(hash, -1L), Result = new PinResult(pageLookup) };
+                        RemotePinning pinning = new RemotePinning(new ContentHashWithSizeAndLocations(hash, -1L))
+                                                {
+                                                    Result = new PinResult(pageLookup)
+                                                };
                         pinnings.Add(pinning);
                     }
                 }
@@ -976,9 +981,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // we can nonetheless use the dataflow framework to process pinnings and read the output from the updated objects afterward.
         private class RemotePinning
         {
-            public ContentHashWithSizeAndLocations Record { get; set; }
+            public ContentHashWithSizeAndLocations Record { get; }
 
-            public PinResult Result { get; set; }
+            public PinResult? Result { get; set; }
+
+            public RemotePinning(ContentHashWithSizeAndLocations record)
+                => Record = record;
         }
 
         // This method processes each remote pinning, setting the output when the operation is completed.
@@ -1003,9 +1011,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             bool updateContentTracker = true,
             bool succeedWithOneLocation = false)
         {
-            Contract.Requires(remote != null);
-
-            IReadOnlyList<MachineLocation> locations = remote.Locations;
+            IReadOnlyList<MachineLocation>? locations = remote.Locations;
 
             // If no remote locations are recorded, we definitely can't pin
             if (locations == null || locations.Count == 0)
@@ -1139,7 +1145,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentHash hash, 
             bool tryBuildRing, 
             ProactiveCopyReason reason, 
-            string path = null)
+            string? path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -1159,7 +1165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // First check in local location store, then global if failed.
                         var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
-                        if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count >= Settings.ProactiveCopyLocationsThreshold)
+                        if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations?.Count >= Settings.ProactiveCopyLocationsThreshold)
                         {
                             _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
                             return ProactiveCopyResult.CopyNotRequiredResult;
@@ -1170,12 +1176,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
                         }
 
-                        if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                        if (getLocationsResult.ContentHashesInfo[0].Locations?.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
                             return ProactiveCopyResult.CopyNotRequiredResult;
                         }
 
-                        IReadOnlyList<MachineLocation> buildRingMachines = null;
+                        IReadOnlyList<MachineLocation>? buildRingMachines = null;
                         var replicatedLocations = getLocationsResult.ContentHashesInfo[0].Locations;
 
                         // Get random machine inside build ring
@@ -1214,7 +1220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         Task<PushFileResult> outsideRingCopyTask;
                         if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
                         {
-                            Result<MachineLocation> getLocationResult = null;
+                            Result<MachineLocation>? getLocationResult = null;
                             var source = ProactiveCopyLocationSource.Random;
 
                             // Try to select machine from prediction store.

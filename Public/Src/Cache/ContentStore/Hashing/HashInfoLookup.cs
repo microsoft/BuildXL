@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static HashInfo Find(HashType hashType)
         {
-            Contract.Assert(HashInfoByType.ContainsKey(hashType));
+            Contract.Check(HashInfoByType.ContainsKey(hashType))?.Assert($"Invalid HashType passed for HashInfoLookup: [{hashType.ToString()}], hashCode: {hashType.GetHashCode()}");
             return HashInfoByType[hashType];
         }
 

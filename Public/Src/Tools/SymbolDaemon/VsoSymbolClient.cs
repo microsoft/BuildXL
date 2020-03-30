@@ -157,9 +157,6 @@ namespace Tool.SymbolDaemon
                         ? string.Empty
                         : $"SymbolDaemon will retry creating debug entry with {m_debugEntryCreateBehavior} behavior");
 
-                // Log a warning message in BuildXL log file
-                Analysis.IgnoreResult(await m_apiClient.LogMessage(message, isWarning: true));
-
                 if (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists)
                 {
                     // Log an error message in SymbolDaemon log file
@@ -168,7 +165,7 @@ namespace Tool.SymbolDaemon
                 }
 
                 // Log a warning message in SymbolDaemon log file
-                m_logger.Warning(message);
+                m_logger.Verbose(message);
 
                 result = await m_symbolClient.CreateRequestDebugEntriesAsync(
                     RequestId,

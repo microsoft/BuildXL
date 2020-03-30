@@ -113,5 +113,21 @@ namespace BuildXL.Utilities.VmCommandProxy
             /// </summary>
             public const string IpAddress = "192.168.0.1";
         }
+
+        /// <summary>
+        /// User that runs pips in VM.
+        /// </summary>
+        public static class UserProfile
+        {
+            /// <summary>
+            /// The user that runs the pip in the VM is 'Administrator'.
+            /// </summary>
+            public const string Name = "Administrator";
+
+            /// <summary>
+            /// User profile path.
+            /// </summary>
+            public readonly static string Path = $@"C:\Users\{Name}";
+        }
     }
 }

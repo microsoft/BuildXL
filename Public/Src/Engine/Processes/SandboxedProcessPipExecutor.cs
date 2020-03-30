@@ -2086,27 +2086,31 @@ namespace BuildXL.Processes
                     ? AbsolutePath.Create(m_pathTable, s_possibleRedirectedUserProfilePath)
                     : AbsolutePath.Invalid;
 
+                var vmAdminProfilePath = ShouldSandboxedProcessExecuteInVm
+                    ? AbsolutePath.Create(m_pathTable, VmIOConstants.UserProfile.Path)
+                    : AbsolutePath.Invalid;
+
                 foreach (AbsolutePath path in pip.UntrackedPaths)
                 {
                     // We mask Report to simplify handling of explicitly-reported directory-dependency or transitive-dependency accesses
                     // (they should never fail for untracked accesses, which should be invisible).
 
                     // We allow the real input timestamp to be seen for untracked paths. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    AddUntrackedPathToManifest(path);
-                    AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
+                    addUntrackedPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
-                    if (correspondingPath.IsValid)
+                    addUntrackedPath(correspondingPath, processedPaths);
+
+                    if (ShouldSandboxedProcessExecuteInVm)
                     {
-                        AddUntrackedPathToManifest(correspondingPath);
-                        AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
+                        var vmPath = CreatePathForVmAdminUserProfile(vmAdminProfilePath, path, userProfilePath, redirectedUserProfilePath);
+                        addUntrackedPath(vmPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        AddUntrackedPathToManifest(m_loggingConfiguration.LogsDirectory);
-                        AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
+                        addUntrackedPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
 
@@ -2118,21 +2122,21 @@ namespace BuildXL.Processes
 
                     // The default mask for untracked scopes is to not report anything.
                     // We block input timestamp faking for untracked scopes. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    AddUntrackedScopeToManifest(path);
-                    AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
+                    addUntrackedScope(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
-                    if (correspondingPath.IsValid)
+                    addUntrackedScope(correspondingPath, processedPaths);
+
+                    if (ShouldSandboxedProcessExecuteInVm)
                     {
-                        AddUntrackedScopeToManifest(correspondingPath);
-                        AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
+                        var vmPath = CreatePathForVmAdminUserProfile(vmAdminProfilePath, path, userProfilePath, redirectedUserProfilePath);
+                        addUntrackedScope(vmPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        AddUntrackedScopeToManifest(m_loggingConfiguration.LogsDirectory);
-                        AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
+                        addUntrackedScope(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
 
@@ -2217,6 +2221,24 @@ namespace BuildXL.Processes
                     LogFileAccessTables(pip);
                 }
             }
+
+            void addUntrackedPath(AbsolutePath untrackedPath, HashSet<AbsolutePath> processedPaths)
+            {
+                if (untrackedPath.IsValid)
+                {
+                    AddUntrackedPathToManifest(untrackedPath);
+                    AllowCreateDirectoryForDirectoriesOnPath(untrackedPath, processedPaths);
+                }
+            }
+
+            void addUntrackedScope(AbsolutePath untrackedScope, HashSet<AbsolutePath> processedPaths)
+            {
+                if (untrackedScope.IsValid)
+                {
+                    AddUntrackedScopeToManifest(untrackedScope);
+                    AllowCreateDirectoryForDirectoriesOnPath(untrackedScope, processedPaths);
+                }
+            }
         }
 
         /// <summary>
@@ -2240,6 +2262,30 @@ namespace BuildXL.Processes
             if (path.IsWithin(m_pathTable, redirectedUserProfilePath))
             {
                 return path.Relocate(m_pathTable, redirectedUserProfilePath, realUserProfilePath);
+            }
+
+            return AbsolutePath.Invalid;
+        }
+
+        private AbsolutePath CreatePathForVmAdminUserProfile(
+            AbsolutePath vmAdminProfilePath,
+            AbsolutePath path,
+            AbsolutePath realUserProfilePath,
+            AbsolutePath redirectedUserProfilePath)
+        {
+            if (!vmAdminProfilePath.IsValid)
+            {
+                return AbsolutePath.Invalid;
+            }
+
+            if (realUserProfilePath.IsValid && path.IsWithin(m_pathTable, realUserProfilePath))
+            {
+                return path.Relocate(m_pathTable, realUserProfilePath, vmAdminProfilePath);
+            }
+
+            if (redirectedUserProfilePath.IsValid && path.IsWithin(m_pathTable, redirectedUserProfilePath))
+            {
+                return path.Relocate(m_pathTable, redirectedUserProfilePath, vmAdminProfilePath);
             }
 
             return AbsolutePath.Invalid;

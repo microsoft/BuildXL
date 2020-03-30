@@ -52,6 +52,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// All defined access levels requested.
         /// </summary>
-        All = Read | Write | Probe | Enumerate | EnumerationProbe,
+        All = Read | Write | Probe | Enumerate | EnumerationProbe
     }
 }

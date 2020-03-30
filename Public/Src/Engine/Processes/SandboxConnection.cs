@@ -12,15 +12,19 @@ using System.Threading;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// A class that manages the connection to the macOS EndpointSecurity subsystem
+    /// A class that manages the connection to the generic macOS sandboxing implementation
     /// </summary>
-    public sealed class SandboxConnectionES : ISandboxConnection
+    public sealed class SandboxConnection : ISandboxConnection
     {
+        /// <inheritdoc />
+        public SandboxKind Kind { get; }
+
         /// <inheritdoc />
         public bool MeasureCpuTimes { get; }
 
@@ -35,7 +39,7 @@ namespace BuildXL.Processes
         // TODO: remove at some later point
         private Sandbox.KextConnectionInfo m_fakeKextConnectionInfo = new Sandbox.KextConnectionInfo();
 
-        private readonly Sandbox.ESConnectionInfo m_esConnectionInfo;
+        private readonly Sandbox.SandboxConnectionInfo m_sandboxConnectionInfo;
 
         /// <summary>
         /// Enqueue time of the last received report (or 0 if no reports have been received)
@@ -50,6 +54,23 @@ namespace BuildXL.Processes
         private long LastReportReceivedTimestampTicks => Volatile.Read(ref m_lastReportReceivedTimestampTicks);
         
         private Sandbox.AccessReportCallback m_AccessReportCallback;
+        
+        static private Sandbox.Configuration ConfigurationForSandboxKind(SandboxKind kind)
+        {
+            switch (kind)
+            {
+                case SandboxKind.MacOsEndpointSecurity:
+                    return Sandbox.Configuration.EndpointSecuritySandboxType;
+                case SandboxKind.MacOsDetours:
+                    return Sandbox.Configuration.DetoursSandboxType;
+                case SandboxKind.MacOsHybrid:
+                    return Sandbox.Configuration.HybridSandboxType;
+                case SandboxKind.MacOsKext:
+                    return Sandbox.Configuration.KextType;
+                default:
+                    throw new BuildXLException($"Could not find mapping for sandbox configration with sandbox kind: {kind}", ExceptionRootCause.FailFast);
+            }
+        }
 
         /// <inheritdoc />
         public TimeSpan CurrentDrought => DateTime.UtcNow.Subtract(new DateTime(ticks: LastReportReceivedTimestampTicks));
@@ -57,20 +78,24 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initializes the ES sandbox
         /// </summary>
-        public SandboxConnectionES(bool isInTestMode = false, bool measureCpuTimes = false)
+        public SandboxConnection(SandboxKind kind, bool isInTestMode = false, bool measureCpuTimes = false)
         {
+            Kind = kind;
             m_reportQueueLastEnqueueTime = 0;
-            m_esConnectionInfo = new Sandbox.ESConnectionInfo() { Error = Sandbox.SandboxSuccess };
+            m_sandboxConnectionInfo = new Sandbox.SandboxConnectionInfo() 
+            {
+                Config = ConfigurationForSandboxKind(kind), 
+                Error = Sandbox.SandboxSuccess 
+            };
 
             MeasureCpuTimes = measureCpuTimes;
             IsInTestMode = isInTestMode;
 
-            var process = System.Diagnostics.Process.GetCurrentProcess();
-
-            Sandbox.InitializeEndpointSecuritySandbox(ref m_esConnectionInfo, process.Id);
-            if (m_esConnectionInfo.Error != Sandbox.SandboxSuccess)
+            var process = System.Diagnostics.Process.GetCurrentProcess();        
+            Sandbox.InitializeSandbox(ref m_sandboxConnectionInfo, process.Id);
+            if (m_sandboxConnectionInfo.Error != Sandbox.SandboxSuccess)
             {
-                throw new BuildXLException($@"Unable to connect to EndpointSecurity sandbox (Code: {m_esConnectionInfo.Error})");
+                throw new BuildXLException($@"Unable to initialize generic sandbox, please check the sources for error code: {m_sandboxConnectionInfo.Error})");
             }
 
 #if DEBUG
@@ -112,7 +137,7 @@ namespace BuildXL.Processes
                 }
             };
             
-            Sandbox.ObserverFileAccessReports(ref m_esConnectionInfo, m_AccessReportCallback, Marshal.SizeOf<Sandbox.AccessReport>());
+            Sandbox.ObserverFileAccessReports(ref m_sandboxConnectionInfo, m_AccessReportCallback, Marshal.SizeOf<Sandbox.AccessReport>());
         }
 
         /// <summary>
@@ -131,7 +156,7 @@ namespace BuildXL.Processes
         /// </summary>
         public void ReleaseResources()
         {
-            Sandbox.DeinitializeEndpointSecuritySandbox(m_esConnectionInfo);
+            Sandbox.DeinitializeSandbox();
             m_AccessReportCallback = null;
         }
 

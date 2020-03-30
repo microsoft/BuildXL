@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include "Common.h"
+#include "Common.hpp"
 
 #if !SB_MONITOR
-#include "KextSandbox.h"
-#include "ESSandbox.h"
+#include "KextSandbox.hpp"
+#include "Sandbox.hpp"
 #endif
 
 os_log_t logger = os_log_create(kBuildXLBundleIdentifier, "Logger");
@@ -28,8 +28,8 @@ extern "C"
                 KextConnectionInfo *context = (KextConnectionInfo *) connection;
                 return KEXT_SendPipStarted(processId, pipId, famBytes, famBytesLength, *context);
             }
-            case EndpointSecurity:
-                return ES_SendPipStarted(processId, pipId, famBytes, famBytesLength);
+            case GenericSandbox:
+                return Sandbox_SendPipStarted(processId, pipId, famBytes, famBytesLength);
         }
     
         return false;
@@ -44,8 +44,8 @@ extern "C"
                 KextConnectionInfo *context = (KextConnectionInfo *) connection;
                 return KEXT_SendPipProcessTerminated(pipId, processId, *context);
             }
-            case EndpointSecurity:
-                return ES_SendPipProcessTerminated(pipId, processId);
+            case GenericSandbox:
+                return Sandbox_SendPipProcessTerminated(pipId, processId);
         }
     
         return false;

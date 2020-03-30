@@ -101,11 +101,12 @@ namespace Deployment {
 
     @@public
     export const interopLibrary: SdkDeployment.Definition = {
-        contents: [
-            macBinaryUsage === "build"
-                ? Sandbox.libInterop
-                : f`${pkgPath}/${qualifier.configuration}/libBuildXLInterop.dylib`
-        ]
+        contents: macBinaryUsage === "build"
+            ? [ Sandbox.libInterop, Sandbox.libDetours ]
+            : [
+                f`${pkgPath}/${qualifier.configuration}/libBuildXLInterop.dylib`,
+                f`${pkgPath}/${qualifier.configuration}/libBuildXLDetours.dylib`
+            ]
     };
 
     @@public

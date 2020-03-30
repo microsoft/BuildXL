@@ -14,7 +14,7 @@
 #define KEXT_THREAD_ID_ERROR                       0x80
 #define KEXT_WRONG_BUFFER_SIZE                     0x100
 
-#include "Common.h"
+#include "Common.hpp"
 
 typedef struct {
     int error;

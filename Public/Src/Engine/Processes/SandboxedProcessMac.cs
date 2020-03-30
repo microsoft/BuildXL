@@ -16,6 +16,7 @@ using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 using static BuildXL.Interop.Unix.Sandbox;
@@ -146,7 +147,7 @@ namespace BuildXL.Processes
                     EnsureOrdered = true,
                     SingleProducerConstrained = true,
                     BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
+                    MaxDegreeOfParallelism = 1 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });
 
             // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
@@ -192,6 +193,12 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = "/bin/sh";
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
+            
+            // Allow access for Detours library
+            info.FileAccessManifest.AddPath(
+                AbsolutePath.Create(PathTable, DetoursDylibFile),
+                mask: FileAccessPolicy.MaskAll,
+                values: FileAccessPolicy.AllowAll);
 
             return process;
         }
@@ -252,6 +259,9 @@ namespace BuildXL.Processes
                 info.FileAccessManifest.Release();
             }
         }
+
+        private const string DetoursDylibName = "libBuildXLDetours.dylib";
+        private string DetoursDylibFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), DetoursDylibName);
 
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
@@ -395,9 +405,15 @@ namespace BuildXL.Processes
             string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
             string escapedArguments     = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
 
+            string env = string.Empty;            
             string line = I($"exec {info.FileName} {escapedArguments} {redirectedStdin}");
 
             LogProcessState("Feeding stdin");
+            if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
+            {
+                await Process.StandardInput.WriteLineAsync($"export DYLD_INSERT_LIBRARIES={DetoursDylibFile}");
+            }
+
             await Process.StandardInput.WriteLineAsync(line);
             Process.StandardInput.Close();
         }

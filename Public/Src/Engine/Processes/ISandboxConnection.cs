@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Processes
 {
@@ -12,6 +13,11 @@ namespace BuildXL.Processes
     /// </summary>
     public interface ISandboxConnection : IDisposable
     {
+        /// <summary>
+        /// The sandbox kind used by the backing SandboxConnection, e.g. MacOsKext
+        /// </summary>
+        SandboxKind Kind { get; }
+
         /// <summary>
         /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: false.
         /// </summary>

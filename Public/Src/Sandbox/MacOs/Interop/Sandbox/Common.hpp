@@ -12,7 +12,7 @@
 
 typedef enum {
     Kext,
-    EndpointSecurity
+    GenericSandbox
 } ConnectionType;
 
 extern "C"

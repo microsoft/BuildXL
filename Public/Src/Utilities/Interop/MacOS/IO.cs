@@ -422,7 +422,7 @@ namespace BuildXL.Interop.Unix
         public static readonly string UserKeyChains         = $"/Users/{s_user}/Library/Keychains/login.keychain";
         public static readonly string UserCFTextEncoding    = $"/Users/{s_user}/.CFUserTextEncoding";
         public static readonly string UserPreferences       = $"/Users/{s_user}/Library/Preferences";
-
+        public static readonly string EtcLocalTime         = $"/etc/localtime";
     }
 }
 #pragma warning restore CS1591

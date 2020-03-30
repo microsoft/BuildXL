@@ -31,6 +31,6 @@ SandboxedPip::SandboxedPip(pid_t pid, const char *payload, size_t length)
 
 SandboxedPip::~SandboxedPip()
 {
-    log("Releasing pip object (%#llX) - freed from %{public}s", GetPipId(),  __FUNCTION__);
+    log_debug("Releasing pip object (%#llX) - freed from %{public}s", GetPipId(),  __FUNCTION__);
     free(payload_);
 }

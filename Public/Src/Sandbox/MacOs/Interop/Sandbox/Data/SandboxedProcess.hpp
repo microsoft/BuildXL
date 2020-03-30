@@ -16,7 +16,7 @@
  * When a process forks, the child process inherits the path from its parent.
  */
 
-class SandboxedProcess
+class SandboxedProcess final
 {
 
 private:

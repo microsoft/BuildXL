@@ -70,10 +70,11 @@ namespace BuildXL.Pips.Graph
                 m_untrackedFiles =
                     new[]
                     {
-                        // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
-                        // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
                         MacPaths.Etc,
                         MacPaths.EtcMasterPasswd,
+                        MacPaths.EtcLocalTime,
+                        // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
+                        // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
                         MacPaths.UserKeyChainsDb,
                         MacPaths.UserKeyChains,
                         MacPaths.UserCFTextEncoding,
@@ -98,6 +99,7 @@ namespace BuildXL.Pips.Graph
                         MacPaths.UsrSbin,
                         MacPaths.Var,
                         MacPaths.UserPreferences,
+                        MacPaths.AppleInternal,
                         // it's important to untrack /usr/lib instead of creating a sealed source directory
                         //   - the set of dynamically loaded libraries during an execution of a process is 
                         //     not necessarily deterministic, i.e., when the same process---which itself is

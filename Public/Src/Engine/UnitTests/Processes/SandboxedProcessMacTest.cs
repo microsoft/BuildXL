@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop.Unix;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -60,6 +61,8 @@ namespace Test.BuildXL.Processes
             public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 
             public void ReleaseResources() { }
+
+            public SandboxKind Kind => SandboxKind.MacOsKext;
         }
 
         private readonly Connection s_connection = new Connection();

@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include <limits.h>
-
 #include "BuildXLException.hpp"
 #include "Trie.hpp"
-#include "SandboxedProcess.hpp"
 
 template <typename T>
 _Atomic uint Node<T>::s_numUintNodes = 0;
@@ -687,4 +684,13 @@ void Trie<T>::traverse(bool computeKey, void *callbackArgs, traverse_fn callback
     }
 }
 
-template class Trie<SandboxedProcess>;
+// Forward declarations
+
+#ifndef MAC_DETOURS
+    #include "SandboxedProcess.hpp"
+    template class Trie<SandboxedProcess>;
+#else
+    #include "Detours.hpp"
+    template class Trie<PathCacheEntry>;
+#endif
+

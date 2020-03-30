@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:Detours/Detours.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:Interop/Interop.xcodeproj">
    </FileRef>
    <FileRef

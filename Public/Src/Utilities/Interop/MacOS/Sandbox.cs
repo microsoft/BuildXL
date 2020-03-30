@@ -20,21 +20,30 @@ namespace BuildXL.Interop.Unix
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         public static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct ESConnectionInfo
+        public enum Configuration : int
         {
+            EndpointSecuritySandboxType = 0,
+            DetoursSandboxType,
+            HybridSandboxType,
+            KextType
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SandboxConnectionInfo
+        {
+            public Configuration Config;
             public int Error;
         }
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern void InitializeEndpointSecuritySandbox(ref ESConnectionInfo info, int host);
+        public static extern void InitializeSandbox(ref SandboxConnectionInfo info, int host);
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
-        public static extern void DeinitializeEndpointSecuritySandbox(ESConnectionInfo info);
+        public static extern void DeinitializeSandbox();
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern void ObserverFileAccessReports(
-            ref ESConnectionInfo info,
+            ref SandboxConnectionInfo info,
             [MarshalAs(UnmanagedType.FunctionPtr)] AccessReportCallback callbackPointer,
             long accessReportSize);
 

@@ -13,6 +13,7 @@ using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
 #if PLATFORM_OSX
@@ -34,13 +35,24 @@ namespace Test.BuildXL.TestUtilities.Xunit
         private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() =>
         {
 #if PLATFORM_OSX
-            var useEndpointSecuritySandboxEnv = Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX");
-            var useEndpointSecuritySandbox = !string.IsNullOrWhiteSpace(useEndpointSecuritySandboxEnv);
+            
+            var kind = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX"))
+                ? SandboxKind.MacOsEndpointSecurity
+                : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_DETOURS_SANDBOX"))
+                    ? SandboxKind.MacOsDetours
+                    : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_HYBRID_SANDBOX"))
+                        ? SandboxKind.MacOsHybrid
+                        : SandboxKind.MacOsKext;
+
+            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
+            {
+                throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
+            }
 #endif
             return OperatingSystemHelper.IsUnixOS
 #if PLATFORM_OSX
-                ? useEndpointSecuritySandbox
-                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: true, measureCpuTimes: true)
+                ? kind != SandboxKind.MacOsKext
+                    ? (ISandboxConnection) new SandboxConnection(kind, isInTestMode: true, measureCpuTimes: true)
                     : (ISandboxConnection) new SandboxConnectionKext(
 #else
                     ? (ISandboxConnection) new SandboxConnectionKext(

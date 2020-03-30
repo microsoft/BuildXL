@@ -218,7 +218,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Indicates if processes should be scheduled using the macOS sandbox when BuildXL is executing
         /// </summary>
-        protected virtual bool SandboxingWithKextEnabled =>
+        protected virtual bool MacOsSandboxingEnabled =>
             OperatingSystemHelper.IsUnixOS &&
             m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind != SandboxKind.None;
 
@@ -4684,7 +4684,7 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !SandboxingWithKextEnabled ? null : SandboxConnection;
+        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !MacOsSandboxingEnabled ? null : SandboxConnection;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
@@ -5398,7 +5398,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         protected virtual bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
         {
-            if (SandboxingWithKextEnabled)
+            if (MacOsSandboxingEnabled)
             {
                 try
                 {
@@ -5432,8 +5432,13 @@ namespace BuildXL.Scheduler
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
                             case SandboxKind.MacOsEndpointSecurity:
+                            case SandboxKind.MacOsDetours:
+                            case SandboxKind.MacOsHybrid:
                             {
-                                sandboxConnection = (ISandboxConnection)new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
+                                sandboxConnection = 
+                                    (ISandboxConnection) new SandboxConnection(m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind,
+                                        isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
+
                                 break;
                             }
                             default:

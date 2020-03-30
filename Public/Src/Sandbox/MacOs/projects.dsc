@@ -1,5 +1,5 @@
 import {Cmd, Artifact, Transformer} from "Sdk.Transformers";
-import {Xcode} from "Sdk.MacOS";
+import {Clang, Xcode} from "Sdk.MacOS";
 
 namespace Sandbox {
     export declare const qualifier : {
@@ -46,6 +46,7 @@ namespace Sandbox {
         const outDir = Context.getNewOutputDirectory(args.scheme);
         const outFilePaths = (args.outFiles || []).map(a => p`${outDir}/Build/Products/${conf}/${a}`);
         const result = Xcode.execute({
+            useModernBuildSystem: true,
             project: args.project,
             xcconfig: args.xcconfig,
             scheme: args.scheme,
@@ -74,6 +75,11 @@ namespace Sandbox {
         : f`BundleInfo.xcconfig`;
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
+
+    const detoursXcodeproj = Transformer.sealDirectory({
+        root: d`Detours/Detours.xcodeproj`,
+        files: globR(d`Detours/Detours.xcodeproj`, "*")
+    });
 
     const interopXcodeproj = Transformer.sealDirectory({
         root: d`Interop/Interop.xcodeproj`,
@@ -114,6 +120,14 @@ namespace Sandbox {
         project: interopXcodeproj,
         scheme: "InteropLibrary",
         outFiles: [ a`libBuildXLInterop.dylib` ],
+        xcconfig: bundleInfoXCConfig
+    }).outFiles[0];
+
+    @@public 
+    export const libDetours = isMacOs && build({
+        project: detoursXcodeproj,
+        scheme: "DetoursLibrary",
+        outFiles: [ a`libBuildXLDetours.dylib` ],
         xcconfig: bundleInfoXCConfig
     }).outFiles[0];
 

@@ -12,6 +12,7 @@ using System.Threading;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Processes
@@ -21,6 +22,9 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionKext : ISandboxConnection
     {
+        /// <inheritdoc />
+        public SandboxKind Kind => SandboxKind.MacOsKext;
+
         /// <summary>
         /// Configuration for <see cref="SandboxConnectionKext"/>.
         /// </summary>

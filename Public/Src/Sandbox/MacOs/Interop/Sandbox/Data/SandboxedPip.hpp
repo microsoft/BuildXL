@@ -18,7 +18,7 @@
  * be reported back, etc.
  */
 
-class SandboxedPip
+class SandboxedPip final
 {
 
 private:

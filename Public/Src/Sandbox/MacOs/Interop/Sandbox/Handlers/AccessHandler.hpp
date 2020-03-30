@@ -4,8 +4,9 @@
 #ifndef AccessHandler_hpp
 #define AccessHandler_hpp
 
-#include "ESSandbox.h"
+#include "Sandbox.hpp"
 #include "Checkers.hpp"
+#include "IOEvent.hpp"
 
 enum ReportResult
 {
@@ -18,13 +19,14 @@ typedef bool (Handler)(void *data);
 
 struct AccessHandler
 {
+    
 private:
 
     const char *IgnoreDataPartitionPrefix(const char* path);
     const char *kDataPartitionPrefix = "/System/Volumes/Data/";
     const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
     
-    ESSandbox *sandbox_;
+    Sandbox *sandbox_;
 
     std::shared_ptr<SandboxedProcess> process_;
 
@@ -37,9 +39,9 @@ private:
 
 protected:
 
-    inline ESSandbox* GetSandbox()                        const { return sandbox_; }
-    inline std::shared_ptr<SandboxedProcess> GetProcess() const { return process_; }
-    inline std::shared_ptr<SandboxedPip> GetPip()         const { return process_->GetPip(); }
+    inline Sandbox* GetSandbox()                                const { return sandbox_; }
+    inline const std::shared_ptr<SandboxedProcess> GetProcess() const { return process_; }
+    inline const std::shared_ptr<SandboxedPip> GetPip()         const { return process_->GetPip(); }
 
     PolicySearchCursor FindManifestRecord(const char *absolutePath, size_t pathLength = -1);
     
@@ -56,28 +58,30 @@ protected:
      * @param operation Operation to be executed
      * @param path Absolute path against which the operation is to be executed
      * @param checker Checker function to apply to policy
-     * @param msg The EndpointSecurity message containing all necessary details about the observed event
+     * @param pid The id of the process belonging to this I/O obsevation
      * @param isDir Indicates if the report is being generated for a directory or file
      */
     AccessCheckResult CheckAndReportInternal(FileOperation operation,
                                      const char *path,
                                      CheckFunc checker,
-                                     const es_message_t *msg,
+                                     const pid_t pid,
                                      bool isDir);
 
-    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid)
     {
-        return CheckAndReportInternal(operation, path, checker, msg, false);
+        return CheckAndReportInternal(operation, path, checker, pid, false);
     }
 
-    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const es_message_t *msg, bool isDir)
+    inline AccessCheckResult CheckAndReport(FileOperation operation, const char *path, CheckFunc checker, const pid_t pid, bool isDir)
     {
-        return CheckAndReportInternal(operation, path, checker, msg, isDir);
+        return CheckAndReportInternal(operation, path, checker, pid, isDir);
     }
 
 public:
-
-    AccessHandler(ESSandbox *sandbox)
+    
+    AccessHandler() = delete;
+    
+    AccessHandler(Sandbox *sandbox)
     {
         sandbox_           = sandbox;
         process_           = nullptr;

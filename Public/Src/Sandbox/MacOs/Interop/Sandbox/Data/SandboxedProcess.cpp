@@ -18,7 +18,7 @@ SandboxedProcess::SandboxedProcess(pid_t processId, std::shared_ptr<SandboxedPip
 
 SandboxedProcess::~SandboxedProcess()
 {
-    log("Releasing process object %d (%#llX) - freed from %{public}s", id_, pip_->GetPipId(),  __FUNCTION__);
+    log_debug("Releasing process object %d (%#llX) - freed from %{public}s", id_, pip_->GetPipId(),  __FUNCTION__);
     if (pip_ != nullptr)
     {
         pip_.reset();

@@ -32,6 +32,9 @@ export namespace Xcode {
 
     @@public
     export interface Arguments {
+        /** Indicates if llbuild or the legacy build engine should be used */
+        useModernBuildSystem: boolean;
+        
         /** Location where the outputs go */
         derivedDataPath: Directory;
 
@@ -81,6 +84,10 @@ export namespace Xcode {
         headerSearchPaths?: HeaderSearchPath[];
     }
 
+    function modernBuildSystemIndicatorToString(useModernBuildSystem: boolean): string {
+        return useModernBuildSystem ? "YES" : "NO";
+    }
+
     @@public
     export function execute(args: Arguments): Transformer.ExecuteResult {
         Contract.requires(args.derivedDataPath !== undefined);
@@ -101,6 +108,8 @@ export namespace Xcode {
             workingDirectory: wd,
             consoleOutput: p`${wd}/stdout.txt`,
             arguments: [
+                Cmd.flag("-allTargets ", args.allTargets),
+                Cmd.args(args.actions),
                 Cmd.option("-project ", Artifact.input(args.project)),
                 Cmd.option("-target ", args.target),
                 Cmd.option("-workspace ", Artifact.none(args.workspace)),
@@ -112,9 +121,7 @@ export namespace Xcode {
                 
                 Cmd.option("SYSTEM_HEADER_SEARCH_PATHS=", Cmd.join(" ", customSystemHeaderSearchPaths)),
                 Cmd.option("HEADER_SEARCH_PATHS=", Cmd.join(" ", customUserHeaderSearchPaths)),
-                
-                Cmd.flag("-allTargets ", args.allTargets),
-                Cmd.args(args.actions)
+                Cmd.option("-UseModernBuildSystem=", modernBuildSystemIndicatorToString(args.useModernBuildSystem))
             ],
             acquireSemaphores: (args.semaphores || []).map(name => <Transformer.SemaphoreInfo>{
                 name: name,

@@ -34,7 +34,7 @@ namespace Test.BuildXL.Scheduler
 
         public ScheduleRunData RunData { get; } = new ScheduleRunData();
 
-        protected override bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
+        public bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
 
         protected override bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection SandboxConnectionKext = null)
         {

@@ -16,4 +16,6 @@ enum SandboxKind{
     MaxOsKext = 4;
     MacOsKextIgnoreFileAccesses = 5;
     MacOsEndpointSecurity = 6;
+    MacOsDetours = 7;
+    MacOsHybrid = 8;
 }

@@ -146,7 +146,7 @@ void AccessHandler::LogAccessDenied(const char *path,
                                     kauth_action_t action,
                                     const char *errorMessage)
 {
-    log("[ACCESS DENIED] PID: %d, PipId: %#llx, Path: '%s', Action: '%d', Description '%s'",
+    log_debug("[ACCESS DENIED] PID: %d, PipId: %#llx, Path: '%s', Action: '%d', Description '%s'",
         proc_selfpid(), GetPipId(), path, action, errorMessage);
 }
 

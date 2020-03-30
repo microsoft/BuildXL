@@ -17,8 +17,8 @@
 #import "ps.hpp"
 #import "lambda.hpp"
 #import "render.hpp"
-#import "Common.h"
-#import "KextSandbox.h"
+#import "Common.hpp"
+#import "KextSandbox.hpp"
 
 using namespace std;
 

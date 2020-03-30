@@ -1387,42 +1387,44 @@ namespace BuildXL.FrontEnd.Nuget
                 .Select(
                     new[]
                     {
-                            "ComSpec",
-                            "PATH",
-                            "PATHEXT",
-                            "NUMBER_OF_PROCESSORS",
-                            "OS",
-                            "PROCESSOR_ARCHITECTURE",
-                            "PROCESSOR_IDENTIFIER",
-                            "PROCESSOR_LEVEL",
-                            "PROCESSOR_REVISION",
-                            "SystemDrive",
-                            "SystemRoot",
-                            "SYSTEMTYPE",
-                            "NUGET_CREDENTIALPROVIDERS_PATH",
-                            "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
-                            "__Q_DPAPI_Secrets_Dir",
+                        "ComSpec",
+                        "PATH",
+                        "PATHEXT",
+                        "NUMBER_OF_PROCESSORS",
+                        "OS",
+                        "PROCESSOR_ARCHITECTURE",
+                        "PROCESSOR_IDENTIFIER",
+                        "PROCESSOR_LEVEL",
+                        "PROCESSOR_REVISION",
+                        "SystemDrive",
+                        "SystemRoot",
+                        "SYSTEMTYPE",
+                        "NUGET_CREDENTIALPROVIDERS_PATH",
+                        "__CLOUDBUILD_AUTH_HELPER_CONFIG__",
+                        "__Q_DPAPI_Secrets_Dir",
 
-                            // Nuget Credential Provider env variables
-                            "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
-                            "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
+                        // Nuget Credential Provider env variables
+                        "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
+                        "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT",
 
-                            // Auth material needed for low-privilege build.
-                            "QAUTHMATERIALROOT"
+                        // Auth material needed for low-privilege build.
+                        "QAUTHMATERIALROOT"
                     })
                 .Override(
                     new Dictionary<string, string>()
                     {
-                            {"TMP", layout.TempDirectoryAsString},
-                            {"TEMP", layout.TempDirectoryAsString},
-                            {"NUGET_PACKAGES", layout.TempDirectoryAsString},
-                            {"NUGET_ROOT", layout.TempDirectoryAsString},
+                        {"TMP", layout.TempDirectoryAsString},
+                        {"TEMP", layout.TempDirectoryAsString},
+                        {"NUGET_PACKAGES", layout.TempDirectoryAsString},
+                        {"NUGET_ROOT", layout.TempDirectoryAsString},
                     });
             }
         }
 
         private class SandboxConnectionFake : ISandboxConnection
         {
+            public SandboxKind Kind => SandboxKind.MacOsKext;
+
             public int NumberOfKextConnections => 1;
 
             public ulong MinReportQueueEnqueueTime { get; set; }

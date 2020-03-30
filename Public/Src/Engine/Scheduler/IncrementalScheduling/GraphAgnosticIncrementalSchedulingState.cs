@@ -422,7 +422,9 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             foreach (var node in pipGraph.DirectedGraph.Nodes)
             {
-                if (pipGraph.PipTable.GetPipType(node.ToPipId()) == PipType.HashSourceFile)
+                var pipId = node.ToPipId();
+                Contract.Requires(pipId.IsValid, "Invalid node detected in the Directed PipGraph. Please backup your log folders and report this bug with the log folders to domdev@microsoft.com. As a temporary fix please delete the engine cache and try again.");
+                if (pipGraph.PipTable.GetPipType(pipId) == PipType.HashSourceFile)
                 {
                     dirtyNodes.Remove(node);
                     materializedNodes.Add(node);

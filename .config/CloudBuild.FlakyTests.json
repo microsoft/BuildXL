@@ -36,7 +36,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\l\\#NUM#\\l#NUM#c#NUM#xz#NUM#p#NUM#rhnczqvrvoj#NUM#dw\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
           ],
           "SessionUri": "https://b/build/74fbb0f5-878d-c417-93a1-4536fd5b570a",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2020-04-30T04:00:42.1830633Z"
         },
         "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.bc, config({});), (MyModule/module.config.bm, \r\nmodule({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (MyModule/build.dsc, @@public export const x = 42;)] })": {
           "Name": "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.bc, config({});), (MyModule/module.config.bm, \r\nmodule({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (MyModule/build.dsc, @@public export const x = 42;)] })",
@@ -48,7 +48,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\v\\n\\xn#NUM#vtpoan#NUM#wx#NUM#pyva#NUM#d#NUM#lm\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
           ],
           "SessionUri": "https://b/build/5f1d196f-24fa-b204-24f4-71736bbfff89",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2020-04-30T04:00:42.1830633Z"
         },
         "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })": {
           "Name": "Test.DScript.Ast.Incrementality.TestFileTracking.TestInputChangesTriggerGraphCacheMiss(buildDefinition: BuildDefinition { Item = (throws TargetParameterCountException), Specs = [(config.dsc, config({});), (package.config.dsc, \r\npackage({\r\n    name: \"MyModule\",\r\n    nameResolutionSemantics: NameResolutionSemantics.explicitProjectReferences,\r\n    \r\n    \r\n    \r\n    \r\n    \r\n});), (package.dsc, export const x = 42;)] })",
@@ -60,7 +60,7 @@ Please see here for more details: https://1esdocs.azurewebsites.net/test/QTest/F
             "buildxl.utilities.buildxlexception : deleting a file failed: b:\\out\\objects\\v\\n\\xn#NUM#vtpoan#NUM#wx#NUM#pyva#NUM#d#NUM#lm\\sandbox_#NUM#\\qtest\\temp\\#NUM#\\out\\cache\\enginecache\\publi#HEX#ndastcache ---- buildxl.native.io.nativewin#NUM#exception : native: opening a file handle failed: accessdenied did not find any actively running processes using the handle. (#NUM#x#NUM#: access is denied.)"
           ],
           "SessionUri": "https://b/build/5f1d196f-24fa-b204-24f4-71736bbfff89",
-          "ScheduledDeletionTimeUtc": null
+          "ScheduledDeletionTimeUtc": "2020-04-30T04:00:42.1830633Z"
         }
       },
       "Metadata": {

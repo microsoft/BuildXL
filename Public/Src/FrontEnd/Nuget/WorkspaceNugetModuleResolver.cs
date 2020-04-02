@@ -1447,7 +1447,7 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
 
             public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
             {
@@ -1456,9 +1456,9 @@ namespace BuildXL.FrontEnd.Nuget
 
             public void NotifyPipProcessTerminated(long pipId, int processId) { }
 
-            public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process) { }
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process) { }
 
-            public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) { return true; }
 
             public void ReleaseResources() { }
         }

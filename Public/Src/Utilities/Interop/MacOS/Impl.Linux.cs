@@ -197,6 +197,38 @@ namespace BuildXL.Interop.Unix
                 : ERROR;
         }
 
+        // CODESYNC: NormalizeAndHashPath in StringOperations.cpp
+        // TODO: there is no reason for this hash computation to be done in native StringOperations.cpp
+        private const uint Fnv1Prime32 = 16777619;
+        private const uint Fnv1Basis32 = 2166136261;
+        private static uint _Fold(uint hash, byte value) 
+        {
+            unchecked { return (hash * Fnv1Prime32) ^ (uint)value; }
+        }
+        private static uint Fold(uint hash, uint value)
+        {
+            unchecked { return _Fold(_Fold(hash, (byte)value), (byte)(((uint)value) >> 8)); }
+        }
+
+        internal static int NormalizePathAndReturnHash(byte[] pPath, byte[] normalizedPath)
+        {
+            Contract.Requires(pPath.Length == normalizedPath.Length);
+            unchecked
+            {
+                uint hash = Fnv1Basis32;
+                int i = 0;
+                for (; i < pPath.Length && pPath[i] != 0; i++)
+                {
+                    normalizedPath[i] = pPath[i];
+                    hash = Fold(hash, normalizedPath[i]);
+                }
+
+                Contract.Assert(i < normalizedPath.Length);
+                normalizedPath[i] = 0;
+                return (int)hash;
+            }
+        }
+
         private static bool IsSymlink(string path)
         {
             var buf = new stat_buf();

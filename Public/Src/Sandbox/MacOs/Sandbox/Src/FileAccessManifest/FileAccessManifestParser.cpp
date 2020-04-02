@@ -78,7 +78,8 @@ const char *CheckValidUnixManifestTreeRoot(PCManifestRecord node)
         return "Root manifest node is expected to have exactly one child (corresponding to the unix root sentinel: '/')";
     }
 
-    if (node->GetChildRecord(0)->Hash != UNIX_ROOT_SENTINEL_HASH)
+    unsigned int expectedHash = HashPath(UNIX_ROOT_SENTINEL, 0);
+    if (node->GetChildRecord(0)->Hash != expectedHash)
     {
         return "Wrong hash code for the unix root sentinel node";
     }

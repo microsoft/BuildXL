@@ -58,6 +58,7 @@ public:
      * The lenght of the path is stored in the 'length' argument because the path is not necessarily 0-terminated.
      */
     inline const char* GetProcessPath(int *length) const    { return fam_.GetProcessPath(length); }
+    inline const char* GetReportsPath(int *length) const    { return fam_.GetReportsPath(length); }
 
     /*! Number of currently active processes in this pip's process tree */
     inline const int GetTreeSize() const                    { return processTreeCount_; }

@@ -12,12 +12,12 @@ INC     = \
 
 INC_FLAGS = $(foreach d, $(INC), -I$d)
 
-CFLAGS   = -c -fPIC $(INC_FLAGS)
 CXXFLAGS = -c -fPIC --std=c++14 $(INC_FLAGS) 
-LDFLAGS  = -ldl
+DBGFLAGS = -g -D_DEBUG
+RELFLAGS = -o3 -D_NDEBUG
+LDFLAGS  = -ldl -lpthread
 
-csrc   = $(wildcard *.c)
-cppsrc = \
+src = \
 	$(wildcard *.cpp) \
 	$(wildcard ../MacOs/Interop/Sandbox/Data/*.cpp) \
 	$(wildcard ../MacOs/Interop/Handlers/*.cpp) \
@@ -29,27 +29,42 @@ cppsrc = \
 	../Windows/DetoursServices/PolicySearch.cpp \
 	../Windows/DetoursServices/StringOperations.cpp \
 
-obj = $(csrc:.c=.o) $(cppsrc:.cpp=.o)
-dep = $(obj:.o=.deps)
+dbgobj = $(src:.cpp=.d.o)
+relobj = $(src:.cpp=.r.o)
+dbgdep = $(dbgobj:.o=.deps)
+reldep = $(dbgobj:.o=.deps)
+dep = $(dbgdep) $(reldep)
 
-define GEN_DEPS
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) > $@
-endef
+%.d.deps: %.cpp
+	@$(CPP) $(CXXFLAGS) $(DBGFLAGS) $< -MM -MT $(@:.deps=.o) > $@
 
-%.deps: %.c
-	$(GEN_DEPS)
+%.r.deps: %.cpp
+	@$(CPP) $(CXXFLAGS) $(RELFLAGS) $< -MM -MT $(@:.deps=.o) > $@
 
-%.deps: %.cpp
-	$(GEN_DEPS)
+%.d.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -o $@ $<
 
-libDetours: $(obj)
-	$(CXX) -shared $^ -o $@.so $(LDFLAGS)
+%.r.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(RELFLAGS) -o $@ $<
+
+all: debug release
+debug: prep bin/debug/libDetours.so
+release: prep bin/release/libDetours.so
+
+prep:
+	@mkdir -p bin/debug bin/release
+
+bin/release/libDetours.so: $(relobj)
+	$(CXX) -shared $^ -o bin/release/libDetours.so $(LDFLAGS)
+
+bin/debug/libDetours.so: $(dbgobj)
+	$(CXX) -shared $^ -o bin/debug/libDetours.so $(LDFLAGS)
 
 -include $(dep)
 
 .PHONY: clean
 clean:
-	rm -f $(obj) *.so
+	rm -rf $(dbgobj) $(relobj) bin/*
 
 .PHONY: cleandep
 cleandep:

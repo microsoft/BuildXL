@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -31,13 +32,23 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionLinuxDetours : ISandboxConnection
     {
-        internal class Info
+        internal sealed class Info : IDisposable
         {
             internal LoggingContext LoggingContext { get; set; }
-            internal SandboxedProcessMac Process { get; set; }
+            internal SandboxedProcessUnix Process { get; set; }
             internal string ReportsFifoPath { get; set; }
+            internal string FamPath { get; set; }
             internal Thread WorkerThread { get; set; }
             internal SafeFileHandle WriteHandle { get; set; }
+
+            /// <nodoc />
+            public void Dispose()
+            {
+                WriteHandle?.Dispose(); // this will cause read() to return EOF once all native writers are done writing
+                WorkerThread?.Join();
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, waitUntilDeletionFinished: false));
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, waitUntilDeletionFinished: false));
+            }
         }
 
         /// <inheritdoc />
@@ -112,38 +123,56 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"No info found for pip id {pipId}");
             }
 
-            yield return ("__BUILDXL_DetoursLogPath", info.ReportsFifoPath);
+            yield return ("__BUILDXL_FAM_PATH", info.FamPath);
             yield return ("LD_PRELOAD", DetoursLibFile);
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process)
+        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
-            Contract.Requires(fam.PipId != 0);
+            Contract.Requires(process.PipId != 0);
 
-            string fifoName = Path.Combine(
-                Path.GetTempPath(),
-                $"Pip{process.PipSemiStableHash:X}.{fam.PipId}.{process.ProcessId}.fifo");
+            string tempDirPath = Path.GetTempPath();
+            string fifoPath = Path.Combine(tempDirPath, $"Pip{process.PipSemiStableHash:X}.{process.PipId}.{process.ProcessId}.fifo");
+            string famPath = Path.ChangeExtension(fifoPath, ".fam");
 
             var info = new Info
             {
                 LoggingContext = loggingContext,
                 Process = process,
-                ReportsFifoPath = fifoName,
+                ReportsFifoPath = fifoPath,
+                FamPath = famPath,
             };
 
-            if (!m_pipProcesses.TryAdd(fam.PipId, info))
+            if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
-                throw new BuildXLException($"Process with PidId {fam.PipId} already exists");
+                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
             }
 
-            if (IO.MkFifo(fifoName, IO.FilePermissions.S_IRWXU) != 0)
+            // serialize FAM
+            using (var wrapper = Pools.MemoryStreamPool.GetInstance())
             {
-                logError($"Creating FIFO {fifoName} failed");
+                var debugFlags = true;
+                ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
+                    loggingContext,
+                    new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = fifoPath },
+                    wrapper.Instance,
+                    timeoutMins: 10, // don't care
+                    debugFlagsMatch: ref debugFlags);
+
+                Contract.Assert(manifestBytes.Offset == 0);
+                File.WriteAllBytes(famPath, manifestBytes.ToArray());
+            }
+
+            // create a FIFO (named pipe)
+            if (IO.MkFifo(fifoPath, IO.FilePermissions.S_IRWXU) != 0)
+            {
+                logError($"Creating FIFO {fifoPath} failed");
                 return false;
             }
 
+            // start a background thread for reading from the FIFO
             info.WorkerThread = new Thread(() => StartReceivingAccessReports(info));
             info.WorkerThread.IsBackground = true;
             info.WorkerThread.Priority = ThreadPriority.Highest;
@@ -299,24 +328,21 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process)
-        {
-            if (m_pipProcesses.TryRemove(pipId, out var info))
-            {
-                // this will cause read() to return EOF once all native writers are done writing
-                info.WriteHandle?.Dispose();
-            }
-        }
-
-        /// <inheritdoc />
-        public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process)
+        public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
         {
             if (m_pipProcesses.TryRemove(pipId, out var info))
             {
                 Contract.Assert(process == info.Process);
-                info.WriteHandle?.Dispose();
-                info.WorkerThread?.Join();
-                FileUtilities.DeleteFile(info.ReportsFifoPath);
+                info.Dispose();
+            }
+        }
+
+        /// <inheritdoc />
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
+        {
+            if (m_pipProcesses.TryRemove(pipId, out var info))
+            {
+                info.Dispose();
                 return true;
             }
             else

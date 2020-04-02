@@ -23,9 +23,9 @@ using static BuildXL.Interop.Unix.Sandbox.AccessReport;
 
 namespace Test.BuildXL.Processes
 {
-    public class SandboxedProcessMacTest : SandboxedProcessTestBase
+    public class SandboxedProcessUnixTest : SandboxedProcessTestBase
     {
-        public SandboxedProcessMacTest(ITestOutputHelper output)
+        public SandboxedProcessUnixTest(ITestOutputHelper output)
             : base(output) { }
 
         private sealed class Connection : ISandboxConnection
@@ -54,7 +54,7 @@ namespace Test.BuildXL.Processes
 
             public bool NotifyUsage(uint cpuUsage, uint availableRamMB) { return true; }
 
-            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process) { return true; }
 
             public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
             {
@@ -63,9 +63,9 @@ namespace Test.BuildXL.Processes
 
             public void NotifyPipProcessTerminated(long pipId, int processId) { ProcessTerminated?.Invoke(pipId, processId); }
 
-            public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process) {}
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process) {}
 
-            public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
+            public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) { return true; }
 
             public void ReleaseResources() { }
 
@@ -76,7 +76,7 @@ namespace Test.BuildXL.Processes
 
         private class ReportInstruction
         {
-            public SandboxedProcessMac Process;
+            public SandboxedProcessUnix Process;
             public Sandbox.AccessReportStatistics Stats;
             public int Pid;
             public FileOperation Operation;
@@ -223,19 +223,19 @@ namespace Test.BuildXL.Processes
             return ToProcessInfo(ToProcess(op), sandboxConnection: s_connection);
         }
 
-        private SandboxedProcessMac CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)
+        private SandboxedProcessUnix CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)
         {
-            var process = new SandboxedProcessMac(info, overrideMeasureTime: measureTime);
+            var process = new SandboxedProcessUnix(info, overrideMeasureTime: measureTime);
             process.Start();
             return process;
         }
 
-        private void ContinuouslyPostAccessReports(SandboxedProcessMac process, List<ReportInstruction> instructions)
+        private void ContinuouslyPostAccessReports(SandboxedProcessUnix process, List<ReportInstruction> instructions)
         {
             Analysis.IgnoreResult(GetContinuouslyPostAccessReportsTask(process, instructions), "fire and forget");
         }
 
-        private Task GetContinuouslyPostAccessReportsTask(SandboxedProcessMac process, List<ReportInstruction> instructions)
+        private Task GetContinuouslyPostAccessReportsTask(SandboxedProcessUnix process, List<ReportInstruction> instructions)
         {
             XAssert.IsNotNull(process);
             XAssert.IsNotNull(instructions);
@@ -254,7 +254,7 @@ namespace Test.BuildXL.Processes
             });
         }
 
-        private static Sandbox.AccessReport PostAccessReport(SandboxedProcessMac proc, FileOperation operation, Sandbox.AccessReportStatistics stats,
+        private static Sandbox.AccessReport PostAccessReport(SandboxedProcessUnix proc, FileOperation operation, Sandbox.AccessReportStatistics stats,
                                                              int pid = 1234, string path = "/dummy/path", bool allowed = true)
         {
             var report = new Sandbox.AccessReport

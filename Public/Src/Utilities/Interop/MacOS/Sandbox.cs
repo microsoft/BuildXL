@@ -19,9 +19,20 @@ namespace BuildXL.Interop.Unix
         public static readonly int ReportQueueSuccessCode = 0x1000;
         public static readonly int SandboxSuccess = 0x0;
 
-        public static unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength) => IsMacOS
-            ? Impl_Mac.NormalizePathAndReturnHash(pPath, buffer, bufferLength)
-            : 0;
+        public static unsafe int NormalizePathAndReturnHash(byte[] pPath, byte[] normalizedPath)
+        {
+            if (IsMacOS)
+            {
+                fixed (byte* outBuffer = &normalizedPath[0])
+                {
+                    return Impl_Mac.NormalizePathAndReturnHash(pPath, outBuffer, normalizedPath.Length);
+                }
+            }
+            else
+            {
+                return Impl_Linux.NormalizePathAndReturnHash(pPath, normalizedPath);
+            }
+        }
 
         public enum Configuration : int
         {

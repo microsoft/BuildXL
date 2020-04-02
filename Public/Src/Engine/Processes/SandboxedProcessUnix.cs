@@ -26,9 +26,10 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension for Mac
+    /// Implementation of <see cref="ISandboxedProcess"/> that relies on our kernel extension 
+    /// for Unix-based systems (including MacOS and Linux).
     /// </summary>
-    public sealed class SandboxedProcessMac : UnsandboxedProcess
+    public sealed class SandboxedProcessUnix : UnsandboxedProcess
     {
         private class PerfAggregator
         {
@@ -111,7 +112,7 @@ namespace BuildXL.Processes
         public string ExecutableAbsolutePath => Process.StartInfo.FileName;
 
         /// <nodoc />
-        public SandboxedProcessMac(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
+        public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
             : base(info)
         {
             Contract.Requires(info.FileAccessManifest != null);
@@ -319,7 +320,7 @@ namespace BuildXL.Processes
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
             // which is done by the base class) so notify the sandbox kernel extension connection manager about it.
-            SandboxConnection.NotifyProcessFinished(PipId, this);
+            SandboxConnection.NotifyPipFinished(PipId, this);
 
             return IgnoreReportedAccesses ? null : m_reports;
         }

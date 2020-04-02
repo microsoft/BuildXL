@@ -36,7 +36,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public bool IsInTestMode { get; }
 
-        private readonly ConcurrentDictionary<long, SandboxedProcessMac> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessMac>();
+        private readonly ConcurrentDictionary<long, SandboxedProcessUnix> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessUnix>();
 
         // TODO: remove at some later point
         private Sandbox.KextConnectionInfo m_fakeKextConnectionInfo = new Sandbox.KextConnectionInfo();
@@ -176,14 +176,14 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process)
+        public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessUnix process)
         {
             Contract.Requires(process.Started);
-            Contract.Requires(fam.PipId != 0);
+            Contract.Requires(process.PipId != 0);
 
             if (!m_pipProcesses.TryAdd(fam.PipId, process))
             {
-                throw new BuildXLException($"Process with PidId {fam.PipId} already exists");
+                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
             }
 
             var setup = new FileAccessSetup()
@@ -207,7 +207,7 @@ namespace BuildXL.Processes
 
                 var result = Sandbox.SendPipStarted(
                     processId: process.ProcessId,
-                    pipId: fam.PipId,
+                    pipId: process.PipId,
                     famBytes: manifestBytes.Array,
                     famBytesLength: manifestBytes.Count,
                     type: Sandbox.ConnectionType.EndpointSecurity,
@@ -224,14 +224,14 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process)
+        public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
         {
             // this implementation keeps track of what the root process is an when it exits,
             // so it doesn't need to be notified about it separately
         }
 
         /// <inheritdoc />
-        public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process)
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
         {
             if (m_pipProcesses.TryRemove(pipId, out var proc))
             {

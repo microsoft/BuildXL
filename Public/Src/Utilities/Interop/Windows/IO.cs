@@ -255,6 +255,19 @@ namespace BuildXL.Interop.Windows
         /// </summary>
         public struct DiskStats
         {
+            /// <nodoc/>
+            public DiskStats(double? availableDiskSpace = null, DISK_PERFORMANCE diskPerformance = default(DISK_PERFORMANCE))
+            {
+                IsValid = true;
+                AvailableSpaceGb = availableDiskSpace;
+                DiskPerformance = diskPerformance;
+            }
+
+            /// <summary>
+            /// Whether the struct is valid
+            /// </summary>
+            public bool IsValid;
+
             /// <summary>
             /// Available Disk Space in GigaBytes
             /// </summary>

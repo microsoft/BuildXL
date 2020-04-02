@@ -37,7 +37,7 @@ namespace BuildXL.Utilities
         private readonly object m_collectLock = new object();
         private readonly TimeSpan m_collectionFrequency;
         private readonly bool m_collectHeldBytesFromGC;
-        private readonly bool m_isUnitTest;
+        private readonly TestHooks m_testHooks;
 
         // Objects that aggregate performance info during their lifetime
         private readonly HashSet<Aggregator> m_aggregators = new HashSet<Aggregator>();
@@ -74,16 +74,27 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Test hooks for PerformanceCollector
+        /// </summary>
+        public class TestHooks
+        {
+            /// <summary>
+            /// Return a specific AvailableDiskSpace
+            /// </summary>
+            public int AvailableDiskSpace;
+        }
+
+        /// <summary>
         /// Creates a new PerformanceCollector with the specified collection frequency.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Handle is owned by PerformanceCollector and is disposed on its disposal")]
-        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, bool isUnitTest = false)
+        public PerformanceCollector(TimeSpan collectionFrequency, bool collectBytesHeld = false, TestHooks testHooks = null)
         {
             m_collectionFrequency = collectionFrequency;
             m_processorCount = Environment.ProcessorCount;
             m_collectHeldBytesFromGC = collectBytesHeld;
-            m_isUnitTest = isUnitTest;
+            m_testHooks = testHooks;
 
             // Figure out which drives we want to get counters for
             List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)> drives = new List<(DriveInfo, SafeFileHandle, DISK_PERFORMANCE)>();
@@ -347,24 +358,33 @@ namespace BuildXL.Utilities
             DiskStats[] diskStats = new DiskStats[m_drives.Length];
             for (int i = 0; i < m_drives.Length; i++)
             {
+                if (m_testHooks != null)
+                {
+                    // Various tests may need to inject artificial results for validation of scenarios
+                    diskStats[i] = new DiskStats(availableDiskSpace: m_testHooks.AvailableDiskSpace);
+                    continue;
+                }
+
                 var drive = m_drives[i];
                 if (!drive.safeFileHandle.IsClosed && !drive.safeFileHandle.IsInvalid)
                 {
                     uint bytesReturned;
-                    diskStats[i].DiskPerformance = default(DISK_PERFORMANCE);
 
                     try
                     {
+                        DISK_PERFORMANCE perf = default(DISK_PERFORMANCE);
                         bool result = DeviceIoControl(drive.safeFileHandle, IOCTL_DISK_PERFORMANCE,
                             inputBuffer: IntPtr.Zero,
                             inputBufferSize: 0,
-                            outputBuffer: out diskStats[i].DiskPerformance,
+                            outputBuffer: out perf,
                             outputBufferSize: Marshal.SizeOf(typeof(DISK_PERFORMANCE)),
                             bytesReturned: out bytesReturned,
                             overlapped: IntPtr.Zero);
                         if (result && drive.driveInfo.TotalSize != 0)
                         {
-                            diskStats[i].AvailableSpaceGb = BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace);
+                            diskStats[i] = new DiskStats(
+                                availableDiskSpace: BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace),
+                                diskPerformance: perf);
                         }
                     }
                     catch (ObjectDisposedException)
@@ -373,13 +393,6 @@ namespace BuildXL.Utilities
                         // above. In those cases, just catch the failure and continue on to avoid crashes.
                     }
                 }
-
-                if (m_isUnitTest && !diskStats[i].AvailableSpaceGb.HasValue)
-                {
-                    // If it is running under QTest VM, we fail to get the handle for the drives.
-                    // To test the functionality of cancelling the build in case of unavailable space, we set AvailableSpace to 0.
-                    diskStats[i].AvailableSpaceGb = 0;
-                }
             }
 
             return diskStats;
@@ -387,22 +400,19 @@ namespace BuildXL.Utilities
 
         private DiskStats[] GetDiskCountersMacOS()
         {
-            var stats = new List<DiskStats>();
-            foreach (var drive in m_drives)
+            DiskStats[] stats = new DiskStats[m_drives.Length];
+            for (int i = 0; i < m_drives.Length; i++)
             {
                 try
                 {
-                    stats.Add(new DiskStats
-                    {
-                        AvailableSpaceGb = BytesToGigaBytes(drive.driveInfo.AvailableFreeSpace)
-                    });
+                    stats[i] = new DiskStats(availableDiskSpace: BytesToGigaBytes(m_drives[i].driveInfo.AvailableFreeSpace));
                 }
                 catch (IOException)
                 {
-                    // No stats for DriveNotFoundException
+                    // No stats for DriveNotFoundException. Leave the struct as uninitialized and it will be marked as invalid.
                 }
             }
-            return stats.ToArray();
+            return stats;
         }
 
         private double? GetProcessCpu(Process currentProcess)
@@ -926,7 +936,7 @@ namespace BuildXL.Utilities
                 Contract.Assert(m_diskStats.Length == diskStats.Length);
                 for (int i = 0; i < diskStats.Length; i++)
                 {
-                    if (m_diskStats[i] != null)
+                    if (m_diskStats[i] != null && diskStats[i].IsValid)
                     {
                         m_diskStats[i].AvailableSpaceGb.RegisterSample(diskStats[i].AvailableSpaceGb);
                         m_diskStats[i].ReadTime.RegisterSample(diskStats[i].DiskPerformance.ReadTime);

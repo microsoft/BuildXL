@@ -551,9 +551,38 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
         }
 
+        [Fact]
+        public void IncrementalSchedulingForModifiedProbeFile()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var probedInput = CreateSourceFile(directoryPath);
+            var oldPath = probedInput.Path.ToString(Context.PathTable);
+            var newPath = oldPath + "_ext";
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedInput, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            RenameFile(oldPath, newPath);
+            RenameFile(newPath, oldPath);
+
+            RunScheduler().AssertNotScheduled(process.PipId);
+        }
+
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
         protected void ModifyFile(FileArtifact file, string content = null) => File.WriteAllText(ArtifactToString(file), content ?? Guid.NewGuid().ToString());
+        protected void RenameFile(string oldPath, string newPath) => File.Move(oldPath, newPath);
 
         protected void DeleteFile(FileArtifact file) => File.Delete(ArtifactToString(file));
     }

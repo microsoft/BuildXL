@@ -699,6 +699,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             if (dynamicObservationsToInvalidate.TryGetValues(path, out IEnumerable<PipStableId> pipStableIds))
             {
+                if (observationType == DynamicObservationType.ProbedFile &&
+                    FileUtilities.FileExistsNoFollow(changedPathStr))
+                {
+                    // When a probed file is renamed to a new name and renamed back to the original name, it considered as a removal of the probed file. 
+                    // We will not treat this case as a changed path
+                    return;
+                }
+
                 m_tempNodeIds.Clear();
 
                 foreach (var pipStableId in pipStableIds)

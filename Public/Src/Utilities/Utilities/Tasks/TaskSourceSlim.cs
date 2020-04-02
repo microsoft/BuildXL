@@ -118,6 +118,32 @@ namespace BuildXL.Utilities.Tasks
             );
         }
 
+        /// <summary>
+        /// Connects a task to this TaskSource
+        /// </summary>
+        public void LinkToTask<T, TData>(Task<T> task, TData data, Func<T, TData, TResult> getResult)
+        {
+            var @this = this;
+
+            task.ContinueWith(
+                (Task continuation) =>
+                {
+                    if (continuation.IsFaulted)
+                    {
+                        @this.TrySetException(task.Exception);
+                    }
+                    else if (continuation.IsCanceled)
+                    {
+                        @this.TrySetCanceled();
+                    }
+                    else
+                    {
+                        @this.TrySetResult(getResult(task.Result, data));
+                    }
+                }
+            );
+        }
+
         private void ChangeState<TResultState>(TResultState state, Action<TaskCompletionSource<TResult>, TResultState> action)
         {
             if (m_setResultAsynchonously)

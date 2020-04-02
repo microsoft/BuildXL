@@ -84,6 +84,20 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsDistributedContentEnabled { get; set; }
 
         /// <summary>
+        /// The amount of time for nagling GetBulk (locations) for proactive copy operations
+        /// </summary>
+        [DataMember]
+        [Validation.Range(0, double.MaxValue)]
+        public double ProactiveCopyGetBulkIntervalSeconds { get; set; } = 10;
+
+        /// <summary>
+        /// The size of nagle batch for proactive copy get bulk
+        /// </summary>
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;
+
+        /// <summary>
         /// Configurable Keyspace Prefixes
         /// </summary>
         [DataMember]

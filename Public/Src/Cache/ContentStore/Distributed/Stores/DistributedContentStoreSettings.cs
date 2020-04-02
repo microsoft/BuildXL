@@ -217,6 +217,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// The maximum amount of copies allowed per proactive replication invocation.
         /// </summary>
         public int ProactiveReplicationCopyLimit { get; set; } = 5;
+        
+        /// <summary>
+        /// The amount of time for nagling GetBulk (locations) for proactive copy operations
+        /// </summary>
+        public TimeSpan ProactiveCopyGetBulkInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// The size of nagle batch for proactive copy get bulk
+        /// </summary>
+        public int ProactiveCopyGetBulkBatchSize { get; set; } = 20;
 
         /// <summary>
         /// Defines pinning behavior

@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 #nullable enable
@@ -50,6 +52,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Size = size;
             Locations = locations;
             Entry = entry;
+        }
+
+        /// <summary>
+        /// Merge two instances
+        /// </summary>
+        public static ContentHashWithSizeAndLocations Merge(ContentHashWithSizeAndLocations left, ContentHashWithSizeAndLocations right)
+        {
+            Contract.Requires(left.ContentHash == right.ContentHash);
+            Contract.Requires(left.Size == -1 || right.Size == -1 || right.Size == left.Size);
+            var finalList = (left.Locations ?? Enumerable.Empty<MachineLocation>()).Union(right.Locations ?? Enumerable.Empty<MachineLocation>());
+            return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList(), ContentLocationEntry.MergeEntries(left.Entry, right.Entry));
         }
 
         /// <inheritdoc />

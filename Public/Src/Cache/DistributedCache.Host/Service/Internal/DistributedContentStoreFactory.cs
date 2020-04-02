@@ -350,6 +350,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveReplicationCopyLimit = distributedSettings.ProactiveReplicationCopyLimit,
                 EnableProactiveReplication = distributedSettings.EnableProactiveReplication,
                 TraceProactiveCopy = distributedSettings.TraceProactiveCopy,
+                ProactiveCopyGetBulkBatchSize = distributedSettings.ProactiveCopyGetBulkBatchSize,
+                ProactiveCopyGetBulkInterval = TimeSpan.FromSeconds(distributedSettings.ProactiveCopyGetBulkIntervalSeconds)
             };
 
             if (distributedSettings.EnableProactiveReplication && redisContentLocationStoreConfiguration.Checkpoint != null)

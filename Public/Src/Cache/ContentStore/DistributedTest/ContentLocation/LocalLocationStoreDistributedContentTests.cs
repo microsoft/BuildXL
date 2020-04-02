@@ -53,6 +53,8 @@ using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationCo
 
 namespace ContentStoreTest.Distributed.Sessions
 {
+    using static BuildXL.Cache.ContentStore.Distributed.Sessions.ReadOnlyDistributedContentSession<AbsolutePath>.Counters;
+
     [Trait("Category", "Integration")]
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
@@ -278,12 +280,14 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Low risk and high risk tolerance for machine or file loss to prevent pin better from kicking in
                 MachineRisk = 0.0000001,
 
+                TraceProactiveCopy = true,
                 ProactiveCopyMode = EnableProactiveCopy ? nameof(ProactiveCopyMode.OutsideRing) : nameof(ProactiveCopyMode.Disabled),
                 PushProactiveCopies = PushProactiveCopies,
                 EnableProactiveReplication = EnableProactiveReplication,
                 ProactiveCopyRejectOldContent = true,
                 ProactiveCopyOnPut = ProactiveCopyOnPuts,
                 ProactiveCopyOnPin = ProactiveCopyOnPins,
+                ProactiveCopyGetBulkBatchSize = 1,
                 ProactiveCopyUsePreferredLocations = ProactiveCopyUsePreferredLocations
             };
 
@@ -771,6 +775,92 @@ namespace ContentStoreTest.Distributed.Sessions
                         // Content should be available in two sessions, due to proactive replication in second iteration.
                         var masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
                         masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+                    }
+                });
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ProactiveCopyOnPinTest(bool usePreferredLocations)
+        {
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
+            ProactiveCopyOnPuts = false;
+            ProactiveCopyOnPins = true;
+            ProactiveCopyUsePreferredLocations = usePreferredLocations;
+
+            int batchSize = 5;
+
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.RestoreCheckpointAgeThresholdMinutes = 0;
+
+                // There are two batches (one per iteration). So ensure proactive copy
+                // triggers eagerly when doing both.
+                dcs.ProactiveCopyGetBulkBatchSize = batchSize * 2;
+                dcs.ProactiveCopyLocationsThreshold = 2;
+            });
+
+            List<ContentHash> putHashes = new List<ContentHash>();
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 3,
+                iterations: 2,
+                testFunc: async context =>
+                {
+                    var sessions = context.Sessions;
+                    var workers = context.EnumerateWorkersIndices().ToList();
+                    var master = context.GetMasterIndex();
+                    var proactiveWorkerSession = context.GetDistributedSession(workers[0]);
+                    var otherSession = context.GetDistributedSession(workers[1]);
+                    var counters = proactiveWorkerSession.SessionCounters;
+
+                    var ls = Enumerable.Range(0, 3).Select(n => context.GetLocationStore(n)).ToArray();
+                    var lls = Enumerable.Range(0, 3).Select(n => context.GetLocalLocationStore(n)).ToArray();
+
+                    async Task putInProactiveWorkerAsync()
+                    {
+                        var putResults = await Task.WhenAll(Enumerable.Range(0, batchSize)
+                            .Select(i => proactiveWorkerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess()));
+                        putHashes.AddRange(putResults.Select(p => p.ContentHash));
+                    }
+
+                    async Task ensureHashesInOtherWorkerAsync()
+                    {
+                        foreach (var hash in putHashes)
+                        {
+                            await otherSession.OpenStreamAsync(context, hash, Token).ShouldBeSuccess();
+                        }
+                    }
+
+                    async Task ensureReplicasAsync(bool afterProactiveCopy)
+                    {
+                        var masterResult = await context.GetLocationStore(master)
+                            .GetBulkAsync(context, putHashes, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
+                        masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+
+                        // Only hashes from second batch should be proactively copied after pin
+                        counters[ProactiveCopy_OutsideRingFromPreferredLocations].Value.Should().Be((usePreferredLocations && afterProactiveCopy) ? batchSize : 0);
+                    }
+
+                    if (context.Iteration == 0)
+                    {
+                        await putInProactiveWorkerAsync();
+                        await ensureHashesInOtherWorkerAsync();
+
+                        await ls[master].LocalLocationStore.CreateCheckpointAsync(context).ShouldBeSuccess();
+
+                        await ensureReplicasAsync(afterProactiveCopy: false);
+                    }
+                    if (context.Iteration == 1)
+                    {
+                        await putInProactiveWorkerAsync();
+
+                        var pinResult = await proactiveWorkerSession.PinAsync(context, putHashes, Token);
+
+                        await ensureReplicasAsync(afterProactiveCopy: true);
                     }
                 });
         }

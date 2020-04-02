@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -23,6 +24,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 
@@ -235,21 +237,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             return BoolResult.Success;
         }
 
-        private async Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext operationContext, ContentHash hash)
-        {
-            var sessionResult = await ProactiveCopySession.Value;
-            if (sessionResult)
-            {
-                return await sessionResult.Value.ProactiveCopyIfNeededAsync(
-                    operationContext,
-                    hash,
-                    tryBuildRing: false,
-                    reason: ProactiveCopyReason.Replication);
-            }
-
-            return new ProactiveCopyResult(sessionResult, "Failed to retrieve session for proactive copies.");
-        }
-
         private Task<BoolResult> ProactiveReplicationAsync(
             OperationContext context,
             ILocalContentStore localContentStore,
@@ -261,6 +248,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                    Tracer,
                    async () =>
                    {
+                       var proactiveCopySession = await ProactiveCopySession.Value.ThrowIfFailureAsync();
+
                        await contentLocationStore.LocalLocationStore.EnsureInitializedAsync().ThrowIfFailure();
 
                        while (!context.Token.IsCancellationRequested)
@@ -268,7 +257,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                            // Create task before starting operation to ensure uniform intervals assuming operation takes less than the delay.
                            var delayTask = Task.Delay(_settings.ProactiveReplicationInterval, context.Token);
 
-                           await ProactiveReplicationIterationAsync(context, localContentStore, contentLocationStore).ThrowIfFailure();
+                           await ProactiveReplicationIterationAsync(context, proactiveCopySession, localContentStore, contentLocationStore).ThrowIfFailure();
 
                            if (_settings.InlineProactiveReplication)
                            {
@@ -287,6 +276,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private Task<ProactiveReplicationResult> ProactiveReplicationIterationAsync(
             OperationContext context,
+            ReadOnlyDistributedContentSession<T> proactiveCopySession,
             ILocalContentStore localContentStore,
             TransitioningContentLocationStore contentLocationStore)
         {
@@ -312,23 +302,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var delayTask = Task.CompletedTask;
                     var wasPreviousCopyNeeded = true;
                     ContentEvictionInfo? lastVisited = default;
-                    foreach (var content in contents)
+
+                    IEnumerable<ContentEvictionInfo> getReplicableHashes()
                     {
-                        context.Token.ThrowIfCancellationRequested();
-
-                        lastVisited = content;
-
-                        scanned++;
-
-                        if (content.ReplicaCount < _settings.ProactiveCopyLocationsThreshold)
+                        foreach (var content in contents)
                         {
+                            scanned++;
+
+                            if (content.ReplicaCount < _settings.ProactiveCopyLocationsThreshold)
+                            {
+                                yield return content;
+                            }
+                            else
+                            {
+                                CounterCollection[Counters.ProactiveReplication_Skipped].Increment();
+                                skipped++;
+                            }
+                        }
+                    }
+
+                    foreach (var page in getReplicableHashes().GetPages(_settings.ProactiveCopyGetBulkBatchSize))
+                    {
+                        var contentInfos = await proactiveCopySession.GetLocationsForProactiveCopyAsync(context, page.SelectList(c => c.ContentHash));
+                        for (int i = 0; i < contentInfos.Count; i++)
+                        {
+                            context.Token.ThrowIfCancellationRequested();
+
+                            var contentInfo = contentInfos[i];
+                            lastVisited = page[i];
+
                             if (wasPreviousCopyNeeded)
                             {
                                 await delayTask;
                                 delayTask = Task.Delay(_settings.DelayForProactiveReplication, context.Token);
                             }
 
-                            var result = await ProactiveCopyIfNeededAsync(context, content.ContentHash);
+                            var result = await proactiveCopySession.ProactiveCopyIfNeededAsync(
+                                context,
+                                contentInfo,
+                                tryBuildRing: false,
+                                reason: ProactiveCopyReason.Replication);
 
                             wasPreviousCopyNeeded = true;
                             switch (result.Status)
@@ -344,7 +357,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     break;
                                 case ProactiveCopyStatus.Rejected:
                                     rejected++;
-                                    CounterCollection[Counters.ProactiveReplication_Succeeded].Increment();
+                                    CounterCollection[Counters.ProactiveReplication_Rejected].Increment();
                                     break;
                                 case ProactiveCopyStatus.Error:
                                     CounterCollection[Counters.ProactiveReplication_Failed].Increment();

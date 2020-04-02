@@ -125,16 +125,7 @@ param(
     [switch]$Vs = $false,
 
     [Parameter(Mandatory=$false)]
-    [switch]$VsNew = $false,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$VsNewNetCore = $false,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$VsNewNet472 = $false,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$VsNewAll = $false,
+    [switch]$VsAll = $false,
 	
     [Parameter(Mandatory=$false)]
     [switch]$UseManagedSharedCompilation = $true,
@@ -269,13 +260,13 @@ if ($TestClass -ne "") {
     $AdditionalBuildXLArguments += "/p:[UnitTest]Filter.testClass=$TestClass";
 }
 
-if ($Vs -or $VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
+if ($Vs -or $VsAll) {
     $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
-    if ($VsNewNet472) {
-        $AdditionalBuildXLArguments += "/q:DebugNet472 /vsTargetFramework:net472";
-    } elseif ($VsNewAll) {
-        $AdditionalBuildXLArguments += "/q:DebugNet472 /q:DebugDotNetCore";
+    if ($VsAll) {
+        # -vsAll builds both .NET Core and Net472 and doesn't specify any /vsTargetFramework filters 
+        $AdditionalBuildXLArguments += "/q:Debug /q:DebugNet472";
     } else {
+        # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
         $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netcoreapp3.1 /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1";
     }
 }

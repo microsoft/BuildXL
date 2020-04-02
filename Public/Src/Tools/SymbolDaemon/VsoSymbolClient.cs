@@ -121,6 +121,17 @@ namespace Tool.SymbolDaemon
 
             m_requestId = result.Id;
 
+            // info about a request in a human-readable form
+            var requestDetails = $"Symbol request has been created:{Environment.NewLine}"
+                + $"ID: {result.Id}{Environment.NewLine}"
+                + $"Name: {result.Name}{Environment.NewLine}"
+                + $"Content list: '{result.Url}/DebugEntries'";
+
+            // Send the message to the main log.
+            Analysis.IgnoreResult(await m_apiClient.LogMessage(requestDetails));
+
+            m_logger.Verbose(requestDetails);
+
             return result;
         }
 

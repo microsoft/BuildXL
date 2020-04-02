@@ -205,7 +205,7 @@ namespace Tool.SymbolDaemon
             serverAction: async (conf, daemon) =>
             {
                 var symbolDaemon = daemon as SymbolDaemon;
-                symbolDaemon.Logger.Info("[FINALIZE] Started at" + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
+                symbolDaemon.Logger.Info("[FINALIZE] Started at " + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
                 IIpcResult result = await symbolDaemon.FinalizeAsync();
                 daemon.Logger.Info("[FINALIZE] " + result);
                 return result;

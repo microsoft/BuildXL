@@ -200,7 +200,7 @@ namespace BuildXL.Scheduler.Distribution
         private int m_commitSemaphoreIndex = -1;
 
         /// <summary>
-        /// The total amount of available commit on the worker at the beginning of the build.
+        /// The total amount of commit memory on the worker.
         /// </summary>
         public int? TotalCommitMb
         {

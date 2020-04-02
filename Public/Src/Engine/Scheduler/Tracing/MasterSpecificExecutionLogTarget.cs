@@ -71,6 +71,7 @@ namespace BuildXL.Scheduler.Tracing
             worker.ActualFreeCommitMb = data.CommitFreeMb;
             if (worker.IsRemote)
             {
+                worker.TotalCommitMb = data.CommitUsedMb + data.CommitFreeMb;
                 ((RemoteWorkerBase)worker).SetEffectiveTotalProcessSlots(data.EffectiveTotalProcessSlots);
             }
         }

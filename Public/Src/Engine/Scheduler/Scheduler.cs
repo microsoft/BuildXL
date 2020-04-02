@@ -2456,14 +2456,26 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            // COMMIT MEMORY USAGE.
-            // If commit memory usage is high, then the scheduler is throttled without cancelling any pips.
+            /*
+             * How COMMIT MEMORY works:
+             * Committed Memory is the number of bytes allocated by processes when the OS stores a page frame (from physical memory) or a page slot (from logical/virtual memory) or both into the page file.
+             * Process reserves a series of memory addresses (sometimes more that it currently requires, to control a contiguous block of memory)
+             * Reserved memory does not necessarily represent real space in the physical memory (RAM) or on disk and a process can reserve more memory that available on the system.
+             * To become usable, the memory address needs to correspond to byte space in memory (physical or disk).
+             * Commit memory is the association between this reserved memory and it’s physical address (RAM or disk) causing them to be unavailable to other processes in most cases.
+             * Since commit memory is a combination of the physical memory and the page file on disk, the used committed memory can exceed the physical memory available to the operating system.
+             */
 
-            if (LocalWorker.TotalCommitMb == null)
+            // If commit memory usage is high, the scheduler is throttled without cancelling any pips.
+            if (m_perfInfo.CommitLimitMb.HasValue)
+            {
+                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb.Value;
+            }
+            else if (LocalWorker.TotalCommitMb == null)
             {
                 // If we cannot get commit usage for Windows, or it is the MacOS, we do not track of swap file usage. 
                 // That's why, we set it to very high number to disable throttling.
-                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb ?? int.MaxValue;
+                LocalWorker.TotalCommitMb = int.MaxValue;
             }
 
             if (perfInfo.CommitUsagePercentage != null)

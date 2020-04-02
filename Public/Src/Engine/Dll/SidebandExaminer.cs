@@ -237,7 +237,7 @@ namespace BuildXL.Engine
                 {
                     return SidebandReader.ReadSidebandFile(filename, ignoreChecksum: true);
                 }
-                catch (Exception e) when (e is BuildXLException || e is IOException)
+                catch (Exception e) when (e is BuildXLException || e is IOException || e is OperationCanceledException)
                 {
                     Processes.Tracing.Logger.Log.CannotReadSidebandFileWarning(LoggingContext, filename, e.Message);
                     return CollectionUtilities.EmptyArray<string>();

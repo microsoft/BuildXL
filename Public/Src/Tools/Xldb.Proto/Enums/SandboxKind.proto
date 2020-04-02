@@ -18,4 +18,5 @@ enum SandboxKind{
     MacOsEndpointSecurity = 6;
     MacOsDetours = 7;
     MacOsHybrid = 8;
+    LinuxDetours = 9;
 }

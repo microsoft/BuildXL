@@ -65,7 +65,10 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private long PipId { get; }
+        /// <summary>
+        /// Id of the underlying pip.
+        /// </summary>
+        public long PipId { get; }
 
         private ISandboxConnection SandboxConnection { get; }
 
@@ -115,6 +118,7 @@ namespace BuildXL.Processes
             Contract.Requires(info.SandboxConnection != null);
 
             PipId = info.FileAccessManifest.PipId;
+
             SandboxConnection = info.SandboxConnection;
             ChildProcessTimeout = info.NestedProcessTerminationTimeout;
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
@@ -196,7 +200,7 @@ namespace BuildXL.Processes
             
             // Allow access for Detours library
             info.FileAccessManifest.AddPath(
-                AbsolutePath.Create(PathTable, DetoursDylibFile),
+                AbsolutePath.Create(PathTable, DetoursFile),
                 mask: FileAccessPolicy.MaskAll,
                 values: FileAccessPolicy.AllowAll);
 
@@ -260,8 +264,8 @@ namespace BuildXL.Processes
             }
         }
 
-        private const string DetoursDylibName = "libBuildXLDetours.dylib";
-        private string DetoursDylibFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), DetoursDylibName);
+        private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), "libBuildXLDetours.dylib");
+        private string DetoursEnvVar { get; } = "DYLD_INSERT_LIBRARIES";
 
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
@@ -298,6 +302,8 @@ namespace BuildXL.Processes
         /// </summary>
         internal override async Task<SandboxedProcessReports> GetReportsAsync()
         {
+            SandboxConnection.NotifyRootProcessExited(PipId, this);
+
             if (!Killed)
             {
                 var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask);
@@ -409,9 +415,15 @@ namespace BuildXL.Processes
             string line = I($"exec {info.FileName} {escapedArguments} {redirectedStdin}");
 
             LogProcessState("Feeding stdin");
+
             if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
             {
-                await Process.StandardInput.WriteLineAsync($"export DYLD_INSERT_LIBRARIES={DetoursDylibFile}");
+                await Process.StandardInput.WriteLineAsync($"export {DetoursEnvVar}={DetoursFile}");
+            }
+
+            foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info.FileAccessManifest.PipId))
+            {
+                await Process.StandardInput.WriteLineAsync($"export {envKvp.Item1}={envKvp.Item2}");
             }
 
             await Process.StandardInput.WriteLineAsync(line);
@@ -701,7 +713,7 @@ namespace BuildXL.Processes
             }
 
             // Allow read from the created stdin file
-            info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
+            info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowAll);
 
             return stdinFileName;
         }

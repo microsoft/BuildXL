@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -223,6 +224,8 @@ namespace BuildXL.Interop.Unix
             S_IFSOCK = 0xC000, // Socket
         }
 
+        internal static int ToInt(SafeFileHandle fd) => fd.DangerousGetHandle().ToInt32();
+
         /// <summary>
         /// Implements the standard unix 'stat' command. 
         /// </summary>
@@ -334,6 +337,40 @@ namespace BuildXL.Interop.Unix
         public static SafeFileHandle Open(string pathname, OpenFlags flags, FilePermissions permission) => IsMacOS
             ? Impl_Mac.Open(pathname, flags, permission)
             : Impl_Linux.Open(pathname, flags, permission);
+
+        /// <summary>
+        /// Invokes the 'read' syscall, retrying on <see cref="Errno.EINTR"/>.
+        /// </summary>
+        /// <param name="handle">File descriptor</param>
+        /// <param name="bytes">Buffer to which to read</param>
+        /// <param name="offset">Index in <paramref name="bytes"/> at which to save read bytes</param>
+        /// <param name="length">Max number of bytes to read</param>
+        /// <returns>
+        /// 0 on EOF, -1 on error, or number of bytes read otherwise.  
+        /// Returning a positive number that is less than <paramref name="length"/> does not indicate error.
+        /// </returns>
+        public unsafe static int Read(SafeFileHandle handle, byte[] bytes, int offset, int length)
+        {
+            Contract.Requires(bytes.Length >= offset + length);
+
+            fixed (byte* buf = &bytes[offset])
+            {
+                int result;
+                do
+                {
+                    result = Impl_Common.read(ToInt(handle), buf, length);
+                }
+                while (result < 0 && Marshal.GetLastWin32Error() == (int)Errno.EINTR);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Creates a FIFO special file (a.k.a. named pipe).
+        /// </summary>
+        /// <returns>0 on success, -1 on error</returns>
+        public static int MkFifo(string pathname, FilePermissions permission)
+            => Impl_Common.mkfifo(pathname, permission);
 
         /// <summary>
         /// Creates a symbolic link at <paramref name="symlinkFilePath"/> pointing to <paramref name="target"/>.

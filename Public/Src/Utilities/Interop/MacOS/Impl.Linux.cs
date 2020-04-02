@@ -205,7 +205,6 @@ namespace BuildXL.Interop.Unix
                 (buf.st_mode & (ushort)FilePermissions.S_IFLNK) != 0;
         }
 
-        private static int ToInt(SafeFileHandle fd) => fd.DangerousGetHandle().ToInt32();
         private static string ToPath(SafeFileHandle fd)
         {
             var path = new StringBuilder(MaxPathLength);
@@ -321,8 +320,8 @@ namespace BuildXL.Interop.Unix
         [Flags]
         public enum O_Flags : int
         {
-            O_NONE      = 0,
             O_RDONLY    = 0,     // open for reading only
+            O_NONE      = 0,
             O_WRONLY    = 1,     // open for writing only
             O_RDWR      = 2,     // open for reading and writing
             O_CREAT     = 64,    // create file if it does not exist

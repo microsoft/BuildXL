@@ -4,12 +4,13 @@
 using System;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
+using System.Collections.Generic;
 
 namespace BuildXL.Processes
 {
     /// <summary>
     /// Interface for sandbox connections, used to establish a connection
-    /// and manage communication between BuildXL and the macOS sandbox implementation.
+    /// and manage communication between BuildXL and a sandbox implementation.
     /// </summary>
     public interface ISandboxConnection : IDisposable
     {
@@ -58,6 +59,17 @@ namespace BuildXL.Processes
         /// resumed only after the sandbox has been notified.
         /// </summary>
         bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process);
+
+        /// <summary>
+        /// A concrete sandbox connection can override this method to specify additional environment variables
+        /// that should be set before executing the process.
+        /// </summary>
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId);
+
+        /// <summary>
+        /// SandboxedProcess uses this method to notify the connection that the root process of the pip exited.
+        /// </summary>
+        void NotifyRootProcessExited(long pipId, SandboxedProcessMac process);
 
         /// <summary>
         /// Notifies the sandbox that <paramref name="process"/> is done processing access reports

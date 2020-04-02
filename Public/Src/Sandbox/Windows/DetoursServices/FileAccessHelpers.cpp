@@ -47,13 +47,13 @@ static bool IsPathNonexistent(DWORD error)
 
 void FileReadContext::InferExistenceFromError(DWORD error) {
     if (IsPathNonexistent(error)) {
-        FileExistence = FileExistence::Nonexistent;
+        Existence = FileExistence::Nonexistent;
     }
     else if (error == ERROR_INVALID_NAME) {
-        FileExistence = FileExistence::InvalidPath;
+        Existence = FileExistence::InvalidPath;
     } 
     else {
-        FileExistence = FileExistence::Existent;
+        Existence = FileExistence::Existent;
     }
 }
 

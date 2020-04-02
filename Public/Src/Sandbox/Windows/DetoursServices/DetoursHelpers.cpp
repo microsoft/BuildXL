@@ -999,7 +999,7 @@ bool ParseFileAccessManifest(
     }
 
     FileReadContext fileReadContext;
-    fileReadContext.FileExistence = FileExistence::Existent; // Clearly this process started somehow.
+    fileReadContext.Existence = FileExistence::Existent; // Clearly this process started somehow.
     fileReadContext.OpenedDirectory = false;
     
     AccessCheckResult readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, fileReadContext);

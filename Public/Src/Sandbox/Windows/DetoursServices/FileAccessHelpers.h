@@ -5,19 +5,19 @@
 
 #include "stdafx.h"
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
 #include "globals.h"
 #include <string>
-#endif // if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif // _WIN32
 
 #include "DataTypes.h"
 #include "PolicySearch.h"
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
 typedef wchar_t const* StrType;
-#else // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#else 
 typedef char const* StrType;
-#endif // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif
 
 // Represents the (semi-)static context of a detoured call's eventual access to a file. This context includes that information
 // obtained directly from the calling process and the nature of the call in question (operation name, open mode, raw path, etc.)
@@ -89,10 +89,10 @@ class FileReadContext
 {
 public:
     FileReadContext(FileExistence fileExistence = FileExistence::Nonexistent, bool openedDirectory = false)
-        : FileExistence(fileExistence), OpenedDirectory(openedDirectory)
+        : Existence(fileExistence), OpenedDirectory(openedDirectory)
     {}
 
-    FileExistence FileExistence;
+    FileExistence Existence;
     bool OpenedDirectory;
 
     void InferExistenceFromError(DWORD error);
@@ -154,34 +154,34 @@ public:
     static inline AccessCheckResult Invalid() { return AccessCheckResult(); }
     
     AccessCheckResult(RequestedAccess requestedAccess, ResultAction result, ReportLevel reportLevel) :
-        RequestedAccess(requestedAccess), ResultAction(result), ReportLevel(reportLevel), PathValidity(PathValidity::Valid)
+        Access(requestedAccess), Result(result), Level(reportLevel), Validity(PathValidity::Valid)
     {
     }
 
     AccessCheckResult(RequestedAccess requestedAccess, ResultAction result, ReportLevel reportLevel, PathValidity pathValidity) :
-        RequestedAccess(requestedAccess), ResultAction(result), ReportLevel(reportLevel), PathValidity(pathValidity)
+        Access(requestedAccess), Result(result), Level(reportLevel), Validity(pathValidity)
     {
     }
 
-    RequestedAccess RequestedAccess;
-    ResultAction ResultAction;
-    ReportLevel ReportLevel;
-    PathValidity PathValidity;
+    RequestedAccess Access;
+    ResultAction Result;
+    ReportLevel Level;
+    PathValidity Validity;
     
     // Indicates if a report should be sent for this access.
     bool ShouldReport() const {
-        return ReportLevel == ReportLevel::Report || ReportLevel == ReportLevel::ReportExplicit;
+        return Level == ReportLevel::Report || Level == ReportLevel::ReportExplicit;
     }
     
     // Returns a corresponding report line status. Note that warning-level access failures (allowed to proceed) map to FileAccessStatus_Denied.
     FileAccessStatus GetFileAccessStatus() const {
-        return (ResultAction != ResultAction::Allow) ? FileAccessStatus_Denied : FileAccessStatus_Allowed;
+        return (Result != ResultAction::Allow) ? FileAccessStatus_Denied : FileAccessStatus_Allowed;
     }
 
     // Indicates if access to a file should be denied entirely (i.e., return an invalid handle and some error such as ERROR_ACCESS_DENIED).
     // Note that this is dependent upon the global FailUnexpectedFileAccesses() flag.
     bool ShouldDenyAccess() const {
-        return ResultAction == ResultAction::Deny; // Check*Access would have set Warn if !FailUnexpectedFileAccesses().
+        return Result == ResultAction::Deny; // Check*Access would have set Warn if !FailUnexpectedFileAccesses().
     }
 
     // Returns an error code (suitable for SetLastError) that should be reported on denial (ResultAction::Deny).
@@ -189,7 +189,7 @@ public:
     DWORD DenialError() const {
         assert(ShouldDenyAccess());
 
-        switch (PathValidity) {
+        switch (Validity) {
         case PathValidity::Valid:
             return ERROR_ACCESS_DENIED;
         case PathValidity::PathComponentNotFound:
@@ -211,7 +211,7 @@ public:
 
         assert(ShouldDenyAccess());
 
-        switch (PathValidity) {
+        switch (Validity) {
         case PathValidity::Valid:
             return StatusAccessDenied;
         case PathValidity::PathComponentNotFound:
@@ -227,35 +227,35 @@ public:
     // Returns a new AccessCheckResult that is a copy of this one, but with the specified report level.
     AccessCheckResult With(::ReportLevel newReportLevel) {
         AccessCheckResult newAccessCheck = *this;
-        newAccessCheck.ReportLevel = newReportLevel;
+        newAccessCheck.Level = newReportLevel;
         return newAccessCheck;
     }
 
     // Combines two access checks by taking most restrictive action and highest report levels.
     static AccessCheckResult Combine(AccessCheckResult const& left, AccessCheckResult const& right) {
-        ::ResultAction combinedResultAction = left.ResultAction;
-        ::ReportLevel combinedReportLevel = left.ReportLevel;
-        ::PathValidity combinedPathValidity = left.PathValidity;
-        ::RequestedAccess combinedRequestedAccess = left.RequestedAccess | right.RequestedAccess;
+        ::ResultAction combinedResultAction = left.Result;
+        ::ReportLevel combinedReportLevel = left.Level;
+        ::PathValidity combinedPathValidity = left.Validity;
+        ::RequestedAccess combinedRequestedAccess = left.Access | right.Access;
 
-        if (right.ResultAction == ResultAction::Deny) {
+        if (right.Result == ResultAction::Deny) {
             combinedResultAction = ResultAction::Deny;
         }
-        else if (right.ResultAction == ResultAction::Warn && combinedResultAction == ResultAction::Allow) {
+        else if (right.Result == ResultAction::Warn && combinedResultAction == ResultAction::Allow) {
             combinedResultAction = ResultAction::Warn;
         }
 
-        if (right.ReportLevel == ReportLevel::ReportExplicit) {
+        if (right.Level == ReportLevel::ReportExplicit) {
             combinedReportLevel = ReportLevel::ReportExplicit;
         }
-        else if (right.ReportLevel == ReportLevel::Report && combinedReportLevel == ReportLevel::Ignore) {
+        else if (right.Level == ReportLevel::Report && combinedReportLevel == ReportLevel::Ignore) {
             combinedReportLevel = ReportLevel::Report;
         }
 
-        if (right.PathValidity == PathValidity::Invalid) {
+        if (right.Validity == PathValidity::Invalid) {
             combinedPathValidity = PathValidity::Invalid;
         }
-        else if (right.PathValidity == PathValidity::PathComponentNotFound && combinedPathValidity == PathValidity::Valid) {
+        else if (right.Validity == PathValidity::PathComponentNotFound && combinedPathValidity == PathValidity::Valid) {
             combinedPathValidity = PathValidity::PathComponentNotFound;
         }
 
@@ -269,13 +269,13 @@ public:
     AccessCheckResult(const AccessCheckResult& other) = default;
     AccessCheckResult& operator=(const AccessCheckResult&) = default;
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
     // Calls SetLastError with DenialError.
     // It is an error to call this method when ResultAction is not ResultAction::Deny.
     void SetLastErrorToDenialError() const {
         SetLastError(DenialError());
     }
-#endif // !(MAC_OS_SANDBOX)
+#endif
 };
 
 enum PathType {
@@ -293,7 +293,7 @@ enum PathType {
 // INLINE FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
 
 #define GEN_CHECK_GLOBAL_FAM_FLAG(flag_name, flag_value) \
 inline bool flag_name()         { return Check##flag_name(g_fileAccessManifestFlags); } \
@@ -322,4 +322,4 @@ inline bool IsNullOrInvalidHandle(HANDLE h)
     return (h == NULL || h == INVALID_HANDLE_VALUE);
 }
 
-#endif // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif // _WIN32

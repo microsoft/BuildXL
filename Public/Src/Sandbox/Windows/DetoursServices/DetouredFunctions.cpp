@@ -777,7 +777,7 @@ static bool EnforceReparsePointAccess(
         if (WantsReadAccess(dwDesiredAccess) || WantsProbeOnlyAccess(dwDesiredAccess))
         {
             FileReadContext readContext;
-            readContext.FileExistence = GetFileAttributesW(fullPath.c_str()) != INVALID_FILE_ATTRIBUTES 
+            readContext.Existence = GetFileAttributesW(fullPath.c_str()) != INVALID_FILE_ATTRIBUTES 
                 ? FileExistence::Existent
                 : FileExistence::Nonexistent;
             readContext.OpenedDirectory = IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), dwDesiredAccess, dwFlagsAndAttributes, &policyResult);
@@ -1936,7 +1936,7 @@ BOOL WINAPI Detoured_CreateProcessW(
 
         if (ExistsAsFile(imagePath.GetPathString()))
         {
-            readContext.FileExistence = FileExistence::Existent;
+            readContext.Existence = FileExistence::Existent;
         }
 
         readCheck = policyResult.CheckReadAccess(RequestedReadAccess::Read, readContext);
@@ -2189,7 +2189,7 @@ HANDLE WINAPI Detoured_CreateFileW(
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
 
-        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.ResultAction != ResultAction::Allow) 
+        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.Result != ResultAction::Allow) 
         {
             // If ForceReadOnlyForRequestedReadWrite() is true, then we allow read for requested read-write access so long as the tool is allowed to read.
             // In such a case, we change the desired access to read only (see the call to Real_CreateFileW below).
@@ -2356,7 +2356,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     // (which the consumer of these reports may interpret) due to e.g. hard link changes (when a link is added or removed to a file).
     if (reportUsn || unexpectedUsn) 
     {
-        accessCheck.ReportLevel = ReportLevel::ReportExplicit;
+        accessCheck.Level = ReportLevel::ReportExplicit;
         accessCheck = AccessCheckResult::Combine(accessCheck, accessCheck.With(ReportLevel::ReportExplicit));
     }
 
@@ -2364,7 +2364,7 @@ HANDLE WINAPI Detoured_CreateFileW(
 
     // It is possible that we only reached a deny action under some access check combinations above (rather than a direct check),
     // so log and maybe break here as well now that it is final.
-    if (accessCheck.ResultAction != ResultAction::Allow) 
+    if (accessCheck.Result!= ResultAction::Allow) 
     {
         WriteWarningOrErrorF(L"Access to file path '%s' is denied.  Requested access: 0x%08x, policy allows: 0x%08x.",
             policyResult.GetCanonicalizedPath().GetPathString(), dwDesiredAccess, policyResult.GetPolicy());
@@ -3219,7 +3219,7 @@ static AccessCheckResult DeleteFileSafeProbe(AccessCheckResult writeAccessCheck,
 
     AccessCheckResult probeAccessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, probeContext);
 
-    if (probeContext.FileExistence == FileExistence::Existent) 
+    if (probeContext.Existence == FileExistence::Existent) 
     {
         if (probeContext.OpenedDirectory) 
         {
@@ -3292,7 +3292,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
         error = GetLastError();
     }
 
-    if (!result && accessCheck.ResultAction != ResultAction::Allow) 
+    if (!result && accessCheck.Result != ResultAction::Allow) 
     {
         // On error, we didn't delete anything.
         // We retry as a read just like above; this ensures ResultAction::Warn acts like ResultAction::Deny.
@@ -3609,7 +3609,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     // Read context used for access-checking a probe to the search-directory.
     // This is only used if searchPathIsFile, i.e., we got ERROR_DIRECTORY.
     FileReadContext directoryProbeContext;
-    directoryProbeContext.FileExistence = FileExistence::Existent;
+    directoryProbeContext.Existence = FileExistence::Existent;
     directoryProbeContext.OpenedDirectory = !searchPathIsFile;
 
     // Only report the enumeration if specified by the policy
@@ -3632,7 +3632,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     if (!searchPathIsFile && !explicitlyReportDirectoryEnumeration && ReportAnyAccess(false))
     {
         // Ensure access is reported (not explicit) when report all accesses is specified
-        directoryAccessCheck.ReportLevel = ReportLevel::Report;
+        directoryAccessCheck.Level = ReportLevel::Report;
     }
 
     // Now, we can establish a policy for the file actually found.
@@ -3788,7 +3788,7 @@ BOOL WINAPI Detoured_FindNextFileW(
         PolicyResult filePolicyResult = overlay->Policy.GetPolicyForSubpath(enumeratedComponent);
 
         FileReadContext readContext;
-        readContext.FileExistence = FileExistence::Existent;
+        readContext.Existence = FileExistence::Existent;
         readContext.OpenedDirectory = (lpFindFileData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 
         AccessCheckResult accessCheck = filePolicyResult.CheckReadAccess(RequestedReadAccess::EnumerationProbe, readContext);
@@ -4348,7 +4348,7 @@ static AccessCheckResult CreateDirectorySafeProbe(
         // otherwise, create a read-only probe
         : policyResult.CheckReadAccess(RequestedReadAccess::Probe, probeContext);
     
-    if (probeContext.FileExistence == FileExistence::Existent) 
+    if (probeContext.Existence == FileExistence::Existent) 
     {
         // See http://msdn.microsoft.com/en-us/library/windows/desktop/aa363855(v=vs.85).aspx
         *probeError = ERROR_ALREADY_EXISTS;
@@ -4439,7 +4439,7 @@ BOOL WINAPI Detoured_CreateDirectoryW(
         error = GetLastError();
     }
 
-    if (!result && accessCheck.ResultAction != ResultAction::Allow) 
+    if (!result && accessCheck.Result != ResultAction::Allow) 
     {
         // On error, we didn't create a directory, i.e., we did not write.
         // We retry as a read just like above; this ensures ResultAction::Warn acts like ResultAction::Deny.
@@ -4914,7 +4914,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
             if (!explicitlyReportDirectoryEnumeration && ReportAnyAccess(false))
             {
                 // Ensure access is reported (not explicit) when report all accesses is specified
-                directoryAccessCheck.ReportLevel = ReportLevel::Report;
+                directoryAccessCheck.Level = ReportLevel::Report;
             }
 
             FileOperationContext fileOperationContext = FileOperationContext::CreateForRead(L"NtQueryDirectoryFile", directoryName);
@@ -5038,7 +5038,7 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
             if (!explicitlyReportDirectoryEnumeration && ReportAnyAccess(false))
             {
                 // Ensure access is reported (not explicit) when report all accesses is specified
-                directoryAccessCheck.ReportLevel = ReportLevel::Report;
+                directoryAccessCheck.Level = ReportLevel::Report;
             }
 
             FileOperationContext fileOperationContext = FileOperationContext::CreateForRead(L"ZwQueryDirectoryFile", directoryName);
@@ -5285,7 +5285,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         accessCheck = policyResult.CheckWriteAccess();
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-        if (accessCheck.ResultAction != ResultAction::Allow && !MonitorNtCreateFile()) 
+        if (accessCheck.Result != ResultAction::Allow && !MonitorNtCreateFile()) 
         {
             // TODO: As part of gradually turning on NtCreateFile detour reports, we currently only enforce deletes (some cmd builtins delete this way),
             //       and we ignore potential deletes on *directories* (specifically, robocopy likes to open target directories with delete access, without actually deleting them).
@@ -5305,7 +5305,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
             }
         }
 
-        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.ResultAction != ResultAction::Allow) 
+        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.Result != ResultAction::Allow) 
         {
             // If ForceReadOnlyForRequestedReadWrite() is true, then we allow read for requested read-write access so long as the tool is allowed to read.
             // In such a case, we change the desired access to read only (see the call to Real_CreateFileW below).
@@ -5561,7 +5561,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         accessCheck = policyResult.CheckWriteAccess();
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-        if (accessCheck.ResultAction != ResultAction::Allow && !MonitorNtCreateFile()) 
+        if (accessCheck.Result != ResultAction::Allow && !MonitorNtCreateFile()) 
         {
             // TODO: As part of gradually turning on NtCreateFile detour reports, we currently only enforce deletes (some cmd builtins delete this way),
             //       and we ignore potential deletes on *directories* (specifically, robocopy likes to open target directories with delete access, without actually deleting them).
@@ -5581,7 +5581,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
             }
         }
 
-        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.ResultAction != ResultAction::Allow)
+        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.Result != ResultAction::Allow)
         {
             // If ForceReadOnlyForRequestedReadWrite() is true, then we allow read for requested read-write access so long as the tool is allowed to read.
             // In such a case, we change the desired access to read only (see the call to Real_CreateFileW below).
@@ -5823,7 +5823,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         accessCheck = policyResult.CheckWriteAccess();
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
-        if (accessCheck.ResultAction != ResultAction::Allow && !MonitorZwCreateOpenQueryFile())
+        if (accessCheck.Result != ResultAction::Allow && !MonitorZwCreateOpenQueryFile())
         {
             // TODO: As part of gradually turning on NtCreateFile detour reports, we currently only enforce deletes (some cmd builtins delete this way),
             //       and we ignore potential deletes on *directories* (specifically, robocopy likes to open target directories with delete access, without actually deleting them).
@@ -5843,7 +5843,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
             }
         }
 
-        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.ResultAction != ResultAction::Allow)
+        if (ForceReadOnlyForRequestedReadWrite() && accessCheck.Result != ResultAction::Allow)
         {
             // If ForceReadOnlyForRequestedReadWrite() is true, then we allow read for requested read-write access so long as the tool is allowed to read.
             // In such a case, we change the desired access to read only (see the call to Real_CreateFileW below).

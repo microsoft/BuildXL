@@ -53,7 +53,7 @@ void CacheRecord::free()
 bool CacheRecord::Check(const AccessCheckResult *result) const
 {
     // It's a cache hit if we've previously seen all the requested accesses.
-    return HasAllFlags(requestedAccess_, result->RequestedAccess);
+    return HasAllFlags(requestedAccess_, result->Access);
 }
 
 static const RequestedAccess LookupProbe     = RequestedAccess::Lookup | RequestedAccess::Probe;
@@ -127,7 +127,7 @@ void CacheRecord::Update(const AccessCheckResult *result)
     //   - whenever Probe is seen, add Lookup as well;
     //   - whenever Read is seen, add Probe and Lookup as well;
     //   - whenever Write is seen, add Read, Probe, and Lookup as well.
-    RequestedAccess access = result->RequestedAccess;
+    RequestedAccess access = result->Access;
     requestedAccess_ |= access | implies(access);
 }
 

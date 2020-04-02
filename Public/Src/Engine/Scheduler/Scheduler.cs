@@ -5408,11 +5408,7 @@ namespace BuildXL.Scheduler
                         var config = new SandboxConnectionKext.Config
                         {
                             MeasureCpuTimes = m_configuration.Sandbox.MeasureProcessCpuTimes,
-                            FailureCallback = (int status, string description) =>
-                            {
-                                Logger.Log.KextFailureNotificationReceived(loggingContext, status, description);
-                                RequestTermination();
-                            },
+                            FailureCallback = sandboxFailureCallback,
                             KextConfig = new Sandbox.KextConfig
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
@@ -5431,6 +5427,11 @@ namespace BuildXL.Scheduler
 
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
+                            case SandboxKind.LinuxDetours:
+                            {
+                                sandboxConnection = new SandboxConnectionLinuxDetours(sandboxFailureCallback);
+                                break;
+                            }
                             case SandboxKind.MacOsEndpointSecurity:
                             case SandboxKind.MacOsDetours:
                             case SandboxKind.MacOsHybrid:
@@ -5472,6 +5473,12 @@ namespace BuildXL.Scheduler
             }
 
             return false;
+
+            void sandboxFailureCallback(int status, string description)
+            {
+                Logger.Log.KextFailureNotificationReceived(loggingContext, status, description);
+                RequestTermination();
+            }
         }
 
         private void InitSchedulerRuntimeState(LoggingContext loggingContext, SchedulerState schedulerState)

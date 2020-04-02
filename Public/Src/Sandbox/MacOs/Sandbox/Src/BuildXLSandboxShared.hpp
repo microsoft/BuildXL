@@ -4,13 +4,14 @@
 #ifndef BuildXLSandboxshared_hpp
 #define BuildXLSandboxshared_hpp
 
+#if MAC_OS_SANDBOX
 #include <os/log.h>
 #include <sys/param.h>
-
-#if MAC_OS_SANDBOX
 #include <IOKit/IOLib.h>
 #include "SysCtl.hpp"
 #elif MAC_OS_LIBRARY
+#include <os/log.h>
+#include <sys/param.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IODataQueueClient.h>
 #include <mach/mach_time.h>

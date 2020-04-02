@@ -172,38 +172,53 @@ namespace BuildXL.SandboxExec
         public SandboxExecRunner(Options options)
         {
             m_options = options;
-            s_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) : null;
+            s_crashCollector = OperatingSystemHelper.IsMacOS 
+                ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) 
+                : null;
             
-            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && (m_options.SandboxKindUsed == SandboxKind.MacOsEndpointSecurity || m_options.SandboxKindUsed == SandboxKind.MacOsHybrid))
+            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && 
+                (m_options.SandboxKindUsed == SandboxKind.MacOsEndpointSecurity || m_options.SandboxKindUsed == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
             }
 
-            m_sandboxConnection = OperatingSystemHelper.IsUnixOS
-                ?
-#if PLATFORM_OSX
-                m_options.SandboxKindUsed != SandboxKind.MacOsKext
-                    ? (ISandboxConnection) new SandboxConnection(m_options.SandboxKindUsed, isInTestMode: false, measureCpuTimes: true)
-                    :
-#endif
-                    (ISandboxConnection) new SandboxConnectionKext(
-                        new SandboxConnectionKext.Config
+            // m_sandboxConnection
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback);
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                if (m_options.SandboxKindUsed == SandboxKind.MacOsKext)
+                {
+                    m_sandboxConnection = new SandboxConnectionKext(new SandboxConnectionKext.Config
+                    {
+                        FailureCallback = FailureCallback,
+                        KextConfig = new Sandbox.KextConfig
                         {
-                            FailureCallback = (int status, string description) =>
-                            {
-                                m_sandboxConnection.Dispose();
-                                throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
-                            },
-                            KextConfig = new Sandbox.KextConfig
-                            {
-                                ReportQueueSizeMB = m_options.ReportQueueSizeMB,
-                                EnableReportBatching = m_options.EnableReportBatching,
+                            ReportQueueSizeMB = m_options.ReportQueueSizeMB,
+                            EnableReportBatching = m_options.EnableReportBatching,
 #if PLATFORM_OSX
                                 EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
 #endif
-                            },
-                        })
-                : null;
+                        }
+                    });
+                }
+                else
+                {
+                    m_sandboxConnection = new SandboxConnection(m_options.SandboxKindUsed, isInTestMode: false, measureCpuTimes: true);
+                }
+            }
+            else
+            {
+                m_sandboxConnection = null;
+            }
+        }
+
+        private void FailureCallback(int status, string description)
+        {
+            m_sandboxConnection.Dispose();
+            throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
         }
 
         /// <summary>

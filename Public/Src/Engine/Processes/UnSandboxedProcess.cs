@@ -85,12 +85,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        protected string PipDescription { get; }
+        public string PipDescription { get; }
 
         /// <summary>
         /// Pip's semi-stable hash from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        protected long PipSemiStableHash { get; }
+        public long PipSemiStableHash { get; }
 
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.

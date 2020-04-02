@@ -4,6 +4,7 @@
 #ifndef Trie_hpp
 #define Trie_hpp
 
+#include <atomic>
 #include <memory>
 #include <limits.h>
 #include <sys/types.h>
@@ -21,8 +22,8 @@ private:
 
     friend class Trie<T>;
 
-    _Atomic static uint s_numUintNodes;
-    _Atomic static uint s_numPathNodes;
+    static std::atomic<uint> s_numUintNodes;
+    static std::atomic<uint> s_numPathNodes;
 
     /*!
      * The value 65 is chosen so that all ASCII characters between 32 (' ') and 122 ('z')
@@ -123,7 +124,7 @@ private:
     TrieKind kind_;
 
     /*! This is the size of the tree (i.e., number of values stored) and not the number of nodes in the tree. */
-    _Atomic uint size_;
+    std::atomic<uint> size_;
 
     /*! Callback function (and associated payload) to call whenever count changes. */
     on_change_fn onChangeCallback_;

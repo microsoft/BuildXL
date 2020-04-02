@@ -5,10 +5,10 @@
 #include "Trie.hpp"
 
 template <typename T>
-_Atomic uint Node<T>::s_numUintNodes = 0;
+std::atomic<uint> Node<T>::s_numUintNodes(0);
 
 template <typename T>
-_Atomic uint Node<T>::s_numPathNodes = 0;
+std::atomic<uint> Node<T>::s_numPathNodes(0);
 
 template <typename T>
 Node<T>::Node(uint numChildren)
@@ -686,11 +686,14 @@ void Trie<T>::traverse(bool computeKey, void *callbackArgs, traverse_fn callback
 
 // Forward declarations
 
-#ifndef MAC_DETOURS
-    #include "SandboxedProcess.hpp"
-    template class Trie<SandboxedProcess>;
-#else
-    #include "Detours.hpp"
-    template class Trie<PathCacheEntry>;
-#endif
+#if __APPLE__
 
+ #ifndef MAC_DETOURS
+     #include "SandboxedProcess.hpp"
+     template class Trie<SandboxedProcess>;
+ #else
+     #include "Detours.hpp"
+     template class Trie<PathCacheEntry>;
+ #endif
+
+#endif

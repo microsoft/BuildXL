@@ -115,5 +115,9 @@ namespace BuildXL.Interop.Unix
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         internal static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
 
+        #region Sandbox
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
+        #endregion
     }
 }

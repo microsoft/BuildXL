@@ -87,7 +87,7 @@ void ReportFileAccess(
         fileName = L"";
     }
 
-    if (filter == nullptr || accessCheckResult.RequestedAccess != RequestedAccess::Enumerate) {
+    if (filter == nullptr || accessCheckResult.Access != RequestedAccess::Enumerate) {
         filterStr = L"";
     }
     else {
@@ -148,9 +148,9 @@ void ReportFileAccess(
             ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
-            accessCheckResult.RequestedAccess,
+            accessCheckResult.Access,
             status,
-            (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit),
+            (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),
             error,
             usn,
             fileOperationContext.DesiredAccess,
@@ -168,9 +168,9 @@ void ReportFileAccess(
             ReportType_FileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
-            accessCheckResult.RequestedAccess,
+            accessCheckResult.Access,
             status,
-            (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit),
+            (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),
             error,
             usn,
             fileOperationContext.DesiredAccess,

@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -292,9 +294,22 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        {
+            return Enumerable.Empty<(string, string)>();
+        }
+
+        /// <inheritdoc />
         public void NotifyPipProcessTerminated(long pipId, int processId)
         {
             Sandbox.SendPipProcessTerminated(pipId, processId, type: Sandbox.ConnectionType.Kext, info: ref m_kextConnectionInfo);
+        }
+
+        /// <inheritdoc />
+        public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process)
+        {
+            // this implementation keeps track of what the root process is an when it exits,
+            // so it doesn't need to be notified about it separately
         }
 
         /// <inheritdoc />

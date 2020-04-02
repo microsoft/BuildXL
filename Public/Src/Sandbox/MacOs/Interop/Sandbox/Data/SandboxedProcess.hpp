@@ -52,7 +52,7 @@ public:
     inline const char* GetPath() const                           { return path_; }
 
     /*! Copies the 0-terminated string in 'path' to its own path buffer. */
-    inline void SetPath(const char *path, size_t len = PATH_MAX) { strlcpy(path_, path, len); }
+    inline void SetPath(const char *path) { strncpy(path_, path, PATH_MAX); path_[PATH_MAX-1] = '\0'; }
 };
 
 #endif /* SandboxedProcess_hpp */

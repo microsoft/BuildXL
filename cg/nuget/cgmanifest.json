@@ -4307,6 +4307,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.linux-x64.BuildXL",
+          "Version": "0.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "runtime.native.System",
           "Version": "4.3.0"
         }

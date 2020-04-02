@@ -5,6 +5,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using static BuildXL.Interop.Dispatch;
+
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member 
 
 namespace BuildXL.Interop.Unix
@@ -17,8 +19,9 @@ namespace BuildXL.Interop.Unix
         public static readonly int ReportQueueSuccessCode = 0x1000;
         public static readonly int SandboxSuccess = 0x0;
 
-        [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        public static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
+        public static unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength) => IsMacOS
+            ? Impl_Mac.NormalizePathAndReturnHash(pPath, buffer, bufferLength)
+            : 0;
 
         public enum Configuration : int
         {

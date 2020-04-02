@@ -11,9 +11,13 @@
 #include <iostream>
 #include <istream>
 
+#if __APPLE__
 #include <bsm/libbsm.h>
 #include <EndpointSecurity/EndpointSecurity.h>
+#include "PathExtractor.hpp"
+#endif
 
+#include "stdafx.h"
 #include "MemoryStreams.hpp"
 
 #define SRC_PATH 0
@@ -55,7 +59,10 @@ private:
 public:
     
     IOEvent() {}
+
+#if __APPLE__
     IOEvent(es_message_t *msg);
+#endif
     
     IOEvent(pid_t pid,
             pid_t cpid,

@@ -32,7 +32,7 @@ static void checkRead(PolicyResult policy, bool isDir, AccessCheckResult *checkR
 static void checkLookup(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)
 {
     *checkResult = policy.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Nonexistent));
-    checkResult->RequestedAccess = RequestedAccess::Lookup;
+    checkResult->Access = RequestedAccess::Lookup;
 }
 
 static void checkEnumerateDir(PolicyResult policy, bool isDir, AccessCheckResult *checkResult)

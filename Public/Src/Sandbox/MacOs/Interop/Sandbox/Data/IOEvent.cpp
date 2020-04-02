@@ -3,8 +3,8 @@
 
 #include "IOEvent.hpp"
 #include "BuildXLException.hpp"
-#include "PathExtractor.hpp"
 
+#if __APPLE__
 IOEvent::IOEvent(es_message_t *msg)
 {
     pid_ = audit_token_to_pid(msg->process->audit_token);
@@ -172,6 +172,7 @@ IOEvent::IOEvent(es_message_t *msg)
         }
     }
 }
+#endif
 
 // When inserting the detours library dynamically, interposed executables automatically search for the default Info.plist
 // file in the executable directory, we are ignoring these events because they are triggered by the interposing and normally don't happen!

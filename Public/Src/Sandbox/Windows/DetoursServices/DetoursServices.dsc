@@ -27,7 +27,7 @@ namespace Core {
         f`UnicodeConverter.h`,
         f`stdafx.h`,
         f`stdafx-win.h`,
-        f`stdafx-mac-common.h`,
+        f`stdafx-unix-common.h`,
         f`stdafx-mac-interop.h`,
         f`stdafx-mac-kext.h`,
         f`targetver.h`,

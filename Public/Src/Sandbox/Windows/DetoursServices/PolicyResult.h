@@ -5,12 +5,12 @@
 
 #include "FileAccessHelpers.h"
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
 #include "CanonicalizedPath.h"
 typedef CanonicalizedPath CanonicalizedPathType;
-#else // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#else // _WIN32
 typedef PCPathChar CanonicalizedPathType;
-#endif // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif // _WIN32
 
 // Result of determining an access policy for a path. This involves canonicalizing the desired path and performing a policy lookup.
 class PolicyResult
@@ -44,7 +44,7 @@ public:
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
     void SetPath(CanonicalizedPathType path)  { m_canonicalizedPath = path; }
 
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
 
 private:
     // Result of path translation.
@@ -108,7 +108,7 @@ public:
                 return nullptr;
         }
     }
-#else // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#else // _WIN32
     
 private:
     FileAccessManifestFlag m_famFlag;
@@ -129,7 +129,7 @@ public:
     FOR_ALL_FAM_FLAGS(GEN_CHECK_FAM_FLAG_FUNC)
     inline bool ReportAnyAccess(bool accessDenied) const { return CheckReportAnyAccess(m_famFlag, accessDenied); }
 
-#endif // !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#endif // _WIN32
     
     // Performs an access check for a read-access, based on dynamically-observed read context (existence, etc.)
     // May only be called when !IsIndeterminate().
@@ -158,7 +158,7 @@ public:
     CanonicalizedPathType const& GetCanonicalizedPath() const { return m_canonicalizedPath; }
     bool AllowRead() const { return (m_policy & FileAccessPolicy_AllowRead) != 0; }
     bool AllowReadIfNonexistent() const { return (m_policy & FileAccessPolicy_AllowReadIfNonExistent) != 0; }
-#if !(MAC_OS_SANDBOX) && !(MAC_OS_LIBRARY)
+#if _WIN32
     bool AllowWrite() const;
 #else
     bool AllowWrite() const { return (m_policy & FileAccessPolicy_AllowWrite) != 0; }
@@ -182,12 +182,12 @@ public:
     // - If the process is allowed to write the file, we leave it to their discretion (even if they did not ask for write access on a particular handle).
     // - If the access result is Warn or Deny, we leave it to their discretion (maybe the access is whitelisted, and the policy should really have AllowWrite).
     bool ShouldForceReadSharing(AccessCheckResult const& accessCheck) {
-        return !AllowWrite() && accessCheck.ResultAction == ResultAction::Allow;
+        return !AllowWrite() && accessCheck.Result == ResultAction::Allow;
     }
 
     // Indicates if the timestamps of this file should be virtualized to a known value.
     bool ShouldOverrideTimestamps(AccessCheckResult const& accessCheck) const {
-        return (accessCheck.ResultAction == ResultAction::Allow || accessCheck.ResultAction == ResultAction::Warn) && !AllowRealInputTimestamps();
+        return (accessCheck.Result == ResultAction::Allow || accessCheck.Result == ResultAction::Warn) && !AllowRealInputTimestamps();
     }
     
 private:

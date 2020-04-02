@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -168,6 +170,12 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
+        public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+        {
+            return Enumerable.Empty<(string, string)>();
+        }
+
+        /// <inheritdoc />
         public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process)
         {
             Contract.Requires(process.Started);
@@ -213,6 +221,13 @@ namespace BuildXL.Processes
         public void NotifyPipProcessTerminated(long pipId, int processId)
         {
             Sandbox.SendPipProcessTerminated(pipId, processId, type: Sandbox.ConnectionType.EndpointSecurity, info: ref m_fakeKextConnectionInfo);
+        }
+
+        /// <inheritdoc />
+        public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process)
+        {
+            // this implementation keeps track of what the root process is an when it exits,
+            // so it doesn't need to be notified about it separately
         }
 
         /// <inheritdoc />

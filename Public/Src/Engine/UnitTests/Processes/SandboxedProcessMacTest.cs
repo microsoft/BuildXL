@@ -56,7 +56,14 @@ namespace Test.BuildXL.Processes
 
             public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
+            public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+            {
+                return Enumerable.Empty<(string, string)>();
+            }
+
             public void NotifyPipProcessTerminated(long pipId, int processId) { ProcessTerminated?.Invoke(pipId, processId); }
+
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process) {}
 
             public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 

@@ -46,6 +46,14 @@ namespace Native {
     ];
 
     @@public
+    export const nativeLinux = [
+        ...addIfLazy(qualifier.targetRuntime === "linux-x64", () =>
+        [
+            ...globR(importFrom("runtime.linux-x64.BuildXL").Contents.all.root, "lib*.so")
+        ]),
+    ];
+
+    @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Native",
         sources: globR(d`.`, "*.cs"),
@@ -60,6 +68,7 @@ namespace Native {
         runtimeContent: [
             ...nativeMac,
             ...nativeWin,
+            ...nativeLinux,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Storage"

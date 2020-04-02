@@ -7,7 +7,7 @@
 #if MAC_OS_LIBRARY
 #include <wchar.h>
 #include <string.h>
-#endif // MAC_OS_LIBRARY
+#endif
 
 // Magic numbers known to provide good hash distributions.
 // See here: http://www.isthe.com/chongo/tech/comp/fnv/
@@ -369,7 +369,7 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) {
     }
 }
 
-#if !MAC_OS_LIBRARY && !MAC_OS_SANDBOX
+#if _WIN32
 
 size_t GetRootLength(PCPathChar path)
 {
@@ -427,4 +427,4 @@ size_t GetRootLength(PCPathChar path)
     return i;
 }
 
-#endif // MAC_OS_LIBRARY
+#endif // _WIN32

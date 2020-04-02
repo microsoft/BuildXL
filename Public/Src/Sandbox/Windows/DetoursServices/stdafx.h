@@ -16,18 +16,30 @@
 #define MAC_OS_SANDBOX 0
 #endif // !defined(MAC_OS_SANDBOX)
 
-#if !(MAC_OS_LIBRARY) && !(MAC_OS_SANDBOX)
+#if _WIN32
+#define __linux__ 0
+#define __APPLE__ 0
+#endif
 
+#if __linux__
+
+// Linux stuff
+#include "stdafx-linux.h" // must include linux before unix-common
+#include "stdafx-unix-common.h"
+
+#elif __APPLE__
+
+// OSX stuff
+#if MAC_OS_SANDBOX
+#include "stdafx-mac-kext.h"
+#else
+#include "stdafx-mac-interop.h"
+#endif
+#include "stdafx-unix-common.h"
+
+#else
+
+// Windows stuff
 #include "stdafx-win.h"
 
-#else // !(MAC_OS_LIBRARY) && !(MAC_OS_SANDBOX)
-
-#if !(MAC_OS_SANDBOX)
-  #include "stdafx-mac-interop.h"
-#else // !(MAC_OS_SANDBOX)
-  #include "stdafx-mac-kext.h"
-#endif // !(MAC_OS_SANDBOX)
-
-#include "stdafx-mac-common.h"
-
-#endif // MAC_OS_LIBRARY
+#endif

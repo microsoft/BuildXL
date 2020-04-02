@@ -6,10 +6,10 @@
 #include "stdafx.h"
 #include "StringOperations.h"
 
-#if !(MAC_OS_SANDBOX)
+#if _WIN32 || MAC_OS_LIBRARY
 #include <string>
 #include "DebuggingHelpers.h"
-#endif // !(MAC_OS_SANDBOX)
+#endif // _WIN32 || MAC_OS_LIBRARY
 
 #define NoUsn -1
 
@@ -391,7 +391,7 @@ typedef struct ManifestInternalDetoursErrorNotificationFileString_t
 
     inline size_t GetSize() const
     {
-#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
+#if !_WIN32 && !_DEBUG
         return 0;
 #else
         return sizeof(ManifestInternalDetoursErrorNotificationFileString_t);

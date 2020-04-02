@@ -327,7 +327,16 @@ config({
                 { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
 
                 // ANTLR
-                { id: "Antlr4.Runtime.Standard", version: "4.7.2" }
+                { id: "Antlr4.Runtime.Standard", version: "4.7.2" },
+
+                // Runtime dependencies for Linux
+                { 
+                    id: "runtime.linux-x64.BuildXL", 
+                    version: "0.0.1",
+                    osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal 
+                        ? [] 
+                        : [ "win", "macOS", "linux" ]
+                }
             ],
 
             doNotEnforceDependencyVersions: true,

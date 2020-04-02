@@ -46,6 +46,11 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// macOs-specifc: Using the EndpointSecurity subsystem (available from 10.15+) and DYLD interposing together for sandboxing
         /// </summary>
-        MacOsHybrid
+        MacOsHybrid,
+
+        /// <summary>
+        /// Linux-specific: using LD_PRELOAD interposing
+        /// </summary>
+        LinuxDetours,
     }
 }

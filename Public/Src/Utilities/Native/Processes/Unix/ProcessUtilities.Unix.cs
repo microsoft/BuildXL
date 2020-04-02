@@ -42,6 +42,12 @@ namespace BuildXL.Native.Processes.Unix
         {
             // in the native Unix world strings are represented as UTF8-encoded null-terminated chars (1 char == 1 byte)
             byte[] pathBytes = Encoding.UTF8.GetBytes((path + '\0').ToCharArray());
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                normalizedPathBytes = pathBytes;
+                return path.GetHashCode();
+            }
+
             normalizedPathBytes = new byte[pathBytes.Length];
 
             fixed (byte* outBuffer = &normalizedPathBytes[0])

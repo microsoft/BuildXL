@@ -291,6 +291,7 @@
 				EXECUTABLE_PREFIX = lib;
 				PRODUCT_NAME = BuildXLDetours;
 				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = debug;
 		};
@@ -304,6 +305,7 @@
 				EXECUTABLE_PREFIX = lib;
 				PRODUCT_NAME = BuildXLDetours;
 				SKIP_INSTALL = YES;
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
 			};
 			name = release;
 		};

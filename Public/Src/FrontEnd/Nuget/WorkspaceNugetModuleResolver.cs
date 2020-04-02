@@ -1449,7 +1449,14 @@ namespace BuildXL.FrontEnd.Nuget
 
             public bool NotifyPipStarted(LoggingContext loggingContext, FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
+            public IEnumerable<(string, string)> AdditionalEnvVarsToSet(long pipId)
+            {
+                return Enumerable.Empty<(string, string)>();
+            }
+
             public void NotifyPipProcessTerminated(long pipId, int processId) { }
+
+            public void NotifyRootProcessExited(long pipId, SandboxedProcessMac process) { }
 
             public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 

@@ -6,7 +6,7 @@ namespace BuildXL.Interop
     /// <summary>
     /// Constants for names of various native libraries.
     /// </summary>
-    internal static class Libraries
+    public static class Libraries
     {
         /// <summary>
         /// BuildXL interop library for macOS

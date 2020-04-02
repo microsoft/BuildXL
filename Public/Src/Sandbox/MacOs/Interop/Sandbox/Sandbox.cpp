@@ -160,7 +160,7 @@ bool Sandbox::TrackRootProcess(std::shared_ptr<SandboxedPip> pip)
     log_debug("Pip with PipId = %#llX, PID = %d launching", pip->GetPipId(), pid);
     
     int len = PATH_MAX;
-    process->SetPath(pip->GetProcessPath(&len), len);
+    process->SetPath(pip->GetProcessPath(&len));
     
     int numAttempts = 0;
     while (++numAttempts <= 3)

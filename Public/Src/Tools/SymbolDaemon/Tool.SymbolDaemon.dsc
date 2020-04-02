@@ -44,6 +44,9 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("Symbol.Client").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,
         importFrom("System.Reflection.Metadata").pkg,
+        ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Net.Http.dll
+            ),
     ],
     runtimeContent: symstoreX64Libs    
 });

@@ -24,23 +24,8 @@ namespace ServicePipDaemon {
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
-        
-            importFrom("ArtifactServices.App.Shared").pkg,
-            importFrom("ArtifactServices.App.Shared.Cache").pkg,
-            importFrom("Drop.App.Core").pkg,
-            importFrom("Drop.Client").pkg,            
-            importFrom("ItemStore.Shared").pkg,
-            importFrom("Microsoft.ApplicationInsights").pkg,
-            importFrom("Microsoft.AspNet.WebApi.Client").pkg,
-            importFrom("Microsoft.Diagnostics.Tracing.TraceEvent").pkg,
-            importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
-            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
-            importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("Newtonsoft.Json").pkg,
-            importFrom("WindowsAzure.Storage").pkg,
-            
+
+            importFrom("Newtonsoft.Json").pkg
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",

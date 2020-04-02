@@ -22,6 +22,7 @@ using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Symbol.Common;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 using Newtonsoft.Json;
+using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.SymbolDaemon
@@ -31,7 +32,6 @@ namespace Tool.SymbolDaemon
     /// </summary>
     public sealed class VsoSymbolClient : ISymbolClient
     {
-
         private static IAppTraceSource Tracer => SymbolAppTraceSource.SingleInstance;
 
         private readonly Client m_apiClient;
@@ -80,7 +80,9 @@ namespace Tool.SymbolDaemon
 
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
 
-            m_symbolClient = CreateSymbolServiceClient();
+            m_symbolClient = new ReloadingSymbolClient(
+                logger: logger,
+                clientConstructor: CreateSymbolServiceClient);
         }
 
         private ISymbolServiceClient CreateSymbolServiceClient()

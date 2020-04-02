@@ -31,26 +31,30 @@ namespace Test.Tool.DropDaemon
             Output = output;
         }
 
-        [Fact]
-        public async Task TestNoAuthExceptionThrownMeansNoReloading()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestNoAuthExceptionThrownMeansNoReloading(bool operationReturnsResult)
         {
             var reloadingClient = new ReloadingDropServiceClient(
                 logger: TestLogger,
                 clientConstructor: () => new MockDropServiceClient(dropOperation: () => { }));
 
-            await CallDropOperationAsync(reloadingClient);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(1, reloadingClient.Reloader.CurrentVersion);
 
-            await CallDropOperationAsync(reloadingClient);
-            await CallDropOperationAsync(reloadingClient);
-            await CallDropOperationAsync(reloadingClient);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(1, reloadingClient.Reloader.CurrentVersion);
         }
 
         [Theory]
-        [InlineData(1)]
-        [InlineData(4)]
-        public async Task TestAuthExceptionThrownFromDropOperation(int numOfAuthFailures)
+        [InlineData(1, true)]
+        [InlineData(4, true)]
+        [InlineData(1, false)]
+        [InlineData(4, false)]
+        public async Task TestAuthExceptionThrownFromDropOperation(int numOfAuthFailures, bool operationReturnsResult)
         {
             int counter = 0;
             var reloadingClient = new ReloadingDropServiceClient(
@@ -65,14 +69,16 @@ namespace Test.Tool.DropDaemon
                         }
                     }));
 
-            await CallDropOperationAsync(reloadingClient);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(numOfAuthFailures + 1, reloadingClient.Reloader.CurrentVersion);
         }
 
         [Theory]
-        [InlineData(1)]
-        [InlineData(4)]
-        public async Task TestAuthExceptionThrownFromDropClientConstructor(int numOfAuthFailures)
+        [InlineData(1, true)]
+        [InlineData(4, true)]
+        [InlineData(1, false)]
+        [InlineData(4, false)]
+        public async Task TestAuthExceptionThrownFromDropClientConstructor(int numOfAuthFailures, bool operationReturnsResult)
         {
             Action<int> maybeThrow = (cnt) =>
             {
@@ -98,27 +104,33 @@ namespace Test.Tool.DropDaemon
                     });
                 });
 
-            await CallDropOperationAsync(reloadingClient);
+            await CallDropOperationAsync(reloadingClient, operationReturnsResult);
             XAssert.AreEqual(2, reloadingClient.Reloader.CurrentVersion);
         }
 
-        [Fact]
-        public async Task TestPermanentAuthException()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestPermanentAuthException(bool operationReturnsResult)
         {
             var retryIntervals = new[] { TimeSpan.FromMilliseconds(10), TimeSpan.FromMilliseconds(20) };
             var reloadingClient = new ReloadingDropServiceClient(
                 logger: TestLogger,
                 retryIntervals: retryIntervals,
                 clientConstructor: () => new MockDropServiceClient(dropOperation: ThrowUnauthorizedException));
-            await Assert.ThrowsAsync<VssUnauthorizedException>(() => CallDropOperationAsync(reloadingClient));
+            await Assert.ThrowsAsync<VssUnauthorizedException>(() => CallDropOperationAsync(reloadingClient, operationReturnsResult));
             XAssert.AreEqual(retryIntervals.Length + 1, reloadingClient.Reloader.CurrentVersion);
         }
 
         private IIpcLogger TestLogger => new LambdaLogger((level, format, args) => Output.WriteLine(LoggerExtensions.Format(level, format, args)));
 
-        private Task CallDropOperationAsync(ReloadingDropServiceClient reloadingClient)
+        private Task CallDropOperationAsync(ReloadingDropServiceClient reloadingClient, bool operationReturnsResult)
         {
-            return reloadingClient.CreateAsync("name", true, null, false, CancellationToken.None);
+            return operationReturnsResult
+                // test Task<U> RetryAsync<U> 
+                ? reloadingClient.CreateAsync("name", true, null, false, CancellationToken.None)
+                // test Task RetryAsync
+                : reloadingClient.DownloadAsync("name", null, CancellationToken.None, false);
         }
 
         private void ThrowUnauthorizedException()
@@ -129,7 +141,7 @@ namespace Test.Tool.DropDaemon
 
     internal class MockDropServiceClient : IDropServiceClient
     {
-        private Action m_dropOperation;
+        private readonly Action m_dropOperation;
 
         public MockDropServiceClient(Action dropOperation)
         {
@@ -141,6 +153,12 @@ namespace Test.Tool.DropDaemon
         {
             m_dropOperation();
             return Task.FromResult(new DropItem());
+        }
+
+        Task IDropDownloader.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
+        {
+            m_dropOperation();
+            return Task.CompletedTask;
         }
 
         #region Unimplemented/Unused methods
@@ -185,11 +203,6 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task IDropDownloader.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
-        {
-            throw new NotImplementedException();
-        }
-
         Task<DownloadResult> IDropDownloader.DownloadManifestToFilePathAsync(string dropName, string filePath, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -225,7 +238,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache,  CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
+        Task<IAsyncEnumerator<IEnumerable<BlobToFileMapping>>> IDropServiceClient.ListFilePagesAsync(string dropName, bool tryToRetrieveFromLocalCache, CancellationToken cancellationToken, bool allowPartial, IEnumerable<string> directories, bool recursive, bool getDownloadUris)
         {
             throw new NotImplementedException();
         }

@@ -54,12 +54,12 @@ namespace BuildXL.FrontEnd.Rush
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables)
         {
-            Contract.Requires(context != null);
-            Contract.Requires(frontEndHost != null);
-            Contract.Requires(moduleDefinition != null);
-            Contract.Requires(resolverSettings != null);
-            Contract.Requires(userDefinedEnvironment != null);
-            Contract.Requires(userDefinedPassthroughVariables != null);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(frontEndHost);
+            Contract.RequiresNotNull(moduleDefinition);
+            Contract.RequiresNotNull(resolverSettings);
+            Contract.RequiresNotNull(userDefinedEnvironment);
+            Contract.RequiresNotNull(userDefinedPassthroughVariables);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
@@ -149,16 +149,6 @@ namespace BuildXL.FrontEnd.Rush
             out string failureDetail,
             out Process process)
         {
-            // TODO: don't do it here but in CanSchedule
-            if (string.IsNullOrEmpty(project.BuildCommand))
-            {
-                m_processOutputsPerProject[project] = new ProcessOutputs(new Dictionary<AbsolutePath, FileArtifactWithAttributes>(), new Dictionary<AbsolutePath, StaticDirectory>()) ;
-                failureDetail = string.Empty;
-                process = default;
-
-                return true;
-            }
-
             // We create a pip construction helper for each project
             var pipConstructionHelper = GetPipConstructionHelperForProject(project, qualifierId);
 
@@ -209,6 +199,13 @@ namespace BuildXL.FrontEnd.Rush
 
             foreach (RushProject projectReference in references)
             {
+                // If the project is referencing something that was not scheduled, just skip it
+                if (!projectReference.CanBeScheduled())
+                {
+                    // We have already logged this case as an informational when building the project graph
+                    continue;
+                }
+
                 bool outputsPresent = m_processOutputsPerProject.TryGetValue(projectReference, out var processOutputs);
                 if (!outputsPresent)
                 {
@@ -239,8 +236,8 @@ namespace BuildXL.FrontEnd.Rush
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "release")), SealDirectoryKind.SharedOpaque);
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "src")), SealDirectoryKind.SharedOpaque);
 
-            // HACK HACK. Only non-test projects generate these files at the root of the project. So don't add them twice otherwise graph construction complains
-            if (!project.Name.EndsWith("_test"))
+            // HACK HACK. Only build projects generate these files at the root of the project. So don't add them twice otherwise graph construction complains
+            if (project.ScriptCommandName == "build")
             {
                 processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.js"), 0), FileExistence.Optional);
                 processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.d.ts"), 0), FileExistence.Optional);
@@ -301,9 +298,9 @@ namespace BuildXL.FrontEnd.Rush
             var logDirectory = GetLogDirectory(project);
             var logFile = logDirectory.Combine(PathTable, "build.log");
 
-            // Execute the build command and redirect the output to a designated log file
+            // Execute the command and redirect the output to a designated log file
             processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("/C"));
-            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.BuildCommand));
+            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
             processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(">"));
             processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(logFile));
             processBuilder.AddOutputFile(logFile, FileExistence.Required);
@@ -346,7 +343,8 @@ namespace BuildXL.FrontEnd.Rush
                 .Combine(PathTable, "Logs")
                 .Combine(PathTable, "Rush")
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot)
-                .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.Name));
+                .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.Name))
+                .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.ScriptCommandName));
 
             return result;
         }
@@ -390,7 +388,7 @@ namespace BuildXL.FrontEnd.Rush
             }
 
             // Get a symbol that is unique for this particular project instance
-            var fullSymbol = GetFullSymbolFromProject(project);
+            var fullSymbol = GetFullSymbolFromProject(project.Name, project.ScriptCommandName, m_context.SymbolTable);
 
             var pipConstructionHelper = PipConstructionHelper.Create(
                 m_context,
@@ -408,12 +406,15 @@ namespace BuildXL.FrontEnd.Rush
             return pipConstructionHelper;
         }
 
-        private FullSymbol GetFullSymbolFromProject(RushProject project)
+        /// <summary>
+        /// Used also for tests to discover processes based on project names
+        /// </summary>
+        internal static FullSymbol GetFullSymbolFromProject(string projectName, string scriptCommandName, SymbolTable symbolTable)
         {
             // We construct the name of the value using the project name
-            var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.Name);
+            var valueName = PipConstructionUtilities.SanitizeStringForSymbol($"{projectName}_{scriptCommandName}");
 
-            var fullSymbol = FullSymbol.Create(m_context.SymbolTable, valueName);
+            var fullSymbol = FullSymbol.Create(symbolTable, valueName);
             return fullSymbol;
         }
 

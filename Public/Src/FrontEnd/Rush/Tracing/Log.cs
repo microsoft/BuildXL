@@ -47,15 +47,6 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         public abstract void ProjectGraphConstructionError(LoggingContext context, Location location, string message);
 
         [GeneratedEvent(
-            (ushort)LogEventId.GraphConstructionInternalError,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            EventTask = (ushort)Tasks.Parser,
-            Message = EventConstants.LabeledProvenancePrefix + "An internal error occurred when computing the Rush graph. This shouldn't have happened! Tool standard error: '{toolStandardError}'",
-            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void GraphConstructionInternalError(LoggingContext context, Location location, string toolStandardError);
-
-        [GeneratedEvent(
             (ushort)LogEventId.CannotDeleteSerializedGraphFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -63,15 +54,6 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Cannot delete file '{file}' containing the serialized Rush graph. Details: {message}",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void CannotDeleteSerializedGraphFile(LoggingContext context, Location location, string file, string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.CycleInBuildTargets,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (ushort)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (ushort)Tasks.Parser,
-            Message = "A cycle was detected in build target dependencies, evaluation cannot proceed. Cycle: {cycleDescription}")]
-        public abstract void CycleInBuildTargets(LoggingContext context, string cycleDescription);
 
         [GeneratedEvent(
             (ushort)LogEventId.SchedulingPipFailure,
@@ -94,7 +76,7 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.GraphConstructionFinishedSuccessfullyButWithWarnings,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Warning,
             Message = EventConstants.LabeledProvenancePrefix + "Graph construction process finished successfully, but some warnings occurred: {message}",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
@@ -110,5 +92,57 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void GraphBuilderFilesAreNotRemoved(LoggingContext context, string graphFile);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DependencyIsIgnoredScriptIsMissing,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = EventConstants.LabeledProvenancePrefix + "Project '{projectName}' with script command '{scriptCommandName}' declares a dependency on '{dependency}' with script command '{dependencyScriptCommandName}', but the requested script is not defined on " +
+            "the target dependency. The dependency is ignored.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void DependencyIsIgnoredScriptIsMissing(LoggingContext context, Location location, string projectName, string scriptCommandName, string dependency, string dependencyScriptCommandName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RushCommandIsEmpty,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Rush command is empty. Only non-empty command names are allowed. E.g. 'build'.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void RushCommandIsEmpty(LoggingContext context, Location location);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RushCommandIsDuplicated,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Rush command '{command}' is specified more than once.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void RushCommandIsDuplicated(LoggingContext context, Location location, string command);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CycleInRushCommands,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "There is a cyclic dependency in the specified rush commands '{cycle}'.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CycleInRushCommands(LoggingContext context, Location location, string cycle);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ProjectIsIgnoredScriptIsMissing,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = EventConstants.LabeledProvenancePrefix + "Script command '{scriptCommandName}' is requested to be scheduled for project '{projectName}', but the command is not defined. " +
+            "The invocation is ignored.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ProjectIsIgnoredScriptIsMissing(LoggingContext context, Location location, string projectName, string scriptCommandName);
     }
 }

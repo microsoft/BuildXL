@@ -25,5 +25,30 @@ namespace BuildXL.Utilities.Configuration
         /// If a relative path is provided, it will be interpreted relative to every project root
         /// </remarks>
         IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; }
+        
+        /// <summary>
+        /// A Rush command where depedencies on other commands can be explicitly provided
+        /// E.g. {command: "test", dependsOn: {kind: "local", command: "build"}}
+        /// makes the 'test' script depend on the 'build' script of the same project.
+        /// Dependencies on other commands of direct dependencies can be specified as well.For example:
+        /// {command: "localize", dependsOn: {kind: "project", command: "build"}} makes the 'localize' script depend on 
+        /// the 'build' script of all of the project declared dependencies
+        /// </summary>
+        IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> Commands { get; }
+    }
+
+    /// <nodoc/>
+    public static class IRushResolverSettingsExtensions
+    {
+        /// <nodoc/>
+        public static string GetCommandName(this DiscriminatingUnion<string, IRushCommand> command)
+        {
+            if (command.GetValue() is string simpleCommand)
+            {
+                return simpleCommand;
+            }
+
+            return ((IRushCommand)command.GetValue()).Command;
+        }
     }
 }

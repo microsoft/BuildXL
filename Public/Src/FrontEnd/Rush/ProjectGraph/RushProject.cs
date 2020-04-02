@@ -3,14 +3,20 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Rush.ProjectGraph
 {
     /// <summary>
-    /// A Rush project is a projection of a RushConfigurationProject (defined in rush-core-lib) with enough information to schedule a pip from it
+    /// A Rush project is a projection of a RushConfigurationProject (defined in rush-core-lib) with enough 
+    /// information to schedule a pip from it
     /// </summary>
+    /// <remarks>
+    /// There is a 1:1 relationship between a Rush project and a tuple (package.json, requested script command name)
+    /// </remarks>
     [DebuggerDisplay("{Name}")]
     public sealed class RushProject : GenericRushProject<RushProject>, IProjectWithDependencies<RushProject>
     {
@@ -18,21 +24,27 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         public RushProject(
             string name,
             AbsolutePath projectFolder,
-            string buildCommand,
+            string scriptCommandName,
+            [CanBeNull] string scriptCommand,
             AbsolutePath tempFolder,
-            IReadOnlyCollection<AbsolutePath> additionalOutputDirectories) : base(name, projectFolder, null, buildCommand, tempFolder, additionalOutputDirectories)
+            IReadOnlyCollection<AbsolutePath> additionalOutputDirectories) : base(name, projectFolder, null, tempFolder, additionalOutputDirectories)
         {
+            Contract.RequiresNotNullOrEmpty(scriptCommandName);
+
+            ScriptCommand = scriptCommand;
+            ScriptCommandName = scriptCommandName;
         }
 
         /// <nodoc/>
-        public static RushProject FromGenericRushProject<T>(GenericRushProject<T> genericRushProject)
+        public static RushProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedRushProject deserializedRushProject)
         {
             return new RushProject(
-                genericRushProject.Name,
-                genericRushProject.ProjectFolder,
-                genericRushProject.BuildCommand,
-                genericRushProject.TempFolder,
-                genericRushProject.AdditionalOutputDirectories);
+                deserializedRushProject.Name,
+                deserializedRushProject.ProjectFolder,
+                scriptCommandName,
+                scriptCommand,
+                deserializedRushProject.TempFolder,
+                deserializedRushProject.AdditionalOutputDirectories);
         }
 
         /// <nodoc/>
@@ -41,8 +53,25 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             Dependencies = dependencies;
         }
 
+        /// <summary>
+        /// A rush project can be scheduled is the script command is not empty
+        /// </summary>
+        public bool CanBeScheduled() => !string.IsNullOrEmpty(ScriptCommand);
+
+        /// <summary>
+        /// The script command to execute for this particular rush project (e.g. 'node ./main.js')
+        /// </summary>
+        public string ScriptCommand { get; }
+
+        /// <summary>
+        /// The script command name to execute for this particular rush project (e.g. 'build' or 'test')
+        /// </summary>
+        public string ScriptCommandName { get; }
+
         /// <inheritdoc/>
-        /// TODO: filter projects with empty build command here
-        public bool CanBeScheduled() => true;
+        public override string ToString()
+        {
+            return $"{Name}[{ScriptCommandName}]";
+        }
     }
 }

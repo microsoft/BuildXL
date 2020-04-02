@@ -2,7 +2,7 @@ import { RushConfiguration, RushConfigurationProject } from '@microsoft/rush-lib
 import * as semver from 'semver';
 import * as path from 'path';
 import * as fs from 'fs';
-import { FileSystem, JsonSchema, JsonFile } from '@microsoft/node-core-library';
+import { FileSystem, JsonSchema, JsonFile, IPackageJsonScriptTable } from '@microsoft/node-core-library';
 import { IJestTaskConfiguration } from './IJestTaskConfiguration';
 
 const JEST_TASK_CONFIGURATION_SCHEMA: JsonSchema = JsonSchema.fromFile(
@@ -21,7 +21,7 @@ export interface RushGraph {
  */
 export interface RushProject {
     name: string;
-    buildCommand: string;
+    availableScriptCommands: IPackageJsonScriptTable;
     projectFolder: string;
     tempFolder: string;
     dependencies: string[];
@@ -41,57 +41,18 @@ export function buildGraph(rushConfigurationFile: string, isDebug: boolean): Rus
     let projects : RushProject[] = [];
     for (const project of rushConf.projects) {
 
-        let buildCommand = undefined;
-
-        if (project.packageJson.scripts && project.packageJson.scripts['build']) {
-            // TODO: this should go away and we should take the script as is
-            buildCommand = project.packageJson.scripts['build']
-                .replace('gulp test', 'gulp')
-                .replace('gulp.js test', 'gulp.js');
-        
-            // We should be able to extract these arguments from the Rush conf object
-            buildCommand += ' --production';
-            buildCommand += ' --verbose';
-
-            if (isDebug) {
-                buildCommand += ' --locale qps-ploc';
-            }
-        }
-    
         let dependencies = getDependencies(rushConf, project);
 
         let p: RushProject = {
             name: project.packageName,
             projectFolder: project.projectFolder,
             dependencies: Array.from(dependencies),
-            buildCommand: buildCommand,
+            availableScriptCommands: project.packageJson.scripts,
             tempFolder: project.projectRushTempFolder,
             additionalOutputDirectories: getAdditionalOutputDirectories(project)
             };
 
         projects.push(p);
-        
-        // If Jest is enabled, add a node representing a test execution
-        if (project.packageJson.scripts && project.packageJson.scripts['build'] && isJestEnabled(project)) {
-            let testCommand = project.packageJson.scripts['build']
-                .replace('gulp test', 'gulp test-only')
-                .replace('gulp.js test', 'gulp.js test-only')
-                .replace(' --clean', ''); // Need to remove this for tests to actually run
-
-            testCommand += ' --production';
-
-            let testDependencies = dependencies.add(project.packageName);
-            let test: RushProject = {
-                name: project.packageName + "_test",
-                projectFolder: project.projectFolder,
-                dependencies: Array.from(testDependencies),
-                buildCommand: testCommand,
-                tempFolder: project.projectRushTempFolder,
-                additionalOutputDirectories: getAdditionalOutputDirectories(project)
-                };
-
-            projects.push(test);
-        }
     }
 
     return {projects: projects};

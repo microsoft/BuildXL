@@ -310,6 +310,42 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * If a relative path is provided, it will be interpreted relative to every project root.
      */
     additionalOutputDirectories?: (Path | RelativePath)[];
+
+    /**
+     * The list of command script names to execute on each project. 
+     * Dependencies across commands can be specified. If a simple string is provided in the list, the command with that name will depend 
+     * on the command that precedes it on the list, or if it is the first one, on the same command of all its project dependencies.
+     * For example: if project A defines commands: ["build", "test"] and project A declares B and C as project dependencies, then 
+     * the build command of A will depend on the build command of both B and C. The test command of A will depend on the build command of A.
+     * Additionally, finer grained dependencies can be specified using a RushCommand. In this case, a list of dependencies for each command
+     * can be explicitly provided, indicating whether the dependency is on a command on the same project (local) or on a command on all the project 
+     * dependencies (project). The specified order in the list is irrelevant for RushCommands.
+     * If not provided, ["build"] is used.
+     * Any command specified here that doesn't have a corresponding script is ignored.
+     */
+    commands?: (string | RushCommand)[];
+}
+
+/**
+ * A Rush command where depedencies on other commands can be explicitly provided
+ * E.g. {command: "test", dependsOn: {kind: "local", command: "build"}} makes the 'test' script depend on the 'build' script
+ * of the same project. 
+ * Dependencies on other commands of direct dependencies can be specified as well. For example:
+ * {command: "localize", dependsOn: {kind: "project", command: "build"}} makes the 'localize' script depend on the 'build' script
+ * of all of the project declared dependencies
+ */
+interface RushCommand {
+    command: string;
+    dependsOn: RushCommandDependency[];
+}
+
+/**
+ * A Rush command can have 'local' dependencies, meaning dependencies on commands of the same project (e.g. test depends on build)
+ * or 'package' to specify a dependency on a command from all its direct dependencies.
+ */
+interface RushCommandDependency {
+    kind: "local" | "package"; 
+    command: string
 }
 
 /**

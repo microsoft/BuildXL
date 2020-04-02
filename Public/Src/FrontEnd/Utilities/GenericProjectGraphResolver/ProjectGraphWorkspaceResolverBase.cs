@@ -134,7 +134,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         }
 
         /// <inheritdoc/>
-        public bool TryInitialize(
+        public virtual bool TryInitialize(
             FrontEndHost host,
             FrontEndContext context,
             IConfiguration configuration,

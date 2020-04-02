@@ -32,6 +32,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             KeepProjectGraphFile = resolverSettings.KeepProjectGraphFile;
             NodeExeLocation = resolverSettings.NodeExeLocation;
             AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories;
+            Commands = resolverSettings.Commands;
         }
 
         /// <inheritdoc/>
@@ -60,5 +61,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> Commands { get; set; }
     }
 }

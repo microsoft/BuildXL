@@ -53,7 +53,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         /// </summary>
         public RushProject CreateRushProject(
             string projectName = null, 
-            string buildCommand = null,
+            string scriptCommandName = null,
+            string scriptCommand = null,
             AbsolutePath? tempFolder = null,
             IReadOnlyCollection<AbsolutePath> additionalOutputDirectories = null,
             IReadOnlyCollection<RushProject> dependencies = null)
@@ -64,7 +65,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             var rushProject = new RushProject(
                 projectName,
                 TestPath.Combine(PathTable, RelativePath.Create(StringTable, projectName)),
-                buildCommand ?? "node ./main.js",
+                scriptCommandName ?? "build",
+                scriptCommand ?? "node ./main.js",
                 tempDirectory,
                 additionalOutputDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>()
             );
@@ -82,7 +84,13 @@ namespace Test.BuildXL.FrontEnd.Rush
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables)
         {
-            return new RushPipConstructor(context, frontEndHost, moduleDefinition, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables);
+            return new RushPipConstructor(
+                context,
+                frontEndHost,
+                moduleDefinition,
+                resolverSettings,
+                userDefinedEnvironment,
+                userDefinedPassthroughVariables);
         }
     }
 }

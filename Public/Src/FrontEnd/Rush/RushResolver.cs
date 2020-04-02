@@ -159,6 +159,11 @@ namespace BuildXL.FrontEnd.Rush
 
             var scheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId);
 
+            if (!scheduleResult.Succeeded)
+            {
+                Tracing.Logger.Log.ProjectGraphConstructionError(m_context.LoggingContext, default(Location), scheduleResult.Failure.Describe());
+            }
+
             return scheduleResult.Succeeded;
         }
     }

@@ -286,6 +286,31 @@ namespace BuildXL.FrontEnd.Script.Util
                     context.ErrorContext);
             }
 
+            // Special treatment for object literals, since we want to match it to an implementation
+            if (val is ObjectLiteral)
+            {
+                // Let's go through the target types in order to check if we find an implementation for any of them.
+                // First one wins
+                bool found = false;
+                foreach (var targetType in union.GetAllowedTypes())
+                {
+                    try
+                    {
+                        val = ConvertAny(val, targetType, null, context);
+                        found = true;
+                        break;
+                    }
+                    catch (ConversionException) { }
+                }
+
+                if (!found)
+                {
+                    throw new ConversionException(
+                        I($"No implementation found for type '{val.GetType()}' that match the expected values of the discriminating union {resultType}"),
+                        context.ErrorContext);
+                }
+            }
+
             if (!union.TrySetValue(val))
             {
                 throw new ConversionException(

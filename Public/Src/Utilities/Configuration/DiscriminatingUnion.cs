@@ -26,11 +26,24 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public bool TrySetValue(object o)
         {
-            if (m_allowedTypes.Contains(o.GetType()))
+            // If we find a direct type match, then we are good to go
+            Type targetType = o?.GetType();
+            if (m_allowedTypes.Contains(targetType))
             {
                 m_value = o;
                 return true;
             }
+
+            // Otherwise, use the assignment relationship
+            foreach(var allowedType in m_allowedTypes)
+            {
+                if (allowedType.IsAssignableFrom(targetType))
+                {
+                    m_value = o;
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -38,6 +51,12 @@ namespace BuildXL.Utilities.Configuration
         public object GetValue()
         {
             return m_value;
+        }
+
+        /// <nodoc/>
+        public IEnumerable<Type> GetAllowedTypes()
+        {
+            return m_allowedTypes;
         }
     }
 

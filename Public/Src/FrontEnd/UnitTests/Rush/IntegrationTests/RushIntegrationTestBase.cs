@@ -72,21 +72,28 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         protected SpecEvaluationBuilder Build(
-            Dictionary<string, string> environment = null)
+            Dictionary<string, string> environment = null,
+            string rushCommands = null)
         {
+            environment ??= new Dictionary<string, string> { ["PATH"] = PathToNodeFolder };
+
             return Build(
-                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null
-                );
+                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null,
+                rushCommands);
         }
 
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(
-            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment)
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
+            string rushCommands = null)
         {
+            environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder) };
+
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
                 DefaultRushPrelude(
-                    environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>()));
+                    environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(),
+                    rushCommands: rushCommands));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -142,17 +149,20 @@ namespace Test.BuildXL.FrontEnd.Rush
             File.WriteAllText(pathToRushJson, updatedRushJson);
         }
 
-        public string CreatePackageJson(string projectName, string main, string[] dependencies)
+        public static string CreatePackageJson(string projectName, (string, string)[] scriptCommands = null, string[] dependencies = null)
         {
+            scriptCommands ??= new[] { ("build", "node ./main.js") };
+            dependencies ??= new string[] { };
+
             return $@"
 {{
   ""name"": ""{projectName}"",
   ""version"": ""0.0.1"",
   ""description"": ""Test project {projectName}"",
   ""scripts"": {{
-        ""build"": ""node ./{main}""
+        {string.Join(",", scriptCommands.Select(kvp => $"\"{kvp.Item1}\": \"{kvp.Item2}\""))}
   }},
-  ""main"": ""{main}"",
+  ""main"": ""main.js"",
   ""dependencies"": {{
         {string.Join(",", dependencies.Select(dep => $"\"{dep}\":\"0.0.1\""))}
     }}
@@ -160,8 +170,17 @@ namespace Test.BuildXL.FrontEnd.Rush
 ";
         }
 
+        protected static bool IsDependencyAndDependent(global::BuildXL.Pips.Operations.Process dependency, global::BuildXL.Pips.Operations.Process dependent)
+        {
+            // Unfortunately the test pip graph we are using doesn't keep track of dependencies/dependents. So we check there is a directory output of the dependency 
+            // that is a directory input for a dependent
+
+            return dependency.DirectoryOutputs.Any(directoryOutput => dependent.DirectoryDependencies.Any(directoryDependency => directoryDependency == directoryOutput));
+        }
+
         private string DefaultRushPrelude(
-            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null) => $@"
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
+            string rushCommands = null) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -171,6 +190,7 @@ config({{
             root: d`.`,
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
+            {(rushCommands != null? $"commands: {rushCommands}," : string.Empty)}
         }},
     ],
 }});";

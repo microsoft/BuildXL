@@ -3,19 +3,23 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
+using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Instrumentation.Common;
 using Newtonsoft.Json;
 using TypeScript.Net.Types;
 
@@ -43,6 +47,7 @@ namespace BuildXL.FrontEnd.Rush
             Formatting = Formatting.Indented,
             NullValueHandling = NullValueHandling.Include
         };
+        private IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> m_computedCommands;
 
         /// <inheritdoc/>
         public RushWorkspaceResolver()
@@ -52,6 +57,31 @@ namespace BuildXL.FrontEnd.Rush
 
         /// <inheritdoc/>
         public override string Kind => KnownResolverKind.RushResolverKind;
+
+        /// <inheritdoc/>
+        public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
+        {
+            var success = base.TryInitialize(host, context, configuration, resolverSettings);
+            
+            if (!success)
+            {
+                return false;
+            }
+
+            if (!RushCommandsInterpreter.TryComputeAndValidateCommands(
+                    m_context.LoggingContext,
+                    resolverSettings.Location(m_context.PathTable),
+                    ((IRushResolverSettings)resolverSettings).Commands,
+                    out IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> computedCommands))
+            {
+                // Error has been logged
+                return false;
+            }
+
+            m_computedCommands = computedCommands;
+
+            return true;
+        }
 
         /// <summary>
         /// Creates an empty source file for now
@@ -142,16 +172,10 @@ namespace BuildXL.FrontEnd.Rush
 
             if (result.ExitCode != 0)
             {
-                // In case of a cancellation, the tool may have exited with a non-zero
-                // code, but that's expected
-                if (!m_context.CancellationToken.IsCancellationRequested)
-                {
-                    // This should never happen! Report the standard error and exit gracefully
-                    Tracing.Logger.Log.GraphConstructionInternalError(
-                        m_context.LoggingContext,
-                        m_resolverSettings.Location(m_context.PathTable),
-                        standardError);
-                }
+                Tracing.Logger.Log.ProjectGraphConstructionError(
+                    m_context.LoggingContext,
+                    m_resolverSettings.Location(m_context.PathTable),
+                    standardError);
 
                 return new RushGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
             }
@@ -173,9 +197,9 @@ namespace BuildXL.FrontEnd.Rush
             using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
             using (var reader = new JsonTextReader(sr))
             {
-                var flattenedRushGraph = serializer.Deserialize<GenericRushGraph<GenericRushProject<string>>>(reader);
+                var flattenedRushGraph = serializer.Deserialize<GenericRushGraph<DeserializedRushProject>>(reader);
 
-                RushGraph graph = ResolveDependencies(flattenedRushGraph);
+                Possible<RushGraph> graph = ResolveGraph(flattenedRushGraph);
 
                 return graph;
             }
@@ -210,25 +234,90 @@ namespace BuildXL.FrontEnd.Rush
                buildParameters);
         }
 
-        private RushGraph ResolveDependencies(GenericRushGraph<GenericRushProject<string>> flattenedRushGraph)
+        private Possible<RushGraph> ResolveGraph(GenericRushGraph<DeserializedRushProject> flattenedRushGraph)
         {
-            var resolvedProjects = new Dictionary<string, RushProject>(flattenedRushGraph.Projects.Count);
-            
-            // Add all unresolved projects first
-            foreach (var flattenedProject in flattenedRushGraph.Projects)
+            var resolvedProjects = new Dictionary<(string projectName, string command), (RushProject rushProject, DeserializedRushProject deserializedRushProject)>(flattenedRushGraph.Projects.Count * m_computedCommands.Count);
+
+            // Each requested script command defines a Rush project
+            foreach (var command in m_computedCommands.Keys)
             {
-                var rushProject = RushProject.FromGenericRushProject(flattenedProject);
-                resolvedProjects.Add(flattenedProject.Name, rushProject);
+                // Add all unresolved projects first
+                foreach (var flattenedProject in flattenedRushGraph.Projects)
+                {
+                    // If the requested script is not available on the project, log and skip it
+                    if (!flattenedProject.AvailableScriptCommands.ContainsKey(command))
+                    {
+                        Tracing.Logger.Log.ProjectIsIgnoredScriptIsMissing(
+                                    m_context.LoggingContext, Location.FromFile(flattenedProject.ProjectFolder.ToString(m_context.PathTable)), flattenedProject.Name, command);
+                        continue;
+                    }
+
+                    var rushProject = RushProject.FromDeserializedProject(command, flattenedProject.AvailableScriptCommands[command], flattenedProject);
+
+                    // Here we check for duplicate projects
+                    if (resolvedProjects.ContainsKey((rushProject.Name, command)))
+                    {
+                        return new RushProjectSchedulingFailure(rushProject,
+                            $"Duplicate project name '{rushProject.Name}' defined in '{rushProject.ProjectFolder.ToString(m_context.PathTable)}' " +
+                            $"and '{resolvedProjects[(rushProject.Name, command)].rushProject.ProjectFolder.ToString(m_context.PathTable)}' for script command '{command}'");
+                    }
+                    
+                    resolvedProjects.Add((rushProject.Name, command), (rushProject, flattenedProject));
+                }
             }
 
             // Now resolve dependencies
-            foreach (var flattenedProject in flattenedRushGraph.Projects)
+            foreach (var kvp in resolvedProjects)
             {
-                var resolvedProject = resolvedProjects[flattenedProject.Name];
-                resolvedProject.SetDependencies(flattenedProject.Dependencies.Select(name => resolvedProjects[name]).ToReadOnlyArray());
+                string command = kvp.Key.command;
+                RushProject rushProject = kvp.Value.rushProject;
+                DeserializedRushProject deserializedProject = kvp.Value.deserializedRushProject;
+
+                if (!m_computedCommands.TryGetValue(command, out IReadOnlyList<IRushCommandDependency> dependencies))
+                {
+                    Contract.Assume(false, $"The command {command} is expected to be part of the computed commands");
+                }
+
+                var projectDependencies = new List<RushProject>();
+                foreach (IRushCommandDependency dependency in dependencies)
+                {
+                    // If it is a local dependency, add a dependency to the same rush project and the specified command
+                    if (dependency.IsLocalKind())
+                    {
+                        // Skip if it is not defined but log
+                        if (!resolvedProjects.TryGetValue((rushProject.Name, dependency.Command), out var value))
+                        {
+                            Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
+                                m_context.LoggingContext, Location.FromFile(rushProject.ProjectFolder.ToString(m_context.PathTable)), rushProject.Name, rushProject.ScriptCommandName, rushProject.Name, dependency.Command);
+                            continue;
+                        }
+
+                        projectDependencies.Add(value.rushProject);
+                    }
+                    else
+                    {
+                        // Otherwise add a dependency on all the package dependencies with the specified command
+                        var packageDependencies = resolvedProjects[(rushProject.Name, command)].deserializedRushProject.Dependencies;
+
+                        foreach (string packageDependencyName in packageDependencies)
+                        {
+                            // Skip if it is not defined but log
+                            if (!resolvedProjects.TryGetValue((packageDependencyName, dependency.Command), out var value))
+                            {
+                                Tracing.Logger.Log.DependencyIsIgnoredScriptIsMissing(
+                                    m_context.LoggingContext, Location.FromFile(rushProject.ProjectFolder.ToString(m_context.PathTable)), rushProject.Name, rushProject.ScriptCommandName, packageDependencyName, dependency.Command);
+                                continue;
+                            }
+
+                            projectDependencies.Add(value.rushProject);
+                        }
+                    }
+                }
+                
+                rushProject.SetDependencies(projectDependencies);
             }
 
-            return new RushGraph(resolvedProjects.Values);
+            return new RushGraph(new List<RushProject>(resolvedProjects.Values.Select(kvp => kvp.rushProject)));
         }
     }
 }

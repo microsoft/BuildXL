@@ -13,9 +13,6 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
     /// <summary>
     /// A version of a rush project where the collection of dependencies is generic.
     /// </summary>
-    /// <remarks>
-    /// Useful for deserializing a build graph where dependencies are specified as strings, and to reuse it when the actual graph gets computed
-    /// </remarks>
     [DebuggerDisplay("{Name}")]
     public class GenericRushProject<TDepedency>
     {
@@ -24,10 +21,9 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             string name,
             AbsolutePath projectFolder,
             [CanBeNull] IReadOnlyCollection<TDepedency> dependencies,
-            [CanBeNull] string buildCommand,
             AbsolutePath tempFolder,
             [CanBeNull] IReadOnlyCollection<AbsolutePath> additionalOutputDirectories)
-        {
+        {   
             Contract.RequiresNotNullOrEmpty(name);
             Contract.Requires(projectFolder.IsValid);
             Contract.Requires(tempFolder.IsValid);
@@ -35,7 +31,6 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             Name = name;
             ProjectFolder = projectFolder;
             Dependencies = dependencies;
-            BuildCommand = buildCommand;
             TempFolder = tempFolder;
             AdditionalOutputDirectories = additionalOutputDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>();
         }
@@ -51,9 +46,6 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
 
         /// <nodoc/>
         public IReadOnlyCollection<TDepedency> Dependencies { get; internal set; }
-
-        /// <nodoc/>
-        public string BuildCommand { get; }
 
         /// <nodoc/>
         public AbsolutePath TempFolder { get; }

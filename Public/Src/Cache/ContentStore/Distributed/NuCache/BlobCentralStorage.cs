@@ -14,23 +14,27 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tasks;
+using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage.RetryPolicies;
+using ExponentialRetry = Microsoft.WindowsAzure.Storage.RetryPolicies.ExponentialRetry;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
     /// An <see cref="CentralStorage"/> backed by Azure blob storage.
     /// </summary>
-    public class BlobCentralStorage : CentralStorage
+    public class BlobCentralStorage : CentralStorage, ITransientErrorDetectionStrategy
     {
         private readonly (CloudBlobContainer container, int shardId)[] _containers;
         private readonly bool[] _containersCreated;
 
         private readonly BlobCentralStoreConfiguration _configuration;
         private readonly PassThroughFileSystem _fileSystem = new PassThroughFileSystem();
+        private readonly RetryPolicy _blobStorageRetryStrategy;
 
         private DateTime _lastGcTime = DateTime.MinValue;
 
@@ -63,6 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _containers.Shuffle();
 
             _containersCreated = new bool[_configuration.Credentials.Count];
+            _blobStorageRetryStrategy = new RetryPolicy(this, RetryStrategy.DefaultExponential);
         }
 
         /// <inheritdoc />
@@ -74,31 +79,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override async Task<BoolResult> TryGetFileCoreAsync(OperationContext context, string blobName, AbsolutePath targetCheckpointFile)
         {
-            AttemptResult attemptResult = null;
+            BoolResult? attemptResult = null;
             foreach (var (container, shardId) in _containers)
             {
                 using (var fileStream = await _fileSystem.OpenSafeAsync(targetCheckpointFile, FileAccess.Write, FileMode.Create, FileShare.Delete))
                 {
-                    attemptResult = await TryGetShardFileAsync(context, container, shardId, fileStream, blobName, targetCheckpointFile);
-
-                    if (!attemptResult && attemptResult.CanRetry)
+                    try
                     {
-                        Tracer.Debug(context, $@"Failed getting a blob '{_configuration.ContainerName}\{blobName}' from shard #{shardId}: {attemptResult}.");
+                        attemptResult = await _blobStorageRetryStrategy.ExecuteAsync(
+                            () => TryGetShardFileAsync(context, container, shardId, fileStream, blobName, targetCheckpointFile));
+
+                        if (attemptResult)
+                        {
+                            break;
+                        }
                     }
-
-                    if (attemptResult || !attemptResult.CanRetry)
+                    catch (Exception e)
                     {
-                        // Break if the operation succeeded or can not be retried.
-                        break;
+                        bool isRecoverable = IsRecoverableStorageException(e);
+
+                        attemptResult = new BoolResult(e);
+                        Tracer.Debug(context, $@"Failed getting a blob '{_configuration.ContainerName}\{blobName}' from shard #{shardId}: {attemptResult}.");
+
+                        if (!isRecoverable)
+                        {
+                            break;
+                        }
                     }
                 }
             }
 
             Contract.Check(attemptResult != null)?.Assert($"BlobCentralStorage should have at least one container but has '{_containers.Length}'.");
-            return (BoolResult)attemptResult;
+            return attemptResult!;
         }
 
-        private async Task<AttemptResult> TryGetShardFileAsync(
+        private async Task<BoolResult> TryGetShardFileAsync(
             OperationContext context,
             CloudBlobContainer container,
             int shardId,
@@ -106,46 +121,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             string blobName,
             AbsolutePath targetCheckpointFile)
         {
-            try
-            {
-                AttemptResult result = await TaskUtilities.WithTimeoutAsync(async token =>
-                    {
-                        var blob = container.GetBlockBlobReference(blobName);
-                        var exists = await blob.ExistsAsync(null, null, token);
-
-                        if (exists)
-                        {
-                            _fileSystem.CreateDirectory(targetCheckpointFile.Parent);
-
-                            Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
-
-                            await blob.DownloadToStreamAsync(fileStream, null, DefaultBlobStorageRequestOptions, null, token);
-                        }
-                        else
-                        {
-                            // The blob may be missing, because we could've picked the new shard.
-                            return AttemptResult.RecoverableError(errorMessage: $@"Checkpoint blob '{_configuration.ContainerName}\{blobName}' does not exist in shard #{shardId}.");
-                        }
-
-                        return AttemptResult.SuccessResult;
-                    },
-                    _configuration.OperationTimeout,
-                    context.Token);
-
-                return result;
-            }
-            catch (Exception e)
-            {
-                bool isRecoverable = IsRecoverableStorageException(e);
-                if (isRecoverable)
+            BoolResult result = await TaskUtilities.WithTimeoutAsync(async token =>
                 {
-                    // Non recoverable error would be traced differently as part of the operation result,
-                    // but we need to trace recoverable errors as well for potential further analysis.
-                    Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' failed with recoverable exception: {e}.");
-                }
+                    var blob = container.GetBlockBlobReference(blobName);
+                    var exists = await blob.ExistsAsync(null, null, token);
 
-                return AttemptResult.FromException(isRecoverable, e, context.Token);
-            }
+                    if (!exists)
+                    {
+                        // The blob may be missing, because we could've picked the new shard.
+                        return new BoolResult($@"Recoverable error: Checkpoint blob '{_configuration.ContainerName}\{blobName}' does not exist in shard #{shardId}.");
+                    }
+
+                    _fileSystem.CreateDirectory(targetCheckpointFile.Parent);
+
+                    Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
+
+                    await blob.DownloadToStreamAsync(fileStream, null, DefaultBlobStorageRequestOptions, null, token);
+
+                    return BoolResult.Success;
+                },
+                _configuration.OperationTimeout,
+                context.Token);
+
+            return result;
         }
 
         private static bool IsRecoverableStorageException(Exception e)
@@ -292,7 +290,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 int totalNumberOfBlobs = 0;
                 int numberOfDeletedBlobs = 0;
 
-                BlobContinuationToken continuationToken = null;
+                BlobContinuationToken? continuationToken = null;
                 while (true)
                 {
                     var result = await container.ListBlobsSegmentedAsync(
@@ -348,44 +346,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return block.Properties.LastModified?.UtcDateTime;
         }
 
-        private class AttemptResult : BoolResult
-        {
-            /// <inheritdoc />
-            public AttemptResult(ResultBase other, string message = null)
-                : base(other, message)
-            {
-            }
-
-            /// <inheritdoc />
-            private AttemptResult()
-                : base(succeeded: true)
-            {
-            }
-
-            /// <inheritdoc />
-            private AttemptResult(bool canRetry, string errorMessage, string diagnostics = null)
-                : base(errorMessage, diagnostics)
-            {
-                CanRetry = canRetry;
-            }
-
-            /// <inheritdoc />
-            private AttemptResult(bool canRetry, Exception exception, string message = null)
-                : base(exception, message)
-            {
-                CanRetry = canRetry;
-            }
-
-            public bool CanRetry { get; }
-
-            public static AttemptResult SuccessResult { get; } = new AttemptResult();
-            public static AttemptResult FromResult(ResultBase other) => other.Succeeded ? SuccessResult : new AttemptResult(other);
-            public static AttemptResult RecoverableError(string errorMessage) => new AttemptResult(canRetry: true, errorMessage: errorMessage);
-            public static AttemptResult FromException(bool isRecoverable, Exception exception, CancellationToken contextToken) =>
-                new AttemptResult(isRecoverable, exception)
-                {
-                    IsCancelled = contextToken.IsCancellationRequested && NonCriticalForCancellation(exception)
-                };
-        }
+        /// <inheritdoc />
+        public bool IsTransient(Exception ex) => IsRecoverableStorageException(ex);
     }
 }

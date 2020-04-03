@@ -66,8 +66,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal RedisContentLocationStoreConfiguration Configuration => _configuration;
         private readonly RedisContentLocationStoreConfiguration _configuration;
 
-        internal RedisBlobAdapter BlobAdapter => _blobAdapter;
-        private readonly RedisBlobAdapter _blobAdapter;
+        internal RedisBlobAdapter PrimaryBlobAdapter => _primaryBlobAdapter;
+        private readonly RedisBlobAdapter _primaryBlobAdapter;
+        internal RedisBlobAdapter SecondaryBlobAdapter => _secondaryBlobAdapter;
+        private readonly RedisBlobAdapter _secondaryBlobAdapter;
 
         private Role? _role = null;
 
@@ -104,7 +106,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _masterLeaseKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".MasterLease", this, _clock, _raidedRedis);
             _clusterStateKey = new ReplicatedRedisHashKey(checkpointKeyBase + ".ClusterState", this, _clock, _raidedRedis);
 
-            _blobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
+            _primaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.PrimaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
+            _secondaryBlobAdapter = new RedisBlobAdapter(_raidedRedis.SecondaryRedisDb, TimeSpan.FromMinutes(_configuration.BlobExpiryTimeMinutes), _configuration.MaxBlobCapacity, _clock);
         }
 
         /// <inheritdoc />
@@ -114,7 +117,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public CounterSet GetCounters(OperationContext context)
         {
             var counters = Counters.ToCounterSet();
-            counters.Merge(_blobAdapter.GetCounters(), "BlobAdapter.");
+            counters.Merge(_primaryBlobAdapter.GetCounters(), "PrimaryBlobAdapter.");
+            counters.Merge(_secondaryBlobAdapter.GetCounters(), "SecondaryBlobAdapter.");
             counters.Merge(_raidedRedis.GetCounters(context, _role, Counters[GlobalStoreCounters.InfoStats]));
             return counters;
         }
@@ -618,7 +622,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return context.PerformOperationAsync(
                 Tracer,
-                () =>_blobAdapter.PutBlobAsync(context, hash, blob),
+                () => GetBlobAdapter(hash).PutBlobAsync(context, hash, blob),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.PutBlob]);
         }
@@ -630,9 +634,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return context.PerformOperationAsync(
                 Tracer,
-                () => TaskUtilities.WithTimeoutAsync(_ => _blobAdapter.GetBlobAsync(context, hash), _configuration.GetBlobTimeout, context.Token),
+                () => TaskUtilities.WithTimeoutAsync(_ => GetBlobAdapter(hash).GetBlobAsync(context, hash), _configuration.GetBlobTimeout, context.Token),
                 traceOperationStarted: false,
                 counter: Counters[GlobalStoreCounters.GetBlob]);
         }
+
+        internal RedisBlobAdapter GetBlobAdapter(ContentHash hash)
+        {
+            if (!_raidedRedis.HasSecondary)
+            {
+                return _primaryBlobAdapter;
+            }
+
+            return hash[0] >= 128 ? _primaryBlobAdapter : _secondaryBlobAdapter;
+        } 
     }
 }

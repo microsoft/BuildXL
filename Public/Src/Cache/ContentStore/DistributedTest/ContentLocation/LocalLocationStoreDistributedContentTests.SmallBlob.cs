@@ -158,9 +158,9 @@ namespace ContentStoreTest.Distributed.Sessions
                     await session0.PutContentAsync(context, fileString).ShouldBeSuccess();
                     Assert.Equal(1, redisStore0.Counters[GlobalStoreCounters.PutBlob].Value);
 
-                    await session1.PutContentAsync(context, fileString).ShouldBeSuccess();
+                    var result = await session1.PutContentAsync(context, fileString).ShouldBeSuccess();
                     Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.PutBlob].Value);
-                    Assert.Equal(1, redisStore1.BlobAdapter.Counters[RedisBlobAdapter.RedisBlobAdapterCounters.SkippedBlobs].Value);
+                    Assert.Equal(1, redisStore1.GetBlobAdapter(result.ContentHash).Counters[RedisBlobAdapter.RedisBlobAdapterCounters.SkippedBlobs].Value);
                 });
         }
 
@@ -191,7 +191,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     Assert.True(deleted, $"Could not delete {blobKey} because it does not exist.");
 
                     var openStreamResult = await session1.OpenStreamAsync(context, putResult.ContentHash, CancellationToken.None).ShouldBeSuccess();
-                    Assert.Equal(0, redisStore1.BlobAdapter.Counters[RedisBlobAdapter.RedisBlobAdapterCounters.DownloadedBlobs].Value);
+                    Assert.Equal(0, redisStore1.GetBlobAdapter(putResult.ContentHash).Counters[RedisBlobAdapter.RedisBlobAdapterCounters.DownloadedBlobs].Value);
                     Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.PutBlob].Value);
                 });
         }

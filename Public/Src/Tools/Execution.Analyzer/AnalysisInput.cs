@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -11,6 +12,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Execution.Analyzer
@@ -97,8 +99,18 @@ namespace BuildXL.Execution.Analyzer
                 ? cachedGraphDirectory
                 : Path.Combine(Path.GetDirectoryName(ExecutionLogPath), Path.GetFileNameWithoutExtension(ExecutionLogPath));
 
-            CachedGraph = CachedGraph.LoadAsync(CachedGraphDirectory, loggingContext, preferLoadingEngineCacheInMemory: true, readStreamProvider: StreamProvider).GetAwaiter().GetResult();
-
+            using (ConsoleEventListener listener = new ConsoleEventListener(Events.Log, DateTime.UtcNow,
+                eventMask: new EventMask(
+                    enabledEvents: null, 
+                    disabledEvents: new int[] 
+                    { 
+                        (int)BuildXL.Engine.Tracing.LogEventId.DeserializedFile, // Don't log anything for success
+                    })
+                ))
+            {
+                listener.RegisterEventSource(BuildXL.Engine.ETWLogger.Log);
+                CachedGraph = CachedGraph.LoadAsync(CachedGraphDirectory, loggingContext, preferLoadingEngineCacheInMemory: true, readStreamProvider: StreamProvider).GetAwaiter().GetResult();
+            }
             if (CachedGraph == null)
             {
                 return false;

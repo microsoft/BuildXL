@@ -2423,12 +2423,14 @@ namespace BuildXL.Scheduler
             // If ram resources are not available, the scheduler is throttled (effectiveprocessslots becoming 1) and 
             // we cancel the running ones.  
 
-            if (LocalWorker.TotalRamMb == null)
+            if (LocalWorker.TotalRamMb == null && m_perfInfo.AvailableRamMb.HasValue)
             {
-                // TotalRam represent the available size at the beginning of the build; not the total size.
-                LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb;
+                // TotalRam represent the available size at the beginning of the build. 
+                // Because graph construction can consume a large memory as a part of BuildXL process,
+                // we add ProcessWorkingSetMb to the current available ram. 
+                LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb + m_perfInfo.ProcessWorkingSetMB;
             }
-
+            
             if (perfInfo.RamUsagePercentage != null)
             {
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective

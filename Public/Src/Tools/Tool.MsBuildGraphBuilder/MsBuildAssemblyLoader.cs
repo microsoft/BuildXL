@@ -30,6 +30,7 @@ namespace MsBuildGraphBuilderTool
         private const string MicrosoftBuildUtilities = "Microsoft.Build.Utilities.Core.dll";
         private const string SystemCollectionsImmutable = "System.Collections.Immutable.dll";
         private const string SystemThreadingDataflow = "System.Threading.Tasks.Dataflow.dll";
+        private const string SystemMemory = "System.Memory.dll";
         private const string CompilerServicesUnsafe = "System.Runtime.CompilerServices.Unsafe.dll";
         private const string NumericsVectors = "System.Numerics.Vectors.dll";
 
@@ -65,6 +66,7 @@ namespace MsBuildGraphBuilderTool
                 MicrosoftBuildUtilities,
                 SystemCollectionsImmutable,
                 SystemThreadingDataflow,
+                SystemMemory,
                 CompilerServicesUnsafe,
                 NumericsVectors
             };
@@ -72,7 +74,8 @@ namespace MsBuildGraphBuilderTool
             m_optionalAssemblyNames = new[]
             {
                 CompilerServicesUnsafe,
-                NumericsVectors
+                NumericsVectors,
+                SystemMemory
             };
 
             m_assemblyPublicTokens = new Dictionary<string, string>
@@ -83,6 +86,7 @@ namespace MsBuildGraphBuilderTool
                 [MicrosoftBuildUtilities] = MSBuildPublicKeyToken,
                 [SystemCollectionsImmutable] = DotNetPublicToken,
                 [SystemThreadingDataflow] = DotNetPublicToken,
+                [SystemMemory] = DotNetPublicToken,
                 [CompilerServicesUnsafe] = DotNetPublicToken,
                 [NumericsVectors] = DotNetPublicToken
             };

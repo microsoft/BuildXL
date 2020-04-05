@@ -367,7 +367,7 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -423,7 +423,7 @@ namespace Test.BuildXL.Scheduler
             string runNameOrDescription = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             MarkSchedulerRun(runNameOrDescription);
 

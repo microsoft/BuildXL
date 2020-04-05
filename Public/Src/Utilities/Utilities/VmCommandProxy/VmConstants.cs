@@ -75,12 +75,12 @@ namespace BuildXL.Utilities.VmCommandProxy
     }
 
     /// <summary>
-    /// Constants for IO in Vm.
+    /// Constants Vm.
     /// </summary>
     /// <remarks>
     /// These constants constitute a kind of contract between BuildXL and VmCommandProxy.
     /// </remarks>
-    public static class VmIOConstants
+    public static class VmConstants
     {
         /// <summary>
         /// IO for temporary folder.

@@ -19,7 +19,7 @@ namespace Test.BuildXL.Utilities
         {
             EnsureRunInVm(() =>
             {
-                XAssert.AreEqual(VmIOConstants.UserProfile.Name, Environment.UserName);
+                XAssert.AreEqual(VmConstants.UserProfile.Name, Environment.UserName);
             });
         }
 
@@ -29,7 +29,7 @@ namespace Test.BuildXL.Utilities
             EnsureRunInVm(() =>
             {
                 XAssert.AreEqual(
-                    VmIOConstants.UserProfile.Path.ToUpperInvariant(),
+                    VmConstants.UserProfile.Path.ToUpperInvariant(),
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).ToUpperInvariant());
             });
         }

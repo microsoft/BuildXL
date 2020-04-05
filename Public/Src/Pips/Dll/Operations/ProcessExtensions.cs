@@ -109,9 +109,9 @@ namespace BuildXL.Pips.Operations
         {
             return GetSemaphoreResources(
                 semaphoreSet,
-                semaphores: customSemaphores == null ?
-                    process.Semaphores :
-                    ReadOnlyArray<ProcessSemaphoreInfo>.FromWithoutCopy(process.Semaphores.ConcatAsArray(customSemaphores)),
+                semaphores: customSemaphores == null || customSemaphores.Count == 0
+                    ? process.Semaphores
+                    : ReadOnlyArray<ProcessSemaphoreInfo>.FromWithoutCopy(process.Semaphores.ConcatAsArray(customSemaphores)),
                 getLimit: getLimit);
         }
 

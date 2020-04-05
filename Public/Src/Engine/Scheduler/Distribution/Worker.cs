@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -15,6 +16,7 @@ using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -37,6 +39,11 @@ namespace BuildXL.Scheduler.Distribution
         private const string RamSemaphoreName = "BuildXL.Scheduler.Worker.TotalMemory";
 
         private const string CommitSemaphoreName = "BuildXL.Scheduler.Worker.TotalCommit";
+
+        /// <summary>
+        /// Name of semaphore that controls the number of pips that execute in VM.
+        /// </summary>
+        private const string PipInVmSemaphoreName = "BuildXL.Scheduler.Worker.PipInVm";
 
         /// <summary>
         /// Defines event handler for changes in worker resources
@@ -585,10 +592,21 @@ namespace BuildXL.Scheduler.Distribution
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
         {
+            var semaphores = new List<ProcessSemaphoreInfo>();
+            if (runnableProcess.Process.RequiresAdmin 
+                && runnableProcess.Environment.Configuration.Sandbox.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
+                && runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit > 0)
+            {
+                semaphores.Add(new ProcessSemaphoreInfo(
+                    runnableProcess.Environment.Context.StringTable.AddString(PipInVmSemaphoreName),
+                    1,
+                    runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit));
+            }
+
             if (TotalRamMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
             {
                 // Not tracking working set
-                return null;
+                return semaphores.ToArray();
             }
 
             if (!m_ramSemaphoreNameId.IsValid)
@@ -604,6 +622,8 @@ namespace BuildXL.Scheduler.Distribution
                     usage: expectedMemoryCounters.PeakWorkingSetMb,
                     total: TotalRamMb.Value);
 
+            semaphores.Add(ramSemaphoreInfo);
+
             if (runnableProcess.Environment.Configuration.Schedule.EnableHistoricCommitMemoryProjection)
             {
                 if (!m_commitSemaphoreNameId.IsValid)
@@ -617,10 +637,10 @@ namespace BuildXL.Scheduler.Distribution
                     usage: expectedMemoryCounters.PeakCommitUsageMb,
                     total: TotalCommitMb.Value);
 
-                return new ProcessSemaphoreInfo[] { ramSemaphoreInfo, commitSemaphoreInfo };
+                semaphores.Add(commitSemaphoreInfo);
             }
 
-            return new ProcessSemaphoreInfo[] { ramSemaphoreInfo};
+            return semaphores.ToArray();
         }
 
         /// <summary>

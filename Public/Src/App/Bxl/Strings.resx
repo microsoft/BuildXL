@@ -246,7 +246,7 @@
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
   </data>
-   <data name="HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory" xml:space="preserve">
     <value>When enabled, pips with duplicate temporary directories are allowed. Defaults to false.</value>
   </data>
   <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
@@ -1047,5 +1047,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection" xml:space="preserve">
     <value>Controls whether Scheduler should use commit memory projection based on historic commit memory usage.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
+    <value>Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0.</value>
   </data>
 </root>

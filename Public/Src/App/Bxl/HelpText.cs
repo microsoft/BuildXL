@@ -795,6 +795,11 @@ namespace BuildXL
                 "/adminRequiredProcessExecutionMode:<mode>",
                 Strings.HelpText_DisplayHelp_AdminRequiredProcessExecutionMode,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/vmConcurrencyLimit:<max number of processes executed in VM>",
+                Strings.HelpText_DisplayHelp_VmConcurrencyLimit,
+                HelpLevel.Verbose);
             #endregion
 
             hw.WriteBanner(

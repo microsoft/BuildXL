@@ -24,6 +24,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
@@ -1048,7 +1049,7 @@ namespace BuildXL.Processes
         private void TranslateHostSharedUncDrive(SandboxedProcessInfo info)
         {
             DirectoryTranslator newTranslator = info.FileAccessManifest.DirectoryTranslator?.GetUnsealedClone() ?? new DirectoryTranslator();
-            newTranslator.AddTranslation($@"\\{VmIOConstants.Host.IpAddress}\{VmIOConstants.Host.NetUseDrive}", $@"{VmIOConstants.Host.NetUseDrive}:");
+            newTranslator.AddTranslation($@"\\{VmConstants.Host.IpAddress}\{VmConstants.Host.NetUseDrive}", $@"{VmConstants.Host.NetUseDrive}:");
             newTranslator.Seal();
             info.FileAccessManifest.DirectoryTranslator = newTranslator;
         }
@@ -2087,7 +2088,7 @@ namespace BuildXL.Processes
                     : AbsolutePath.Invalid;
 
                 var vmAdminProfilePath = ShouldSandboxedProcessExecuteInVm
-                    ? AbsolutePath.Create(m_pathTable, VmIOConstants.UserProfile.Path)
+                    ? AbsolutePath.Create(m_pathTable, VmConstants.UserProfile.Path)
                     : AbsolutePath.Invalid;
 
                 foreach (AbsolutePath path in pip.UntrackedPaths)
@@ -2604,7 +2605,7 @@ namespace BuildXL.Processes
             // guaranteed to exist when running locally on desktop.
             string redirectedTempRoot = m_sandboxConfig.RedirectedTempFolderRootForVmExecution.IsValid
                 ? m_sandboxConfig.RedirectedTempFolderRootForVmExecution.ToString(m_pathTable)
-                : VmIOConstants.Temp.Root;
+                : VmConstants.Temp.Root;
 
             // Create a target temp folder in VM, e.g., T:\BxlTemp\D__\Bxl\Out\Object\Pip123\Temp\t_0.
             // Note that this folder may not exist yet in VM. The sandboxed process executor that runs in the VM is responsible for

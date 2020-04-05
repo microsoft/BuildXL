@@ -1239,6 +1239,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "viewer",
                             opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),*/
+                        OptionHandlerFactory.CreateOption(
+                            "vmConcurrencyLimit",
+                            opt => sandboxConfiguration.VmConcurrencyLimit = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),

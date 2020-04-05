@@ -36,6 +36,7 @@ using Xunit.Abstractions;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.Scheduler.Fingerprints;
+using System;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -367,6 +368,7 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
+            Action<TestScheduler> verifySchedulerPostRun = default,
             CancellationToken cancellationToken = default)
         {
             if (m_graphWasModified || LastGraph == null)
@@ -386,6 +388,7 @@ namespace Test.BuildXL.Scheduler
                 constraintExecutionOrder,
                 performanceCollector: performanceCollector,
                 updateStatusTimerEnabled: updateStatusTimerEnabled,
+                verifySchedulerPostRun: verifySchedulerPostRun,
                 cancellationToken: cancellationToken);
         }
 
@@ -423,6 +426,7 @@ namespace Test.BuildXL.Scheduler
             string runNameOrDescription = null,
             PerformanceCollector performanceCollector = null,
             bool updateStatusTimerEnabled = false,
+            Action<TestScheduler> verifySchedulerPostRun = default,
             CancellationToken cancellationToken = default)
         {
             MarkSchedulerRun(runNameOrDescription);
@@ -555,6 +559,9 @@ namespace Test.BuildXL.Scheduler
                     // to write out the stats perf JSON file
                     testScheduler.LogStats(localLoggingContext, null);
                 }
+
+                // Verify internal data of scheduler.
+                verifySchedulerPostRun?.Invoke(testScheduler);
 
                 var runResult = new ScheduleRunResult
                 {

@@ -45,6 +45,8 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private const string PipInVmSemaphoreName = "BuildXL.Scheduler.Worker.PipInVm";
 
+        private static readonly ObjectPool<List<ProcessSemaphoreInfo>> s_semaphoreInfoListPool = Pools.CreateListPool<ProcessSemaphoreInfo>();
+
         /// <summary>
         /// Defines event handler for changes in worker resources
         /// </summary>
@@ -592,55 +594,59 @@ namespace BuildXL.Scheduler.Distribution
 
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
         {
-            var semaphores = new List<ProcessSemaphoreInfo>();
-            if (runnableProcess.Process.RequiresAdmin 
-                && runnableProcess.Environment.Configuration.Sandbox.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
-                && runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit > 0)
+            using (var semaphoreInfoListWrapper = s_semaphoreInfoListPool.GetInstance())
             {
-                semaphores.Add(new ProcessSemaphoreInfo(
-                    runnableProcess.Environment.Context.StringTable.AddString(PipInVmSemaphoreName),
-                    1,
-                    runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit));
-            }
+                var semaphores = semaphoreInfoListWrapper.Instance;
 
-            if (TotalRamMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
-            {
-                // Not tracking working set
-                return semaphores.ToArray();
-            }
-
-            if (!m_ramSemaphoreNameId.IsValid)
-            {
-                m_ramSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(RamSemaphoreName);
-                m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
-            }
-
-            var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
-
-            var ramSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
-                    m_ramSemaphoreNameId,
-                    usage: expectedMemoryCounters.PeakWorkingSetMb,
-                    total: TotalRamMb.Value);
-
-            semaphores.Add(ramSemaphoreInfo);
-
-            if (runnableProcess.Environment.Configuration.Schedule.EnableHistoricCommitMemoryProjection)
-            {
-                if (!m_commitSemaphoreNameId.IsValid)
+                if (runnableProcess.Process.RequiresAdmin
+                    && runnableProcess.Environment.Configuration.Sandbox.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
+                    && runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit > 0)
                 {
-                    m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
-                    m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+                    semaphores.Add(new ProcessSemaphoreInfo(
+                        runnableProcess.Environment.Context.StringTable.AddString(PipInVmSemaphoreName),
+                        value: 1,
+                        limit: runnableProcess.Environment.Configuration.Sandbox.VmConcurrencyLimit));
                 }
 
-                var commitSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
-                    m_commitSemaphoreNameId,
-                    usage: expectedMemoryCounters.PeakCommitUsageMb,
-                    total: TotalCommitMb.Value);
+                if (TotalRamMb == null || runnableProcess.Environment.Configuration.Schedule.UseHistoricalRamUsageInfo != true)
+                {
+                    // Not tracking working set
+                    return semaphores.ToArray();
+                }
 
-                semaphores.Add(commitSemaphoreInfo);
+                if (!m_ramSemaphoreNameId.IsValid)
+                {
+                    m_ramSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(RamSemaphoreName);
+                    m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+                }
+
+                var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
+
+                var ramSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
+                        m_ramSemaphoreNameId,
+                        usage: expectedMemoryCounters.PeakWorkingSetMb,
+                        total: TotalRamMb.Value);
+
+                semaphores.Add(ramSemaphoreInfo);
+
+                if (runnableProcess.Environment.Configuration.Schedule.EnableHistoricCommitMemoryProjection)
+                {
+                    if (!m_commitSemaphoreNameId.IsValid)
+                    {
+                        m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
+                        m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+                    }
+
+                    var commitSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
+                        m_commitSemaphoreNameId,
+                        usage: expectedMemoryCounters.PeakCommitUsageMb,
+                        total: TotalCommitMb.Value);
+
+                    semaphores.Add(commitSemaphoreInfo);
+                }
+
+                return semaphores.ToArray();
             }
-
-            return semaphores.ToArray();
         }
 
         /// <summary>

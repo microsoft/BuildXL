@@ -4,6 +4,7 @@
 using System.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -42,9 +43,13 @@ namespace ExternalToolTest.BuildXL.Scheduler
                 SchedulePipBuilder(builder);
             }
 
-            RunScheduler().AssertSuccess();
-            string result = File.ReadAllText(ArtifactToString(shared));
-            XAssert.AreEqual(new string('#', PipCount), result);
+            RunScheduler(
+                verifySchedulerPostRun: ts => 
+                {
+                    XAssert.AreEqual(1, ts.MaxExternalProcessesRan);
+                }).AssertSuccess();
+            string sharedFileContent = File.ReadAllText(ArtifactToString(shared));
+            XAssert.AreEqual(new string('#', PipCount), sharedFileContent);
         }
     }
 }

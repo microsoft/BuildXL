@@ -10,6 +10,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
@@ -373,7 +374,7 @@ namespace BuildXL.Execution.Analyzer
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Error.WriteLine("ERROR: " + e.Message);
             Console.ForegroundColor = originalColor;
-            var path = Path.GetTempFileName();
+            var path = FileUtilities.GetTempFileName();
             File.WriteAllText(path, e.ToString());
             Console.WriteLine("Full stack trace saved to " + path);
         }

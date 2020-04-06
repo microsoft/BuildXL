@@ -526,7 +526,7 @@ namespace BuildXL.Native.IO.Unix
             // doing this create/delete/move dance to ensure that the replacement file at location 'path' gets
             // a new inode and thus have a different identity from the old one (on EXT4 filesystems, a simple
             // "rm file && touch file" is very likely to result in 'file' getting the same inode as it had before)
-            var tempFile = Path.GetTempFileName();
+            var tempFile = FileUtilities.GetTempFileName();
             DeleteFile(path, waitUntilDeletionFinished: true);
             MoveFileAsync(tempFile, path).GetAwaiter().GetResult();
 

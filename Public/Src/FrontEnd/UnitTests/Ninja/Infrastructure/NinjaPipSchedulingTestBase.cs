@@ -18,6 +18,7 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Native.IO;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
@@ -41,7 +42,7 @@ namespace Test.BuildXL.FrontEnd.Ninja.Infrastructure
     {
         private readonly ModuleDefinition m_testModule;
         private readonly AbsolutePath m_configFilePath;
-        protected string BogusExecutable = Path.GetTempFileName();
+        protected string BogusExecutable = FileUtilities.GetTempFileName();
 
         /// <summary>
         /// <see cref="CmdHelper.CmdX64"/>

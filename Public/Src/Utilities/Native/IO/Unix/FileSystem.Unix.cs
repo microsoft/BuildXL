@@ -1115,7 +1115,7 @@ namespace BuildXL.Native.IO.Unix
         private bool SupportPreciseFileVersion()
         {
             // Use temp file name as an approximation whether file system supports precise file version.
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
             bool result = false;
 
             using (var fileStream = CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, FileOptions.None, false))
@@ -1153,7 +1153,7 @@ namespace BuildXL.Native.IO.Unix
         private bool SupportCopyOnWrite()
         {
             // Use temp file name as an approximation whether file system supports copy-on-write.
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
             bool result = false;
 
             using (var fileStream = CreateFileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, FileOptions.None, false))

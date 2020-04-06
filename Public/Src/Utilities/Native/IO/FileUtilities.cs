@@ -773,7 +773,26 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileSystem.GetFullPath(string)"/>
         public static string GetFullPath(string path) => s_fileSystem.GetFullPath(path);
 
-#endregion
+        /// <summary>
+        /// Returns a unique temporary file name, and creates a 0-byte file by that name on disk.
+        /// </summary>
+        /// <remarks>
+        /// This method functions like <see cref="Path.GetTempFileName()"/>, i.e., it creates a unqiue temp file and returns its name with full path.
+        /// <see cref="Path.GetTempFileName()"/> uses the combination a hardcoded prefix and a 4-letter random number as the file name. 
+        /// If the file already exist, it will loop to create a new random number until it finds a name of a file doesn't exist. 
+        /// This API is shared. If any of the managed process doesn't clean up their temp files, it will affect our performance and we might possibly get access denial. 
+        /// So we implement this API to replace <see cref="Path.GetTempFileName()"/>. 
+        /// We use Guid.NewGuid().ToString() as part of the file name to make sure the uniqueness.
+        /// </remarks>
+        public static string GetTempFileName()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "bxl_" + Guid.NewGuid().ToString() + ".tmp");
+            using var fileStream = File.Create(path);
+            fileStream.Close();
+            return path;
+        }
+
+        #endregion
 
         #region Journaling functions
 

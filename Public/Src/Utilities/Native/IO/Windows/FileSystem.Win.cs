@@ -1058,8 +1058,8 @@ namespace BuildXL.Native.IO.Windows
         /// </remarks>
         private bool CheckSupportUnprivilegedCreateSymbolicLinkFlag()
         {
-            var tempTarget = Path.GetTempFileName();
-            var tempLink = Path.GetTempFileName();
+            var tempTarget = FileUtilities.GetTempFileName();
+            var tempLink = FileUtilities.GetTempFileName();
             DeleteFile(tempLink, true);
             CreateSymbolicLinkW(tempLink, tempTarget, SymbolicLinkTarget.File | SymbolicLinkTarget.AllowUnprivilegedCreate);
             int lastError = Marshal.GetLastWin32Error();

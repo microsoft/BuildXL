@@ -24,7 +24,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <returns>An instance of <see cref="IChangeJournalAccessor"/>.</returns>
         public static Possible<IChangeJournalAccessor> TryGetJournalAccessorForTest(VolumeMap volumeMap)
         {
-            string path = Path.GetTempFileName();
+            string path = FileUtilities.GetTempFileName();
 
             var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(volumeMap, path);
 

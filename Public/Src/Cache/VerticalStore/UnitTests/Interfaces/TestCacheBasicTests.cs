@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage.Fingerprints;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -645,7 +646,7 @@ namespace BuildXL.Cache.Tests
             string origionalFileContents = "foo";
             CasHash hash;
 
-            string filePath = Path.GetTempFileName();
+            string filePath = FileUtilities.GetTempFileName();
             try
             {
                 using (StreamWriter sw = new StreamWriter(filePath))

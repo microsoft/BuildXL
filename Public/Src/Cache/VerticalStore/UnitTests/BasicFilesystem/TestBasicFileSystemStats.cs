@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
+using BuildXL.Native.IO;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -74,7 +75,7 @@ namespace BuildXL.Cache.Tests
         {
             long result;
 
-            var tmpFile = Path.GetTempFileName();
+            var tmpFile = FileUtilities.GetTempFileName();
             try
             {
                 await session.ProduceFileAsync(hash, tmpFile, FileState.ReadOnly).SuccessAsync();
@@ -253,7 +254,7 @@ namespace BuildXL.Cache.Tests
         {
             string testName = nameof(TestCacheDisconnectedStat);
 
-            var tmpFileName = Path.GetTempFileName();
+            var tmpFileName = FileUtilities.GetTempFileName();
             FileStream tempFile = null;
             try
             {

@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using BuildXL.Native.IO;
 
 namespace BuildXL.Engine
 {
@@ -39,7 +40,7 @@ namespace BuildXL.Engine
 
         public static bool RunDiskPart(string scriptText)
         {
-            var scriptFileName = Path.GetTempFileName();
+            var scriptFileName = FileUtilities.GetTempFileName();
             File.WriteAllText(scriptFileName, scriptText);
             var process = Process.Start(new ProcessStartInfo("diskpart", string.Format(CultureInfo.InvariantCulture, "/s \"{0}\"", scriptFileName))
             {

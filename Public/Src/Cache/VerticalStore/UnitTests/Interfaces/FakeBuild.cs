@@ -8,6 +8,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -346,7 +347,7 @@ namespace BuildXL.Cache.Tests
                     return await session.AddToCasAsync(fileStream);
 
                 case CasAccessMethod.FileSystem:
-                    string filePath = Path.GetTempFileName();
+                    string filePath = FileUtilities.GetTempFileName();
 
                     using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Write, FileShare.Delete))
                     {

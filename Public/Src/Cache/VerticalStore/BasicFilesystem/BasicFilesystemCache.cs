@@ -556,7 +556,7 @@ namespace BuildXL.Cache.BasicFilesystem
             {
                 try
                 {
-                    return Path.GetTempFileName();
+                    return FileUtilities.GetTempFileName();
                 }
                 catch (UnauthorizedAccessException)
                 {
@@ -579,7 +579,7 @@ namespace BuildXL.Cache.BasicFilesystem
 
             // One last try that will then surface the error
             // if it has not recovered
-            return Path.GetTempFileName();
+            return FileUtilities.GetTempFileName();
         }
 
         /// <summary>

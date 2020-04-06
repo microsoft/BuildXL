@@ -84,8 +84,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 if (!s_canCreateSymlink.HasValue)
                 {
-                    string tempFile = Path.GetTempFileName();
-                    string symlinkPath = Path.GetTempFileName();
+                    string tempFile = FileUtilities.GetTempFileName();
+                    string symlinkPath = FileUtilities.GetTempFileName();
                     FileUtilities.DeleteFile(symlinkPath);
 
                     // For reliable tests, we ensure that the symlink is created.

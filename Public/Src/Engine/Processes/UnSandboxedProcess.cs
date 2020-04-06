@@ -320,7 +320,7 @@ namespace BuildXL.Processes
             FilePermissions exePermission = FilePermissions.S_IXUSR;
             if (!filePermissions.HasFlag(exePermission))
             {
-                SetFilePermissionsForFilePath(info.FileName, exePermission);
+                SetFilePermissionsForFilePath(info.FileName, (filePermissions | exePermission));
             }
 #endif
 

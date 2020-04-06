@@ -205,28 +205,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private IEnumerable<EventData> SerializeCore(OperationContext context, IReadOnlyList<ContentLocationEventData> eventDatas)
         {
             // TODO: Maybe a serialization format header. (bug 1365340)
-            var splittedEventEntries = SplitLargeInstancesIfNeeded(eventDatas);
+            var splitLargeInstancesIfNeeded = SplitLargeInstancesIfNeeded(context, eventDatas);
 
-            if (splittedEventEntries.Count != eventDatas.Count)
+            if (splitLargeInstancesIfNeeded.Count != eventDatas.Count)
             {
-                context.TraceDebug($"{Prefix}: split {eventDatas.Count} to {splittedEventEntries.Count} because of size restrictions.");
+                context.TraceDebug($"{Prefix}: split {eventDatas.Count} to {splitLargeInstancesIfNeeded.Count} because of size restrictions.");
             }
 
             using (_writer.PreservePosition())
             {
                 int currentCount = 0;
 
-                while (currentCount < splittedEventEntries.Count)
+                while (currentCount < splitLargeInstancesIfNeeded.Count)
                 {
                     long oldOffset = _writer.Buffer.Position;
 
-                    splittedEventEntries[currentCount].Serialize(_writer.Writer);
+                    splitLargeInstancesIfNeeded[currentCount].Serialize(_writer.Writer);
 
                     long newOffset = _writer.Buffer.Position;
                     long eventSize = newOffset - oldOffset;
 
-                    Contract.Check(eventSize <= MaxEventDataPayloadSize)?.Assert($"No mitigation for single {splittedEventEntries[currentCount].Kind} event that is too large");
-                    bool isLast = currentCount == (splittedEventEntries.Count - 1);
+                    Contract.Check(eventSize <= MaxEventDataPayloadSize)?.Assert($"No mitigation for single {splitLargeInstancesIfNeeded[currentCount].Kind} event that is too large");
+                    bool isLast = currentCount == (splitLargeInstancesIfNeeded.Count - 1);
                     bool isOverflow = newOffset > MaxEventDataPayloadSize;
 
                     if (isOverflow || isLast)
@@ -292,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public static IReadOnlyList<ContentLocationEventData> SplitLargeInstancesIfNeeded(IReadOnlyList<ContentLocationEventData> source)
+        public static IReadOnlyList<ContentLocationEventData> SplitLargeInstancesIfNeeded(OperationContext context, IReadOnlyList<ContentLocationEventData> source)
         {
             var estimatedSizes = source.Select(e => e.EstimateSerializedInstanceSize()).ToList();
             if (!estimatedSizes.Any(es => es > MaxEventDataPayloadSize))
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     // Splitting the incoming instances only if their estimated size is greater then the max payload size.
                     if (estimatedSizes[i] > MaxEventDataPayloadSize)
                     {
-                        foreach (var entry in source[i].Split(MaxEventDataPayloadSize))
+                        foreach (var entry in source[i].Split(context, MaxEventDataPayloadSize))
                         {
                             yield return entry;
                         }

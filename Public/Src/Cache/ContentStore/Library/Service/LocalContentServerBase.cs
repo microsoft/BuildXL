@@ -704,18 +704,18 @@ namespace BuildXL.Cache.ContentStore.Service
         private void TrySetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
+            if (Logger is IOperationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
             {
-                operationLogger.RegisterBuildId(buildId);
+                Logger.RegisterBuildId(buildId);
             }
         }
 
         private void TryUnsetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out _))
+            if (Logger is IOperationLogger && Constants.TryExtractBuildId(sessionName, out _))
             {
-                operationLogger.UnregisterBuildId();
+                Logger.UnregisterBuildId();
             }
         }
 

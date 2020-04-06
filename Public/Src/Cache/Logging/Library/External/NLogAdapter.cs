@@ -137,7 +137,7 @@ namespace BuildXL.Cache.Logging.External
         public void Log(Severity severity, string correlationId, string message)
         {
             var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: message);
-            logLine.Properties[MetaData.OperationCorrelationId] = correlationId;
+            logLine.Properties[MetaData.CorrelationId] = correlationId;
 
             _nlog.Log(logLine);
 
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.Logging.External
 
             var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: result.Message);
             logLine.Exception = result.Exception;
-            logLine.Properties[MetaData.OperationCorrelationId] = result.OperationId;
+            logLine.Properties[MetaData.CorrelationId] = result.OperationId;
             logLine.Properties[MetaData.OperationName] = result.OperationName;
             logLine.Properties[MetaData.OperationComponent] = result.TracerName;
             // Arguments can take arbitrary information. It should be space separated
@@ -352,7 +352,7 @@ namespace BuildXL.Cache.Logging.External
         public class MetaData
         {
             /// <nodoc />
-            public const string OperationCorrelationId = nameof(OperationCorrelationId);
+            public const string CorrelationId = nameof(CorrelationId);
 
             /// <nodoc />
             public const string OperationComponent = nameof(OperationComponent);

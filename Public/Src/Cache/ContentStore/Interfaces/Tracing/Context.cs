@@ -260,23 +260,43 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <nodoc />
         public void RegisterBuildId(string buildId)
         {
-            if (Logger is IOperationLogger operationLogger)
-            {
-                operationLogger.RegisterBuildId(buildId);
-            }
-
-            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, buildId);
+            Logger.RegisterBuildId(buildId);
         }
 
         /// <nodoc />
         public void UnregisterBuildId()
         {
-            if (Logger is IOperationLogger operationLogger)
+            Logger.UnregisterBuildId();
+        }
+    }
+
+    /// <nodoc />
+    public static class LoggerExtensions
+    {
+        /// <summary>
+        /// Sets build id as an ambient information used by tracing infrastructure.
+        /// </summary>
+        public static void RegisterBuildId(this ILogger logger, string buildId)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, buildId);
+
+            if (logger is IOperationLogger operationLogger)
+            {
+                operationLogger.RegisterBuildId(buildId);
+            }
+        }
+
+        /// <summary>
+        /// Clears an existing build id set by <see cref="RegisterBuildId"/>.
+        /// </summary>
+        public static void UnregisterBuildId(this ILogger logger)
+        {
+            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, value: null);
+
+            if (logger is IOperationLogger operationLogger)
             {
                 operationLogger.UnregisterBuildId();
             }
-
-            GlobalInfoStorage.SetGlobalInfo(GlobalInfoKey.BuildId, value: null);
         }
     }
 }

@@ -27,14 +27,20 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; }
         
         /// <summary>
-        /// A Rush command where depedencies on other commands can be explicitly provided
+        /// A collection of Rush command to execute, where depedencies on other commands can be explicitly provided
         /// E.g. {command: "test", dependsOn: {kind: "local", command: "build"}}
         /// makes the 'test' script depend on the 'build' script of the same project.
         /// Dependencies on other commands of direct dependencies can be specified as well.For example:
         /// {command: "localize", dependsOn: {kind: "project", command: "build"}} makes the 'localize' script depend on 
         /// the 'build' script of all of the project declared dependencies
         /// </summary>
-        IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> Commands { get; }
+        IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> Execute { get; }
+
+        /// <summary>
+        /// Defines a collection of custom Rush commands that can later be used as part of 'execute'.
+        /// Allows to extend existing scripts with customized arguments
+        /// </summary>
+        IReadOnlyList<IExtraArgumentsRushScript> CustomCommands { get; }
     }
 
     /// <nodoc/>

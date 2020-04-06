@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
+using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
@@ -38,6 +39,7 @@ namespace BuildXL.FrontEnd.Rush
 
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<RushArgument>> m_customCommands;
 
         private PathTable PathTable => m_context.PathTable;
 
@@ -52,7 +54,8 @@ namespace BuildXL.FrontEnd.Rush
             ModuleDefinition moduleDefinition,
             IRushResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
-            IEnumerable<string> userDefinedPassthroughVariables)
+            IEnumerable<string> userDefinedPassthroughVariables,
+            IReadOnlyDictionary<string, IReadOnlyList<RushArgument>> customCommands)
         {
             Contract.RequiresNotNull(context);
             Contract.RequiresNotNull(frontEndHost);
@@ -60,6 +63,7 @@ namespace BuildXL.FrontEnd.Rush
             Contract.RequiresNotNull(resolverSettings);
             Contract.RequiresNotNull(userDefinedEnvironment);
             Contract.RequiresNotNull(userDefinedPassthroughVariables);
+            Contract.RequiresNotNull(customCommands);
 
             m_context = context;
             m_frontEndHost = frontEndHost;
@@ -67,6 +71,7 @@ namespace BuildXL.FrontEnd.Rush
             m_resolverSettings = resolverSettings;
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
+            m_customCommands = customCommands;
         }
 
         /// <summary>
@@ -298,14 +303,65 @@ namespace BuildXL.FrontEnd.Rush
             var logDirectory = GetLogDirectory(project);
             var logFile = logDirectory.Combine(PathTable, "build.log");
 
-            // Execute the command and redirect the output to a designated log file
-            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("/C"));
-            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
-            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(">"));
-            processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(logFile));
-            processBuilder.AddOutputFile(logFile, FileExistence.Required);
+            using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+            {
+                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString("/C"));
+
+                using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
+                {
+                    // Execute the command and redirect the output to a designated log file
+                    processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(project.ScriptCommand));
+
+                    // If we need to append arguments to the script command, do it here
+                    if (m_customCommands.TryGetValue(project.ScriptCommandName, out IReadOnlyList<RushArgument> extraArguments))
+                    {
+                        foreach (RushArgument value in extraArguments)
+                        {
+                            AddRushArgumentToBuilder(processBuilder.ArgumentsBuilder, value);
+                        }
+                    }
+                }
+
+                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(">"));
+                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(logFile));
+                processBuilder.AddOutputFile(logFile, FileExistence.Required);
+            }
 
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
+        }
+
+        private void AddRushArgumentToBuilder(PipDataBuilder argumentsBuilder, RushArgument value)
+        {
+            switch (value.GetValue())
+            {
+                case string s:
+                    using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, m_context.StringTable.Empty))
+                    {
+                        argumentsBuilder.Add(s);
+                    }
+                    break;
+                case AbsolutePath absolutePath:
+                    using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, m_context.StringTable.Empty))
+                    {
+                        argumentsBuilder.Add(absolutePath);
+                    }
+                    break;
+                case RelativePath relativePath:
+                    using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, m_context.StringTable.Empty))
+                    {
+                        argumentsBuilder.Add(relativePath);
+                    }
+                    break;
+                case PathAtom pathAtom:
+                    using (argumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, m_context.StringTable.Empty))
+                    {
+                        argumentsBuilder.Add(pathAtom);
+                    }
+                    break;
+                default:
+                    Contract.Assert(false, $"Unexpected rush argument '{value.GetType()}'");
+                    break;
+            }
         }
 
         private void AddAdditionalOutputDirectories(ProcessBuilder processBuilder, AbsolutePath projectFolder)

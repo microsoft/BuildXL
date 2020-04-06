@@ -34,14 +34,37 @@ namespace BuildXL.Utilities.Configuration
                 return true;
             }
 
-            // Otherwise, use the assignment relationship
+            // Otherwise, use an 'enhanced' assignment relationship, potentially lifting the target
+            // value to a discriminating union, as if an implicit conversion was defined
             foreach(var allowedType in m_allowedTypes)
             {
-                if (allowedType.IsAssignableFrom(targetType))
+                if (IsAssignableFrom(allowedType, targetType, o, out object liftedObject))
                 {
-                    m_value = o;
+                    m_value = liftedObject;
                     return true;
                 }
+            }
+
+            return false;
+        }
+
+        private bool IsAssignableFrom(Type allowedType, Type targetType, object targetValue, out object liftedTargetValue)
+        {
+            liftedTargetValue = targetValue;
+            // If the allowed type is a discriminating union itself and the target value is not, let's see if we can implicitly
+            // convert it
+            if (allowedType.IsSubclassOf(typeof(DiscriminatingUnion)) && !(targetValue is DiscriminatingUnion))
+            {
+                var union = Activator.CreateInstance(allowedType) as DiscriminatingUnion;
+                if (union.TrySetValue(targetValue))
+                {
+                    liftedTargetValue = union;
+                    return true;
+                }
+            }
+            else
+            {
+                return allowedType.IsAssignableFrom(targetType);
             }
 
             return false;

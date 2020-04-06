@@ -9,6 +9,7 @@ using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.Scheduling;
@@ -90,7 +91,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 moduleDefinition,
                 resolverSettings,
                 userDefinedEnvironment,
-                userDefinedPassthroughVariables);
+                userDefinedPassthroughVariables,
+                CollectionUtilities.EmptyDictionary<string, IReadOnlyList<RushArgument>>());
         }
     }
 }

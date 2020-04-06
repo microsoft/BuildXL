@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -96,6 +97,31 @@ namespace BuildXL.FrontEnd.Rush
                 return false;
             }
 
+            if (rushResolverSettings.CustomCommands != null)
+            {
+                var commandNames = new HashSet<string>();
+                foreach (var customCommand in rushResolverSettings.CustomCommands)
+                {
+                    if (string.IsNullOrEmpty(customCommand.Command))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), "A non-empty custom command name must be defined.");
+                        return false;
+                    }
+
+                    if (!commandNames.Add(customCommand.Command))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Duplicated custom command name '{customCommand.Command}'.");
+                        return false;
+                    }
+
+                    if (customCommand.ExtraArguments == null)
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Extra arguments for custom command '{customCommand.Command}' must be defined.");
+                        return false;
+                    }
+                }
+            }
+
             return true;
         }
 
@@ -148,12 +174,25 @@ namespace BuildXL.FrontEnd.Rush
                             .Where(project => evaluationGoals.Contains(project.ProjectPath(m_context.PathTable)))
                             .ToReadOnlySet();
 
+            // Massage custom commands for easier access
+            // We know each custom command is unique since it was validated in ValidateResolverSettings
+            IReadOnlyDictionary<string, IReadOnlyList<RushArgument>> customCommands = m_rushResolverSettings.CustomCommands?.ToDictionary(
+                customCommand => customCommand.Command, 
+                // Extra arguments support both a list of arguments or a single one. Expose both cases as lists
+                // to simplify consumption
+                customCommand => customCommand.ExtraArguments.GetValue() is RushArgument value ? 
+                    new[] { value } : 
+                    (IReadOnlyList<RushArgument>)customCommand.ExtraArguments.GetValue());
+
+            customCommands ??= CollectionUtilities.EmptyDictionary<string, IReadOnlyList<RushArgument>>();
+
             var pipConstructor = new RushPipConstructor(m_context,
                 m_host,
                 result.ModuleDefinition,
                 m_rushResolverSettings,
                 m_rushWorkspaceResolver.UserDefinedEnvironment,
-                m_rushWorkspaceResolver.UserDefinedPassthroughVariables);
+                m_rushWorkspaceResolver.UserDefinedPassthroughVariables,
+                customCommands);
 
             var graphConstructor = new ProjectGraphToPipGraphConstructor<RushProject>(pipConstructor, m_host.Configuration.FrontEnd.MaxFrontEndConcurrency());
 

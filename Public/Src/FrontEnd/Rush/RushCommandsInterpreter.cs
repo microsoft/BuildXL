@@ -10,7 +10,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.FrontEnd.Rush
 {
     /// <summary>
-    /// Interprets the set of commands and its dependencies as specified in <see cref="IRushResolverSettings.Commands"/>
+    /// Interprets the set of commands and its dependencies as specified in <see cref="IRushResolverSettings.Execute"/>
     /// </summary>
     public static class RushCommandsInterpreter
     {

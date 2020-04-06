@@ -71,7 +71,7 @@ namespace BuildXL.FrontEnd.Rush
             if (!RushCommandsInterpreter.TryComputeAndValidateCommands(
                     m_context.LoggingContext,
                     resolverSettings.Location(m_context.PathTable),
-                    ((IRushResolverSettings)resolverSettings).Commands,
+                    ((IRushResolverSettings)resolverSettings).Execute,
                     out IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> computedCommands))
             {
                 // Error has been logged

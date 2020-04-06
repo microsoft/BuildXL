@@ -323,8 +323,29 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * If not provided, ["build"] is used.
      * Any command specified here that doesn't have a corresponding script is ignored.
      */
-    commands?: (string | RushCommand)[];
+    execute?: (string | RushCommand)[];
+
+    /**
+     * Defines a collection of custom Rush commands that can later be used as part of 'execute'.
+     */
+    customCommands?: RushCustomCommand[];
 }
+
+/**
+ * Likely to be extended with other types of commands (e.g. a way to add commands as if they were specified in package.json)
+ */
+type RushCustomCommand  = ExtraArgumentsRushScript;
+
+/**
+ * Appends extra arguments to the corresponding script defined in package.json for every Rush project. 
+ * If a given project does not define the specified script it has not effect on it.
+  */
+interface ExtraArgumentsRushScript {
+    command: string;
+    extraArguments: RushArgument | RushArgument[];
+}
+
+type RushArgument = string | PathAtom | RelativePath | Path;
 
 /**
  * A Rush command where depedencies on other commands can be explicitly provided

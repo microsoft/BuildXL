@@ -73,19 +73,22 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         protected SpecEvaluationBuilder Build(
             Dictionary<string, string> environment = null,
-            string rushCommands = null)
+            string executeCommands = null,
+            string customRushCommands = null)
         {
             environment ??= new Dictionary<string, string> { ["PATH"] = PathToNodeFolder };
 
             return Build(
                 environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null,
-                rushCommands);
+                executeCommands,
+                customRushCommands);
         }
 
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
-            string rushCommands = null)
+            string executeCommands = null,
+            string customRushCommands = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder) };
 
@@ -93,7 +96,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             return base.Build().Configuration(
                 DefaultRushPrelude(
                     environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(),
-                    rushCommands: rushCommands));
+                    executeCommands: executeCommands,
+                    customRushCommands: customRushCommands));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -180,7 +184,8 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         private string DefaultRushPrelude(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
-            string rushCommands = null) => $@"
+            string executeCommands = null,
+            string customRushCommands = null) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -190,7 +195,8 @@ config({{
             root: d`.`,
             nodeExeLocation: f`{PathToNode}`,
             {DictionaryToExpression("environment", environment)}
-            {(rushCommands != null? $"commands: {rushCommands}," : string.Empty)}
+            {(executeCommands != null? $"execute: {executeCommands}," : string.Empty)}
+            {(customRushCommands != null ? $"customCommands: {customRushCommands}," : string.Empty)}
         }},
     ],
 }});";

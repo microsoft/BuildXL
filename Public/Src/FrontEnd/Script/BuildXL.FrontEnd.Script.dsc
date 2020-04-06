@@ -56,6 +56,7 @@ namespace Script {
             "Test.BuildXL.FrontEnd.Script.ErrorHandling",
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Core",
+            "BuildXL.FrontEnd.Rush",
         ],
     });
 }

@@ -986,6 +986,12 @@ namespace BuildXL.Engine
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
             }
 
+            if (mutableConfig.Schedule.UnsafeLazySODeletion &&
+                mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.SandboxKind == SandboxKind.None)
+            {
+                mutableConfig.Schedule.UnsafeLazySODeletion = false;
+            }
+
             if (mutableConfig.Schedule.UnsafeLazySODeletion)
             {
                 // must compute static fingerprints when using lazy shared opaque output deletion

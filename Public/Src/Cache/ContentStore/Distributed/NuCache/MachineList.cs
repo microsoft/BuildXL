@@ -71,16 +71,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (_resolvedMachineIds == null)
             {
-                _resolvedMachineIds = new List<MachineId>(Count);
-                _resolvedMachineIds.AddRange(_locations.EnumerateMachineIds());
+                var resolvedMachineIds = new List<MachineId>(Count);
+                resolvedMachineIds.AddRange(_locations.EnumerateMachineIds());
 
                 if (_randomize)
                 {
-                    ThreadSafeRandom.Shuffle(_resolvedMachineIds);
+                    ThreadSafeRandom.Shuffle(resolvedMachineIds);
                 }
 
                 // Sorting resolved machine ids by reputation: machines with good reputation should be used first.
-                _resolvedMachineIds = _resolvedMachineIds.OrderBy(id => (int)_reputationTracker.GetReputation(id)).ToList();
+                resolvedMachineIds = resolvedMachineIds.OrderBy(id => (int)_reputationTracker.GetReputation(id)).ToList();
+
+                _resolvedMachineIds = resolvedMachineIds;
             }
         }
     }

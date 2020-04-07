@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -14,6 +13,8 @@ using BuildXL.Cache.Monitor.App.Rules;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
+#nullable enable
+
 namespace BuildXL.Cache.Monitor.App
 {
     internal class Scheduler : IDisposable
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.Monitor.App
             /// <remarks>
             /// Useful for testing, as restarting the scheduler will only run the rules that must be run.
             /// </remarks>
-            public string PersistStatePath { get; set; } = null;
+            public string? PersistStatePath { get; set; } = null;
 
             /// <summary>
             /// Whether failed rules should be retried when the monitor is restarted
@@ -105,13 +106,13 @@ namespace BuildXL.Cache.Monitor.App
         {
             public DateTime RunTimeUtc { get; set; }
 
-            public string RuleIdentifier { get; set; }
+            public string? RuleIdentifier { get; set; }
 
             public Guid RunGuid { get; set; }
 
             public TimeSpan Elapsed { get; set; }
 
-            public string ErrorMessage { get; set; }
+            public string? ErrorMessage { get; set; }
         }
 
         private readonly ILogger _logger;
@@ -120,9 +121,9 @@ namespace BuildXL.Cache.Monitor.App
 
         private readonly IDictionary<string, Entry> _schedule = new Dictionary<string, Entry>();
         private readonly SemaphoreSlim _runGate;
-        private readonly INotifier<LogEntry> _notifier;
+        private readonly INotifier<LogEntry>? _notifier;
 
-        public Scheduler(Configuration configuration, ILogger logger, IClock clock, INotifier<LogEntry> notifier = null)
+        public Scheduler(Configuration configuration, ILogger logger, IClock clock, INotifier<LogEntry>? notifier = null)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);
@@ -161,9 +162,22 @@ namespace BuildXL.Cache.Monitor.App
 
             _logger.Debug("Starting to monitor");
 
-            Dictionary<State, int> oldStates = null;
+            List<Task> runningTasks = new List<Task>();
+
+            Dictionary<State, int>? oldStates = null;
             while (!cancellationToken.IsCancellationRequested)
             {
+                var newRunningTasks = new List<Task>(capacity: _schedule.Count);
+                foreach (var task in runningTasks)
+                {
+                    if (task.IsCompleted)
+                    {
+                        continue;
+                    }
+
+                    newRunningTasks.Add(task);
+                }
+
                 var now = _clock.UtcNow;
 
                 // Approximate count of rules in each state. They do not necessarily sum to the total, because rules
@@ -193,23 +207,27 @@ namespace BuildXL.Cache.Monitor.App
                         entry.State = State.Scheduled;
                     }
 
-                    _ = Task.Run(async () =>
+                    var ruleTask = Task.Run(async () =>
                     {
                         // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
                         await Task.Yield();
 
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
                         try
                         {
-                            await RunRuleAsync(entry);
+                            await RunRuleAsync(entry, cancellationToken);
                         }
+#pragma warning disable CA1031 // Do not catch general exception types
                         catch (Exception exception)
                         {
-                            _logger.Fatal($"Scheduler threw an exception while running rule: {exception?.ToString()}");
+                            _logger.Fatal($"Scheduler threw an exception while running rule: {exception}");
                         }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+#pragma warning restore CA1031 // Do not catch general exception types
                     });
+
+                    newRunningTasks.Add(ruleTask);
                 }
+
+                runningTasks = newRunningTasks;
 
                 if (oldStates == null || states.Any(kvp => oldStates[kvp.Key] != kvp.Value))
                 {
@@ -223,28 +241,40 @@ namespace BuildXL.Cache.Monitor.App
                     SaveState(_configuration.PersistStatePath);
                 }
 
-                if (!cancellationToken.IsCancellationRequested)
+                try
                 {
-                    await Task.Delay(_configuration.PollingPeriod);
+                    await Task.Delay(_configuration.PollingPeriod, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    // We need to make sure we handle the cancellation gracefully, which will happen when we break.
+                    break;
                 }
             }
 
-            // TODO(jubayard): wait until all rules are done executing. Not implemented because it really isn't that
-            // important for now. It would be if we were hot-reloading configuration files.
+            _logger.Info($"Waiting for `{runningTasks.Count}` tasks to complete running before shutdown");
+            await Task.WhenAll(runningTasks);
+
+            if (IsPersistanceEnabled())
+            {
+                SaveState(_configuration.PersistStatePath);
+            }
         }
 
-        private async Task RunRuleAsync(Entry entry)
+        private async Task RunRuleAsync(Entry entry, CancellationToken cancellationToken)
         {
             Contract.AssertNotNull(entry);
 
             var rule = entry.Rule;
-            var stopwatch = new Stopwatch();
+            var stopwatch = Stopwatch.StartNew();
             var failed = false;
-            RuleContext context = null;
-            Exception exception = null;
+            RuleContext? context = null;
+            Exception? exception = null;
+            var runGateLockTaken = false;
             try
             {
-                await _runGate.WaitAsync();
+                await _runGate.WaitAsync(cancellationToken);
+                runGateLockTaken = true;
 
                 lock (entry.Lock)
                 {
@@ -252,7 +282,7 @@ namespace BuildXL.Cache.Monitor.App
                     entry.State = State.Running;
                 }
 
-                _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run");
+                _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run. Delayed for {stopwatch.Elapsed}");
 
                 context = new RuleContext(Guid.NewGuid(), _clock.UtcNow);
                 stopwatch.Restart();
@@ -267,35 +297,41 @@ namespace BuildXL.Cache.Monitor.App
             {
                 stopwatch.Stop();
 
-                _runGate.Release();
-
-                lock (entry.Lock)
+                if (runGateLockTaken)
                 {
-                    entry.LastRunTimeUtc = _clock.UtcNow;
+                    _runGate.Release();
 
-                    Contract.Assert(entry.State == State.Running);
-                    entry.State = failed ? State.Failed : State.Waiting;
-
-
-                    var logMessage = $"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run";
-                    if (!failed)
+                    lock (entry.Lock)
                     {
-                        _logger.Debug(logMessage);
+                        entry.LastRunTimeUtc = _clock.UtcNow;
+
+                        Contract.Assert(entry.State == State.Running);
+                        entry.State = failed ? State.Failed : State.Waiting;
+
+                        var logMessage = $"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run";
+                        if (!failed)
+                        {
+                            _logger.Debug(logMessage);
+                        }
+                        else
+                        {
+                            _logger.Error($"{logMessage}. An exception has been caught and the rule has been disabled. Exception: {exception?.ToString() ?? "N/A"}");
+                        }
                     }
-                    else
+
+                    _notifier?.Emit(new LogEntry
                     {
-                        _logger.Error($"{logMessage}. An exception has been caught and the rule has been disabled. Exception: {exception?.ToString() ?? "N/A"}");
-                    }
+                        RunTimeUtc = context?.RunTimeUtc ?? _clock.UtcNow,
+                        RuleIdentifier = rule.Identifier,
+                        RunGuid = context?.RunGuid ?? Guid.Empty,
+                        Elapsed = stopwatch.Elapsed,
+                        ErrorMessage = failed ? exception?.ToString() : "",
+                    });
                 }
-
-                _notifier?.Emit(new LogEntry
+                else
                 {
-                    RunTimeUtc = context?.RunTimeUtc ?? _clock.UtcNow,
-                    RuleIdentifier = rule.Identifier,
-                    RunGuid = context?.RunGuid ?? Guid.Empty,
-                    Elapsed = stopwatch.Elapsed,
-                    ErrorMessage = failed ? exception?.ToString() : "",
-                });
+                    _logger.Debug($"Rule `{rule.Identifier}` was cancelled");
+                }
             }
         }
 
@@ -305,7 +341,7 @@ namespace BuildXL.Cache.Monitor.App
         #region Persistance
         private bool IsPersistanceEnabled()
         {
-            return !string.IsNullOrEmpty(_configuration.PersistStatePath) && _configuration.PersistStatePath.EndsWith(".json");
+            return _configuration.PersistStatePath != null && !string.IsNullOrEmpty(_configuration.PersistStatePath) && _configuration.PersistStatePath.EndsWith(".json");
         }
 
         private struct PersistableEntry
@@ -327,7 +363,7 @@ namespace BuildXL.Cache.Monitor.App
             }
         };
 
-        private void LoadState(string stateFilePath)
+        private void LoadState(string? stateFilePath)
         {
             Contract.RequiresNotNullOrEmpty(stateFilePath);
 
@@ -411,7 +447,7 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        private void SaveState(string stateFilePath)
+        private void SaveState(string? stateFilePath)
         {
             Contract.RequiresNotNullOrEmpty(stateFilePath);
 

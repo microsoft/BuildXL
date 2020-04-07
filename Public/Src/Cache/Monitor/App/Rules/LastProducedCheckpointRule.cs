@@ -53,7 +53,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                CloudBuildLogEvent
+                table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}""
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine)
                 | extend Age = end - PreciseTimeStamp
                 | where not(isnull(PreciseTimeStamp))";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

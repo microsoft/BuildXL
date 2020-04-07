@@ -85,18 +85,16 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                CloudBuildLogEvent
+                table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
-                | where Service == ""{Constants.MasterServiceName}""
                 | where Stamp == ""{_configuration.Stamp}""
-                | where Message has ""Touching blob"" or Message has ""Uploading blob""
-                | project PreciseTimeStamp, Machine, Message
-                | parse Message with Id "" "" * ""of size "" Size: long "" "" *
-                | summarize PreciseTimeStamp = min(PreciseTimeStamp), TotalSize = sum(Size) by Id
-                | project PreciseTimeStamp, TotalSize
-                | sort by PreciseTimeStamp asc
-                | where not(isnull(PreciseTimeStamp))";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+                | where Service == ""{Constants.MasterServiceName}""
+                | where Message has ""CreateCheckpointAsync stop""
+                | project PreciseTimeStamp, Message
+                | parse Message with * ""SizeMb=["" SizeMb:double ""]"" *
+                | project PreciseTimeStamp, TotalSize=tolong(SizeMb * 1000000)
+                | sort by PreciseTimeStamp asc";
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

@@ -15,69 +15,17 @@ using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 using static BuildXL.Cache.ContentStore.Logging.CsvFileLog;
 
+#nullable enable
+
 namespace BuildXL.Cache.Monitor.App
 {
     internal class Monitor : IDisposable
     {
-        private static readonly Dictionary<Env, string> EnvironmentToKustoDatabaseName = new Dictionary<Env, string>()
+        internal static readonly Dictionary<Env, string> EnvironmentToKustoDatabaseName = new Dictionary<Env, string>()
             {
                 { Env.Production, "CloudBuildProd" },
                 { Env.Test, "CloudBuildCBTest" },
                 { Env.CI, "CloudBuildCI" },
-            };
-
-        private static readonly Dictionary<Env, IReadOnlyList<string>> Stamps = new Dictionary<Env, IReadOnlyList<string>>()
-            {
-                {
-                    Env.Test, new [] {
-                        "DM_S1",
-                        "DM_S2",
-                    }
-                },
-                {
-                    Env.Production, new string[] {
-                        "BN",
-                        "BN_PS01",
-                        "BN_PS02",
-                        "BN_S2",
-                        "BN_S3",
-                        "DM",
-                        "DM_PS01",
-                        "DM_PS02",
-                        "DM_PS03",
-                        "DM_PS04",
-                        "DM_PS05",
-                        "DM_PS06",
-                        "DM_PS07",
-                        "DM_PS08",
-                        "DM_PS09",
-                        "DM_S2",
-                        "DM_S3",
-                        "MW_PS01",
-                        "MW_PS02",
-                        "MW_PS03",
-                        //"MW_PS04",
-                        //"MW_PS05",
-                        "MW_PS06",
-                        "MW_PS07",
-                        "MW_S1",
-                        "MW_S2",
-                        "MW_S3",
-                        "MW_S4",
-                        "MW_S5",
-                        "MW_S6",
-                        "MW_S7",
-                        "MW_S8",
-                        "MW_S9",
-                        "SN_S1",
-                        "SN_S2",
-                        "SN_S3",
-                        "SN_S4",
-                        "SN_S5",
-                        "SN_S6",
-                        "SN_S7",
-                    }
-                },
             };
 
         public class Configuration
@@ -92,7 +40,7 @@ namespace BuildXL.Cache.Monitor.App
 
             public string ApplicationClientId { get; set; } = "22cabbbb-1f32-4057-b601-225bab98348d";
 
-            public string ApplicationKey { get; set; } = null;
+            public string? ApplicationKey { get; set; } = null;
 
             public KustoWriter<Notification>.Configuration KustoNotifier { get; set; } = new KustoWriter<Notification>.Configuration()
             {
@@ -101,10 +49,11 @@ namespace BuildXL.Cache.Monitor.App
                 KustoTableIngestionMappingName = "MonitorIngestionMapping",
             };
 
-            public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
+            public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration()
+            {
                 PersistStatePath = @"SchedulerState.json",
                 PersistClearFailedEntriesOnLoad = true,
-                MaximumConcurrency = 5,
+                MaximumConcurrency = 10,
             };
 
             /// <summary>
@@ -123,7 +72,10 @@ namespace BuildXL.Cache.Monitor.App
         private readonly Configuration _configuration;
 
         private readonly IClock _clock = SystemClock.Instance;
+
         private readonly Logger _logger;
+        private CsvFileLog? _csvFileLog = null;
+        private ConsoleLog? _consoleLog = null;
 
         private readonly Scheduler _scheduler;
         private readonly KustoWriter<Notification> _alertNotifier;
@@ -139,8 +91,6 @@ namespace BuildXL.Cache.Monitor.App
 
             _logger = CreateLogger();
 
-            // TODO(jubayard): use streaming ingestion instead of direct ingestion. There seems to be some assembly
-            // issues when attempting to do that
             Contract.RequiresNotNullOrEmpty(_configuration.KustoIngestionClusterUrl);
             Contract.RequiresNotNullOrEmpty(_configuration.ApplicationClientId);
             Contract.RequiresNotNullOrEmpty(_configuration.ApplicationKey);
@@ -176,31 +126,35 @@ namespace BuildXL.Cache.Monitor.App
                     logFilePath = Path.Combine(cwd, logFilePath);
                 }
 
-                logs.Add(new CsvFileLog(logFilePath, new List<ColumnKind>() {
+                _csvFileLog = new CsvFileLog(logFilePath, new List<ColumnKind>() {
                     ColumnKind.PreciseTimeStamp,
                     ColumnKind.ProcessId,
                     ColumnKind.ThreadId,
                     ColumnKind.LogLevel,
                     ColumnKind.LogLevelFriendly,
                     ColumnKind.Message,
-                }));
+                });
+
+                logs.Add(_csvFileLog);
             }
 
             // NOTE(jubayard): making sure things get logged to file first
-            logs.Add(new ConsoleLog(useShortLayout: false, printSeverity: true));
+            _consoleLog = new ConsoleLog(useShortLayout: false, printSeverity: true);
+            logs.Add(_consoleLog);
 
             return new Logger(logs.ToArray());
         }
 
-        public Task Run(CancellationToken cancellationToken = default)
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
-            CreateSchedule();
-            return _scheduler.RunAsync(cancellationToken);
+            var watchlist = await Watchlist.CreateAsync(_logger, _cslQueryProvider);
+            CreateSchedule(watchlist);
+            await _scheduler.RunAsync(cancellationToken);
         }
 
         private class Instantiation
         {
-            public IRule Rule { get; set; }
+            public IRule? Rule { get; set; }
 
             public TimeSpan PollingPeriod { get; set; }
 
@@ -210,52 +164,57 @@ namespace BuildXL.Cache.Monitor.App
         /// <summary>
         /// Creates the schedule of rules that will be run. Also responsible for configuring them.
         /// </summary>
-        private void CreateSchedule()
+        private void CreateSchedule(Watchlist watchlist)
         {
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new LastProducedCheckpointRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new LastProducedCheckpointRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(30),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new LastRestoredCheckpointRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new LastRestoredCheckpointRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(30),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new CheckpointSizeRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new CheckpointSizeRule(configuration),
                     PollingPeriod = configuration.AnomalyDetectionHorizon - TimeSpan.FromMinutes(5),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new ActiveMachinesRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new ActiveMachinesRule(configuration),
                     PollingPeriod = configuration.AnomalyDetectionHorizon - TimeSpan.FromMinutes(5),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new EventHubProcessingDelayRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new EventHubProcessingDelayRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(20),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
@@ -265,16 +224,17 @@ namespace BuildXL.Cache.Monitor.App
                     Rule = new BuildFailuresRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(15),
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new FireAndForgetExceptionsRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation() {
+                return Utilities.Yield(new Instantiation()
+                {
                     Rule = new FireAndForgetExceptionsRule(configuration),
                     PollingPeriod = configuration.LookbackPeriod - TimeSpan.FromMinutes(5),
                 });
-            });
+            }, watchlist);
 
             //OncePerStamp(baseConfiguration =>
             //{
@@ -283,7 +243,7 @@ namespace BuildXL.Cache.Monitor.App
             //        Rule = new ContractViolationsRule(configuration),
             //        PollingPeriod = configuration.LookbackPeriod,
             //    });
-            //});
+            //}, watchlist);
 
             var failureChecks = new List<OperationFailureCheckRule.Check>() {
                 new OperationFailureCheckRule.Check()
@@ -319,7 +279,8 @@ namespace BuildXL.Cache.Monitor.App
 
             OncePerStamp(baseConfiguration =>
             {
-                return failureChecks.Select(check => {
+                return failureChecks.Select(check =>
+                {
                     var configuration = new OperationFailureCheckRule.Configuration(baseConfiguration)
                     {
                         Check = check,
@@ -331,7 +292,7 @@ namespace BuildXL.Cache.Monitor.App
                         PollingPeriod = configuration.LookbackPeriod - TimeSpan.FromMinutes(5),
                     };
                 });
-            });
+            }, watchlist);
 
             var performanceChecks = new List<OperationPerformanceOutliersRule.DynamicCheck>() {
                 new OperationPerformanceOutliersRule.DynamicCheck()
@@ -386,7 +347,7 @@ namespace BuildXL.Cache.Monitor.App
                         PollingPeriod = check.DetectionPeriod - TimeSpan.FromMinutes(5),
                     };
                 });
-            });
+            }, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
@@ -396,36 +357,35 @@ namespace BuildXL.Cache.Monitor.App
                     Rule = new ServiceRestartsRule(configuration),
                     PollingPeriod = TimeSpan.FromMinutes(30),
                 });
-            });
+            }, watchlist);
         }
 
         /// <summary>
         /// Schedules a rule to be run over different stamps and environments.
         /// </summary>
-        private void OncePerStamp(Func<KustoRuleConfiguration, IEnumerable<Instantiation>> generator)
+        private void OncePerStamp(Func<KustoRuleConfiguration, IEnumerable<Instantiation>> generator, Watchlist watchlist)
         {
-            Contract.RequiresNotNull(generator);
-
-            foreach (var kvp in Stamps)
+            foreach (var entry in watchlist.Entries)
             {
-                var environment = kvp.Key;
-                foreach (var stamp in kvp.Value)
-                {
-                    var configuration = new KustoRuleConfiguration()
-                    {
-                        Clock = _clock,
-                        Logger = _logger,
-                        Notifier = _alertNotifier,
-                        CslQueryProvider = _cslQueryProvider,
-                        KustoDatabaseName = EnvironmentToKustoDatabaseName[environment],
-                        Environment = environment,
-                        Stamp = stamp,
-                    };
+                var tableNameFound = watchlist.TryGetCacheTableName(entry, out var cacheTableName);
+                Contract.Assert(tableNameFound);
 
-                    foreach (var entry in generator(configuration))
-                    {
-                        _scheduler.Add(entry.Rule, entry.PollingPeriod, entry.ForceRun);
-                    }
+                var configuration = new KustoRuleConfiguration()
+                {
+                    Clock = _clock,
+                    Logger = _logger,
+                    Notifier = _alertNotifier,
+                    CslQueryProvider = _cslQueryProvider,
+                    KustoDatabaseName = EnvironmentToKustoDatabaseName[entry.Environment],
+                    Environment = entry.Environment,
+                    Stamp = entry.Stamp,
+                    CacheTableName = cacheTableName,
+                };
+
+                foreach (var rule in generator(configuration))
+                {
+                    Contract.AssertNotNull(rule.Rule);
+                    _scheduler.Add(rule.Rule, rule.PollingPeriod, rule.ForceRun);
                 }
             }
         }
@@ -445,6 +405,8 @@ namespace BuildXL.Cache.Monitor.App
                     _kustoIngestClient?.Dispose();
                     _cslQueryProvider?.Dispose();
                     _logger?.Dispose();
+                    _csvFileLog?.Dispose();
+                    _consoleLog?.Dispose();
                 }
 
                 _disposedValue = true;

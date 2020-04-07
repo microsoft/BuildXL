@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,11 +18,6 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
 
             public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(1);
-
-            public List<string> CacheErrorBuckets { get; set; } = new List<string>() {
-                "PipMaterializeDependenciesFromCacheFailure",
-                "PipFailedToMaterializeItsOutputs"
-            };
 
             public Thresholds<double> FailureRateThresholds = new Thresholds<double>()
             {
@@ -61,12 +55,11 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                CacheBuildXLInvocationsWithErrors(""{_configuration.Stamp}"", start, end)
-                | extend CacheImplicatedFailure=(ErrorBucket in ({string.Join(",", _configuration.CacheErrorBuckets.Select(b => @$"""{b}"""))}))
-                | summarize Total=count(), Failed=countif(CacheImplicatedFailure)
+                CacheInvocationsWithErrors(""{_configuration.Stamp}"", start, end)
+                | summarize Total=count(), Failed=countif(CacheImplicated)
                 | extend FailureRate=(toreal(Failed)/toreal(Total))
                 | where not(isnull(Failed))";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

@@ -90,7 +90,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
         {
             public DateTime PreciseTimeStamp;
             public string Machine;
-            public string OperationId;
+            public string CorrelationId;
             public double TimeMs;
         }
 #pragma warning restore CS0649
@@ -102,30 +102,30 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var perhapsLookbackFilter = _configuration.Check.MaximumLookbackOperations is null ? "" : $"\n| sample {CslLongLiteral.AsCslString(_configuration.Check.MaximumLookbackOperations)}\n";
             var query =
                 $@"
-let end = now();
-let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.LookbackPeriod)};
-let detection = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.DetectionPeriod)};
-let Events = materialize(CloudBuildLogEvent
-| where PreciseTimeStamp between (start .. end)
-| where Stamp == ""{_configuration.Stamp}""
-| where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
-| where Message has ""{_configuration.Check.Match} stop ""
-| where Message has ""result=[Success""
-| project PreciseTimeStamp, Machine, Message
-| parse Message with OperationId:string "" "" * "" stop "" TimeMs:double ""ms. "" *
-| project-away Message);
-let DetectionEvents = Events
-| where PreciseTimeStamp between (detection .. end);
-let DescriptiveStatistics = Events
-| where PreciseTimeStamp between (start .. detection){perhapsLookbackFilter}
-| summarize hint.shufflekey=Machine hint.num_partitions=64 (P5, P50, P95)=percentiles(TimeMs, 5, 50, 95), Avg=avg(TimeMs), StdDev=stdev(TimeMs), Maximum=max(TimeMs), Minimum=min(TimeMs) by Machine
-| where not(isnull(Machine));
-DescriptiveStatistics
-| join kind=rightouter hint.strategy=broadcast hint.num_partitions=64 DetectionEvents on Machine
-| where {_configuration.Check.Constraint ?? "true"}
-| project PreciseTimeStamp, Machine, OperationId, TimeMs
-| where not(isnull(Machine));";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+                let end = now();
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.LookbackPeriod)};
+                let detection = end - {CslTimeSpanLiteral.AsCslString(_configuration.Check.DetectionPeriod)};
+                let Events = materialize(table(""{_configuration.CacheTableName}"")
+                | where PreciseTimeStamp between (start .. end)
+                | where Stamp == ""{_configuration.Stamp}""
+                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
+                | where Message has ""{_configuration.Check.Match} stop ""
+                | where Message has ""result=[Success""
+                | parse Message with OperationId:string "" "" * "" stop "" TimeMs:double ""ms. "" *
+                | extend CorrelationId={(_configuration.CacheTableName == Constants.NewTableName ? "CorrelationId" : "OperationId")}
+                | project PreciseTimeStamp, Machine, CorrelationId, TimeMs);
+                let DetectionEvents = Events
+                | where PreciseTimeStamp between (detection .. end);
+                let DescriptiveStatistics = Events
+                | where PreciseTimeStamp between (start .. detection){perhapsLookbackFilter}
+                | summarize hint.shufflekey=Machine hint.num_partitions=64 (P5, P50, P95)=percentiles(TimeMs, 5, 50, 95), Avg=avg(TimeMs), StdDev=stdev(TimeMs), Maximum=max(TimeMs), Minimum=min(TimeMs) by Machine
+                | where not(isnull(Machine));
+                DescriptiveStatistics
+                | join kind=rightouter hint.strategy=broadcast hint.num_partitions=64 DetectionEvents on Machine
+                | where {_configuration.Check.Constraint ?? "true"}
+                | project PreciseTimeStamp, Machine, CorrelationId, TimeMs
+                | where not(isnull(Machine));";
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {
@@ -154,7 +154,7 @@ DescriptiveStatistics
                     {
                         var failures = string.Join(", ", entry.Operations
                             .Take(5)
-                            .Select(f => $"`{f.OperationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
+                            .Select(f => $"`{f.CorrelationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
 
                         return $"`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
                     }));
@@ -164,7 +164,7 @@ DescriptiveStatistics
                     {
                         var failures = string.Join(", ", entry.Operations
                             .Take(2)
-                            .Select(f => $"`{f.OperationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
+                            .Select(f => $"`{f.CorrelationId}` (`{TimeSpan.FromMilliseconds(f.TimeMs)}`)"));
 
                         return $"\t`{entry.Machine}` (total `{entry.Operations.Count}`): {failures}";
                     }));

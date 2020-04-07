@@ -62,7 +62,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let Exceptions = CloudBuildLogEvent
+                let Exceptions = table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
                 | where Stamp == ""{_configuration.Stamp}""
@@ -86,7 +86,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | extend ExceptionType=iif(ExceptionType has "" "", extract(""([A-Za-z0-9.]+) .*"", 1, ExceptionType), ExceptionType)
                 | summarize Total=count(), LatestTimeUtc=max(PreciseTimeStamp), EarliestTimeUtc=min(PreciseTimeStamp) by Machine, ExceptionType
                 | where not(isnull(Total));";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

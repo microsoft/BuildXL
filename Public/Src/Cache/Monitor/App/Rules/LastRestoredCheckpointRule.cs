@@ -72,7 +72,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let activity = end - {CslTimeSpanLiteral.AsCslString(_configuration.ActivityPeriod)};
                 let masterActivity = end - {CslTimeSpanLiteral.AsCslString(_configuration.MasterActivityPeriod)};
-                let Events = CloudBuildLogEvent
+                let Events = table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}"";
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | join hint.strategy=broadcast kind=leftouter Restores on Machine
                 | project-away Machine1
                 | extend Age=LastActivityTime - LastRestoreTime";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

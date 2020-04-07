@@ -16,10 +16,58 @@ namespace BuildXL.Cache.Monitor.App
         }
 
         [Verb(IsDefault = true)]
-        public static void Run(string configurationFilePath = null, string backupFilePath = null)
+        public static void Run(string configurationFilePath = null, string backupFilePath = null, int? refreshRateMinutes = null)
         {
-            var cancellationToken = new CancellationToken();
-            RunMonitorAsync(configurationFilePath, backupFilePath, cancellationToken).Wait();
+            // We reload the application every hour, for two reasons: to reload the stamp monitoring configuration from
+            // Kusto, and to reload the configuration (if needed). It's mostly a hack, but it works!
+            var refreshRate = TimeSpan.FromHours(1);
+            if (refreshRateMinutes.HasValue)
+            {
+                refreshRate = TimeSpan.FromMinutes(refreshRateMinutes.Value);
+            }
+
+            using var programShutdownCancellationTokenSource = new CancellationTokenSource();
+            var consoleCancelEventHandler = new ConsoleCancelEventHandler((sender, args) =>
+            {
+                programShutdownCancellationTokenSource.Cancel();
+                args.Cancel = true;
+            });
+
+            Console.CancelKeyPress += consoleCancelEventHandler;
+            try
+            {
+                WithPeriodicCancellationAsync(
+                    refreshRate: refreshRate,
+                    factory: cancellationToken => RunMonitorAsync(configurationFilePath, backupFilePath, cancellationToken),
+                    cancellationToken: programShutdownCancellationTokenSource.Token).Wait();
+            }
+            finally
+            {
+                Console.CancelKeyPress -= consoleCancelEventHandler;
+            }
+        }
+
+        private static async Task WithPeriodicCancellationAsync(TimeSpan refreshRate, Func<CancellationToken, Task> factory, CancellationToken cancellationToken = default)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                Console.WriteLine($"Starting application with refresh in `{refreshRate}`");
+                using var refresh = new CancellationTokenSource(refreshRate);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(refresh.Token, cancellationToken);
+
+                try
+                {
+                    await factory(cts.Token);
+                    Console.WriteLine($"Application terminated successfully");
+                }
+#pragma warning disable CA1031 // Do not catch general exception types
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Exception found trying to restart the application: {e}");
+                    break;
+                }
+#pragma warning restore CA1031 // Do not catch general exception types
+            }
         }
 
         private static async Task RunMonitorAsync(string configurationFilePath = null, string backupFilePath = null, CancellationToken cancellationToken = default)
@@ -32,7 +80,7 @@ namespace BuildXL.Cache.Monitor.App
 
             using (var monitor = new Monitor(configuration))
             {
-                await monitor.Run(cancellationToken);
+                await monitor.RunAsync(cancellationToken);
             }
         }
 

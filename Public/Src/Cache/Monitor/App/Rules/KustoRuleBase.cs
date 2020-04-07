@@ -43,7 +43,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 summary ?? message));
         }
 
-        protected async Task<ObjectReader<T>> QuerySingleResultSetAsync<T>(RuleContext context, string query, string database = null, ClientRequestProperties requestProperties = null)
+        protected Task<ObjectReader<T>> QueryKustoAsync<T>(RuleContext context, string query, string database = null, ClientRequestProperties requestProperties = null)
         {
             Contract.RequiresNotNull(context);
             Contract.RequiresNotNullOrEmpty(query);
@@ -59,8 +59,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
             requestProperties.ClientRequestId = context.RunGuid.ToString();
 
-            var dataReader = await _configuration.CslQueryProvider.ExecuteQueryAsync(database, query, requestProperties);
-            return new ObjectReader<T>(dataReader, disposeReader: true, nameBasedColumnMapping: true);
+            return _configuration.CslQueryProvider.QuerySingleResultSetAsync<T>(query, database, requestProperties);
         }
     }
 }

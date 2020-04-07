@@ -67,7 +67,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                let MasterEvents = CloudBuildLogEvent
+                let MasterEvents = table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}"";
@@ -85,7 +85,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | join MaximumDelayFromEH on Stamp, PreciseTimeStamp
                 | project Machine, PreciseTimeStamp, MaxDelay, AvgProcessingDuration=totimespan(ProcessingDurationMs*10000), MaxProcessingDuration=totimespan(MaxProcessingDurationMs*10000), MessageCount, SumMessageCount, SumMessageSizeMb=SumMessageSize / (1024*1024)
                 | order by PreciseTimeStamp desc";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {
@@ -94,7 +94,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var outstandingQuery = $@"
                     let end = now();
                     let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                    let Events = CloudBuildLogEvent
+                    let Events = table(""{_configuration.CacheTableName}"")
                     | where PreciseTimeStamp between (start .. end)
                     | where Stamp == ""{_configuration.Stamp}""
                     | project PreciseTimeStamp, Service, Machine, Stamp, LogLevelFriendly, Message;
@@ -115,7 +115,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                     | summarize ProcessedBatches=dcount(OperationId);
                     Outstanding | extend dummy=1 | join kind=inner (Done | extend dummy=1) on dummy | project-away dummy, dummy1";
 
-                var outstandingResults = (await QuerySingleResultSetAsync<Result2>(context, outstandingQuery)).ToList();
+                var outstandingResults = (await QueryKustoAsync<Result2>(context, outstandingQuery)).ToList();
 
                 if (outstandingResults.Count != 1)
                 {

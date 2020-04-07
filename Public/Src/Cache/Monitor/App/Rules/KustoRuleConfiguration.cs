@@ -26,6 +26,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             KustoDatabaseName = other.KustoDatabaseName;
             Environment = other.Environment;
             Stamp = other.Stamp;
+            CacheTableName = other.CacheTableName;
         }
 
         public IClock Clock { get; set; }
@@ -41,5 +42,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
         public Env Environment { get; set; }
 
         public string Stamp { get; set; }
+
+        public string CacheTableName { get; set; }
     }
 }

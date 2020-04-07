@@ -65,14 +65,14 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 $@"
                 let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
-                CloudBuildLogEvent
+                table(""{_configuration.CacheTableName}"")
                 | where PreciseTimeStamp between (start .. end)
                 | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
                 | where Stamp == ""{_configuration.Stamp}""
                 | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
                 | sort by PreciseTimeStamp asc
                 | where not(isnull(PreciseTimeStamp))";
-            var results = (await QuerySingleResultSetAsync<Result>(context, query)).ToList();
+            var results = (await QueryKustoAsync<Result>(context, query)).ToList();
 
             if (results.Count == 0)
             {

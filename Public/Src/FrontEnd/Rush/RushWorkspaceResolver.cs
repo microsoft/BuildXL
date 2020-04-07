@@ -33,7 +33,15 @@ namespace BuildXL.FrontEnd.Rush
         internal const string RushResolverName = "Rush";
 
         /// <summary>
-        /// Keep in sync with the BuildXL deployment spec that places the tool
+        /// Name of the Bxl Rush configuration file that can be dropped at the root of a rush project
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public\Src\Tools\Tool.RushGraphBuilder\src\BuildXLConfigurationReader.ts
+        /// </remarks>
+        internal const string BxlConfigurationFilename = "bxlconfig.json";
+
+        /// <summary>
+        /// CODESYNC: the BuildXL deployment spec that places the tool
         /// </summary>
         private RelativePath RelativePathToGraphConstructionTool => RelativePath.Create(m_context.StringTable, @"tools\RushGraphBuilder\main.js");
 
@@ -193,7 +201,7 @@ namespace BuildXL.FrontEnd.Rush
             TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
 
             JsonSerializer serializer = ConstructProjectGraphSerializer(s_jsonSerializerSettings);
-
+            
             using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
             using (var reader = new JsonTextReader(sr))
             {
@@ -220,8 +228,8 @@ namespace BuildXL.FrontEnd.Rush
             string pathToRushJson = m_resolverSettings.Root.Combine(m_context.PathTable, "rush.json").ToString(m_context.PathTable);
 
             // TODO: add qualifier support.
-            // The graph construction tool expects: <path-to-rush.json> <path-to-output-graph> [<debug|release>]
-            string toolArguments = $@"/C """"{nodeExe}"" ""{toolPath.ToString(m_context.PathTable)}"" ""{pathToRushJson}"" ""{outputFile.ToString(m_context.PathTable)}"" debug""";
+            // The graph construction tool expects: <path-to-rush.json> <path-to-output-graph>
+            string toolArguments = $@"/C """"{nodeExe}"" ""{toolPath.ToString(m_context.PathTable)}"" ""{pathToRushJson}"" ""{outputFile.ToString(m_context.PathTable)}""";
 
             return FrontEndUtilities.RunSandboxedToolAsync(
                m_context,
@@ -242,17 +250,27 @@ namespace BuildXL.FrontEnd.Rush
             foreach (var command in m_computedCommands.Keys)
             {
                 // Add all unresolved projects first
-                foreach (var flattenedProject in flattenedRushGraph.Projects)
+                foreach (var deserializedProject in flattenedRushGraph.Projects)
                 {
                     // If the requested script is not available on the project, log and skip it
-                    if (!flattenedProject.AvailableScriptCommands.ContainsKey(command))
+                    if (!deserializedProject.AvailableScriptCommands.ContainsKey(command))
                     {
                         Tracing.Logger.Log.ProjectIsIgnoredScriptIsMissing(
-                                    m_context.LoggingContext, Location.FromFile(flattenedProject.ProjectFolder.ToString(m_context.PathTable)), flattenedProject.Name, command);
+                                    m_context.LoggingContext, Location.FromFile(deserializedProject.ProjectFolder.ToString(m_context.PathTable)), deserializedProject.Name, command);
                         continue;
                     }
 
-                    var rushProject = RushProject.FromDeserializedProject(command, flattenedProject.AvailableScriptCommands[command], flattenedProject);
+                    var rushProject = RushProject.FromDeserializedProject(command, deserializedProject.AvailableScriptCommands[command], deserializedProject, m_context.PathTable);
+
+                    if (!ValidateDeserializedProject(rushProject, out string failure))
+                    {
+                        Tracing.Logger.Log.ProjectGraphConstructionError(
+                            m_context.LoggingContext,
+                            m_resolverSettings.Location(m_context.PathTable),
+                            $"The project '{deserializedProject.Name}' defined in '{deserializedProject.ProjectFolder.ToString(m_context.PathTable)}' is invalid. {failure}");
+
+                        return new RushGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+                    }
 
                     // Here we check for duplicate projects
                     if (resolvedProjects.ContainsKey((rushProject.Name, command)))
@@ -262,7 +280,7 @@ namespace BuildXL.FrontEnd.Rush
                             $"and '{resolvedProjects[(rushProject.Name, command)].rushProject.ProjectFolder.ToString(m_context.PathTable)}' for script command '{command}'");
                     }
                     
-                    resolvedProjects.Add((rushProject.Name, command), (rushProject, flattenedProject));
+                    resolvedProjects.Add((rushProject.Name, command), (rushProject, deserializedProject));
                 }
             }
 
@@ -318,6 +336,27 @@ namespace BuildXL.FrontEnd.Rush
             }
 
             return new RushGraph(new List<RushProject>(resolvedProjects.Values.Select(kvp => kvp.rushProject)));
+        }
+
+        private bool ValidateDeserializedProject(RushProject project, out string failure)
+        {
+            // Check the information that comes from the Bxl Rush configuration file
+            // The rest comes from rush-lib, and therefore we shouldn't need to validate again
+
+            if (project.OutputDirectories.Any(path => !path.IsValid))
+            {
+                failure = $"Specified output directory in '{project.ProjectFolder.Combine(m_context.PathTable, BxlConfigurationFilename).ToString(m_context.PathTable)}' is invalid.";
+                return false;
+            }
+
+            if (project.SourceFiles.Any(path => !path.IsValid))
+            {
+                failure = $"Specified source file in '{project.ProjectFolder.Combine(m_context.PathTable, BxlConfigurationFilename).ToString(m_context.PathTable)}' is invalid.";
+                return false;
+            }
+
+            failure = string.Empty;
+            return true;
         }
     }
 }

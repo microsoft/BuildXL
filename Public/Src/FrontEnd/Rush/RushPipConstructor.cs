@@ -192,15 +192,17 @@ namespace BuildXL.FrontEnd.Rush
             RushProject project,
             ProcessBuilder processBuilder)
         {
-            var argumentsBuilder = processBuilder.ArgumentsBuilder;
-            
-            IEnumerable<RushProject> references;
+            // Add all explicitly declared source files
+            foreach (AbsolutePath sourceFile in project.SourceFiles)
+            {
+                processBuilder.AddInputFile(FileArtifact.CreateSourceFile(sourceFile));
+            }
 
             // In this case all the transitive closure is automatically exposed to the project as direct references. This is standard for
             // JavaScript projects.
             var transitiveReferences = new HashSet<RushProject>();
             ComputeTransitiveDependenciesFor(project, transitiveReferences);
-            references = transitiveReferences;
+            IEnumerable<RushProject> references = transitiveReferences;
 
             foreach (RushProject projectReference in references)
             {
@@ -248,13 +250,13 @@ namespace BuildXL.FrontEnd.Rush
                 processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.d.ts"), 0), FileExistence.Optional);
             }
 
-            // Some projects share their temp folder and some files might get consumed across. So treat it as a regular output directory
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder), SealDirectoryKind.SharedOpaque);
+            // Some projects share their temp folder and double writes may happen. For now untrack it.
+            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder));
 
             // Add all the additional output directories that the rush graph knows about
-            foreach(var additionalOutput in project.AdditionalOutputDirectories)
+            foreach(var outputDirectory in project.OutputDirectories)
             {
-                processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(additionalOutput), SealDirectoryKind.SharedOpaque);
+                processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(outputDirectory), SealDirectoryKind.SharedOpaque);
             }
 
             // Add additional output directories configured in the main config file

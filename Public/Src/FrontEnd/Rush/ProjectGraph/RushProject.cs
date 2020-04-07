@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
@@ -27,24 +28,46 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             string scriptCommandName,
             [CanBeNull] string scriptCommand,
             AbsolutePath tempFolder,
-            IReadOnlyCollection<AbsolutePath> additionalOutputDirectories) : base(name, projectFolder, null, tempFolder, additionalOutputDirectories)
+            IReadOnlyCollection<AbsolutePath> outputDirectories,
+            IReadOnlyCollection<AbsolutePath> sourceFiles) : base(name, projectFolder, null, tempFolder)
         {
             Contract.RequiresNotNullOrEmpty(scriptCommandName);
+            Contract.RequiresNotNull(outputDirectories);
+            Contract.RequiresNotNull(sourceFiles);
 
             ScriptCommand = scriptCommand;
             ScriptCommandName = scriptCommandName;
+            OutputDirectories = outputDirectories;
+            SourceFiles = sourceFiles;
         }
 
         /// <nodoc/>
-        public static RushProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedRushProject deserializedRushProject)
+        public static RushProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedRushProject deserializedRushProject, PathTable pathTable)
         {
+            // Filter the output directories and source files that apply to this particular script command name
+            var outputDirectories = ExtractRelevantPaths(scriptCommandName, deserializedRushProject.ProjectFolder, deserializedRushProject.OutputDirectories, pathTable);
+            var sourceFiles = ExtractRelevantPaths(scriptCommandName, deserializedRushProject.ProjectFolder, deserializedRushProject.SourceFiles, pathTable);
+
             return new RushProject(
                 deserializedRushProject.Name,
                 deserializedRushProject.ProjectFolder,
                 scriptCommandName,
                 scriptCommand,
                 deserializedRushProject.TempFolder,
-                deserializedRushProject.AdditionalOutputDirectories);
+                outputDirectories,
+                sourceFiles);
+        }
+
+        private static List<AbsolutePath> ExtractRelevantPaths(
+            string scriptCommandName, 
+            AbsolutePath projectFolder,
+            IReadOnlyCollection<PathWithTargets> paths, 
+            PathTable pathTable)
+        {
+            return paths
+                .Where(pathWithTargets => pathWithTargets.AppliesToScript(scriptCommandName))
+                .Select(pathWithTargets => pathWithTargets.Path)
+                .ToList();
         }
 
         /// <nodoc/>
@@ -73,5 +96,11 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         {
             return $"{Name}[{ScriptCommandName}]";
         }
+
+        /// <nodoc/>
+        public IReadOnlyCollection<AbsolutePath> OutputDirectories { get; }
+
+        /// <nodoc/>
+        public IReadOnlyCollection<AbsolutePath> SourceFiles { get; }
     }
 }

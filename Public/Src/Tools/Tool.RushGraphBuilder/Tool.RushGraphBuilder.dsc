@@ -24,18 +24,9 @@ namespace RushGraphBuilder {
         rushSrcCopy.root, 
         [ rushSrcCopy, npmInstall ]);
 
-    // The schemas are needed as runtime content, so copy them over and combine all outputs with
-    // a composite shared opaque
-    const srcSchemas = Transformer.reSealPartialDirectory(rushToolSrc, r`schemas`);
-    const outSchemas = Deployment.copyDirectory(
-        srcSchemas.root,
-        d`${outputDir}\out\schemas`,
-        srcSchemas
-    );
-
     const outDir = Transformer.composeSharedOpaqueDirectories(
         outputDir, 
-        [compileOutDir, outSchemas]);
+        [compileOutDir]);
 
     const nodeModules = Deployment.createDeployableOpaqueSubDirectory(npmInstall, r`node_modules`);
     const out = Deployment.createDeployableOpaqueSubDirectory(outDir, r`out`);

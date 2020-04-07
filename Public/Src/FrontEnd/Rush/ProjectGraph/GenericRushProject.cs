@@ -21,8 +21,7 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             string name,
             AbsolutePath projectFolder,
             [CanBeNull] IReadOnlyCollection<TDepedency> dependencies,
-            AbsolutePath tempFolder,
-            [CanBeNull] IReadOnlyCollection<AbsolutePath> additionalOutputDirectories)
+            AbsolutePath tempFolder)
         {   
             Contract.RequiresNotNullOrEmpty(name);
             Contract.Requires(projectFolder.IsValid);
@@ -32,7 +31,6 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             ProjectFolder = projectFolder;
             Dependencies = dependencies;
             TempFolder = tempFolder;
-            AdditionalOutputDirectories = additionalOutputDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>();
         }
 
         /// <nodoc/>
@@ -49,8 +47,5 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
 
         /// <nodoc/>
         public AbsolutePath TempFolder { get; }
-
-        /// <nodoc/>
-        public IReadOnlyCollection<AbsolutePath> AdditionalOutputDirectories { get; }
     }
 }

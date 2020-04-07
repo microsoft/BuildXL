@@ -2,12 +2,8 @@ import { RushConfiguration, RushConfigurationProject } from '@microsoft/rush-lib
 import * as semver from 'semver';
 import * as path from 'path';
 import * as fs from 'fs';
-import { FileSystem, JsonSchema, JsonFile, IPackageJsonScriptTable } from '@microsoft/node-core-library';
-import { IJestTaskConfiguration } from './IJestTaskConfiguration';
-
-const JEST_TASK_CONFIGURATION_SCHEMA: JsonSchema = JsonSchema.fromFile(
-    path.join(__dirname, 'schemas', 'jestTaskConfiguration.schema.json')
-  );
+import { IPackageJsonScriptTable } from '@rushstack/node-core-library';
+import * as BxlConfig from './BuildXLConfigurationReader';
 
 /**
  * A Rush graph, for what matters to BuildXL, is just a collection of projects
@@ -25,13 +21,14 @@ export interface RushProject {
     projectFolder: string;
     tempFolder: string;
     dependencies: string[];
-    additionalOutputDirectories: string[];
+    outputDirectories: BxlConfig.PathWithTargets[];
+    sourceFiles: BxlConfig.PathWithTargets[];
 }
 
 /**
  * Builds a RushGraph from a valid rush configuration file
  */
-export function buildGraph(rushConfigurationFile: string, isDebug: boolean): RushGraph
+export function buildGraph(rushConfigurationFile: string): RushGraph
 {
     // TODO: consider making the node-core library parametric
     // Load Rush configuration, which includes the build graph
@@ -43,13 +40,16 @@ export function buildGraph(rushConfigurationFile: string, isDebug: boolean): Rus
 
         let dependencies = getDependencies(rushConf, project);
 
+        let bxlConfig : BxlConfig.BuildXLConfiguration = BxlConfig.getBuildXLConfiguration(rushConf.rushJsonFolder, project.projectFolder);
+
         let p: RushProject = {
             name: project.packageName,
             projectFolder: project.projectFolder,
             dependencies: Array.from(dependencies),
             availableScriptCommands: project.packageJson.scripts,
             tempFolder: project.projectRushTempFolder,
-            additionalOutputDirectories: getAdditionalOutputDirectories(project)
+            outputDirectories: bxlConfig.outputDirectories,
+            sourceFiles: bxlConfig.sourceFiles
             };
 
         projects.push(p);
@@ -98,37 +98,3 @@ function getDependency(name: string, version: string, project: RushConfiguration
   
       return undefined;
 }
-
-/**
- * Use 'directories' in package.json to allow projects to specify additional output directories (additional to
- * the project root, which is a default output directory)
- */
-function getAdditionalOutputDirectories(project: RushConfigurationProject) : Array<string>{
-    
-    // 'directories' doesn't seem to be exposed from rush-lib. Parse package.json manually and extract the field
-    // if present
-    let packagejson : string = fs.readFileSync(path.join(project.projectFolder, "package.json")).toString();
-    let json = JSON.parse(packagejson);
-    let directories : Map<string, string> = json["directories"] as Map<string, string>;
-    
-    if (directories) {
-        // We don't care about the symbolic names used for each directory, just take the paths
-        let result : string[] = [];
-        for (const directoryName in directories) {
-            let directory = directories[directoryName];
-            result.push(path.join(project.projectFolder, directory));
-        }
-        return result;
-    }
-
-    return undefined;
-}
-
-function isJestEnabled(project: RushConfigurationProject): boolean {
-    const jestTaskConfigurationPath: string = path.resolve(project.projectFolder, 'config', 'jest.json');
-    const jestTaskConfiguration: Partial<IJestTaskConfiguration> = FileSystem.exists(jestTaskConfigurationPath)
-      ? JsonFile.loadAndValidate(jestTaskConfigurationPath, JEST_TASK_CONFIGURATION_SCHEMA)
-      : { isEnabled: false };
-
-    return jestTaskConfiguration.isEnabled ? true : false;
-  }

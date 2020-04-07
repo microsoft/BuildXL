@@ -27,16 +27,27 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
             IReadOnlyCollection<string> dependencies,
             [CanBeNull] IReadOnlyDictionary<string, string> availableScriptCommands,
             AbsolutePath tempFolder,
-            IReadOnlyCollection<AbsolutePath> additionalOutputDirectories) : base(name, projectFolder, dependencies, tempFolder, additionalOutputDirectories)
+            IReadOnlyCollection<PathWithTargets> outputDirectories,
+            IReadOnlyCollection<PathWithTargets> sourceFiles) : base(name, projectFolder, dependencies, tempFolder)
         {
             Contract.RequiresNotNull(dependencies);
+            Contract.RequiresNotNull(outputDirectories);
+            Contract.RequiresNotNull(sourceFiles);
 
             AvailableScriptCommands = availableScriptCommands ?? CollectionUtilities.EmptyDictionary<string, string>();
+            OutputDirectories = outputDirectories;
+            SourceFiles = sourceFiles;
         }
 
         /// <summary>
         /// The script commands that are available for the project
         /// </summary>
         public IReadOnlyDictionary<string, string> AvailableScriptCommands { get; }
+        
+        /// <nodoc/>
+        public IReadOnlyCollection<PathWithTargets> OutputDirectories { get; }
+
+        /// <nodoc/>
+        public IReadOnlyCollection<PathWithTargets> SourceFiles { get; }
     }
 }

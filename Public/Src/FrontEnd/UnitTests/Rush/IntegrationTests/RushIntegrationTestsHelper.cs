@@ -30,7 +30,19 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
                 .AddSpec(Path.Combine(packageFolder, "package.json"), 
                     RushIntegrationTestBase.CreatePackageJson(packageName, scriptCommands, dependencies ?? new string[] { }));
         }
-        
+
+        /// <summary>
+        /// Persists a rush configuration file at the given path
+        /// </summary>
+        public static SpecEvaluationBuilder AddRushConfigurationFile(
+            this SpecEvaluationBuilder builder,
+            string path,
+            string content)
+        {
+            builder.AddFile(Path.Combine(path, RushWorkspaceResolver.BxlConfigurationFilename), content);
+            return builder;
+        }
+
         /// <summary>
         /// Uses the provenance set by the rush scheduler to retrieve a process pip that corresponds to a given package name and script command
         /// </summary>

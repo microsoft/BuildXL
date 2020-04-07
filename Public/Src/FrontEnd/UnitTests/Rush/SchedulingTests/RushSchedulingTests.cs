@@ -75,21 +75,5 @@ namespace Test.BuildXL.FrontEnd.Rush
             // An opaque should cover the project root
             XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => project.ProjectFolder.IsWithin(PathTable, outputDirectory.Path)));
         }
-
-        [Fact]
-        public void AdditionalOutputDirectoriesAreHonored()
-        {
-            var outOfRootOutput = TestPath.GetParent(PathTable).Combine(PathTable, "additionalDir");
-            var project = CreateRushProject(additionalOutputDirectories: new[] { outOfRootOutput });
-
-            var processOutputDirectories = Start()
-                .Add(project)
-                .ScheduleAll()
-                .RetrieveSuccessfulProcess(project)
-                .DirectoryOutputs;
-
-            // There needs to be an opaque covering the additional output dir
-            XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => outOfRootOutput.IsWithin(PathTable, outputDirectory.Path)));
-        }
     }
 }

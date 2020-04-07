@@ -4,8 +4,6 @@
 #ifndef EventProcessor_h
 #define EventProcessor_h
 
-#include <EndpointSecurity/EndpointSecurity.h>
-
 #include "IOEvent.hpp"
 #include "IOHandler.hpp"
 #include "Sandbox.hpp"
@@ -32,73 +30,15 @@ static void process_event(es_client_t *client, const IOEvent &event, pid_t host,
     #pragma clang diagnostic ignored "-Wswitch"
             switch (event.GetEventType())
             {
-                case ES_EVENT_TYPE_NOTIFY_EXEC:
-                    return handler.HandleProcessExec(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_FORK: {
+                case ES_EVENT_TYPE_NOTIFY_FORK:
                     sandbox->GetPidMap().emplace(event.GetPid(), true);
-                    return handler.HandleProcessFork(event);
-                }
-                                                 
-                case ES_EVENT_TYPE_NOTIFY_EXIT: {
+                    break;
+
+                case ES_EVENT_TYPE_NOTIFY_EXIT:
                     sandbox->RemoveWhitelistedPid(pid);
-                    return handler.HandleProcessExit(event);
-                }
-                    
-                case ES_EVENT_TYPE_NOTIFY_LOOKUP:
-                    return handler.HandleLookup(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_OPEN:
-                    return handler.HandleOpen(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_CLOSE:
-                    return handler.HandleClose(event);
-
-                case ES_EVENT_TYPE_NOTIFY_CREATE:
-                    return handler.HandleCreate(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
-                case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
-                case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
-                case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
-                case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
-                case ES_EVENT_TYPE_NOTIFY_SETOWNER:
-                case ES_EVENT_TYPE_NOTIFY_SETMODE:
-                case ES_EVENT_TYPE_NOTIFY_WRITE:
-                case ES_EVENT_TYPE_NOTIFY_UTIMES:
-                case ES_EVENT_TYPE_NOTIFY_SETTIME:
-                case ES_EVENT_TYPE_NOTIFY_SETACL:
-                    return handler.HandleGenericWrite(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_READDIR:
-                case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
-                    return handler.HandleGenericRead(event);
-                
-                case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
-                case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
-                case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
-                case ES_EVENT_TYPE_NOTIFY_ACCESS:
-                case ES_EVENT_TYPE_NOTIFY_STAT:
-                    return handler.HandleGenericProbe(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_CLONE:
-                    return handler.HandleClone(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
-                    return handler.HandleExchange(event);
-
-                case ES_EVENT_TYPE_NOTIFY_RENAME:
-                    return handler.HandleRename(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_READLINK:
-                    return handler.HandleReadlink(event);
-                    
-                case ES_EVENT_TYPE_NOTIFY_LINK:
-                    return handler.HandleLink(event);
-                        
-                case ES_EVENT_TYPE_NOTIFY_UNLINK:
-                    return handler.HandleUnlink(event);
+                    break;
             }
+            handler.HandleEvent(event);
     #pragma clang diagnostic pop
         }
     }

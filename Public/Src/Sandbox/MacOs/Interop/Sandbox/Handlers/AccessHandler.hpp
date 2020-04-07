@@ -35,8 +35,6 @@ private:
                                     AccessCheckResult accessCheckResult,
                                     pid_t processID);
 
-    inline void SetProcess(std::shared_ptr<SandboxedProcess> process) { process_ = process; }
-
 protected:
 
     inline Sandbox* GetSandbox()                                const { return sandbox_; }
@@ -104,6 +102,8 @@ public:
      * @result Indicates whether the initialization was successful.
      */
     bool TryInitializeWithTrackedProcess(pid_t pid);
+
+    inline void SetProcess(std::shared_ptr<SandboxedProcess> process) { process_ = process; }
 
     inline bool HasTrackedProcess()             const { return process_ != nullptr; }
     inline pid_t GetProcessId()                 const { return GetPip()->GetProcessId(); }

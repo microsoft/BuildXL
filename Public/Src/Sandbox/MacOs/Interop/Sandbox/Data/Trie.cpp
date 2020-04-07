@@ -686,14 +686,10 @@ void Trie<T>::traverse(bool computeKey, void *callbackArgs, traverse_fn callback
 
 // Forward declarations
 
-#if __APPLE__
-
- #ifndef MAC_DETOURS
-     #include "SandboxedProcess.hpp"
-     template class Trie<SandboxedProcess>;
- #else
-     #include "Detours.hpp"
-     template class Trie<PathCacheEntry>;
- #endif
-
+#ifndef MAC_DETOURS
+    #include "SandboxedProcess.hpp"
+    template class Trie<SandboxedProcess>;
+#else
+    #include "Detours.hpp"
+    template class Trie<PathCacheEntry>;
 #endif

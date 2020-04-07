@@ -195,10 +195,10 @@ namespace BuildXL.Processes
         private void ProcessBytes(Info info, byte[] bytes)
         {
             // Format:
-            //   "%s|%d|%d|%d|%d|%d|%s|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, operation, opcode, reportPath
+            //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
             string message = Encoding.GetString(bytes).TrimEnd('\n');
             string[] parts = message.Split(new[] { '|' });
-            Contract.Assert(parts.Length == 9);
+            Contract.Assert(parts.Length == 8);
             var report = new AccessReport
             {
                 Pid = (int)AssertInt(info, parts[1]),
@@ -207,8 +207,8 @@ namespace BuildXL.Processes
                 Status = AssertInt(info, parts[3]),
                 ExplicitLogging = AssertInt(info, parts[4]),
                 Error = AssertInt(info, parts[5]),
-                Operation = (FileOperation) AssertInt(info, parts[7]),
-                PathOrPipStats = Encoding.GetBytes(parts[8]),
+                Operation = (FileOperation) AssertInt(info, parts[6]),
+                PathOrPipStats = Encoding.GetBytes(parts[7]),
             };
             info.Process.PostAccessReport(report);
         }

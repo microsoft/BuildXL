@@ -179,7 +179,7 @@ void IOHandler::HandleGenericProbe(const IOEvent &event)
     const char *path = event.GetEventPath(SRC_PATH);
     mode_t mode = event.GetMode();
     bool isDir = S_ISDIR(mode);
-    
+
     if (!event.EventPathExists())
     {
         CheckAndReport(kOpMacLookup, path, Checkers::CheckLookup, event.GetPid(), false);
@@ -187,5 +187,79 @@ void IOHandler::HandleGenericProbe(const IOEvent &event)
     else
     {
         CheckAndReport(kOpKAuthVNodeProbe, path, Checkers::CheckProbe, event.GetPid(), isDir);
+    }
+}
+
+void IOHandler::HandleEvent(const IOEvent &event)
+{
+    switch (event.GetEventType())
+    {
+        case ES_EVENT_TYPE_NOTIFY_EXEC:
+            return HandleProcessExec(event);
+
+        case ES_EVENT_TYPE_NOTIFY_FORK:
+            return HandleProcessFork(event);
+
+        case ES_EVENT_TYPE_NOTIFY_EXIT:
+            return HandleProcessExit(event);
+
+        case ES_EVENT_TYPE_NOTIFY_LOOKUP:
+            return HandleLookup(event);
+
+        case ES_EVENT_TYPE_NOTIFY_OPEN:
+            return HandleOpen(event);
+
+        case ES_EVENT_TYPE_NOTIFY_CLOSE:
+            return HandleClose(event);
+
+        case ES_EVENT_TYPE_NOTIFY_CREATE:
+            return HandleCreate(event);
+
+        case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
+        case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
+        case ES_EVENT_TYPE_NOTIFY_SETOWNER:
+        case ES_EVENT_TYPE_NOTIFY_SETMODE:
+        case ES_EVENT_TYPE_NOTIFY_WRITE:
+        case ES_EVENT_TYPE_NOTIFY_UTIMES:
+        case ES_EVENT_TYPE_NOTIFY_SETTIME:
+        case ES_EVENT_TYPE_NOTIFY_SETACL:
+            return HandleGenericWrite(event);
+
+        case ES_EVENT_TYPE_NOTIFY_READDIR:
+        case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
+            return HandleGenericRead(event);
+
+        case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_ACCESS:
+        case ES_EVENT_TYPE_NOTIFY_STAT:
+            return HandleGenericProbe(event);
+
+        case ES_EVENT_TYPE_NOTIFY_CLONE:
+            return HandleClone(event);
+
+        case ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA:
+            return HandleExchange(event);
+
+        case ES_EVENT_TYPE_NOTIFY_RENAME:
+            return HandleRename(event);
+
+        case ES_EVENT_TYPE_NOTIFY_READLINK:
+            return HandleReadlink(event);
+
+        case ES_EVENT_TYPE_NOTIFY_LINK:
+            return HandleLink(event);
+
+        case ES_EVENT_TYPE_NOTIFY_UNLINK:
+            return HandleUnlink(event);
+
+        default:
+            std::string message("Unhandled ES event: ");
+            message.append(std::to_string(event.GetEventType()));
+            throw BuildXLException(message);
     }
 }

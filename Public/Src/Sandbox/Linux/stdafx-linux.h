@@ -11,11 +11,15 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <wchar.h>
 #include <sys/stat.h>
 
 #include <atomic>
 #include <cstring>
+#include <iostream>
+#include <istream>
 #include <memory>
 #include <string>
 
@@ -23,6 +27,11 @@
 
 #define BUILDXL_BUNDLE_IDENTIFIER "com.microsoft.buildxl.sandbox"
 #define BUILDXL_CLASS_PREFIX "com_microsoft_buildxl_"
+
+#define __cdecl  // __attribute__((__cdecl__))
+#define strlcpy strncpy
+#define os_log_error 
+#define os_log
 
 typedef uint64_t mach_vm_address_t;
 typedef uint64_t mach_vm_offset_t;
@@ -35,11 +44,14 @@ typedef uint64_t vm_map_size_t;
 // bogus type definitions
 typedef void* os_log_t;
 typedef void* es_client_t;
+typedef void* dispatch_queue_t;
 
 // ES events
 typedef struct{
 	unsigned int val[8];
 } audit_token_t;
+
+#define es_mute_process(...)
 
 typedef enum {
     // The following events are available beginning in macOS 10.15

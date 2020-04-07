@@ -23,7 +23,8 @@ enum Configuration
 {
     EndpointSecuritySandboxType = 0,
     DetoursSandboxType,
-    HybridSandboxType
+    HybridSandboxType,
+    DetoursLinuxSandboxType
 };
 
 typedef struct {
@@ -36,7 +37,7 @@ extern "C"
     void InitializeSandbox(SandboxConnectionInfo *info, pid_t host_pid);
     void DeinitializeSandbox();
 
-    __cdecl void ObserverFileAccessReports(SandboxConnectionInfo *info, AccessReportCallback callback, long accessReportSize);
+    void __cdecl ObserverFileAccessReports(SandboxConnectionInfo *info, AccessReportCallback callback, long accessReportSize);
 };
 
 bool Sandbox_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength);

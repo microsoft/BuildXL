@@ -4,10 +4,6 @@
 #ifndef EndpointSecuritySandbox_hpp
 #define EndpointSecuritySandbox_hpp
 
-#include <bsm/libbsm.h>
-#include <dispatch/dispatch.h>
-#include <EndpointSecurity/EndpointSecurity.h>
-
 #include "IOEvent.hpp"
 
 // Currently the following events are not hooked up, maybe useful later

@@ -4,17 +4,14 @@
 #ifndef DetoursSandbox_hpp
 #define DetoursSandbox_hpp
 
-#include <dispatch/dispatch.h>
+#include "stdafx.h"
+
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
 #include <signal.h>
-#include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-
-#include <string>
-#include <map>
 
 #include "IOEvent.hpp"
 

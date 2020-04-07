@@ -4,6 +4,8 @@
 #ifndef Trie_hpp
 #define Trie_hpp
 
+#include "stdafx.h"
+
 #include <atomic>
 #include <memory>
 #include <limits.h>

@@ -104,6 +104,7 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
     
     switch (config)
     {
+#if __APPLE__
         case EndpointSecuritySandboxType: {
             es_ = new EndpointSecuritySandbox(host_pid, &process_event);
             break;
@@ -117,8 +118,12 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
             detours_ = new DetoursSandbox(host_pid, &process_event);
             break;
         }
+#elif __linux__
+        case DetoursLinuxSandboxType:
+            break;
+#endif
         default:
-             throw BuildXLException("Could not infer sandbox configuration setting, aborting!");
+            throw BuildXLException("Could not infer sandbox configuration setting, aborting!");
     }
 }
 
@@ -130,7 +135,8 @@ Sandbox::~Sandbox()
     {
         delete trackedProcesses_;
     }
-    
+
+#if __APPLE__
     if (es_ != nullptr)
     {
         delete es_;
@@ -140,6 +146,7 @@ Sandbox::~Sandbox()
     {
         delete detours_;
     }
+#endif
 }
 
 std::shared_ptr<SandboxedProcess> Sandbox::FindTrackedProcess(pid_t pid)

@@ -83,10 +83,11 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
         .operation        = kOpProcessExit,
         .pid              = childPid,
         .rootPid          = GetProcessId(),
-        .pipId            = GetPipId(),
+        .requestedAccess  = 0,
         .status           = FileAccessStatus::FileAccessStatus_Allowed,
         .reportExplicitly = 0,
         .error            = 0,
+        .pipId            = GetPipId(),
         .stats            = {0}
     };
 

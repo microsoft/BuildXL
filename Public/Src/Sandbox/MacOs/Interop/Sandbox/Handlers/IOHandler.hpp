@@ -15,6 +15,10 @@ public:
 
     IOHandler(Sandbox *sandbox) : AccessHandler(sandbox) { }
 
+    // TODO: all these should return AccessCheckResult
+
+    void HandleEvent(const IOEvent &event);
+
 #pragma mark Process life cycle
     
     void HandleProcessFork(const IOEvent &event);

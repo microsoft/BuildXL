@@ -5,9 +5,12 @@ CXX     = g++
 
 INC     = \
     ./                                      \
+	../MacOs/Interop/Sandbox                \
     ../MacOs/Interop/Sandbox/Data           \
+	../MacOs/Interop/Sandbox/Handlers       \
     ../MacOs/Sandbox/Src                    \
     ../MacOs/Sandbox/Src/FileAccessManifest \
+	../MacOs/Sandbox/Src/Kauth              \
     ../Windows/DetoursServices
 
 INC_FLAGS = $(foreach d, $(INC), -I$d)
@@ -20,14 +23,14 @@ LDFLAGS  = -ldl -lpthread
 src = \
 	$(wildcard *.cpp) \
 	$(wildcard ../MacOs/Interop/Sandbox/Data/*.cpp) \
-	$(wildcard ../MacOs/Interop/Handlers/*.cpp) \
-	$(wildcard ../MacOs/Interop/*.cpp) \
+	$(wildcard ../MacOs/Interop/Sandbox/Handlers/*.cpp) \
+	../MacOs/Interop/Sandbox/Sandbox.cpp \
 	../MacOs/Sandbox/Src/FileAccessManifest/FileAccessManifestParser.cpp \
 	../MacOs/Sandbox/Src/Kauth/Checkers.cpp \
 	../MacOs/Sandbox/Src/Kauth/OpNames.cpp \
 	../Windows/DetoursServices/PolicyResult_common.cpp \
 	../Windows/DetoursServices/PolicySearch.cpp \
-	../Windows/DetoursServices/StringOperations.cpp \
+	../Windows/DetoursServices/StringOperations.cpp
 
 dbgobj = $(src:.cpp=.d.o)
 relobj = $(src:.cpp=.r.o)
@@ -53,6 +56,9 @@ release: prep bin/release/libDetours.so
 
 prep:
 	@mkdir -p bin/debug bin/release
+
+main: $(dbgobj)
+	$(CXX) $^ -o bin/debug/main $(LDFLAGS)
 
 bin/release/libDetours.so: $(relobj)
 	$(CXX) -shared $^ -o bin/release/libDetours.so $(LDFLAGS)

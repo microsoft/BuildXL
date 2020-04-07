@@ -255,7 +255,7 @@ namespace BuildXL.Cache.Logging.External
 
             try
             {
-                _host.Error(exception, "An exception has occurred in an unobserved task. Process will exit");
+                _host.Warning("An exception has occurred in an unobserved task. Process may exit. Exception=[{0}]", exception);
             }
             catch (Exception loggerException)
             {

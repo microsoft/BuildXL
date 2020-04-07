@@ -235,6 +235,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         RotateLogsMaxAge = TimeSpan.FromHours(_configuration.LogsKeepLongTerm ? 12 : 1),
                         EnableStatistics = true,
                         FastOpen = true,
+                        // The RocksDb database here is read-only from the perspective of the default column family,
+                        // but read/write from the perspective of the ClusterState (which is rewritten on every
+                        // heartbeat). This means that the database may perform background compactions on the column
+                        // families, possibly triggering a RocksDb corruption "block checksum mismatch" error.
+                        // Since the writes to ClusterState are relatively few, we can make-do with disabling
+                        // compaction here and pretending like we are using a read-only database.
+                        DisableAutomaticCompactions = !IsDatabaseWriteable,
                     },
                     // When an exception is caught from within methods using the database, this handler is called to
                     // decide whether the exception should be rethrown in user code, and the database invalidated. Our

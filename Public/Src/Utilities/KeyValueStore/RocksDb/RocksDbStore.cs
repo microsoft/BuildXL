@@ -100,6 +100,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// Enables RocksDb statistics getting dumped to the LOG. Useful only for performance debugging.
             /// </summary>
             public bool EnableStatistics { get; set; }
+
+            /// <summary>
+            /// Disables automatic background compactions.
+            /// </summary>
+            public bool DisableAutomaticCompactions { get; set; }
         }
 
         /// <summary>
@@ -258,7 +263,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 if (arguments.FastOpen)
                 {
                     // max_file_opening_threads is defaulted to 16, so no need to update here.
-                    RocksDbSharp.Native.Instance.rocksdb_options_set_skip_stats_update_on_db_open(m_defaults.DbOptions.Handle, false);
+                    RocksDbSharp.Native.Instance.rocksdb_options_set_skip_stats_update_on_db_open(m_defaults.DbOptions.Handle, true);
+                }
+
+                if (arguments.DisableAutomaticCompactions)
+                {
+                    m_defaults.DbOptions.SetDisableAutoCompactions(1);
                 }
 
                 // A small comment on things tested that did not work:

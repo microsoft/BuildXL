@@ -1102,7 +1102,12 @@ namespace BuildXL.Scheduler
                         processDescription,
                         cacheHitData.Metadata.NumberOfWarnings);
 
-                    await ReplayWarningsFromCacheAsync(operationContext, environment, state, pip, cacheHitData);
+                    if(!await ReplayWarningsFromCacheAsync(operationContext, environment, state, pip, cacheHitData))
+                    {
+                        // An error has been logged, the pip must fail
+                        return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
+
+                    }
                 }
 
                 return executionResult;
@@ -3283,6 +3288,10 @@ namespace BuildXL.Scheduler
             if (success)
             {
                 environment.ReportWarnings(fromCache: true, count: cacheHitData.Metadata.NumberOfWarnings);
+            }
+            else
+            {
+                return false;
             }
 
             return true;

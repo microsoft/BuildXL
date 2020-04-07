@@ -1445,6 +1445,7 @@ namespace BuildXL.Processes
             Dictionary<string, int> pipProperties = null;
 
             bool allOutputsPresent = false;
+            bool loggingSuccess = true;
 
             ProcessTimes primaryProcessTimes = result.PrimaryProcessTimes;
             JobObject.AccountingInformation? jobAccounting = result.JobAccountingInformation;
@@ -1493,59 +1494,68 @@ namespace BuildXL.Processes
                     if (!canceled)
                     {
                         LogFinishedFailed(result);
-                        pipProperties = await SetPipPropertiesAsync(result);
-
-                        if (exitedButCanBeRetried)
+                        var propertiesResult = await TrySetPipPropertiesAsync(result);
+                        pipProperties = propertiesResult.PipProperties;
+                        if (!propertiesResult.Success)
                         {
-                            Tuple<AbsolutePath, Encoding> encodedStandardError = null;
-                            Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
-                            if (await TrySaveAndLogStandardOutputAsync(result))
-                            {
-                                encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
-                            }
-
-                            if (await TrySaveAndLogStandardErrorAsync(result))
-                            {
-                                encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
-                            }
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
-                                result.NumberOfProcessLaunchRetries,
-                                result.ExitCode,
-                                primaryProcessTimes,
-                                jobAccounting,
-                                result.DetouringStatuses,
-                                sandboxPrepMs,
-                                sw.ElapsedMilliseconds,
-                                result.ProcessStartTime,
-                                maxDetoursHeapSize,
-                                m_containerConfiguration,
-                                encodedStandardError,
-                                encodedStandardOutput,
-                                pipProperties);
+                            Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySetPipPropertiesAsync failure.");
+                            // There was an error logged when extracting properties from the pip. The pip needs to fail and not retry
+                            loggingSuccess = false;
                         }
-                        else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
+                        else
                         {
-                            // Retry if the exit code is 0xDEAD.
-                            var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
-                            Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
-                                m_loggingContext,
-                                m_pip.SemiStableHash,
-                                m_pipDescription,
-                                deadProcess.Path,
-                                deadProcess.ProcessId);
+                            if (exitedButCanBeRetried)
+                            {
+                                Tuple<AbsolutePath, Encoding> encodedStandardError = null;
+                                Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
+                                if (await TrySaveAndLogStandardOutputAsync(result))
+                                {
+                                    encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
+                                }
 
-                            return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
-                                result.NumberOfProcessLaunchRetries,
-                                result.ExitCode,
-                                primaryProcessTimes,
-                                jobAccounting,
-                                result.DetouringStatuses,
-                                sandboxPrepMs,
-                                sw.ElapsedMilliseconds,
-                                result.ProcessStartTime,
-                                maxDetoursHeapSize,
-                                m_containerConfiguration,
-                                pipProperties);
+                                if (await TrySaveAndLogStandardErrorAsync(result))
+                                {
+                                    encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
+                                }
+                                return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                    result.NumberOfProcessLaunchRetries,
+                                    result.ExitCode,
+                                    primaryProcessTimes,
+                                    jobAccounting,
+                                    result.DetouringStatuses,
+                                    sandboxPrepMs,
+                                    sw.ElapsedMilliseconds,
+                                    result.ProcessStartTime,
+                                    maxDetoursHeapSize,
+                                    m_containerConfiguration,
+                                    encodedStandardError,
+                                    encodedStandardOutput,
+                                    pipProperties);
+                            }
+                            else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
+                            {
+                                // Retry if the exit code is 0xDEAD.
+                                var deadProcess = result.Processes.Where(p => p.ExitCode == AzureWatsonExitCode).First();
+                                Tracing.Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    deadProcess.Path,
+                                    deadProcess.ProcessId);
+
+                                return SandboxedProcessPipExecutionResult.RetryProcessDueToAzureWatsonExitCode(
+                                    result.NumberOfProcessLaunchRetries,
+                                    result.ExitCode,
+                                    primaryProcessTimes,
+                                    jobAccounting,
+                                    result.DetouringStatuses,
+                                    sandboxPrepMs,
+                                    sw.ElapsedMilliseconds,
+                                    result.ProcessStartTime,
+                                    maxDetoursHeapSize,
+                                    m_containerConfiguration,
+                                    pipProperties);
+                            }
                         }
                     }
                 }
@@ -1614,7 +1624,6 @@ namespace BuildXL.Processes
 
             bool standardOutHasBeenWrittenToLog = false;
             bool errorOrWarnings = !mainProcessSuccess || m_numWarnings > 0;
-            bool loggingSuccess = true;
 
             bool shouldPersistStandardOutput = errorOrWarnings || m_pip.StandardOutput.IsValid;
             if (shouldPersistStandardOutput)
@@ -1814,21 +1823,29 @@ namespace BuildXL.Processes
                 pipProperties: pipProperties);
         }
 
-        private async Task<Dictionary<string, int>> SetPipPropertiesAsync(SandboxedProcessResult result)
+        private async Task<(bool Success, Dictionary<string, int> PipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)
         {
             OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(m_pip.EnableMultiLineErrorScanning);
 
-            string errorMatches = (await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true)).FilteredOutput;
-            string outputMatches = (await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true)).FilteredOutput;
+            var filteredErr = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);
+            var filteredOut = await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true);
+            if (filteredErr.HasError || filteredOut.HasError)
+            {
+                // We have logged an error when processing the standard error or standard output stream. 
+                return (Success: false, PipProperties: null);
+            }
+
+            string errorMatches = filteredErr.FilteredOutput;
+            string outputMatches = filteredOut.FilteredOutput;
             string allMatches = errorMatches + Environment.NewLine + outputMatches;
 
             if (!string.IsNullOrWhiteSpace(allMatches))
             {
                 string[] matchedProperties = allMatches.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                return matchedProperties.ToDictionary(val => val, val => 1);
+                return (Success: true, PipProperties: matchedProperties.ToDictionary(val => val, val => 1));
             }
 
-            return null;
+            return (Success: true, PipProperties: null);
         }
 
         private Tuple<AbsolutePath, Encoding> GetEncodedStandardConsoleStream(SandboxedProcessOutput output)

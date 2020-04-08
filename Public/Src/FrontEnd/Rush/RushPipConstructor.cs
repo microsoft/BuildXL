@@ -143,7 +143,9 @@ namespace BuildXL.FrontEnd.Rush
             string nodeModulesBin = project.ProjectFolder.Combine(PathTable, RelativePath.Create(PathTable.StringTable, "node_modules/.bin")).ToString(PathTable);
             env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $";{env["PATH"]}" : string.Empty);
             // redirect the user profile so it points under the temp folder
-            env["USERPROFILE"] = project.TempFolder.Combine(PathTable, "USERPROFILE").ToString(PathTable);
+            // use a different path for each build command, since there are tools that happen to generate the same file for, let's say, build and test
+            // and we want to avoid double writes as much as possible
+            env["USERPROFILE"] = project.TempFolder.Combine(PathTable, "USERPROFILE").Combine(PathTable, project.ScriptCommandName).ToString(PathTable);
             
             return env;
         }
@@ -250,8 +252,11 @@ namespace BuildXL.FrontEnd.Rush
                 processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.d.ts"), 0), FileExistence.Optional);
             }
 
-            // Some projects share their temp folder and double writes may happen. For now untrack it.
-            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder));
+            // Some projects share their temp folder across their build scripts (e.g. build and test)
+            // So we cannot make them share the temp folder with the infrastructure we have today
+            // (even though not impossible to fix, we could allow temp directories among pips that are part
+            // of the same depedency chain and eagerly delete the folder every time a pip finishes)
+            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder), SealDirectoryKind.SharedOpaque);
 
             // Add all the additional output directories that the rush graph knows about
             foreach(var outputDirectory in project.OutputDirectories)
@@ -300,6 +305,10 @@ namespace BuildXL.FrontEnd.Rush
             // By default the double write policy is to allow same content double writes.
             processBuilder.DoubleWritePolicy |= DoubleWritePolicy.AllowSameContentDoubleWrites;
 
+            // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
+            // any attempt to read into the user profile will fail to compute its corresponding hash
+            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);

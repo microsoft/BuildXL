@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
+using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -63,7 +64,6 @@ namespace Test.BuildXL.FrontEnd.Rush
         [Fact(Skip = "This should eventually hold, but for now we are not declaring an opaque at the root to avoid node_modules scrubbing delays")]
         public void OutputDirectoryIsCreatedAtTheProjectRoot()
         {
-            System.Diagnostics.Debugger.Launch();
             var project = CreateRushProject();
 
             var processOutputDirectories = Start()
@@ -74,6 +74,21 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             // An opaque should cover the project root
             XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => project.ProjectFolder.IsWithin(PathTable, outputDirectory.Path)));
+        }
+
+        [Fact]
+        public void ScriptNameIsSetAsTag()
+        {
+            var project = CreateRushProject(scriptCommandName: "some-script");
+
+            var processTags = Start()
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .Tags;
+
+            // The script name should be part of the process tags
+            XAssert.Contains(processTags, StringId.Create(StringTable, "some-script"));
         }
     }
 }

@@ -5386,7 +5386,12 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(
+            INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
+            path.GetPathString(),
+            opContext.DesiredAccess,
+            CreateOptions,
+            &policyResult);
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile()) 
@@ -5662,7 +5667,12 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, &policyResult);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(
+            INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
+            path.GetPathString(),
+            opContext.DesiredAccess,
+            CreateOptions,
+            &policyResult);
         
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile())
@@ -5917,7 +5927,12 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         // If we failed, just report. No need to execute anything below.
         FileReadContext readContext;
         readContext.InferExistenceFromNtStatus(result);
-        readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, OpenOptions, &policyResult);
+        readContext.OpenedDirectory = IsHandleOrPathToDirectory(
+            INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
+            path.GetPathString(),
+            opContext.DesiredAccess,
+            OpenOptions,
+            &policyResult);
         
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorZwCreateOpenQueryFile())

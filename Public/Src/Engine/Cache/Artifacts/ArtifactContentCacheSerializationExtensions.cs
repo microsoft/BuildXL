@@ -262,46 +262,29 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Bond-serializes a given <typeparamref name="T"/> and stores the result to the content cache.
         /// The returned content hash can be used to later deserialize the structure with <see cref="TryLoadAndDeserializeContent{T}"/>.
         /// </summary>
-        public static Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
+        public static async Task<Possible<ContentHash>> TrySerializeAndStoreContent<T>(
             this IArtifactContentCache contentCache,
             T valueToSerialize,
             BoxRef<long> contentSize = null)
         {
-            return BondExtensions.TrySerializeAndStoreContent(
-                contentCache,
+            return await BondExtensions.TrySerializeAndStoreContent(
                 valueToSerialize,
-                TryStoreContentAsync,
-                contentSize);
-        }
-
-        /// <summary>
-        /// Store bond-serialized data with a given hash to the content cache.
-        /// </summary>
-        public static Task<Possible<Unit>> TryStoreContent(
-            this IArtifactContentCache contentCache,
-            ContentHash valueHash,
-            ArraySegment<byte> valueBuffer)
-        {
-            return TryStoreContentAsync(contentCache, valueHash, valueBuffer);
-        }
-
-        private static async Task<Possible<Unit>> TryStoreContentAsync(
-            IArtifactContentCache contentCache,
-            ContentHash valueHash,
-            ArraySegment<byte> valueBuffer)
-        {
-            using (var entryStream = new MemoryStream(
+                async (valueHash, valueBuffer) =>
+                {
+                    using (var entryStream = new MemoryStream(
                         valueBuffer.Array,
                         valueBuffer.Offset,
                         valueBuffer.Count,
                         writable: false))
-            {
-                Possible<Unit, Failure> maybeStored = await contentCache.TryStoreAsync(
-                    entryStream,
-                    contentHash: valueHash);
+                    {
+                        Possible<Unit, Failure> maybeStored = await contentCache.TryStoreAsync(
+                            entryStream,
+                            contentHash: valueHash);
 
-                return maybeStored.WithGenericFailure();
-            }
+                        return maybeStored.WithGenericFailure();
+                    }
+                },
+                contentSize);
         }
 
         /// <nodoc />

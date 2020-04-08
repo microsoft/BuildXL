@@ -82,18 +82,15 @@ namespace BuildXL.Scheduler.Tracing
                             filePath.Expand(pathTable));
 
                         if (storeResult.Succeeded)
-                        {                            
+                        {
                             Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
                         }
 
-                        var result = storeResult.Then(result => new StringKeyedHash()
+                        return storeResult.Then(result => new StringKeyedHash()
                         {
                             Key = path.ExpandRelative(pathTable, filePath),
                             ContentHash = result.ToBondContentHash()
                         });
-
-                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store to cache: Success='{storeResult.Succeeded}', FilePath='{filePath}' Key='{result.Result.Key}' Hash='{result.Result.ContentHash.ToContentHash()}'"));
-                        return result;
                     }
                 });
 
@@ -116,25 +113,18 @@ namespace BuildXL.Scheduler.Tracing
                 Contents = storedFiles.Select(p => p.Result).ToList()
             };
 
-            // Publish contents before saving the descriptor to make sure content exist before the descriptor exist to avoid fingerprintstore opening errors
-            var storeDescriptorBuffer = BondExtensions.Serialize(descriptor);
-            var storeDescriptorHash = ContentHashingUtilities.HashBytes(
-                storeDescriptorBuffer.Array,
-                storeDescriptorBuffer.Offset,
-                storeDescriptorBuffer.Count);
-
-            var associatedFileHashes = descriptor.Contents.Select(s => s.ContentHash.ToContentHash()).ToArray().ToReadOnlyArray().GetSubView(0);
-            var cacheEntry = new CacheEntry(storeDescriptorHash, null, associatedFileHashes);
-            var publishResult = await cache.TwoPhaseFingerprintStore.TryPublishTemporalCacheEntryAsync(loggingContext, fingerprint, cacheEntry);
-            Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Publishing fingerprint store to cache: Fingerprint='{fingerprint}' Hash={storeDescriptorHash} Success='{publishResult.Succeeded}'"));
-
-            var storeDescriptorResult = await cache.ArtifactContentCache.TryStoreContent(storeDescriptorHash, storeDescriptorBuffer);
+            var storeDescriptorResult = await cache.ArtifactContentCache.TrySerializeAndStoreContent(descriptor);
             Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store descriptor to cache: Success='{storeDescriptorResult.Succeeded}'"));
             if (!storeDescriptorResult.Succeeded)
             {
                 return storeDescriptorResult.Failure;
             }
 
+            var associatedFileHashes = descriptor.Contents.Select(s => s.ContentHash.ToContentHash()).ToArray().ToReadOnlyArray().GetSubView(0);
+            var cacheEntry = new CacheEntry(storeDescriptorResult.Result, null, associatedFileHashes);
+
+            var publishResult = await cache.TwoPhaseFingerprintStore.TryPublishTemporalCacheEntryAsync(loggingContext, fingerprint, cacheEntry);
+            Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Publishing fingerprint store to cache: Fingerprint='{fingerprint}' Hash={storeDescriptorResult.Result}"));
             return size.Value;
         }
 
@@ -203,26 +193,16 @@ namespace BuildXL.Scheduler.Tracing
                                 FileRealizationMode.Copy,
                                 filePath.Expand(pathTable),
                                 subPathKeyedHash.ContentHash.ToContentHash());
-                            Logger.Log.GettingFingerprintStoreTrace(
-                                                    loggingContext,
-                                                    I($"Loaded fingerprint store file from cache: Success='{maybeMaterialized.Succeeded}' FilePath='{filePath}' Key='{subPathKeyedHash.Key}' Hash='{subPathKeyedHash.ContentHash.ToContentHash()}'"));
+
                             return maybeMaterialized;
                         }
                     }).ToList());
 
                     var failure = materializedFiles.Where(p => !p.Succeeded).Select(p => p.Failure).FirstOrDefault();
-                    
                     if (failure != null)
                     {
                         return failure;
                     }
-
-                    if (descriptor.Contents == null || descriptor.Contents.Count == 0 || materializedFiles == null || materializedFiles.Length == 0)
-                    {
-                        return new Failure<string>(I($"There is no content in fingerprint store. Contents.Count = {(descriptor.Contents != null ? descriptor.Contents.Count : 0)}, materializedFiles.Length = {(materializedFiles != null ? materializedFiles.Length :0)}"));
-                    }
-
-                    Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Loaded fingerprint store file numbers: Succeeded={materializedFiles.Where(p => p.Succeeded).Count()}, Failed={materializedFiles.Where(p => !p.Succeeded).Count()}"));
                     return Unit.Void;
                 });
 

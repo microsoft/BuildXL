@@ -26,11 +26,7 @@ PolicySearchCursor AccessHandler::FindManifestRecord(const char *absolutePath, s
 
 void AccessHandler::SetProcessPath(AccessReport *report)
 {
-    const char *procName = process_->HasPath()
-        ? process_->GetPath()
-        : "/unknown-process"; // should never happen
-    
-    strlcpy(report->path, procName, sizeof(report->path));
+    strlcpy(report->path, process_->GetPath(), sizeof(report->path));
 }
 
 ReportResult AccessHandler::ReportFileOpAccess(FileOperation operation,
@@ -63,16 +59,21 @@ bool AccessHandler::ReportProcessTreeCompleted(pid_t processId)
 {
     AccessReport report =
     {
-        .operation = kOpProcessTreeCompleted,
-        .pid       = processId,
-        .rootPid   = GetProcessId(),
-        .pipId     = GetPipId(),
-        .stats     = {0}
+        .operation        = kOpProcessTreeCompleted,
+        .pid              = processId,
+        .rootPid          = GetProcessId(),
+        .requestedAccess  = 0,
+        .status           = FileAccessStatus::FileAccessStatus_Allowed,
+        .reportExplicitly = 0,
+        .error            = 0,
+        .pipId            = GetPipId(),
+        .path             = {0},
+        .stats            = {0}
     };
 
     SetProcessPath(&report);
     sandbox_->SendAccessReport(report, GetPip());
-    
+
     return kReported;
 }
 
@@ -88,6 +89,7 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
         .reportExplicitly = 0,
         .error            = 0,
         .pipId            = GetPipId(),
+        .path             = {0},
         .stats            = {0}
     };
 

@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-#ifndef OpNames_h
-#define OpNames_h
+#pragma once
 
 // This file is used to automatically generate a .cs file for the Windows builds.
-//
 // Every line that matches the 'macro_to_apply\((.*),\s*(.*)\)' regular expression (assuming the C# regex syntax)
 // is picked up and turned into a public const string C# definition.
 
@@ -47,5 +44,3 @@ enum FileOperation : char
 
 // defined in OpNames.cpp
 extern const char *OpNames[];
-
-#endif /* OpNames_h */

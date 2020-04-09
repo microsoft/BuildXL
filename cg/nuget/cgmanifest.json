@@ -1778,6 +1778,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETCore.App.Host.linux-x64",
+          "Version": "3.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
           "Version": "3.1.0"
         }
@@ -4308,7 +4317,25 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.linux-x64.BuildXL",
-          "Version": "0.0.2"
+          "Version": "0.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.1.0"
         }
       }
     },

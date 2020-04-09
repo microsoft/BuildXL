@@ -40,9 +40,8 @@ const osxRuntimeFiles = [
 
 const linuxRuntimeFiles = [
     ...importFrom("Microsoft.NETCore.App.Runtime.linux-x64").Contents.all.getContent().filter(f => linuxRuntimeExtensions(f) && !ignoredAssembly(f)),
-    // === the following would be needed if we were building self-contained executables for Linux (which we don't at the moment)
-    //...importFrom("runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver").Contents.all.getContent().filter(f => linuxRuntimeExtensions(f)),
-    //...importFrom("runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy").Contents.all.getContent().filter(f => linuxRuntimeExtensions(f)),
+    ...importFrom("runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver").Contents.all.getContent().filter(f => linuxRuntimeExtensions(f)),
+    ...importFrom("runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy").Contents.all.getContent().filter(f => linuxRuntimeExtensions(f)),
 ];
 
 @@public

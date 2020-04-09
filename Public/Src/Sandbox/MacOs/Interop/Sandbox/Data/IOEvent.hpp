@@ -70,7 +70,7 @@ public:
     : pid_(pid), cpid_(cpid), ppid_(ppid), eventType_(type), modified_(modified)
     {
         assert(!exec.empty());
-        if (!exec.empty()) executable_ = exec;
+        executable_ = exec;
 
         src_path_ = src != nullptr ? std::string(src) : std::string("");
         dst_path_ = dst != nullptr ? std::string(dst) : std::string("");

@@ -32,22 +32,304 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class SandboxConnectionLinuxDetours : ISandboxConnection
     {
+        internal sealed class PathCacheRecord
+        {
+            internal RequestedAccess RequestedAccess { get; set; }
+
+            internal RequestedAccess GetClosure(RequestedAccess access)
+            {
+                var result = RequestedAccess.None;
+
+                // Read implies Probe
+                if (access.HasFlag(RequestedAccess.Read))
+                {
+                    result |= RequestedAccess.Probe;
+                }
+
+                // Write implies Read and Probe
+                if (access.HasFlag(RequestedAccess.Write))
+                {
+                    result |= RequestedAccess.Read | RequestedAccess.Probe;
+                }
+
+                return result;
+            }
+
+            internal bool CheckCacheHitAndUpdate(RequestedAccess access)
+            {
+                // if all flags in 'access' are already present --> cache hit
+                bool isCacheHit = (RequestedAccess & access) == access;
+                if (!isCacheHit)
+                {
+                    RequestedAccess |= GetClosure(access);
+                }
+                return isCacheHit;
+            }
+        }
+
         internal sealed class Info : IDisposable
         {
-            internal LoggingContext LoggingContext { get; set; }
-            internal SandboxedProcessUnix Process { get; set; }
-            internal string ReportsFifoPath { get; set; }
-            internal string FamPath { get; set; }
-            internal Thread WorkerThread { get; set; }
-            internal SafeFileHandle WriteHandle { get; set; }
+            internal SandboxedProcessUnix Process { get; }
+            internal string ReportsFifoPath { get; }
+            internal string FamPath { get; }
+
+            private readonly LoggingContext m_loggingContext;
+            private readonly Sandbox.ManagedFailureCallback m_failureCallback;
+            private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
+            private readonly HashSet<int> m_activeProcesses;
+            private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
+            private readonly Thread m_workerThread;
+
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, LoggingContext loggingContext, SandboxedProcessUnix process, string reportsFifoPath, string famPath)
+            {
+                m_failureCallback = failureCallback;
+                m_loggingContext = loggingContext;
+                Process = process;
+                ReportsFifoPath = reportsFifoPath;
+                FamPath = famPath;
+
+                m_pathCache = new Dictionary<string, PathCacheRecord>();
+                m_activeProcesses = new HashSet<int>
+                {
+                    process.ProcessId
+                };
+
+                // create a write handle (used to keep the fifo open, i.e., 
+                // the 'read' syscall won't receive EOF until we close this writer
+                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() => IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0));
+
+                // start a background thread for reading from the FIFO
+                m_workerThread = new Thread(StartReceivingAccessReports);
+                m_workerThread.IsBackground = true;
+                m_workerThread.Priority = ThreadPriority.Highest;
+            }
+
+            /// <summary>
+            /// Starts receiving access reports
+            /// </summary>
+            internal void Start()
+            {
+                m_workerThread.Start();
+            }
+
+            /// <summary>
+            /// Request to stop receiving access reports.  This method returns immediately;
+            /// any currently pending reports will be processed asynchronously. 
+            /// </summary>
+            internal void RequestStop()
+            {
+                // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
+                m_lazyWriteHandle.Value.Dispose();
+            }
+
+            /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
+            internal void AddPid(int pid)
+            {
+                m_activeProcesses.Add(pid);
+            }
+
+            /// <summary>
+            /// Removes <paramref name="pid" /> from the set of active processes.
+            /// If no active processes are left thereafter, calls <see cref="RequestStop"/>.
+            /// </summary>
+            internal void RemovePid(int pid)
+            {
+                m_activeProcesses.Remove(pid);
+                if (m_activeProcesses.Count == 0)
+                {
+                    RequestStop();
+                }
+            }
+
+            internal PathCacheRecord GetOrCreateCacheRecord(string path)
+            {
+                PathCacheRecord cacheRecord;
+                if (!m_pathCache.TryGetValue(path, out cacheRecord))
+                {
+                    cacheRecord = new PathCacheRecord() 
+                    {
+                        RequestedAccess = RequestedAccess.None
+                    };
+                    m_pathCache[path] = cacheRecord;
+                }
+
+                return cacheRecord;
+            }
+
+            internal void LogError(string message)
+            {
+                if (m_loggingContext != null)
+                {
+                    Logger.Log.PipProcessStartFailed(m_loggingContext, Process.PipSemiStableHash, Process.PipDescription, Marshal.GetLastWin32Error(), message);
+                    m_failureCallback?.Invoke(1, message);
+                }
+            }
+
+            internal void LogDebug(string message)
+            {
+                if (m_loggingContext != null)
+                {
+                    Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, Process.PipSemiStableHash, message);
+                }
+            }
 
             /// <nodoc />
             public void Dispose()
             {
-                WriteHandle?.Dispose(); // this will cause read() to return EOF once all native writers are done writing
-                WorkerThread?.Join();
+                RequestStop();
+                m_workerThread?.Join();
+                m_pathCache.Clear();
+                m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, waitUntilDeletionFinished: false));
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, waitUntilDeletionFinished: false));
+            }
+
+            private void ProcessBytes(byte[] bytes)
+            {
+                // Format:
+                //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
+                string message = Encoding.GetString(bytes).TrimEnd('\n');
+                
+                // parse message and create AccessReport
+                string[] parts = message.Split(new[] { '|' });
+                Contract.Assert(parts.Length == 8);
+                RequestedAccess access = (RequestedAccess)AssertInt(parts[2]);
+                string path = parts[7];
+                var report = new AccessReport
+                {
+                    Pid = (int)AssertInt(parts[1]),
+                    PipId = Process.PipId,
+                    RequestedAccess = (uint)access,
+                    Status = AssertInt(parts[3]),
+                    ExplicitLogging = AssertInt(parts[4]),
+                    Error = AssertInt(parts[5]),
+                    Operation = (FileOperation) AssertInt(parts[6]),
+                    PathOrPipStats = Encoding.GetBytes(path),
+                };
+
+                // update active processes
+                if (report.Operation == FileOperation.OpProcessStart)
+                {
+                    AddPid(report.Pid);
+                }
+                else if (report.Operation == FileOperation.OpProcessExit)
+                {
+                    RemovePid(report.Pid);
+                }
+                else
+                {
+                    // check the path cache (only when the message is not about process tree)
+                    if (GetOrCreateCacheRecord(path).CheckCacheHitAndUpdate(access))
+                    {
+                        LogDebug("Cache hit for access report: " + message);
+                        return;
+                    }
+                }
+
+                // post the AccessReport
+                Process.PostAccessReport(report);
+            }
+
+            private uint AssertInt(string str)
+            {
+                if (uint.TryParse(str, out uint result))
+                {
+                    return result;
+                }
+                else
+                {
+                    LogError($"Could not parse int from '{str}'");
+                    return 0;
+                }
+            }
+
+            private static int Read(SafeFileHandle handle, byte[] buffer, int offset, int length)
+            {
+                Contract.Requires(buffer.Length >= offset + length);
+                int totalRead = 0;
+                while (totalRead < length)
+                {
+                    var numRead = IO.Read(handle, buffer, offset, length);
+                    if (numRead <= 0)
+                    {
+                        return numRead;
+                    }
+                    offset += numRead;
+                    totalRead += numRead;
+                }
+
+                return length;
+            }
+
+            private void StartReceivingAccessReports()
+            {
+                var fifoName = ReportsFifoPath;
+
+                // opening FIFO for reading (blocks until there is at least one writer connected)
+                using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
+                if (readHandle.IsInvalid)
+                {
+                    LogError($"Opening FIFO {fifoName} for reading failed");
+                    return;
+                }
+
+                // make sure that m_lazyWriteHandle has been created
+                Analysis.IgnoreResult(m_lazyWriteHandle.Value);
+
+                // action block where parsing and processing of received bytes is offloaded (so that the read loop below is as tight as possible)
+                var actionBlock = new ActionBlock<byte[]>(ProcessBytes, new ExecutionDataflowBlockOptions
+                {
+                    BoundedCapacity = DataflowBlockOptions.Unbounded,
+                    MaxDegreeOfParallelism = 1,
+                    EnsureOrdered = true
+                });
+
+                while (true)
+                {
+                    // read length
+                    byte[] messageLengthBytes = new byte[sizeof(int)];
+                    var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
+                    if (numRead == 0) // EOF
+                    {
+                        break;
+                    }
+
+                    if (numRead < 0) // error
+                    {
+                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}");
+                        break;
+                    }
+
+                    // decode length
+                    int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
+
+                    // read a message of that length
+                    byte[] messageBytes = new byte[messageLength];
+                    numRead = Read(readHandle, messageBytes, 0, messageBytes.Length);
+                    if (numRead < messageBytes.Length)
+                    {
+                        LogError($"Read from FIFO {ReportsFifoPath} failed with return value {numRead}");
+                        break;
+                    }
+
+                    // Update last received timestamp
+                    long now = DateTime.UtcNow.Ticks;
+
+                    // Add message to processing queue
+                    actionBlock.Post(messageBytes);
+                }
+
+                // complete action block and wait for it to finish
+                actionBlock.Complete();
+                actionBlock.Completion.GetAwaiter().GetResult();
+
+                // report process tree completed 
+                var report = new AccessReport
+                {
+                    Operation = FileOperation.OpProcessTreeCompleted,
+                    PathOrPipStats = AccessReport.EncodePath("")
+                };
+                Process.PostAccessReport(report);
             }
         }
 
@@ -59,7 +341,8 @@ namespace BuildXL.Processes
         public bool MeasureCpuTimes { get; } = false;
 
         /// <inheritdoc />
-        public ulong MinReportQueueEnqueueTime => Volatile.Read(ref m_reportQueueLastEnqueueTime);
+        /// <remarks>Unimportant</remarks>
+        public ulong MinReportQueueEnqueueTime => (ulong)DateTime.UtcNow.Ticks;
 
         /// <inheritdoc />
         public bool IsInTestMode { get; }
@@ -70,22 +353,11 @@ namespace BuildXL.Processes
 
         private readonly Sandbox.ManagedFailureCallback m_failureCallback;
 
-        /// <summary>
-        /// Enqueue time of the last received report (or 0 if no reports have been received)
-        /// </summary>
-        private ulong m_reportQueueLastEnqueueTime;
-
-        /// <summary>
-        /// The time (in ticks) when the last report was received.
-        /// </summary>
-        private long m_lastReportReceivedTimestampTicks = DateTime.UtcNow.Ticks;
-
-        private long LastReportReceivedTimestampTicks => Volatile.Read(ref m_lastReportReceivedTimestampTicks);
-
         private static readonly Encoding Encoding = Encoding.UTF8;
 
         /// <inheritdoc />
-        public TimeSpan CurrentDrought => DateTime.UtcNow.Subtract(new DateTime(ticks: LastReportReceivedTimestampTicks));
+        /// <remarks>Unimportant</remarks>
+        public TimeSpan CurrentDrought => TimeSpan.FromSeconds(0);
 
         /// <nodoc />
         public SandboxConnectionLinuxDetours(Sandbox.ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
@@ -137,19 +409,6 @@ namespace BuildXL.Processes
             string fifoPath = Path.Combine(tempDirPath, $"Pip{process.PipSemiStableHash:X}.{process.PipId}.{process.ProcessId}.fifo");
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
 
-            var info = new Info
-            {
-                LoggingContext = loggingContext,
-                Process = process,
-                ReportsFifoPath = fifoPath,
-                FamPath = famPath,
-            };
-
-            if (!m_pipProcesses.TryAdd(process.PipId, info))
-            {
-                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
-            }
-
             // serialize FAM
             using (var wrapper = Pools.MemoryStreamPool.GetInstance())
             {
@@ -168,172 +427,36 @@ namespace BuildXL.Processes
             // create a FIFO (named pipe)
             if (IO.MkFifo(fifoPath, IO.FilePermissions.S_IRWXU) != 0)
             {
-                logError($"Creating FIFO {fifoPath} failed");
+                m_failureCallback?.Invoke(1, $"Creating FIFO {fifoPath} failed");
                 return false;
             }
 
-            // start a background thread for reading from the FIFO
-            info.WorkerThread = new Thread(() => StartReceivingAccessReports(info));
-            info.WorkerThread.IsBackground = true;
-            info.WorkerThread.Priority = ThreadPriority.Highest;
-            info.WorkerThread.Start();
+            // create and save info for this pip
+            var info = new Info(m_failureCallback, loggingContext, process, fifoPath, famPath);
+            if (!m_pipProcesses.TryAdd(process.PipId, info))
+            {
+                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
+            }
 
+            info.Start();
             return true;
-
-            void logError(string message)
-            {
-                LogError(info, message);
-            }
-        }
-
-        private void LogError(Info info, string message)
-        {
-            Logger.Log.PipProcessStartFailed(info.LoggingContext, info.Process.PipSemiStableHash, info.Process.PipDescription, Marshal.GetLastWin32Error(), message);
-            m_failureCallback?.Invoke(1, message);
-        }
-
-        private void ProcessBytes(Info info, byte[] bytes)
-        {
-            // Format:
-            //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
-            string message = Encoding.GetString(bytes).TrimEnd('\n');
-            string[] parts = message.Split(new[] { '|' });
-            Contract.Assert(parts.Length == 8);
-            var report = new AccessReport
-            {
-                Pid = (int)AssertInt(info, parts[1]),
-                PipId = info.Process.PipId,
-                RequestedAccess = AssertInt(info, parts[2]),
-                Status = AssertInt(info, parts[3]),
-                ExplicitLogging = AssertInt(info, parts[4]),
-                Error = AssertInt(info, parts[5]),
-                Operation = (FileOperation) AssertInt(info, parts[6]),
-                PathOrPipStats = Encoding.GetBytes(parts[7]),
-            };
-            info.Process.PostAccessReport(report);
-        }
-
-        private uint AssertInt(Info info, string str)
-        {
-            if (uint.TryParse(str, out uint result))
-            {
-                return result;
-            }
-            else
-            {
-                LogError(info, $"Could not parse int from '{str}'");
-                return 0;
-            }
-        }
-
-        private int Read(SafeFileHandle handle, byte[] buffer, int offset, int length)
-        {
-            Contract.Requires(buffer.Length >= offset + length);
-            int totalRead = 0;
-            while (totalRead < length)
-            {
-                var numRead = IO.Read(handle, buffer, offset, length);
-                if (numRead <= 0)
-                {
-                    return numRead;
-                }
-                offset += numRead;
-                totalRead += numRead;
-            }
-
-            return length;
-        }
-
-        private void StartReceivingAccessReports(Info info)
-        {
-            var fifoName = info.ReportsFifoPath;
-
-            // opening FIFO for reading (blocks until there is at least one writer connected)
-            using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
-            if (readHandle.IsInvalid)
-            {
-                LogError(info, $"Opening FIFO {fifoName} for reading failed");
-                return;
-            }
-
-            // opening FIFO for writing so that the 'read' syscall doesn't receive EOF until we close this writer
-            info.WriteHandle = IO.Open(fifoName, IO.OpenFlags.O_WRONLY, 0);
-            if (info.WriteHandle.IsInvalid)
-            {
-                LogError(info, $"Opening FIFO {fifoName} for writing failed");
-                return;
-            }
-
-            // action block where parsing and processing of received bytes is offloaded (so that the read loop below is as tight as possible)
-            var actionBlock = new ActionBlock<byte[]>((byte[] bytes) => ProcessBytes(info, bytes), new ExecutionDataflowBlockOptions
-            {
-                BoundedCapacity = DataflowBlockOptions.Unbounded,
-                MaxDegreeOfParallelism = 1,
-                EnsureOrdered = true
-            });
-
-            while (true)
-            {
-                // read length
-                byte[] messageLengthBytes = new byte[sizeof(int)];
-                var numRead = Read(readHandle, messageLengthBytes, 0, messageLengthBytes.Length);
-                if (numRead == 0) // EOF
-                {
-                    break;
-                }
-
-                if (numRead < 0) // error
-                {
-                    LogError(info, $"Read from FIFO {info.ReportsFifoPath} failed with return value {numRead}");
-                    break;
-                }
-
-                // decode length
-                int messageLength = BitConverter.ToInt32(messageLengthBytes, startIndex: 0);
-
-                // read a message of that length
-                byte[] messageBytes = new byte[messageLength];
-                numRead = Read(readHandle, messageBytes, 0, messageBytes.Length);
-                if (numRead < messageBytes.Length)
-                {
-                    LogError(info, $"Read from FIFO {info.ReportsFifoPath} failed with return value {numRead}");
-                    break;
-                }
-
-                // Update last received timestamp
-                long now = DateTime.UtcNow.Ticks;
-                Volatile.Write(ref m_lastReportReceivedTimestampTicks, now);
-                Volatile.Write(ref m_reportQueueLastEnqueueTime, (ulong)now);
-
-                // Add message to processing queue
-                actionBlock.Post(messageBytes);
-            }
-
-            // complete action block and wait for it to finish
-            actionBlock.Complete();
-            actionBlock.Completion.GetAwaiter().GetResult();
-
-            // report process tree completed 
-            var report = new AccessReport
-            {
-                Operation = FileOperation.OpProcessTreeCompleted,
-                PathOrPipStats = AccessReport.EncodePath("")
-            };
-            info.Process.PostAccessReport(report);
         }
 
         /// <inheritdoc />
         public void NotifyPipProcessTerminated(long pipId, int processId)
         {
+            if (m_pipProcesses.TryGetValue(pipId, out var info))
+            {
+                info.RemovePid(processId);
+            }
         }
 
         /// <inheritdoc />
         public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
         {
-            if (m_pipProcesses.TryRemove(pipId, out var info))
+            if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
-                Contract.Assert(process == info.Process);
-                info.Dispose();
+                info.RemovePid(process.ProcessId);
             }
         }
 

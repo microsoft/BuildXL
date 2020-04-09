@@ -16,9 +16,8 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
-#if PLATFORM_OSX
+
 using static BuildXL.Interop.Unix.Sandbox;
-#endif
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {
@@ -34,8 +33,48 @@ namespace Test.BuildXL.TestUtilities.Xunit
     {
         private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() =>
         {
-#if PLATFORM_OSX
-            
+            ISandboxConnection sandboxConnection;
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback);
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                var kind = ReadSandboxKindFromEnvVars();
+                if (kind == SandboxKind.MacOsKext)
+                {
+                    sandboxConnection =  new SandboxConnectionKext(
+                        skipDisposingForTests: true,
+                        config: new SandboxConnectionKext.Config
+                        {
+                            MeasureCpuTimes = true,
+                            FailureCallback = FailureCallback,
+                            KextConfig = new KextConfig
+                            {
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                            }
+                        });
+                }
+                else
+                {
+                    sandboxConnection = new SandboxConnection(kind, isInTestMode: true, measureCpuTimes: true);
+                }
+            }
+            else
+            {
+                sandboxConnection = null;
+            }
+
+            return sandboxConnection; 
+        });
+
+        private static void FailureCallback(int status, string description)
+        {
+            XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
+        }
+
+        private static SandboxKind ReadSandboxKindFromEnvVars()
+        {
             var kind = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX"))
                 ? SandboxKind.MacOsEndpointSecurity
                 : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUILDXL_MACOS_DETOURS_SANDBOX"))
@@ -44,37 +83,14 @@ namespace Test.BuildXL.TestUtilities.Xunit
                         ? SandboxKind.MacOsHybrid
                         : SandboxKind.MacOsKext;
 
-            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
+            if (!OperatingSystemHelper.IsMacOSCatalinaOrHigher && 
+                (kind == SandboxKind.MacOsEndpointSecurity || kind == SandboxKind.MacOsHybrid))
             {
                 throw new NotSupportedException("EndpointSecurity and Hybrid sandbox types can't be run on system older than macOS Catalina (10.15+).");
             }
-#endif
-            return OperatingSystemHelper.IsUnixOS
-#if PLATFORM_OSX
-                ? kind != SandboxKind.MacOsKext
-                    ? (ISandboxConnection) new SandboxConnection(kind, isInTestMode: true, measureCpuTimes: true)
-                    : (ISandboxConnection) new SandboxConnectionKext(
-#else
-                    ? (ISandboxConnection) new SandboxConnectionKext(
-#endif
-                        skipDisposingForTests: true,
-                        config: new SandboxConnectionKext.Config
-                        {
-                            MeasureCpuTimes = true,
-                            FailureCallback = (status, description) =>
-                            {
-                                XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
-                            },
-    #if PLATFORM_OSX
-                            KextConfig = new KextConfig
-                            {
-                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
-                            }
-    #endif
-                        }
-                    )
-                    : null;
-        });
+
+            return kind;
+        }
 
         /// <summary>
         /// Returns a static kernel connection object. Unit tests would spam the kernel extension if they need sandboxing, so we

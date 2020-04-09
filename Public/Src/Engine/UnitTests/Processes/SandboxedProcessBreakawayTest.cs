@@ -27,6 +27,9 @@ namespace Test.BuildXL.Processes
         [InlineData(false)]
         public void ChildProcessCanBreakawayWhenConfigured(bool letInfiniteWaiterSurvive)
         {
+            // TODO: doesn't currently work on Linux
+            if (OperatingSystemHelper.IsLinuxOS) return;
+
             // Skip this test if running on .NET Framework with vstest
             // Reason: when this is the case and code coverage is turned on, launching breakaway 
             //         processes here causes the code coverage monitoring process to hang.
@@ -63,6 +66,7 @@ namespace Test.BuildXL.Processes
             {
                 // If we didn't let infinite waiter escape, we should have killed it when the job object was finalized
                 XAssert.IsTrue(result.Killed);
+                XAssert.IsNotNull(result.SurvivingChildProcesses);
                 XAssert.Contains(
                     result.SurvivingChildProcesses.Select(p => p?.Path).Where(p => p != null).Select(p => System.IO.Path.GetFileName(p).ToUpperInvariant()),
                     InfiniteWaiterToolName.ToUpperInvariant());
@@ -94,6 +98,9 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void BreakawayProcessIsNotDetoured()
         {
+            // TODO: doesn't currently work on Linux
+            if (OperatingSystemHelper.IsLinuxOS) return;
+
             var fam = new FileAccessManifest(
                 Context.PathTable,
                 childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })

@@ -30,7 +30,9 @@ namespace TestProcess {
                         }).testProcessExe
                     ]
                 }
-                : {
+                :
+            qualifier.targetRuntime === "osx-x64"
+                ? {
                     subfolder: r`TestProcess/MacOs`,
                     contents: [
                         $.withQualifier({
@@ -43,6 +45,18 @@ namespace TestProcess {
                         ]),
                     ]
                 }
+                :
+            qualifier.targetRuntime === "linux-x64"
+                ? {
+                    subfolder: r`TestProcess/Unix`,
+                    contents: [
+                        $.withQualifier({
+                            targetFramework: "netcoreapp3.1",
+                            targetRuntime: "linux-x64"
+                        }).testProcessExe,
+                    ]
+                }
+                : Contract.fail("Unknown target runtime: " + qualifier.targetRuntime)
         ]
     };
 }

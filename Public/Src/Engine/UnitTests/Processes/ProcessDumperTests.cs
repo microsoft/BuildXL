@@ -183,7 +183,7 @@ namespace Test.BuildXL.Processes
 
         // TODO: Expand this test to also require super user privileges and and make sure the core dump utilities wrote both,
         //       the thread tid mappings and the core dump file to the system location specified
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [FactIfSupported(requiresMacOperatingSystem: true)]
         public void CoreDumpTest()
         {
             string dumpPath = Path.Combine(TemporaryDirectory, "core_dumps");

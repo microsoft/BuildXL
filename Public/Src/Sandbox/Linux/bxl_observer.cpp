@@ -31,6 +31,9 @@ BxlObserver::BxlObserver()
     GEN_REAL(FILE*, fopen, const char *, const char *);
     GEN_REAL(size_t, fread, void*, size_t, size_t, FILE*);
     GEN_REAL(int, fclose, FILE*);
+    GEN_REAL(ssize_t, readlink, const char *, char *, size_t);
+
+    real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
 
     // read FAM env var
     const char *famPath = getenv(BxlEnvFamPath);
@@ -67,6 +70,7 @@ BxlObserver::BxlObserver()
     }
 
     process_ = sandbox_->FindTrackedProcess(getpid());
+    process_->SetPath(progFullPath_);
     sandbox_->SetAccessReportCallback(HandleAccessReport);
 }
 
@@ -108,6 +112,13 @@ bool BxlObserver::SendReport(AccessReport &report)
 {
     GEN_REAL(char*, realpath, const char*, char*);
 
+    // there is no central sendbox process here (i.e., there is an instance of this 
+    // guy in every child process), so counting process tree size is not feasible
+    if (report.operation == FileOperation::kOpProcessTreeCompleted)
+    {
+        return true;
+    }
+
     char realpathBuf[PATH_MAX];
     char *realpathPtr = real_realpath(report.path, realpathBuf);
 
@@ -129,35 +140,4 @@ bool BxlObserver::SendReport(AccessReport &report)
 
     *(uint*)(buffer) = numWritten;
     return Send(buffer, numWritten + PrefixLength);
-}
-
-// having a main function is useful for various local testing
-int main(int argc, char **argv)
-{
-    printf("Path: %s\n", BxlObserver::GetInstance()->GetReportsPath());
-    GEN_REAL(int, fexecve, int, char *const[], char *const[])
-    GEN_REAL(int, execv, const char *, char *const[])
-    GEN_REAL(int, execve, const char *, char *const[], char *const[])
-    GEN_REAL(int, execvp, const char *, char *const[])
-    GEN_REAL(int, execvpe, const char *, char *const[], char *const[])
-    GEN_REAL(int, __fxstat, int, int, struct stat*);
-    GEN_REAL(int, statfs, const char *, struct statfs *);
-    GEN_REAL(int, __xstat, int, const char *, struct stat *);
-    GEN_REAL(int, __lxstat, int, const char *, struct stat *);
-    GEN_REAL(FILE*, fopen, const char *, const char *);
-    GEN_REAL(int, access, const char *, int);
-    GEN_REAL(int, faccessat, int, const char *, int, int);
-    GEN_REAL(int, open, const char *, int, mode_t);
-    GEN_REAL(int, creat, const char *, mode_t);
-    GEN_REAL(int, openat, int, const char *, int, mode_t);
-    GEN_REAL(int, remove, const char *);
-    GEN_REAL(int, rename, const char *, const char *);
-    GEN_REAL(int, link, const char *, const char *);
-    GEN_REAL(int, linkat, int, const char *, int, const char *, int);
-    GEN_REAL(int, unlink, const char *);
-    GEN_REAL(int, symlink, const char *, const char *);
-    GEN_REAL(int, symlinkat, const char *, int, const char *);
-    GEN_REAL(ssize_t, readlink, const char *, char *, size_t);
-    GEN_REAL(ssize_t, readlinkat, int, const char *, char *, size_t);
-    GEN_REAL(DIR*, opendir, const char*);
 }

@@ -280,7 +280,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override async Task KillAsync()
         {
-            LogProcessState("SandboxedProcessMac::KillAsync");
+            LogProcessState($"{nameof(SandboxedProcessUnix)}::{nameof(KillAsync)}");
 
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
@@ -292,6 +292,7 @@ namespace BuildXL.Processes
             {
                 await base.KillAsync();
                 KillAllChildProcesses();
+                SandboxConnection.NotifyRootProcessExited(PipId, this);
                 await m_pendingReports.Completion;
             }
         }

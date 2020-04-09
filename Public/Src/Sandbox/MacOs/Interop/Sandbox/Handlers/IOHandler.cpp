@@ -11,11 +11,11 @@ void IOHandler::HandleProcessFork(const IOEvent &event)
     {
         return;
     }
-    
-    pid_t childPorcessPid = event.GetChildPid();
-    if (GetSandbox()->TrackChildProcess(childPorcessPid, event.GetExecutablePath(), GetProcess()))
+
+    pid_t childProcessPid = event.GetChildPid();
+    if (GetSandbox()->TrackChildProcess(childProcessPid, event.GetExecutablePath(), GetProcess()))
     {
-        ReportChildProcessSpawned(childPorcessPid);
+        ReportChildProcessSpawned(childProcessPid);
     }
 }
 

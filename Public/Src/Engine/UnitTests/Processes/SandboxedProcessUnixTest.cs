@@ -23,6 +23,7 @@ using static BuildXL.Interop.Unix.Sandbox.AccessReport;
 
 namespace Test.BuildXL.Processes
 {
+    [TestClassIfSupported(requiresMacOperatingSystem: true)]
     public class SandboxedProcessUnixTest : SandboxedProcessTestBase
     {
         public SandboxedProcessUnixTest(ITestOutputHelper output)
@@ -84,7 +85,7 @@ namespace Test.BuildXL.Processes
             public bool Allowed;
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
@@ -104,7 +105,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());
@@ -124,7 +125,7 @@ namespace Test.BuildXL.Processes
         }
 
         [SuppressMessage("AsyncUsage", "AsyncFixer04:DisposableObjectUsedInFireForgetAsyncCall", Justification = "The task is awaited before the object is disposed")]
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact]
         public async Task CheckProcessTreeTimoutOnNestedChildProcessTimeoutWhenRootProcessExitedAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));

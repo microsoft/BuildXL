@@ -136,7 +136,7 @@ namespace Test.BuildXL.TestUtilities
                     {
                         if (m_rootDirectory == null)
                         {
-                            m_rootDirectory = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "temp" + Interlocked.Increment(ref s_unique));
+                            m_rootDirectory = Path.Combine(Path.GetTempPath(), "temp" + Interlocked.Increment(ref s_unique));
 
                             if (System.IO.Directory.Exists(m_rootDirectory))
                             {

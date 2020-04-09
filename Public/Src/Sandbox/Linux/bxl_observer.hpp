@@ -30,6 +30,8 @@ private:
     BxlObserver(const BxlObserver&) = delete;
     BxlObserver& operator = (const BxlObserver&) = delete;
 
+    char progFullPath_[PATH_MAX];
+
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
@@ -44,6 +46,7 @@ public:
     inline std::shared_ptr<SandboxedPip> GetPip()         { return pip_; }
     inline std::shared_ptr<SandboxedProcess> GetProcess() { return process_; }
     inline Sandbox* GetSandbox()                          { return sandbox_; }
+    inline const char* GetProgramPath()                   { return progFullPath_; }
     inline const char* GetReportsPath()                   { int len; return pip_->GetReportsPath(&len); }
 
     static BxlObserver* GetInstance(); 

@@ -256,13 +256,15 @@ namespace Test.BuildXL.Processes
                 actualReport.RequestedAccess,
                 "Incorrect access type for path " + actualReportedPathString);
 
-            if (access == AccessType.Read)
+            if (expectedAccess == RequestedAccess.Read)
             {
-                // on macOS operations have different names, hence Unknown
-                var expectedOperation = !OperatingSystemHelper.IsUnixOS
-                    ? ReportedFileOperation.CreateFile
-                    : expected.Exists ? ReportedFileOperation.KAuthVNodeRead : ReportedFileOperation.MacLookup;
-                XAssert.AreEqual(expectedOperation, actualReport.Operation, "Wrong operation for {0}", actualReportedPathString);
+                var allowedOperations = !OperatingSystemHelper.IsUnixOS
+                    ? new[] { ReportedFileOperation.CreateFile }
+                    : expected.Exists
+                        ? new[] { ReportedFileOperation.KAuthVNodeRead, ReportedFileOperation.KAuthReadFile }
+                        : new[] { ReportedFileOperation.MacLookup };
+
+                XAssert.Contains(allowedOperations, actualReport.Operation);
             }
 
             return true;

@@ -2331,7 +2331,9 @@ namespace BuildXL.Processes
                 // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
                 // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
                 // are not allowed by construction under shared opaques.
-                mask: DefaultMask & ~FileAccessPolicy.AllowWrite);
+                // Observe that if double writes are allowed, then we can't just block writes: we need to allow them to happen and then
+                // observe the result to figure out if they conform to the double write policy
+                mask: DefaultMask & (m_pip.DoubleWritePolicy.ImpliesDoubleWriteAllowed()? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
 
             allInputPathsUnderSharedOpaques.Add(path);
 

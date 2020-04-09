@@ -711,37 +711,60 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
         }
 
-        [Fact]
-        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed()
+        [Theory]
+        [InlineData(DoubleWritePolicy.AllowSameContentDoubleWrites)]
+        [InlineData(DoubleWritePolicy.DoubleWritesAreErrors)]
+        public void RewritingDirectoryDependencyUnderSharedOpaqueIsNotAllowed(DoubleWritePolicy doubleWritePolicy)
         {
             var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            const string ContentToWrite = "content";
 
             // The first pip writes a file under a shared opaque
             var dependencyInOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
             var builderA = CreatePipBuilder(new Operation[]
                                                    {
-                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
+                                                       Operation.WriteFile(dependencyInOpaque, content: ContentToWrite, doNotInfer: true),
                                                    });
             builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderA.DoubleWritePolicy = doubleWritePolicy;
+            
             var resA = SchedulePipBuilder(builderA);
 
-            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file
-            var builderB = CreatePipBuilder(new Operation[]
-                                                   {
-                                                       Operation.WriteFile(dependencyInOpaque, doNotInfer: true),
-                                                   });
+            // The second pip depends on the shared opaque of the first pip, and tries to write to that same file (with same content)
+            var operations = new List<Operation>();
+            if (doubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+            {
+                // Delete the file first, since write file operation implies append
+                // and we want to be sure we write the same content than the first time
+                operations.Add(Operation.DeleteFile(dependencyInOpaque, doNotInfer: true));
+            }
+            operations.Add(Operation.WriteFile(dependencyInOpaque, content: ContentToWrite, doNotInfer: true));
+
+            var builderB = CreatePipBuilder(operations);
             builderB.AddInputDirectory(resA.ProcessOutputs.GetOutputDirectories().Single().Root);
             builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builderB.DoubleWritePolicy = doubleWritePolicy;
+
             SchedulePipBuilder(builderB);
 
             IgnoreWarnings();
-            RunScheduler().AssertFailure();
+            var result = RunScheduler();
 
-            // We are expecting a file monitor violation
-            AssertErrorEventLogged(LogEventId.FileMonitoringError);
-            // It gets reported as a double write
-            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            if (doubleWritePolicy == DoubleWritePolicy.DoubleWritesAreErrors)
+            {
+                result.AssertFailure();
+                // We are expecting a file monitor violation
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                // It gets reported as a double write
+                AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            }
+            else
+            {
+                // Given the same content was written, if the double write policy is to allow it, we should be good
+                result.AssertSuccess();
+            }
         }
 
         [Fact]

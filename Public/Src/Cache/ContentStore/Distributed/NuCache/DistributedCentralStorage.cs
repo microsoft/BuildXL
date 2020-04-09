@@ -91,7 +91,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     ConfigurationSelection.RequireAndUseInProcessConfiguration),
                 settings: new ContentStoreSettings()
                 {
-                    TraceFileSystemContentStoreDiagnosticMessages = _configuration.TraceFileSystemContentStoreDiagnosticMessages
+                    TraceFileSystemContentStoreDiagnosticMessages = _configuration.TraceFileSystemContentStoreDiagnosticMessages,
+                    SelfCheckSettings = _configuration.SelfCheckSettings,
                 });
         }
 

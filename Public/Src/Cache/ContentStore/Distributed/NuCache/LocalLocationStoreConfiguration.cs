@@ -8,11 +8,10 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Utilities.Collections;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
 
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
@@ -66,37 +65,37 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Configuration object for a local content location database.
         /// </summary>
-        public ContentLocationDatabaseConfiguration Database { get; set; }
+        public ContentLocationDatabaseConfiguration? Database { get; set; }
 
         /// <summary>
         /// Configuration object for a content location event store.
         /// </summary>
-        public ContentLocationEventStoreConfiguration EventStore { get; set; } = null;
+        public ContentLocationEventStoreConfiguration? EventStore { get; set; } = null;
 
         /// <summary>
         /// Configuration for NuCache checkpointing logic.
         /// </summary>
-        public CheckpointConfiguration Checkpoint { get; set; } = null;
+        public CheckpointConfiguration? Checkpoint { get; set; } = null;
 
         /// <summary>
         /// Configuration of the central store.
         /// </summary>
-        public CentralStoreConfiguration CentralStore { get; set; } = null;
+        public CentralStoreConfiguration? CentralStore { get; set; } = null;
 
         /// <summary>
         /// Configuration of the distributed central store
         /// </summary>
-        public DistributedCentralStoreConfiguration DistributedCentralStore { get; set; } = null;
+        public DistributedCentralStoreConfiguration? DistributedCentralStore { get; set; } = null;
 
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
-        public string RedisGlobalStoreConnectionString { get; set; }
+        public string? RedisGlobalStoreConnectionString { get; set; }
 
         /// <summary>
         /// Gets the connection string used by the redis global store.
         /// </summary>
-        public string RedisGlobalStoreSecondaryConnectionString { get; set; }
+        public string? RedisGlobalStoreSecondaryConnectionString { get; set; }
 
         /// <summary>
         /// Configuration of reputation tracker.
@@ -293,8 +292,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
-        internal string GetCheckpointPrefix() => CentralStore.CentralStateKeyBase + EventStore.Epoch;
-
+        internal string? GetCheckpointPrefix() => CentralStore?.CentralStateKeyBase + EventStore?.Epoch;
     }
 
     /// <summary>
@@ -317,10 +315,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public class DistributedCentralStoreConfiguration
     {
         /// <nodoc />
-        public DistributedCentralStoreConfiguration(AbsolutePath cacheRoot)
-        {
-            CacheRoot = cacheRoot;
-        }
+        public DistributedCentralStoreConfiguration(AbsolutePath cacheRoot) => CacheRoot = cacheRoot;
 
         /// <summary>
         /// The working directory used by central store for storing 'uploaded' checkpoints.
@@ -357,6 +352,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// fallback storage.
         /// </summary>
         public TimeSpan PeerToPeerCopyTimeout { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// Optional settings for validating CAS consistency used by DistributedCentralStorage.
+        /// </summary>
+        public SelfCheckSettings? SelfCheckSettings { get; set; }
     }
 
     /// <summary>

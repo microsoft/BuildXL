@@ -84,6 +84,7 @@ namespace BuildXL.Processes
         /// <param name="flagsAndAttributes">The flags and attributes</param>
         /// <param name="path">The path being accessed</param>
         /// <param name="processArgs">The process arguments</param>
+        /// <param name="isAnAugmentedFileAccess">Whether the file access was augmented</param>
         public abstract void HandleFileAccess(
             long pipId,
             string pipDescription,
@@ -98,7 +99,8 @@ namespace BuildXL.Processes
             CreationDisposition creationDisposition,
             FlagsAndAttributes flagsAndAttributes,
             string path,
-            string processArgs);
+            string processArgs,
+            bool isAnAugmentedFileAccess);
 
         /// <summary>
         /// Called to handle a debug message from detours.

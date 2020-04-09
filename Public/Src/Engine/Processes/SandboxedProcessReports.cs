@@ -661,7 +661,8 @@ namespace BuildXL.Processes
                     creationDisposition,
                     flagsAndAttributes,
                     path,
-                    processArgs);
+                    processArgs,
+                    isAnAugmentedFileAccess);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.

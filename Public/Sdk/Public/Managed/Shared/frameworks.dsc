@@ -75,7 +75,7 @@ export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
 
 namespace TargetFrameworks {
     @@public
-    export type DesktopTargetFrameworks = "net451" | "net461" | "net472";
+    export type DesktopTargetFrameworks = "net451" | "net461" | "net462" | "net472";
 
     @@public
     export type CoreClrTargetFrameworks = "netcoreapp2.2" | "netcoreapp3.1";

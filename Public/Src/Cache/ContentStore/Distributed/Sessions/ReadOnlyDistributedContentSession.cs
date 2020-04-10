@@ -1146,8 +1146,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var originalLength = hashes.Count;
             if (_buildIdHash.HasValue)
             {
+#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
+                var tmp = new List<ContentHash>(hashes.Count() + 1);
+                tmp.AddRange(hashes);
+                tmp.Add(_buildIdHash.Value);
+                hashes = tmp;
+#else
                 // Add build id hash to hashes so build ring machines can be updated
                 hashes = hashes.Append(_buildIdHash.Value).ToList();
+#endif
             }
 
             var result = await MultiLevelUtilities.RunMultiLevelWithMergeAsync(
@@ -1171,8 +1178,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (_buildIdHash.HasValue)
             {
+#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
+                var tmp = new List<MachineLocation>(result.Last().Locations.Count() + 1);
+                tmp.AddRange(result.Last().Locations);
+                tmp.Add(LocalCacheRootMachineLocation);
+                _buildRingMachines = tmp;
+#else
                 // Update build ring machines with retrieved locations
                 _buildRingMachines = result.Last().Locations.Append(LocalCacheRootMachineLocation);
+#endif
                 return result.Take(originalLength).ToList();
             }
             else

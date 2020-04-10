@@ -18,12 +18,12 @@ namespace Interfaces {
             UtilitiesCore.dll,
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Runtime.Serialization.dll,
+                NetFx.System.Linq.dll,
                 NetFx.System.Xml.dll,
             ]),
-            ...(qualifier.targetFramework !== "netstandard2.0" ? [] :
-            [
-                importFrom("System.Threading.Tasks.Dataflow").pkg,
-            ]),
+            ...addIf(qualifier.targetFramework === "netstandard2.0",
+                importFrom("System.Threading.Tasks.Dataflow").pkg
+            ),
             importFrom("System.Interactive.Async").pkg,
             importFrom("WindowsAzure.Storage").pkg,
         ],

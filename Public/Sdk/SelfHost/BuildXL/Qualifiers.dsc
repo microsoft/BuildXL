@@ -37,15 +37,25 @@ export interface DefaultQualifierWithNet472 extends Qualifier {
  * Qualifier for projects that support DotNetCore
  */
 @@public
+export interface DefaultQualifierWithOldFullFrameworks extends Qualifier {
+    configuration: "debug" | "release";
+    targetFramework: "net462" | "net472" | "netcoreapp3.1";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
+ * Qualifier for projects that support DotNetCore
+ */
+@@public
 export interface DefaultQualifierWithNetStandard20 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net472" | "netcoreapp3.1" | "netstandard2.0";
+    targetFramework: "net462" | "net472" | "netcoreapp3.1" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net472" | "netcoreapp3.1" | "netstandard2.0";
+    targetFramework: "net462" | "net472" | "netcoreapp3.1" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

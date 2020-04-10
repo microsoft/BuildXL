@@ -3,7 +3,7 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithOldFullFrameworks;
 
 export {BuildXLSdk};
 

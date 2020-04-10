@@ -1940,6 +1940,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NETFramework.ReferenceAssemblies.net462",
+          "Version": "1.0.0-alpha-5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETFramework.ReferenceAssemblies.net472",
           "Version": "1.0.0-alpha-5"
         }

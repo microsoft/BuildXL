@@ -107,60 +107,10 @@ namespace PrivatePackages {
         }
     });
 
-    const azDevOpslibrary = NugetPackages.pack({
-        id: "BuildXL.library.forAzDev",
-        deployment: {
-            contents: [
-                {
-                    subfolder: r`runtimes/win-x64/lib/netcoreapp3.1`,
-                    contents: [
-                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll,
-                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Configuration.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Interop.dll,
-                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(winx64Qualifier).Common.dll,
-                    ],
-                },
-                {
-                    subfolder: r`runtimes/win-x64/native/`,
-                    contents: [
-                        ...importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.nativeWin,
-                    ],
-                },
-                {
-                    subfolder: r`runtimes/osx-x64/lib/netcoreapp3.1/`,
-                    contents: [
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll,
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Collections.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Configuration.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll,
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Interop.dll,
-                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(osxx64Qualifier).Common.dll,
-                    ],
-                },
-                {
-                    subfolder: r`runtimes/osx-x64/native/`,
-                    contents: [
-                        ...importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.nativeMac,
-                    ],
-                },
-                {
-                    subfolder: r`content`,
-                    contents: [
-                        DetoursServices.Deployment.detours,
-                        DetoursServices.Deployment.natives
-                    ]
-                }
-            ]
-        }
-    });
-
     const deployment : Deployment.Definition = {
         contents: [
             cloudBuildlibrary,
             vbCsCompilerLoggerToolNet472,
-            azDevOpslibrary
         ]
     };
 

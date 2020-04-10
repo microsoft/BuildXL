@@ -15,6 +15,11 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
+    const net462PackageQualifer = {
+        targetFramework: "net462",
+        targetRuntime: "win-x64"
+    };
+
     const netcoreApp31PackageQualifer = {
         targetFramework: "netcoreapp3.1",
         targetRuntime: "win-x64"
@@ -81,46 +86,55 @@ namespace NugetPackages {
         id: buildXLUtilitiesIdentity.id,
         assemblies: [
             // BuildXL.Utilities
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Utilities.Branding
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Branding.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Branding.dll,
 
             // BuildXL.Collections
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Collections.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Collections.dll,
 
             // BuildXL.Interop
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Interop.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Interop.dll,
 
             // BuildXL.KeyValueStore
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).KeyValueStore.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).KeyValueStore.dll,
 
             // BuildXL.Native
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Native.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Native.dll,
 
             // BuildXL.Configuration
+            importFrom("BuildXL.Utilities").withQualifier(net462PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netcoreApp31PackageQualifer).Configuration.dll,
             importFrom("BuildXL.Utilities").withQualifier(netstandard20PackageQualifer).Configuration.dll,
 
             // BuildXL.Instrumentation.Common
+            importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.withQualifier(netstandard20PackageQualifer).dll,
 
             // BuildXL.Instrumentation.Tracing
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net462PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(net472PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netcoreApp31PackageQualifer).dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.withQualifier(netstandard20PackageQualifer).dll,

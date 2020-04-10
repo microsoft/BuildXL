@@ -18,22 +18,17 @@ if NOT DEFINED DBD_TESTGEN_COUNT (
 )
 
 if NOT DEFINED TEST_COMMITID (
-	set TEST_COMMITID=e5a1f5aae2ce1e11f4dfdfbbfacad3cee44756a1
+	set TEST_COMMITID=b5d175f12a695fbcf5bd74a5d76663a23c4833bd
 )
 
 set TEST_SOLUTION_ROOT=%ENLISTMENTROOT%\Out\Tests\SMDB
 
 if DEFINED CLEAN_DBD_TESTGEN_OUTPUTONLY (
+    REM Clean the output directory
+    rmdir /S /Q %TEST_SOLUTION_ROOT%\Out
 
-REM Clean the output directory
-
-rmdir /S /Q %TEST_SOLUTION_ROOT%\Out
-
-
-REM Ensure source is not cleaned
-
-set DISABLE_DBD_TESTGEN=1
-
+    REM Ensure source is not cleaned
+    set DISABLE_DBD_TESTGEN=1
 )
 
 if NOT DEFINED DISABLE_DBD_TESTGEN (

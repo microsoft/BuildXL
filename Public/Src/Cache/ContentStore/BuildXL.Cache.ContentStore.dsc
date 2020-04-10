@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithOldFullFrameworks;
 
 export {BuildXLSdk};
 

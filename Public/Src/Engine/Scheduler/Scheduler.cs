@@ -974,7 +974,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Counts the number of Pips failing due to network failures 0 times, 1 time, 2 times, etc. upto Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker
         /// </summary>
-        private int[] m_pipRetryCountersDueToNetworkFailures;
+        private readonly int[] m_pipRetryCountersDueToNetworkFailures;
 
         private readonly ConcurrentDictionary<int, int> m_pipRetryCountersDueToLowMemory = new ConcurrentDictionary<int, int>();
 
@@ -1705,8 +1705,9 @@ namespace BuildXL.Scheduler
             statistics.Add("DirectoryMembershipFingerprinter.DirectoryContentCacheMisses", m_directoryMembershipFingerprinter.CachedDirectoryContents.Misses);
             statistics.Add("DirectoryMembershipFingerprinter.DirectoryContentCacheHits", m_directoryMembershipFingerprinter.CachedDirectoryContents.Hits);
 
-            int numOfRetires = 0;
-            foreach (int retryCount in m_pipRetryCountersDueToNetworkFailures)
+            int numOfRetires = 1;
+            var pipRetryCountersDueToNetworkFailures = m_pipRetryCountersDueToNetworkFailures.Skip(1); // Removing the pips with 0 retires (Successful in 1st attempt)
+            foreach (int retryCount in pipRetryCountersDueToNetworkFailures)
             {
                 statistics.Add("RetriedDueToStoppedWorker_" + numOfRetires, retryCount);
                 numOfRetires++;
@@ -2631,7 +2632,10 @@ namespace BuildXL.Scheduler
                 m_pipRetryCountersDueToNetworkFailures[runnablePip.RetryCountDueToStoppedWorker]++;
             }
 
-            m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
+            if(runnablePip.RetryCountDueToLowMemory > 0)
+            {
+                m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
+            }
 
             using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.OnPipCompletedDuration))
             {

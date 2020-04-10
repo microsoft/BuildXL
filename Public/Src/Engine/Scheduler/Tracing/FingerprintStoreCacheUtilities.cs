@@ -56,6 +56,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Store the fingerprint store directory to the cache
         /// </summary>
+        /// <remark>
+        /// The order of storing should be:
+        /// 1. The actual content(files) of the fingerprint store
+        /// 2. The metadata(descriptor) of the content.
+        /// 3. Publich the cache entry of the fingerprint store.
+        /// </remark>
         public static async Task<Possible<long>> TrySaveFingerprintStoreAsync(
             this EngineCache cache,
             LoggingContext loggingContext,
@@ -86,11 +92,14 @@ namespace BuildXL.Scheduler.Tracing
                             Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
                         }
 
-                        return storeResult.Then(result => new StringKeyedHash()
+                        var result = storeResult.Then(result => new StringKeyedHash()
                         {
                             Key = path.ExpandRelative(pathTable, filePath),
                             ContentHash = result.ToBondContentHash()
                         });
+
+                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store to cache: Success='{storeResult.Succeeded}', FilePath='{filePath}' Key='{result.Result.Key}' Hash='{result.Result.ContentHash.ToContentHash()}'"));
+                        return result;
                     }
                 });
 
@@ -98,6 +107,12 @@ namespace BuildXL.Scheduler.Tracing
             });
 
             var storedFiles = await Task.WhenAll(tasks);
+
+            if (storedFiles.Length == 0 || size.Value == 0)
+            {
+                Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Empty fingerprint store is not saved."));
+                return 0;
+            }
 
             var failure = storedFiles.Where(p => !p.Succeeded).Select(p => p.Failure).FirstOrDefault();
             Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store to cache: Success='{failure == null}', FileCount={storedFiles.Length} Size={size.Value}"));

@@ -588,7 +588,7 @@ namespace BuildXL.Engine
             IConfiguration configuration)
         {
             // Save the fingerprint store to cache if the cache miss analysis is requested with remote mode.
-            if (configuration.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Remote)
+            if (configuration.Logging.CacheMissAnalysisOption.Mode == CacheMissMode.Remote && configuration.FingerprintStoreEnabled())
             {
                 // Use the first key as a store key.
                 var storeKey = configuration.Logging.CacheMissAnalysisOption.Keys.FirstOrDefault();

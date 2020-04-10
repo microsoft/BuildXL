@@ -29,12 +29,12 @@ namespace Test.BuildXL.FrontEnd.Rush
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToRush => Path.Combine(TestDeploymentDir, "Rush", "@microsoft", "rush", "bin", "rush").Replace("\\", "/");
+        protected string PathToRush => Path.Combine(TestDeploymentDir, "Rush", "node_modules", "@microsoft", "rush", "bin", "rush").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToNodeModules => Path.Combine(TestDeploymentDir, "Rush").Replace("\\", "/");
+        protected string PathToNodeModules => Path.Combine(TestDeploymentDir, "Rush", "node_modules").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
@@ -74,30 +74,45 @@ namespace Test.BuildXL.FrontEnd.Rush
         protected SpecEvaluationBuilder Build(
             Dictionary<string, string> environment = null,
             string executeCommands = null,
-            string customRushCommands = null)
+            string customRushCommands = null,
+            string rushBaseLibLocation = "")
         {
-            environment ??= new Dictionary<string, string> { ["PATH"] = PathToNodeFolder };
+            environment ??= new Dictionary<string, string> { 
+                ["PATH"] = PathToNodeFolder
+            };
 
             return Build(
-                environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null,
+                environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)),
                 executeCommands,
-                customRushCommands);
+                customRushCommands,
+                rushBaseLibLocation);
         }
 
         /// <inheritdoc/>
         protected SpecEvaluationBuilder Build(
             Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
             string executeCommands = null,
-            string customRushCommands = null)
+            string customRushCommands = null,
+            string rushBaseLibLocation = "")
         {
-            environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder) };
+            environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
+                ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder) 
+            };
+
+            // We reserve the null string for a true undefined.
+            // rush-lib is part of node_modules deployment, so use that by default
+            if (rushBaseLibLocation == string.Empty)
+            {
+                rushBaseLibLocation = PathToNodeModules;
+            }
 
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
                 DefaultRushPrelude(
-                    environment: environment ?? new Dictionary<string, DiscriminatingUnion<string, UnitValue>>(),
+                    environment: environment,
                     executeCommands: executeCommands,
-                    customRushCommands: customRushCommands));
+                    customRushCommands: customRushCommands,
+                    rushBaseLibLocation: rushBaseLibLocation));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -183,9 +198,10 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         private string DefaultRushPrelude(
-            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment = null,
-            string executeCommands = null,
-            string customRushCommands = null) => $@"
+            Dictionary<string, DiscriminatingUnion<string, UnitValue>> environment,
+            string executeCommands,
+            string customRushCommands,
+            string rushBaseLibLocation) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -197,6 +213,7 @@ config({{
             {DictionaryToExpression("environment", environment)}
             {(executeCommands != null? $"execute: {executeCommands}," : string.Empty)}
             {(customRushCommands != null ? $"customCommands: {customRushCommands}," : string.Empty)}
+            {(rushBaseLibLocation != null ? $"rushLibBaseLocation: d`{rushBaseLibLocation}`," : string.Empty)}
         }},
     ],
 }});";

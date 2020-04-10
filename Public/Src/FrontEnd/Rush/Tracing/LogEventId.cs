@@ -26,5 +26,7 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         RushCommandIsEmpty = 11709,
         RushCommandIsDuplicated = 11710,
         CycleInRushCommands = 11711,
+        CannotFindRushLib = 11712,
+        UsingRushLibBaseAt = 11713,
     }
 }

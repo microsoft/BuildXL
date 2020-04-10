@@ -1,8 +1,5 @@
-import { RushConfiguration, RushConfigurationProject } from '@microsoft/rush-lib';
-import * as semver from 'semver';
 import * as path from 'path';
-import * as fs from 'fs';
-import { IPackageJsonScriptTable } from '@rushstack/node-core-library';
+import * as semver from 'semver';
 import * as BxlConfig from './BuildXLConfigurationReader';
 
 /**
@@ -17,7 +14,7 @@ export interface RushGraph {
  */
 export interface RushProject {
     name: string;
-    availableScriptCommands: IPackageJsonScriptTable;
+    availableScriptCommands: any;
     projectFolder: string;
     tempFolder: string;
     dependencies: string[];
@@ -28,13 +25,19 @@ export interface RushProject {
 /**
  * Builds a RushGraph from a valid rush configuration file
  */
-export function buildGraph(rushConfigurationFile: string): RushGraph
+export function buildGraph(rushConfigurationFile: string, pathToRushLib:string): RushGraph
 {
-    // TODO: consider making the node-core library parametric
-    // Load Rush configuration, which includes the build graph
-    let rushConf = RushConfiguration.loadFromConfigurationFile(rushConfigurationFile);
+    let rushLib;
+    try {
+        rushLib = require(path.join(pathToRushLib, "@microsoft/rush-lib"));
+    }
+    catch(error) {
+        throw new Error(`Cannot find @microsoft/rush-lib module under '${pathToRushLib}'. This module is required to compute the Rush project graph. Details: ${error}`);
+    }
 
-    // Map each rush project into a RushProject node
+    // Load Rush configuration, which includes the build graph
+    let rushConf = rushLib.RushConfiguration.loadFromConfigurationFile(rushConfigurationFile);
+        // Map each rush project into a RushProject node
     let projects : RushProject[] = [];
     for (const project of rushConf.projects) {
 
@@ -58,7 +61,7 @@ export function buildGraph(rushConfigurationFile: string): RushGraph
     return {projects: projects};
 }
 
-function getDependencies(configuration: RushConfiguration, project: RushConfigurationProject) : Set<string> {
+function getDependencies(configuration, project) : Set<string> {
     let dependencies: Set<string> = new Set<string>();
     
     // Collect all dependencies and dev dependencies 
@@ -85,12 +88,12 @@ function getDependencies(configuration: RushConfiguration, project: RushConfigur
 /**
  * Gets a dependency from a give rush project only if it is not a cyclic one and semver is satisfied
  */
-function getDependency(name: string, version: string, project: RushConfigurationProject, configuration: RushConfiguration) : string {
+function getDependency(name: string, version: string, project, configuration) : string {
     if (
         !project.cyclicDependencyProjects.has(name) &&
         configuration.projectsByName.has(name)
       ) {
-        const dependencyProject: RushConfigurationProject = configuration.projectsByName.get(name)!;
+        const dependencyProject = configuration.projectsByName.get(name)!;
         if (semver.satisfies(dependencyProject.packageJson.version, version)) {
           return dependencyProject.packageName;
         }

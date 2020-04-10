@@ -306,6 +306,12 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
     nodeExeLocation?: File;
 
     /**
+     * The base directory location to look for @microsoft/rush-lib module, used to build the project graph
+     * If not provided, BuildXL will try to look for a rush installation under PATH.
+     */
+    rushLibBaseLocation?: Directory;
+
+    /**
      * Collection of additional output directories pips may write to.
      * If a relative path is provided, it will be interpreted relative to every project root.
      */

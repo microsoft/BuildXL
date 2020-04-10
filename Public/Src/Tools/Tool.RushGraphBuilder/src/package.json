@@ -7,10 +7,10 @@
   "homepage": "https://github.com/Microsoft/BuildXL",
   "main": "out/main.js",
   "dependencies": {
-    "@microsoft/rush-lib": "5.22.0",
-    "typescript": "3.4.3"
-  },
-  "devDependencies": {
-    "@types/semver": "^7.1.0"
+    "typescript": "3.4.3",
+    "semver": "7.2.1",
+    "path": "0.12.7",
+    "fs": "0.0.2",
+    "@types/node": "13.11.1"
   }
 }

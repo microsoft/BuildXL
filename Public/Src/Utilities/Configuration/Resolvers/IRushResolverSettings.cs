@@ -11,6 +11,14 @@ namespace BuildXL.Utilities.Configuration
     public interface IRushResolverSettings : IProjectGraphResolverSettings
     {
         /// <summary>
+        /// The base directory location to look for @microsoft/rush-lib module, used to build the project graph
+        /// </summary>
+        /// <remarks>
+        /// If not provided, BuildXL will try to find it based on Rush installation location
+        /// </remarks>
+        DirectoryArtifact? RushLibBaseLocation { get; }
+
+        /// <summary>
         /// The path to node.exe to use for discovering the Rush graph
         /// </summary>
         /// <remarks>

@@ -42,7 +42,7 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
-            Message = EventConstants.LabeledProvenancePrefix + "An error occurred while parsing Rush spec files: {message}",
+            Message = EventConstants.LabeledProvenancePrefix + "An error occurred while constructing the Rush project graph: {message}",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void ProjectGraphConstructionError(LoggingContext context, Location location, string message);
 
@@ -144,5 +144,25 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void ProjectIsIgnoredScriptIsMissing(LoggingContext context, Location location, string projectName, string scriptCommandName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotFindRushLib,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Cannot find @microsoft/rush-lib module, which is required to compute the Rush project graph. {details}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CannotFindRushLib(LoggingContext context, Location location, string details);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.UsingRushLibBaseAt,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = EventConstants.LabeledProvenancePrefix + "Using '{basePath}' as the base path for resolving @microsoft/rush-lib.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void UsingRushLibBaseAt(LoggingContext context, Location location, string basePath);
     }
 }

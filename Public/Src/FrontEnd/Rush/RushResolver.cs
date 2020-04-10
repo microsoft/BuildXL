@@ -122,6 +122,13 @@ namespace BuildXL.FrontEnd.Rush
                 }
             }
 
+            // If the rush-lib base location is specified, it has to be valid
+            if (rushResolverSettings.RushLibBaseLocation?.IsValid == false)
+            {
+                Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), "The specified rush-lib base location is invalid.");
+                return false;
+            }
+
             return true;
         }
 

@@ -34,6 +34,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AdditionalOutputDirectories = resolverSettings.AdditionalOutputDirectories;
             Execute = resolverSettings.Execute;
             CustomCommands = resolverSettings.CustomCommands;
+            RushLibBaseLocation = resolverSettings.RushLibBaseLocation;
         }
 
         /// <inheritdoc/>
@@ -68,5 +69,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IExtraArgumentsRushScript> CustomCommands { get; set; }
+
+        /// <inheritdoc/>
+        public DirectoryArtifact? RushLibBaseLocation { get; set; }
     }
 }

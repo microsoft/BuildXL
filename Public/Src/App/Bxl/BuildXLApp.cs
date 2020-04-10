@@ -920,8 +920,7 @@ namespace BuildXL
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId),
-                logger: new AppLogger());
+                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
             using (PerformanceMeasurement pm = PerformanceMeasurement.StartWithoutStatistic(
                 topLevelContext,
@@ -2075,7 +2074,7 @@ namespace BuildXL
 
 
             var loggingQueue = m_configuration.Logging.EnableAsyncLogging.GetValueOrDefault() ? new LoggingQueue() : null;
-            var asyncLoggingContext = new LoggingContext(loggingContext.ActivityId, loggingContext.LoggerComponentInfo, loggingContext.Session, loggingContext, loggingQueue, loggingContext.Logger);
+            var asyncLoggingContext = new LoggingContext(loggingContext.ActivityId, loggingContext.LoggerComponentInfo, loggingContext.Session, loggingContext, loggingQueue);
 
             BuildXLEngineResult result = null;
             // All async logging needs to complete before code that checks the state of logging contexts or tracking event listeners.

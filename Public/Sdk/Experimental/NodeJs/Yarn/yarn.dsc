@@ -5,7 +5,7 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import {Node, Npm} from "Sdk.NodeJs";
 import * as Deployment from "Sdk.Deployment";
 
-const yarnModule = Npm.install({name: "yarn", version: "1.12.3"});
+const yarnModule = Npm.install({name: "yarn", version: "1.17.3"});
 
 /**
  * This installs the yarn packages for the given project.

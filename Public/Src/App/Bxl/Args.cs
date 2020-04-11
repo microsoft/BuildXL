@@ -425,6 +425,9 @@ namespace BuildXL
                             "enableLazyOutputs",
                             (opt, sign) => HandleLazyOutputMaterializationOption(opt, sign, schedulingConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableLessAggresiveMemoryProjection",
+                            sign => schedulingConfiguration.EnableLessAggresiveMemoryProjection = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableSetupCostWhenChoosingWorker",
                             sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
                         OptionHandlerFactory.CreateOption(

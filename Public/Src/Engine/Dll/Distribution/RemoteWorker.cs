@@ -700,8 +700,10 @@ namespace BuildXL.Engine.Distribution
                 Fingerprint = fingerprint.Hash.ToBondFingerprint(),
                 Priority = runnable.Priority,
                 Step = (int)runnable.Step,
-                ExpectedRamUsageMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb,
-                ExpectedCommitUsageMb = processRunnable?.ExpectedMemoryCounters?.PeakCommitUsageMb,
+                ExpectedPeakWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb ?? 0,
+                ExpectedAverageWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.AverageWorkingSetMb ?? 0,
+                ExpectedPeakCommitSizeMb = processRunnable?.ExpectedMemoryCounters?.PeakCommitSizeMb ?? 0,
+                ExpectedAverageCommitSizeMb = processRunnable?.ExpectedMemoryCounters?.AverageCommitSizeMb ?? 0,
                 SequenceNumber = Interlocked.Increment(ref m_nextSequenceNumber),
             };
 

@@ -79,6 +79,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             EnableSetupCostWhenChoosingWorker = true;
             MaximumCommitUtilizationPercentage = 95;
+            EnableLessAggresiveMemoryProjection = false;
         }
 
         /// <nodoc />
@@ -154,6 +155,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
             NumRetryFailedPipsDueToLowMemory = template.NumRetryFailedPipsDueToLowMemory;
+            EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
         }
 
         /// <inheritdoc />
@@ -370,5 +372,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double? DelayedCacheLookupMaxMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableLessAggresiveMemoryProjection { get; set; }
     }
 }

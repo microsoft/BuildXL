@@ -18,6 +18,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes.Internal;
 using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
@@ -71,7 +72,10 @@ namespace BuildXL.Processes
         private readonly string[] m_allowedSurvivingChildProcessNames;
 
         private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
-        private readonly PerformanceCollector.Aggregation m_peakPagefileUsage = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_workingSet = new PerformanceCollector.Aggregation();
+
+        private readonly PerformanceCollector.Aggregation m_peakCommitSize = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_commitSize = new PerformanceCollector.Aggregation();
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
@@ -201,8 +205,12 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                ulong? currentPeakWorkingSet = null;
-                ulong? currentPeakPagefileUsage = null;
+                ulong currentPeakWorkingSet = 0;
+                ulong currentPeakCommitSize = 0;
+                ulong currentWorkingSet = 0;
+                ulong currentCommitSize = 0;
+
+                bool isCollectedData = false;
 
                 var jobObject = detouredProcess.GetJobObject();
                 if (jobObject == null || !jobObject.TryGetProcessIds(m_loggingContext, out uint[] childProcessIds) || childProcessIds.Length == 0)
@@ -239,14 +247,23 @@ namespace BuildXL.Processes
                         var memoryUsage = Interop.Windows.Memory.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
                         if (memoryUsage != null)
                         {
-                            currentPeakWorkingSet = (currentPeakWorkingSet ?? 0) + memoryUsage.PeakWorkingSetSize;
-                            currentPeakPagefileUsage = (currentPeakPagefileUsage ?? 0) + memoryUsage.PeakPagefileUsage;
+                            isCollectedData = true;
+                            currentPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
+                            currentPeakCommitSize += memoryUsage.PeakPagefileUsage;
+                            currentWorkingSet += memoryUsage.WorkingSetSize;
+                            currentCommitSize += memoryUsage.PagefileUsage;
                         }
                     }
                 }
 
-                m_peakWorkingSet.RegisterSample(currentPeakWorkingSet ?? 0);
-                m_peakPagefileUsage.RegisterSample(currentPeakPagefileUsage ?? 0);
+                if (isCollectedData)
+                {
+                    m_peakWorkingSet.RegisterSample(currentPeakWorkingSet);
+                    m_peakCommitSize.RegisterSample(currentPeakCommitSize);
+
+                    m_workingSet.RegisterSample(currentWorkingSet);
+                    m_commitSize.RegisterSample(currentCommitSize);
+                }
 
                 return currentPeakWorkingSet;
             }
@@ -503,7 +520,14 @@ namespace BuildXL.Processes
             JobObject jobObject = m_detouredProcess.GetJobObject();
             if (jobObject != null)
             {
-                jobAccountingInformation = jobObject.GetAccountingInformation(Convert.ToUInt64(m_peakWorkingSet.Maximum), Convert.ToUInt64(m_peakPagefileUsage.Maximum));
+                var accountingInfo = jobObject.GetAccountingInformation();
+                accountingInfo.MemoryCounters = Pips.ProcessMemoryCounters.CreateFromBytes(
+                    peakWorkingSet: Convert.ToUInt64(m_peakWorkingSet.Maximum),
+                    averageWorkingSet: Convert.ToUInt64(m_workingSet.Average),
+                    peakCommitSize: Convert.ToUInt64(m_peakCommitSize.Maximum),
+                    averageCommitSize: Convert.ToUInt64(m_commitSize.Average));
+
+                jobAccountingInformation = accountingInfo;
             }
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();

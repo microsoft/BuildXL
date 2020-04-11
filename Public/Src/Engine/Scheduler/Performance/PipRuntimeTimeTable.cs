@@ -27,14 +27,14 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The version for format of <see cref="PipRuntimeTimeTable"/>
         /// </summary>
-        public const int FormatVersion = 1;
+        public const int FormatVersion = 2;
 
         private static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "Runtime", version: FormatVersion);
 
         /// <summary>
         /// The data holder
         /// </summary>
-        private readonly ConcurrentBigMap<long, PipHistoricPerfData> m_runtimeData;
+        private readonly ConcurrentBigMap<long, ProcessPipHistoricPerfData> m_runtimeData;
 
         /// <summary>
         /// Number of Process pip nodes for which critical path duration suggestions were added
@@ -69,7 +69,7 @@ namespace BuildXL.Scheduler
         public PipRuntimeTimeTable(LoggingContext loggingContext, int initialCapacity = 0)
         {
             m_loggingContext = loggingContext;
-            m_runtimeData = new ConcurrentBigMap<long, PipHistoricPerfData>(capacity: initialCapacity);
+            m_runtimeData = new ConcurrentBigMap<long, ProcessPipHistoricPerfData>(capacity: initialCapacity);
         }
 
         /// <summary>
@@ -106,8 +106,8 @@ namespace BuildXL.Scheduler
                         for (int i = 0; i < size; ++i)
                         {
                             long semiStableHash = reader.ReadInt64();
-                            PipHistoricPerfData historicData;
-                            if (PipHistoricPerfData.Deserialize(reader, out historicData))
+                            ProcessPipHistoricPerfData historicData;
+                            if (ProcessPipHistoricPerfData.Deserialize(reader, out historicData))
                             {
                                 if (!table.m_runtimeData.TryAdd(semiStableHash, historicData))
                                 {
@@ -156,7 +156,7 @@ namespace BuildXL.Scheduler
                     using (BuildXLWriter writer = new BuildXLWriter(debug: false, stream: stream, leaveOpen: true, logStats: false))
                     {
                         writer.Write(m_runtimeData.Count);
-                        foreach (KeyValuePair<long, PipHistoricPerfData> kvp in m_runtimeData)
+                        foreach (KeyValuePair<long, ProcessPipHistoricPerfData> kvp in m_runtimeData)
                         {
                             writer.Write(kvp.Key);
                             kvp.Value.Serialize(writer);
@@ -172,11 +172,11 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Access the runtime data
         /// </summary>
-        public PipHistoricPerfData this[long semiStableHash]
+        public ProcessPipHistoricPerfData this[long semiStableHash]
         {
             get
             {
-                PipHistoricPerfData ret;
+                ProcessPipHistoricPerfData ret;
                 if (m_runtimeData.TryGetValue(semiStableHash, out ret))
                 {
                     Interlocked.Increment(ref m_numHits);
@@ -186,7 +186,7 @@ namespace BuildXL.Scheduler
                         return ret;
                     }
 
-                    PipHistoricPerfData freshRet = ret.MakeFresh();
+                    ProcessPipHistoricPerfData freshRet = ret.MakeFresh();
                     m_runtimeData[semiStableHash] = freshRet;
 
                     return freshRet;
@@ -194,7 +194,7 @@ namespace BuildXL.Scheduler
                 else
                 {
                     Interlocked.Increment(ref m_numMisses);
-                    return default(PipHistoricPerfData);
+                    return default(ProcessPipHistoricPerfData);
                 }
             }
 

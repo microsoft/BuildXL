@@ -167,14 +167,20 @@ message SinglePipBuildRequest
     // The execution step requested
     int32 Step = 5;
 
-    // The expected RAM usage of the pip
-    int32 ExpectedRamUsageMb = 6;
+    // The expected peak working set of the pip
+    int32 ExpectedPeakWorkingSetMb = 6;
     
-    // The expected commit usage of the pip
-    int32 ExpectedCommitUsageMb = 7;
+    // The expected average working set of the pip
+    int32 ExpectedAverageWorkingSetMb = 7;
+
+    // The expected peak commit size of the pip
+    int32 ExpectedPeakCommitSizeMb = 8;
+
+    // The expected average commit size of the pip
+    int32 ExpectedAverageCommitSizeMb = 9;
 
     // Sequence number for deduplicating worker calls
-    int32 SequenceNumber = 8;
+    int32 SequenceNumber = 10;
 }
 
 message FileArtifactKeyedHash

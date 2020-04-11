@@ -1033,7 +1033,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// The average value of all samples collected
             /// </summary>
-            public double Average => Total / Count;
+            public double Average => Count == 0 ? 0 : Total / Count;
 
             /// <summary>
             /// Registers a new sample

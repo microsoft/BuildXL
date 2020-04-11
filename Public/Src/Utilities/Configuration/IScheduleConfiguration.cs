@@ -378,5 +378,10 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the max multiplier for the number of elements in ChooseWorkerCPU queue
         /// </summary>
         double? DelayedCacheLookupMaxMultiplier { get; }
+
+        /// <summary>
+        /// Enable less aggresive memory projection by using average memory usage instead of peak usage
+        /// </summary>
+        bool EnableLessAggresiveMemoryProjection { get; }
     }
 }

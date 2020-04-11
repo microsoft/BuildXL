@@ -168,14 +168,20 @@ struct SinglePipBuildRequest
 	/// The execution step requested
 	5: int32 Step;
 
-	/// The expected RAM usage of the pip
-	6: nullable<int32> ExpectedRamUsageMb;
+    //// The expected peak working set of the pip
+    6: int32 ExpectedPeakWorkingSetMb;
+    
+    //// The expected average working set of the pip
+    7: int32 ExpectedAverageWorkingSetMb;
 
-    /// The expected commit usage of the pip
-	7: nullable<int32> ExpectedCommitUsageMb;
+    //// The expected peak commit size of the pip
+    8: int32 ExpectedPeakCommitSizeMb;
+
+    //// The expected average commit size of the pip
+    9: int32 ExpectedAverageCommitSizeMb;
 
 	/// Sequence number for deduplicating worker calls
-	8: int32 SequenceNumber;
+	10: int32 SequenceNumber;
 }
 
 /// A request to build pips on a worker

@@ -275,9 +275,16 @@ namespace BuildXL.Scheduler.Distribution
         /// <remarks>
         /// If there is no historical ram usage for the process pips, we assume that 80% of memory is used if all process slots are occupied.
         /// </remarks>
-        internal int DefaultMemoryUsageMbPerProcess => (int)((TotalRamMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
+        internal int DefaultWorkingSetMbPerProcess => (int)((TotalRamMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
 
-        internal int DefaultCommitUsageMbPerProcess => (int)(DefaultMemoryUsageMbPerProcess * 1.5);
+        /// <summary>
+        /// Defaulf commit size usage
+        /// </summary>
+        /// <remarks>
+        /// As commit size is the total virtual address space used by process, it needs to be larger than working set.
+        /// We use 1.5 multiplier to make it larger than working set.
+        /// </remarks>
+        internal int DefaultCommitSizeMbPerProcess => (int)(DefaultWorkingSetMbPerProcess * 1.5);
 
         /// <summary>
         /// Listen for status change events on the worker
@@ -566,11 +573,13 @@ namespace BuildXL.Scheduler.Distribution
                 }
 
                 StringId limitingResourceName = StringId.Invalid;
-                if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip), out limitingResourceName))
+                var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
+                if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
                 {
                     Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
                     OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
                     runnablePip.AcquiredResourceWorker = this;
+                    processRunnablePip.ExpectedMemoryCounters = expectedMemoryCounters;
                     limitingResource = null;
                     return true;
                 }
@@ -592,7 +601,7 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
-        private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess)
+        private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess, ProcessMemoryCounters expectedMemoryCounters)
         {
             using (var semaphoreInfoListWrapper = s_semaphoreInfoListPool.GetInstance())
             {
@@ -620,11 +629,10 @@ namespace BuildXL.Scheduler.Distribution
                     m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
                 }
 
-                var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
-
+                bool enableLessAggresiveMemoryProjection = runnableProcess.Environment.Configuration.Schedule.EnableLessAggresiveMemoryProjection;
                 var ramSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                         m_ramSemaphoreNameId,
-                        usage: expectedMemoryCounters.PeakWorkingSetMb,
+                        usage: enableLessAggresiveMemoryProjection ? expectedMemoryCounters.AverageWorkingSetMb : expectedMemoryCounters.PeakWorkingSetMb,
                         total: TotalRamMb.Value);
 
                 semaphores.Add(ramSemaphoreInfo);
@@ -639,7 +647,7 @@ namespace BuildXL.Scheduler.Distribution
 
                     var commitSemaphoreInfo = ProcessExtensions.GetNormalizedPercentageResource(
                         m_commitSemaphoreNameId,
-                        usage: expectedMemoryCounters.PeakCommitUsageMb,
+                        usage: enableLessAggresiveMemoryProjection ? expectedMemoryCounters.AverageCommitSizeMb : expectedMemoryCounters.PeakCommitSizeMb,
                         total: TotalCommitMb.Value);
 
                     semaphores.Add(commitSemaphoreInfo);
@@ -652,30 +660,35 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Gets the estimated memory counters for the process
         /// </summary>
-        public ProcessMemoryCounters GetExpectedMemoryCounters(ProcessRunnablePip runnableProcess, bool isCancelledDueToResourceExhaustion = false)
+        public ProcessMemoryCounters GetExpectedMemoryCounters(ProcessRunnablePip runnableProcess)
         {
             if (TotalRamMb == null || TotalCommitMb == null)
             {
-                return ProcessMemoryCounters.CreateFromMb(0, 0, 0);
+                return ProcessMemoryCounters.CreateFromMb(0, 0, 0, 0);
             }
 
-            if (runnableProcess.ExpectedMemoryCounters == null)
+            if (runnableProcess.ExpectedMemoryCounters.HasValue)
             {
-                return ProcessMemoryCounters.CreateFromMb(
-                    peakVirtualMemoryUsageMb: DefaultMemoryUsageMbPerProcess,
-                    peakWorkingSetMb: DefaultMemoryUsageMbPerProcess,
-                    peakCommitUsageMb: DefaultCommitUsageMbPerProcess);
+                // If there is already an expected memory counters for the process,
+                // it means that we retry the process with another worker due to 
+                // several reasons including stopped worker, memory exhaustion.
+                // That's why, we should reuse the expected memory counters that 
+                // are updated with recent data from last execution.
+                return runnableProcess.ExpectedMemoryCounters.Value;
             }
 
-            var expectedMemoryCounters = runnableProcess.ExpectedMemoryCounters.Value;
+            // If there is a historic perf data, use it.
+            if (runnableProcess.HistoricPerfData?.IsFresh == false)
+            {
+                return runnableProcess.HistoricPerfData.Value.MemoryCounters;
+            }
 
-            // If the process is cancelled due to resource exhaustion, multiply the memory usage by 1.25; otherwise use the historic memory.
-            double multiplier = isCancelledDueToResourceExhaustion ? 1.25 : 1;
-
+            // If there is no historic perf data, use the defaults for the worker.
             return ProcessMemoryCounters.CreateFromMb(
-                peakVirtualMemoryUsageMb: (int) (expectedMemoryCounters.PeakVirtualMemoryUsageMb * multiplier),
-                peakWorkingSetMb: (int)(expectedMemoryCounters.PeakWorkingSetMb * multiplier),
-                peakCommitUsageMb: (int)(expectedMemoryCounters.PeakCommitUsageMb * multiplier));
+                peakWorkingSetMb: DefaultWorkingSetMbPerProcess,
+                averageWorkingSetMb: DefaultWorkingSetMbPerProcess,
+                peakCommitSizeMb: DefaultCommitSizeMbPerProcess,
+                averageCommitSizeMb: DefaultCommitSizeMbPerProcess);
         }
 
         /// <summary>

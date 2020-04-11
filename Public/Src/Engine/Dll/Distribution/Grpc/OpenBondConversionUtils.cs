@@ -243,8 +243,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 var singlePipBuildRequest = new SinglePipBuildRequest()
                 {
                     ActivityId = i.ActivityId,
-                    ExpectedRamUsageMb = i.ExpectedRamUsageMb ?? 0,
-                    ExpectedCommitUsageMb = i.ExpectedCommitUsageMb ?? 0,
+                    ExpectedPeakWorkingSetMb = i.ExpectedPeakWorkingSetMb,
+                    ExpectedAverageWorkingSetMb = i.ExpectedAverageWorkingSetMb,
+                    ExpectedPeakCommitSizeMb = i.ExpectedPeakCommitSizeMb,
+                    ExpectedAverageCommitSizeMb = i.ExpectedAverageCommitSizeMb,
                     Fingerprint = i.Fingerprint.Data.ToByteString(),
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,
@@ -295,8 +297,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                 pips.Add(new OpenBond.SinglePipBuildRequest()
                 {
                     ActivityId = i.ActivityId,
-                    ExpectedRamUsageMb = i.ExpectedRamUsageMb,
-                    ExpectedCommitUsageMb = i.ExpectedCommitUsageMb,
+                    ExpectedPeakWorkingSetMb = i.ExpectedPeakWorkingSetMb,
+                    ExpectedAverageWorkingSetMb = i.ExpectedAverageWorkingSetMb,
+                    ExpectedPeakCommitSizeMb = i.ExpectedPeakCommitSizeMb,
+                    ExpectedAverageCommitSizeMb = i.ExpectedAverageCommitSizeMb,
                     Fingerprint = new BondFingerprint() { Data = i.Fingerprint.ToArraySegmentByte() },
                     PipIdValue = i.PipIdValue,
                     Priority = i.Priority,

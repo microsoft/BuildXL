@@ -118,7 +118,7 @@ namespace Test.BuildXL.Scheduler
                 m_execute = () => ExecutionTask = resourceManager.ExecuteWithResources(
                     OperationContext.CreateUntracked(loggingContext),
                     new PipId(id),
-                    ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage, estimatedRamUsage),
+                    ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage, estimatedRamUsage, estimatedRamUsage),
                     allowCancellation,
                     async (cancellationToken, registerQueryRamUsage) =>
                 {

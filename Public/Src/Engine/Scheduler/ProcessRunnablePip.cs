@@ -47,9 +47,9 @@ namespace BuildXL.Scheduler
         public ProcessMemoryCounters? ExpectedMemoryCounters;
 
         /// <summary>
-        /// The expected historical duration of the pip
+        /// Historic perf data
         /// </summary>
-        public ulong? ExpectedDurationMs;
+        public ProcessPipHistoricPerfData? HistoricPerfData;
 
         /// <summary>
         /// SemaphoreResources

@@ -601,9 +601,10 @@ namespace BuildXL.Engine.Distribution
                         processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint)));
 
                         processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
-                            peakVirtualMemoryUsageMb: pipBuildRequest.ExpectedRamUsageMb ?? 0,
-                            peakWorkingSetMb: pipBuildRequest.ExpectedRamUsageMb ?? 0,
-                            peakCommitUsageMb: pipBuildRequest.ExpectedCommitUsageMb ?? 0);
+                            peakWorkingSetMb: pipBuildRequest.ExpectedPeakWorkingSetMb,
+                            averageWorkingSetMb: pipBuildRequest.ExpectedAverageWorkingSetMb,
+                            peakCommitSizeMb: pipBuildRequest.ExpectedPeakCommitSizeMb,
+                            averageCommitSizeMb: pipBuildRequest.ExpectedAverageCommitSizeMb);
                     }
 
                     break;

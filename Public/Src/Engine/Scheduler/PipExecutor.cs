@@ -1608,8 +1608,8 @@ namespace BuildXL.Scheduler
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
                                         expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
-                                        peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitUsageMb ?? 0,
-                                        expectedCommitMb: expectedMemoryCounters.PeakCommitUsageMb,
+                                        peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitSizeMb ?? 0,
+                                        expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
                             }

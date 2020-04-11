@@ -847,9 +847,11 @@ namespace BuildXL.Scheduler
 
 #region Statistics
 
-        private ulong m_totalPeakVirtualMemoryUsageMb;
         private ulong m_totalPeakWorkingSetMb;
-        private ulong m_totalPeakCommitUsageMb;
+        private ulong m_totalAverageWorkingSetMb;
+
+        private ulong m_totalPeakCommitSizeMb;
+        private ulong m_totalAverageCommitSizeMb;
 
         private readonly object m_statusLock = new object();
 
@@ -1856,9 +1858,11 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakMemoryUsageMb", (long)m_totalPeakVirtualMemoryUsageMb);
             statistics.Add("TotalPeakWorkingSetMb", (long)m_totalPeakWorkingSetMb);
-            statistics.Add("TotalPeakCommitUsageMb", (long)m_totalPeakCommitUsageMb);
+            statistics.Add("TotalAverageWorkingSetMb", (long)m_totalAverageWorkingSetMb);
+            statistics.Add("TotalPeakCommitSizeMb", (long)m_totalPeakCommitSizeMb);
+            statistics.Add("TotalAverageCommitSizeMb", (long)m_totalAverageCommitSizeMb);
+
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -4047,13 +4051,14 @@ namespace BuildXL.Scheduler
                             Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.RetryCountDueToLowMemory);
                         }
 
-                        // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
-                        var expectedCounters = worker.GetExpectedMemoryCounters(processRunnable, executionResult.IsCancelledDueToResourceExhaustion);
+                        // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
+                        var expectedCounters = processRunnable.ExpectedMemoryCounters.Value;
                         var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
                         processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
-                            peakVirtualMemoryUsageMb: Math.Max(expectedCounters.PeakVirtualMemoryUsageMb, actualCounters?.PeakVirtualMemoryUsageMb ?? 0),
-                            peakWorkingSetMb: Math.Max(expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0),
-                            peakCommitUsageMb: Math.Max(expectedCounters.PeakCommitUsageMb, actualCounters?.PeakCommitUsageMb ?? 0));
+                            peakWorkingSetMb: Math.Max((int)(expectedCounters.PeakWorkingSetMb * 1.25), actualCounters?.PeakWorkingSetMb ?? 0),
+                            averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
+                            peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
+                            averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
 
                         return processRunnable.SetPipResult(executionResult.Result);
                     }
@@ -4096,11 +4101,12 @@ namespace BuildXL.Scheduler
 
                     if (!IsDistributedWorker)
                     {
-                        var expectedMemoryCounters = worker.GetExpectedMemoryCounters((ProcessRunnablePip)runnablePip);
-
-                        int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakVirtualMemoryUsageMb ?? 0;
+                        var expectedMemoryCounters = processRunnable.ExpectedMemoryCounters.Value;
+                    
                         int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
-                        int peakCommitUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitUsageMb ?? 0;
+                        int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
+                        int peakCommitSizeMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitSizeMb ?? 0;
+                        int averageCommitSizeMb = executionResult.PerformanceInformation?.MemoryCounters.AverageCommitSizeMb ?? 0;
 
                         try
                         {
@@ -4108,19 +4114,24 @@ namespace BuildXL.Scheduler
                                 operationContext,
                                 runnablePip.Description,
                                 executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
-                                (processRunnable.ExpectedDurationMs ?? 0) / 1000,
+                                (processRunnable.HistoricPerfData?.DurationInMs ?? 0) / 1000,
                                 executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                 executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
-                                worker.DefaultMemoryUsageMbPerProcess,
+                                worker.DefaultWorkingSetMbPerProcess,
                                 expectedMemoryCounters.PeakWorkingSetMb,
-                                peakVirtualMemoryUsageMb,
                                 peakWorkingSetMb,
-                                expectedMemoryCounters.PeakCommitUsageMb,
-                                peakCommitUsageMb);
+                                expectedMemoryCounters.AverageWorkingSetMb,
+                                averageWorkingSetMb,
+                                expectedMemoryCounters.PeakCommitSizeMb,
+                                peakCommitSizeMb,
+                                expectedMemoryCounters.AverageCommitSizeMb,
+                                averageCommitSizeMb);
 
-                            m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
                             m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
-                            m_totalPeakCommitUsageMb += (ulong)peakCommitUsageMb;
+                            m_totalAverageWorkingSetMb += (ulong)averageWorkingSetMb;
+
+                            m_totalPeakCommitSizeMb += (ulong)peakCommitSizeMb;
+                            m_totalAverageCommitSizeMb += (ulong)averageCommitSizeMb;
                         }
                         catch (OverflowException ex)
                         {
@@ -4656,8 +4667,7 @@ namespace BuildXL.Scheduler
                 if (runnableProcess != null)
                 {
                     var perfData = RunningTimeTable[runnableProcess.Process.SemiStableHash];
-                    runnableProcess.ExpectedMemoryCounters = runnableProcess.ExpectedMemoryCounters ?? perfData.MemoryCounters;
-                    runnableProcess.ExpectedDurationMs = perfData.DurationInMs;
+                    runnableProcess.HistoricPerfData = perfData;
                 }
 
                 // Find the estimated setup time for the pip on each builder.
@@ -5300,7 +5310,7 @@ namespace BuildXL.Scheduler
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)
             {
-                RunningTimeTable[pip.SemiStableHash] = new PipHistoricPerfData(processPerf);
+                RunningTimeTable[pip.SemiStableHash] = new ProcessPipHistoricPerfData(processPerf);
             }
 
             if (ExecutionLog != null && performance != null)

@@ -3480,8 +3480,27 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, ExpectedCommitUsageMb: {expectedCommitUsageMb}, PeakCommitUsageMb: {peakCommitUsageMb}")]
-        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int expectedCommitUsageMb, int peakCommitUsageMb);
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
+                "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
+                "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
+                "ExpectedPeakCommitSizeMb: {expectedPeakCommitSizeMb}, PeakCommitSizeMb: {peakCommitSizeMb}, " +
+                "ExpectedAverageCommitSizeMb: {expectedAverageCommitSizeMb}, AverageCommitSizeMb: {averageCommitSizeMb}, ")]
+        internal abstract void ProcessPipExecutionInfo(
+            LoggingContext loggingContext,
+            string pipDescription,
+            uint numProcesses,
+            ulong expectedDurationSec,
+            double actualDurationSec,
+            int processorUseInPercents,
+            int defaultWorkingSetMb,
+            int expectedPeakWorkingSetMb,
+            int peakWorkingSetMb,
+            int expectedAverageWorkingSetMb,
+            int averageWorkingSetMb,
+            int expectedPeakCommitSizeMb,
+            int peakCommitSizeMb,
+            int expectedAverageCommitSizeMb,
+            int averageCommitSizeMb);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

@@ -370,7 +370,7 @@ namespace BuildXL.Processes
         /// Gets accounting information of this job object (aggregate resource usage by all processes ever in the job).
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public AccountingInformation GetAccountingInformation(ulong peakWorkingSetUsage, ulong peakPagefileUsage)
+        public AccountingInformation GetAccountingInformation()
         {
             var info = default(JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION);
             if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
@@ -388,35 +388,8 @@ namespace BuildXL.Processes
                        IO = new IOCounters(info.IOCounters),
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
-                       NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       MemoryCounters = ProcessMemoryCounters.CreateFromBytes(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
+                       NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses
                     };
-        }
-
-        /// <summary>
-        /// Gets the peak aggregate memory usage of this job (sum of memory usage of all processes).
-        /// </summary>
-        /// <remarks>
-        /// Corresponds to PeakJobMemoryUsed on the job's extended limit information.
-        /// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms684156(v=vs.85).aspx
-        /// </remarks>
-        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public ulong GetPeakVirtualMemoryUsage()
-        {
-            var info = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
-
-            uint bytesWritten;
-            if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
-                handle,
-                JOBOBJECTINFOCLASS.ExtendedLimitInformation,
-                &info,
-                (uint)Marshal.SizeOf(info),
-                out bytesWritten))
-            {
-                throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get extended limit information.");
-            }
-
-            return info.PeakJobMemoryUsed.ToUInt64();
         }
 
         /// <summary>

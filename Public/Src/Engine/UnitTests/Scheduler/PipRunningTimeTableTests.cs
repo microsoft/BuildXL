@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.Remoting;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
@@ -10,6 +13,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -22,83 +26,69 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void PipHistoricPerfDataConstructorDoesntCrash()
         {
-            // TODO: Use IntelliTest/Pex for this.
-            var times = new[]
-                        {
-                            new DateTime(DateTime.MinValue.Year + 1, 1, 1).ToUniversalTime(), 
-                            new DateTime(2015, 1, 1).ToUniversalTime(),
-                            new DateTime(DateTime.MaxValue.Year, 1, 1).ToUniversalTime()
-                        };
-            var spans = new[] { TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.MaxValue };
-            var ints = new[] {0, int.MaxValue};
+            foreach (var obj in ConstructorDoesntCrashTestData())
+            {
+                var executionStart = (DateTime)obj[0];
+                var executionStop = (DateTime)obj[1];
+                var processExecutionTime = (TimeSpan)obj[2];
+                var fileMonitoringWarnings = (int)obj[3];
+                var ioCounters = (IOCounters)obj[4];
+                var userTime = (TimeSpan)obj[5];
+                var kernelTime = (TimeSpan)obj[6];
+                var peakMemoryUsage = (ulong)obj[7];
+                var numberOfProcesses = (uint)obj[8];
+                var workerId = (uint)obj[9];
+
+                if (executionStart > executionStop)
+                {
+                    continue;
+                }
+
+                var performance = new ProcessPipExecutionPerformance(
+                    PipExecutionLevel.Executed,
+                    executionStart,
+                    executionStop,
+                    FingerprintUtilities.ZeroFingerprint,
+                    processExecutionTime,
+                    new FileMonitoringViolationCounters(fileMonitoringWarnings, fileMonitoringWarnings, fileMonitoringWarnings),
+                    ioCounters,
+                    userTime,
+                    kernelTime,
+                    ProcessMemoryCounters.CreateFromBytes(peakMemoryUsage, peakMemoryUsage, peakMemoryUsage, peakMemoryUsage),
+                    numberOfProcesses,
+                    workerId);
+                var data = new ProcessPipHistoricPerfData(performance);
+                data = data.Merge(data);
+                Analysis.IgnoreResult(data);
+            }
+        }
+
+        public static IEnumerable<object[]> ConstructorDoesntCrashTestData()
+        {
+            var times = new object[]{
+                new DateTime(DateTime.MinValue.Year + 1, 1, 1).ToUniversalTime(),
+                new DateTime(2015, 1, 1).ToUniversalTime(),
+                new DateTime(DateTime.MaxValue.Year, 1, 1).ToUniversalTime() };
+
+            var spans = new object[] { TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.MaxValue };
+            var ints = new object[] { 0, int.MaxValue };
 
             // Let's say that the highest possible memory usage is currently 1TB.
-            var ulongs = new ulong[] {0, 1, (ulong)1024 * 1024 * 1024 * 1024}; 
-            var uints = new uint[] {0, 1, uint.MaxValue};
+            var ulongs = new object[] { (ulong)0, (ulong)1, (ulong)1024 * 1024 * 1024 * 1024 };
+            var uints = new object[] { (uint)0, (uint)1, uint.MaxValue };
+            var ioCounters = new object[]{
+                new IOCounters(
+                    readCounters: new IOTypeCounters(operationCount: 1, transferCount: ulong.MaxValue),
+                    writeCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
+                    otherCounters: new IOTypeCounters(operationCount: 0, transferCount: 0)
+                    ),
+                new IOCounters(
+                    readCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
+                    writeCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
+                    otherCounters: new IOTypeCounters(operationCount: 0, transferCount: 0)
+                    )};
 
-            foreach (var executionStart in times)
-            {
-                foreach (var executionStop in times)
-                {
-                    foreach (var processExecutionTime in spans)
-                    {
-                        foreach (var fileMonitoringWarnings in ints)
-                        {
-                            foreach (var ioCounters in new[]
-                                                       {
-                                                           new IOCounters(
-                                                               readCounters: new IOTypeCounters(operationCount: 1, transferCount: ulong.MaxValue),
-                                                               writeCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
-                                                               otherCounters: new IOTypeCounters(operationCount: 0, transferCount: 0)
-                                                               ),
-                                                           new IOCounters(
-                                                               readCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
-                                                               writeCounters: new IOTypeCounters(operationCount: 0, transferCount: 0),
-                                                               otherCounters: new IOTypeCounters(operationCount: 0, transferCount: 0)
-                                                               )
-                                                       })
-                            {
-                                foreach (var userTime in spans)
-                                {
-                                    foreach (var kernelTime in spans)
-                                    {
-                                        foreach (var peakMemoryUsage in ulongs)
-                                        {
-                                            foreach (var numberOfProcesses in uints)
-                                            {
-                                                foreach (var workerId in uints)
-                                                {
-                                                    if (executionStart > executionStop)
-                                                    {
-                                                        continue;
-                                                    }
-
-                                                    var performance = new ProcessPipExecutionPerformance(
-                                                        PipExecutionLevel.Executed,
-                                                        executionStart,
-                                                        executionStop,
-                                                        FingerprintUtilities.ZeroFingerprint,
-                                                        processExecutionTime,
-                                                        new FileMonitoringViolationCounters(fileMonitoringWarnings, fileMonitoringWarnings, fileMonitoringWarnings), 
-                                                        ioCounters,
-                                                        userTime,
-                                                        kernelTime,
-                                                        ProcessMemoryCounters.CreateFromBytes(peakMemoryUsage, peakMemoryUsage, peakMemoryUsage),
-                                                        numberOfProcesses,
-                                                        workerId);
-                                                    var data = new PipHistoricPerfData(performance);
-                                                    data = data.Merge(data);
-                                                    Analysis.IgnoreResult(data);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            return BuildXLTestBase.CrossProductN(times, times, spans, ints, ioCounters, spans, spans, ulongs, uints, uints);
         }
 
         [Fact]
@@ -132,11 +122,11 @@ namespace Test.BuildXL.Scheduler
                         default(IOCounters),
                         TimeSpan.FromMilliseconds(execTime),
                         TimeSpan.FromMilliseconds(execTime / 2),
-                        ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024),
+                        ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024, 1024),
                         1,
                         workerId: 0);
 
-                    PipHistoricPerfData runTimeData = new PipHistoricPerfData(processPipExecutionPerformance);
+                    ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
                     table[semiStableHash] = runTimeData;
                 }
 
@@ -172,18 +162,18 @@ namespace Test.BuildXL.Scheduler
                 default(IOCounters),
                 TimeSpan.FromMilliseconds(execTime),
                 TimeSpan.FromMilliseconds(execTime / 2),
-                ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024),
+                ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024, 1024),
                 1,
                 workerId: 0);
 
-            PipHistoricPerfData runTimeData = new PipHistoricPerfData(processPipExecutionPerformance);
+            ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
             PipRuntimeTimeTable table = new PipRuntimeTimeTable(LoggingContext);
             var semiStableHashToKeep = 0;
             table[semiStableHashToKeep] = runTimeData;
             var semiStableHashToDrop = 1;
             table[semiStableHashToDrop] = runTimeData;
             var stream = new MemoryStream();
-            for (int i = 0; i < PipHistoricPerfData.DefaultTimeToLive; i++)
+            for (int i = 0; i < ProcessPipHistoricPerfData.DefaultTimeToLive; i++)
             {
                 stream.Position = 0;
                 table.Save(stream);

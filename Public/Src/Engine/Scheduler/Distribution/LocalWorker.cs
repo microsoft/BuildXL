@@ -93,7 +93,7 @@ namespace BuildXL.Scheduler.Distribution
                     process,
                     fingerprint,
                     processIdListener: UpdateCurrentlyRunningPipsCount,
-                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable),
+                    expectedMemoryCounters: processRunnable.ExpectedMemoryCounters.Value,
                     detoursEventListener: m_detoursListener);
                 processRunnable.SetExecutionResult(executionResult);
 

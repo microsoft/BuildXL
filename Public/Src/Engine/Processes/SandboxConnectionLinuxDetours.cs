@@ -73,17 +73,15 @@ namespace BuildXL.Processes
             internal string ReportsFifoPath { get; }
             internal string FamPath { get; }
 
-            private readonly LoggingContext m_loggingContext;
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
             private readonly HashSet<int> m_activeProcesses;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Thread m_workerThread;
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, LoggingContext loggingContext, SandboxedProcessUnix process, string reportsFifoPath, string famPath)
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath)
             {
                 m_failureCallback = failureCallback;
-                m_loggingContext = loggingContext;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
                 FamPath = famPath;
@@ -96,7 +94,11 @@ namespace BuildXL.Processes
 
                 // create a write handle (used to keep the fifo open, i.e., 
                 // the 'read' syscall won't receive EOF until we close this writer
-                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() => IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0));
+                m_lazyWriteHandle = new Lazy<SafeFileHandle>(() => 
+                {
+                    LogDebug($"Opening FIFO '{ReportsFifoPath}' for writing");
+                    return IO.Open(ReportsFifoPath, IO.OpenFlags.O_WRONLY, 0);
+                });
 
                 // start a background thread for reading from the FIFO
                 m_workerThread = new Thread(StartReceivingAccessReports);
@@ -118,6 +120,7 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RequestStop()
             {
+                LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                 // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
                 m_lazyWriteHandle.Value.Dispose();
             }
@@ -125,7 +128,8 @@ namespace BuildXL.Processes
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
             internal void AddPid(int pid)
             {
-                m_activeProcesses.Add(pid);
+                bool added = m_activeProcesses.Add(pid);
+                LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count()}");
             }
 
             /// <summary>
@@ -134,7 +138,8 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RemovePid(int pid)
             {
-                m_activeProcesses.Remove(pid);
+                bool removed = m_activeProcesses.Remove(pid);
+                LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count()}");
                 if (m_activeProcesses.Count == 0)
                 {
                     RequestStop();
@@ -158,19 +163,13 @@ namespace BuildXL.Processes
 
             internal void LogError(string message)
             {
-                if (m_loggingContext != null)
-                {
-                    Logger.Log.PipProcessStartFailed(m_loggingContext, Process.PipSemiStableHash, Process.PipDescription, Marshal.GetLastWin32Error(), message);
-                    m_failureCallback?.Invoke(1, message);
-                }
+                Process.LogDebug("[ERROR]: " + message);
+                m_failureCallback?.Invoke(1, message);
             }
 
             internal void LogDebug(string message)
             {
-                if (m_loggingContext != null)
-                {
-                    Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, Process.PipSemiStableHash, message);
-                }
+                Process.LogDebug(message);
             }
 
             /// <nodoc />
@@ -189,7 +188,8 @@ namespace BuildXL.Processes
                 // Format:
                 //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
                 string message = Encoding.GetString(bytes).TrimEnd('\n');
-                
+                LogDebug($"Processing message: {message}");
+
                 // parse message and create AccessReport
                 string[] parts = message.Split(new[] { '|' });
                 Contract.Assert(parts.Length == 8);
@@ -266,6 +266,7 @@ namespace BuildXL.Processes
                 var fifoName = ReportsFifoPath;
 
                 // opening FIFO for reading (blocks until there is at least one writer connected)
+                LogDebug($"Opening FIFO '{fifoName}' for reading");
                 using var readHandle = IO.Open(fifoName, IO.OpenFlags.O_RDONLY, 0);
                 if (readHandle.IsInvalid)
                 {
@@ -312,8 +313,7 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    // Update last received timestamp
-                    long now = DateTime.UtcNow.Ticks;
+                    LogDebug($"Received a {numRead}-byte message");
 
                     // Add message to processing queue
                     actionBlock.Post(messageBytes);
@@ -424,6 +424,8 @@ namespace BuildXL.Processes
                 File.WriteAllBytes(famPath, manifestBytes.ToArray());
             }
 
+            process.LogDebug($"Saved FAM to '{famPath}'");
+
             // create a FIFO (named pipe)
             if (IO.MkFifo(fifoPath, IO.FilePermissions.S_IRWXU) != 0)
             {
@@ -431,8 +433,10 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            process.LogDebug($"Created FIFO at '{fifoPath}'");
+
             // create and save info for this pip
-            var info = new Info(m_failureCallback, loggingContext, process, fifoPath, famPath);
+            var info = new Info(m_failureCallback, process, fifoPath, famPath);
             if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");

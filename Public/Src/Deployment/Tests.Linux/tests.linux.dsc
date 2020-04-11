@@ -57,10 +57,7 @@ namespace Tests.Linux {
             // Engine
             createDef(importFrom("BuildXL.Core.UnitTests").Cache.dll, true),
             createDef(importFrom("BuildXL.Core.UnitTests").Cache.Plugin.Core.dll, true),
-            createDef(importFrom("BuildXL.Core.UnitTests").Processes.test_BuildXL_Processes_dll, true,
-                /* deploySeparately */ false,
-                // TODO: re-anable process tests once the issue with AzDev Ubuntu VM is resolved
-                /* testClasses */ [ "Bogus.Test.Class" ]),
+            createDef(importFrom("BuildXL.Core.UnitTests").Processes.test_BuildXL_Processes_dll, true),
 
             // createDef(importFrom("BuildXL.Core.UnitTests").Engine.dll, true,
             //     /* deploySeparately */ false,

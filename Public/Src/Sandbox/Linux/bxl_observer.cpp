@@ -28,18 +28,19 @@ BxlObserver* BxlObserver::GetInstance()
 
 BxlObserver::BxlObserver()
 {
-    GEN_REAL(FILE*, fopen, const char *, const char *);
-    GEN_REAL(size_t, fread, void*, size_t, size_t, FILE*);
-    GEN_REAL(int, fclose, FILE*);
-    GEN_REAL(ssize_t, readlink, const char *, char *, size_t);
-
     real_readlink("/proc/self/exe", progFullPath_, PATH_MAX);
+    InitFam();
+    InitLogFile();
+}
 
+void BxlObserver::InitFam()
+{
     // read FAM env var
     const char *famPath = getenv(BxlEnvFamPath);
     if (!(famPath && *famPath))
     {
-        _fatal("Env var '%s' not set", BxlEnvFamPath);
+        fprintf(stderr, "[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+        return;
     }
 
     // read FAM 
@@ -74,12 +75,22 @@ BxlObserver::BxlObserver()
     sandbox_->SetAccessReportCallback(HandleAccessReport);
 }
 
+void BxlObserver::InitLogFile()
+{
+    const char *logPath = getenv(BxlEnvLogPath);
+    if (logPath && *logPath)
+    {
+        strlcpy(logFile_, logPath, PATH_MAX);
+        logFile_[PATH_MAX-1] = '\0';
+    }
+    else
+    {
+        logFile_[0] = '\0';
+    }
+}
+
 bool BxlObserver::Send(const char *buf, size_t bufsiz)
 {
-    GEN_REAL(int, open, const char *, int);
-    GEN_REAL(ssize_t, write, int, const void*, size_t);
-    GEN_REAL(int, close, int);
-
     if (!real_open)
     {
         _fatal("syscall 'open' not found; errno: %d", errno);
@@ -92,7 +103,7 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
     }
 
     const char *reportsPath = GetReportsPath();
-    int logFd = real_open(reportsPath, O_WRONLY | O_APPEND);
+    int logFd = real_open(reportsPath, O_WRONLY | O_APPEND, 0);
     if (logFd == -1)
     {
         _fatal("Could not open file '%s'; errno: %d", reportsPath, errno);
@@ -110,8 +121,6 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz)
 
 bool BxlObserver::SendReport(AccessReport &report)
 {
-    GEN_REAL(char*, realpath, const char*, char*);
-
     // there is no central sendbox process here (i.e., there is an instance of this 
     // guy in every child process), so counting process tree size is not feasible
     if (report.operation == FileOperation::kOpProcessTreeCompleted)
@@ -119,19 +128,12 @@ bool BxlObserver::SendReport(AccessReport &report)
         return true;
     }
 
-    char realpathBuf[PATH_MAX];
-    char *realpathPtr = real_realpath(report.path, realpathBuf);
-
-    int err                    = realpathPtr == NULL ? 2 : 0;
-    const char *reportPath     = realpathPtr == NULL ? report.path : realpathPtr;
-    RequestedAccess realAccess = realpathPtr == NULL ? RequestedAccess::Probe : (RequestedAccess)report.requestedAccess;
-
     const int PrefixLength = sizeof(uint);
     char buffer[PIPE_BUF] = {0};
     int maxMessageLength = PIPE_BUF - PrefixLength;
     int numWritten = snprintf(
         &buffer[PrefixLength], maxMessageLength, "%s|%d|%d|%d|%d|%d|%d|%s\n", 
-        __progname, getpid(), (int)realAccess, report.status, report.reportExplicitly, err, report.operation, reportPath);
+        __progname, getpid(), report.requestedAccess, report.status, report.reportExplicitly, report.error, report.operation, report.path);
     if (numWritten == maxMessageLength)
     {
         // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
@@ -140,4 +142,129 @@ bool BxlObserver::SendReport(AccessReport &report)
 
     *(uint*)(buffer) = numWritten;
     return Send(buffer, numWritten + PrefixLength);
+}
+
+bool BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)
+{
+    // TODO: don't stat all the time
+    struct stat s;
+    mode_t mode = real___lxstat(1, reportPath.c_str(), &s) == 0
+        ? s.st_mode
+        : 0;
+
+    std::string execPath = eventType == ES_EVENT_TYPE_NOTIFY_EXEC
+        ? reportPath
+        : std::string(progFullPath_);
+
+    IOEvent event(getpid(), 0, getppid(), eventType, reportPath, secondPath, execPath, mode, false);
+    return report_access(syscallName, event);
+}
+
+bool BxlObserver::report_access(const char *syscallName, IOEvent &event)
+{
+    es_event_type_t eventType = event.GetEventType();
+
+    LogDebug("(( %10s:%2d )) %s", syscallName, event.GetEventType(), event.GetEventPath());
+
+    if (IsValid())
+    {
+        IOHandler handler(sandbox_);
+        handler.SetProcess(process_);
+        handler.HandleEvent(event); // TODO: this should return AccessCheckResult, which should be returned from here
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname)
+{
+    return report_access(syscallName, eventType, normalize_path(pathname), "");
+}
+
+bool BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
+{
+    char fullpath[PATH_MAX] = {0};
+    fd_to_path(fd, fullpath, PATH_MAX);
+
+    return report_access(syscallName, eventType, fullpath);
+}
+
+bool BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname)
+{
+    char fullpath[PATH_MAX] = {0};
+    ssize_t len = 0;
+
+    if (dirfd == AT_FDCWD)
+    {
+        getcwd(fullpath, PATH_MAX);
+        len = strlen(fullpath);
+    }
+    else
+    {
+        len = fd_to_path(dirfd, fullpath, PATH_MAX);
+    }
+
+    if (len <= 0)
+    {
+        _fatal("Could not get path for fd %d; errno: %d", dirfd, errno);
+    }
+
+    snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
+    return report_access(syscallName, eventType, fullpath);
+}
+
+static enum RequestedAccess oflag_to_access(int oflag)
+{
+    return oflag & (O_WRONLY | O_RDWR) ? RequestedAccess::Write : RequestedAccess::Read;
+}
+
+ssize_t BxlObserver::fd_to_path(int fd, char *buf, size_t bufsiz)
+{
+    char procPath[100] = {0};
+    sprintf(procPath, "/proc/self/fd/%d", fd);
+    return real_readlink(procPath, buf, bufsiz);
+}
+
+std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname)
+{
+    char fullpath[PATH_MAX] = {0};
+    char finalPath[PATH_MAX] = {0};
+    ssize_t len = 0;
+
+    // no pathname given --> read path for dirfd
+    if (pathname == NULL)
+    {
+        fd_to_path(dirfd, fullpath, PATH_MAX);
+        return fullpath;
+    }
+    // if relative path --> resolve it against dirfd
+    else if (*pathname != '/' && *pathname != '~')
+    {
+        if (dirfd == AT_FDCWD)
+        {
+            getcwd(fullpath, PATH_MAX);
+            len = strlen(fullpath);
+        }
+        else
+        {
+            len = fd_to_path(dirfd, fullpath, PATH_MAX);
+        }
+
+        if (len <= 0)
+        {
+            _fatal("Could not get path for fd %d; errno: %d", dirfd, errno);
+        }
+
+        snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
+        char *result = real_realpath(fullpath, finalPath);
+        return result != NULL ? result : fullpath;
+    }
+    else
+    {
+        char *result = real_realpath(pathname, finalPath);
+        return result != NULL ? result : pathname;
+    }
 }

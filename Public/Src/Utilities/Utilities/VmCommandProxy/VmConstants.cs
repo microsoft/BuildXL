@@ -66,12 +66,48 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// <summary>
         /// Property indicating if a process is running in VM.
         /// </summary>
-        public static bool IsRunningInVm => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(IsInVm));
+        public static bool IsRunningInVm => GetFlag(IsInVm);
 
         /// <summary>
         /// Property indicating if the process in VM has relocated temporary folder.
         /// </summary>
-        public static bool HasRelocatedTemp => IsRunningInVm && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(VmTemp));
+        public static bool HasRelocatedTemp => IsRunningInVm && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(VmTemp));
+
+        /// <summary>
+        /// Environment variable containing path to the host's user profile, or a redirected one.
+        /// </summary>
+        public const string HostUserProfile = "[BUILDXL]VM_HOST_USERPROFILE";
+
+        /// <summary>
+        /// Environment variable indicating if the host's user profile is a redirected one.
+        /// </summary>
+        public const string HostHasRedirectedUserProfile = "[BUILDXL]IS_VM_HOST_REDIRECTED_USERPROFILE";
+
+        /// <summary>
+        /// Checks if host's user profile has been redirected.
+        /// </summary>
+        public static bool IsHostUserProfileRedirected => GetFlag(HostHasRedirectedUserProfile);
+
+        private static bool GetFlag(string environmentVariable)
+        {
+            string value = Environment.GetEnvironmentVariable(environmentVariable);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            switch (value.ToLowerInvariant())
+            {
+                case "0":
+                case "false":
+                    return false;
+                case "1":
+                case "true":
+                    return true;
+                default:
+                    return false;
+            }
+        }
     }
 
     /// <summary>

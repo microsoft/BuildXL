@@ -2476,7 +2476,18 @@ namespace BuildXL.Processes
         {
             if (ShouldSandboxedProcessExecuteInVm)
             {
-                environmentVariables = environmentVariables.Override(new[] { new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1")});
+                environmentVariables = environmentVariables.Override(new[] 
+                { 
+                    new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.IsInVm, "1"),
+                    new KeyValuePair<string, string>(
+                        VmSpecialEnvironmentVariables.HostHasRedirectedUserProfile,
+                        m_layoutConfiguration != null && m_layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid ? "1" : "0"),
+                    new KeyValuePair<string, string>(
+                        VmSpecialEnvironmentVariables.HostUserProfile,
+                        m_layoutConfiguration != null && m_layoutConfiguration.RedirectedUserProfileJunctionRoot.IsValid
+                            ? s_possibleRedirectedUserProfilePath
+                            : s_userProfilePath)
+                });
             }
         }
 

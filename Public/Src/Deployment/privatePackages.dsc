@@ -18,6 +18,10 @@ namespace PrivatePackages {
     const winx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.1", targetRuntime: "win-x64" };
     const osxx64Qualifier : BuildXLSdk.DefaultQualifierWithNet472 = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.1", targetRuntime: "osx-x64" };
 
+    // This package should be deprecated.
+    // Likely due ot branching and timing this package has not yet been removed from usage in cloudbuild
+    // we should at a strict minimum reduce the contents of this package to just waht is used by the BuildXL.Cache.Props file in the cloudbuid repo
+    // Ideally these files become part of the cache package that JuanCarlos has on his plate to clean up.
     const cloudBuildlibrary = NugetPackages.pack({
         id: "BuildXL.library.forCloudBuild",
         copyContentFiles: true,
@@ -107,10 +111,69 @@ namespace PrivatePackages {
         }
     });
 
+    // This package is to be deprecated as soon as AzDev produes new drop packages that no longer declare
+    // this package as a public dependency.
+    // The packages in this file should have been packages only for private consumption by the particular .forXYZ customer
+    // but VSO broke that contract and declared this package as a public dependency instead of redistributing the files they needed
+    // We now have a proper supported BduilXL.Utilities nuget package so this should no longer be needed by them and they
+    // have been instructed to drop consumptoin of this.
+    // Once they have published a new Drop library, AND CloudBuild has ingested that package we should
+    //  1. Remove the .forAzDev package from the CLoudBuild Repo (as they should never have had it)
+    //  2. Stop producing this nuget package.
+    const azDevOpslibrary = NugetPackages.pack({
+        id: "BuildXL.library.forAzDev",
+        deployment: {
+            contents: [
+                {
+                    subfolder: r`runtimes/win-x64/lib/netcoreapp3.1`,
+                    contents: [
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Configuration.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Interop.dll,
+                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(winx64Qualifier).Common.dll,
+                    ],
+                },
+                {
+                    subfolder: r`runtimes/win-x64/native/`,
+                    contents: [
+                        ...importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.nativeWin,
+                    ],
+                },
+                {
+                    subfolder: r`runtimes/osx-x64/lib/netcoreapp3.1/`,
+                    contents: [
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll,
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Collections.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Configuration.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll,
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Interop.dll,
+                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(osxx64Qualifier).Common.dll,
+                    ],
+                },
+                {
+                    subfolder: r`runtimes/osx-x64/native/`,
+                    contents: [
+                        ...importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.nativeMac,
+                    ],
+                },
+                {
+                    subfolder: r`content`,
+                    contents: [
+                        DetoursServices.Deployment.detours,
+                        DetoursServices.Deployment.natives
+                    ]
+                }
+            ]
+        }
+    });
+
     const deployment : Deployment.Definition = {
         contents: [
             cloudBuildlibrary,
             vbCsCompilerLoggerToolNet472,
+            azDevOpslibrary,
         ]
     };
 

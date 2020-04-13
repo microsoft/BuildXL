@@ -179,11 +179,12 @@ export function copyFileIntoSharedOpaqueDirectory(source: File, target: Path, ta
 
 /**
  * Based on the current platform schedules either a robocopy.exe or rsync pip to copy 'sourceDir' to 'targetDir'.
- * That pip takes a dependency on `sourceDirDep`.  If 'sourceDir' is not within `sourceDirDep.root`, disallowed
- * file accesses are almost certain to happen.
+ * That pip takes a dependency on `sourceDirDep` and, optionally, on a collection of opaque directories.  
+ * If 'sourceDir' is not within `sourceDirDep.root`, disallowed file accesses are almost certain to happen. opaqueDirDeps
+ * allows for the case where there are opaque directories under the given root, which is sometimes the case of a deployment on disk
  */
 @@public
-export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): SharedOpaqueDirectory {
+export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory, opaqueDirDeps?: OpaqueDirectory[]): SharedOpaqueDirectory {
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
         ? <Transformer.ExecuteArguments>{
             tool: {
@@ -207,7 +208,8 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument("/MT"),  // Multi threaded
             ],
             dependencies: [
-                sourceDirDep
+                sourceDirDep,
+                ...(opaqueDirDeps || [])
             ],
             outputs: [
                 { directory: targetDir, kind: "shared" }

@@ -31,15 +31,32 @@ namespace RushGraphBuilder {
     const nodeModules = Deployment.createDeployableOpaqueSubDirectory(npmInstall, r`node_modules`);
     const out = Deployment.createDeployableOpaqueSubDirectory(outDir, r`out`);
 
-    // The final deployment also needs all node_modules folder that npm installed
-    @@public
-    export const deployment : Deployment.Definition = {contents: [{
-        subfolder: r`tools/RushGraphBuilder`,
+    // The deployment also needs all node_modules folder that npm installed
+    // This is the final layout the tool needs
+    const privateDeployment : Deployment.Definition = {
         contents: [
             out,
             {
                 contents: [{subfolder: `node_modules`, contents: [nodeModules]}]
             }
         ]
-    }]};
+    };
+
+    // Unfortunately, drop service does not handle opaque subdirectories, so we need to create a single shared opaque
+    // that contains the full layout by copying
+    const sourceDeployment : Directory = Context.getNewOutputDirectory("rush-tool-deployment");
+    const onDiskDeployment = Deployment.deployToDisk({definition: privateDeployment, targetDirectory: sourceDeployment, sealPartialWithoutScrubbing: true});
+
+    const finalOutput : SharedOpaqueDirectory = Deployment.copyDirectory(
+        sourceDeployment, 
+        Context.getNewOutputDirectory("rush-tool-final-deployment"),
+        onDiskDeployment.contents,
+        onDiskDeployment.targetOpaques);
+
+    @@public export const deployment : Deployment.Definition = {
+        contents: [{
+            subfolder: r`tools/RushGraphBuilder`,
+            contents: [finalOutput]
+        }]
+    };
 }

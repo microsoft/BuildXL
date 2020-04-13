@@ -15,47 +15,45 @@ public:
 
     IOHandler(Sandbox *sandbox) : AccessHandler(sandbox) { }
 
-    // TODO: all these should return AccessCheckResult
-
-    void HandleEvent(const IOEvent &event);
+    AccessCheckResult HandleEvent(const IOEvent &event);
 
 #pragma mark Process life cycle
     
-    void HandleProcessFork(const IOEvent &event);
+    AccessCheckResult HandleProcessFork(const IOEvent &event);
 
-    void HandleProcessExec(const IOEvent &event);
+    AccessCheckResult HandleProcessExec(const IOEvent &event);
 
-    void HandleProcessExit(const IOEvent &event);
+    AccessCheckResult HandleProcessExit(const IOEvent &event);
 
-    void HandleProcessUntracked(const pid_t pid);
+    AccessCheckResult HandleProcessUntracked(const pid_t pid);
     
 #pragma mark Process I/O observation
     
-    void HandleLookup(const IOEvent &event);
+    AccessCheckResult HandleLookup(const IOEvent &event);
     
-    void HandleOpen(const IOEvent &event);
+    AccessCheckResult HandleOpen(const IOEvent &event);
     
-    void HandleClose(const IOEvent &event);
+    AccessCheckResult HandleClose(const IOEvent &event);
 
-    void HandleCreate(const IOEvent &event);
+    AccessCheckResult HandleCreate(const IOEvent &event);
     
-    void HandleLink(const IOEvent &event);
+    AccessCheckResult HandleLink(const IOEvent &event);
     
-    void HandleUnlink(const IOEvent &event);
+    AccessCheckResult HandleUnlink(const IOEvent &event);
     
-    void HandleReadlink(const IOEvent &event);
+    AccessCheckResult HandleReadlink(const IOEvent &event);
     
-    void HandleRename(const IOEvent &event);
+    AccessCheckResult HandleRename(const IOEvent &event);
     
-    void HandleClone(const IOEvent &event);
+    AccessCheckResult HandleClone(const IOEvent &event);
 
-    void HandleExchange(const IOEvent &event);
+    AccessCheckResult HandleExchange(const IOEvent &event);
     
-    void HandleGenericWrite(const IOEvent &event);
+    AccessCheckResult HandleGenericWrite(const IOEvent &event);
     
-    void HandleGenericRead(const IOEvent &event);
+    AccessCheckResult HandleGenericRead(const IOEvent &event);
     
-    void HandleGenericProbe(const IOEvent &event);
+    AccessCheckResult HandleGenericProbe(const IOEvent &event);
 };
 
 #endif /* IOHandler_hpp */

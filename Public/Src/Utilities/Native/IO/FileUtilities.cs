@@ -786,10 +786,19 @@ namespace BuildXL.Native.IO
         /// </remarks>
         public static string GetTempFileName()
         {
-            var path = Path.Combine(Path.GetTempPath(), "bxl_" + Guid.NewGuid().ToString() + ".tmp");
+            var path = GetTempPath();
             using var fileStream = File.Create(path);
             fileStream.Close();
             return path;
+        }
+
+        /// <summary>
+        /// Returns a unique temporary file path without creating a file at that location.
+        /// <seealso cref="GetTempFileName" />
+        /// </summary>
+        public static string GetTempPath()
+        {
+            return Path.Combine(Path.GetTempPath(), "bxl_" + Guid.NewGuid().ToString() + ".tmp");
         }
 
         #endregion

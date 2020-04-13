@@ -105,15 +105,23 @@ function extract_xunit_stats { # (xunitXmlFile)
 #   - Prints out progress while executing tests
 #   - Returns the exit code of the XUnit invocation
 function run_xunit { #(folderName, dllName, ...extraXunitArgs)
-    folderName=$1
-    dllName=$2
+    local folderName=$1
+    local dllName=$2
     shift
     shift
 
-    extraXunitArgs=()
+    local extraXunitArgs=()
+    local category=""
     while [[ $# -gt 0 ]]; do
-        extraXunitArgs+=("$1")
+        local arg="$1"
         shift
+        extraXunitArgs+=("$arg")
+        if [[ "$arg" == "-trait" ]]; then
+            local trait="$1"
+            shift
+            extraXunitArgs+=("$trait")
+            category="-${trait#Category=}"
+        fi
     done
 
     if [[ ! -d "$folderName" ]]; then
@@ -126,16 +134,16 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     local logsDir="XunitLogs"
     mkdir -p "$logsDir"
 
-    xunitStdoutFname="${logsDir}/${dllName}.xunit.stdout"
-    xunitStderrFname="${logsDir}/${dllName}.xunit.stderr"
-    xunitResultFname="${logsDir}/${dllName}.result.xml"
+    local xunitStdoutFname="${logsDir}/${dllName%.dll}${category}.xunit.stdout"
+    local xunitStderrFname="${logsDir}/${dllName%.dll}${category}.xunit.stderr"
+    local xunitResultFname="${logsDir}/${dllName%.dll}${category}.result.xml"
 
     # delete any previously left xunit result file because XUnit appends to it
     rm -f ${xunitResultFname}
 
     # run XUnit
     if [[ "$TERM" == "xterm-256color" ]]; then
-        echo "${tputBold}[Running]${tputReset} $dllName ..."
+        echo "${tputBold}[Running]${tputReset} ${dllName%.dll}${category} ..."
     fi
 
     # Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
@@ -159,10 +167,10 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     stats=$(extract_xunit_stats $xunitResultFname)
 
     # add a note to rendered dll name if we are running select test classes only
-    if [[ -z ${extraXunitArgs[@]} ]]; then
-        statsToRender=$stats
-    else
+    if echo ${extraXunitArgs[@]} | grep -E "(-class |-method )"; then
         statsToRender="$stats (*** select classes only ***)"
+    else
+        statsToRender=$stats
     fi
 
     if [[ "$exitCode" -eq "0" ]]; then

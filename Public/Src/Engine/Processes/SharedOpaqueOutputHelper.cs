@@ -96,28 +96,6 @@ namespace BuildXL.Processes
             // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
             private const long BXL_SHARED_OPAQUE_XATTR_VALUE = 42;
 
-            // from xattr.h:
-            // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
-            private const int XATTR_NOFOLLOW = 1;
-
-            [DllImport("libc", EntryPoint = "setxattr", SetLastError = true)]
-            private static extern int SetXattr(
-                [MarshalAs(UnmanagedType.LPStr)] string path,
-                [MarshalAs(UnmanagedType.LPStr)] string name,
-                void *value,
-                ulong size,
-                uint position,
-                int options);
-
-            [DllImport("libc", EntryPoint = "getxattr", SetLastError = true)]
-            private static extern long GetXattr(
-                [MarshalAs(UnmanagedType.LPStr)] string path,
-                [MarshalAs(UnmanagedType.LPStr)] string name,
-                void *value,
-                ulong size,
-                uint position,
-                int options);
-
             private const Interop.Unix.IO.FilePermissions S_IWUSR = Interop.Unix.IO.FilePermissions.S_IWUSR;
 
             /// <summary>
@@ -138,7 +116,7 @@ namespace BuildXL.Processes
 
                 // set xattr
                 long value = BXL_SHARED_OPAQUE_XATTR_VALUE;
-                var err = SetXattr(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
+                var err = Interop.Unix.IO.SetXattrNoFollow(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, value);
                 var xattrErrorCode = err != 0 ? Marshal.GetLastWin32Error() : 0;
 
                 // reset permissions if we changed them
@@ -164,9 +142,8 @@ namespace BuildXL.Processes
             private static bool IsSharedOpaqueOutputWithFallback(string expandedPath, bool checkFallback)
             {
                 long value = 0;
-                uint valueSize = sizeof(long);
-                var resultSize = GetXattr(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
-                if (resultSize == valueSize && value == BXL_SHARED_OPAQUE_XATTR_VALUE)
+                var resultSize = Interop.Unix.IO.GetXattrNoFollow(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, ref value);
+                if (value == BXL_SHARED_OPAQUE_XATTR_VALUE)
                 {
                     return true;
                 }

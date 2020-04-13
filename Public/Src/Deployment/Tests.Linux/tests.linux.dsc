@@ -58,6 +58,28 @@ namespace Tests.Linux {
             createDef(importFrom("BuildXL.Core.UnitTests").Cache.dll, true),
             createDef(importFrom("BuildXL.Core.UnitTests").Cache.Plugin.Core.dll, true),
             createDef(importFrom("BuildXL.Core.UnitTests").Processes.test_BuildXL_Processes_dll, true),
+            createDef(importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.dll, true,
+                /* deploySeparately */ false,
+                /* testClasses */ undefined,
+                /* categories */ [
+                    "AllowedUndeclaredReadsTests",
+                    "BaselineTests",
+                    "FileAccessPolicyTests",
+                    "LazyMaterializationTests",
+                    "NonStandardOptionsTests",
+                    "PreserveOutputsTests",
+                    "PreserveOutputsReuseOutputsTests",
+
+                    // "IncrementalSchedulingTests",
+                    // "OpaqueDirectoryTests",
+                    // "PreserveOutputsReuseIncSchedTests",
+                    // "PreserveOutputsIncSchedTests",
+                    // "SharedOpaqueDirectoryTests",
+                    // "StoreNoOutputsToCacheTests",
+                    // "WhitelistTests"
+                ],
+                /* noCategories */ [],
+                /* runSuppliedCategoriesOnly */ true),
 
             // createDef(importFrom("BuildXL.Core.UnitTests").Engine.dll, true,
             //     /* deploySeparately */ false,
@@ -72,11 +94,7 @@ namespace Tests.Linux {
             //     /* testClasses */ undefined,
             //     /* categories */ importFrom("BuildXL.Core.UnitTests").Scheduler.categoriesToRunInParallel
             // ),
-            // createDef(importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.dll, true,
-            //     /* deploySeparately */ false,
-            //     /* testClasses */ undefined,
-            //     /* categories */ importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.categoriesToRunInParallel
-            // ),
+            
 
             // // App
             // createDef(importFrom("BuildXL.App").UnitTests.Bxl.dll, true),
@@ -143,9 +161,10 @@ namespace Tests.Linux {
     }
 
     function genXUnitExtraArgs(definition: TestDeploymentDefinition): string {
-        return (definition.testClasses || [])
-            .map(testClass => `-class ${testClass}`)
-            .join(" ");
+        return [
+            ...(definition.testClasses || []).map(testClass => `-class ${testClass}`),
+            ...(definition.categoriesToNeverRun || []).map(cat => `-notrait "Category=${cat}"`)
+        ].join(" ");
     }
 
     function quoteString(str: string): string {
@@ -190,10 +209,23 @@ namespace Tests.Linux {
             .join("\n");
     }
 
+    function getRunXunitCommands(def: TestDeploymentDefinition): string[] {
+        const base: string = `run_xunit "\${MY_DIR}/TestProj/tests/${def.subfolder}"${' '}${def.assembly.name}${' '}${genXUnitExtraArgs(def)}`;
+        const traits: string[] = (def.categoriesToRunInParallel || [])
+            .map(cat => `${base} -trait "Category=${cat}"`);
+        const rest: string = [
+            base,
+            ...(def.categoriesToRunInParallel || []).map(cat => `-notrait "Category=${cat}"`)
+        ].join(" ");
+        return def.runSuppliedCategoriesOnly
+            ? traits
+            : [...traits, rest];
+    }
+
     function createUnixTestRunnerScript(definitions: TestDeploymentDefinition[]): string {
         const runTestCommands = tests
             .filter(def => def.enabled)
-            .map(def => `run_xunit "\${MY_DIR}/TestProj/tests/${def.subfolder}"${' '}${def.assembly.name}${' '}${genXUnitExtraArgs(def)}`);
+            .mapMany(getRunXunitCommands);
 
         return [
             "#!/bin/bash",

@@ -6,20 +6,37 @@
 #include <limits.h>
 #include <stddef.h>
 
+#include <ostream>
+#include <sstream>
+
 #include "Sandbox.hpp"
 #include "SandboxedPip.hpp"
+
+extern const char *__progname;
 
 #define BxlEnvFamPath "__BUILDXL_FAM_PATH"
 #define BxlEnvLogPath "__BUILDXL_LOG_PATH"
 
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
-#define GEN_FN_DEF(ret, name, ...) \
-    typedef ret (*fn_real_##name)(__VA_ARGS__); \
-    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+#define GEN_FN_DEF(ret, name, ...)                                              \
+    typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
+    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name); \
+    template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
+    {                                                                           \
+        ret result = real_##name(std::forward<TArgs>(args)...);                 \
+        LOG_DEBUG("Forwarded syscall %s", RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str()); \
+        return result_t<ret>(result);                                           \
+    }
+
+#define MAKE_BODY(B) \
+    B \
+}
 
 #define INTERPOSE(ret, name, ...) \
-    ret name(__VA_ARGS__)
+ret name(__VA_ARGS__) { \
+    BxlObserver *bxl = BxlObserver::GetInstance(); \
+    MAKE_BODY
 
 #define _fatal(fmt, ...) do { fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
 #define fatal(msg) _fatal("%s", msg)
@@ -27,8 +44,9 @@
 /**
  * Wraps the result of a syscall together with the current 'errno'.
  * 
- * When the destructor is called, 'errno' is reset back to the value
- * that was captured in the constructor.
+ * When 'restore' is called, if allowed, 'errno' is reset back to 
+ * the value that was captured in the constructor and the captured result is returned;
+ * otherwise 'errno' is set to EPERM and the error value is returned.
  */
 template <typename T>
 class result_t final
@@ -39,8 +57,23 @@ private:
 
 public:
     result_t(T result) : result_(result), my_errno_(errno) {}
-    ~result_t() { errno = my_errno_; }
-    operator T() { return result_; }
+
+    /**
+     * Returns the remembered result and restores 'errno' to the value captured in the constructor.
+     */
+    inline T restore()
+    {
+        errno = my_errno_;
+        return result_;
+    }
+
+    /**
+     * Returns the remembered result.
+     */
+    inline T get()
+    {
+        return result_;
+    }
 };
 
 /**
@@ -71,9 +104,32 @@ private:
 
     bool IsValid() { return sandbox_ != NULL; }
 
-    static BxlObserver *sInstance;
+    void PrintArgs(std::stringstream& str, bool isFirst)
+    {
+    }
 
-    #define LogDebug(fmt, ...) if (logFile_ && *logFile_) do { \
+    template<typename TFirst, typename ...TRest>
+    void PrintArgs(std::stringstream& str, bool isFirst, TFirst first, const TRest& ...rest)
+    {
+        if (!isFirst) str << ", ";
+        str << first;
+        PrintArgs(str, false, rest...);
+    }
+
+    template<typename TRet, typename ...TArgs>
+    std::string RenderSyscall(const char *syscallName, const TRet& retVal, const TArgs& ...args)
+    {
+        std::stringstream str;
+        str << syscallName << "(";
+        PrintArgs(str, true, args...);
+        str << ") = " << retVal;
+        return str.str();
+    }
+
+    static BxlObserver *sInstance;
+    static AccessCheckResult sNotChecked;
+
+    #define LOG_DEBUG(fmt, ...) if (logFile_ && *logFile_) do { \
         FILE* _lf = real_fopen(logFile_, "a"); \
         if (_lf) fprintf(_lf, "[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__); \
         if (_lf) real_fclose(_lf); \
@@ -87,12 +143,12 @@ public:
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
 
-    bool report_access(const char *syscallName, IOEvent &event);
-    bool report_access(const char *syscallName, es_event_type_t eventType, const char *pathname);
-    bool report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath);
+    AccessCheckResult report_access(const char *syscallName, IOEvent &event);
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname);
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath);
 
-    bool report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
-    bool report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname);
+    AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
+    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname);
 
     ssize_t fd_to_path(int fd, char *buf, size_t bufsiz);
     std::string normalize_path_at(int dirfd, const char *pathname);
@@ -105,6 +161,29 @@ public:
     std::string normalize_fd(int fd)
     {
         return normalize_path_at(fd, NULL);
+    }
+
+    bool IsFailingUnexpectedAccesses()
+    {
+        return CheckFailUnexpectedFileAccesses(pip_->GetFamFlags());
+    }
+    
+    /**
+     * When allowed ('check.ShouldDenyAccess()' is false), sets 'errno' to the captured 
+     * errno and returns the captured result; otherwise, sets 'errno' to EPERM and returns 'error_value'.
+     */
+    template <typename T>
+    T restore_if_allowed(result_t<T> &result, AccessCheckResult &check, T error_value)
+    {
+        if (IsValid() && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses())
+        {
+            errno = EPERM;
+            return error_value;
+        }
+        else
+        {
+            return result.restore();
+        }
     }
 
     GEN_FN_DEF(pid_t, fork, void)
@@ -141,6 +220,9 @@ public:
     GEN_FN_DEF(ssize_t, readlinkat, int, const char *, char *, size_t)
     GEN_FN_DEF(char*, realpath, const char*, char*)
     GEN_FN_DEF(DIR*, opendir, const char*)
+    GEN_FN_DEF(DIR*, fdopendir, int)
     GEN_FN_DEF(int, utimensat, int, const char*, const struct timespec[2], int)
     GEN_FN_DEF(int, futimens, int, const struct timespec[2])
+    GEN_FN_DEF(int, mkdir, const char*, mode_t)
+    GEN_FN_DEF(int, mkdirat, int, const char*, mode_t)
 };

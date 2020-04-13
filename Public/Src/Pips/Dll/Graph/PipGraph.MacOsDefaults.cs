@@ -7,14 +7,14 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using MacPaths = BuildXL.Interop.Unix.IO;
+using UnixPaths = BuildXL.Interop.Unix.IO;
 
 namespace BuildXL.Pips.Graph
 {
     partial class PipGraph
     {
         /// <nodoc />
-        public class MacOsDefaults
+        public class MacOsDefaults // TODO: rename to UnixDefaults
         {
             private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents
                 = CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance);
@@ -55,9 +55,9 @@ namespace BuildXL.Pips.Graph
                 m_sourceSealDirectoryPaths =
                     new[]
                     {
-                        MacPaths.Applications,
-                        MacPaths.Library,
-                        MacPaths.UserProvisioning
+                        UnixPaths.Applications,
+                        UnixPaths.Library,
+                        UnixPaths.UserProvisioning
                     }
                     .Select(p => AbsolutePath.Create(pathTable, p))
                     .ToArray();
@@ -70,15 +70,15 @@ namespace BuildXL.Pips.Graph
                 m_untrackedFiles =
                     new[]
                     {
-                        MacPaths.Etc,
-                        MacPaths.EtcMasterPasswd,
-                        MacPaths.EtcLocalTime,
+                        UnixPaths.Etc,
+                        UnixPaths.EtcMasterPasswd,
+                        UnixPaths.EtcLocalTime,
                         // login.keychain is created by the OS the first time any process invokes an OS API that references the keychain.
                         // Untracked because build state will not be stored there and code signing will fail if required certs are in the keychain
-                        MacPaths.UserKeyChainsDb,
-                        MacPaths.UserKeyChains,
-                        MacPaths.UserCFTextEncoding,
-                        MacPaths.TmpDir
+                        UnixPaths.UserKeyChainsDb,
+                        UnixPaths.UserKeyChains,
+                        UnixPaths.UserCFTextEncoding,
+                        UnixPaths.TmpDir
                     }
                     .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
                     .ToArray();
@@ -86,26 +86,29 @@ namespace BuildXL.Pips.Graph
                 m_untrackedDirectories =
                     new[]
                     {
-                        MacPaths.Bin,
-                        MacPaths.Dev,
-                        MacPaths.Private,
-                        MacPaths.Sbin,
-                        MacPaths.SystemLibrary,
-                        MacPaths.UsrBin,
-                        MacPaths.UsrInclude,
-                        MacPaths.UsrLibexec,
-                        MacPaths.UsrShare,
-                        MacPaths.UsrStandalone,
-                        MacPaths.UsrSbin,
-                        MacPaths.Var,
-                        MacPaths.UserPreferences,
-                        MacPaths.AppleInternal,
+                        UnixPaths.Bin,
+                        UnixPaths.Dev,
+                        UnixPaths.Private,
+                        UnixPaths.Proc,
+                        UnixPaths.Sbin,
+                        UnixPaths.Sys,
+                        UnixPaths.SystemLibrary,
+                        UnixPaths.UsrBin,
+                        UnixPaths.UsrInclude,
+                        UnixPaths.UsrLibexec,
+                        UnixPaths.UsrShare,
+                        UnixPaths.UsrStandalone,
+                        UnixPaths.UsrSbin,
+                        UnixPaths.Var,
+                        UnixPaths.UserPreferences,
+                        UnixPaths.AppleInternal,
                         // it's important to untrack /usr/lib instead of creating a sealed source directory
                         //   - the set of dynamically loaded libraries during an execution of a process is 
                         //     not necessarily deterministic, i.e., when the same process---which itself is
                         //     deterministic---is executed multiple times on same inputs, the set of 
                         //     dynamically loaded libraries is not necessarily going to stay the same.
-                        MacPaths.UsrLib
+                        UnixPaths.UsrLib,
+                        UnixPaths.LibLinuxGnu,
                     }
                     .Select(p => DirectoryArtifact.CreateWithZeroPartialSealId(pathTable, p))
                     .ToArray();

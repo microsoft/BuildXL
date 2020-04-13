@@ -29,6 +29,9 @@ namespace BuildXL.Interop.Unix
 
         private const string ProcStatPath = "/proc/stat";
 
+        private static readonly Lazy<DriveInfo[]> s_sortedDrives 
+            = new Lazy<DriveInfo[]>(() => DriveInfo.GetDrives().OrderBy(di => di.Name).Reverse().ToArray());
+
         /// <summary>Linux specific implementation of <see cref="IO.GetFileSystemType"/> </summary>
         internal static int GetFileSystemType(SafeFileHandle fd, StringBuilder fsTypeName, long bufferSize)
         {
@@ -228,6 +231,27 @@ namespace BuildXL.Interop.Unix
                 return (int)hash;
             }
         }
+
+        internal static string GetMountNameForPath(string path)
+        {
+            return s_sortedDrives.Value.FirstOrDefault(di => path.StartsWith(di.Name))?.Name;
+        }
+
+        [DllImport(Libraries.LibC, SetLastError = true)]
+        unsafe internal static extern int lsetxattr(
+            [MarshalAs(UnmanagedType.LPStr)] string path,
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            void *value,
+            ulong size,
+            int flags);
+
+        [DllImport(Libraries.LibC, SetLastError = true)]
+        internal static extern long lgetxattr(
+            [MarshalAs(UnmanagedType.LPStr)] string path,
+            [MarshalAs(UnmanagedType.LPStr)] string name,
+            ref long value,
+            ulong size,
+            int flags);
 
         private static bool IsSymlink(string path)
         {

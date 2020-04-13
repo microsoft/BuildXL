@@ -13,12 +13,14 @@
 #include "bxl_observer.hpp"
 #include "IOHandler.hpp"
 
-extern const char *__progname;
+static std::string empty_str("");
 
 static void HandleAccessReport(AccessReport report, int _)
 {
     BxlObserver::GetInstance()->SendReport(report);
 }
+
+AccessCheckResult BxlObserver::sNotChecked = AccessCheckResult::Invalid();
 
 BxlObserver* BxlObserver::GetInstance()
 {
@@ -140,11 +142,12 @@ bool BxlObserver::SendReport(AccessReport &report)
         _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
     }
 
+    LOG_DEBUG("Sending report: %s", &buffer[PrefixLength]);
     *(uint*)(buffer) = numWritten;
     return Send(buffer, numWritten + PrefixLength);
 }
 
-bool BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)
 {
     // TODO: don't stat all the time
     struct stat s;
@@ -160,39 +163,41 @@ bool BxlObserver::report_access(const char *syscallName, es_event_type_t eventTy
     return report_access(syscallName, event);
 }
 
-bool BxlObserver::report_access(const char *syscallName, IOEvent &event)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &event)
 {
     es_event_type_t eventType = event.GetEventType();
 
-    LogDebug("(( %10s:%2d )) %s", syscallName, event.GetEventType(), event.GetEventPath());
+    AccessCheckResult result = sNotChecked;
 
     if (IsValid())
     {
         IOHandler handler(sandbox_);
         handler.SetProcess(process_);
-        handler.HandleEvent(event); // TODO: this should return AccessCheckResult, which should be returned from here
-        return true;
+        result = handler.HandleEvent(event);
     }
-    else
-    {
-        return false;
-    }
+
+    LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(), 
+        result.ShouldDenyAccess() ? "[Denied]" : "",
+        result.ShouldDenyAccess() && IsFailingUnexpectedAccesses() ? "[Blocked]" : "");
+    return result;
 }
 
-bool BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, const char *pathname)
 {
     return report_access(syscallName, eventType, normalize_path(pathname), "");
 }
 
-bool BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
+AccessCheckResult BxlObserver::report_access_fd(const char *syscallName, es_event_type_t eventType, int fd)
 {
     char fullpath[PATH_MAX] = {0};
     fd_to_path(fd, fullpath, PATH_MAX);
 
-    return report_access(syscallName, eventType, fullpath);
+    return fullpath[0] == '/'
+        ? report_access(syscallName, eventType, std::string(fullpath), empty_str)
+        : sNotChecked; // this file descriptor is not a non-file (e.g., a pipe, or socket, etc.) so we don't care about it
 }
 
-bool BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname)
+AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname)
 {
     char fullpath[PATH_MAX] = {0};
     ssize_t len = 0;
@@ -216,16 +221,13 @@ bool BxlObserver::report_access_at(const char *syscallName, es_event_type_t even
     return report_access(syscallName, eventType, fullpath);
 }
 
-static enum RequestedAccess oflag_to_access(int oflag)
-{
-    return oflag & (O_WRONLY | O_RDWR) ? RequestedAccess::Write : RequestedAccess::Read;
-}
-
 ssize_t BxlObserver::fd_to_path(int fd, char *buf, size_t bufsiz)
 {
     char procPath[100] = {0};
     sprintf(procPath, "/proc/self/fd/%d", fd);
-    return real_readlink(procPath, buf, bufsiz);
+    ssize_t result = real_readlink(procPath, buf, bufsiz);
+    LOG_DEBUG("<%d> --> %s", fd, buf);
+    return result;
 }
 
 std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname)
@@ -234,11 +236,13 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname)
     char finalPath[PATH_MAX] = {0};
     ssize_t len = 0;
 
+    const char *returnValue;
+
     // no pathname given --> read path for dirfd
     if (pathname == NULL)
     {
         fd_to_path(dirfd, fullpath, PATH_MAX);
-        return fullpath;
+        returnValue = fullpath;
     }
     // if relative path --> resolve it against dirfd
     else if (*pathname != '/' && *pathname != '~')
@@ -260,11 +264,14 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname)
 
         snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
         char *result = real_realpath(fullpath, finalPath);
-        return result != NULL ? result : fullpath;
+        returnValue = result != NULL ? result : fullpath;
     }
     else
     {
         char *result = real_realpath(pathname, finalPath);
-        return result != NULL ? result : pathname;
+        returnValue = result != NULL ? result : pathname;
     }
+
+    LOG_DEBUG("<%d>%s --> %s", dirfd, pathname, returnValue);
+    return returnValue;
 }

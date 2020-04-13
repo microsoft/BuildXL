@@ -735,6 +735,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// IncrementalTool. 
         /// </summary>
         [Fact]
+        [Trait("Category", "SkipLinux")] // TODO: bug
         public void IncrementalPreserveOutputTool()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;

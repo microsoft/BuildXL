@@ -129,68 +129,6 @@ namespace BuildXL.Interop.Unix
             public DateTime ToUtcDateTime(long sec, long nsec) => new Timespec { Tv_sec = sec, Tv_nsec = nsec }.ToUtcTime();
         }
 
-        /// <summary>
-        /// C# representation of the native struct statfs64
-        ///
-        /// CODESYNC: https://github.com/apple/darwin-xnu/blob/master/bsd/sys/mount.h#L103-L120
-        /// </summary>
-        [StructLayout(LayoutKind.Sequential)]
-        public struct StatFsBuffer
-        {
-            /// <summary>fundamental file system block size</summary>
-            public uint f_bsize;
-
-            /// <summary>optimal transfer block size</summary>
-            public int f_iosize;
-
-            /// <summary>total data blocks in file system</summary>
-            public ulong f_blocks;
-
-            /// <summary>free blocks in fs</summary>
-            public ulong f_bfree;
-
-            /// <summary>free blocks avail to non-superuser</summary>
-            public ulong f_bavail;
-
-            /// <summary>total file nodes in file system</summary>
-            public ulong f_files;
-
-            /// <summary>free file nodes in fs</summary>
-            public ulong f_ffree;
-
-            /// <summary>file system id</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=2)]
-            public int[] f_fsid;
-
-            /// <summary>user that mounted the filesystem</summary>
-            public int f_owner;
-
-            /// <summary>type of filesystem</summary>
-            public uint f_type;
-
-            /// <summary>copy of mount exported flags</summary>
-            public uint f_flags;
-
-            /// <summary>fs sub-type (flavor)</summary>
-            public uint f_fssubtype;
-
-            /// <summary>fs type name</summary>
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=16)]
-            public string f_fstypename;
-
-            /// <summary>directory on which mounted</summary>
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=Constants.MaxPathLength)]
-            public string f_mntonname;
-
-            /// <summary>mounted filesystem</summary>
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=Constants.MaxPathLength)]
-            public string f_mntfromname;
-
-            /// <summary>For future use</summary>
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst=8)]
-            public uint[] f_reserved;
-        }
-
         public enum FilePermissions : int
         {
             S_ISUID = 0x0800, // Set user ID on execution
@@ -256,33 +194,13 @@ namespace BuildXL.Interop.Unix
             : Impl_Linux.GetFileSystemType(fd, fsTypeName, bufferSize);
 
         /// <summary>
-        /// This routine returns information about a mounted file system.
-        /// The <paramref name="path"/> argument is the path name of any file or directory
-        /// within the mounted file system.  The <paramref name="buf"/> argument is a pointer
-        /// to a <see cref="StatFsBuffer"/> structure.
-        /// </summary>
-        /// <returns>
-        /// 0 on success, -1 otherwise.
-        /// </returns>
-        [DllImport(Libraries.LibC, SetLastError = true, EntryPoint = "statfs64")]
-        public static extern int StatFs([MarshalAs(UnmanagedType.LPStr)] string path, ref StatFsBuffer buf);
-
-        /// <summary>
         /// Returns the root mount for a given path or <c>null</c> in case of an error.
         /// </summary>
         /// <param name="path">Path name of any file or directory within the mounted file system</param>
         /// <returns>String containing the mount name</returns>
-        public static string GetMountNameForPath(string path)
-        {
-            var statFsBuffer = new StatFsBuffer();
-            var error = StatFs(path, ref statFsBuffer);
-            if (error != 0)
-            {
-                return null;
-            }
-
-            return statFsBuffer.f_mntonname;
-        }
+        public static string GetMountNameForPath(string path) => IsMacOS
+            ? Impl_Mac.GetMountNameForPath(path)
+            : Impl_Linux.GetMountNameForPath(path);
 
         /// <summary>
         /// Sets the creation, modification, change and access time of a file specified at path
@@ -330,6 +248,24 @@ namespace BuildXL.Interop.Unix
         public static int SetFilePermissionsForFilePath(string path, FilePermissions permissions, bool followSymlink = true) => IsMacOS
             ? Impl_Mac.SetFilePermissionsForFilePath(path, permissions, followSymlink)
             : Impl_Linux.SetFilePermissionsForFilePath(path, permissions, followSymlink);
+
+        /// <summary>
+        /// Sets the value of the extended attribute identified by <paramref name="name"/> and associated
+        /// with the given <paramref name="path"/> in the filesystem.  If <paramref name="name"/> is a symlink,
+        /// the attribute is set on the link itself and not the file it refers to.
+        /// </summary>
+        public static unsafe int SetXattrNoFollow(string path, string name, long value) => IsMacOS
+            ? Impl_Mac.setxattr(path, name, &value, sizeof(long), 0, Impl_Mac.XATTR_NOFOLLOW)
+            : Impl_Linux.lsetxattr(path, "user." + name, &value, sizeof(long), 0);
+
+        /// <summary>
+        /// Retrieves  the  value  of  the extended attribute identified by <paramref name="name"/> and associated
+        /// with the given <paramref name="path"/> in the filesystem. If <paramref name="name"/> is a symlink,
+        /// the attribute is retrieved from the link itself and not the file it refers to.
+        /// </summary>
+        public static unsafe long GetXattrNoFollow(string path, string name, ref long value) => IsMacOS
+            ? Impl_Mac.getxattr(path, name, ref value, sizeof(long), 0, Impl_Mac.XATTR_NOFOLLOW)
+            : Impl_Linux.lgetxattr(path, "user." + name, ref value, sizeof(long), 0);
 
         /// <summary>
         /// Opens a file at a specified path.
@@ -435,12 +371,14 @@ namespace BuildXL.Interop.Unix
         public const string Dev                       = "/dev";
         public const string Etc                       = "/etc";
         public const string EtcMasterPasswd           = "/etc/master.passwd";
+        public const string LibLinuxGnu               = "/lib/x86_64-linux-gnu";
         public const string Library                   = "/Library";
         public const string LibraryPreferencesLogging = "/Library/Preferences/Logging";
         public const string Private                   = "/private";
         public const string PrivateVar                = "/private/var";
         public const string Proc                      = "/proc";
         public const string Sbin                      = "/sbin";
+        public const string Sys                       = "/sys";
         public const string System                    = "/System";
         public const string SystemLibrary             = "/System/Library";
         public const string TmpDir                    = "/tmp";

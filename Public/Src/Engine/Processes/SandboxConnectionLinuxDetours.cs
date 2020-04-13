@@ -364,6 +364,12 @@ namespace BuildXL.Processes
         {
             IsInTestMode = isInTestMode;
             m_failureCallback = failureCallback;
+
+#if DEBUG
+            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(true);
+#else
+            BuildXL.Native.Processes.ProcessUtilities.SetNativeConfiguration(false);
+#endif
         }
 
         /// <inheritdoc />
@@ -397,6 +403,12 @@ namespace BuildXL.Processes
 
             yield return ("__BUILDXL_FAM_PATH", info.FamPath);
             yield return ("LD_PRELOAD", DetoursLibFile);
+            if (IsInTestMode)
+            {
+                var debugLogPath = Path.ChangeExtension(info.FamPath, ".log");
+                info.LogDebug("Setting sandbox debug log path to: " + debugLogPath);
+                yield return ("__BUILDXL_LOG_PATH", debugLogPath);
+            }
         }
 
         /// <inheritdoc />
@@ -405,8 +417,7 @@ namespace BuildXL.Processes
             Contract.Requires(process.Started);
             Contract.Requires(process.PipId != 0);
 
-            string tempDirPath = Path.GetTempPath();
-            string fifoPath = Path.Combine(tempDirPath, $"Pip{process.PipSemiStableHash:X}.{process.PipId}.{process.ProcessId}.fifo");
+            string fifoPath = $"{FileUtilities.GetTempPath()}.Pip{process.PipSemiStableHash:X}.{process.ProcessId}.fifo";
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
 
             // serialize FAM

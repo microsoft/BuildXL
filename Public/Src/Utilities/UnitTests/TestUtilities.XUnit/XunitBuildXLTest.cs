@@ -36,7 +36,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             ISandboxConnection sandboxConnection;
             if (OperatingSystemHelper.IsLinuxOS)
             {
-                sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback);
+                sandboxConnection = new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
             }
             else if (OperatingSystemHelper.IsMacOS)
             {

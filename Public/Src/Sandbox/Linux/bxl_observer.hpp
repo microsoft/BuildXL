@@ -25,8 +25,11 @@ extern const char *__progname;
     template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
     {                                                                           \
         ret result = real_##name(std::forward<TArgs>(args)...);                 \
-        LOG_DEBUG("Forwarded syscall %s", RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str()); \
-        return result_t<ret>(result);                                           \
+        result_t<ret> return_value(result);                                     \
+        LOG_DEBUG("Forwarded syscall %s (errno: %d)",                           \
+            RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str(), \
+            return_value.get_errno());                                          \
+        return return_value;                                                    \
     }
 
 #define MAKE_BODY(B) \
@@ -38,7 +41,7 @@ ret name(__VA_ARGS__) { \
     BxlObserver *bxl = BxlObserver::GetInstance(); \
     MAKE_BODY
 
-#define _fatal(fmt, ...) do { fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
+#define _fatal(fmt, ...) do { real_fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
 #define fatal(msg) _fatal("%s", msg)
 
 /**
@@ -58,21 +61,23 @@ private:
 public:
     result_t(T result) : result_(result), my_errno_(errno) {}
 
-    /**
-     * Returns the remembered result and restores 'errno' to the value captured in the constructor.
-     */
+    /** Returns the remembered result and restores 'errno' to the value captured in the constructor. */
     inline T restore()
     {
         errno = my_errno_;
         return result_;
     }
 
-    /**
-     * Returns the remembered result.
-     */
+    /** Returns the remembered result. */
     inline T get()
     {
         return result_;
+    }
+
+    /** Returns the remembered errno. */
+    inline int get_errno()
+    {
+        return my_errno_;
     }
 };
 
@@ -131,7 +136,7 @@ private:
 
     #define LOG_DEBUG(fmt, ...) if (logFile_ && *logFile_) do { \
         FILE* _lf = real_fopen(logFile_, "a"); \
-        if (_lf) fprintf(_lf, "[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__); \
+        if (_lf) real_fprintf(_lf, "[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__); \
         if (_lf) real_fclose(_lf); \
     } while(0);
 
@@ -192,16 +197,24 @@ public:
     GEN_FN_DEF(int, execve, const char *, char *const[], char *const[])
     GEN_FN_DEF(int, execvp, const char *, char *const[])
     GEN_FN_DEF(int, execvpe, const char *, char *const[], char *const[])
-    GEN_FN_DEF(int, __fxstat, int, int, struct stat*);
     GEN_FN_DEF(int, statfs, const char *, struct statfs *)
-    GEN_FN_DEF(int, __xstat, int, const char *, struct stat *)
     GEN_FN_DEF(int, __lxstat, int, const char *, struct stat *)
-    GEN_FN_DEF(int, __xstat64, int, const char*, struct stat64*)
     GEN_FN_DEF(int, __lxstat64, int, const char*, struct stat64*)
+    GEN_FN_DEF(int, __xstat, int, const char *, struct stat *)
+    GEN_FN_DEF(int, __xstat64, int, const char*, struct stat64*)
+    GEN_FN_DEF(int, __fxstat, int, int, struct stat*);
+    GEN_FN_DEF(int, __fxstatat, int, int, const char*, struct stat*, int);
     GEN_FN_DEF(int, __fxstat64, int, int, struct stat64*)
+    GEN_FN_DEF(int, __fxstatat64, int, int, const char*, struct stat64*, int)
     GEN_FN_DEF(FILE*, fopen, const char *, const char *)
     GEN_FN_DEF(size_t, fread, void*, size_t, size_t, FILE*)
+    GEN_FN_DEF(size_t, fwrite, const void*, size_t, size_t, FILE*)
     GEN_FN_DEF(int, fclose, FILE*)
+    GEN_FN_DEF(int, fputc, int c, FILE *stream)
+    GEN_FN_DEF(int, fputs, const char *s, FILE *stream)
+    GEN_FN_DEF(int, putc, int c, FILE *stream)
+    GEN_FN_DEF(int, putchar, int c)
+    GEN_FN_DEF(int, puts, const char *s)
     GEN_FN_DEF(int, access, const char *, int)
     GEN_FN_DEF(int, faccessat, int, const char *, int, int)
     GEN_FN_DEF(int, creat, const char *, mode_t)
@@ -225,4 +238,12 @@ public:
     GEN_FN_DEF(int, futimens, int, const struct timespec[2])
     GEN_FN_DEF(int, mkdir, const char*, mode_t)
     GEN_FN_DEF(int, mkdirat, int, const char*, mode_t)
+    GEN_FN_DEF(int, dup, int)
+    GEN_FN_DEF(int, dup2, int, int)
+    GEN_FN_DEF(int, printf, const char*, ...);
+    GEN_FN_DEF(int, fprintf, FILE*, const char*, ...);
+    GEN_FN_DEF(int, dprintf, int, const char*, ...);
+    GEN_FN_DEF(int, vprintf, const char*, va_list);
+    GEN_FN_DEF(int, vfprintf, FILE*, const char*, va_list);
+    GEN_FN_DEF(int, vdprintf, int, const char*, va_list);
 };

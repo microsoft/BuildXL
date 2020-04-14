@@ -95,7 +95,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
         /// </summary>
-        protected PathTable PathTable { get; }
+        internal PathTable PathTable { get; }
 
         /// <summary>
         /// Whether /logObservedFileAccesses has been requested

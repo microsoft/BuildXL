@@ -41,7 +41,7 @@ void BxlObserver::InitFam()
     const char *famPath = getenv(BxlEnvFamPath);
     if (!(famPath && *famPath))
     {
-        fprintf(stderr, "[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
+        real_fprintf(stderr, "[%s] ERROR: Env var '%s' not set\n", __func__, BxlEnvFamPath);
         return;
     }
 
@@ -179,6 +179,7 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &e
     LOG_DEBUG("(( %10s:%2d )) %s %s%s", syscallName, event.GetEventType(), event.GetEventPath(), 
         result.ShouldDenyAccess() ? "[Denied]" : "",
         result.ShouldDenyAccess() && IsFailingUnexpectedAccesses() ? "[Blocked]" : "");
+
     return result;
 }
 
@@ -263,13 +264,11 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname)
         }
 
         snprintf(&fullpath[len], PATH_MAX - len, "/%s", pathname);
-        char *result = real_realpath(fullpath, finalPath);
-        returnValue = result != NULL ? result : fullpath;
+        returnValue = fullpath;
     }
     else
     {
-        char *result = real_realpath(pathname, finalPath);
-        returnValue = result != NULL ? result : pathname;
+        returnValue = pathname;
     }
 
     LOG_DEBUG("<%d>%s --> %s", dirfd, pathname, returnValue);

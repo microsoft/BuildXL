@@ -73,6 +73,9 @@ namespace BuildXL.Processes
             internal string ReportsFifoPath { get; }
             internal string FamPath { get; }
 
+            internal static string GetDebugLogPath(string famPath) => Path.ChangeExtension(famPath, ".log");
+            internal string DebugLogPath => GetDebugLogPath(FamPath);
+
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
             private readonly HashSet<int> m_activeProcesses;
@@ -405,9 +408,8 @@ namespace BuildXL.Processes
             yield return ("LD_PRELOAD", DetoursLibFile);
             if (IsInTestMode)
             {
-                var debugLogPath = Path.ChangeExtension(info.FamPath, ".log");
-                info.LogDebug("Setting sandbox debug log path to: " + debugLogPath);
-                yield return ("__BUILDXL_LOG_PATH", debugLogPath);
+                info.LogDebug("Setting sandbox debug log path to: " + info.DebugLogPath);
+                yield return ("__BUILDXL_LOG_PATH", info.DebugLogPath);
             }
         }
 
@@ -419,6 +421,11 @@ namespace BuildXL.Processes
 
             string fifoPath = $"{FileUtilities.GetTempPath()}.Pip{process.PipSemiStableHash:X}.{process.ProcessId}.fifo";
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
+
+            if (IsInTestMode)
+            {
+                fam.AddPath(toAbsPath(Info.GetDebugLogPath(famPath)), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
+            }
 
             // serialize FAM
             using (var wrapper = Pools.MemoryStreamPool.GetInstance())
@@ -455,6 +462,8 @@ namespace BuildXL.Processes
 
             info.Start();
             return true;
+
+            AbsolutePath toAbsPath(string path) => AbsolutePath.Create(process.PathTable, path);
         }
 
         /// <inheritdoc />

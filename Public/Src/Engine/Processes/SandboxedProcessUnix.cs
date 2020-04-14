@@ -198,12 +198,6 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = "/bin/sh";
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
-            
-            // Allow access for Detours library
-            info.FileAccessManifest.AddPath(
-                AbsolutePath.Create(PathTable, DetoursFile),
-                mask: FileAccessPolicy.MaskAll,
-                values: FileAccessPolicy.AllowAll);
 
             return process;
         }

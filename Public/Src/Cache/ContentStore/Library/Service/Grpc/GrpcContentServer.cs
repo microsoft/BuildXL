@@ -743,26 +743,36 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash, deleteOptions)));
 
             bool succeeded = true;
-            long evictedSize = 0L;
-            long pinnedSize = 0L;
+            long contentSize = 0L;
             int code = (int)DeleteResult.ResultCode.ContentNotFound;
+            var response = new DeleteContentResponse();
             foreach (var deleteResult in deleteResults)
             {
-                succeeded &= deleteResult.Succeeded;
-                evictedSize += deleteResult.EvictedSize;
-                pinnedSize += deleteResult.PinnedSize;
+                if (deleteOptions.DeleteLocalOnly)
+                {
+                    succeeded &= deleteResult.Succeeded;
 
-                // Return the most severe result code
-                code = Math.Max(code, (int)deleteResult.Code);
+                    // Return the most severe result code
+                    code = Math.Max(code, (int)deleteResult.Code);
+                }
+                else
+                {
+                    if (deleteResult is DistributedDeleteResult distributedDeleteResult)
+                    {
+                        foreach (var kvp in distributedDeleteResult.DeleteMapping)
+                        {
+                            response.DeleteResults.Add(kvp.Key, new ResponseHeader(startTime, kvp.Value.Succeeded, (int)kvp.Value.Code, kvp.Value.ErrorMessage, kvp.Value.Diagnostics));
+                        }
+                    }
+                }
+
+                contentSize = Math.Max(deleteResult.ContentSize, contentSize);
             }
 
-            return new DeleteContentResponse
-            {
-                Header = succeeded ? ResponseHeader.Success(startTime) : ResponseHeader.Failure(startTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString()))),
-                EvictedSize = evictedSize,
-                PinnedSize = pinnedSize,
-                Result = code
-            };
+            response.Header = succeeded ? ResponseHeader.Success(startTime) : ResponseHeader.Failure(startTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString())));
+            response.ContentSize = contentSize;
+            response.Result = code;
+            return response;
         }
 
         private void OperationStarted([CallerMemberName]string requestType = "Unknown")

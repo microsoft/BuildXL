@@ -225,8 +225,7 @@ namespace ContentStoreTest.Stores
 
                 DeleteResult deleteResult = await store.DeleteAsync(Context, putResult.ContentHash);
                 deleteResult.ShouldBeSuccess();
-                deleteResult.EvictedSize.Should().Be(contentSize);
-                deleteResult.PinnedSize.Should().Be(0);
+                deleteResult.ContentSize.Should().Be(contentSize);
 
                 store.IsPinned(putResult.ContentHash).Should().BeFalse();
             });

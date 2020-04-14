@@ -240,8 +240,8 @@ message DeleteContentRequest {
 message DeleteContentResponse {
     ResponseHeader header = 1;
     int32 result = 2;
-    int64 evictedSize = 3;
-    int64 pinnedSize = 4;
+    int64 contentSize = 3;
+    map<string, ResponseHeader> deleteResults = 4;
 }
 
 // AddOrGetContentHashList

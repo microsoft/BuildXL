@@ -860,7 +860,7 @@ return { requestedIncrement, currentValue }";
                 // FireAndForget not inlined because we don't want to replace parent task with continuation. Failure
                 // severity is Unknown to stop the logging from happening. We still need to do FireAndForget in order
                 // to avoid any ThrowOnUnobservedTaskException triggers.
-                task.FireAndForget(context, failureSeverity: Severity.Diagnostic);
+                task.FireAndForget(context, failureSeverity: Severity.Diagnostic, tracePrefix: _databaseName);
                 taskToTrack.Add(task);
             }
 

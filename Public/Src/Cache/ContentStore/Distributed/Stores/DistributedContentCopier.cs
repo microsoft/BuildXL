@@ -796,36 +796,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// This will create a GrpcContentClient for each machine that calls deleteAsync.
         /// We then aggregate the results returned from every machine, and return the highest level of error code.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="contentHash"></param>
-        /// <param name="machines"></param>
-        /// <returns></returns>
-        public async Task<DeleteResult> DeleteAsync(OperationContext context, ContentHash contentHash, IReadOnlyList<MachineLocation> machines)
+        public async Task<DeleteResult> DeleteAsync(OperationContext context, ContentHash contentHash, long contentSize, IReadOnlyList<MachineLocation> machines, Dictionary<string, DeleteResult> deleteMapping)
         {
             var tasks = machines.Select(m => _copyRequester.DeleteFileAsync(context, contentHash, m)).ToList();
             var deleteResults = await Task.WhenAll(tasks);
-            bool succeeded = true;
-            long evictedSize = 0L;
-            long pinnedSize = 0L;
-            int index = 0;
-            int code = (int)DeleteResult.ResultCode.ContentNotFound;
-            foreach (var deleteResult in deleteResults)
+            var size = contentSize;
+
+            Contract.Assert(machines.Count == deleteResults.Length);
+            for (var i = 0; i < machines.Count; i++)
             {
-                succeeded &= deleteResult.Succeeded;
-                evictedSize += deleteResult.EvictedSize;
-                pinnedSize += deleteResult.PinnedSize;
-
-                // Return the most severe result code
-                code = Math.Max(code, (int)deleteResult.Code);
-                if (!deleteResult.Succeeded)
-                {
-                    Tracer.Info(context, $"Machine: {machines[index]} tried to delete file with hash: {contentHash}, but failed with code: {deleteResult.Code}");
-                }
-
-                index++;
+                size = Math.Max(size, deleteResults[i].ContentSize);
+                deleteMapping.Add(machines[i].Path, deleteResults[i]);
             }
 
-            return new DeleteResult((DeleteResult.ResultCode) code, contentHash, evictedSize, pinnedSize );
+            return new DistributedDeleteResult(contentHash, size, deleteMapping);
         }
     }
 }

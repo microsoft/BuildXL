@@ -27,6 +27,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             }
         }
 
+        /// <inheritdoc />
+        public override bool Succeeded => IsSuccessfulResult(Code);
+
         /// <summary>
         /// A code that helps caller to make decisions.
         /// </summary>
@@ -63,13 +66,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, ContentHash contentHash, long evictedSize, long pinnedSize)
+        public DeleteResult(ResultCode resultCode, ContentHash contentHash, long contentSize)
             : base(IsSuccessfulResult(resultCode))
         {
             Code = resultCode;
             ContentHash = contentHash;
-            EvictedSize = evictedSize;
-            PinnedSize = pinnedSize;
+            ContentSize = contentSize;
         }
 
         /// <summary>
@@ -88,6 +90,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             : base(exception, message)
         {
             Code = resultCode;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
+        /// </summary>
+        public DeleteResult(ContentHash contentHash, long contentSize)
+            : this(ResultCode.Success, contentHash, contentSize)
+        {
         }
 
         /// <nodoc />
@@ -110,18 +120,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Gets number of bytes evicted.
         /// </summary>
-        public long EvictedSize { get; }
-
-        /// <summary>
-        ///     Gets byte count remaining pinned across all replicas for associated content hash.
-        /// </summary>
-        public long PinnedSize { get; }
+        public long ContentSize { get; }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Code={Code} Hash={ContentHash} Size={EvictedSize} Pinned={PinnedSize}"
+                ? $"Status={Code}"
                 : GetErrorString();
         }
     }

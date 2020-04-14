@@ -4,6 +4,7 @@
 // ReSharper disable once UnusedMember.Global
 
 using System;
+using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -39,8 +40,8 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort,
                     _scenario);
                 
-                var deleteResult = client.DeleteContentAsync(context, contentHash, deleteLocalOnly: false).GetAwaiter().GetResult().ThrowIfFailure();
-                _tracer.Debug(context, deleteResult.ToString());
+                var deleteResult = client.DeleteContentAsync(context, contentHash, deleteLocalOnly: false).GetAwaiter().GetResult();
+                _tracer.Always(context, deleteResult.ToString());
             }
             catch (Exception e)
             {

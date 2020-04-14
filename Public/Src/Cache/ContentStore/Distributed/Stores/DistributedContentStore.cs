@@ -740,13 +740,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions)
         {
             var operationContext = OperationContext(context);
-            deleteOptions ??= new DeleteContentOptions() { DeleteLocalOnly = true };
+            deleteOptions ??= new DeleteContentOptions() {DeleteLocalOnly = true};
 
-            return operationContext.PerformOperationAsync(Tracer,
+            return operationContext.PerformOperationAsync(
+                Tracer,
                 async () =>
                 {
                     var deleteResult = await InnerContentStore.DeleteAsync(context, contentHash, deleteOptions);
-                    var contentHashes = new ContentHash[] { contentHash };
+                    var contentHashes = new ContentHash[] {contentHash};
                     if (!deleteResult)
                     {
                         return deleteResult;
@@ -764,20 +765,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         return deleteResult;
                     }
 
-                    var result = await _contentLocationStore.GetBulkAsync(context, contentHashes, operationContext.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+                    var deleteResultsMapping = new Dictionary<string, DeleteResult>();
+
+                    var result = await _contentLocationStore.GetBulkAsync(
+                        context,
+                        contentHashes,
+                        operationContext.Token,
+                        UrgencyHint.Nominal,
+                        GetBulkOrigin.Local);
                     if (!result)
                     {
-                        return new DeleteResult(result, result.ToString());
+                        deleteResult =  new DeleteResult(result, result.ToString());
+                        deleteResultsMapping.Add(LocalMachineLocation.Path, deleteResult);
+                        return new DistributedDeleteResult(contentHash, deleteResult.ContentSize, deleteResultsMapping);
                     }
+
+                    deleteResultsMapping.Add(LocalMachineLocation.Path, deleteResult);
 
                     // Go through each machine that has this content, and delete async locally on each machine.
                     if (result.ContentHashesInfo[0].Locations != null)
                     {
                         var machineLocations = result.ContentHashesInfo[0].Locations;
-                        return await _distributedCopier.DeleteAsync(operationContext, contentHash, machineLocations);
+                        return await _distributedCopier.DeleteAsync(operationContext, contentHash, deleteResult.ContentSize, machineLocations, deleteResultsMapping);
                     }
 
-                    return deleteResult;
+                    return new DistributedDeleteResult(contentHash, deleteResult.ContentSize, deleteResultsMapping);
                 });
         }
 

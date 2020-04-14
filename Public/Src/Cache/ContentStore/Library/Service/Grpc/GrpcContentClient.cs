@@ -395,9 +395,28 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 };
 
                 DeleteContentResponse response = await Client.DeleteAsync(request);
+                if (!deleteLocalOnly)
+                {
+                    var deleteResultsMapping = new Dictionary<string, DeleteResult>();
+                    foreach (var kvp in response.DeleteResults)
+                    {
+                        var header = kvp.Value;
+                        var deleteResult = string.IsNullOrEmpty(header.ErrorMessage)
+                            ? new DeleteResult(
+                                (DeleteResult.ResultCode)header.Result,
+                                hash,
+                                response.ContentSize)
+                            : new DeleteResult((DeleteResult.ResultCode)header.Result, header.ErrorMessage, header.Diagnostics);
+
+                        deleteResultsMapping.Add(kvp.Key, deleteResult);
+                    }
+
+                    return new DistributedDeleteResult(hash, response.ContentSize, deleteResultsMapping);
+                }
+
                 if (response.Header.Succeeded)
                 {
-                    return new DeleteResult((DeleteResult.ResultCode)response.Result, hash, response.EvictedSize, response.PinnedSize);
+                    return new DeleteResult((DeleteResult.ResultCode)response.Result, hash, response.ContentSize);
                 }
                 else
                 {

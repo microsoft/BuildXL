@@ -45,7 +45,7 @@ namespace ContentStoreTest.Grpc
         public void SuccessPerResult(DeleteResult.ResultCode code, bool succeeded)
         {
             var hash = ContentHash.Random(HashType.Vso0);
-            DeleteResult r = new DeleteResult(code, hash, 0L, 0L);
+            DeleteResult r = new DeleteResult(code, hash, 0L);
             r.Succeeded.Should().Be(succeeded);
         }
 
@@ -77,8 +77,7 @@ namespace ContentStoreTest.Grpc
                 deleteResult.ShouldBeSuccess();
                 deleteResult.ContentHash.Equals(putResult.ContentHash).Should().BeTrue();
                 string.IsNullOrEmpty(deleteResult.ErrorMessage).Should().BeTrue();
-                deleteResult.EvictedSize.Should().Be(size);
-                deleteResult.PinnedSize.Should().Be(0L);
+                deleteResult.ContentSize.Should().Be(size);
 
                 // Fail to place content
                 var failPlaceResult = await rpcClient.PlaceFileAsync(context, putResult.ContentHash, new AbsolutePath(fileName.Path + "fail"), FileAccessMode.None, FileReplacementMode.None, FileRealizationMode.Copy);
@@ -102,10 +101,8 @@ namespace ContentStoreTest.Grpc
                 // Delete content
                 var deleteResult = await rpcClient.DeleteContentAsync(context, contentHash, deleteLocalOnly: false);
                 deleteResult.ShouldBeSuccess();
-                deleteResult.Code.Should().Be(DeleteResult.ResultCode.ContentNotFound);
                 deleteResult.ContentHash.Equals(contentHash).Should().BeTrue();
-                deleteResult.EvictedSize.Should().Be(0L);
-                deleteResult.PinnedSize.Should().Be(0L);
+                deleteResult.ContentSize.Should().Be(0L);
             });
         }
 

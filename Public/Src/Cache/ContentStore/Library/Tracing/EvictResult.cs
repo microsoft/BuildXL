@@ -112,14 +112,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             {
                 if (!SuccessfullyEvictedHash)
                 {
-                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize, PinnedSize);
+                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize);
                 }
 
-                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize, PinnedSize);
+                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize);
             }
 
             // !HasException && Succeeded && !SuccessfulyEvictedHash
-            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize, PinnedSize);
+            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize);
         }
 
         /// <nodoc />

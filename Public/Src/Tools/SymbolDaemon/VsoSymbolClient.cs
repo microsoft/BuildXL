@@ -177,7 +177,7 @@ namespace Tool.SymbolDaemon
                     throw new DebugEntryExistsException(message);
                 }
 
-                // Log a warning message in SymbolDaemon log file
+                // Log a message in SymbolDaemon log file
                 m_logger.Verbose(message);
 
                 result = await m_symbolClient.CreateRequestDebugEntriesAsync(

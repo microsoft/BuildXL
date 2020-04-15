@@ -19,7 +19,7 @@ namespace Tool.ServicePipDaemon
     {
         /// <nodoc/>
         public ReloadingSymbolClient(IIpcLogger logger, Func<ISymbolServiceClient> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
-            : base(logger, clientConstructor, retryIntervals)
+            : base(logger, clientConstructor, retryIntervals, new [] { typeof(DebugEntryExistsException) })
         {
         }
 

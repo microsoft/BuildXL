@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
@@ -41,6 +42,7 @@ namespace Tool.ServicePipDaemon
 
         private readonly IIpcLogger m_logger;
         private readonly IEnumerable<TimeSpan> m_retryIntervals;
+        private readonly HashSet<Type> m_nonRetryableExceptions;
 
         /// <summary>
         /// Exposed for testing
@@ -48,14 +50,16 @@ namespace Tool.ServicePipDaemon
         internal readonly Reloader<T> Reloader;
 
         /// <nodoc />
-        public ReloadingClient(IIpcLogger logger, Func<T> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null)
+        public ReloadingClient(IIpcLogger logger, Func<T> clientConstructor, IEnumerable<TimeSpan> retryIntervals = null, IEnumerable<Type> nonRetryableExceptions = null)
         {
             Contract.Assert(logger != null);
             Contract.Assert(clientConstructor != null);
+            Contract.Assert(nonRetryableExceptions == null || nonRetryableExceptions.All(e => e.IsSubclassOf(typeof(Exception))));
 
             m_logger = logger;
             Reloader = new Reloader<T>(clientConstructor, destructor: client => client.Dispose());
             m_retryIntervals = retryIntervals ?? s_defaultRetryIntervals;
+            m_nonRetryableExceptions = nonRetryableExceptions == null ? new HashSet<Type>() : new HashSet<Type>(nonRetryableExceptions);
         }
 
         /// <summary>
@@ -90,6 +94,11 @@ namespace Tool.ServicePipDaemon
                     m_logger.Verbose("[{2}] Invoking '{0}' against instance version {1}", operationName, instance.Version, operationId.Value);
                     return await WithTimeoutAsync(fn(instance.Value, innerCancellationSource.Token), timeout.Value, timeoutCancellationSource);
                 }
+            }
+            catch (Exception e) when (m_nonRetryableExceptions.Contains(e.GetType()))
+            {
+                // We should not retry exceptions of this type.
+                throw;
             }
             catch (Exception e)
             {

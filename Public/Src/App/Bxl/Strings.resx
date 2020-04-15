@@ -180,6 +180,9 @@
   <data name="HelpText_DisplayHelp_BreakOnUnexpectedFileAccess" xml:space="preserve">
     <value>Break into the debugger when {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing a new tool or SDKs using these tools. Defaults to off.</value>
   </data>
+  <data name="HelpText_DisplayHelp_MaxNumPipTelemetryBatches" xml:space="preserve">
+    <value>Specifies the maximum number of batched messages to be sent to telemetry, default set to 10 messages.</value>
+  </data>
   <data name="HelpText_DisplayHelp_LogsDirectory" xml:space="preserve">
     <value>Specifies the path to the logs directory.</value>
   </data>

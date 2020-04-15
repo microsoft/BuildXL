@@ -45,7 +45,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
-            
+            AriaIndividualMessageSizeLimitBytes = (int)(1.5 * 1024 * 1024); // 1.5Mb out of Aria's current 2.5Mb max limit
+            MaxNumPipTelemetryBatches = 10;
+
             // Temporarily disable it by default due to crash.
             // TODO: Enable it by default once crash is fixed.
             CacheMissBatch = false;
@@ -139,6 +141,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InvocationExpandedCommandLineArguments = template.InvocationExpandedCommandLineArguments;
             OptimizeProgressUpdatingForAzureDevOps = template.OptimizeProgressUpdatingForAzureDevOps;
             OptimizeVsoAnnotationsForAzureDevOps = template.OptimizeVsoAnnotationsForAzureDevOps;
+            AriaIndividualMessageSizeLimitBytes = template.AriaIndividualMessageSizeLimitBytes;
+            MaxNumPipTelemetryBatches = template.MaxNumPipTelemetryBatches;
         }
 
         /// <inheritdoc />
@@ -351,5 +355,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool OptimizeWarningOrErrorAnnotationsForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public int AriaIndividualMessageSizeLimitBytes { get; set; }
+
+        /// <inheritdoc />
+        public int MaxNumPipTelemetryBatches { get; set; }
     }
 }

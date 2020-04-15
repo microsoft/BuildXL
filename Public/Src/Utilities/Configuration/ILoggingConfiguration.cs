@@ -351,5 +351,20 @@ namespace BuildXL.Utilities.Configuration
         /// Whether Vso annotations should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeVsoAnnotationsForAzureDevOps { get; }
+
+        /// <summary>
+        /// Specifies the internal max message size to be allowed for each individual messages sent to Aria.
+        /// Current default set at 1.5Mb to have enough space for other fields specified in the same message.
+        /// </summary>
+        /// <remarks>
+        /// According to https://www.aria.ms/developers/deep-dives/input-constraints/, 
+        /// The maximum length of an event can be upto 2.5Mb.
+        /// </remarks>
+        public int AriaIndividualMessageSizeLimitBytes { get; }
+
+        /// <summary>
+        /// Specifies the maximum number of PerProcessPipPerformanceInformation batched messages to be sent to Aria
+         /// </summary>
+        public int MaxNumPipTelemetryBatches { get; }
     }
 }

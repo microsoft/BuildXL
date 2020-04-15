@@ -3555,6 +3555,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip retried {retryLimit} times due to Low Memory, please kill some other processes on the computer.. Maximum allowed retries per Pip can be changed by the bxl argument /numRetryFailedPipsDueToLowMemory:<int>. By default, there is no limit")]
         internal abstract void ExcessivePipRetriesDueToLowMemory(LoggingContext loggingContext, string pipDescription, int retryLimit);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.TopPipsPerformanceInfo,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "{perPipPerformanceInfo}")]
+        public abstract void TopPipsPerformanceInfo(LoggingContext loggingContext, string perPipPerformanceInfo);
     }
 }
 #pragma warning restore CA1823 // Unused field

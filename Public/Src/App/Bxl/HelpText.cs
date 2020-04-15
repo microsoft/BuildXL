@@ -186,6 +186,10 @@ namespace BuildXL
             #region Logging
 
             hw.WriteOption(
+                "/maxNumPipTelemetryBatches:<int>",
+                Strings.HelpText_DisplayHelp_MaxNumPipTelemetryBatches);
+            
+            hw.WriteOption(
                 "/logsDirectory:<path>",
                 Strings.HelpText_DisplayHelp_LogsDirectory);
 

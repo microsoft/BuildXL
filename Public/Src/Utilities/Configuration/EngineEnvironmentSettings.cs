@@ -23,7 +23,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The maximum number of RPC 
         /// </summary>
-        public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 100);
+        public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
         /// Defines whether BuildXL should launch the debugger after a particular engine phase.

@@ -458,6 +458,8 @@ namespace BuildXL.Scheduler.Tracing
 
         ExcessivePipRetriesDueToLowMemory = 14507,
 
+        TopPipsPerformanceInfo = 14508,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

@@ -309,6 +309,14 @@ namespace BuildXL.Scheduler
         private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
 
         /// <summary>
+        /// Top N Pip performance info for telemetry logging
+        /// </summary>
+        private readonly PerProcessPipPerformanceInformationStore m_perPipPerformanceInfoStore;
+
+
+        private const double BytesInMb = 1024 * 1024;
+
+        /// <summary>
         /// Enables distribution for the master node
         /// </summary>
         public void EnableDistribution(Worker[] remoteWorkers)
@@ -1280,6 +1288,7 @@ namespace BuildXL.Scheduler
 
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
+            m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes); 
         }
 
         /// <summary>
@@ -1439,6 +1448,11 @@ namespace BuildXL.Scheduler
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.AfterDrainingWhenDoneDuration))
             {
                 LogWorkerStats();
+                string[] perProcessPipPerf = m_perPipPerformanceInfoStore.GenerateTopPipPerformanceInfoJsonArray();
+                foreach (string processPipPerf in perProcessPipPerf)
+                {
+                    Logger.Log.TopPipsPerformanceInfo(m_loggingContext, processPipPerf);
+                }
 
                 await State.Cache.CloseAsync();
 
@@ -4013,6 +4027,7 @@ namespace BuildXL.Scheduler
                     if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
                     {
                         var perfInfo = executionResult.PerformanceInformation;
+
                         try
                         {
                             m_groupedPipCounters.AddToCounters(processRunnable.Process,
@@ -4083,6 +4098,17 @@ namespace BuildXL.Scheduler
                 case PipExecutionStep.PostProcess:
                 {
                     var executionResult = processRunnable.ExecutionResult;
+
+                    if (executionResult.PerformanceInformation != null)
+                    {
+                        var perfInfo = executionResult.PerformanceInformation;
+                        m_perPipPerformanceInfoStore.AddPip(new PerProcessPipPerformanceInformation(
+                            processRunnable.Description,
+                            (int)perfInfo.ProcessExecutionTime.TotalMilliseconds,
+                            perfInfo.MemoryCounters.PeakWorkingSetMb,
+                            (int)Math.Ceiling(perfInfo.IO.ReadCounters.TransferCount / BytesInMb),
+                            (int)Math.Ceiling(perfInfo.IO.WriteCounters.TransferCount / BytesInMb)));
+                    }
 
                     // Make sure all shared outputs are flagged as such.
                     // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.

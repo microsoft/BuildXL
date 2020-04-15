@@ -24,9 +24,7 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").BxlPipGraphFragmentGenerator.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
-            ]),
+            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
 
             // tools
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [{

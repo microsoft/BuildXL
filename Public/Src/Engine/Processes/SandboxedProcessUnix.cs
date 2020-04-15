@@ -111,6 +111,17 @@ namespace BuildXL.Processes
         /// </summary>
         public string ExecutableAbsolutePath => Process.StartInfo.FileName;
 
+        /// <summary>
+        /// Gets file path for standard input.
+        /// </summary>
+        internal static string GetStdInFilePath(string workingDirectory, long pipSemiStableHash) =>
+            Path.Combine(workingDirectory, BuildXL.Pips.Operations.Pip.FormatSemiStableHash(pipSemiStableHash) + ".stdin");
+
+        /// <summary>
+        /// Shell executable that wraps the process to be executed.
+        /// </summary>
+        internal const string ShellExecutable = "/bin/sh";
+
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
             : base(info)
@@ -195,7 +206,7 @@ namespace BuildXL.Processes
         {
             var process = base.CreateProcess(info);
 
-            process.StartInfo.FileName = "/bin/sh";
+            process.StartInfo.FileName = ShellExecutable;
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
 
@@ -220,10 +231,16 @@ namespace BuildXL.Processes
             ReportProcessCreated();
 
             // Allow read access for /bin/sh
-            info.FileAccessManifest.AddPath(
-                AbsolutePath.Create(PathTable, Process.StartInfo.FileName),
-                mask: FileAccessPolicy.MaskNothing,
-                values: FileAccessPolicy.AllowReadAlways);
+            // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
+            // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
+            // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
+            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            {
+                info.FileAccessManifest.AddPath(
+                    AbsolutePath.Create(PathTable, Process.StartInfo.FileName),
+                    mask: FileAccessPolicy.MaskNothing,
+                    values: FileAccessPolicy.AllowReadAlways);
+            }
 
             if (MeasureCpuTime)
             {
@@ -709,7 +726,7 @@ namespace BuildXL.Processes
                 return null;
             }
 
-            string stdinFileName = Path.Combine(Process.StartInfo.WorkingDirectory, info.PipSemiStableHash + ".stdin");
+            string stdinFileName = GetStdInFilePath(Process.StartInfo.WorkingDirectory, info.PipSemiStableHash);
             string stdinText = await info.StandardInputReader.ReadToEndAsync();
             Encoding encoding = info.StandardInputEncoding ?? Console.InputEncoding;
             byte[] stdinBytes = encoding.GetBytes(stdinText);
@@ -720,7 +737,16 @@ namespace BuildXL.Processes
             }
 
             // Allow read from the created stdin file
-            info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowAll);
+            // When executed using external tool, the manifest tree has been sealed, and cannot be modified.
+            // We take care of adding this path in the manifest in SandboxedProcessPipExecutor.cs;
+            // see AddUnixSpecificSandcboxedProcessFileAccessPolicies
+            if (!info.FileAccessManifest.IsManifestTreeBlockSealed)
+            {
+                info.FileAccessManifest.AddPath(
+                    AbsolutePath.Create(PathTable, stdinFileName),
+                    mask: FileAccessPolicy.MaskNothing,
+                    values: FileAccessPolicy.AllowAll);
+            }
 
             return stdinFileName;
         }

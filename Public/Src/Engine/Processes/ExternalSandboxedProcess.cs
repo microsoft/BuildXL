@@ -173,16 +173,29 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserializes sandboxed process result from file.
         /// </summary>
-        /// <returns></returns>
         protected SandboxedProcessResult DeserializeSandboxedProcessResultFromFile()
         {
             string file = SandboxedProcessResultsFile;
+
+            Func<BuildXLReader, AbsolutePath> readPath = reader =>
+            {
+                bool isAbsolutePath = reader.ReadBoolean();
+                if (isAbsolutePath)
+                {
+                    return reader.ReadAbsolutePath();
+                }
+                else
+                {
+                    string path = reader.ReadString();
+                    return AbsolutePath.Create(SandboxedProcessInfo.PathTable, path);
+                }
+            };
 
             try
             {
                 using (FileStream stream = File.OpenRead(file))
                 {
-                    return SandboxedProcessResult.Deserialize(stream);
+                    return SandboxedProcessResult.Deserialize(stream, readPath);
                 }
             }
             catch (IOException ioException)

@@ -792,20 +792,22 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool SandboxedProcessNeedsExecuteExternal
-            => // Execution mode is external
-               m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
-               // Only pip that requires admin privilege.
-               && m_pip.RequiresAdmin;
+        private bool SandboxedProcessNeedsExecuteExternal =>
+            // Execution mode is external
+            m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternal()
+            // Only pip that requires admin privilege.
+            && m_pip.RequiresAdmin;
 
-        private bool ShouldSandboxedProcessExecuteExternal
-            => SandboxedProcessNeedsExecuteExternal
-               // Container is disabled.
-               && !m_containerConfiguration.IsIsolationEnabled
-               // Windows only.
-               && !OperatingSystemHelper.IsUnixOS;
+        private bool ShouldSandboxedProcessExecuteExternal =>
+            SandboxedProcessNeedsExecuteExternal
+            // Container is disabled.
+            && !m_containerConfiguration.IsIsolationEnabled;
 
-        private bool ShouldSandboxedProcessExecuteInVm => ShouldSandboxedProcessExecuteExternal && m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm();
+        private bool ShouldSandboxedProcessExecuteInVm =>
+            ShouldSandboxedProcessExecuteExternal
+            && m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm()
+            // Windows only.
+            && !OperatingSystemHelper.IsUnixOS;
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
@@ -1010,7 +1012,7 @@ namespace BuildXL.Processes
                 }
                 else
                 {
-                    Contract.Assert(m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalVM);
+                    Contract.Assert(ShouldSandboxedProcessExecuteInVm);
 
                     // Initialize VM once.
                     await m_vmInitializer.LazyInitVmAsync.Value;
@@ -2227,6 +2229,11 @@ namespace BuildXL.Processes
                     }
                 }
 
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    AddUnixSpecificSandboxedProcessFileAccessPolicies();
+                }
+
                 m_fileAccessManifest.MonitorChildProcesses = !pip.HasUntrackedChildProcesses;
 
                 if (!string.IsNullOrEmpty(m_detoursFailuresFile))
@@ -2256,6 +2263,34 @@ namespace BuildXL.Processes
                     AddUntrackedScopeToManifest(untrackedScope);
                     AllowCreateDirectoryForDirectoriesOnPath(untrackedScope, processedPaths);
                 }
+            }
+        }
+
+        private void AddUnixSpecificSandboxedProcessFileAccessPolicies()
+        {
+            Contract.Requires(OperatingSystemHelper.IsUnixOS);
+
+            if (ShouldSandboxedProcessExecuteExternal)
+            {
+                // When executing the pip using external tool, the file access manifest tree is sealed by
+                // serializing it as bytes. Thus, after the external tool deserializes the manifest tree,
+                // the manifest cannot be modified further.
+
+                // CODESYNC: SandboxedProcessUnix.cs
+                // The sandboxed process for unix modifies the manifest tree. We do the same modification here.
+                m_fileAccessManifest.AddPath(
+                    AbsolutePath.Create(m_pathTable, SandboxedProcessUnix.ShellExecutable),
+                    mask: FileAccessPolicy.MaskNothing,
+                    values: FileAccessPolicy.AllowReadAlways);
+
+                AbsolutePath stdInFile = AbsolutePath.Create(
+                    m_pathTable,
+                    SandboxedProcessUnix.GetStdInFilePath(m_pip.WorkingDirectory.ToString(m_pathTable), m_pip.SemiStableHash));
+                
+                m_fileAccessManifest.AddPath(
+                   stdInFile,
+                   mask: FileAccessPolicy.MaskNothing,
+                   values: FileAccessPolicy.AllowAll);
             }
         }
 

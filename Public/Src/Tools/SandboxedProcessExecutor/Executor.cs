@@ -25,6 +25,8 @@ namespace BuildXL.SandboxedProcessExecutor
         private readonly Stopwatch m_telemetryStopwatch = new Stopwatch();
         private OutputErrorObserver m_outputErrorObserver;
         private readonly ConsoleLogger m_logger = new ConsoleLogger();
+        private ISandboxConnection m_sandboxConnection = null;
+        private const int ReportQueueSizeForKextMB = 1024;
 
         /// <summary>
         /// Creates an instance of <see cref="Executor"/>.
@@ -109,7 +111,7 @@ namespace BuildXL.SandboxedProcessExecutor
 
             if (executeResult.result != null)
             {
-                if (!TryWriteSandboxedProcessResult(executeResult.result))
+                if (!TryWriteSandboxedProcessResult(sandboxedProcessInfo.PathTable, executeResult.result))
                 {
                     return ExitCode.FailedWriteOutput;
                 }
@@ -138,9 +140,37 @@ namespace BuildXL.SandboxedProcessExecutor
             return sandboxedProcessInfo != null;
         }
 
-        private bool TryWriteSandboxedProcessResult(SandboxedProcessResult result)
+        private bool TryWriteSandboxedProcessResult(PathTable pathTable, SandboxedProcessResult result)
         {
             Contract.Requires(result != null);
+
+            // When BuildXL serializes SandboxedProcessInfo, it does not serialize the path table used by SandboxedProcessInfo.
+            // On deserializing that info, a new path table is created; see the Deserialize method of SandboxedProcessInfo.
+            // Unix sandbox uses the new path table in the deserialized SandboxedProcessInfo to create ManifestPath (AbsolutePath)
+            // from reported path access (string) in ReportFileAccess. Without special case, the serialization of SandboxedProcessResult
+            // will serialize the AbsolutePath as is. Then, when SandboxedProcessResult is read by BuildXL, BuildXL will not understand
+            // the ManifestPath because it is created from a different path table.
+            //
+            // In Windows, instead of creating ManifestPath from the reported path access (string), ManifestPath is reported from Detours
+            // using the AbsolutePath id embedded in the file access manifest. That AbsolutePath id is obtained using the same
+            // path table used by BuildXL, and thus BuildXL will understand the ManifestPath serialized by this tool.
+            //
+            // For Unix, we need to give a special care of path serialization.
+            bool isWindows = !OperatingSystemHelper.IsUnixOS;
+
+            Action<BuildXLWriter, AbsolutePath> writePath = (writer, path) => 
+            {
+                if (isWindows)
+                {
+                    writer.Write(true);
+                    writer.Write(path);
+                }
+                else
+                {
+                    writer.Write(false);
+                    writer.Write(path.ToString(pathTable));
+                }
+            };
 
             bool success = false;
 
@@ -149,7 +179,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     using (FileStream stream = File.OpenWrite(Path.GetFullPath(m_configuration.SandboxedProcessResultOutputFile)))
                     {
-                        result.Serialize(stream);
+                        result.Serialize(stream, writePath);
                     }
 
                     success = true;
@@ -195,7 +225,45 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            return TryPrepareTemporaryFolders(info);
+            if (!TryPrepareTemporaryFolders(info))
+            {
+                return false;
+            }
+
+            SetSandboxConnectionIfNeeded(info);
+
+            return true;
+        }
+
+        private void SetSandboxConnectionIfNeeded(SandboxedProcessInfo info)
+        {
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                m_sandboxConnection = new SandboxConnectionLinuxDetours(SandboxConnectionFailureCallback);
+            }
+            else if (OperatingSystemHelper.IsMacOS)
+            {
+                m_sandboxConnection = new SandboxConnectionKext(
+                    new SandboxConnectionKext.Config
+                    {
+                        FailureCallback = SandboxConnectionFailureCallback,
+                        KextConfig = new Interop.Unix.Sandbox.KextConfig
+                        {
+                            ReportQueueSizeMB = ReportQueueSizeForKextMB,
+#if PLATFORM_OSX
+                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+#endif
+                        }
+                    });
+            }
+
+            info.SandboxConnection = m_sandboxConnection;
+        }
+
+        private void SandboxConnectionFailureCallback(int status, string description)
+        {
+            m_sandboxConnection?.Dispose();
+            throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status:X}, Description: {description}), please reload the extension and retry.");
         }
 
         private bool TryPrepareTemporaryFolders(SandboxedProcessInfo info)

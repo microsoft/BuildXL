@@ -16,6 +16,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
+        private const int CurrentSpecGenVersion = 7;
+
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
         private readonly PackageGenerator m_packageGenerator;
@@ -147,46 +149,9 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 }}
 )();";
             XAssert.AreEqual(expectedSpec, text);
-            var hashingHelper = new global::BuildXL.Storage.Fingerprints.HashingHelper(m_context.PathTable, recordFingerprintString: false);
-            hashingHelper.Add(expectedSpec);
-            var hash = BitConverter.ToString(hashingHelper.GenerateHashBytes()).Replace("-", string.Empty);
 
             const string CurrentSpecHash = "54628A3B7DB3041473955EE2FC145009CFD298A2";
-            const int CurrentSpecGenVersion = 6;
-            if (CurrentSpecHash != hash)
-            {
-                var hasFormatVersionIncreased = NugetSpecGenerator.SpecGenerationFormatVersion > CurrentSpecGenVersion;
-                if (!hasFormatVersionIncreased)
-                {
-                    XAssert.Fail(
-$@"
-**********************************************************************************
-** It looks like NuGet spec generation has changed but the version of 
-** '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}' didn't increase.
-**
-** Please bump up the spec generation format version from {CurrentSpecGenVersion} to {CurrentSpecGenVersion+1} and then
-** update the '{nameof(CurrentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}' values in this
-** test to '{hash}' and '{CurrentSpecGenVersion+1}' respectively.
-**********************************************************************************");
-                }
-                else
-                {
-                    var lines = new[]
-                    {
-                        $"Congratulations on remembering to increment '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}'",
-                        $"after updating NuGet spec generator!",
-                        $"",
-                        $"To keep this reminder working, please update the '{nameof(CurrentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}'",
-                        $"values in this unit test to '{hash}' and '{NugetSpecGenerator.SpecGenerationFormatVersion}' respectively.",
-                    };
-                    const int width = 94;
-                    var fst = " " + String.Concat(Enumerable.Repeat("_", width+2)) + " ";
-                    var snd = $"/ {' ',-width} \\";
-                    var aligned = lines.Select(l => $"| {l,-width} |");
-                    var last = "\\" + String.Concat(Enumerable.Repeat("_", width+2)) + "/";
-                    XAssert.Fail(string.Join(Environment.NewLine, new[] { fst, snd }.Concat(aligned).Concat(new[] {last})));
-                }
-            }
+            ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 
         [Fact]
@@ -215,8 +180,57 @@ namespace Contents {
 }
 
 @@public
-export const pkg: NugetPackage = {contents: Contents.all, dependencies: []};";
+export const pkg: NugetPackage = {
+    contents: Contents.all,
+    dependencies: [],
+    version: ""1.999"",
+};";
             XAssert.ArrayEqual(SplitToLines(expectedSpec), SplitToLines(text));
+
+            const string CurrentSpecHash = "493D2A187F257D17CEB6471B74AECB9D26E2C622";
+            ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
+        }
+
+        private void ValidateCurrentSpecGenVersion(string expectedSpec, string currentSpecHash)
+        {
+            var hashingHelper = new global::BuildXL.Storage.Fingerprints.HashingHelper(m_context.PathTable, recordFingerprintString: false);
+            hashingHelper.Add(expectedSpec);
+            var hash = BitConverter.ToString(hashingHelper.GenerateHashBytes()).Replace("-", string.Empty);
+
+            if (currentSpecHash != hash)
+            {
+                var hasFormatVersionIncreased = NugetSpecGenerator.SpecGenerationFormatVersion > CurrentSpecGenVersion;
+                if (!hasFormatVersionIncreased)
+                {
+                    XAssert.Fail(
+$@"
+**********************************************************************************
+** It looks like NuGet spec generation has changed but the version of 
+** '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}' didn't increase.
+**
+** Please bump up the spec generation format version from {CurrentSpecGenVersion} to {CurrentSpecGenVersion + 1} and then
+** update the '{nameof(currentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}' values in this
+** test to '{hash}' and '{CurrentSpecGenVersion + 1}' respectively.
+**********************************************************************************");
+                }
+                else
+                {
+                    var lines = new[]
+                    {
+                        $"Congratulations on remembering to increment '{nameof(NugetSpecGenerator.SpecGenerationFormatVersion)}.{nameof(NugetSpecGenerator)}'",
+                        $"after updating NuGet spec generator!",
+                        $"",
+                        $"To keep this reminder working, please update the '{nameof(currentSpecHash)}' and '{nameof(CurrentSpecGenVersion)}'",
+                        $"values in this unit test to '{hash}' and '{NugetSpecGenerator.SpecGenerationFormatVersion}' respectively.",
+                    };
+                    const int width = 94;
+                    var fst = " " + String.Concat(Enumerable.Repeat("_", width + 2)) + " ";
+                    var snd = $"/ {' ',-width} \\";
+                    var aligned = lines.Select(l => $"| {l,-width} |");
+                    var last = "\\" + String.Concat(Enumerable.Repeat("_", width + 2)) + "/";
+                    XAssert.Fail(string.Join(Environment.NewLine, new[] { fst, snd }.Concat(aligned).Concat(new[] { last })));
+                }
+            }
         }
 
         private string[] SplitToLines(string text)

@@ -32,7 +32,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly PathAtom m_pdbExtension;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 6;
+        public const int SpecGenerationFormatVersion = 7;
 
         /// <nodoc />
         public NugetSpecGenerator(PathTable pathTable, NugetAnalyzedPackage analyzedPackage)
@@ -261,7 +261,8 @@ namespace BuildXL.FrontEnd.Nuget
                 pkgType = new TypeReferenceNode("NugetPackage");
                 pkgExpression = ObjectLiteral(
                     (name: "contents", PropertyAccess("Contents", "all")),
-                    (name: "dependencies", Array(package.Dependencies.Select(CreateImportFromForDependency).ToArray())));
+                    (name: "dependencies", Array(package.Dependencies.Select(CreateImportFromForDependency).ToArray())),
+                    (name: "version", new LiteralExpression(package.Version)));
             }
 
             return

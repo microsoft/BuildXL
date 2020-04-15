@@ -2298,6 +2298,44 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        [Theory]
+        [InlineData(0, true)]
+        [InlineData(10, false)]
+        public async Task DistributedCentralStorageFallbacksToBlobOnTimeoutTest(double? copyTimeoutSeconds, bool shouldFetchFromFallback)
+        {
+            ConfigureWithOneMaster(dcs =>
+            {
+                dcs.UseDistributedCentralStorage = true;
+                dcs.DistributedCentralStoragePeerToPeerCopyTimeoutSeconds = copyTimeoutSeconds;
+            });
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var worker = context.GetFirstWorker();
+                    var workerStorage = worker.LocalLocationStore.DistributedCentralStorage;
+
+                    await context.Sessions[0].PutRandomAsync(context, HashType.Vso0, false, 100000, default).ShouldBeSuccess();
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context, reconcile: true);
+
+                    await worker.LocalLocationStore.HeartbeatAsync(context, inline: true).ShouldBeSuccess();
+
+                    if (shouldFetchFromFallback)
+                    {
+                        workerStorage.Counters[CentralStorageCounters.TryGetFileFromPeerSucceeded].Value.Should().Be(0);
+                        workerStorage.Counters[CentralStorageCounters.TryGetFileFromFallback].Value.Should().BeGreaterThan(0);
+                    }
+                    else
+                    {
+                        workerStorage.Counters[CentralStorageCounters.TryGetFileFromPeerSucceeded].Value.Should().BeGreaterThan(0);
+                        workerStorage.Counters[CentralStorageCounters.TryGetFileFromFallback].Value.Should().Be(0);
+                    }
+                });
+        }
+
         [Fact]
         public async Task EventStreamContentLocationStoreBasicTests()
         {

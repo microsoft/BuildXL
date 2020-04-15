@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -351,7 +352,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Maximum time to wait for a P2P copy to finish. When this times out, we will attempt to copy from the
         /// fallback storage.
         /// </summary>
-        public TimeSpan PeerToPeerCopyTimeout { get; set; } = TimeSpan.Zero;
+        public TimeSpan PeerToPeerCopyTimeout { get; set; } = Timeout.InfiniteTimeSpan;
 
         /// <summary>
         /// Optional settings for validating CAS consistency used by DistributedCentralStorage.

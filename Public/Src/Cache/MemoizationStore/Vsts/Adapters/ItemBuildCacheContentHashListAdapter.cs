@@ -133,10 +133,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         cacheNamespace,
                         strongFingerprint,
                         valueToAdd), CancellationToken.None).ConfigureAwait(false);
-                DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                
+                // The return value is null if the server fails adding content hash list to the backing store.
+                // See BuildCacheService.AddContentHashListAsync for more details about the implementation invariants/guarantees.
+                if (addResult != null)
+                {
+                    DownloadUriCache.Instance.BulkAddDownloadUris(addResult.BlobDownloadUris);
+                }
 
                 // add succeeded but returned an empty contenthashlistwith cache metadata. correct this.
-                if (addResult.ContentHashListWithCacheMetadata == null)
+                if (addResult?.ContentHashListWithCacheMetadata == null)
                 {
                     return
                         new ObjectResult<ContentHashListWithCacheMetadata>(

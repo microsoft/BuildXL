@@ -46,7 +46,6 @@ namespace Test.BuildXL.Scheduler
 {
     [Trait("Category", "SchedulerTest")]
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] /* Bug 1378018 */
     public sealed partial class SchedulerTest : PipTestBase
     {
         /// <summary>
@@ -342,15 +341,9 @@ namespace Test.BuildXL.Scheduler
                 RunSchedule(env);
             }
 
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                // ignoring /bin/sh is being used as a source file
-                AssertWarningEventLogged(LogEventId.IgnoringUntrackedSourceFileNotUnderMount);
-            }
-
             // Only 1 source file should have been hashed (file1.txt). Also the second pip that consumes file1.txt should not cause the file to be rehashed
-            // in a sealed directory used as input twice
-            AssertVerboseEventLogged(LogEventId.HashedSourceFile);
+            // in a sealed directory used as input twice; on Unix, add hashing of '/bin/sh' to that list
+            AssertVerboseEventLogged(LogEventId.HashedSourceFile, count: OperatingSystemHelper.IsUnixOS ? 2 : 1);
         }
 
         /// <summary>
@@ -1410,6 +1403,15 @@ namespace Test.BuildXL.Scheduler
                     }
                     else
                     {
+                        pipDataBuilder.Add("echo");
+                    }
+
+                    if (OperatingSystemHelper.IsUnixOS && dependencies.Any(d => d.Path.Equals(output.Path)))
+                    {
+                        // apparently, 'dependencies' and 'outputs' need not be disjoint, 
+                        // and so if we generate something like "/bin/cat file1 > file1"
+                        // that can lead to an infinite loop 
+                        pipDataBuilder.Add("&&");
                         pipDataBuilder.Add("echo");
                     }
 

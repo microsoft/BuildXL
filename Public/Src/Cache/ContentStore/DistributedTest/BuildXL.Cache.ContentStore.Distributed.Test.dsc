@@ -25,15 +25,8 @@ namespace DistributedTest {
                 importFrom("Microsoft.Azure.Amqp").pkg,
                 importFrom("Microsoft.Azure.Services.AppAuthentication").pkg,
                 importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-                importFrom("System.IdentityModel.Tokens.Jwt").pkg,
-                importFrom("Microsoft.Bcl.AsyncInterfaces").pkg
+                importFrom("System.IdentityModel.Tokens.Jwt").pkg
             ),
-            ...addIf(!BuildXLSdk.isFullFramework,
-                // Workaround to avoid compilation issues due to duplicate definition of IAsyncEnumerable<T>
-                // Redis.StackExchange package references .netstandard2 and the tests are running under .NET Core App 3.1
-                // and Microsoft.Bcl.AsyncInterfaces package was changed between .netstandard2 and .netstandard2.1
-                importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg),
-            ...redisPackages,
             Distributed.dll,
             ...Distributed.eventHubPackagages,
             UtilitiesCore.dll,
@@ -53,6 +46,7 @@ namespace DistributedTest {
             importFrom("Grpc.Core.Api").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
+            importFrom("StackExchange.Redis").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
             importFrom("WindowsAzure.Storage").pkg,

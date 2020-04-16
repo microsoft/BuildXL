@@ -834,6 +834,38 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
         }
 
+        /// <summary>
+        /// If a pip consumes a SOD that is a subDir of a produced SOD, that pip is allowed to write in the cone 
+        /// of the consumed SOD because the produced SOD subsumes it.
+        /// </summary>
+        [Fact]
+        public void WritingInTheConeOfAnInputSharedOpaqueSubdirectoryIsAllowed()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sod-subDirInput-test");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
+
+            // PipA produces 'sod-subDirInput-test\subDir' shared opaque
+            var outputArtifactA = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            var pipA = CreateAndScheduleSharedOpaqueProducer(sharedOpaqueSubDir, fileToProduceStatically: CreateOutputFileArtifact(), CreateSourceFile(), new KeyValuePair<FileArtifact, string>(outputArtifactA, null));
+
+            //PipB consumes 'sod-subDirInput-test\subDir'
+            //     produces 'sod-subDirInput-test'
+            //       writes 'sod-subDirInput-test\subDir\outputArtifactB'
+            var outputArtifactB = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputArtifactB, doNotInfer: true),
+            });
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueSubDirPath));
+            builderB.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertSuccess();
+        }
+
         [Fact]
         public void TwoPipsProducingTheSameFileDynamicallyUnderASharedOpaqueDirectoryIsBlockedEvenWhenRunFromCache()
         {

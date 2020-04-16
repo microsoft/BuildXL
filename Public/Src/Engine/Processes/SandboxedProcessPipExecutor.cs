@@ -720,7 +720,7 @@ namespace BuildXL.Processes
                     // on directories containing inputs, those are faked as well.
                     // The set is kept for two reasons 1) so we avoid duplicate work: as soon as a path is found to be already in this set, we can
                     // shortcut the upward traversal on a given path when doing timestamp faking setup and 2) so GetObservedFileAccesses
-                    // doesn't need to recompute this and it can distinguish between accesses that only pertain to outputs vs inptus
+                    // doesn't need to recompute this and it can distinguish between accesses that only pertain to outputs vs inputs
                     // in the scope of a shared opaque
                     HashSet<AbsolutePath> allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaquesWrapper.Instance;
 
@@ -2172,7 +2172,7 @@ namespace BuildXL.Processes
                             FileAccessPolicy.AllowAll | // Symlink creation is allowed under opaques.
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
-                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
+                            (directory.IsSharedOpaque ? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
                             // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the
                             // shared opaque gets deny write access. Observe that with exclusive opaques they are wiped out before the pip runs, so it is moot to check for inputs
                             // TODO: considering configuring this policy for all shared opaques, and not only when AllowedUndeclaredSourceReads is set. The case of a write on an undeclared
@@ -2211,11 +2211,13 @@ namespace BuildXL.Processes
                             // Allow read accesses and reporting. Reporting is needed since these may be dynamic accesses and we need to cross check them
                             var values = FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess;
 
-                            // In the case of a partial sealed directory under a shared opaque, we don't want to block writes
+                            // In the case of a writable sealed directory under a produced shared opaque, we don't want to block writes
                             // for the entire cone: some files may be dynamically written in the context of the shared opaque that may fall
-                            // under the cone of the partial sealed directory. So for partial sealed directories under a shared opaque we
-                            // don't establish any specific policies
-                            if (m_directoryArtifactContext.GetSealDirectoryKind(directory) != SealDirectoryKind.Partial || !IsPathUnderASharedOpaqueRoot(directory.Path))
+                            // under the cone of the sealed directory. So for partial sealed directories and shared opaque directories that
+                            // are under a produced shared opaque we don't establish any specific policies.
+                            var kind = m_directoryArtifactContext.GetSealDirectoryKind(directory);
+                            if (!(IsPathUnderASharedOpaqueRoot(directory.Path)
+                                && (kind == SealDirectoryKind.Partial || kind == SealDirectoryKind.SharedOpaque)))
                             {
                                 // TODO: Consider an UntrackedScope or UntrackedPath above that has exactly the same path.
                                 //       That results in a manifest entry with AllowWrite masked out yet re-added via AllowWrite in the values.
@@ -4125,7 +4127,9 @@ namespace BuildXL.Processes
 
         private bool CopyFileToLogDirectory(string path, string formattedSemiStableHash, out string relativeFilePath)
         {
-            if (File.Exists(path) && Directory.Exists(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)))
+            if (File.Exists(path) 
+                && m_loggingConfiguration != null
+                && Directory.Exists(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)))
             {
                 var relativeDirectoryPath = Path.Combine(StdOutputsDirNameInLog, formattedSemiStableHash);
                 relativeFilePath = Path.Combine(relativeDirectoryPath, Path.GetFileName(path));

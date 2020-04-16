@@ -1933,10 +1933,14 @@ namespace BuildXL.Processes
                                 Tuple.Create((short)FileAccessPolicy.Deny, "Deny"),
                                 Tuple.Create((short)FileAccessPolicy.AllowRead, "Read"),
                                 Tuple.Create((short)FileAccessPolicy.AllowWrite, "Write"),
-                                Tuple.Create((short)FileAccessPolicy.AllowSymlinkCreation, "CreateSymlink"),
                                 Tuple.Create((short)FileAccessPolicy.AllowReadIfNonexistent, "ReadIfNonexistent"),
                                 Tuple.Create((short)FileAccessPolicy.AllowCreateDirectory, "CreateDirectory"),
-                                Tuple.Create((short)FileAccessPolicy.ReportAccess, "ReportAccess"),
+                                Tuple.Create((short)FileAccessPolicy.AllowSymlinkCreation, "CreateSymlink"),
+                                Tuple.Create((short)FileAccessPolicy.AllowRealInputTimestamps, "RealInputTimestamps"),
+                                Tuple.Create((short)FileAccessPolicy.OverrideAllowWriteForExistingFiles, "OverrideAllowWriteForExistingFiles"),
+                                Tuple.Create((short)FileAccessPolicy.TreatDirectorySymlinkAsDirectory, "DirectorySymlinkAsDirectory"),
+
+                                Tuple.Create((short)FileAccessPolicy.ReportAccess, "ReportAccess"),                               
 
                                 // Note that composite values must appear before their parts.
                                 Tuple.Create((short)FileAccessPolicy.ReportAccessIfExistent, "ReportAccessIfExistent"),
@@ -1964,7 +1968,8 @@ namespace BuildXL.Processes
                 bool first = true;
                 foreach (Tuple<short, string> pair in s_names)
                 {
-                    if ((i & pair.Item1) == pair.Item1)
+                    if (pair.Item1 != 0 && (i & pair.Item1) == pair.Item1
+                        || pair.Item1 == 0 && i == 0)
                     {
                         if (first)
                         {

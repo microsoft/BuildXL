@@ -184,9 +184,9 @@ namespace BuildXL.Scheduler.Tracing
         PipExitedWithAzureWatsonExitCode = 2924,
         OutputFileHashingStats = 2929,
 
-        RunningTimeStats = 3110,
-        RunningTimeAdded = 3111,
-        RunningTimeUpdated = 3112,
+        HistoricPerfDataStats = 3110,
+        HistoricPerfDataAdded = 3111,
+        HistoricPerfDataUpdated = 3112,
         StartAssigningPriorities = 3113,
         EndAssigningPriorities = 3114,
         StartSettingPipStates = 3115,
@@ -216,7 +216,7 @@ namespace BuildXL.Scheduler.Tracing
         PipInputVerificationMismatchRecoveryExpectedExistence = 3618,
         PipInputVerificationMismatchRecoveryExpectedNonExistence = 3619,
         UnexpectedlySmallObservedInputCount = 3620,
-        PerformanceDataCacheTrace = 3621,
+        HistoricPerfDataCacheTrace = 3621,
         CancellingProcessPipExecutionDueToResourceExhaustion = 3622,
         StartCancellingProcessPipExecutionDueToResourceExhaustion = 3623,
 

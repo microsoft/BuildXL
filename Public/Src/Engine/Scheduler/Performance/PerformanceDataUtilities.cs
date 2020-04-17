@@ -45,13 +45,13 @@ namespace BuildXL.Scheduler.Performance
             using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
             {
                 hasher.Add("Type", "PerformanceDataFingerprint");
-                hasher.Add("FormatVersion", PipRuntimeTimeTable.FormatVersion);
+                hasher.Add("FormatVersion", HistoricPerfDataTable.FormatVersion);
                 hasher.Add("LookupVersion", PerformanceDataLookupVersion);
                 hasher.Add("GraphSemistableFingerprint", graphSemistableFingerprint.ToString());
                 hasher.Add("EnvironmentFingerprint", environmentFingerprint ?? string.Empty);
 
                 var fingerprint = new ContentFingerprint(hasher.GenerateHash());
-                Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Computed performance fingerprint: {fingerprint}"));
+                Logger.Log.HistoricPerfDataCacheTrace(loggingContext, I($"Computed performance fingerprint: {fingerprint}"));
                 return fingerprint;
             }
         }
@@ -72,7 +72,7 @@ namespace BuildXL.Scheduler.Performance
                 FileRealizationMode.Copy,
                 absolutePath.Expand(pathTable));
 
-            Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Storing running time table to cache: Success='{storeResult.Succeeded}'"));
+            Logger.Log.HistoricPerfDataCacheTrace(loggingContext, I($"Storing running time table to cache: Success='{storeResult.Succeeded}'"));
             if (!storeResult.Succeeded)
             {
                 return storeResult.Failure;
@@ -82,7 +82,7 @@ namespace BuildXL.Scheduler.Performance
             var cacheEntry = new CacheEntry(hash, null, ArrayView<ContentHash>.Empty);
 
             var publishResult = await cache.TwoPhaseFingerprintStore.TryPublishTemporalCacheEntryAsync(loggingContext, performanceDataFingerprint, cacheEntry, storeTime);
-            Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Publishing running time table from cache: Fingerprint='{performanceDataFingerprint}' Hash={hash}"));
+            Logger.Log.HistoricPerfDataCacheTrace(loggingContext, I($"Publishing running time table from cache: Fingerprint='{performanceDataFingerprint}' Hash={hash}"));
             return publishResult;
         }
 
@@ -102,13 +102,13 @@ namespace BuildXL.Scheduler.Performance
 
             if (!possibleCacheEntry.Succeeded)
             {
-                Logger.Log.PerformanceDataCacheTrace(
+                Logger.Log.HistoricPerfDataCacheTrace(
                     loggingContext,
                     I($"Failed loading running time table entry from cache: Failure:{possibleCacheEntry.Failure.DescribeIncludingInnerFailures()}"));
                 return possibleCacheEntry.Failure;
             }
 
-            Logger.Log.PerformanceDataCacheTrace(
+            Logger.Log.HistoricPerfDataCacheTrace(
                 loggingContext,
                 I($"Loaded running time table entry from cache: Fingerprint='{graphSemistableFingerprint}' MetadataHash={possibleCacheEntry.Result?.MetadataHash ?? ContentHashingUtilities.ZeroHash}"));
 
@@ -139,13 +139,13 @@ namespace BuildXL.Scheduler.Performance
 
             if (!result.Succeeded)
             {
-                Logger.Log.PerformanceDataCacheTrace(
+                Logger.Log.HistoricPerfDataCacheTrace(
                     loggingContext,
                     I($"Failed loading running time table from cache: Failure:{result.Failure.DescribeIncludingInnerFailures()}"));
                 return result.Failure;
             }
 
-            Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Loaded running time table from cache: Path='{path}'"));
+            Logger.Log.HistoricPerfDataCacheTrace(loggingContext, I($"Loaded running time table from cache: Path='{path}'"));
 
             return true;
         }

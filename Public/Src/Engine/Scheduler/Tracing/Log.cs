@@ -2188,31 +2188,31 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipTempCleanerSummary(LoggingContext context, long cleanedDirs, long remainingDirs, long failedDirs, long cleanedFiles, long remainingFiles, long failedFiles);
 
         [GeneratedEvent(
-            (int)LogEventId.RunningTimeAdded,
+            (int)LogEventId.HistoricPerfDataAdded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.CriticalPaths,
-            Message = "[Pip{0:X16}] Running time added: {1}ms")]
-        public abstract void RunningTimeAdded(LoggingContext context, long semiStableHash, uint milliseconds);
+            Message = "[Pip{0:X16}] Historic perf data added: {1}ms")]
+        public abstract void HistoricPerfDataAdded(LoggingContext context, long semiStableHash, uint milliseconds);
 
         [GeneratedEvent(
-            (int)LogEventId.RunningTimeUpdated,
+            (int)LogEventId.HistoricPerfDataUpdated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.CriticalPaths,
-            Message = "[Pip{0:X16}] Running time updated: {1}ms from {2}ms, relative deviation {3}%")]
-        public abstract void RunningTimeUpdated(LoggingContext context, long semiStableHash, uint milliseconds, uint oldMilliseconds, int relativeDeviation);
+            Message = "[Pip{0:X16}] Historic perf data updated: {1}ms from {2}ms, relative deviation {3}%")]
+        public abstract void HistoricPerfDataUpdated(LoggingContext context, long semiStableHash, uint milliseconds, uint oldMilliseconds, int relativeDeviation);
 
         [GeneratedEvent(
-            (int)LogEventId.RunningTimeStats,
+            (int)LogEventId.HistoricPerfDataStats,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.Performance | (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
-            Message = "  Running times: {0} hits | {1} misses | {2} added | {3} updated | {4}% average relative process runtime deviation where critical path suggestions were available")]
-        public abstract void RunningTimeStats(LoggingContext context, long hits, long misses, long added, long updated, int averageRuntimeDeviation);
+            Message = "  HistoricPerfData: {0} hits | {1} misses | {2} added | {3} updated | {4}% average relative process runtime deviation where critical path suggestions were available")]
+        public abstract void HistoricPerfDataStats(LoggingContext context, long hits, long misses, long added, long updated, int averageRuntimeDeviation);
 
         [GeneratedEvent(
             (int)LogEventId.PipQueueConcurrency,
@@ -2947,13 +2947,13 @@ namespace BuildXL.Scheduler.Tracing
             int currentAbsentFileProbe, int currentDirectoryEnumerations, int currentDirectoryProbes, int currentFileContentReads, int currentExistingFileProbes);
 
         [GeneratedEvent(
-            (int)LogEventId.PerformanceDataCacheTrace,
+            (int)LogEventId.HistoricPerfDataCacheTrace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
             Message = "{message}")]
-        public abstract void PerformanceDataCacheTrace(LoggingContext context, string message);
+        public abstract void HistoricPerfDataCacheTrace(LoggingContext context, string message);
         
         [GeneratedEvent(
             (int)LogEventId.HistoricMetadataCacheTrace,
@@ -3489,7 +3489,7 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext loggingContext,
             string pipDescription,
             uint numProcesses,
-            ulong expectedDurationSec,
+            double expectedDurationSec,
             double actualDurationSec,
             int processorUseInPercents,
             int defaultWorkingSetMb,

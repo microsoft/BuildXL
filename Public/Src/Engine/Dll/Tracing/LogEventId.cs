@@ -257,17 +257,17 @@ namespace BuildXL.Engine.Tracing
 
 
         // Critical Path Suggestions
-        StartLoadingRunningTimes = 3100,
-        EndLoadingRunningTimes = 3101,
-        StartSavingRunningTimes = 3102,
-        EndSavingRunningTimes = 3103,
+        StartLoadingHistoricPerfData = 3100,
+        EndLoadingHistoricPerfData = 3101,
+        StartSavingHistoricPerfData = 3102,
+        EndSavingHistoricPerfData = 3103,
         FailedToResolveHistoricDataFileName = 3104,
 
         // FREE 3105
-        LoadingRunningTimesFailed = 3106,
-        SavingRunningTimesFailed = 3107,
-        RunningTimesLoaded = 3108,
-        RunningTimesSaved = 3109,
+        LoadingHistoricPerfDataFailed = 3106,
+        SavingHistoricPerfDataFailed = 3107,
+        HistoricPerfDataLoaded = 3108,
+        HistoricPerfDataSaved = 3109,
         StartRehydratingConfigurationWithNewPathTable = 3117,
         EndRehydratingConfigurationWithNewPathTable = 3118,
 

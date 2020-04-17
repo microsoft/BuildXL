@@ -10,7 +10,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
@@ -22,10 +21,10 @@ namespace BuildXL.Scheduler
     /// </remarks>
     // TODO: Loading and Saving involves a bunch of unnecessary copies.
     // Consider using memory-mapped files instead, or a full-blown database without loosing any further information.
-    public sealed class PipRuntimeTimeTable
+    public sealed class HistoricPerfDataTable
     {
         /// <summary>
-        /// The version for format of <see cref="PipRuntimeTimeTable"/>
+        /// The version for format of <see cref="HistoricPerfDataTable"/>
         /// </summary>
         public const int FormatVersion = 2;
 
@@ -34,7 +33,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The data holder
         /// </summary>
-        private readonly ConcurrentBigMap<long, ProcessPipHistoricPerfData> m_runtimeData;
+        private readonly ConcurrentBigMap<long, ProcessPipHistoricPerfData> m_table;
 
         /// <summary>
         /// Number of Process pip nodes for which critical path duration suggestions were added
@@ -66,10 +65,10 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public PipRuntimeTimeTable(LoggingContext loggingContext, int initialCapacity = 0)
+        public HistoricPerfDataTable(LoggingContext loggingContext, int initialCapacity = 0)
         {
             m_loggingContext = loggingContext;
-            m_runtimeData = new ConcurrentBigMap<long, ProcessPipHistoricPerfData>(capacity: initialCapacity);
+            m_table = new ConcurrentBigMap<long, ProcessPipHistoricPerfData>(capacity: initialCapacity);
         }
 
         /// <summary>
@@ -78,7 +77,7 @@ namespace BuildXL.Scheduler
         /// <exception cref="BuildXLException">
         /// Thrown if a recoverable error occurs while operating on the file.
         /// </exception>
-        public static PipRuntimeTimeTable Load(LoggingContext loggingContext, string fileName)
+        public static HistoricPerfDataTable Load(LoggingContext loggingContext, string fileName)
         {
             Contract.Requires(fileName != null);
             using (
@@ -92,7 +91,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        internal static PipRuntimeTimeTable Load(LoggingContext loggingContext, Stream stream)
+        internal static HistoricPerfDataTable Load(LoggingContext loggingContext, Stream stream)
         {
             return ExceptionUtilities.HandleRecoverableIOException(
                 () =>
@@ -101,7 +100,7 @@ namespace BuildXL.Scheduler
                     using (BuildXLReader reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
                     {
                         int size = reader.ReadInt32();
-                        var table = new PipRuntimeTimeTable(loggingContext, initialCapacity: size);
+                        var table = new HistoricPerfDataTable(loggingContext, initialCapacity: size);
 
                         for (int i = 0; i < size; ++i)
                         {
@@ -109,7 +108,7 @@ namespace BuildXL.Scheduler
                             ProcessPipHistoricPerfData historicData;
                             if (ProcessPipHistoricPerfData.Deserialize(reader, out historicData))
                             {
-                                if (!table.m_runtimeData.TryAdd(semiStableHash, historicData))
+                                if (!table.m_table.TryAdd(semiStableHash, historicData))
                                 {
                                     throw new BuildXLException("Corrupted file has duplicate records");
                                 }
@@ -125,7 +124,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Number of elements distinguished by this table.
         /// </summary>
-        public int Count => m_runtimeData.Count;
+        public int Count => m_table.Count;
 
         /// <summary>
         /// Saves a pip cost hash table to a file.
@@ -155,8 +154,8 @@ namespace BuildXL.Scheduler
 
                     using (BuildXLWriter writer = new BuildXLWriter(debug: false, stream: stream, leaveOpen: true, logStats: false))
                     {
-                        writer.Write(m_runtimeData.Count);
-                        foreach (KeyValuePair<long, ProcessPipHistoricPerfData> kvp in m_runtimeData)
+                        writer.Write(m_table.Count);
+                        foreach (KeyValuePair<long, ProcessPipHistoricPerfData> kvp in m_table)
                         {
                             writer.Write(kvp.Key);
                             kvp.Value.Serialize(writer);
@@ -177,7 +176,7 @@ namespace BuildXL.Scheduler
             get
             {
                 ProcessPipHistoricPerfData ret;
-                if (m_runtimeData.TryGetValue(semiStableHash, out ret))
+                if (m_table.TryGetValue(semiStableHash, out ret))
                 {
                     Interlocked.Increment(ref m_numHits);
 
@@ -187,7 +186,7 @@ namespace BuildXL.Scheduler
                     }
 
                     ProcessPipHistoricPerfData freshRet = ret.MakeFresh();
-                    m_runtimeData[semiStableHash] = freshRet;
+                    m_table[semiStableHash] = freshRet;
 
                     return freshRet;
                 }
@@ -200,7 +199,7 @@ namespace BuildXL.Scheduler
 
             set
             {
-                var result = m_runtimeData.AddOrUpdate(
+                var result = m_table.AddOrUpdate(
                     semiStableHash,
                     value,
                     (key, val) => val,
@@ -214,12 +213,12 @@ namespace BuildXL.Scheduler
                     var relativeDeviation = (int)(difference * 100 / Math.Max(milliseconds, oldMilliseconds));
                     Interlocked.Add(ref m_sumRelativeRunningTimeDeviation, relativeDeviation);
                     Interlocked.Increment(ref m_numRunningTimeUpdated);
-                    Tracing.Logger.Log.RunningTimeUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
+                    Tracing.Logger.Log.HistoricPerfDataUpdated(m_loggingContext, semiStableHash, milliseconds, oldMilliseconds, relativeDeviation);
                 }
                 else
                 {
                     Interlocked.Increment(ref m_numRunningTimeAdded);
-                    Tracing.Logger.Log.RunningTimeAdded(m_loggingContext, semiStableHash, value.DurationInMs);
+                    Tracing.Logger.Log.HistoricPerfDataAdded(m_loggingContext, semiStableHash, value.DurationInMs);
                 }
             }
         }
@@ -232,7 +231,7 @@ namespace BuildXL.Scheduler
             var sumRelativeRuntimeDeviation = Volatile.Read(ref m_sumRelativeRunningTimeDeviation);
             var numRunningTimeUpdated = Volatile.Read(ref m_numRunningTimeUpdated);
 
-            Tracing.Logger.Log.RunningTimeStats(
+            Tracing.Logger.Log.HistoricPerfDataStats(
                 loggingContext,
                 Volatile.Read(ref m_numHits),
                 Volatile.Read(ref m_numMisses),

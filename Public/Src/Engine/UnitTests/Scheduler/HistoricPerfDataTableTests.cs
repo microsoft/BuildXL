@@ -19,7 +19,7 @@ using Xunit;
 
 namespace Test.BuildXL.Scheduler
 {
-    public class PipRunningTimeTableTests
+    public class HistoricPerfDataTableTests
     {
         private LoggingContext LoggingContext = new LoggingContext("Unittests");
 
@@ -101,7 +101,7 @@ namespace Test.BuildXL.Scheduler
             for (int i = 0; i < 10; i++)
             {
                 int seed = r.Next(100 * 1000);
-                PipRuntimeTimeTable table = new PipRuntimeTimeTable(LoggingContext);
+                HistoricPerfDataTable table = new HistoricPerfDataTable(LoggingContext);
                 XAssert.IsTrue(table.Count == 0);
 
                 var s = new Random(seed);
@@ -135,7 +135,7 @@ namespace Test.BuildXL.Scheduler
                 stream.Position = 0;
                 table.Save(stream);
                 stream.Position = 0;
-                table = PipRuntimeTimeTable.Load(LoggingContext, stream);
+                table = HistoricPerfDataTable.Load(LoggingContext, stream);
                 XAssert.IsTrue(table.Count == 10);
 
                 s = new Random(seed);
@@ -167,7 +167,7 @@ namespace Test.BuildXL.Scheduler
                 workerId: 0);
 
             ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
-            PipRuntimeTimeTable table = new PipRuntimeTimeTable(LoggingContext);
+            HistoricPerfDataTable table = new HistoricPerfDataTable(LoggingContext);
             var semiStableHashToKeep = 0;
             table[semiStableHashToKeep] = runTimeData;
             var semiStableHashToDrop = 1;
@@ -178,12 +178,12 @@ namespace Test.BuildXL.Scheduler
                 stream.Position = 0;
                 table.Save(stream);
                 stream.Position = 0;
-                table = PipRuntimeTimeTable.Load(LoggingContext, stream);
+                table = HistoricPerfDataTable.Load(LoggingContext, stream);
                 Analysis.IgnoreResult(table[semiStableHashToKeep]);
             }
 
             stream.Position = 0;
-            table = PipRuntimeTimeTable.Load(LoggingContext, stream);
+            table = HistoricPerfDataTable.Load(LoggingContext, stream);
             XAssert.AreEqual(1u, table[semiStableHashToKeep].DurationInMs);
             XAssert.AreEqual(0u, table[semiStableHashToDrop].DurationInMs);
         }

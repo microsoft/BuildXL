@@ -2062,44 +2062,44 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndRehydratingConfigurationWithNewPathTable(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.StartLoadingRunningTimes,
+            (int)LogEventId.StartLoadingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Loading running times")]
-        public abstract void StartLoadingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Loading historic perf data")]
+        public abstract void StartLoadingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.EndLoadingRunningTimes,
+            (int)LogEventId.EndLoadingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Message = EventConstants.PhasePrefix + "Done loading running times")]
-        public abstract void EndLoadingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Done loading historic perf data")]
+        public abstract void EndLoadingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.StartSavingRunningTimes,
+            (int)LogEventId.StartSavingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Saving updated running times")]
-        public abstract void StartSavingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Saving updated historic perf data")]
+        public abstract void StartSavingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.EndSavingRunningTimes,
+            (int)LogEventId.EndSavingHistoricPerfData,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
-            Message = EventConstants.PhasePrefix + "Done saving updated running times")]
-        public abstract void EndSavingRunningTimes(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Done saving updated historic perf data")]
+        public abstract void EndSavingHistoricPerfData(LoggingContext context);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToResolveHistoricDataFileName,
@@ -2107,44 +2107,44 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to resolve historic data filename. Error: {0}")]
+            Message = "Unable to resolve historic perf data filename. Error: {0}")]
         public abstract void FailedToResolveHistoricDataFileName(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
-            (int)LogEventId.LoadingRunningTimesFailed,
+            (int)LogEventId.LoadingHistoricPerfDataFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to load historic performance data file {0}: {1}")]
-        public abstract void LoadingRunningTimesFailed(LoggingContext context, string fileName, string errorMessage);
+            Message = "Unable to load historic perf data file {0}: {1}")]
+        public abstract void LoadingHistoricPerfDataFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)LogEventId.RunningTimesLoaded,
+            (int)LogEventId.HistoricPerfDataLoaded,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Historic performance data loaded: {0} entries")]
-        public abstract void RunningTimesLoaded(LoggingContext context, int size);
+            Message = "Historic perf data loaded: {0} entries")]
+        public abstract void HistoricPerfDataLoaded(LoggingContext context, int size);
 
         [GeneratedEvent(
-            (int)LogEventId.SavingRunningTimesFailed,
+            (int)LogEventId.SavingHistoricPerfDataFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Engine,
-            Message = "Unable to save historic performance data file {0}: {1}")]
-        public abstract void SavingRunningTimesFailed(LoggingContext context, string fileName, string errorMessage);
+            Message = "Unable to save historic perf data file {0}: {1}")]
+        public abstract void SavingHistoricPerfDataFailed(LoggingContext context, string fileName, string errorMessage);
 
         [GeneratedEvent(
-            (int)LogEventId.RunningTimesSaved,
+            (int)LogEventId.HistoricPerfDataSaved,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Historic performance data saved: {0} entries")]
-        public abstract void RunningTimesSaved(LoggingContext context, int size);
+            Message = "Historic perf data saved: {0} entries")]
+        public abstract void HistoricPerfDataSaved(LoggingContext context, int size);
 
         [GeneratedEvent(
             (int)LogEventId.FailedToResolveHistoricMetadataCacheFileName,

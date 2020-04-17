@@ -214,7 +214,7 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: pipGraph.SemistableFingerprint,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            AsyncLazy<PipRuntimeTimeTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
+            AsyncLazy<HistoricPerfDataTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
                 loggingContext,
                 context,
                 configuration,
@@ -636,7 +636,7 @@ namespace BuildXL.Engine
         /// Failure to load does not result in an error event, just possibly a warning.
         /// Note that this respects IEngineConfiguration.UseHistoricalPerformanceInfo and returns null if disabled.
         /// </remarks>
-        private static async Task<PipRuntimeTimeTable> TryLoadRunningTimeTable(
+        private static async Task<HistoricPerfDataTable> TryLoadRunningTimeTable(
             LoggingContext loggingContext,
             EngineContext context,
             IConfiguration configuration,
@@ -650,8 +650,8 @@ namespace BuildXL.Engine
             {
                 using (var pm = PerformanceMeasurement.StartWithoutStatistic(
                     loggingContext,
-                    Logger.Log.StartLoadingRunningTimes,
-                    Logger.Log.EndLoadingRunningTimes))
+                    Logger.Log.StartLoadingHistoricPerfData,
+                    Logger.Log.EndLoadingHistoricPerfData))
                 {
                     bool fromCache = false;
                     var filePath = GetRunningTimeTableFilePath(context.PathTable, configuration.Layout, pm.LoggingContext);
@@ -663,16 +663,16 @@ namespace BuildXL.Engine
 
                     if (configuration.Schedule.ForceUseEngineInfoFromCache || !File.Exists(filePath))
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
-                            I($"No performance data at: '{filePath}'. Attempting to load from cache."));
+                            I($"No historic perf data at: '{filePath}'. Attempting to load from cache."));
 
                         var possibleEngineCache = await cacheTask;
                         if (possibleEngineCache.Succeeded)
                         {
                             var cache = possibleEngineCache.Result;
                             Possible<bool> result;
-                            using (context.EngineCounters.StartStopwatch(EngineCounter.PerformanceDataRetrievalDuration))
+                            using (context.EngineCounters.StartStopwatch(EngineCounter.HistoricPerfDataRetrievalDuration))
                             {
                                 result =
                                     await cache.TryRetrieveRunningTimeTableAsync(
@@ -684,41 +684,41 @@ namespace BuildXL.Engine
 
                             if (!result.Succeeded || !result.Result)
                             {
-                                SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Could not load performance data from cache"));
+                                SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Could not load historic perf data from cache"));
                                 return null;
                             }
 
                             fromCache = true;
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataRetrievedFromCache);
-                            SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Loaded performance data from cache"));
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataRetrievedFromCache);
+                            SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Loaded historic perf data from cache"));
                         }
                     }
                     else
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
-                            I($"Performance data found at: '{filePath}'. Skipping loading from cache."));
+                            I($"Historic perf data found at: '{filePath}'. Skipping loading from cache."));
                     }
 
                     if (File.Exists(filePath))
                     {
                         if (!fromCache)
                         {
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataRetrievedFromDisk);
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataRetrievedFromDisk);
                         }
 
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Loading performance data at: '{filePath}'."));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Loading historic perf data at: '{filePath}'."));
 
                         try
                         {
-                            PipRuntimeTimeTable table = PipRuntimeTimeTable.Load(pm.LoggingContext, filePath);
-                            Logger.Log.RunningTimesLoaded(pm.LoggingContext, table.Count);
-                            context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataSuccessfullyLoaded);
+                            HistoricPerfDataTable table = HistoricPerfDataTable.Load(pm.LoggingContext, filePath);
+                            Logger.Log.HistoricPerfDataLoaded(pm.LoggingContext, table.Count);
+                            context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataSuccessfullyLoaded);
                             return table;
                         }
                         catch (BuildXLException ex)
                         {
-                            Logger.Log.LoadingRunningTimesFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
+                            Logger.Log.LoadingHistoricPerfDataFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
                             return null;
                         }
                     }
@@ -1301,13 +1301,13 @@ namespace BuildXL.Engine
 
                 using (var pm = PerformanceMeasurement.StartWithoutStatistic(
                     loggingContext,
-                    Logger.Log.StartSavingRunningTimes,
-                    Logger.Log.EndSavingRunningTimes))
+                    Logger.Log.StartSavingHistoricPerfData,
+                    Logger.Log.EndSavingHistoricPerfData))
                 {
-                    PipRuntimeTimeTable table = Scheduler.RunningTimeTable;
+                    HistoricPerfDataTable table = Scheduler.HistoricPerfDataTable;
                     Contract.Assume(table != null);
                     var filePath = GetRunningTimeTableFilePath(context.PathTable, configuration.Layout, pm.LoggingContext);
-                    SchedulerLogger.Log.PerformanceDataCacheTrace(
+                    SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                         pm.LoggingContext,
                         I($"Saving historic perf data to path '{filePath ?? string.Empty}'"));
 
@@ -1316,29 +1316,29 @@ namespace BuildXL.Engine
                         Contract.Assume(pm.LoggingContext.WarningWasLogged);
 
                         // Not using an error message, since we don't have one, the error is described by the file name (which wasn't resolved in this case).
-                        Logger.Log.SavingRunningTimesFailed(pm.LoggingContext, "file path is not resolved", string.Empty);
+                        Logger.Log.SavingHistoricPerfDataFailed(pm.LoggingContext, "file path is not resolved", string.Empty);
                         return false;
                     }
 
                     try
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Start"));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Start"));
 
                         FileUtilities.DeleteFile(filePath, tempDirectoryCleaner: m_tempCleaner);
                         table.Save(filePath);
 
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Done"));
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Saving historic perf data Done"));
 
-                        Logger.Log.RunningTimesSaved(pm.LoggingContext, table.Count);
+                        Logger.Log.HistoricPerfDataSaved(pm.LoggingContext, table.Count);
                     }
                     catch (BuildXLException ex)
                     {
-                        Logger.Log.SavingRunningTimesFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
+                        Logger.Log.SavingHistoricPerfDataFailed(pm.LoggingContext, filePath, ex.LogEventMessage);
                         return false;
                     }
 
                     Possible<Unit> storeResult;
-                    using (Context.EngineCounters.StartStopwatch(EngineCounter.PerformanceDataSavingDuration))
+                    using (Context.EngineCounters.StartStopwatch(EngineCounter.HistoricPerfDataSavingDuration))
                     {
                         var performanceDataFingerprint = PerformanceDataUtilities.ComputePerformanceDataFingerprint(
                             loggingContext,
@@ -1350,13 +1350,13 @@ namespace BuildXL.Engine
 
                     if (!storeResult.Succeeded)
                     {
-                        SchedulerLogger.Log.PerformanceDataCacheTrace(
+                        SchedulerLogger.Log.HistoricPerfDataCacheTrace(
                             pm.LoggingContext,
                             I($"Saving historic perf data to cache failed: {storeResult.Failure.DescribeIncludingInnerFailures()}"));
                     }
                     else
                     {
-                        Context.EngineCounters.IncrementCounter(EngineCounter.PerformanceDataStoredToCache);
+                        Context.EngineCounters.IncrementCounter(EngineCounter.HistoricPerfDataStoredToCache);
                     }
                 }
             }
@@ -1635,7 +1635,7 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: semistableFingerprintOfGraphToReload,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            AsyncLazy<PipRuntimeTimeTable> runningTimeTable = Lazy.CreateAsync(
+            AsyncLazy<HistoricPerfDataTable> runningTimeTable = Lazy.CreateAsync(
                 () =>
                     TryLoadRunningTimeTable(
                         loggingContext,

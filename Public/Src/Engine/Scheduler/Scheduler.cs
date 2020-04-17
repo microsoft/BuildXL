@@ -439,8 +439,8 @@ namespace BuildXL.Scheduler
         /// </summary>
         private PipRuntimeInfo[] m_pipRuntimeInfos;
 
-        private PipRuntimeTimeTable m_runningTimeTable;
-        private readonly AsyncLazy<PipRuntimeTimeTable> m_runningTimeTableTask;
+        private HistoricPerfDataTable m_historicPerfDataTable;
+        private readonly AsyncLazy<HistoricPerfDataTable> m_historicPerfDataTableTask;
 
         /// <summary>
         /// The last node in the currently computed critical path
@@ -450,7 +450,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Historical estimation for duration of each pip, indexed by semi stable hashes
         /// </summary>
-        public PipRuntimeTimeTable RunningTimeTable => (m_runningTimeTable = (m_runningTimeTableTask?.Value ?? new PipRuntimeTimeTable(m_loggingContext)));
+        public HistoricPerfDataTable HistoricPerfDataTable => (m_historicPerfDataTable = m_historicPerfDataTable ?? (m_historicPerfDataTableTask?.Value ?? new HistoricPerfDataTable(m_loggingContext)));
 
         /// <summary>
         /// Nodes that are explicitly scheduled by filtering.
@@ -1055,7 +1055,7 @@ namespace BuildXL.Scheduler
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
             ITempCleaner tempCleaner = null,
-            AsyncLazy<PipRuntimeTimeTable> runningTimeTable = null,
+            AsyncLazy<HistoricPerfDataTable> runningTimeTable = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
             PreserveOutputsInfo? previousInputsSalt = null,
@@ -1115,7 +1115,7 @@ namespace BuildXL.Scheduler
                 PipGraph.QueryFileArtifactPipData,
                 process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
                 pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default);
-            m_runningTimeTableTask = runningTimeTable;
+            m_historicPerfDataTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
             var rootMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1703,7 +1703,7 @@ namespace BuildXL.Scheduler
 
             statistics.Add("MaxUnresponsivenessFactor", m_maxUnresponsivenessFactor);
 
-            m_runningTimeTable?.LogStats(loggingContext);
+            m_historicPerfDataTable?.LogStats(loggingContext);
 
             Logger.Log.WarningStats(
                 loggingContext,
@@ -3247,7 +3247,7 @@ namespace BuildXL.Scheduler
             // If it is a meta or SealDirectory pip and the PipQueue has started draining, then the execution will be inlined here!
             // Because it is not worth to enqueue the fast operations such as the execution of meta and SealDirectory pips.
 
-            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
+            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,
@@ -4140,7 +4140,7 @@ namespace BuildXL.Scheduler
                                 operationContext,
                                 runnablePip.Description,
                                 executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
-                                (processRunnable.HistoricPerfData?.DurationInMs ?? 0) / 1000,
+                                (processRunnable.HistoricPerfData?.DurationInMs ?? 0) / 1000.0,
                                 executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                 executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                 worker.DefaultWorkingSetMbPerProcess,
@@ -4692,8 +4692,11 @@ namespace BuildXL.Scheduler
                 var runnableProcess = runnablePip as ProcessRunnablePip;
                 if (runnableProcess != null)
                 {
-                    var perfData = RunningTimeTable[runnableProcess.Process.SemiStableHash];
-                    runnableProcess.HistoricPerfData = perfData;
+                    var perfData = HistoricPerfDataTable[runnableProcess.Process.SemiStableHash];
+                    if (perfData != ProcessPipHistoricPerfData.Empty)
+                    {
+                        runnableProcess.HistoricPerfData = perfData;
+                    }
                 }
 
                 // Find the estimated setup time for the pip on each builder.
@@ -5336,7 +5339,7 @@ namespace BuildXL.Scheduler
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)
             {
-                RunningTimeTable[pip.SemiStableHash] = new ProcessPipHistoricPerfData(processPerf);
+                HistoricPerfDataTable[pip.SemiStableHash] = new ProcessPipHistoricPerfData(processPerf);
             }
 
             if (ExecutionLog != null && performance != null)
@@ -5544,7 +5547,7 @@ namespace BuildXL.Scheduler
                 // Start loading data for pip two phase cache and running time table. No need to wait since any operation against the components
                 // will block until the required component is ready.
                 m_pipTwoPhaseCache.StartLoading(waitForCompletion: false);
-                m_runningTimeTableTask?.Start();
+                m_historicPerfDataTableTask?.Start();
 
                 InitFileChangeTracker(loggingContext);
                 ProcessFileChanges(loggingContext, schedulerState);
@@ -5881,9 +5884,9 @@ namespace BuildXL.Scheduler
                                 // historical data for that pip type. Avoiding the failed lookup here means that we have more
                                 // useful 'hit' / 'miss' counters for the running time table.
                                 uint historicalMilliseconds = 0;
-                                if (pipType == PipType.Process && RunningTimeTable != null)
+                                if (pipType == PipType.Process && HistoricPerfDataTable != null)
                                 {
-                                    historicalMilliseconds = RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].DurationInMs;
+                                    historicalMilliseconds = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].DurationInMs;
                                 }
 
                                 if (historicalMilliseconds != 0)

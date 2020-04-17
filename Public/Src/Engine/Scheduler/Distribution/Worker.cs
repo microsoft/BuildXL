@@ -678,7 +678,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             // If there is a historic perf data, use it.
-            if (runnableProcess.HistoricPerfData?.IsFresh == false)
+            if (runnableProcess.HistoricPerfData != null)
             {
                 return runnableProcess.HistoricPerfData.Value.MemoryCounters;
             }

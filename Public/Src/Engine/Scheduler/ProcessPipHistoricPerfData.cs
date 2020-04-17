@@ -16,6 +16,11 @@ namespace BuildXL.Scheduler
     public readonly struct ProcessPipHistoricPerfData : IEquatable<ProcessPipHistoricPerfData>
     {
         /// <summary>
+        /// Empty historic perf data
+        /// </summary>
+        public static ProcessPipHistoricPerfData Empty = default(ProcessPipHistoricPerfData);
+
+        /// <summary>
         /// Default time to live
         /// </summary>
         public const byte DefaultTimeToLive = 255; // more than 2 weeks with 20 builds a day.

@@ -1028,6 +1028,10 @@ namespace BuildXL.Scheduler
         /// </summary>
         private volatile bool m_hitLowCommitMemoryPerfSmell;
 
+        private int m_historicPerfDataMisses;
+        private int m_historicPerfDataZeroMemoryHits;
+        private int m_historicPerfDataNonZeroMemoryHits;
+
         #endregion Statistics
 
         /// <summary>
@@ -1700,6 +1704,10 @@ namespace BuildXL.Scheduler
                 statistics.Add("HistoricalCriticalPath.NumHits", m_criticalPathStats.NumHits);
                 statistics.Add("HistoricalCriticalPath.LongestPathMs", m_criticalPathStats.LongestPath);
             }
+
+            statistics.Add("HistoricPerfData.Misses", m_historicPerfDataMisses);
+            statistics.Add("HistoricPerfData.ZeroMemoryHits", m_historicPerfDataZeroMemoryHits);
+            statistics.Add("HistoricPerfData.NonZeroMemoryHits", m_historicPerfDataNonZeroMemoryHits);
 
             statistics.Add("MaxUnresponsivenessFactor", m_maxUnresponsivenessFactor);
 
@@ -4690,12 +4698,28 @@ namespace BuildXL.Scheduler
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.ChooseWorkerCpuDuration))
             {
                 var runnableProcess = runnablePip as ProcessRunnablePip;
-                if (runnableProcess != null)
+                // If there is no historic perf data associated with the process,
+                // lookup the historic perf data table.
+                if (runnableProcess != null && runnableProcess.HistoricPerfData == null)
                 {
                     var perfData = HistoricPerfDataTable[runnableProcess.Process.SemiStableHash];
                     if (perfData != ProcessPipHistoricPerfData.Empty)
                     {
                         runnableProcess.HistoricPerfData = perfData;
+
+                        var memoryCounters = perfData.MemoryCounters;
+                        if (memoryCounters.AverageWorkingSetMb == 0 || memoryCounters.PeakWorkingSetMb == 0)
+                        {
+                            Interlocked.Increment(ref m_historicPerfDataZeroMemoryHits);
+                        }
+                        else
+                        {
+                            Interlocked.Increment(ref m_historicPerfDataNonZeroMemoryHits);
+                        }
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref m_historicPerfDataMisses);
                     }
                 }
 

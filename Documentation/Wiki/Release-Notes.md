@@ -13,6 +13,39 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 
 # Upcoming release
 
+# 0.1.0-20200412.2.1 (Release [60874](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60874)).  Released 4/15/2020
+- An option for less aggressive memory projection: /enableLessAggresiveMemoryProjection
+- Various Rush frontend improvements and new features
+- Do not publish empty fingerprint store 
+- Allow double write policies to kick in when double write involves a dynamic dependency 
+- Adding semaphore for pip execution in VM
+- [QTest] Update Nuget Package to 20.04.06
+
+
+# 0.1.0-20200403.2.1 (Release [60559](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60559)).  Released 4/8/2020
+- Add BuildXL workingset usage to TotalAvailableRam at Execution phase 
+- Hook up logging to execution analyzer for graph loading failure details
+- Various Rush frontend improvements and new features
+- Use dynamic commit memory size for pip cancellation
+- [macOS] Interposing / Hybrid sandbox implementation 
+- [symbols] Log collision messages as verbose rather than warning 
+- Fix RuntimeCacheMissAnalyzer NagleQueue process hang problem
+- Setup infrastructure to run CloudTests tests in our PR validation
+- Enable support for fully seal directories to contain output directories
+- Fix directory symlink scrubbing 
+- Improve XUnit integration on generated solution for Resharper
+- Add a logic to remove redirectedProfile directory when junction creation fails
+
+
+# 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)).  Released 3/18/2020
+-	Add support for nested shared opaque directories.
+-	Add Rush frontend.
+-	Optimizations for trusted file accesses.
+-	Improvements for memory estimation for cancelled process pips.
+-	Relax probing explicitly declared outputs that are also under an output directory.
+-	Various bug fixes and improvements.
+
+
 # 0.1.0-20200315.0 (Release [58569](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=58569)).  Released 3/18/2020
 -	Add support for nested shared opaque directories.
 -	Add Rush frontend.

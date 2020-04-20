@@ -120,5 +120,14 @@ namespace BuildXL.Native.Tracing
             EventTask = (int)Tasks.Storage,
             Message = "Opening the file with file ID {0:X16}-{1:X16} on {2:X16} failed with HRESULT 0x{3:X8}")]
         public abstract void StorageTryOpenFileByIdFailure(LoggingContext context, ulong idHigh, ulong idLow, ulong volumeSerial, int hresult);
+
+        [GeneratedEvent(
+            (int)LogEventId.DetouredProcessAccessViolationException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.SandboxedProcessExecutor,
+            Message = "When creating a detoured process, AccessViolationException occurred: {creationFlags}, {commandline}")]
+        public abstract void DetouredProcessAccessViolationException(LoggingContext context, int creationFlags, string commandline);
     }
 }

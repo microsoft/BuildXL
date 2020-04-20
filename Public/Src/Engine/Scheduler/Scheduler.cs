@@ -1962,7 +1962,7 @@ namespace BuildXL.Scheduler
                 { "ChooseSeconds", data => m_chooseWorkerCpu.ChooseSeconds },
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
-                { "MemoryResourceAvailability", data => LocalWorker.MemoryResource },
+                { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
                 {
                     EnumTraits<PipState>.EnumerateValues(), (rows, state) =>
                     {

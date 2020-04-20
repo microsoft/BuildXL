@@ -44,6 +44,7 @@ namespace BuildXL.Native.Tracing
         StorageTryOpenFileByIdFailure = 722,
         StorageVolumeCollision = 723,
         StorageTryOpenOrCreateFileFailure = 724,
+        DetouredProcessAccessViolationException = 734,
 
         RetryOnFailureException = 744,
     }

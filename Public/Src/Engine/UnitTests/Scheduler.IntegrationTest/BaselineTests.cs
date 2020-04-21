@@ -1391,6 +1391,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
+        [Trait("Category", "SkipLinux")] // TODO(BUG): flaky
         public void RetryPipOnHighMemoryUsage(bool allowLowMemoryRetry)
         {
             Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;

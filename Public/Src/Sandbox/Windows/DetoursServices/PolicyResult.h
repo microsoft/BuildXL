@@ -40,7 +40,7 @@ public:
 
     PolicyResult(const PolicyResult& other) = default;
     PolicyResult& operator=(const PolicyResult&) = default;
-    
+
     CanonicalizedPathType Path() const        { return m_canonicalizedPath; }
     void SetPath(CanonicalizedPathType path)  { m_canonicalizedPath = path; }
 

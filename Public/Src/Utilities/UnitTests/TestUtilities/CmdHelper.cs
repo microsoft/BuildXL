@@ -80,7 +80,6 @@ namespace Test.BuildXL.Processes
                     Private,
                     Etc,
                     Var,
-                    TmpDir,
                     AppleInternal,
                     LibraryPreferencesLogging
                 }

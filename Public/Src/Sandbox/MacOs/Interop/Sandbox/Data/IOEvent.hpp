@@ -114,6 +114,16 @@ public:
     {
     }
 
+    IOEvent(es_event_type_t type,
+            std::string src, 
+            const std::string exec,
+            mode_t mode,
+            bool modified = false,
+            std::string dest = "")
+    : IOEvent(getpid(), 0, getppid(), type, src, dest, exec, mode, modified)
+    {
+    }
+
     inline const pid_t GetPid() const { return pid_; }
     inline const pid_t GetParentPid() const { return ppid_; }
     inline const pid_t GetChildPid() const { return cpid_; }

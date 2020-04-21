@@ -16,12 +16,16 @@ extern const char *__progname;
 
 #define BxlEnvFamPath "__BUILDXL_FAM_PATH"
 #define BxlEnvLogPath "__BUILDXL_LOG_PATH"
+#define BxlEnvRootPid "__BUILDXL_ROOT_PID"
 
 #define ARRAYSIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
-#define GEN_FN_DEF(ret, name, ...)                                              \
+#define GEN_FN_DEF_REAL(ret, name, ...)                                         \
     typedef ret (*fn_real_##name)(__VA_ARGS__);                                 \
-    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name); \
+    const fn_real_##name real_##name = (fn_real_##name)dlsym(RTLD_NEXT, #name);
+
+#define GEN_FN_DEF(ret, name, ...) \
+    GEN_FN_DEF_REAL(ret, name, __VA_ARGS__) \
     template<typename ...TArgs> result_t<ret> fwd_##name(TArgs&& ...args)       \
     {                                                                           \
         ret result = real_##name(std::forward<TArgs>(args)...);                 \
@@ -30,6 +34,18 @@ extern const char *__progname;
             RenderSyscall(#name, result, std::forward<TArgs>(args)...).c_str(), \
             return_value.get_errno());                                          \
         return return_value;                                                    \
+    }                                                                           \
+    template<typename ...TArgs> ret check_and_fwd_##name(AccessCheckResult &check, ret error_val, TArgs&& ...args) \
+    {                                                                           \
+        if (should_deny(check))                                                 \
+        {                                                                       \
+            errno = EPERM;                                                      \
+            return error_val;                                                   \
+        }                                                                       \
+        else                                                                    \
+        {                                                                       \
+            return fwd_##name(args...).restore();                               \
+        }                                                                       \
     }
 
 #define MAKE_BODY(B) \
@@ -39,6 +55,7 @@ extern const char *__progname;
 #define INTERPOSE(ret, name, ...) \
 ret name(__VA_ARGS__) { \
     BxlObserver *bxl = BxlObserver::GetInstance(); \
+    BXL_LOG_DEBUG(bxl, "Intercepted %s", #name); \
     MAKE_BODY
 
 #define _fatal(fmt, ...) do { real_fprintf(stderr, "(%s) " fmt "\n", __func__, __VA_ARGS__); _exit(1); } while (0)
@@ -97,8 +114,10 @@ private:
     BxlObserver(const BxlObserver&) = delete;
     BxlObserver& operator = (const BxlObserver&) = delete;
 
+    int rootPid_;
     char progFullPath_[PATH_MAX];
     char logFile_[PATH_MAX];
+
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
@@ -107,7 +126,15 @@ private:
     void InitLogFile();
     bool Send(const char *buf, size_t bufsiz);
 
-    bool IsValid() { return sandbox_ != NULL; }
+    inline bool IsValid()   { return sandbox_ != NULL; }
+    inline bool IsEnabled()
+    {
+        return
+            // successfully initialized
+            IsValid() &&
+            // NOT (child processes should break away AND this is a child process)
+            !(pip_->AllowChildProcessesToBreakAway() && getpid() != rootPid_);
+    }
 
     void PrintArgs(std::stringstream& str, bool isFirst)
     {
@@ -131,14 +158,13 @@ private:
         return str.str();
     }
 
+    void resolve_path(char *fullpath, bool followFinalSymlink);
+
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 
-    #define LOG_DEBUG(fmt, ...) if (logFile_ && *logFile_) do { \
-        FILE* _lf = real_fopen(logFile_, "a"); \
-        if (_lf) real_fprintf(_lf, "[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__); \
-        if (_lf) real_fclose(_lf); \
-    } while(0);
+    #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__);
+    #define LOG_DEBUG(fmt, ...) BXL_LOG_DEBUG(this, fmt, __VA_ARGS__)
 
 public:
     static BxlObserver* GetInstance(); 
@@ -148,19 +174,50 @@ public:
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? pip_->GetReportsPath(&len) : NULL; }
 
+    void report_exec(const char *syscallName, const char *procName, const char *file);
+
     AccessCheckResult report_access(const char *syscallName, IOEvent &event);
-    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname);
+    AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int oflags = 0);
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath);
 
     AccessCheckResult report_access_fd(const char *syscallName, es_event_type_t eventType, int fd);
-    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname);
+    AccessCheckResult report_access_at(const char *syscallName, es_event_type_t eventType, int dirfd, const char *pathname, int oflags = 0);
 
     ssize_t fd_to_path(int fd, char *buf, size_t bufsiz);
-    std::string normalize_path_at(int dirfd, const char *pathname);
+    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0);
 
-    std::string normalize_path(const char *pathname)
+    inline bool LogDebugEnabled()
     {
-        return normalize_path_at(AT_FDCWD, pathname);
+        return logFile_ && *logFile_;
+    }
+
+    inline void LogDebug(const char *fmt, ...)
+    {
+        if (LogDebugEnabled())
+        {
+            FILE* f = real_fopen(logFile_, "a");
+            if (f)
+            {
+                va_list args;
+                va_start(args, fmt);
+                real_vfprintf(f, fmt, args);
+                va_end(args);
+                real_fclose(f);
+            }
+        }
+    }
+
+    mode_t get_mode(const char *path)
+    {
+        struct stat buf;
+        return real___lxstat(1, path, &buf) == 0
+            ? buf.st_mode
+            : 0;
+    }
+
+    std::string normalize_path(const char *pathname, int oflags = 0)
+    {
+        return normalize_path_at(AT_FDCWD, pathname, oflags);
     }
 
     std::string normalize_fd(int fd)
@@ -172,26 +229,24 @@ public:
     {
         return CheckFailUnexpectedFileAccesses(pip_->GetFamFlags());
     }
-    
+
     /**
-     * When allowed ('check.ShouldDenyAccess()' is false), sets 'errno' to the captured 
-     * errno and returns the captured result; otherwise, sets 'errno' to EPERM and returns 'error_value'.
+     * Returns whether the given access should be denied.
+     * 
+     * This is true when
+     *   - the given access is not permitted
+     *   - the sandbox is configured to deny accesses that are not permitted
      */
-    template <typename T>
-    T restore_if_allowed(result_t<T> &result, AccessCheckResult &check, T error_value)
+    bool should_deny(AccessCheckResult &check)
     {
-        if (IsValid() && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses())
-        {
-            errno = EPERM;
-            return error_value;
-        }
-        else
-        {
-            return result.restore();
-        }
+        return IsEnabled() && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
     }
 
+    GEN_FN_DEF(void*, dlopen, const char *filename, int flags);
+    GEN_FN_DEF(int, dlclose, void *handle);
+
     GEN_FN_DEF(pid_t, fork, void)
+    GEN_FN_DEF_REAL(void, _exit, int)
     GEN_FN_DEF(int, fexecve, int, char *const[], char *const[])
     GEN_FN_DEF(int, execv, const char *, char *const[])
     GEN_FN_DEF(int, execve, const char *, char *const[], char *const[])
@@ -246,4 +301,7 @@ public:
     GEN_FN_DEF(int, vprintf, const char*, va_list);
     GEN_FN_DEF(int, vfprintf, FILE*, const char*, va_list);
     GEN_FN_DEF(int, vdprintf, int, const char*, va_list);
+    GEN_FN_DEF(int, chmod, const char *pathname, mode_t mode);
+    GEN_FN_DEF(int, fchmod, int fd, mode_t mode);
+    GEN_FN_DEF(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags);
 };

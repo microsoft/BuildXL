@@ -362,7 +362,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         [Feature(Features.Mount)]
         [Fact]
-        public void FailWhenCreatingDirectoryReadOnlyMount()
+        public void SucceedWhenCreatingDirectoryInsideReadWriteMount()
         {
             // Process creates directory in read/write mount ObjectRoot
             DirectoryArtifact dirReadWriteMount = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("rw-dir", ObjectRoot));
@@ -372,14 +372,17 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
             RunScheduler().AssertSuccess();
+        }
 
-            ResetPipGraphBuilder();
-
+        [Feature(Features.Mount)]
+        [Fact]
+        public void FailWhenCreatingDirectoryReadOnlyMount()
+        {
             // Process creates directory in read only mount ReadonlyRoot is disallowed when policies are 
             // enforced on directory creation (/EnforceAccessPoliciesOnDirectoryCreation+)
             Configuration.Sandbox.EnforceAccessPoliciesOnDirectoryCreation = true;
             DirectoryArtifact dirReadonlyMount = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("r-dir", ReadonlyRoot));
-            pip = CreateAndSchedulePipBuilder(new Operation[]
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.CreateDir(dirReadonlyMount),
                 Operation.WriteFile(CreateOutputFileArtifact())

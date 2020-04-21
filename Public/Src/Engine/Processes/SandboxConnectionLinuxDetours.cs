@@ -404,6 +404,8 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"No info found for pip id {pipId}");
             }
 
+            // TODO: the ROOT_PID env var is a temporary solution for breakway processes
+            yield return ("__BUILDXL_ROOT_PID", info.Process.ProcessId.ToString());
             yield return ("__BUILDXL_FAM_PATH", info.FamPath);
             yield return ("LD_PRELOAD", DetoursLibFile);
             if (IsInTestMode)

@@ -21,6 +21,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
     [TestClassIfSupported(requiresSymlinkPermission: true)]
+    [Trait("Category", "SymlinkTests")]
     public class SymlinkTests : SchedulerIntegrationTestBase
     {
         public SymlinkTests(ITestOutputHelper output) : base(output)
@@ -722,7 +723,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        [Trait("Category", "StoreNoOutputsToCacheTests")]
         public void VerifyOutputBeingReplacedWithSymlink()
         {
             Configuration.Schedule.StoreOutputsToCache = false;

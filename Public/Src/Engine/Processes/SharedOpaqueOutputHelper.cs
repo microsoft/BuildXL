@@ -24,7 +24,7 @@ namespace BuildXL.Processes
     /// </remarks>
     public static class SharedOpaqueOutputHelper
     {
-        private static class Win
+        private static class TimestampBased
         {
             /// <summary>
             /// Flags the given path as being an output under a shared opaque by setting the creation time to 
@@ -70,17 +70,18 @@ namespace BuildXL.Processes
             }
 
             /// <summary>
-            /// Checks if the given path is an output under a shared opaque by verifying whether <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/> is the creation time of the file
+            /// Checks if the given path is an output under a shared opaque by verifying whether <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/>
+            /// is the creation on Mac or modification on Linux time of the file
             /// </summary>
-            /// <remarks>
-            /// If the given path is a directory, it is always considered part of a shared opaque
-            /// </remarks>
             public static bool IsSharedOpaqueOutput(string expandedPath)
             {
                 try
                 {
-                    var creationTime = FileUtilities.GetFileTimestamps(expandedPath).CreationTime;
-                    return creationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp;
+                    var times = FileUtilities.GetFileTimestamps(expandedPath);
+                    var timestampOfInterest = OperatingSystemHelper.IsLinuxOS
+                        ? times.LastWriteTime // on Linux, only atime and mtime are settable
+                        : times.CreationTime ;
+                    return timestampOfInterest == WellKnownTimestamps.OutputInSharedOpaqueTimestamp;
                 }
                 catch (BuildXLException ex)
                 {
@@ -89,7 +90,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private static unsafe class Unix
+        private static unsafe class XattrBased
         {
             private const string BXL_SHARED_OPAQUE_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
 
@@ -194,13 +195,13 @@ namespace BuildXL.Processes
 
                 try
                 {
-                    if (OperatingSystemHelper.IsUnixOS)
+                    if (OperatingSystemHelper.IsMacOS)
                     {
-                        Unix.SetPathAsSharedOpaqueOutput(expandedPath);
+                        XattrBased.SetPathAsSharedOpaqueOutput(expandedPath);
                     }
                     else
                     {
-                        Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                        TimestampBased.SetPathAsSharedOpaqueOutput(expandedPath);
                     }
 
                     return;
@@ -251,9 +252,9 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            return OperatingSystemHelper.IsUnixOS
-                ? Unix.IsSharedOpaqueOutput(expandedPath)
-                : Win.IsSharedOpaqueOutput(expandedPath);
+            return OperatingSystemHelper.IsMacOS
+                ? XattrBased.IsSharedOpaqueOutput(expandedPath)
+                : TimestampBased.IsSharedOpaqueOutput(expandedPath);
         }
 
         /// <summary>
@@ -268,6 +269,12 @@ namespace BuildXL.Processes
             }
 
             SetPathAsSharedOpaqueOutput(expandedPath);
+            if (!IsSharedOpaqueOutput(expandedPath))
+            {
+                SetPathAsSharedOpaqueOutput(expandedPath);
+                var x = IsSharedOpaqueOutput(expandedPath);
+                throw new BuildXLException($"Could not make '{expandedPath}' sod output");
+            }
         }
     }
 }

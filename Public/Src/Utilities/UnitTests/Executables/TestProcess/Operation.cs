@@ -1249,7 +1249,20 @@ namespace Test.BuildXL.Executables.TestProcess
             // Log the the process that was launched with its id so it can be retrieved by bxl tests later
             // This is used when the child process is launched to breakaway from the job object, so we actually
             // don't get its information back as part of a reported process
-            LogSpawnExeChildProcess(process);
+            string processName;
+            try
+            {
+                // process.ProcessName throws if process has already exited
+                processName = process.ProcessName;
+            }
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            catch
+            {
+                processName = PathAsString;
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+
+            LogSpawnExeChildProcess(processName, process.Id);
         }
 
         private void DoFail()
@@ -1405,9 +1418,9 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <summary>
         /// Keep in sync with <see cref="RetrieveChildProcessesCreatedBySpawnExe"/>
         /// </summary>
-        private void LogSpawnExeChildProcess(Process childProcess)
+        private void LogSpawnExeChildProcess(string processName, long processId)
         {
-            Console.WriteLine($"{SpawnExePrefix}{childProcess.ProcessName}:{childProcess.Id}");
+            Console.WriteLine($"{SpawnExePrefix}{processName}:{processId}");
         }
 
         /*** TO STRING HELPER FUNCTIONS ***/

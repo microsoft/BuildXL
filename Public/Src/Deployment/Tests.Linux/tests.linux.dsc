@@ -70,17 +70,12 @@ namespace Tests.Linux {
                     "NonStandardOptionsTests",
                     "PreserveOutputsTests",
                     "PreserveOutputsReuseOutputsTests",
-
-                    // "IncrementalSchedulingTests",
-                    // "OpaqueDirectoryTests",
-                    // "PreserveOutputsReuseIncSchedTests",
-                    // "PreserveOutputsIncSchedTests",
-                    // "SharedOpaqueDirectoryTests",
-                    // "StoreNoOutputsToCacheTests",
-                    // "WhitelistTests"
-                ],
-                /* noCategories */ [],
-                /* runSuppliedCategoriesOnly */ true),
+                    "SymlinkTests",
+                    "OpaqueDirectoryTests",
+                    "SharedOpaqueDirectoryTests",
+                    "StoreNoOutputsToCacheTests",
+                    "WhitelistTests"
+                ]),
 
             // createDef(importFrom("BuildXL.Core.UnitTests").Engine.dll, true,
             //     /* deploySeparately */ false,
@@ -234,7 +229,7 @@ namespace Tests.Linux {
             "MY_DIR=$(cd `dirname ${BASH_SOURCE[0]}` && pwd)",
             "source $MY_DIR/xunit_runner.sh",
             "",
-            "find . -name SandboxedProcessExecutor -exec chmod +x {} \\;",
+            "find . \\( -name SandboxedProcessExecutor -o -name Test.BuildXL.Executables.InfiniteWaiter -o -name Test.BuildXL.Executables.TestProcess \\) -print0 | xargs -0 chmod +x",
             "",
             "numTestFailures=0",
             "trap \"((numTestFailures++))\" ERR",

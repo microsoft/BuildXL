@@ -27,9 +27,6 @@ namespace Test.BuildXL.Processes
         [InlineData(false)]
         public void ChildProcessCanBreakawayWhenConfigured(bool letInfiniteWaiterSurvive)
         {
-            // TODO: doesn't currently work on Linux
-            if (OperatingSystemHelper.IsLinuxOS) return;
-
             // Skip this test if running on .NET Framework with vstest
             // Reason: when this is the case and code coverage is turned on, launching breakaway 
             //         processes here causes the code coverage monitoring process to hang.
@@ -60,7 +57,13 @@ namespace Test.BuildXL.Processes
             info.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(10);
 
             var result = RunProcess(info).GetAwaiter().GetResult();
-            XAssert.AreEqual(0, result.ExitCode);
+            if (result.ExitCode != 0)
+            {
+                XAssert.Fail(
+                    $"Process exited with exit code {result.ExitCode}." +
+                    $"\n\n=== stdout ===\n\n ${result.StandardOutput.ReadValueAsync().Result}" +
+                    $"\n\n=== stderr ===\n\n ${result.StandardError.ReadValueAsync().Result}");
+            }
 
             if (!letInfiniteWaiterSurvive)
             {
@@ -85,13 +88,20 @@ namespace Test.BuildXL.Processes
 
                 // Let's retrieve the child process and confirm it survived
                 var infiniteWaiterInfo = RetrieveChildProcessesCreatedBySpawnExe(result).Single();
+
                 // The fact that this does not throw confirms survival
                 var dummyWaiter = Process.GetProcessById(infiniteWaiterInfo.pid);
-                // Just being protective, let's make sure we are talking about the same process
-                XAssert.AreEqual(infiniteWaiterInfo.processName, dummyWaiter.ProcessName);
 
-                // Now let's kill the surviving process, since we don't want it to linger around unnecessarily
-                dummyWaiter.Kill();
+                try
+                {
+                    // Just being protective, let's make sure we are talking about the same process
+                    XAssert.AreEqual(infiniteWaiterInfo.processName, dummyWaiter.ProcessName);
+                }
+                finally
+                {
+                    // Now let's kill the surviving process, since we don't want it to linger around unnecessarily
+                    dummyWaiter.Kill();
+                }
             }
         }
 

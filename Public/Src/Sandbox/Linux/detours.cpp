@@ -12,6 +12,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <gnu/lib-names.h>
 #include <sys/vfs.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -25,6 +26,12 @@
 #define ERROR_RETURN_VALUE -1
 
 static std::string sEmptyStr("");
+
+INTERPOSE(void, _exit, int status)({
+    bxl->report_access("_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
+    bxl->real__exit(status);
+    _exit(status);
+})
 
 INTERPOSE(pid_t, fork, void)({
     result_t<pid_t> childPid = bxl->fwd_fork();
@@ -42,27 +49,27 @@ INTERPOSE(pid_t, fork, void)({
 
 INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, fd);
-    return bxl->real_fexecve(fd, argv, envp);
+    return bxl->fwd_fexecve(fd, argv, envp).restore();
 })
 
 INTERPOSE(int, execv, const char *file, char *const argv[])({
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, file);
-    return bxl->real_execv(file, argv);
+    bxl->report_exec(__func__, argv[0], file);
+    return bxl->fwd_execv(file, argv).restore();
 })
 
 INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])({
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, file);
-    return bxl->real_execve(file, argv, envp);
+    bxl->report_exec(__func__, argv[0], file);
+    return bxl->fwd_execve(file, argv, envp).restore();
 })
 
 INTERPOSE(int, execvp, const char *file, char *const argv[])({
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(file), std::string(""));
-    return bxl->real_execvp(file, argv);
+    bxl->report_exec(__func__, argv[0], file);
+    return bxl->fwd_execvp(file, argv).restore();
 })
 
 INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[])({
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_EXEC, std::string(file), std::string(""));
-    return bxl->real_execvpe(file, argv, envp);
+    bxl->report_exec(__func__, argv[0], file);
+    return bxl->fwd_execvpe(file, argv, envp).restore();
 })
 
 INTERPOSE(int, statfs, const char *pathname, struct statfs *buf)({
@@ -109,74 +116,64 @@ INTERPOSE(int, __xstat64, int __ver, const char *pathname, struct stat64 *buf)({
 
 INTERPOSE(int, __lxstat, int __ver, const char *pathname, struct stat *buf)({
     result_t<int> result = bxl->fwd___lxstat(__ver, pathname, buf);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)({
     result_t<int> result(bxl->fwd___lxstat64(__ver, pathname, buf));
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname);
+    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_STAT, pathname, O_NOFOLLOW);
     return result.restore();
 })
 
 INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
-    result_t<FILE*> result = bxl->fwd_fopen(pathname, mode);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
-    return result.restore();
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, pathname);
+    return bxl->check_and_fwd_fopen(check, (FILE*)NULL, pathname, mode);
 })
 
 INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
-    result_t<size_t> result = bxl->fwd_fread(ptr, size, nmemb, stream);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, fileno(stream));
-    return bxl->restore_if_allowed(result, check, (size_t)0);
+    return bxl->check_and_fwd_fread(check, (size_t)0, ptr, size, nmemb, stream);
 })
 
 INTERPOSE(size_t, fwrite, const void *ptr, size_t size, size_t nmemb, FILE *stream)({
-    result_t<size_t> result = bxl->fwd_fwrite(ptr, size, nmemb, stream);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stream));
-    return bxl->restore_if_allowed(result, check, (size_t)0);
+    return bxl->check_and_fwd_fwrite(check, (size_t)0, ptr, size, nmemb, stream);
 })
 
 INTERPOSE(int, fputc, int c, FILE *stream)({
-    result_t<int> result = bxl->real_fputc(c, stream);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stream));
-    return bxl->restore_if_allowed(result, check, EOF);
+    return bxl->check_and_fwd_fputc(check, ERROR_RETURN_VALUE, c, stream);
 })
 
 INTERPOSE(int, fputs, const char *s, FILE *stream)({
-    result_t<int> result = bxl->real_fputs(s, stream);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stream));
-    return bxl->restore_if_allowed(result, check, EOF);
+    return bxl->check_and_fwd_fputs(check, ERROR_RETURN_VALUE, s, stream);
 })
 
 INTERPOSE(int, putc, int c, FILE *stream)({
-    result_t<int> result = bxl->real_putc(c, stream);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stream));
-    return bxl->restore_if_allowed(result, check, EOF);
+    return bxl->check_and_fwd_putc(check, ERROR_RETURN_VALUE, c, stream);
 })
 
 INTERPOSE(int, putchar, int c)({
-    result_t<int> result = bxl->real_putchar(c);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stdout));
-    return bxl->restore_if_allowed(result, check, EOF);
+    return bxl->check_and_fwd_putchar(check, ERROR_RETURN_VALUE, c);
 })
 
 INTERPOSE(int, puts, const char *s)({
-    result_t<int> result = bxl->real_puts(s);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(stdout));
-    return bxl->restore_if_allowed(result, check, EOF);
+    return bxl->check_and_fwd_puts(check, ERROR_RETURN_VALUE, s);
 })
 
 INTERPOSE(int, access, const char *pathname, int mode)({
-    result_t<int> result = bxl->fwd_access(pathname, mode);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_ACCESS, pathname);
-    return result.restore();
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_ACCESS, pathname);
+    return bxl->check_and_fwd_access(check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, faccessat, int dirfd, const char *pathname, int mode, int flags)({
-    result_t<int> result = bxl->fwd_faccessat(dirfd, pathname, mode, flags);
-    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname);
-    return result.restore();
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_ACCESS, dirfd, pathname);
+    return bxl->check_and_fwd_faccessat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
 })
 
 INTERPOSE(int, open, const char *path, int oflag, ...)({
@@ -185,15 +182,14 @@ INTERPOSE(int, open, const char *path, int oflag, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    result_t<int> result = bxl->fwd_open(path, oflag, mode);
-    bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, path);
-    return result.restore();
-})
+    std::string pathStr = bxl->normalize_path(path);
+    mode_t pathMode = bxl->get_mode(pathStr.c_str());
+    IOEvent event(
+        pathMode == 0 && (oflag & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
+        pathStr, bxl->GetProgramPath(), pathMode, false);
+    auto check = bxl->report_access(__func__, event);
 
-INTERPOSE(int, creat, const char *pathname, mode_t mode)({
-    result_t<int> result = bxl->fwd_creat(pathname, mode);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_CREATE, pathname);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    return bxl->check_and_fwd_open(check, ERROR_RETURN_VALUE, path, oflag, mode);
 })
 
 INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
@@ -202,127 +198,142 @@ INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    result_t<int> result = bxl->fwd_openat(dirfd, pathname, flags, mode);
-    bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_OPEN, dirfd, pathname);
-    return result.restore();
+    std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
+    mode_t pathMode = bxl->get_mode(pathStr.c_str());
+    IOEvent event(
+        pathMode == 0 && (flags & (O_CREAT|O_TRUNC)) ? ES_EVENT_TYPE_NOTIFY_CREATE : ES_EVENT_TYPE_NOTIFY_OPEN, 
+        pathStr, bxl->GetProgramPath(), pathMode, false);
+    auto check = bxl->report_access(__func__, event);
+
+    return bxl->check_and_fwd_openat(check, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode);
+})
+
+INTERPOSE(int, creat, const char *pathname, mode_t mode)({
+    return open(pathname, O_CREAT | O_WRONLY | O_TRUNC);
 })
 
 INTERPOSE(ssize_t, write, int fd, const void *buf, size_t bufsiz)({
-    result_t<ssize_t> result = bxl->fwd_write(fd, buf, bufsiz);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fd);
-    return bxl->restore_if_allowed(result, check, (ssize_t)ERROR_RETURN_VALUE);
+    return bxl->check_and_fwd_write(check, (ssize_t)ERROR_RETURN_VALUE, fd, buf, bufsiz);
 })
 
 INTERPOSE(int, remove, const char *pathname)({
-    result_t<int> result = bxl->fwd_remove(pathname);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, pathname, O_NOFOLLOW);
+    return bxl->check_and_fwd_remove(check, ERROR_RETURN_VALUE, pathname);
 })
 
 INTERPOSE(int, rename, const char *old, const char *n)({
-    result_t<int> result = bxl->fwd_rename(old, n);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_RENAME, old, n);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    std::string oldStr = bxl->normalize_path(old, O_NOFOLLOW);
+    std::string newStr = bxl->normalize_path(n, O_NOFOLLOW);
+
+    mode_t mode = bxl->get_mode(oldStr.c_str());
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_RENAME, oldStr, bxl->GetProgramPath(), mode, false, newStr);
+
+    // special case for 'rename' must check before forwarding the call and report after 
+    // (so that bxl can properly rename all files inside the renamed directories)
+    auto check = bxl->report_access(__func__, event); // TODO: this step should only check permission without reporting anything if allowed
+
+    result_t<int> result = bxl->check_and_fwd_rename(check, ERROR_RETURN_VALUE, old, n);
+
+    // if allowed and 'old' is a directory --> report again so that bxl can translate accesses to renamed files
+    if (S_ISDIR(mode) && result.get() != -1)
+    {
+        bxl->report_access(__func__, event);
+    }
+
+    return result.restore();
 })
 
 INTERPOSE(int, link, const char *path1, const char *path2)({
-    result_t<int> result = bxl->fwd_link(path1, path2);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_LINK, path1, path2);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
-})
-
-INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, int flag)({
-    result_t<int> result = bxl->fwd_linkat(fd1, name1, fd2, name2, flag);
     auto check = bxl->report_access(
         __func__,
         ES_EVENT_TYPE_NOTIFY_LINK,
-        bxl->normalize_path_at(fd1, name1),
-        bxl->normalize_path_at(fd2, name2));
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+        bxl->normalize_path(path1, O_NOFOLLOW),
+        bxl->normalize_path(path2, O_NOFOLLOW));
+    return bxl->check_and_fwd_link(check, ERROR_RETURN_VALUE, path1, path2);
+})
+
+INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, int flag)({
+    auto check = bxl->report_access(
+        __func__,
+        ES_EVENT_TYPE_NOTIFY_LINK,
+        bxl->normalize_path_at(fd1, name1, O_NOFOLLOW),
+        bxl->normalize_path_at(fd2, name2, O_NOFOLLOW));
+    return bxl->check_and_fwd_linkat(check, ERROR_RETURN_VALUE, fd1, name1, fd2, name2, flag);
 })
 
 INTERPOSE(int, unlink, const char *path)({
-    result_t<int> result = bxl->fwd_unlink(path);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, path);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_UNLINK, path, O_NOFOLLOW);
+    return bxl->check_and_fwd_unlink(check, ERROR_RETURN_VALUE, path);
 })
 
 INTERPOSE(int, symlink, const char *target, const char *linkPath)({
-    result_t<int> result = bxl->fwd_symlink(target, linkPath);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_CREATE, linkPath);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path(linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
+    auto check = bxl->report_access(__func__, event);
+    return bxl->check_and_fwd_symlink(check, ERROR_RETURN_VALUE, target, linkPath);
 })
 
 INTERPOSE(int, symlinkat, const char *target, int dirfd, const char *linkPath)({
-    result_t<int> result = bxl->fwd_symlinkat(target, dirfd, linkPath);
-    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_CREATE, dirfd, linkPath);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path_at(dirfd, linkPath, O_NOFOLLOW), bxl->GetProgramPath(), S_IFLNK);
+    auto check = bxl->report_access(__func__, event);
+    return bxl->check_and_fwd_symlinkat(check, ERROR_RETURN_VALUE, target, dirfd, linkPath);
 })
 
 INTERPOSE(ssize_t, readlink, const char *path, char *buf, size_t bufsize)({
-    result_t<ssize_t> result = bxl->fwd_readlink(path, buf, bufsize);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, path);
-    return bxl->restore_if_allowed(result, check, (ssize_t)ERROR_RETURN_VALUE);
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, path, O_NOFOLLOW);
+    return bxl->check_and_fwd_readlink(check, (ssize_t)ERROR_RETURN_VALUE, path, buf, bufsize);
 })
 
 INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsize)({
-    result_t<ssize_t> result = bxl->fwd_readlinkat(fd, path, buf, bufsize);
-    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, fd, path);
-    return bxl->restore_if_allowed(result, check, (ssize_t)ERROR_RETURN_VALUE);
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_READLINK, fd, path, O_NOFOLLOW);
+    return bxl->check_and_fwd_readlinkat(check, (ssize_t)ERROR_RETURN_VALUE, fd, path, buf, bufsize);
 })
 
 INTERPOSE(DIR*, opendir, const char *name)({
-    result_t<DIR*> result = bxl->fwd_opendir(name);
     auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, name);
-    return bxl->restore_if_allowed(result, check, (DIR*)NULL);
+    return bxl->check_and_fwd_opendir(check, (DIR*)NULL, name);
 })
 
 INTERPOSE(DIR*, fdopendir, int fd)({
-    result_t<DIR*> result = bxl->fwd_fdopendir(fd);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_READDIR, fd);
-    return bxl->restore_if_allowed(result, check, (DIR*)NULL);
+    return bxl->check_and_fwd_fdopendir(check, (DIR*)NULL, fd);
 })
 
 INTERPOSE(int, utimensat, int dirfd, const char *pathname, const struct timespec times[2], int flags)({
-    result_t<int> result = bxl->fwd_utimensat(dirfd, pathname, times, flags);
     auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_SETTIME, dirfd, pathname);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    return bxl->check_and_fwd_utimensat(check, ERROR_RETURN_VALUE, dirfd, pathname, times, flags);
 })
 
 INTERPOSE(int, futimens, int fd, const struct timespec times[2])({
-    result_t<int> result = bxl->fwd_futimens(fd, times);
     auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_SETTIME, fd);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    return bxl->check_and_fwd_futimens(check, ERROR_RETURN_VALUE, fd, times);
 })
 
 INTERPOSE(int, mkdir, const char *pathname, mode_t mode)({
-    result_t<int> result = bxl->fwd_mkdir(pathname, mode);
-    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_CREATE, pathname);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path(pathname), bxl->GetProgramPath(), S_IFDIR);
+    auto check = bxl->report_access(__func__, event);
+    return bxl->check_and_fwd_mkdir(check, ERROR_RETURN_VALUE, pathname, mode);
 })
 
 INTERPOSE(int, mkdirat, int dirfd, const char *pathname, mode_t mode)({
-    result_t<int> result = bxl->fwd_mkdirat(dirfd, pathname, mode);
-    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_CREATE, dirfd, pathname);
-    return bxl->restore_if_allowed(result, check, ERROR_RETURN_VALUE);
+    IOEvent event(ES_EVENT_TYPE_NOTIFY_CREATE, bxl->normalize_path_at(dirfd, pathname), bxl->GetProgramPath(), S_IFDIR);
+    auto check = bxl->report_access(__func__, event);
+    return bxl->check_and_fwd_mkdirat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode);
 })
 
 INTERPOSE(int, vprintf, const char *fmt, va_list args)({
-    result_t<int> result = bxl->fwd_vprintf(fmt, args);
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, 1);
-    return result.restore();
+    return bxl->fwd_vprintf(fmt, args).restore();
 })
 
 INTERPOSE(int, vfprintf, FILE *f, const char *fmt, va_list args)({
-    result_t<int> result = bxl->fwd_vfprintf(f, fmt, args);
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fileno(f));
-    return result.restore();
+    return bxl->fwd_vfprintf(f, fmt, args).restore();
 })
 
 INTERPOSE(int, vdprintf, int fd, const char *fmt, va_list args)({
-    result_t<int> result = bxl->fwd_vdprintf(fd, fmt, args);
     bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_WRITE, fd);
-    return result.restore();
+    return bxl->fwd_vdprintf(fd, fmt, args).restore();
 })
 
 INTERPOSE(int, printf, const char *fmt, ...)({
@@ -355,14 +366,45 @@ INTERPOSE(int, fclose, FILE *f)           ({ return bxl->fwd_fclose(f).restore()
 INTERPOSE(int, dup, int fd)               ({ return bxl->fwd_dup(fd).restore(); })
 INTERPOSE(int, dup2, int oldfd, int newfd)({ return bxl->fwd_dup2(oldfd, newfd).restore(); })
 
-static void report_exit()
+INTERPOSE(int, chmod, const char *pathname, mode_t mode)({
+    auto check = bxl->report_access(__func__, ES_EVENT_TYPE_NOTIFY_SETMODE, pathname);
+    return bxl->check_and_fwd_chmod(check, ERROR_RETURN_VALUE, pathname, mode);
+})
+
+INTERPOSE(int, fchmod, int fd, mode_t mode)({
+    auto check = bxl->report_access_fd(__func__, ES_EVENT_TYPE_NOTIFY_SETMODE, fd);
+    return bxl->check_and_fwd_fchmod(check, ERROR_RETURN_VALUE, fd, mode);
+})
+
+INTERPOSE(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags)({
+    int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
+    auto check = bxl->report_access_at(__func__, ES_EVENT_TYPE_NOTIFY_SETMODE, dirfd, pathname, oflags);
+    return bxl->check_and_fwd_fchmodat(check, ERROR_RETURN_VALUE, dirfd, pathname, mode, flags);
+})
+
+INTERPOSE(void*, dlopen, const char *filename, int flags)({
+    static int libcSoNameLength = -1;
+    if (libcSoNameLength == -1) libcSoNameLength = strlen(LIBC_SO);
+
+    if (filename && (strncmp(filename, LIBC_SO, libcSoNameLength) == 0))
+    {
+        BXL_LOG_DEBUG(bxl, "NOT forwarding dlopen(\"%s\", %d); returning dlopen(NULL, %d)", filename, flags, flags);
+        return bxl->real_dlopen((char*)NULL, flags);
+    }
+    else
+    {
+        return bxl->fwd_dlopen(filename, flags).restore();
+    }
+})
+
+static void report_exit(int exitCode, void *args)
 {
-    BxlObserver::GetInstance()->report_access("atexit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
+    BxlObserver::GetInstance()->report_access("on_exit", ES_EVENT_TYPE_NOTIFY_EXIT, std::string(""), std::string(""));
 }
 
 void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 {
-   atexit(report_exit);
+   on_exit(report_exit, NULL);
 }
 
 // ==========================

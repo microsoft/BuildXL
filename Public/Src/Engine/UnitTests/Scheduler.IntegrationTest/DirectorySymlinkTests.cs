@@ -23,9 +23,10 @@ using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
 namespace IntegrationTest.BuildXL.Scheduler
 {
     [Feature(Features.Symlink)]
+    [Trait("Category", "SymlinkTests")]
     public class DirectorySymlinkTests : SchedulerIntegrationTestBase
     {
-        internal readonly struct LookupSpec
+        public readonly struct LookupSpec
         {
             /// <summary>Arbitrary description</summary>
             internal string Desc { get; }
@@ -69,6 +70,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             internal IEnumerable<(bool shouldContain, string fullPath)> FilterObservations(string rootDir, string fullPath, bool shouldContain)
                 => TranslateObservations(rootDir).Where(o => o.fullPath == fullPath && o.shouldContain == shouldContain);
+
+            /// <nodoc />
+            public override string ToString() => Desc;
         }
 
         public DirectorySymlinkTests(ITestOutputHelper output) : base(output)
@@ -127,7 +131,7 @@ Versions/sym-sym-A -> sym-A/
         /// <see cref="LookupSpec.Observations"/> for more details on the format of strings specified as observations.
         /// In a nutshell, prefix is "+" means that the path must be observed, and "-" means that the path must not be observed.
         /// </remarks>
-        private LookupSpec[] LookupSpecs { get; } = new[]
+        private static LookupSpec[] LookupSpecs { get; } = new[]
         {
             new LookupSpec(
                 "readDirectly",
@@ -223,7 +227,7 @@ Versions/sym-sym-A -> sym-A/
             ),
         };
 
-        private LookupSpec[] AbsentProbeSpecs { get; } = new[]
+        private static LookupSpec[] AbsentProbeSpecs { get; } = new[]
         {
             new LookupSpec(
                 "absentProbeViaDirSymlink",
@@ -269,6 +273,31 @@ Versions/sym-sym-A -> sym-A/
             {
                 OpReadDummySourceFile(dummyFileDescription)
             });
+
+        public static IEnumerable<object[]> LookupTestsData()
+        {
+            foreach (var spec in LookupSpecs.Concat(AbsentProbeSpecs))
+            {
+                yield return new object[] { spec };
+            }
+        }
+
+        [TheoryIfSupported(requiresUnixBasedOperatingSystem: true, requiresSymlinkPermission: true)]
+        [MemberData(nameof(LookupTestsData))]
+        public void LookupTests(LookupSpec spec)
+        {
+            AbsolutePath rootDirAbsPath = CreateUniqueObjPath("LookupTest");
+            string rootDir = rootDirAbsPath.ToString(Context.PathTable);
+            var files = CreateLayoutOnDisk(rootDir);
+
+            var sealDirArtifact = SealDirectory(rootDirAbsPath, files, SealDirectoryKind.Full);
+
+            var pip = CreateAndScheduleConsumer(sealDirArtifact, spec.Desc, spec.Lookup);
+
+            var result = RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
+
+            ValidateObservations(result, rootDir, new[] { (pip, spec) });
+        }
 
         [Feature(Features.Symlink)]
         [FactIfSupported(requiresSymlinkPermission: true, requiresUnixBasedOperatingSystem: true)]
@@ -785,7 +814,14 @@ Versions/sym-sym-A -> sym-A/
         {
             foreach (var consumer in allConsumers)
             {
-                ValidateObservations(result, consumer.pip, consumer.spec.TranslateObservations(rootDir));
+                ValidateObservations(
+                    result,
+                    consumer.pip,
+                    consumer.spec
+                        .TranslateObservations(rootDir)
+                        // exclude paths that are explicitly declared as inputs because those don't have to be reported
+                        .Where(t => !(t.shouldContain && consumer.pip.Dependencies.Any(fileDep => ArtifactToString(fileDep) == t.fullPath)))
+                        .ToArray());
             }
         }
 

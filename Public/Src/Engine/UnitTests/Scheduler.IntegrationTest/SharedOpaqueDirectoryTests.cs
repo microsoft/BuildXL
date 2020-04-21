@@ -1444,6 +1444,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
+        [Trait("Category", "SkipLinux")] // TODO(BUG)
         [MemberData(
             nameof(CrossProduct),
             new object[] { true, false },

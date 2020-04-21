@@ -76,6 +76,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         RedisOperation Operation { get; }
 
         /// <summary>
+        /// Gets a database name (the primary or the secondary) that performs the operations.
+        /// </summary>
+        string DatabaseName { get; }
+
+        /// <summary>
         /// The number of operations in a batch.
         /// </summary>
         int BatchSize { get; }

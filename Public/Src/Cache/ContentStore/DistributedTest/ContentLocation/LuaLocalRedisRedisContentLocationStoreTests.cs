@@ -104,7 +104,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                     {
                         foreach (var checkpoint in checkpoints)
                         {
-                            batch.AddCheckpointAsync(checkpointsKey, checkpoint, maxSlotCount: 10).FireAndForget(context);
+                            batch.AddCheckpointAsync(checkpointsKey, checkpoint, maxSlotCount: 10).FireAndForget(context, batch: batch);
                         }
 
                         return Task.FromResult(0);

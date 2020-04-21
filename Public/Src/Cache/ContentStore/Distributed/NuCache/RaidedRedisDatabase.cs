@@ -148,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Counters[RaidedRedisDatabaseCounters.CancelRedisInstance].Increment();
 
                     // Avoiding task unobserved exception if the second task will fail.
-                    slowerResultTask.FireAndForget(context, failureSeverity: Severity.Info, tracePrefix: $"{failingRedisDb}");
+                    slowerResultTask.FireAndForget(context, failureSeverity: Severity.Info, extraMessage: $"Database={failingRedisDb}");
 
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -320,7 +321,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     })
                 .TraceErrorsOnlyIfEnabled(
                     _configuration.TraceOperationFailures,
-                    endMessageFactory: r => $"Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}")
+                    endMessageFactory: r => $"Operation={batch.Operation}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}")
                 .RunAsync();
 
             HandleOperationResult(context, result);
@@ -461,7 +462,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public Task<bool> SetHashValueAsync(Context context, RedisKey key, RedisValue hashField, RedisValue value, When when, CancellationToken token)
             => PerformDatabaseOperationAsync(context, db => db.HashSetAsync(key, hashField, value, when), Counters[RedisOperation.HashSetValue], token);
 
-        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token)
+        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token, [CallerMemberName]string? operationName = null)
         {
             var operationContext = new OperationContext(context, token);
             
@@ -496,7 +497,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     })
                 .TraceErrorsOnlyIfEnabled(
                     _configuration.TraceOperationFailures,
-                    endMessageFactory: r => $"ConnectionErrors={_connectionErrorCount}")
+                    endMessageFactory: r => $"Operation={operationName}, Database={_configuration.DatabaseName}, ConnectionErrors={_connectionErrorCount}")
                 .RunAsync();
 
             HandleOperationResult(context, result);

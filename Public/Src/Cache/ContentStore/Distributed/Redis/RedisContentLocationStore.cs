@@ -586,7 +586,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     string contentHashString = GetContentHashString(hashWithSize.Hash);
                     byte[] sizeInBytes = ConvertLongToBytes(hashWithSize.Size);
 
-                    batch.TouchOrSetLocationRecordAsync(contentHashString, sizeInBytes, localMachineId.GetContentLocationEntryBitOffset(), newExpiryTime, touchTime).FireAndForget(context);
+                    batch
+                        .TouchOrSetLocationRecordAsync(contentHashString, sizeInBytes, localMachineId.GetContentLocationEntryBitOffset(), newExpiryTime, touchTime)
+                        .FireAndForget(context, batch: batch);
                 }
 
                 await _contentRedisDatabaseAdapter.ExecuteBatchOperationAsync(context, batch, cts).ThrowIfFailure();
@@ -607,7 +609,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 foreach (var hash in hashes)
                 {
                     string contentHashString = GetContentHashString(hash);
-                    batch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(contentHashString, localMachineId.GetContentLocationEntryBitOffset(), false).FireAndForget(context);
+                    batch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(contentHashString, localMachineId.GetContentLocationEntryBitOffset(), false).FireAndForget(context, batch: batch);
                 }
 
                 await _contentRedisDatabaseAdapter.ExecuteBatchOperationAsync(context, batch, cts).ThrowIfFailure();
@@ -853,11 +855,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                         {
                             byte[] sizeInBinary = ConvertLongToBytes(hashInfo.Size);
                             batch.StringSetRangeAndBumpExpiryAsync(contentHashString, 0, sizeInBinary, newExpiryTime, _clock.UtcNow)
-                                .FireAndForget(context);
+                                .FireAndForget(context, batch: batch);
                         }
                         else
                         {
-                            batch.SetExpiryAsync(contentHashString, newExpiryTime, _clock.UtcNow).FireAndForget(context);
+                            batch.SetExpiryAsync(contentHashString, newExpiryTime, _clock.UtcNow).FireAndForget(context, batch: batch);
                         }
                     }
 
@@ -892,7 +894,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 foreach (var locationId in locationIds)
                 {
                     // The tasks are part of a batch operation and are awaited when ExecuteBatchOperationAsync is called
-                    trimBatch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(contentHashString, locationId.GetContentLocationEntryBitOffset(), false).FireAndForget(context);
+                    trimBatch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(contentHashString, locationId.GetContentLocationEntryBitOffset(), false).FireAndForget(context, batch: trimBatch);
                 }
             }
 
@@ -965,12 +967,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 if (locationStoreOption == LocationStoreOption.None)
                 {
                     // Replication only sets bit if content hash is registered in Redis.
-                    batch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(hash, locationId.GetContentLocationEntryBitOffset(), true).FireAndForget(context);
+                    batch.SetBitIfExistAndRemoveIfEmptyBitMaskAsync(hash, locationId.GetContentLocationEntryBitOffset(), true).FireAndForget(context, batch: batch);
                 }
                 else
                 {
                     // Always set bit because this action is batched with StringSetRangeAndBumpExpiryAsync
-                    batch.StringSetBitAsync(hash, locationId.GetContentLocationEntryBitOffset(), true).FireAndForget(context);
+                    batch.StringSetBitAsync(hash, locationId.GetContentLocationEntryBitOffset(), true).FireAndForget(context, batch: batch);
                 }
             }
         }

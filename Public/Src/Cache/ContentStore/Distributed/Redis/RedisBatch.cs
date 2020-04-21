@@ -310,7 +310,9 @@ return { requestedIncrement, currentValue }";
         private readonly List<IRedisOperationAndResult> _redisOperations = new List<IRedisOperationAndResult>();
         private readonly string _databaseName;
 
-        /// <inheritdoc />
+        public string DatabaseName => _databaseName;
+
+        /// <nodoc />
         public RedisBatch(RedisOperation operation, string keySpace, string databaseName) => (Operation, KeySpace, _databaseName) = (operation, keySpace, databaseName);
 
         /// <inheritdoc />
@@ -334,7 +336,7 @@ return { requestedIncrement, currentValue }";
         public void AddOperationAndTraceIfFailure<T>(Context context, string key, Func<IBatch, Task<T>> operation, [CallerMemberName]string operationName = null)
         {
             // Trace failure using 'Debug' severity to avoid pollution of warning traces.
-            AddOperation(key, operation).FireAndForget(context, operationName, failureSeverity: Severity.Debug, tracePrefix: _databaseName);
+            AddOperation(key, operation).FireAndForget(context, batch: this, operationName);
         }
 
         /// <inheritdoc />
@@ -860,7 +862,9 @@ return { requestedIncrement, currentValue }";
                 // FireAndForget not inlined because we don't want to replace parent task with continuation. Failure
                 // severity is Unknown to stop the logging from happening. We still need to do FireAndForget in order
                 // to avoid any ThrowOnUnobservedTaskException triggers.
-                task.FireAndForget(context, failureSeverity: Severity.Diagnostic, tracePrefix: _databaseName);
+
+                // The tracing is effectively disabled, because the failure is observed by the caller of this method.
+                task.FireAndForget(context, failureSeverity: Severity.Diagnostic);
                 taskToTrack.Add(task);
             }
 
@@ -897,6 +901,16 @@ return { requestedIncrement, currentValue }";
             {
                 return sr.ReadToEnd();
             }
+        }
+    }
+
+    /// <nodoc />
+    internal static class RedisBatchTaskExtensions
+    {
+        public static void FireAndForget(this Task task, Context context, IRedisBatch batch, [CallerMemberName]string operation = null)
+        {
+            string extraMessage = string.IsNullOrEmpty(batch.DatabaseName) ? string.Empty : $"Database={batch.DatabaseName}";
+            task.FireAndForget(context, operation, failureSeverity: Severity.Debug, extraMessage: extraMessage);
         }
     }
 }

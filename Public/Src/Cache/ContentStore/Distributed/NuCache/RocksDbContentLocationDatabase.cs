@@ -1051,8 +1051,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private BoolResult CompactColumnFamily(OperationContext context, IBuildXLKeyValueStore store, string columnFamilyName)
         {
-            byte? startByte = null;
-            byte? endByte = null;
+            uint? startRange = null;
+            uint? endRange = null;
 
             return context.PerformOperation(Tracer, () =>
             {
@@ -1069,8 +1069,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                         var compactionEndPrefix = unchecked((byte)(info.LastCompactionEndPrefix + _configuration.FullRangeCompactionByteIncrementStep));
 
-                        startByte = info.LastCompactionEndPrefix;
-                        endByte = compactionEndPrefix;
+                        startRange = info.LastCompactionEndPrefix;
+                        endRange = compactionEndPrefix;
 
                         var start = new byte[] { info.LastCompactionEndPrefix };
                         var limit = new byte[] { compactionEndPrefix };
@@ -1094,10 +1094,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             columnFamilyName);
                         break;
                     }
+                    case FullRangeCompactionVariant.WordIncrements:
+                    {
+                        var info = GetCompactionInfo(store, columnFamilyName);
+
+                        var compactionEndPrefix = unchecked((ushort)(info.LastWordCompactionEndPrefix + _configuration.FullRangeCompactionByteIncrementStep));
+
+                        startRange = info.LastWordCompactionEndPrefix;
+                        endRange = compactionEndPrefix;
+
+                        var start = BitConverter.GetBytes(info.LastWordCompactionEndPrefix);
+                        var limit = BitConverter.GetBytes(compactionEndPrefix);
+                        if (info.LastWordCompactionEndPrefix > compactionEndPrefix)
+                        {
+                            // We'll wrap around when we add the increment step at the end of the range; hence, we produce two compactions.
+                            store.CompactRange(start, null, columnFamilyName);
+                            store.CompactRange(null, limit, columnFamilyName);
+                        }
+                        else
+                        {
+                            store.CompactRange(start, limit, columnFamilyName);
+                        }
+
+                        StoreCompactionInfo(
+                            store,
+                            new CompactionInfo
+                            {
+                                LastWordCompactionEndPrefix = compactionEndPrefix,
+                            },
+                            columnFamilyName);
+                        break;
+                    }
                 }
 
                 return BoolResult.Success;
-            }, messageFactory: _ => $"ColumnFamily=[{columnFamilyName}] Variant=[{_configuration.FullRangeCompactionVariant}] Start=[{startByte?.ToString() ?? "NULL"}] End=[{endByte?.ToString() ?? "NULL"}]");
+            }, messageFactory: _ => $"ColumnFamily=[{columnFamilyName}] Variant=[{_configuration.FullRangeCompactionVariant}] Start=[{startRange?.ToString() ?? "NULL"}] End=[{endRange?.ToString() ?? "NULL"}]");
         }
 
         private void StoreCompactionInfo(IBuildXLKeyValueStore store, CompactionInfo compactionInfo, string columnFamilyName)
@@ -1105,7 +1136,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.RequiresNotNull(store);
             Contract.RequiresNotNullOrEmpty(columnFamilyName);
 
-            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfo");
+            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfoV2");
             var value = SerializeCompactionInfo(compactionInfo);
             store.Put(key, value, columnFamilyName: nameof(Columns.DatabaseManagement));
         }
@@ -1115,7 +1146,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.RequiresNotNull(store);
             Contract.RequiresNotNullOrEmpty(columnFamilyName);
 
-            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfo");
+            var key = Encoding.UTF8.GetBytes($"{columnFamilyName}_CompactionInfoV2");
             if (store.TryGetValue(key, out var value, columnFamilyName: nameof(Columns.DatabaseManagement)))
             {
                 return DeserializeCompactionInfo(value);
@@ -1138,17 +1169,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             public byte LastCompactionEndPrefix { get; set; }
 
+            public ushort LastWordCompactionEndPrefix { get; set; }
+
             public void Serialize(BuildXLWriter writer)
             {
                 writer.Write(LastCompactionEndPrefix);
+                writer.Write(LastWordCompactionEndPrefix);
             }
 
             public static CompactionInfo Deserialize(BuildXLReader reader)
             {
                 var lastCompactionEndPrefix = reader.ReadByte();
+                var lastWordCompactionEndPrefix = reader.ReadUInt16();
+
                 return new CompactionInfo()
                 {
                     LastCompactionEndPrefix = lastCompactionEndPrefix,
+                    LastWordCompactionEndPrefix = lastWordCompactionEndPrefix,
                 };
             }
         }

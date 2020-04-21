@@ -845,7 +845,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
         private string DescribeHibernatedSessionInfo(HibernatedSessionInfo info)
         {
-            return $"id=[{info.Id}] name=[{info.Session}] expiration=[{info.ExpirationUtcTicks}] capabilities=[{info.Capabilities}] pins=[{info.Pins.Count}]";
+            var expirationDateTime = new DateTime(info.ExpirationUtcTicks).ToLocalTime();
+            return $"id=[{info.Id}] name=[{info.Session}] expiration=[{expirationDateTime}] capabilities=[{info.Capabilities}] pins=[{info.Pins.Count}]";
         }
     }
 }

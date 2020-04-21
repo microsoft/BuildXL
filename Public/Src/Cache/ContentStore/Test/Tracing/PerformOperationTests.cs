@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Tasks;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -21,6 +23,35 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
         public PerformOperationTests(ITestOutputHelper output)
         : base(output)
         {
+        }
+
+        [Fact]
+        public async Task TraceWhenWithTimeoutIsCalled()
+        {
+            var tracer = new Tracer("MyTracer");
+            var context = new OperationContext(new Context(TestGlobal.Logger));
+
+            int shortOperationDurationMs = 10;
+            TimeSpan timeout = TimeSpan.FromMilliseconds(shortOperationDurationMs * 100);
+            var result1 = await context.PerformOperationAsync(
+                    tracer,
+                    () => operation(shortOperationDurationMs).WithTimeoutAsync(timeout));
+            result1.ShouldBeSuccess();
+
+            int longOperationDurationMs = 10_000;
+            timeout = TimeSpan.FromMilliseconds(longOperationDurationMs / 100);
+            var result2 = await context.PerformOperationAsync(
+                tracer,
+                () => operation(longOperationDurationMs).WithTimeoutAsync(timeout));
+            result2.ShouldBeError();
+
+            var fullOutput = GetFullOutput();
+            fullOutput.Should().Contain("TimeoutException");
+            async Task<BoolResult> operation(int duration)
+            {
+                await Task.Delay(duration);
+                return BoolResult.Success;
+            }
         }
 
         [Fact]

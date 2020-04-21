@@ -134,8 +134,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest request, CancellationToken token)
         {
-            OperationStarted();
-
             var cacheContext = new Context(new Guid(request.TraceId), Logger);
             var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
                 new OperationContext(cacheContext, token),
@@ -173,8 +171,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         private Task<HelloResponse> HelloAsync(HelloRequest request, CancellationToken token)
         {
-            OperationStarted();
-
             return Task.FromResult(
                 new HelloResponse
                 {
@@ -204,8 +200,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             RemoveFromTrackerRequest request,
             CancellationToken token)
         {
-            OperationStarted();
-
             DateTime startTime = DateTime.UtcNow;
             var cacheContext = new Context(new Guid(request.TraceId), Logger);
             var removeFromTrackerResult = await ContentSessionHandler.RemoveFromTrackerAsync(new OperationContext(cacheContext, token));
@@ -250,11 +244,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private async Task<ExistenceResponse> CheckFileExistsAsync(ExistenceRequest request, CancellationToken token)
         {
-            OperationStarted();
-
             DateTime startTime = DateTime.UtcNow;
             Context cacheContext = new Context(new Guid(request.TraceId), Logger);
-            HashType type = (HashType)request.HashType;
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
             // Iterate through all known stores, looking for content in each.
@@ -282,8 +273,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private async Task CopyFileAsync(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context)
         {
-            OperationStarted();
-
             // Get the content stream.
             Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.GetContentHash();
@@ -320,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     default:
                         throw new NotImplementedException($"Unknown result.Code '{result.Code}'.");
                 }
-
+                
                 // Send the response headers.
                 await context.WriteResponseHeadersAsync(headers);
 
@@ -348,17 +337,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a request copy file request
         /// </summary>
-        [SuppressMessage("AsyncUsage", "AsyncFixer02:DisposeAsync should be used instead of openStreamResult.Stream.Dispose")]
         private Task<RequestCopyFileResponse> RequestCopyFileAsync(RequestCopyFileRequest request, CancellationToken cancellationToken)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
-            return RunFuncAndReportAsync(
-                async () =>
+            return RunFuncNoSessionAsync(
+                request.TraceId, 
+                async (context) =>
                 {
                     // Iterate through all known stores, looking for content in each.
                     // In most of our configurations there is just one store anyway,
@@ -367,20 +352,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                     if (_contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault() is ICopyRequestHandler handler)
                     {
-                        var result = await handler.HandleCopyFileRequestAsync(cacheContext, hash);
+                        var result = await handler.HandleCopyFileRequestAsync(context.TracingContext, hash);
                         if (result.Succeeded)
                         {
-                            return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
+                            return new RequestCopyFileResponse { Header = ResponseHeader.Success(context.StartTime) };
                         }
 
-                        return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+                        return new RequestCopyFileResponse { Header = ResponseHeader.Failure(context.StartTime, result.ErrorMessage) };
 
                     }
 
-                    return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
+                    return new RequestCopyFileResponse { Header = ResponseHeader.Failure(context.StartTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
                 },
-                errorMessage =>
-                    new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, errorMessage) });
+                (context, errorMessage) =>
+                    new RequestCopyFileResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) });
         }
 
         private bool CanHandlePushRequest(Context cacheContext, ContentHash hash, [NotNullWhen(true)]IPushFileHandler store)
@@ -418,8 +403,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext callContext)
         {
-            OperationStarted();
-
             // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
             await Task.Yield();
 
@@ -503,7 +486,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 bytes += chunkSize;
                 chunks++;
-
                 // Read the next chunk while waiting for the response
                 await Task.WhenAll(readNextChunk(), responseStream.WriteAsync(response));
             }
@@ -543,43 +525,34 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a pin request.
         /// </summary>
-        private async Task<PinResponse> PinAsync(PinRequest request, CancellationToken token)
+        private Task<PinResponse> PinAsync(PinRequest request, CancellationToken token)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-
-            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
-            return await RunFuncAndReportAsync(
-                request.Header.SessionId,
-                async session =>
+            return RunFuncAsync(
+                request.Header,
+                async (context, session) =>
                 {
                     PinResult pinResult = await session.PinAsync(
-                        cacheContext,
+                        context.TracingContext,
                         request.ContentHash.ToContentHash((HashType)request.HashType),
                         token);
                     return new PinResponse
                     {
                         Header = new ResponseHeader(
-                                   startTime, pinResult.Succeeded, (int)pinResult.Code, pinResult.ErrorMessage, pinResult.Diagnostics)
+                                   context.StartTime, pinResult.Succeeded, (int)pinResult.Code, pinResult.ErrorMessage, pinResult.Diagnostics)
                     };
                 },
-                errorMessage =>
-                    new PinResponse { Header = ResponseHeader.Failure(startTime, (int)PinResult.ResultCode.Error, errorMessage) });
+                (context, errorMessage) =>
+                    new PinResponse { Header = ResponseHeader.Failure(context.StartTime, (int)PinResult.ResultCode.Error, errorMessage) });
         }
 
         /// <summary>
         /// Bulk pin content hashes.
         /// </summary>
-        private async Task<PinBulkResponse> PinBulkAsync(PinBulkRequest request, CancellationToken token)
+        private Task<PinBulkResponse> PinBulkAsync(PinBulkRequest request, CancellationToken token)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
-            return await RunFuncAndReportAsync(
-                request.Header.SessionId,
-                async session =>
+            return RunFuncAsync(
+                request.Header,
+                async (context, session) =>
                 {
                     var pinList = new List<ContentHash>();
                     foreach (var hash in request.Hashes)
@@ -588,7 +561,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
 
                     List<Task<Indexed<PinResult>>> pinResults = (await session.PinAsync(
-                        cacheContext,
+                        context.TracingContext,
                         pinList,
                         token)).ToList();
                     var response = new PinBulkResponse();
@@ -598,7 +571,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         {
                             var result = await pinResult;
                             var responseHeader = new ResponseHeader(
-                                startTime,
+                                context.StartTime,
                                 result.Item.Succeeded,
                                 (int)result.Item.Code,
                                 result.Item.ErrorMessage,
@@ -608,15 +581,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                     catch (Exception)
                     {
-                        pinResults.ForEach(task => task.FireAndForget(cacheContext));
+                        pinResults.ForEach(task => task.FireAndForget(context.TracingContext));
                         throw;
                     }
 
                     return response;
                 },
-                errorMessage =>
+                (context, errorMessage) =>
                 {
-                    var header = ResponseHeader.Failure(startTime, (int)PinResult.ResultCode.Error, errorMessage);
+                    var header = ResponseHeader.Failure(context.StartTime, (int)PinResult.ResultCode.Error, errorMessage);
                     var response = new PinBulkResponse();
                     int i = 0;
                     foreach (var hash in request.Hashes)
@@ -631,18 +604,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a place file request.
         /// </summary>
-        private async Task<PlaceFileResponse> PlaceFileAsync(PlaceFileRequest request, CancellationToken token)
+        private Task<PlaceFileResponse> PlaceFileAsync(PlaceFileRequest request, CancellationToken token)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
-            return await RunFuncAndReportAsync(
-                request.Header.SessionId,
-                async session =>
+            return RunFuncAsync(
+                request.Header,
+                async (context, session) =>
                 {
                     PlaceFileResult placeFileResult = await session.PlaceFileAsync(
-                        cacheContext,
+                        context.TracingContext,
                         request.ContentHash.ToContentHash((HashType)request.HashType),
                         new AbsolutePath(request.Path),
                         (FileAccessMode)request.FileAccessMode,
@@ -653,7 +622,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         Header =
                                    new ResponseHeader(
-                                       startTime,
+                                       context.StartTime,
                                        placeFileResult.Succeeded,
                                        (int)placeFileResult.Code,
                                        placeFileResult.ErrorMessage,
@@ -661,30 +630,26 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         ContentSize = placeFileResult.FileSize
                     };
                 },
-                errorMessage => new PlaceFileResponse
+                (context, errorMessage) => new PlaceFileResponse
                 {
-                    Header = ResponseHeader.Failure(startTime, (int)PlaceFileResult.ResultCode.Error, errorMessage)
+                    Header = ResponseHeader.Failure(context.StartTime, (int)PlaceFileResult.ResultCode.Error, errorMessage)
                 });
         }
 
         /// <summary>
         /// Implements a put file request.
         /// </summary>
-        private async Task<PutFileResponse> PutFileAsync(PutFileRequest request, CancellationToken token)
+        private Task<PutFileResponse> PutFileAsync(PutFileRequest request, CancellationToken token)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
-            return await RunFuncAndReportAsync(
-                request.Header.SessionId,
-                async session =>
+            return RunFuncAsync(
+                request.Header,
+                async (context, session) =>
                 {
                     PutResult putResult;
                     if (request.ContentHash == ByteString.Empty)
                     {
                         putResult = await session.PutFileAsync(
-                            cacheContext,
+                            context.TracingContext,
                             (HashType)request.HashType,
                             new AbsolutePath(request.Path),
                             (FileRealizationMode)request.FileRealizationMode,
@@ -693,7 +658,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     else
                     {
                         putResult = await session.PutFileAsync(
-                            cacheContext,
+                            context.TracingContext,
                             request.ContentHash.ToContentHash((HashType)request.HashType),
                             new AbsolutePath(request.Path),
                             (FileRealizationMode)request.FileRealizationMode,
@@ -704,7 +669,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         Header =
                                    new ResponseHeader(
-                                       startTime,
+                                       context.StartTime,
                                        putResult.Succeeded,
                                        putResult.Succeeded ? 0 : 1,
                                        putResult.ErrorMessage,
@@ -714,7 +679,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         HashType = (int)putResult.ContentHash.HashType
                     };
                 },
-                errorMessage => new PutFileResponse { Header = ResponseHeader.Failure(startTime, errorMessage) });
+                (context, errorMessage) => new PutFileResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) });
         }
 
         /// <summary>
@@ -722,114 +687,137 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private Task<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest request, CancellationToken token)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            return RunFuncAndReportAsync(
-                request.Header.SessionId,
-                session => Task.FromResult(new HeartbeatResponse { Header = ResponseHeader.Success(startTime) }),
-                errorMessage => new HeartbeatResponse { Header = ResponseHeader.Failure(startTime, errorMessage) });
+            return RunFuncAsync(
+                request.Header,
+                (context, session) => Task.FromResult(new HeartbeatResponse { Header = ResponseHeader.Success(context.StartTime) }),
+                (context, errorMessage) => new HeartbeatResponse { Header = ResponseHeader.Failure(context.StartTime, errorMessage) },
+                // It is important to trace heartbeat messages because lack of them will cause sessions to expire.
+                trace: true);
         }
 
         private async Task<DeleteContentResponse> DeleteAsync(DeleteContentRequest request, CancellationToken ct)
         {
-            OperationStarted();
-
-            DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), Logger);
-            var contentHash = request.ContentHash.ToContentHash((HashType)request.HashType);
-
-            var deleteOptions = new DeleteContentOptions() {DeleteLocalOnly = request.DeleteLocalOnly };
-            var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash, deleteOptions)));
-
-            bool succeeded = true;
-            long contentSize = 0L;
-            int code = (int)DeleteResult.ResultCode.ContentNotFound;
-            var response = new DeleteContentResponse();
-            foreach (var deleteResult in deleteResults)
-            {
-                if (deleteOptions.DeleteLocalOnly)
+            return await RunFuncNoSessionAsync(
+                request.TraceId,
+                async context =>
                 {
-                    succeeded &= deleteResult.Succeeded;
+                    var contentHash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
-                    // Return the most severe result code
-                    code = Math.Max(code, (int)deleteResult.Code);
-                }
-                else
-                {
-                    if (deleteResult is DistributedDeleteResult distributedDeleteResult)
+                    var deleteOptions = new DeleteContentOptions() { DeleteLocalOnly = request.DeleteLocalOnly };
+                    var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(context.TracingContext, contentHash, deleteOptions)));
+
+                    bool succeeded = true;
+                    long contentSize = 0L;
+                    int code = (int)DeleteResult.ResultCode.ContentNotFound;
+                    var response = new DeleteContentResponse();
+                    foreach (var deleteResult in deleteResults)
                     {
-                        foreach (var kvp in distributedDeleteResult.DeleteMapping)
+                        if (deleteOptions.DeleteLocalOnly)
                         {
-                            response.DeleteResults.Add(kvp.Key, new ResponseHeader(startTime, kvp.Value.Succeeded, (int)kvp.Value.Code, kvp.Value.ErrorMessage, kvp.Value.Diagnostics));
+                            succeeded &= deleteResult.Succeeded;
+
+                            // Return the most severe result code
+                            code = Math.Max(code, (int)deleteResult.Code);
                         }
+                        else
+                        {
+                            if (deleteResult is DistributedDeleteResult distributedDeleteResult)
+                            {
+                                foreach (var kvp in distributedDeleteResult.DeleteMapping)
+                                {
+                                    response.DeleteResults.Add(kvp.Key, new ResponseHeader(context.StartTime, kvp.Value.Succeeded, (int)kvp.Value.Code, kvp.Value.ErrorMessage, kvp.Value.Diagnostics));
+                                }
+                            }
+                        }
+
+                        contentSize = Math.Max(deleteResult.ContentSize, contentSize);
                     }
+
+                    response.Header = succeeded ? ResponseHeader.Success(context.StartTime) : ResponseHeader.Failure(context.StartTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString())));
+                    response.ContentSize = contentSize;
+                    response.Result = code;
+                    return response;
+                },
+                (context, errorMessage) => new DeleteContentResponse() {Header = ResponseHeader.Failure(context.StartTime, errorMessage)}
+                );
+        }
+
+        private struct RequestContext
+        {
+            public RequestContext(DateTime startTime, Context tracingContext)
+            {
+                StartTime = startTime;
+                TracingContext = tracingContext;
+            }
+
+            public DateTime StartTime { get; }
+            public Context TracingContext { get; }
+        }
+
+        private async Task<T> RunFuncAsync<T>(
+            RequestHeader header,
+            Func<RequestContext, IContentSession, Task<T>> taskFunc,
+            Func<RequestContext, string, T> failFunc,
+            bool trace = false,
+            bool obtainSession = true,
+            [CallerMemberName]string? caller = null)
+        {
+            var context = new RequestContext(startTime: DateTime.UtcNow, new Context(Guid.Parse(header.TraceId), Logger));
+            int sessionId = header.SessionId;
+
+            IContentSession? session = null;
+
+            if (obtainSession && !ContentSessionHandler.TryGetSession(sessionId, out session))
+            {
+                string message = $"Could not find session for session ID {sessionId}";
+                Logger.Info(message);
+                return failFunc(context, message);
+            }
+
+            var sw = StopwatchSlim.Start();
+
+            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
+            await Task.Yield();
+
+            try
+            {
+                if (trace)
+                {
+                    context.TracingContext.Debug($"Starting GRPC operation {caller}.");
                 }
 
-                contentSize = Math.Max(deleteResult.ContentSize, contentSize);
-            }
+                var result = await taskFunc(context, session!);
 
-            response.Header = succeeded ? ResponseHeader.Success(startTime) : ResponseHeader.Failure(startTime, string.Join(Environment.NewLine, deleteResults.Select(r => r.ToString())));
-            response.ContentSize = contentSize;
-            response.Result = code;
-            return response;
-        }
+                if (trace)
+                {
+                    context.TracingContext.Debug($"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms.");
+                }
 
-        private void OperationStarted([CallerMemberName]string requestType = "Unknown")
-        {
-            // TODO: Add counter, but don't trace
-        }
-
-        private async Task<T> RunFuncAndReportAsync<T>(
-            int sessionId,
-            Func<IContentSession, Task<T>> taskFunc,
-            Func<string, T> failFunc)
-        {
-            if (!ContentSessionHandler.TryGetSession(sessionId, out var session))
-            {
-                return failFunc($"Could not find session for session ID {sessionId}");
-            }
-
-            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
-            await Task.Yield();
-
-            try
-            {
-                return await taskFunc(session);
+                return result;
             }
             catch (TaskCanceledException)
             {
-                Logger.Info("GRPC server operation canceled.");
-                return failFunc("The operation was canceled.");
+                var message = $"The GRPC server operation {caller} was canceled in {sw.Elapsed.TotalMilliseconds}ms.";
+                context.TracingContext.Info(message);
+                return failFunc(context, message);
             }
             catch (Exception e)
             {
-                Logger.Error(e, "GRPC server operation failed.");
-                return failFunc(e.ToString());
+                context.TracingContext.Error($"GRPC server operation {caller} failed in {sw.Elapsed.TotalMilliseconds}ms. {e}");
+                return failFunc(context, e.ToString());
             }
         }
 
-        private async Task<T> RunFuncAndReportAsync<T>(
-            Func<Task<T>> taskFunc,
-            Func<string, T> failFunc)
+        private Task<T> RunFuncNoSessionAsync<T>(
+            string traceId,
+            Func<RequestContext, Task<T>> taskFunc,
+            Func<RequestContext, string, T> failFunc)
         {
-            // Detaching from the calling thread to (potentially) avoid IO Completion port thread exhaustion
-            await Task.Yield();
-
-            try
-            {
-                return await taskFunc();
-            }
-            catch (TaskCanceledException)
-            {
-                Logger.Info("GRPC server operation canceled.");
-                return failFunc("The operation was canceled.");
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "GRPC server operation failed.");
-                return failFunc(e.ToString());
-            }
+            return RunFuncAsync(
+                new RequestHeader(traceId, sessionId: -1), 
+                (context, _) => taskFunc(context),
+                failFunc,
+                obtainSession: false);
         }
 
         /// <summary>

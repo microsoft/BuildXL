@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Utilities.Tasks;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -14,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public class SessionState : IDisposable
     {
-        private SessionData _data;
+        private SessionData? _data;
 
         private readonly SemaphoreSlim _sync = new SemaphoreSlim(1, 1);
 
@@ -55,34 +58,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             // To make sure a competing thread doesn't squash a newly created session Id,
             // only squash the session ID if we are the first to discover that ours is bad.
-            await _sync.WaitAsync();
-            try
+            using var holder = await _sync.AcquireAsync();
+            if (_data != null && _data.SessionId == badId)
             {
-                if ((_data != null) && (_data.SessionId == badId))
-                {
-                    _data.TemporaryDirectory?.Dispose();
-                    _data = null;
-                }
-            }
-            finally
-            {
-                _sync.Release();
-            }
-        }
-
-        /// <summary>
-        /// Gets the currently active session ID.
-        /// </summary>
-        public async Task<StructResult<int>> GetIdAsync()
-        {
-            ObjectResult<SessionData> result = await GetDataAsync();
-            if (result.Succeeded)
-            {
-                return new StructResult<int>(result.Data.SessionId);
-            }
-            else
-            {
-                return new StructResult<int>(result);
+                _data.TemporaryDirectory?.Dispose();
+                _data = null;
             }
         }
 
@@ -93,31 +73,25 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             // Use double-checked locking to ensure only one session is created,
             // in most circumstances without blocking.
-            SessionData data = _data;
+            SessionData? data = _data;
             if (data == null)
             {
-                await _sync.WaitAsync();
-                try
+                using var holder = _sync.AcquireAsync();
+                if (_data == null)
                 {
-                    if (_data == null)
+                    ObjectResult<SessionData> result = await _sessionFactory();
+                    if (!result.Succeeded)
                     {
-                        ObjectResult<SessionData> result = await _sessionFactory();
-                        if (!result.Succeeded)
-                        {
-                            return result;
-                        }
-                        else
-                        {
-                            _data = result.Data;
-                        }
+                        return result;
                     }
+                    else
+                    {
+                        _data = result.Data;
+                    }
+                }
 
-                    return new ObjectResult<SessionData>(_data);
-                }
-                finally
-                {
-                    _sync.Release();
-                }
+                Contract.Assert(_data != null);
+                return new ObjectResult<SessionData>(_data);
             }
             else
             {

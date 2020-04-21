@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         public static TResult ShouldBeError<TResult>(this TResult result, string expectedMessageFragment = null) where TResult : ResultBase
         {
             Assert.NotNull(result);
-            Assert.False(result.Succeeded, "The operation should be successful, but it failed.");
+            Assert.False(result.Succeeded, "The operation should failed, but is successful.");
             Assert.NotNull(result.ErrorMessage);
             if (expectedMessageFragment != null)
             {

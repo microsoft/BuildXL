@@ -11,8 +11,14 @@ namespace ContentStore.Grpc
     {
         /// <nodoc />
         public RequestHeader(Guid traceId, int sessionId)
+            : this(traceId.ToString(), sessionId)
         {
-            TraceId = traceId.ToString();
+        }
+
+        /// <nodoc />
+        public RequestHeader(string traceId, int sessionId)
+        {
+            TraceId = traceId;
             SessionId = sessionId;
         }
     }

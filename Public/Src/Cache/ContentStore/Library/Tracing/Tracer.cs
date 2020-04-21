@@ -23,6 +23,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
 {
     public class Tracer
     {
+        // If this flag is set, then the trace name will be used in all the tracing operations.
+        private readonly bool _useTracerName;
         private const int DefaultArgsPerLog = 500;
 
         private int _numberOfRecoverableErrors;
@@ -45,8 +47,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// </summary>
         public int NumberOfCriticalErrors => _numberOfCriticalErrors;
 
-        public Tracer(string name)
+        public Tracer(string name, bool useTracerName = false)
         {
+            _useTracerName = useTracerName;
             Contract.Requires(name != null);
 
             Name = name;
@@ -188,11 +191,18 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        private static void Trace(Severity severity, Context context, string message)
+        private void Trace(Severity severity, Context context, string message)
         {
             if (!context.IsSeverityEnabled(severity))
             {
                 return;
+            }
+
+            if (_useTracerName && !message.StartsWith(Name))
+            {
+                // Augmenting the message with the tracer name if specified and if this operation
+                // is not called from OperationStarted method.
+                message = string.Concat(Name, ": ", message);
             }
 
             context.TraceMessage(severity, message);
@@ -207,6 +217,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 {
                     message = $"{message} {additionalInfo}";
                 }
+
                 Debug(context, message);
             }
         }

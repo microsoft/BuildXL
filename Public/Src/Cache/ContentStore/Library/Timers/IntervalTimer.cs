@@ -6,6 +6,8 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Timers
 {
     /// <summary>
@@ -17,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Timers
 
         private readonly SemaphoreSlim _monitor = new SemaphoreSlim(1, 1);
         private readonly Func<Task> _actionFunc;
-        private readonly Action<string> _logAction;
+        private readonly Action<string>? _logAction;
         private readonly Timer _interval;
 
         private bool _disposed;
@@ -29,13 +31,14 @@ namespace BuildXL.Cache.ContentStore.Timers
         /// <param name="period">Interval between triggered actions.</param>
         /// <param name="logAction">Action to optionally log events related to the action triggering.</param>
         /// <param name="dueTime">Initial wait time before triggering action.</param>
-        public IntervalTimer(Func<Task> actionFunc, TimeSpan period, Action<string> logAction = null, TimeSpan? dueTime = null)
+        public IntervalTimer(Func<Task> actionFunc, TimeSpan period, Action<string>? logAction = null, TimeSpan? dueTime = null)
         {
             Contract.Requires(actionFunc != null);
-
+            
             _actionFunc = actionFunc;
             _logAction = logAction;
             _interval = new Timer(
+                // the callback is async void method, but this is safe here, because TriggerActionAsync should never fail.
                 async sender => await TriggerActionAsync(),
                 null,
                 dueTime ?? TimeSpan.FromMinutes(0),
@@ -49,7 +52,7 @@ namespace BuildXL.Cache.ContentStore.Timers
         /// <param name="period">Interval between triggered actions.</param>
         /// <param name="logAction">Action to optionally log events related to the action triggering.</param>
         /// <param name="dueTime">Initial wait time before triggering action.</param>
-        public IntervalTimer(Action action, TimeSpan period, Action<string> logAction = null, TimeSpan? dueTime = null)
+        public IntervalTimer(Action action, TimeSpan period, Action<string>? logAction = null, TimeSpan? dueTime = null)
             : this(
                 () =>
                 {
@@ -65,32 +68,23 @@ namespace BuildXL.Cache.ContentStore.Timers
         /// <inheritdoc />
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        private void Dispose(bool disposing)
-        {
             if (_disposed)
             {
                 return;
             }
 
-            if (disposing)
+            _monitor.Wait(MonitorTimeoutMilliseconds);
+            try
             {
-                _monitor.Wait(MonitorTimeoutMilliseconds);
-                try
-                {
-                    _interval.Dispose();
-                    _disposed = true;
-                }
-                finally
-                {
-                    _monitor.Release();
-                }
-
-                _monitor.Dispose();
+                _interval.Dispose();
+                _disposed = true;
             }
+            finally
+            {
+                _monitor.Release();
+            }
+
+            _monitor.Dispose();
         }
 
         private async Task TriggerActionAsync()

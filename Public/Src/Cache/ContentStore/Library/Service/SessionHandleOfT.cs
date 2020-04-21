@@ -33,6 +33,9 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public long SessionExpirationUtcTicks { get; private set; }
 
+        /// <nodoc />
+        public DateTime SessionExpirationDateTime => new DateTime(SessionExpirationUtcTicks).ToLocalTime();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SessionHandle{T}"/> class.
         /// </summary>
@@ -67,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public string ToString(int sessionId)
         {
-            return $"id=[{sessionId}] name=[{SessionName}] expiration=[{SessionExpirationUtcTicks}] capabilities=[{SessionCapabilities}]";
+            return $"id=[{sessionId}] name=[{SessionName}] expiration=[{SessionExpirationDateTime}] capabilities=[{SessionCapabilities}]";
         }
     }
 }

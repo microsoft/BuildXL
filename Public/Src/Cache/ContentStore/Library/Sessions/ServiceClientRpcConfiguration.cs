@@ -17,6 +17,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public readonly TimeSpan? HeartbeatInterval;
 
         /// <summary>
+        /// The timeout for heartbeats.
+        /// </summary>
+        public readonly TimeSpan? HeartbeatTimeout;
+
+        /// <summary>
         /// Gets the GRPC port.
         /// </summary>
         public int GrpcPort { get; }
@@ -27,13 +32,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// </summary>
         public string GrpcHost { get; set; } = GrpcEnvironment.Localhost;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ServiceClientRpcConfiguration"/> class.
-        /// </summary>
-        public ServiceClientRpcConfiguration(int grpcPort, TimeSpan? heartbeatInterval = null)
+        /// <nodoc />
+        public ServiceClientRpcConfiguration(int grpcPort, TimeSpan? heartbeatInterval = null, TimeSpan? heartbeatTimeout = null)
         {
             GrpcPort = grpcPort;
             HeartbeatInterval = heartbeatInterval;
+            HeartbeatTimeout = heartbeatTimeout;
         }
     }
 }

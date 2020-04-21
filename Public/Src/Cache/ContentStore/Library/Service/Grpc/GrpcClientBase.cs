@@ -15,8 +15,11 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 using ContentStore.Grpc;
 using Grpc.Core;
+
+#nullable enable annotations
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -32,7 +35,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly TimeSpan _heartbeatInterval;
         private Capabilities _clientCapabilities;
         private Capabilities _serviceCapabilities;
-        private IntervalTimer _heartbeatTimer;
+        private IntervalTimer? _heartbeatTimer;
+        private readonly TimeSpan _heartbeatTimeout;
+
+        // The timeout after which the heartbeat async operation will be canceled.
+        private TimeSpan HeartbeatHardTimeout => TimeSpan.FromMilliseconds(_heartbeatTimeout.TotalMilliseconds * 1.2);
 
         private bool _serviceUnavailable;
 
@@ -49,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected readonly ServiceClientContentSessionTracer ServiceClientTracer;
 
         /// <nodoc />
-        protected SessionState SessionState;
+        protected SessionState? SessionState;
 
         /// <inheritdoc />
         protected override Tracer Tracer => ServiceClientTracer;
@@ -60,8 +67,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ServiceClientContentSessionTracer tracer,
             ServiceClientRpcConfiguration configuration,
             string scenario,
-            Capabilities clientCapabilities,
-            TimeSpan? heartbeatInterval = null)
+            Capabilities clientCapabilities)
         {
             FileSystem = fileSystem;
             ServiceClientTracer = tracer;
@@ -72,6 +78,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Channel = new Channel(configuration.GrpcHost ?? GrpcEnvironment.Localhost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _clientCapabilities = clientCapabilities;
             _heartbeatInterval = _configuration.HeartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
+
+            // By default, the heartbeat timeout is the half of the heartbeat interval
+            _heartbeatTimeout = _configuration.HeartbeatTimeout ?? TimeSpan.FromMilliseconds(_heartbeatInterval.TotalMilliseconds / 2);
         }
 
         /// <nodoc />
@@ -85,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected abstract AsyncUnaryCall<ShutdownResponse> ShutdownSessionAsync(ShutdownRequest shutdownRequest);
 
         /// <nodoc />
-        protected abstract AsyncUnaryCall<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest heartbeatRequest);
+        protected abstract AsyncUnaryCall<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest heartbeatRequest, CancellationToken token);
 
         /// <nodoc />
         protected abstract AsyncUnaryCall<HelloResponse> HelloAsync(HelloRequest helloRequest, CancellationToken token);
@@ -105,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (SessionState == null)
                 {
-                    // _sessionState is null if initialization has failed.
+                    // SessionState is null if initialization has failed.
                     return BoolResult.Success;
                 }
 
@@ -115,6 +124,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return new BoolResult(sessionContext);
                 }
 
+                Tracer.Info(context, $"Shutting down session with SessionId={sessionContext.Value.SessionId}");
+
                 if (_serviceUnavailable)
                 {
                     context.TracingContext.Debug("Skipping session shutdown because service is unavailable.");
@@ -123,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 {
                     try
                     {
-                        await ShutdownSessionAsync(new ShutdownRequest {Header = sessionContext.Value.CreateHeader() });
+                        await ShutdownSessionAsync(new ShutdownRequest { Header = sessionContext.Value.CreateHeader() });
                     }
                     catch (RpcException e)
                     {
@@ -143,35 +154,63 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task SendHeartbeatAsync(Context context)
+        private async Task HeartbeatAsync(Context context, int originalSessionId)
         {
             var sessionContext = await CreateSessionContextAsync(context);
             if (!sessionContext)
             {
                 // We do not even attempt to send a heartbeat if we can't get a session ID.
+                Tracer.Warning(context, $"Skipping heartbeat. Can't find session context for SessionId={originalSessionId}.");
                 return;
             }
 
-            try
-            {
-                HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = sessionContext.Value.CreateHeader() });
+            // It is very important for the heartbeat not to get stuck forever because if the service won't receive
+            // any calls for some time, the session will be closed on the service side due to inactivity.
 
-                // Check for null header here as a workaround to a known service bug, which returns null headers on successful heartbeats.
-                if (response?.Header != null && !response.Header.Succeeded)
+            // This operation passes a cancellation token to gracefully cancel the request,
+            // and then uses hard timeout to abort the async operation if the operation is not gracefully canceled.
+            var operationContext = new OperationContext(context);
+
+            // Can't use original session id, because it may have changed due to reconnect.
+            var sessionId= sessionContext.Value.SessionId;
+            await operationContext.PerformOperationAsync(
+                    Tracer,
+                    () => sendHeartbeatAsync().WithTimeoutAsync(HeartbeatHardTimeout),
+                    extraEndMessage: r => $"SessionId={sessionId}")
+                .IgnoreFailure(); // The error was already traced.
+
+            async Task<BoolResult> sendHeartbeatAsync()
+            {
+                using var timeoutCancellationSource = new CancellationTokenSource(_heartbeatTimeout);
+                try
                 {
-                    Tracer.Warning(
-                        context,
-                        $"Heartbeat failed: ErrorMessage=[{response.Header.ErrorMessage}] Diagnostics=[{response.Header.Diagnostics}]");
+                    HeartbeatResponse response = await HeartbeatAsync(new HeartbeatRequest { Header = sessionContext.Value.CreateHeader() }, timeoutCancellationSource.Token);
 
-                    // Nor do we attempt to reset a session ID based on a failed heartbeat.
+                    // Check for null header here as a workaround to a known service bug, which returns null headers on successful heartbeats.
+                    if (response?.Header != null && !response.Header.Succeeded)
+                    {
+                        // Heartbeat failed.
+                        // Maybe the session is stale. Resetting it without throwing an exception.
+                        await ResetOnUnknownSessionAsync(context, response.Header, sessionId, throwFailures: false);
+
+                        var error = new BoolResult(response.Header.ErrorMessage, response.Header.Diagnostics);
+                        return new BoolResult(error, "Heartbeat failed");
+                    }
+
+                    return BoolResult.Success;
                 }
-            }
-            catch (Exception ex)
-            {
-                string message = (ex is RpcException rpcEx) && (rpcEx.Status.StatusCode == StatusCode.Unavailable)
-                    ? "Heartbeat failed to detect running service."
-                    : $"Heartbeat failed: [{ex}]";
-                Tracer.Debug(context, message);
+                catch (Exception ex)
+                {
+                    if (timeoutCancellationSource.IsCancellationRequested)
+                    {
+                        return new BoolResult(ex, $"Heartbeat timed out out after '{_heartbeatTimeout}'.");
+                    }
+
+                    string message = (ex is RpcException rpcEx) && (rpcEx.Status.StatusCode == StatusCode.Unavailable)
+                        ? "Heartbeat failed to detect running service."
+                        : $"Heartbeat failed: [{ex}]";
+                    return new BoolResult(ex, message);
+                }
             }
         }
 
@@ -191,24 +230,27 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
             if (string.IsNullOrEmpty(response.ErrorMessage))
             {
-                SessionData data = new SessionData { SessionId = response.SessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)) };
+                var sessionId = response.SessionId;
+                SessionData data = new SessionData { SessionId = sessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)) };
                 SessionState = new SessionState(() => CreateSessionDataAsync(context, name, cacheName, implicitPin), data);
 
                 // Send a heartbeat iff both the service can receive one and the service was told to expect one.
                 if ((_serviceCapabilities & Capabilities.Heartbeat) != 0 &&
                     (_clientCapabilities & Capabilities.Heartbeat) != 0)
                 {
-                    _heartbeatTimer = new IntervalTimer(() => SendHeartbeatAsync(context), _heartbeatInterval, message =>
+                    _heartbeatTimer = new IntervalTimer(() => HeartbeatAsync(context, sessionId), _heartbeatInterval, message =>
                     {
-                        Tracer.Debug(context, $"[{HeartbeatName}] {message}");
+                        Tracer.Debug(context, $"[{HeartbeatName}] {message}. OriginalSessionId={sessionId}");
                     });
                 }
 
-                return new StructResult<int>(response.SessionId);
+                Tracer.Info(context, $"Created a session with SessionId={sessionId}.");
+
+                return BoolResult.Success;
             }
             else
             {
-                return new StructResult<int>(response.ErrorMessage);
+                return new BoolResult(response.ErrorMessage);
             }
         }
 
@@ -221,7 +263,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             try
             {
                 var targetMachine = _configuration.GrpcHost ?? GrpcEnvironment.Localhost;
-                context.Always($"Starting up GRPC client against service on '{targetMachine}' on port {_configuration.GrpcPort} with timeout {waitMs}.");
+                context.Info($"Starting up GRPC client against service on '{targetMachine}' on port {_configuration.GrpcPort} with timeout {waitMs}.");
 
                 if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
                 {
@@ -238,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (helloResponse.Success)
                 {
-                    _serviceCapabilities = (Capabilities) helloResponse.Capabilities;
+                    _serviceCapabilities = (Capabilities)helloResponse.Capabilities;
                     CheckCompatibility(_clientCapabilities, _serviceCapabilities).ThrowIfFailure();
                 }
                 else
@@ -278,7 +320,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             CreateSessionResponse response = await CreateSessionAsyncInternalAsync(context, name, cacheName, implicitPin);
             if (string.IsNullOrEmpty(response.ErrorMessage))
             {
-                SessionData data = new SessionData() { SessionId = response.SessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory))};
+                SessionData data = new SessionData() { SessionId = response.SessionId, TemporaryDirectory = new DisposableDirectory(FileSystem, new AbsolutePath(response.TempDirectory)) };
                 return new ObjectResult<SessionData>(data);
             }
             else
@@ -311,7 +353,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            CounterSet counters = new CounterSet();
+            var counters = new CounterSet();
 
             // Get stats iff compatible with service and client
             if ((_serviceCapabilities & Capabilities.GetStats) != 0 &&
@@ -333,6 +375,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         protected async Task<Result<SessionContext>> CreateSessionContextAsync(Context context, CancellationToken token = default)
         {
+            Contract.Assert(SessionState != null, "CreateSessionAsync method was not called, or the instance is shut down.");
+
             ObjectResult<SessionData> result = await SessionState.GetDataAsync();
             if (!result)
             {
@@ -495,15 +539,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <nodoc />
-        protected async Task ResetOnUnknownSessionAsync(Context context, ResponseHeader header, int sessionId)
+        protected async Task ResetOnUnknownSessionAsync(Context context, ResponseHeader header, int sessionId, bool throwFailures = true)
+        {
+            if (IsUnknownSessionError(header))
+            {
+                Tracer.Warning(context, $"Could not find session id {sessionId}. Resetting session state.");
+                await SessionState.ResetAsync(sessionId);
+                if (throwFailures)
+                {
+                    throw new ClientCanRetryException(context, $"Could not find session id {sessionId}");
+                }
+            }
+        }
+
+        private static bool IsUnknownSessionError(ResponseHeader header)
         {
             // At the moment, the error message is the only way to identify that the error was due to
             // the session ID being unknown to the server.
-            if (!header.Succeeded && header.ErrorMessage.Contains("Could not find session"))
-            {
-                await SessionState.ResetAsync(sessionId);
-                throw new ClientCanRetryException(context, $"Could not find session id {sessionId}");
-            }
+            return !header.Succeeded && header.ErrorMessage.Contains("Could not find session");
         }
 
         /// <summary>

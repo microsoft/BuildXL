@@ -496,9 +496,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        protected override AsyncUnaryCall<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest heartbeatRequest)
+        protected override AsyncUnaryCall<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest heartbeatRequest, CancellationToken token)
         {
-            return Client.HeartbeatAsync(heartbeatRequest);
+            return Client.HeartbeatAsync(heartbeatRequest, cancellationToken: token);
         }
 
         /// <inheritdoc />

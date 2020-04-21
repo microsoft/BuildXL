@@ -8,12 +8,22 @@ import * as MacOS from "Sdk.MacOS";
 const pkgContents = importFrom("Grpc.Tools").Contents.all;
 const includesFolder = d`${pkgContents.root}/build/native/include`;
 
+const currentHost = Context.getCurrentHost();
+const isHostOsOsx : boolean = currentHost.os === "macOS";
+const isHostOsWin : boolean = currentHost.os === "win";
+const isHostOsLinux : boolean = currentHost.os === "unix";
+
+const binDir = 
+    isHostOsWin   ? a`windows_x64` :
+    isHostOsOsx   ? a`macosx_x64` : 
+    isHostOsLinux ? a`linux_x64` : 
+    Contract.fail("Unsupported OS");
+
 @@public
 export const tool: Transformer.ToolDefinition = {
-    exe: pkgContents.getFile(
-        Context.getCurrentHost().os === "win"
-            ? r`tools/windows_x64/protoc.exe`
-            : r`tools/macosx_x64/protoc`),
+    exe: pkgContents.getFile(isHostOsWin
+        ? r`tools/windows_x64/protoc.exe`
+        : r`tools/${binDir}/protoc`),
     dependsOnCurrentHostOSDirectories: true
 };
 
@@ -59,9 +69,9 @@ export function generateCSharp(args: ArgumentsCSharp) : Result {
             ...addIf(fileToProcess.isRpc,
                 Cmd.option("--grpc_out ", Artifact.none(outputDirectory)),
                 Cmd.option("--plugin=protoc-gen-grpc=", Artifact.input(pkgContents.getFile(
-                    Context.getCurrentHost().os === "win"
+                    isHostOsWin
                         ? r`tools/windows_x64/grpc_csharp_plugin.exe`
-                        : r`tools/macosx_x64/grpc_csharp_plugin`)
+                        : r`tools/${binDir}/grpc_csharp_plugin`)
                     )
                 )
             ),

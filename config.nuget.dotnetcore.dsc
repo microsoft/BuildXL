@@ -25,14 +25,14 @@ export const pkgs = [
     { id: "Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
     // .NET Core win-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.win-x64", version: coreVersion, osSkip: [ "macOS" ]  },
-    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: coreVersion, osSkip: [ "macOS" ]  },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion, osSkip: [ "macOS" ]  },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion, osSkip: [ "macOS" ]  },
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: coreVersion, osSkip: [ "macOS", "unix" ] },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: coreVersion, osSkip: [ "macOS", "unix" ] },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersion, osSkip: [ "macOS", "unix" ] },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion, osSkip: [ "macOS", "unix" ] },
 
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220", osSkip: [ "macOS" ]  },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220", osSkip: [ "macOS" ]  },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220", osSkip: [ "macOS" ]  },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220", osSkip: [ "macOS", "unix" ] },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220", osSkip: [ "macOS", "unix" ] },
+    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersionPreviousVersion, alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220", osSkip: [ "macOS", "unix" ] },
 
     // .NET Core osx-x64 runtime deps
     { id: "Microsoft.NETCore.App.Host.osx-x64", version: coreVersion },
@@ -51,8 +51,8 @@ export const pkgs = [
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
 
     { id: "runtime.native.System", version: pkgVersion },
-    { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS" ]  },
-    { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS" ]  },
+    { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
+    { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
     { id: "runtime.native.System.Data.SqlClient.sni", version: pkgVersion },
     { id: "runtime.native.System.Net.Http", version: pkgVersion },
     { id: "runtime.native.System.IO.Compression", version: pkgVersion },

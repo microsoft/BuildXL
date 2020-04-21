@@ -5,21 +5,25 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared from "Sdk.Managed.Shared";
 
 const isMacOS = Context.getCurrentHost().os === "macOS";
+const isWinOS = Context.getCurrentHost().os === "win";
 
-const pkgContents = isMacOS
-    ? importFrom("runtime.osx-x64.Microsoft.DotNet.ILCompiler").Contents.all
-    : importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all;
+const emptyStaticDir: StaticDirectory = Transformer.sealDirectory({root: d`.`, files: [] });
 
-const netcoreAppPkgContents = isMacOS
-    ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all
-    : importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all;
+const pkgContents: StaticDirectory = 
+    isMacOS ? importFrom("runtime.osx-x64.Microsoft.DotNet.ILCompiler").Contents.all :
+    isWinOS ? importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all :
+    emptyStaticDir;
 
-const ilcToolPackagePath = isMacOS
-    ? r`tools/ilc`
-    : r`tools/ilc.exe`;
+const netcoreAppPkgContents: StaticDirectory =
+    isMacOS ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all :
+    isWinOS ? importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all :
+    emptyStaticDir;
+
+const ilcToolPackagePath = isWinOS ? r`tools/ilc.exe` : r`tools/ilc`;
+const ilcToolExeFile = (isMacOS || isWinOS) ? pkgContents.getFile(ilcToolPackagePath) : undefined;
 
 const ilcTool: Transformer.ToolDefinition = Shared.Factory.createTool({
-    exe: pkgContents.getFile(ilcToolPackagePath),
+    exe: ilcToolExeFile,
     runtimeDependencies: pkgContents.contents,
     dependsOnCurrentHostOSDirectories: true
 });

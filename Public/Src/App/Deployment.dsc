@@ -36,7 +36,8 @@ function createDeploymentManifest(isServerDeployment: boolean) : Deployment.Defi
                 RunInSubst.withQualifier({platform: "x86"}).deployment,
             ]),
 
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
+            ...addIfLazy(qualifier.targetRuntime === "osx-x64" || 
+                         qualifier.targetRuntime === "linux-x64", () => [
                 MacServices.Deployment.buildXLScripts,
             ]),
 

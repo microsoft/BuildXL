@@ -13,6 +13,28 @@ declare arg_Minimal=""
 declare arg_Internal=""
 declare arg_Cgmanifest=""
 
+if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+    readonly HostQualifier=Linux
+    readonly DeploymentFolder=linux-x64
+elif [[ "${OSTYPE}" == "darwin"* ]]; then
+    readonly HostQualifier=DotNetCoreMac
+    readonly DeploymentFolder=osx-x64
+else
+    print_error "Operating system not supported: ${OSTYPE}"
+    exit 1
+fi
+
+function callNuget() {
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        nuget "$@"
+    elif [[ "${OSTYPE}" == "darwin"* ]]; then
+        $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
+    else
+        print_error "Operating system not supported: ${OSTYPE}"
+        return 1
+    fi
+}
+
 function findMono() {
     local monoLocation=$(which mono)
     if [[ -z $monoLocation ]]; then
@@ -31,19 +53,19 @@ function getLkg() {
     fi
 
     local BUILDXL_LKG_VERSION=$(grep "BUILDXL_LKG_VERSION" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
-    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/osx-x64/g' | tr -d '\r')
+    local BUILDXL_LKG_NAME=$(grep "BUILDXL_LKG_NAME" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | perl -pe 's/(net472|win-x64)/'${DeploymentFolder}'/g' | tr -d '\r')
     local BUILDXL_LKG_FEED_1=$(grep "BUILDXL_LKG_FEED_1" "$MY_DIR/Shared/Scripts/$LKG_FILE" | cut -d= -f2 | tr -d '\r')
 
     print_info "Nuget Feed: $BUILDXL_LKG_FEED_1"
     print_info "Getting package: $BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
-    $MONO_HOME/mono Shared/Tools/NuGet.exe install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
+    callNuget install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 }
 
 function setMinimal() {
-    arg_Positional+=(/q:DebugDotNetCoreMac "/f:output='$MY_DIR/Out/bin/debug/osx-x64/*'")
+    arg_Positional+=(/q:Debug${HostQualifier} "/f:output='$MY_DIR/Out/bin/debug/${DeploymentFolder}/*'")
 }
 
 function setInternal() {
@@ -171,7 +193,7 @@ if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
 fi
 
 if [[ -n "$arg_DeployDevRelease" ]]; then
-    arg_Positional+=(/q:ReleaseDotNetCoreMac "/f:output='$MY_DIR/Out/bin/release/osx-x64/*'")
+    arg_Positional+=(/q:Release${HostQualifier} "/f:output='$MY_DIR/Out/bin/release/${DeploymentFolder}/*'")
 fi
 
 if [[ -n "$arg_Internal" ]]; then
@@ -196,11 +218,11 @@ fi
 compileWithBxl ${arg_Positional[@]}
 
 if [[ -n "$arg_DeployDev" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/debug/osx-x64" "$MY_DIR/Out/Selfhost/Dev"
+    deployBxl "$MY_DIR/Out/Bin/debug/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 if [[ -n "$arg_DeployDevRelease" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/release/osx-x64" "$MY_DIR/Out/Selfhost/Dev"
+    deployBxl "$MY_DIR/Out/Bin/release/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 fi
 
 popd

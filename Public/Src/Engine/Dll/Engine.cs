@@ -1665,8 +1665,13 @@ namespace BuildXL.Engine
                 // Make sure we are running on a case-insensitive file system in the macOS/Unix case for the time being
                 if (FileUtilities.IsFileSystemCaseSensitive())
                 {
-                    Logger.Log.ErrorCaseSensitiveFileSystemDetected(loggingContext);
-                    return BuildXLEngineResult.Failed(engineState);
+                    // The Linux version is still experimental so we are willing to run on a case-sensitive filesystem;
+                    // otherwise, be conservative and fail if the filesystem is case sensitive.
+                    if (!OperatingSystemHelper.IsLinuxOS)
+                    {
+                        Logger.Log.ErrorCaseSensitiveFileSystemDetected(loggingContext);
+                        return BuildXLEngineResult.Failed(engineState);
+                    }
                 }
             }
 

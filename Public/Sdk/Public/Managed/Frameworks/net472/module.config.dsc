@@ -6,6 +6,6 @@ module({
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
         f`net472.dsc`,
-        f`netFx.dsc`,
+        f`netfx.dsc`,
     ]
 });

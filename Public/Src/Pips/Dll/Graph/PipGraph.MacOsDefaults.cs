@@ -78,7 +78,8 @@ namespace BuildXL.Pips.Graph
                         UnixPaths.UserKeyChainsDb,
                         UnixPaths.UserKeyChains,
                         UnixPaths.UserCFTextEncoding,
-                        UnixPaths.TmpDir
+                        UnixPaths.TmpDir,
+                        UnixPaths.EtcOsRelease
                     }
                     .Select(p => FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, p)))
                     .ToArray();

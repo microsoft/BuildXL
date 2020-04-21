@@ -103,10 +103,16 @@ export const isTargetRuntimeLinux : boolean = qualifier.targetRuntime === "linux
 export const isHostOsOsx : boolean = Context.getCurrentHost().os === "macOS";
 
 @@public
+export const isHostOsWin : boolean = Context.getCurrentHost().os === "win";
+
+@@public
+export const isHostOsLinux : boolean = Context.getCurrentHost().os === "unix";
+
+@@public
 export const targetFrameworkMatchesCurrentHost = 
-    (qualifier.targetRuntime === "win-x64" && Context.getCurrentHost().os === "win")
-    || (qualifier.targetRuntime === "osx-x64" && Context.getCurrentHost().os === "macOS")
-    || (qualifier.targetRuntime === "linux-x64" && Context.getCurrentHost().os === "unix");
+    (qualifier.targetRuntime === "win-x64" && isHostOsWin)
+    || (qualifier.targetRuntime === "osx-x64" && isHostOsOsx)
+    || (qualifier.targetRuntime === "linux-x64" && isHostOsLinux);
 
 /** Only run unit tests for one qualifier and also don't run tests which target macOS on Windows */
 @@public

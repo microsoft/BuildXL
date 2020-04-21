@@ -11,22 +11,27 @@ export declare const qualifier: Managed.TargetFrameworks.MachineQualifier.Curren
 
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 const currentOs = Context.getCurrentHost().os;
+const isMacOS = currentOs === "macOS";
+const isLinuxOS = currentOs === "unix";
+const isWinOS = currentOs === "win";
 
 function contentFilter(file: File): boolean {
-    return currentOs === "macOS" 
+    return isMacOS
             ? (file.extension === a`.dylib` || file.extension === a`.a` || file.extension === a`.h`)
             :
-        currentOs === "unix"
+        isLinuxOS
             ? (file.extension === a`.so` || file.extension === a`.a` || file.extension === a`.o`)
             :
-        currentOs === "win"
+        isWinOS
             ? (file.extension === a`.dll` || file.extension === a`.lib` || file.extension === a`.h`)
             : Contract.fail("Unknown os: " + currentOs);
 }
 
-const patcherExecutable = currentOs === "win"
-    ? pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`)
-    : pkgContents.getFile(r`tools/osx-x64/AppHostPatcher`);
+const patcherExecutable =
+    isWinOS   ? pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`) :
+    isMacOS   ? pkgContents.getFile(r`tools/osx-x64/AppHostPatcher`) :
+    isLinuxOS ? pkgContents.getFile(r`tools/linux-x64/AppHostPatcher`) :
+    undefined;
 
 const patcher: Transformer.ToolDefinition = {
     exe: patcherExecutable,

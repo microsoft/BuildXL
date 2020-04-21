@@ -2491,7 +2491,7 @@ namespace BuildXL.Scheduler
              * Process reserves a series of memory addresses (sometimes more that it currently requires, to control a contiguous block of memory)
              * Reserved memory does not necessarily represent real space in the physical memory (RAM) or on disk and a process can reserve more memory that available on the system.
              * To become usable, the memory address needs to correspond to byte space in memory (physical or disk).
-             * Commit memory is the association between this reserved memory and it’s physical address (RAM or disk) causing them to be unavailable to other processes in most cases.
+             * Commit memory is the association between this reserved memory and itï¿½s physical address (RAM or disk) causing them to be unavailable to other processes in most cases.
              * Since commit memory is a combination of the physical memory and the page file on disk, the used committed memory can exceed the physical memory available to the operating system.
              */
 
@@ -5525,7 +5525,9 @@ namespace BuildXL.Scheduler
                             }
                             default:
                             {
-                                sandboxConnection = (ISandboxConnection)new SandboxConnectionKext(config);
+                                sandboxConnection = OperatingSystemHelper.IsLinuxOS
+                                    ? new SandboxConnectionLinuxDetours(sandboxFailureCallback)
+                                    : (ISandboxConnection)new SandboxConnectionKext(config);
                                 break;
                             }
                         }

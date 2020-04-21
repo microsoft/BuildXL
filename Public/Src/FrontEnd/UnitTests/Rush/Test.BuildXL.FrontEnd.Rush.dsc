@@ -20,8 +20,11 @@ namespace Test.Rush {
         version: "5.22.0", 
         destinationFolder: Context.getNewOutputDirectory(a`rushlib-test`)});
 
+    // TODO: to enable this, we should use an older version of NodeJs for Linux
+    const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64" && !BuildXLSdk.isHostOsLinux;
+
     @@public
-    export const dll = BuildXLSdk.test({
+    export const dll = isRunningOnSupportedSystem && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runTestArgs: {
@@ -80,12 +83,11 @@ namespace Test.Rush {
     const nodeOsxDir = "node-v12.16.1-darwin-x64";
 
     function getNodeExeForRushDirectory(): StaticDirectory {
-        const host = Context.getCurrentHost();
-    
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit verisons supported.");
-    
+        Contract.assert(isRunningOnSupportedSystem, "Only 64bit versions of Win and OSX supported.");
+
         let pkgContents : StaticDirectory = undefined;
-        
+
+        const host = Context.getCurrentHost();
         switch (host.os) {
             case "win":
                 pkgContents = Transformer.reSealPartialDirectory(importFrom("NodeJs.ForRush.win-x64").extracted, r`${nodeWinDir}`);
@@ -94,7 +96,7 @@ namespace Test.Rush {
                 pkgContents = Transformer.reSealPartialDirectory(importFrom("NodeJs.ForRush.osx-x64").extracted, r`${nodeOsxDir}\bin`);
                 break;
             default:
-                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Esure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
+                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
         }
         
         return pkgContents;

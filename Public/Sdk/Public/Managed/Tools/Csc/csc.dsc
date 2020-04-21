@@ -193,6 +193,8 @@ export function compile(inputArgs: Arguments) : Result {
                     d`/private`,
                     d`/System`,
                     d`/Library`,
+                    d`/proc`,
+                    d`/sys`,
                     ...addIf(Environment.hasVariable("HOME"), d`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`))
             }
         });

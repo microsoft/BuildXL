@@ -370,6 +370,7 @@ namespace BuildXL.Interop.Unix
         public const string BinSh                     = "/bin/sh";
         public const string Dev                       = "/dev";
         public const string Etc                       = "/etc";
+        public const string EtcOsRelease              = "/etc/os-release"; // symlink on Linux
         public const string EtcMasterPasswd           = "/etc/master.passwd";
         public const string LibLinuxGnu               = "/lib/x86_64-linux-gnu";
         public const string Library                   = "/Library";

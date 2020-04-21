@@ -72,8 +72,8 @@ config({
 
                 { id: "RuntimeContracts", version: "0.3.0" },
 
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
-                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS" ]},
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5", osSkip: [ "macOS", "unix" ] },
+                { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5", osSkip: [ "macOS", "unix" ] },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net462", version: "1.0.0-alpha-5" },
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0-alpha-5" },
 
@@ -144,7 +144,7 @@ config({
                 { id: "NuGet.Frameworks", version: "5.0.0"}, // needed for qtest on .net core
 
                 // Cpp Sdk
-                { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS" ] },
+                { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS", "unix" ] },
 
                 // ProjFS (virtual file system)
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
@@ -218,10 +218,10 @@ config({
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Interactive.Async", version: "3.1.1" },
                 { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
-                { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS" ] },
+                { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS", "unix" ] },
                 { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                     ? [ "win" ]
-                    : [ "win", "macOS" ] },
+                    : [ "win", "macOS", "unix" ] },
 
                 // Testing
                 { id: "System.Security.Cryptography.ProtectedData", version: "4.4.0"},
@@ -299,8 +299,8 @@ config({
                 { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
 
                 // CoreRT
-                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "win" ] },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "macOS" ] },
+                { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "win", "unix" ] },
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01", osSkip: [ "macOS", "unix" ] },
 
                 // Kusto SDK (for netstandard)
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8",
@@ -336,7 +336,7 @@ config({
                     version: "0.0.10",
                     osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal 
                         ? [] 
-                        : [ "win", "macOS", "linux" ]
+                        : [ "win", "macOS", "unix" ]
                 }
             ],
 
@@ -393,6 +393,12 @@ config({
                     hash: "VSO0:FCB44A9D07D3923DB197C05A710FEBBB060649555418A067E04EAE1A06CBCE4400",
                     archiveType: "tgz",
                 },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.3.1.100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d731f991-8e68-4c7c-8ea0-fad5605b077a/49497b5420eecbd905158d86d738af64/dotnet-sdk-3.1.100-linux-x64.tar.gz",
+                    hash: "VSO0:B89DFFD762BEA6D94E11CEA1C430FDC620CE5407827360085B21963E5887E38300",
+                    archiveType: "tgz",
+                },
                 // The following are needed for dotnet core MSBuild test deployments
                 {
                     moduleName: "DotNet-Runtime.win-x64.2.2.2",
@@ -411,6 +417,12 @@ config({
                     moduleName: "NodeJs.osx-x64",
                     url: "https://nodejs.org/dist/v13.3.0/node-v13.3.0-darwin-x64.tar.gz",
                     hash: "VSO0:71B123A9120E24D3AB783D277A3649AFB56C97DDB7E79C9568625D51FF29D8CD00",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "NodeJs.linux-x64",
+                    url: "https://nodejs.org/dist/v13.3.0/node-v13.3.0-linux-x64.tar.gz",
+                    hash: "VSO0:4B63D2FDE488809E395B5E6CC0490C65A0AE7BB05C02FC9A1CD641B1C81539AC00",
                     archiveType: "tgz",
                 },
                 // Rush tests need an LTS (older) version of NodeJs
@@ -441,7 +453,9 @@ config({
         defaultQualifier: {
             configuration: "debug",
             targetFramework: "netcoreapp3.1",
-            targetRuntime: Context.getCurrentHost().os === "win" ? "win-x64" : "osx-x64",
+            targetRuntime: 
+                Context.getCurrentHost().os === "win" ? "win-x64" :
+                Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
         },
         namedQualifiers: {
             Debug: {

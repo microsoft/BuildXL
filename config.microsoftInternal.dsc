@@ -13,14 +13,14 @@ export const pkgs = isMicrosoftInternal ? [
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.5.99" },
     { id: "Aria.Cpp.SDK.osx-x64", version: "8.5.6" },
-    { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS"] },
+    { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS", "unix" ] },
 
-    { id: "CB.QTest", version: "20.4.6.101937", osSkip: [ "macOS" ] },
+    { id: "CB.QTest", version: "20.4.6.101937", osSkip: [ "macOS", "unix" ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
     // Windows Sdk so microsoft dev's don't have to install it.
-    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS" ] },
+    { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk", osSkip: [ "macOS", "unix" ] },
 
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "18.163.29708-buildid11260482", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
@@ -41,13 +41,12 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Symbol.App.Core", version: "18.163.29708-buildid11260482", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
     { id: "Symbol.Client", version: "18.163.29708-buildid11260482", dependentPackageIdsToSkip: ["*"] },
 
-
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "13.3.0-noTest" },
-    { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS" ] },
+    { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.3", osSkip: ["macOS"] },
+    { id: "Dotnet-Runtime", version: "5.0.3", osSkip: [ "macOS", "unix" ] },
 
 ] : [
 
@@ -60,16 +59,16 @@ export const pkgs = isMicrosoftInternal ? [
 export const resolver = {
     kind: "SourceResolver",
     modules: [
-        f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
-        f`private/InternalSdk/CB.QTest/module.config.dsc`,
+        f`Private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
+        f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,
-            f`private/InternalSdk/PowerShell.Core/module.config.dsc`,
-            f`private/InternalSdk/NodeJs/module.config.dsc`,
-            f`private/InternalSdk/DotNet-Runtime/module.config.dsc`,
-            f`private/InternalSdk/Windows.Sdk/module.config.dsc`
+            f`Private/InternalSdk/PowerShell.Core/module.config.dsc`,
+            f`Private/InternalSdk/NodeJs/module.config.dsc`,
+            f`Private/InternalSdk/DotNet-Runtime/module.config.dsc`,
+            f`Private/InternalSdk/Windows.Sdk/module.config.dsc`
         ),
 
-        f`private/InternalSdk/Drop/module.config.dsc`,
-        f`private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
+        f`Private/InternalSdk/Drop/module.config.dsc`,
+        f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
     ]
 };

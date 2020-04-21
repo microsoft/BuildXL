@@ -245,7 +245,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS
+            m_crashCollector = OperatingSystemHelper.IsMacOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
 

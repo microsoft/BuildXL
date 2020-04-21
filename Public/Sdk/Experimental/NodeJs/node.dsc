@@ -42,11 +42,12 @@ namespace Node {
 
     const nodeWinDir = "node-v13.3.0-win-x64";
     const nodeOsxDir = "node-v13.3.0-darwin-x64";
+    const nodeLinuxDir = "node-v13.3.0-linux-x64";
 
     function getNodeTool() : Transformer.ToolDefinition {
         const host = Context.getCurrentHost();
     
-        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit verisons supported.");
+        Contract.assert(host.cpuArchitecture === "x64", "Only 64bit versions supported.");
     
         let executable : RelativePath = undefined;
         let pkgContents : StaticDirectory = undefined;
@@ -59,6 +60,10 @@ namespace Node {
             case "macOS": 
                 pkgContents = importFrom("NodeJs.osx-x64").extracted;
                 executable = r`${nodeOsxDir}/bin/node`;
+                break;
+            case "unix": 
+                pkgContents = importFrom("NodeJs.linux-x64").extracted;
+                executable = r`${nodeLinuxDir}/bin/node`;
                 break;
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Esure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
@@ -92,8 +97,12 @@ namespace Node {
                 pkgContents = importFrom("NodeJs.osx-x64").extracted;
                 executable = r`${nodeOsxDir}/lib/node_modules/npm/bin/npm-cli.js`;
                 break;
+            case "unix": 
+                pkgContents = importFrom("NodeJs.linux-x64").extracted;
+                executable = r`${nodeLinuxDir}/lib/node_modules/npm/bin/npm-cli.js`;
+                break;
             default:
-                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Esure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
+                Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embedded.`);
         }
 
         return pkgContents.getFile(executable);

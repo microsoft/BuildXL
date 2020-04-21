@@ -226,5 +226,11 @@ namespace BuildXL.Interop.Unix
             ulong size,
             uint position,
             int options);
+
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern bool SetupProcessDumps(string logsDirectory, StringBuilder buffer, long length);
+
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        internal static extern void TeardownProcessDumps();
     }
 }

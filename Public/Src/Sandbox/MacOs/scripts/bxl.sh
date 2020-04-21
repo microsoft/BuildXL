@@ -44,6 +44,19 @@ function setBxlCmdArgs {
         # all other user-specified args
         "${arg_Positional[@]}"
     )
+
+    # TODO: all these should be eventually removed
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        g_bxlCmdArgs+=(
+            /server-
+            /remoteTelemetry-
+            /enableEvaluationThrottling
+            # setting up core dump creation failed
+            /noWarn:460
+            # adding system mount failed
+            /noWarn:2823
+        )
+    fi
 }
 
 # Greps system log for messages from BuildXLSandbox kext.

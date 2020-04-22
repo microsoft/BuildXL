@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as ManagedSdk from "Sdk.Managed";
 
 namespace DistributedTest {
     @@public
@@ -15,6 +16,9 @@ namespace DistributedTest {
             },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
+            
+            ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
+
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.Net.Primitives.dll,

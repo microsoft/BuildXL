@@ -238,7 +238,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Memory", version: "4.5.1" },
-                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.0" },
+                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2" },
                 { id: "System.IO.Pipelines", version: "4.5.3",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
@@ -287,7 +287,6 @@ config({
                 { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild",
                     dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
-                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

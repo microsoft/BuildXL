@@ -3615,15 +3615,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Runtime.CompilerServices.Unsafe",
-          "Version": "4.5.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Runtime.CompilerServices.Unsafe",
           "Version": "4.5.2"
         }
       }

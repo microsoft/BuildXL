@@ -233,7 +233,8 @@ function createNuSpecFile(
                 ...group.values.map(d => 
                     Xml.elem("dependency",
                         Xml.attr("id", d.id),
-                        Xml.attr("version", d.version)
+                        Xml.attr("version", d.version),
+                        Xml.attr("include", "all")
                     )
                 )
             )

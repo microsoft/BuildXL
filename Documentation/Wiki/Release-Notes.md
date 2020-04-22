@@ -1,17 +1,5 @@
-> Each release should have an entry in this document.
+This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
-BuildXL has an official build weekly and a canary build nightly. 
-
-The BuildXL team sends out a release email to:
-* 1ES - BuildXL Release Notifications <bxl-relnot@microsoft.com>
-
-each time an official release is triggered since: 0.20170619.4.0.
-
-This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. 
-See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
-When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
-
-# Upcoming release
 
 # 0.1.0-20200412.2.1 (Release [60874](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=60874)).  Released 4/15/2020
 - An option for less aggressive memory projection: /enableLessAggresiveMemoryProjection

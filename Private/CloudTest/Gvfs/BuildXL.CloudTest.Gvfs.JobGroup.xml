@@ -4,7 +4,7 @@
         <Resource Image="2019-Datacenter" SKU="Standard_D2s_v3"/>
     </ResourceSpec>
 
-    <Setup TimeoutMins="3">
+    <Setup TimeoutMins="15">
         <BuildFiles>
             <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\Gvfs\*"/>
         </BuildFiles>

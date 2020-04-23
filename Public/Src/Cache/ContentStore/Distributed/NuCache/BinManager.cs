@@ -128,7 +128,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             lock (_lockObject)
             {
                 // Remove active machines that became inactive or disappeared.
-                var machinesToRemove = _machinesToBinsMap.Keys.Except(activeMachines);
+                var machinesToRemove = _machinesToBinsMap.Keys.Except(activeMachines).ToList();
 
                 foreach (var machine in activeMachines)
                 {

@@ -17,6 +17,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
     {
         private readonly IClock _clock = new TestSystemClock();
 
+        [Fact]
+        public void UpdateAllShouldNotBreakWithCollectionWasModified()
+        {
+            var startLocations = Enumerable.Range(1, 10).Select(i => new MachineId(i)).ToArray();
+            var manager = new BinManager(locationsPerBin: 3, startLocations, _clock, expiryTime: TimeSpan.FromSeconds(1));
+            
+            var activeMachines = new MachineId[] {new MachineId(3), new MachineId(12),};
+            var inactiveMachines = new MachineId[]{new MachineId(1), new MachineId(11), };
+            // The original implementation was causing a runtime failure.
+            manager.UpdateAll(activeMachines, inactiveMachines);
+        }
+
         [Theory]
         [InlineData(3, 0, 1)] // Started with 0 machines
         [InlineData(3, 2, 10)] // Started with small amount of machines

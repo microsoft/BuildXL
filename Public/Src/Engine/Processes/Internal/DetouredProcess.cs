@@ -596,7 +596,7 @@ namespace BuildXL.Processes.Internal
                 {
                     if (e is AccessViolationException)
                     {
-                        Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, creationFlags, m_commandLine);
+                        Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, creationFlags + " - " + m_commandLine, HasDetoursInjectionFailures);
                     }
 
                     // Dispose pipe handles in case they are not assigned to streams.

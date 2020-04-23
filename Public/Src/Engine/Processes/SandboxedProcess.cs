@@ -132,11 +132,11 @@ namespace BuildXL.Processes
                     info.LoggingContext,
                     info.DetoursEventListener,
                     info.SidebandWriter) : null;
-
+            
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-
+            
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -404,6 +404,11 @@ namespace BuildXL.Processes
                     m_processStarted = true;
 
                     ProcessId = detouredProcess.GetProcessId();
+                }
+                catch (AccessViolationException)
+                {
+                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports?.PipDescription ?? "", detouredProcess.HasDetoursInjectionFailures);
+                    throw;
                 }
                 finally
                 {

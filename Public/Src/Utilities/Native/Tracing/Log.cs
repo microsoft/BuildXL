@@ -124,10 +124,10 @@ namespace BuildXL.Native.Tracing
         [GeneratedEvent(
             (int)LogEventId.DetouredProcessAccessViolationException,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.SandboxedProcessExecutor,
-            Message = "When creating a detoured process, AccessViolationException occurred: {creationFlags}, {commandline}")]
-        public abstract void DetouredProcessAccessViolationException(LoggingContext context, int creationFlags, string commandline);
+            Message = "[{pipDescription}] AccessViolationException is occurred in Detours. AnyInjectionFailure: {anyInjectionFailure}")]
+        public abstract void DetouredProcessAccessViolationException(LoggingContext context, string pipDescription, bool anyInjectionFailure);
     }
 }

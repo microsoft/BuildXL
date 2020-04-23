@@ -579,49 +579,36 @@ static SubstituteProcessExecutionPluginFunc GetSubstituteProcessExecutionPluginF
 
     // (1) Check for CommandMatches.
     std::string winApiProcName("CommandMatches");
-
     SubstituteProcessExecutionPluginFunc substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
         reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
-
     if (substituteProcessExecutionPluginFunc != nullptr)
     {
         return substituteProcessExecutionPluginFunc;
     }
 
-    Dbg(L"Unable to find 'CommandMatches' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
-
     // (2) Check for CommandMatches@<param_size> based on platform.
-
 #if defined(_WIN64)
     winApiProcName.append("@48"); // 6 64-bit parameters
 #elif defined(_WIN32)
     winApiProcName.append("@24"); // 6 32-bit parameters
 #endif
-
     substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
         reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
-
     if (substituteProcessExecutionPluginFunc != nullptr)
     {
         return substituteProcessExecutionPluginFunc;
     }
 
-    Dbg(L"Unable to find 'CommandMatches@<param_size>' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
-
-    // (2) Check for _CommandMatches@<param_size>.
-
+    // (3) Check for _CommandMatches@<param_size>.
     winApiProcName.insert(0, 1, '_');
-
     substituteProcessExecutionPluginFunc = reinterpret_cast<SubstituteProcessExecutionPluginFunc>(
         reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionPluginDllHandle, winApiProcName.c_str())));
-
     if (substituteProcessExecutionPluginFunc != nullptr)
     {
         return substituteProcessExecutionPluginFunc;
     }
 
-    Dbg(L"Unable to find '_CommandMatches@<param_size>' function in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
-
+    Dbg(L"Unable to find 'CommandMatches', 'CommandMatches@<param_size>', or '_CommandMatches@<param_size>' functions in SubstituteProcessExecutionPluginFunc '%s', lasterr=%d", g_SubstituteProcessExecutionPluginDllPath, GetLastError());
     return nullptr;
 }
 

@@ -907,6 +907,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
+
+        private Result<long> GetLongProperty(IBuildXLKeyValueStore store, string propertyName, string columnFamilyName)
+        {
+            try
+            {
+                return long.Parse(store.GetProperty(propertyName, columnFamilyName));
+            }
+            catch (Exception exception)
+            {
+                return new Result<long>(exception);
+            }
+        }
+
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
@@ -918,16 +931,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // guarantee that an entry we remove is truly the one we should be removing. Moreover, since we store
                 // information what the last access times were, our internal priority queue may go stale over time as
                 // well.
-                var liveDbSizeInBytesBeforeGc = int.Parse(store.GetProperty(
-                    "rocksdb.estimate-live-data-size",
-                    columnFamilyName: nameof(Columns.Metadata)));
+                var liveDbSizeInBytesBeforeGc = GetLongProperty(store, "rocksdb.estimate-live-data-size", columnFamilyName: nameof(Columns.Metadata));
 
                 var scannedEntries = 0;
                 var removedEntries = 0;
 
                 using (var cts = CancellationTokenSource.CreateLinkedTokenSource(killSwitch, context.Token))
                 {
-
                     // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
                     // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
                     // a new element is smaller than the Top, it's not in the top K, if larger, it is.
@@ -982,9 +992,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(removedEntries);
                 Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(scannedEntries);
 
-                var liveDbSizeInBytesAfterGc = int.Parse(store.GetProperty(
-                    "rocksdb.estimate-live-data-size",
-                    columnFamilyName: nameof(Columns.Metadata)));
+                var liveDbSizeInBytesAfterGc = GetLongProperty(store, "rocksdb.estimate-live-data-size", columnFamilyName: nameof(Columns.Metadata));
 
                 // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
                 // new tombstones have been added. However, there is no way to compute how much we added/removed that
@@ -998,10 +1006,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override Result<long> GetContentDatabaseSizeBytes()
         {
-            return _keyValueStore.Use(store =>
-            {
-                return long.Parse(store.GetProperty("rocksdb.live-sst-files-size"));
-            }).ToResult();
+            return _keyValueStore.Use(store => long.Parse(store.GetProperty("rocksdb.live-sst-files-size"))).ToResult();
         }
 
         private void FullRangeCompaction(OperationContext context)

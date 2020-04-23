@@ -51,9 +51,9 @@ namespace BuildXL.ViewModel
                         25);
                 }
 
-                foreach (var entry in BatchEntries)
+                for (var i = 0; i < BatchEntries.Count; i++)
                 {
-                    writer.WriteLineRaw(entry);
+                    writer.WritePreSection($"Batch #{i}", BatchEntries[i], 25);
                 }
                 writer.EndDetailedTableSummary();
             }

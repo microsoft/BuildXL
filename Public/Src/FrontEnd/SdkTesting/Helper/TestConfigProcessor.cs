@@ -37,7 +37,6 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         public IConfiguration InterpretConfiguration(AbsolutePath primaryConfiguration, ICommandLineConfiguration startupConfiguration)
         {
             Contract.Requires(primaryConfiguration.IsValid);
-            Contract.Requires(primaryConfiguration != null);
 
             return m_configuration;
         }

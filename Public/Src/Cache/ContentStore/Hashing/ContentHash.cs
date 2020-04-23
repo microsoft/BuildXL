@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// ContentHash is a structure whose default initial state is invalid.
         /// </remarks>
         [Pure]
-        public bool IsValid => HashType != HashType.Unknown && _bytes != null && _bytes.Length != 0;
+        public bool IsValid => HashType != HashType.Unknown && _bytes.Length != 0;
 
         /// <summary>
         ///     Gets hashType

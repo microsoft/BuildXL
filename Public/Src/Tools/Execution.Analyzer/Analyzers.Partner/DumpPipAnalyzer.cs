@@ -492,7 +492,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Semaphores", pip.Semaphores.Select(CreateSemaphore)),
                     m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel),
                     m_html.CreateRow("ProcessOptions", pip.ProcessOptions.ToString()),
-                    m_html.CreateRow("RetryExitCodes", pip.RetryExitCodes != null ? string.Join(",", pip.RetryExitCodes) : null)),
+                    m_html.CreateRow("RetryExitCodes", string.Join(",", pip.RetryExitCodes))),
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",

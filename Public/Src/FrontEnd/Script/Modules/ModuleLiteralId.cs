@@ -72,7 +72,6 @@ namespace BuildXL.FrontEnd.Script.Values
         [Pure]
         public ModuleLiteralId WithName(FullSymbol name)
         {
-            Contract.Requires(name != null);
             return new ModuleLiteralId(Path, name);
         }
 

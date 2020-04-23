@@ -1011,7 +1011,7 @@ namespace Tool.ExecutionLogSdk
             // TODO: This method is a little bit "spaghetti" like, consider breaking it up.
             Contract.Requires(pipTable != null);
             Contract.Requires(directedGraph != null);
-            Contract.Requires((pipId != null) && pipId.IsValid);
+            Contract.Requires(pipId.IsValid);
 
             // Check if this pip should be loaded or not. Return null if the pip will not be loaded.
             if (!ShouldPipBeLoaded(pipId.Value))
@@ -1204,7 +1204,7 @@ namespace Tool.ExecutionLogSdk
         /// <param name="tool">true, when the file is a tool that is executed when the pip is running</param>
         private void LinkPipToFileDescriptor(FileArtifact fileObject, PipDescriptor pipDescriptor, bool output, bool dependency, bool tool)
         {
-            Contract.Requires((fileObject != null) && fileObject.IsValid);
+            Contract.Requires(fileObject.IsValid);
             Contract.Requires(pipDescriptor != null);
             Contract.Requires(output || dependency || tool);
 

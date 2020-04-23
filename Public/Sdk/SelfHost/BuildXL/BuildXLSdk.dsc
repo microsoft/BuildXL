@@ -68,7 +68,14 @@ export interface Arguments extends Managed.Arguments {
     contractsLevel?: Contracts.ContractsLevel;
 
     /** The assemblies that are internal visible for this assembly */
-    internalsVisibleTo?: string[],
+    internalsVisibleTo?: string[];
+
+    /**
+     * Whether to use the compiler's strict mode or not.
+     * In strict the compiler emits extra diagnostics for dangerous or invalid code.
+     * For instance, the compiler will warn on empty lock statements or when a value type instance potentially may be used in lock statement etc.
+     */
+    strictMode?: boolean;
 }
 
 @@public
@@ -122,10 +129,10 @@ export const restrictTestRunToSomeQualifiers =
     (qualifier.targetFramework !== "netcoreapp3.1" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
-@@public
 /***
 * Whether service pip daemon tooling is included with the BuildXL deployment
 */
+@@public
 export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isFullFramework;
 
 /***
@@ -199,6 +206,13 @@ namespace Flags {
      */
     @@public
     export const enableCrossgen = Environment.getFlag("[Sdk.BuildXL]enableCrossgen");
+
+    /**
+     * Whether to use the C# compiler's strict mode by default or not.
+     * Note, the property can be overriden by the library or executable arguments. This defines the default value only.
+     */
+    @@public
+    export const useCSharpCompilerStrictMode = Environment.getFlag("[Sdk.BuildXL]useStrictMode") || true;
 }
 
 @@public
@@ -413,6 +427,14 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     let rootNamespace = args.rootNamespace || assemblyName;
 
     args = Contracts.withRuntimeContracts(args, args.contractsLevel);
+    
+    // Need to turn on an experiemtal feature of the compiler in order to use some of the analyzers.
+    let features = args.enableStyleCopAnalyzers ? ['IOperation'] : [];
+    // Using strict mode if its enabled explicitely or if its not disabled explicitly,
+    // but enabled by default.
+    if (args.strictMode === true || (args.strictMode !== false && Flags.useCSharpCompilerStrictMode === true)) {
+        features = features.push('strict');
+    }
 
     args = Object.merge<Arguments>(
         {
@@ -459,8 +481,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     // TODO: Make analyzers supported in regular references by undestanding the structure in nuget packages
                     analyzers: getAnalyzers(args),
 
-                    // Need to turn on an experiemtal feature of the compiler in order to use some of the analyzers.
-                    features: args.enableStyleCopAnalyzers ? ['IOperation'] : undefined,
+                    features: features,
                     codeAnalysisRuleset: args.enableStyleCopAnalyzers ? f`BuildXL.ruleset` : undefined,
                     additionalFiles: args.enableStyleCopAnalyzers ? [f`stylecop.json`] : [],
                     keyFile: args.skipAssemblySigning ? undefined : devKey,

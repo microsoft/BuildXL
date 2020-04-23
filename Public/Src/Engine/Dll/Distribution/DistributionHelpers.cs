@@ -121,7 +121,7 @@ namespace BuildXL.Engine.Distribution
                     AppendSemiStableHashes(sb, semiStableHashes);
                 }
 
-                if (notificationArgs.ExecutionLogData != null && notificationArgs.ExecutionLogData.Count > 0)
+                if (notificationArgs.ExecutionLogData.Count > 0)
                 {
                     sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }

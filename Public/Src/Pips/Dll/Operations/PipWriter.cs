@@ -71,7 +71,6 @@ namespace BuildXL.Pips.Operations
 
         public virtual void Write(in ProcessSemaphoreInfo value)
         {
-            Contract.Requires(value != null);
             Start<ProcessSemaphoreInfo>();
             value.Serialize(this);
             End();

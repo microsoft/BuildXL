@@ -265,10 +265,7 @@ namespace BuildXL.Execution.Analyzer
             foreach (var temporaryDirectoryOutput in pip.AdditionalTempDirectories)
                 yield return temporaryDirectoryOutput;
 
-            if (pip.TempDirectory != null)
-            {
-                yield return pip.TempDirectory;
-            }
+            yield return pip.TempDirectory;
         }
 
         private void DeleteOutputs(StreamWriter writer, Process pip)

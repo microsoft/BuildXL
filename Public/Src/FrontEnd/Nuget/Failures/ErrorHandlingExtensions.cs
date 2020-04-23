@@ -14,7 +14,6 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public static string GetNativeErrorMessage(this EnumerateDirectoryResult result)
         {
-            Contract.Requires(result != null);
             Contract.Requires(!result.Succeeded);
 
             return new Win32Exception(result.NativeErrorCode).Message;

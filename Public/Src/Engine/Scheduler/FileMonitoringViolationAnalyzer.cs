@@ -261,7 +261,6 @@ namespace BuildXL.Scheduler
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentDoubleWriteViolations)
         {
             Contract.Requires(pip != null);
-            Contract.Requires(outputsContent != null);
 
             using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.AnalyzePipViolationsDuration))
             {
@@ -378,8 +377,6 @@ namespace BuildXL.Scheduler
             IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
             Contract.Requires(pip != null);
-            Contract.Requires(convergedContent != null);
-            Contract.Requires(allowedDoubleWriteViolations != null);
 
             if (allowedDoubleWriteViolations.Count == 0)
             {

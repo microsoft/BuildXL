@@ -195,8 +195,6 @@ namespace Test.BuildXL.Scheduler.Utils
 
         public Process Build()
         {
-            Contract.Assert(m_executable != null, "WithExecutable method should be called before calling Build() method");
-
             return new Process(
                     executable: m_executable,
                     workingDirectory: m_workingDirectory,

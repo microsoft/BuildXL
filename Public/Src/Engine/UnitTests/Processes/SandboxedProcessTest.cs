@@ -1271,9 +1271,6 @@ namespace Test.BuildXL.Processes
 
         public override bool Equals(ReportedFileAccess x, ReportedFileAccess y)
         {
-            if (x == null || y == null)
-                return x == y;
-
             return RelevantFieldsToString(x).Equals(RelevantFieldsToString(y));
         }
 

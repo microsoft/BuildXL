@@ -100,8 +100,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private Argument ConvertArgument(EvaluationResult argumentValue, int index, object origin = null)
         {
-            Contract.Requires(argumentValue != null);
-
             var literal = Converter.ExpectObjectLiteral(argumentValue, new ConversionContext(allowUndefined: false, objectCtx: origin, pos: index));
 
             var name = Converter.ExtractString(literal, m_argumentNameField, allowUndefined: true);

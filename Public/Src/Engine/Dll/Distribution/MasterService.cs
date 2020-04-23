@@ -141,7 +141,7 @@ namespace BuildXL.Engine.Distribution
         {
             var worker = GetWorkerById(notification.WorkerId);
 
-            if (notification.ExecutionLogData != null && notification.ExecutionLogData.Count != 0)
+            if (notification.ExecutionLogData.Count != 0)
             {
                 // The channel is unblocked and ACK is sent after we put the execution blob to the queue in 'LogExecutionBlobAsync' method.
                 await worker.LogExecutionBlobAsync(notification);

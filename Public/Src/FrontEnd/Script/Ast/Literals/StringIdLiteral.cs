@@ -23,7 +23,6 @@ namespace BuildXL.FrontEnd.Script.Literals
         public StringIdLiteral(StringId value, LineInfo location)
             : base(location)
         {
-            Contract.Requires(value != null);
             m_value = value;
         }
 

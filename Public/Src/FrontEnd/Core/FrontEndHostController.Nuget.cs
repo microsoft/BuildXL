@@ -703,7 +703,8 @@ namespace BuildXL.FrontEnd.Core
                 m_logger.DownloadToolErrorInvalidUri(loggingContext, friendlyName, url);
                 return new FileDownloadFailure(friendlyName, url, targetFilePath, FailureType.InvalidUri);
             }
-
+            
+            RelativePath relativePath = RelativePath.Invalid;
             if (IsHttp(sourceUri))
             {
                 try
@@ -734,7 +735,7 @@ namespace BuildXL.FrontEnd.Core
             }
             // Copy file if (sourceUri is absolute AND protocol is 'file://') OR (url is a valid relative path)
             else if ((sourceUri.IsAbsoluteUri && sourceUri.IsFile) ||
-                (RelativePath.TryCreate(FrontEndContext.StringTable, url, out RelativePath relativePath)))
+                RelativePath.TryCreate(FrontEndContext.StringTable, url, out relativePath))
             {
                 try
                 {

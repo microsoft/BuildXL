@@ -648,7 +648,7 @@ namespace BuildXL.Execution.Analyzer
                 m_writer.WritePropertyName("exe");
                 m_writer.WriteValue(process.GetToolName(context.PathTable).ToString(context.StringTable));
 
-                if (process.Semaphores != null && process.Semaphores.Length > 0)
+                if (process.Semaphores.Length > 0)
                 {
                     m_writer.WritePropertyName("semaphores");
                     m_writer.WriteStartArray();

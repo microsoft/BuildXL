@@ -131,7 +131,6 @@ namespace BuildXL.FrontEnd.Script.Evaluator.Profiling
         public void NotifyDiagnostics(Context context, Diagnostic diagnostic)
         {
             Contract.Requires(context != null);
-            Contract.Requires(diagnostic != null);
 
             // The profiler doesn't care about diagnostics (so far)
         }

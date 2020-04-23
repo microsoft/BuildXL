@@ -362,14 +362,11 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.ChangeAffectedInputListWrittenFile), process.ChangeAffectedInputListWrittenFile);
             }
 
-            if (process.ChildProcessesToBreakawayFromSandbox != null)
-            {
-                fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
-                    nameof(Process.ChildProcessesToBreakawayFromSandbox), 
-                    process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
-                    (h, p) => h.Add(p),
-                    m_pathTable.StringTable.OrdinalComparer);
-            }
+            fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
+                nameof(Process.ChildProcessesToBreakawayFromSandbox), 
+                process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
+                (h, p) => h.Add(p),
+                m_pathTable.StringTable.OrdinalComparer);
 
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
         }

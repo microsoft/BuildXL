@@ -57,7 +57,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public void NotifyDiagnostics(Context context, Diagnostic diagnostic)
         {
             Contract.Requires(context != null);
-            Contract.Requires(diagnostic != null);
 
             if (diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Error ||
                 diagnostic.Level == System.Diagnostics.Tracing.EventLevel.Critical)

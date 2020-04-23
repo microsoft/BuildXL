@@ -976,7 +976,7 @@ namespace BuildXL.Scheduler
                 if (processExecutionResult.FileAccessViolationsNotWhitelisted != null
                     || processExecutionResult.WhitelistedFileAccessViolations != null
                     || processExecutionResult.SharedDynamicDirectoryWriteAccesses != null
-                    || exclusiveOpaqueDirectories != null
+                    || exclusiveOpaqueDirectories.Length != 0
                     || processExecutionResult.AllowedUndeclaredReads != null
                     || processExecutionResult.AbsentPathProbesUnderOutputDirectories != null)
                 {
@@ -1692,7 +1692,6 @@ namespace BuildXL.Scheduler
                 Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, I($"Error should have been logged for '{executionResult.Status}'"));
             }
 
-            Contract.Assert(executionResult.ObservedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
             Contract.Assert(executionResult.UnexpectedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
             Contract.Assert(executionResult.PrimaryProcessTimes != null, "Success / ExecutionFailed provides all execution-time fields");
 

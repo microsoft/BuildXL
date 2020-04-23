@@ -26,7 +26,6 @@ namespace BuildXL.Cache.BasicFilesystem
         public StrongFingerprintEnumerationFailure(string cacheId, WeakFingerprintHash weak, Exception rootCause)
         {
             Contract.Requires(cacheId != null);
-            Contract.Requires(weak != null);
             Contract.Requires(rootCause != null);
 
             m_cacheId = cacheId;

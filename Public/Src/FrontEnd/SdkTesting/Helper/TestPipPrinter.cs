@@ -319,7 +319,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables.OrderBy(kv => kv.Name, m_pathTable.StringTable.OrdinalComparer).ToArray(), Generate)));
             }
 
-            if (pip.WarningRegex != null && pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)
+            if (pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)
             {
                 properties.Add(new PropertyAssignment("warningRegex", Generate(pip.WarningRegex.Pattern)));
             }

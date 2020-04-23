@@ -22,7 +22,7 @@ namespace TypeScript.Net.Extensions
             TState state,
             Func<TItem, TResult> getter,
             Action<TItem, TResult> setter,
-            Func<TItem, TState, TResult> factory) where TResult : class
+            Func<TItem, TState, TResult> factory) where TItem : class where TResult : class
         {
             var candidate = getter(item);
 

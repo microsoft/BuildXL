@@ -233,7 +233,7 @@ namespace BuildXL.Engine.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
-            Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);
+            Contract.Requires(notification.ExecutionLogData.Count != 0);
 
             if (m_executionBlobQueue.IsCompleted)
             {
@@ -1093,7 +1093,7 @@ namespace BuildXL.Engine.Distribution
                 pipCompletionTask.SetDuration(pipCompletionData.ExecuteStepTicks, pipCompletionData.QueueTicks);
 
                 var description = pipCompletionTask.RunnablePip.Description;
-                int dataSize = pipCompletionData.ResultBlob != null ? (int)pipCompletionData.ResultBlob.Count : 0;
+                int dataSize = pipCompletionData.ResultBlob.Count;
                 m_masterService.Environment.Counters.AddToCounter(pip.PipType == PipType.Process ? PipExecutorCounter.ProcessExecutionResultSize : PipExecutorCounter.IpcExecutionResultSize, dataSize);
 
                 ExecutionResult result = m_masterService.ResultSerializer.DeserializeFromBlob(

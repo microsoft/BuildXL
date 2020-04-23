@@ -6627,10 +6627,10 @@ namespace Test.BuildXL.Processes.Detours
             Contract.Requires(pathTable != null);
             Contract.Requires(tempFileStorage != null);
             Contract.Requires(argumentStr != null);
-            Contract.Requires(inputFiles != null && Contract.ForAll(inputFiles, artifact => artifact.IsValid));
-            Contract.Requires(inputDirectories != null && Contract.ForAll(inputDirectories, artifact => artifact.IsValid));
-            Contract.Requires(outputFiles != null && Contract.ForAll(outputFiles, artifact => artifact.IsValid));
-            Contract.Requires(outputDirectories != null && Contract.ForAll(outputDirectories, artifact => artifact.IsValid));
+            Contract.Requires(Contract.ForAll(inputFiles, artifact => artifact.IsValid));
+            Contract.Requires(Contract.ForAll(inputDirectories, artifact => artifact.IsValid));
+            Contract.Requires(Contract.ForAll(outputFiles, artifact => artifact.IsValid));
+            Contract.Requires(Contract.ForAll(outputDirectories, artifact => artifact.IsValid));
 
             // Get the executable DetoursTestsExe.
             string currentCodeFolder = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));

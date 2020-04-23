@@ -34,7 +34,6 @@ namespace BuildXL.FrontEnd.Script.Expressions
         public IncrementDecrementExpression(SymbolAtom operand, int index, IncrementDecrementOperator operatorKind, LineInfo location)
             : base(location)
         {
-            Contract.Requires(operand != null);
             Contract.Requires(index >= 0);
 
             Operand = operand;

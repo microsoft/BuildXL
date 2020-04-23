@@ -953,8 +953,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             // then recordPathInFileContentTable used to automatically be false.
             bool recordPathInFileContentTable = false)
         {
-            Contract.Requires(path != null);
-
             // If path needs to be tracked, then path needs to be recorded in the file content table.
             recordPathInFileContentTable = trackPath ? true : recordPathInFileContentTable;
 

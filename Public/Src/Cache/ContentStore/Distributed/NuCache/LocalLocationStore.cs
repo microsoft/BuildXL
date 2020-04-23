@@ -1469,8 +1469,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var removedContent = new List<ShortHash>();
 
                             var removalsOnlyLimit = _configuration.ReconciliationMaxRemoveHashesCycleSize ?? _configuration.ReconciliationMaxCycleSize;
-                            var mixedLimit = _configuration.ReconciliationMaxCycleSize;
-                            var limit = mixedLimit;
+                            var maximumAddsOnRemoveBatch = removalsOnlyLimit * (_configuration.ReconciliationMaxRemoveHashesAddPercentage ?? 0);
+                            var limit = _configuration.ReconciliationMaxCycleSize;
+                            var limitThreshold = Math.Min(limit, removalsOnlyLimit);
                             foreach (var diffItem in diffedContent)
                             {
                                 if (addedContent.Count + removedContent.Count >= limit)
@@ -1482,14 +1483,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     // Content is not in DB but is in the local store need to send add event
                                     addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
-                                    limit = mixedLimit;
                                 }
                                 else
                                 {
                                     // Content is in DB but is not local store need to send remove event
                                     removedContent.Add(diffItem.item.hash);
+                                }
 
-                                    if (addedContent.Count == 0)
+                                // We have the most information about the batch size at the limit, so that's when we
+                                // compute exactly what size we need.
+                                if (addedContent.Count + removedContent.Count == limitThreshold)
+                                {
+                                    if (addedContent.Count > 0)
+                                    {
+                                        if (removedContent.Count > 0 && addedContent.Count <= maximumAddsOnRemoveBatch)
+                                        {
+                                            limit = removalsOnlyLimit;
+                                        }
+                                    }
+                                    else
                                     {
                                         limit = removalsOnlyLimit;
                                     }

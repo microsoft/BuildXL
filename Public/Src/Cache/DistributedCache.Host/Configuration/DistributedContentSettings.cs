@@ -518,6 +518,10 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ReconciliationMaxRemoveHashesCycleSize { get; set; } = null;
 
         [DataMember]
+        [Validation.Range(0, 1)]
+        public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
+
+        [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]

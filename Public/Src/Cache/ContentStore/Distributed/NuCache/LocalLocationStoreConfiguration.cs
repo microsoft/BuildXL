@@ -206,9 +206,17 @@ namespace BuildXL.Cache.ContentStore.Distributed
 
         /// <summary>
         /// The amount of events that should be sent per reconciliation cycle if the reconciliation cycle consists only
-        /// of removes.
+        /// of at most <see cref="ReconciliationMaxRemoveHashesAddPercentage"/>
         /// </summary>
         public int? ReconciliationMaxRemoveHashesCycleSize { get; set; } = null;
+
+        /// <summary>
+        /// Maximum percentage of adds in a reconciliation cycle to use
+        /// <see cref="ReconciliationMaxRemoveHashesCycleSize"/> as the batch size.
+        ///
+        /// Defaults to 0 if <see cref="ReconciliationMaxRemoveHashesCycleSize"/> is enabled but this isn't
+        /// </summary>
+        public double? ReconciliationMaxRemoveHashesAddPercentage { get; set; } = null;
 
         /// <summary>
         /// Threshold under which proactive replication will be activated.

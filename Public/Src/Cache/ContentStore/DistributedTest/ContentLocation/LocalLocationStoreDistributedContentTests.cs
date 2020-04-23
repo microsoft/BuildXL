@@ -1514,12 +1514,18 @@ namespace ContentStoreTest.Distributed.Sessions
             /// Tests reconciliation when machines are mass-reimaged
             /// </summary>
             Reimage,
+
+            /// <summary>
+            /// Machines are mass-reimaged, but they also get some content added inside the cycle
+            /// </summary>
+            FuzzyReimage
         }
 
         [Theory]
         [InlineData(ReconciliationTestMode.Normal)]
         [InlineData(ReconciliationTestMode.Slow)]
         [InlineData(ReconciliationTestMode.Reimage)]
+        [InlineData(ReconciliationTestMode.FuzzyReimage)]
         public async Task ReconciliationTest(ReconciliationTestMode testMode)
         {
             bool slowReconciliation = testMode == ReconciliationTestMode.Slow;
@@ -1531,6 +1537,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var reconciliationMaxCycleSize = 100_000;
             int? reconciliationMaxRemoveHashesCycleSize = null;
             var reconciliationCycleFrequencyMinutes = 30;
+            double? reconciliationMaxRemoveHashesAddPercentage = null;
 
             if (slowReconciliation)
             {
@@ -1547,6 +1554,16 @@ namespace ContentStoreTest.Distributed.Sessions
                 reconciliationCycleFrequencyMinutes = 1;
             }
 
+            if (testMode == ReconciliationTestMode.FuzzyReimage)
+            {
+                removeCount = 10000;
+                addCount = 10;
+                reconciliationMaxRemoveHashesCycleSize = int.MaxValue;
+                reconciliationMaxCycleSize = 500;
+                reconciliationCycleFrequencyMinutes = 1;
+                reconciliationMaxRemoveHashesAddPercentage = 0.3;
+            }
+
             ConfigureWithOneMaster(s =>
             {
                 s.LogReconciliationHashes = true;
@@ -1554,13 +1571,14 @@ namespace ContentStoreTest.Distributed.Sessions
                 s.Unsafe_DisableReconciliation = false;
                 s.ReconciliationMaxCycleSize = reconciliationMaxCycleSize;
                 s.ReconciliationMaxRemoveHashesCycleSize = reconciliationMaxRemoveHashesCycleSize;
+                s.ReconciliationMaxRemoveHashesAddPercentage = reconciliationMaxRemoveHashesAddPercentage;
                 s.ReconciliationCycleFrequencyMinutes = reconciliationCycleFrequencyMinutes;
             },
             r =>
             {
                 r.AllowSkipReconciliation = false;
 
-                if (slowReconciliation)
+                if (slowReconciliation || testMode == ReconciliationTestMode.Reimage || testMode == ReconciliationTestMode.FuzzyReimage)
                 {
                     // Verify that configuration propagated and change it to 1ms rather than 1 minute
                     // for the sake of test speed
@@ -1627,7 +1645,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(expectedCycles);
                     }
 
-                    if (testMode == ReconciliationTestMode.Reimage)
+                    if (testMode == ReconciliationTestMode.Reimage || testMode == ReconciliationTestMode.FuzzyReimage)
                     {
                         // When doing a reimage test, we should only have deletes. Since the deletes are less than the
                         // maximum deletion-only cycle, we should do only one reconciliation cycle on the worker.

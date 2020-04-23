@@ -291,7 +291,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return new PutResult(hash, "Insufficient replicas");
                     },
                     traceErrorsOnly: true,
-                    extraEndMessage: r => $"ContentHash=[{r.ContentHash}]");
+                    extraEndMessage: _ => $"ContentHash=[{hash}]");
             }
             finally
             {

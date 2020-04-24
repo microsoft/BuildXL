@@ -4,13 +4,13 @@
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.FrontEnd.Rush.Tracing;
-using BuildXL.Native.IO;
 using BuildXL.Utilities.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
 {
+    [Trait("Category", "RushLibLocationTests")]
     public class RushLibLocationTests : RushIntegrationTestBase
     {
         public RushLibLocationTests(ITestOutputHelper output)

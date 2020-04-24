@@ -32,9 +32,18 @@ namespace Test.Rush {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true,
             },
+            parallelGroups: [
+                 "BxlRushConfigurationTests",
+                 "RushCustomCommandsTests",
+                 "RushExecuteTests",
+                 "RushExportsTests",
+                 "RushIntegrationTests",
+                 "RushLibLocationTests",
+                 "RushSchedulingTests"
+            ]
         },
         assemblyName: "Test.BuildXL.FrontEnd.Rush",
-        sources: globR(d`.`, "*.cs"),
+        sources: globR(d`.`, "*.cs"), 
         references: [
             Script.dll,
             Core.dll,
@@ -98,7 +107,7 @@ namespace Test.Rush {
             default:
                 Contract.fail(`The current NodeJs package doesn't support the current OS: ${host.os}. Ensure you run on a supported OS -or- update the NodeJs package to have the version embdded.`);
         }
-        
+
         return pkgContents;
     }
 }

@@ -17,10 +17,12 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using Newtonsoft.Json;
+using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Rush
@@ -55,6 +57,7 @@ namespace BuildXL.FrontEnd.Rush
             Formatting = Formatting.Indented,
             NullValueHandling = NullValueHandling.Include
         };
+        
         private IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> m_computedCommands;
 
         /// <inheritdoc/>
@@ -65,6 +68,15 @@ namespace BuildXL.FrontEnd.Rush
 
         /// <inheritdoc/>
         public override string Kind => KnownResolverKind.RushResolverKind;
+
+        /// <summary>
+        /// The path to an 'exports' DScript file, with all the exported top-level values 
+        /// </summary>
+        /// <remarks>
+        /// This file is added in addition to the current one-file-per-project
+        /// approach, as a single place to contain all exported values.
+        /// </remarks>
+        public AbsolutePath ExportsFile { get; private set; }
 
         /// <inheritdoc/>
         public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
@@ -88,15 +100,167 @@ namespace BuildXL.FrontEnd.Rush
 
             m_computedCommands = computedCommands;
 
+            ExportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "exports.dsc");
+
             return true;
         }
 
         /// <summary>
-        /// Creates an empty source file for now
+        /// Collects all rush projects that need to be part of specified exports
+        /// </summary>
+        private bool TryResolveExports(
+            IReadOnlyCollection<RushProject> projects,
+            IReadOnlyCollection<DeserializedRushProject> deserializedProjects,
+            out IReadOnlyCollection<ResolvedRushExport> resolvedExports)
+        {
+            resolvedExports = CollectionUtilities.EmptyArray<ResolvedRushExport>();
+
+            if (m_resolverSettings.Exports == null)
+            {
+                return true;
+            }
+
+            // Build dictionaries to speed up subsequent look-ups
+            var nameToDeserializedProjects = deserializedProjects.ToDictionary(kvp => kvp.Name, kvp => kvp);
+            var nameAndCommandToProjects = projects.ToDictionary(kvp => (kvp.Name, kvp.ScriptCommandName), kvp => kvp);
+
+            var exports = new List<ResolvedRushExport>();
+            foreach (var export in m_resolverSettings.Exports)
+            {
+                var projectsForSymbol = new List<RushProject>();
+
+                foreach (var project in export.Content)
+                {
+                    // The project outputs can be a plain string, meaning all build commands, or an IRushProjectOutputs
+                    IRushProjectOutputs projectOutputs;
+                    object projectValue = project.GetValue();
+                    if (projectValue is IRushProjectOutputs outputs)
+                    {
+                        projectOutputs = outputs;
+                    }
+                    else
+                    {
+                        projectOutputs = new RushProjectOutputs { PackageName = (string)projectValue, Commands = null };
+                    }
+
+                    // Let's retrieve the deserialized project. If it is not there, that's an error, since the package name
+                    // does not exist at all (regardless of any build filter)
+                    if (nameToDeserializedProjects.TryGetValue(projectOutputs.PackageName, out var deserializedRushProject))
+                    {
+                        // If no commands were specified, add all available scripts
+                        if (projectOutputs.Commands == null)
+                        {
+                            foreach (string command in deserializedRushProject.AvailableScriptCommands.Keys)
+                            {
+                                // If the project/command is there, add it to the export symbol
+                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, command), out RushProject rushProject))
+                                {
+                                    projectsForSymbol.Add(rushProject);
+                                }
+                                else
+                                {
+                                    // The project/command is not there. This can happen if the corresponding command was
+                                    // not requested to be executed. So just log an informational message here
+                                    Tracing.Logger.Log.RequestedExportIsNotPresent(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        export.SymbolName.ToString(m_context.SymbolTable),
+                                        projectOutputs.PackageName,
+                                        command);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Otherwise, add just the specified ones
+                            foreach (string commandName in projectOutputs.Commands)
+                            {
+                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, commandName), out var rushProject))
+                                {
+                                    projectsForSymbol.Add(rushProject);
+                                }
+                                else
+                                {
+                                    Tracing.Logger.Log.SpecifiedCommandForExportDoesNotExist(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        export.SymbolName.ToString(m_context.SymbolTable),
+                                        projectOutputs.PackageName,
+                                        commandName,
+                                        string.Join(", ", deserializedRushProject.AvailableScriptCommands.Keys.Select(command => $"'{command}'")));
+
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Tracing.Logger.Log.SpecifiedPackageForExportDoesNotExist(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        export.SymbolName.ToString(m_context.SymbolTable),
+                                        projectOutputs.PackageName);
+
+                        return false;
+                    }
+                }
+
+                exports.Add(new ResolvedRushExport(export.SymbolName, projectsForSymbol));
+            }
+
+            resolvedExports = exports;
+            return true;
+        }
+
+        /// <summary>
+        /// Creates empty source files for all rush projects, with the exception of the special 'exports' file, where
+        /// all required top-level exports go
         /// </summary>
         protected override SourceFile DoCreateSourceFile(AbsolutePath path)
         {
-            return SourceFile.Create(path.ToString(m_context.PathTable));
+            var sourceFile = SourceFile.Create(path.ToString(m_context.PathTable));
+            
+            // We consider all files to be DScript files, even though the extension might not be '.dsc'
+            // And additionally, we consider them to be external modules, so exported stuff is interpreted appropriately
+            // by the type checker
+            sourceFile.OverrideIsScriptFile = true;
+            sourceFile.ExternalModuleIndicator = sourceFile;
+
+            // If we need to generate the export file, add all specified export symbols
+            if (path == ExportsFile)
+            {
+                // By forcing the default qualifier declaration to be in the exports file, we save us the work
+                // to register all specs as corresponding uninstantiated modules (since otherwise the default qualifier
+                // is placed on a random spec in the module, and we have to account for that randomness)
+                sourceFile.AddDefaultQualifierDeclaration();
+
+                // For each exported symbol, add a top-level value with type SharedOpaqueDirectory[]
+                // The initializer value is defined as 'undefined', but that's not really important
+                // since the evaluation of these symbols is customized in the resolver
+                int pos = 1;
+                foreach (var export in ComputedProjectGraph.Result.Exports)
+                {
+                    // The type reference needs pos and end set, otherwise the type checker believes this is a missing node
+                    var typeReference = new TypeReferenceNode("SharedOpaqueDirectory");
+                    typeReference.TypeName.Pos = pos;
+                    typeReference.TypeName.End = pos + 1;
+
+                    // Each symbol is added at position (start,end) = (n, n+1), with n starting in 1 for the first symbol
+                    FrontEndUtilities.AddExportToSourceFile(
+                        sourceFile,
+                        export.FullSymbol.ToString(m_context.SymbolTable),
+                        new ArrayTypeNode { ElementType = typeReference },
+                        pos,
+                        pos + 1);
+                    pos += 2;
+                }
+
+                // As if all declarations happened on the same line
+                sourceFile.SetLineMap(new[] { 0, Math.Max(pos - 2, 2) });
+            }
+
+            return sourceFile;
         }
         
         /// <inheritdoc/>
@@ -116,15 +280,16 @@ namespace BuildXL.FrontEnd.Rush
             // Make sure the directories are there
             FileUtilities.CreateDirectory(outputDirectory.ToString(m_context.PathTable));
 
-            Possible<RushGraph> maybeRushGraph = await ComputeBuildGraphAsync(outputFile, buildParameters);
+            Possible<(RushGraph graph, GenericRushGraph<DeserializedRushProject> flattenedGraph)> maybeResult = await ComputeBuildGraphAsync(outputFile, buildParameters);
 
-            if (!maybeRushGraph.Succeeded)
+            if (!maybeResult.Succeeded)
             {
                 // A more specific error has been logged already
-                return maybeRushGraph.Failure;
+                return maybeResult.Failure;
             }
 
-            var rushGraph = maybeRushGraph.Result;
+            var rushGraph = maybeResult.Result.graph;
+            var flattenedGraph = maybeResult.Result.flattenedGraph;
 
             if (m_resolverSettings.KeepProjectGraphFile != true)
             {
@@ -136,12 +301,23 @@ namespace BuildXL.FrontEnd.Rush
                 Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(m_context.LoggingContext, outputFile.ToString(m_context.PathTable));
             }
 
+            if (!TryResolveExports(rushGraph.Projects, flattenedGraph.Projects, out var exports))
+            {
+                // Specific error should have been logged
+                return new RushGraphConstructionFailure(m_resolverSettings, m_context.PathTable);
+            }
+
             // The module contains all project files that are part of the graph
             var projectFiles = new HashSet<AbsolutePath>();
             foreach (RushProject project in rushGraph.Projects)
             {
                 projectFiles.Add(project.ProjectPath(m_context.PathTable));
             }
+
+            // Add an 'exports' source file at the root of the repo that will contain all top-level exported values
+            // Since all the specs are exposed as part of a single module, it actually doesn't matter where
+            // all these values are declared, but by defining a fixed source file for it, we keep it deterministic
+            projectFiles.Add(ExportsFile);
 
             var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
@@ -152,7 +328,7 @@ namespace BuildXL.FrontEnd.Rush
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null); // no whitelist of cycles
 
-            return new RushGraphResult(rushGraph, moduleDefinition);
+            return new RushGraphResult(rushGraph, moduleDefinition, exports);
         }
 
         private void DeleteGraphBuilderRelatedFiles(AbsolutePath outputFile)
@@ -170,7 +346,7 @@ namespace BuildXL.FrontEnd.Rush
             }
         }
 
-        private async Task<Possible<RushGraph>> ComputeBuildGraphAsync(
+        private async Task<Possible<(RushGraph, GenericRushGraph<DeserializedRushProject>)>> ComputeBuildGraphAsync(
             AbsolutePath outputFile,
             BuildParameters.IBuildParameters buildParameters)
         {
@@ -227,7 +403,7 @@ namespace BuildXL.FrontEnd.Rush
 
                 Possible<RushGraph> graph = ResolveGraph(flattenedRushGraph);
 
-                return graph;
+                return graph.Then(graph => new Possible<(RushGraph, GenericRushGraph<DeserializedRushProject>)>((graph, flattenedRushGraph)));
             }
         }
 

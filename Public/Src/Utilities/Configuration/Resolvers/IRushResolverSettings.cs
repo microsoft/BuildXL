@@ -49,6 +49,14 @@ namespace BuildXL.Utilities.Configuration
         /// Allows to extend existing scripts with customized arguments
         /// </summary>
         IReadOnlyList<IExtraArgumentsRushScript> CustomCommands { get; }
+
+        /// <summary>
+        /// Instructs the resolver to expose a collection of exported symbols that other resolvers can consume.
+        /// </summary>
+        /// <remarks>
+        /// Each exported value will have type SharedOpaqueDirectory[], containing the output directories of the specified projects.
+        /// </remarks>
+        IReadOnlyList<IRushExport> Exports { get; }
     }
 
     /// <nodoc/>

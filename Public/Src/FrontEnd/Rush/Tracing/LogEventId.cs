@@ -28,5 +28,8 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         CycleInRushCommands = 11711,
         CannotFindRushLib = 11712,
         UsingRushLibBaseAt = 11713,
+        SpecifiedCommandForExportDoesNotExist = 11714,
+        SpecifiedPackageForExportDoesNotExist = 11715,
+        RequestedExportIsNotPresent = 11716,
     }
 }

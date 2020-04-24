@@ -11,6 +11,7 @@ using LogEventId = global::BuildXL.FrontEnd.Rush.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
+    [Trait("Category", "RushExecuteTests")]
     public class RushExecuteTests : RushIntegrationTestBase
     {
         public RushExecuteTests(ITestOutputHelper output)

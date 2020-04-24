@@ -501,7 +501,7 @@ namespace BuildXL.FrontEnd.Script.Values
         {
             if (resolvedEntry.ResolverCallback != null)
             {
-                return EvaluateResolverCallback(context, qualifier, filePosition, resolvedEntry);
+                return context.EvaluationScheduler.EvaluateValue(() => EvaluateResolverCallback(context, qualifier, filePosition, resolvedEntry));
             }
 
             return context.EvaluationScheduler.EvaluateValue(

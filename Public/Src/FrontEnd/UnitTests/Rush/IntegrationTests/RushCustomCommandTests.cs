@@ -10,6 +10,7 @@ using LogEventId = global::BuildXL.FrontEnd.Rush.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
+    [Trait("Category", "RushCustomCommandsTests")]
     public class RushCustomCommandsTests : RushIntegrationTestBase
     {
         public RushCustomCommandsTests(ITestOutputHelper output)

@@ -124,6 +124,11 @@ namespace Test.DScript.Ast
                 // Ignore DX222 for csc.exe being outside of src directory
                 IgnoreWarnings();
 
+                if (engine == null)
+                {
+                    return null;
+                }
+
                 engine.TestHooks = testHooks;
 
                 var result = engine.RunForFrontEndTests(LoggingContext);

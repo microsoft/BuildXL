@@ -1,17 +1,22 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
 using BuildXL.FrontEnd.Sdk.Workspaces;
+using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -33,6 +38,13 @@ namespace BuildXL.FrontEnd.Rush
         private IRushResolverSettings m_rushResolverSettings;
 
         private ModuleDefinition ModuleDefinition => m_rushWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
+        
+        private IReadOnlyCollection<ResolvedRushExport> Exports => m_rushWorkspaceResolver.ComputedProjectGraph.Result.Exports;
+
+        private readonly ConcurrentDictionary<RushProject, List<Pips.Operations.Process>> m_scheduledProcesses = new ConcurrentDictionary<RushProject, List<Pips.Operations.Process>>();
+
+        private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1, 1);
+        private bool? m_evaluationResult = null;
 
         /// <nodoc />
         public string Name { get; private set; }
@@ -129,6 +141,57 @@ namespace BuildXL.FrontEnd.Rush
                 return false;
             }
 
+            if (rushResolverSettings.Exports != null)
+            {
+                var symbolNames = new HashSet<FullSymbol>();
+                foreach (var rushExport in rushResolverSettings.Exports)
+                {
+                    if (!rushExport.SymbolName.IsValid)
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Symbol name is undefined.");
+                        return false;
+                    }
+
+                    if (!symbolNames.Add(rushExport.SymbolName))
+                    {
+                        Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Duplicate symbol name '{rushExport.SymbolName.ToString(m_context.SymbolTable)}'.");
+                        return false;
+                    }
+
+                    // Each specified project must be non-empty
+                    foreach (var project in rushExport.Content)
+                    {
+                        object projectValue = project.GetValue();
+
+                        string packageName = projectValue is string ? (string)projectValue : ((IRushProjectOutputs)projectValue).PackageName;
+                        if (string.IsNullOrEmpty(packageName))
+                        {
+                            Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), "Package name must be defined.");
+                            return false;
+                        }
+
+                        if (projectValue is IRushProjectOutputs rushProjectCommand)
+                        { 
+                            if (rushProjectCommand.Commands == null)
+                            {
+                                Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Commands for Rush export '{rushExport.SymbolName.ToString(m_context.SymbolTable)}' must be defined.");
+                                return false;
+                            }
+
+                            foreach (var command in rushProjectCommand.Commands)
+                            {
+                                if (string.IsNullOrEmpty(command))
+                                {
+                                    Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), $"Command name for Rush export '{rushExport.SymbolName.ToString(m_context.SymbolTable)}' must be defined.");
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+
             return true;
         }
 
@@ -145,8 +208,65 @@ namespace BuildXL.FrontEnd.Rush
             {
                 return Task.FromResult<bool?>(null);
             }
+            
+            var package = FrontEndUtilities.CreatePackage(module.Definition, m_context.StringTable);
+
+            // For each symbol defined in the rush resolver settings for exports, add all specified project outputs
+            int pos = 1;
+            foreach(var export in Exports)
+            {
+                FrontEndUtilities.AddEvaluationCallbackToModuleRegistry(
+                    module.Specs[m_rushWorkspaceResolver.ExportsFile],
+                    (context, moduleLiteral, evaluationStackFrame) =>  CollectProjectOutputsAsync(module.Definition.Specs, moduleLiteral.Qualifier.QualifierId, export),
+                    moduleRegistry,
+                    package,
+                    export.FullSymbol,
+                    pos,
+                    m_context);
+                
+                pos += 2;
+            }
 
             return Task.FromResult<bool?>(true);
+        }
+
+        private async Task<EvaluationResult> CollectProjectOutputsAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId, ResolvedRushExport export)
+        {
+            // Make sure all project files are evaluated before collecting their outputs
+            if (!await EvaluateAllFilesOnceAsync(evaluationGoals, qualifierId))
+            {
+                return EvaluationResult.Error;
+            }
+
+            var processes = export.ExportedProjects.SelectMany(project => {
+                if (!m_scheduledProcesses.TryGetValue(project, out var projectProcesses))
+                {
+                    // The requested project was not scheduled. This can happen when a filter gets applied, so even
+                    // though the export points to a valid project (which is already validated), the project is not part
+                    // of the graph. In this case just log an informational message.
+                    Tracing.Logger.Log.RequestedExportIsNotPresent(
+                        m_context.LoggingContext, 
+                        m_rushResolverSettings.Location(m_context.PathTable), 
+                        export.FullSymbol.ToString(m_context.SymbolTable), 
+                        project.Name, 
+                        project.ScriptCommandName);
+                }
+
+                return projectProcesses;
+            });
+
+            // Let's put together all output directories for all pips under this project
+            var sealedDirectories = processes.SelectMany(process => process.DirectoryOutputs.Select(directoryArtifact => {
+                bool success = m_host.PipGraph.TryGetSealDirectoryKind(directoryArtifact, out var kind);
+                Contract.Assert(success);
+
+                return new EvaluationResult(new StaticDirectory(
+                    directoryArtifact,
+                    kind,
+                    CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalPathOnlyFileArtifactComparer>(OrdinalPathOnlyFileArtifactComparer.Instance)));
+            })).ToArray();
+
+            return new EvaluationResult(new EvaluatedArrayLiteral(sealedDirectories, default, m_rushWorkspaceResolver.ExportsFile));
         }
 
         /// <inheritdoc/>
@@ -159,13 +279,43 @@ namespace BuildXL.FrontEnd.Rush
 
             var module = (ModuleDefinition)iModule;
 
-            return await EvaluateAllFilesAsync(module.Specs, qualifierId);
+            return await EvaluateAllFilesOnceAsync(module.Specs, qualifierId);
         }
 
         /// <inheritdoc/>
         public void NotifyEvaluationFinished()
         {
-            // Nothing to do.
+            m_evaluationSemaphore.Dispose();
+        }
+
+        private async Task<bool> EvaluateAllFilesOnceAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId)
+        {
+            if (m_evaluationResult.HasValue)
+            {
+                return m_evaluationResult.Value;
+            }
+
+            // First time we hit this we should be able to acquire the semaphore (since the initial count is 1)
+            // It protects evaluation from other potential threads trying to evaluate
+            // Once evaluation is done, the semaphore gets released, and since m_evaluationResult is assigned already
+            // we shouldn't wait on this anymore
+            await m_evaluationSemaphore.WaitAsync();
+
+            try
+            {
+                if (m_evaluationResult.HasValue)
+                {
+                    return m_evaluationResult.Value;
+                }
+
+                m_evaluationResult = await EvaluateAllFilesAsync(evaluationGoals, qualifierId);
+
+                return m_evaluationResult.Value;
+            }
+            finally 
+            {
+                m_evaluationSemaphore.Release();
+            }
         }
 
         private async Task<bool> EvaluateAllFilesAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId)
@@ -176,7 +326,6 @@ namespace BuildXL.FrontEnd.Rush
 
             RushGraphResult result = m_rushWorkspaceResolver.ComputedProjectGraph.Result;
 
-            // TODO add support for qualifiers
             IReadOnlySet<RushProject> filteredBuildFiles = result.RushGraph.Projects
                             .Where(project => evaluationGoals.Contains(project.ProjectPath(m_context.PathTable)))
                             .ToReadOnlySet();
@@ -208,6 +357,17 @@ namespace BuildXL.FrontEnd.Rush
             if (!scheduleResult.Succeeded)
             {
                 Tracing.Logger.Log.ProjectGraphConstructionError(m_context.LoggingContext, default(Location), scheduleResult.Failure.Describe());
+            }
+            else
+            {
+                // On success, store the association between a rush project and its corresponding
+                // scheduled processes
+                foreach (var kvp in scheduleResult.Result.ScheduledProcesses)
+                {
+                    m_scheduledProcesses.AddOrUpdate(kvp.Key,
+                        _ => new List<Pips.Operations.Process>() { kvp.Value },
+                        (key, processes) => { processes.Add(kvp.Value); return processes; });
+                }
             }
 
             return scheduleResult.Succeeded;

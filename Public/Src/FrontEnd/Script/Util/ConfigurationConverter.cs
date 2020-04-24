@@ -611,6 +611,27 @@ namespace BuildXL.FrontEnd.Script.Util
                 context.ErrorContext);
         }
 
+        private FullSymbol ConvertToFullSymbol(object value, in ConversionContext context)
+        {
+            Contract.Requires(value != null);
+
+            if (value is string stringValue)
+            {
+                if (FullSymbol.TryCreate(m_context.SymbolTable, stringValue, out FullSymbol fullSymbol, out _) == FullSymbol.ParseResult.Success)
+                {
+                    return fullSymbol;
+                }
+                
+                throw new ConversionException(
+                    I($"Value '{value}' is not a valid symbol"),
+                    context.ErrorContext);
+            }
+
+            throw new ConversionException(
+                I($"Cannot convert '{value}' of type '{value.GetType()}' to symbol"),
+                context.ErrorContext);
+        }
+
         private static object ConvertToNumber(object value, TypeInfo targetType, in ConversionContext context)
         {
             if (TypeConverter.TryConvertNumber(value, targetType, out object result))
@@ -837,6 +858,11 @@ namespace BuildXL.FrontEnd.Script.Util
             if (resultTypeInfo.TypeHandle.IsString())
             {
                 return ConvertToString(valueToConvert, context);
+            }
+
+            if (resultTypeInfo.TypeHandle.IsFullSymbol())
+            {
+                return ConvertToFullSymbol(valueToConvert, context);
             }
 
             // target: List<?> (List<,> is deprecated, thus not handled here)

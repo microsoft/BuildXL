@@ -164,5 +164,37 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void UsingRushLibBaseAt(LoggingContext context, Location location, string basePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SpecifiedCommandForExportDoesNotExist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' includes package '{packageName}' with a " +
+            "script command '{commandName}'. However, that command is not defined in the corresponding package.json. Available script commands for that package: {availableCommands}.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void SpecifiedCommandForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string packageName, string commandName, string availableCommands);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SpecifiedPackageForExportDoesNotExist,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "The specified content for export symbol '{exportSymbol}' specifies a non-existent package '{packageName}'.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void SpecifiedPackageForExportDoesNotExist(LoggingContext context, Location location, string exportSymbol, string packageName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.RequestedExportIsNotPresent,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Export symbol '{symbol}' specifies project '{projectName}' with command '{scriptCommandName}' as part of its content, " +
+            "but the project has not been scheduled.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void RequestedExportIsNotPresent(LoggingContext context, Location location, string symbol, string projectName, string scriptCommandName); 
     }
 }

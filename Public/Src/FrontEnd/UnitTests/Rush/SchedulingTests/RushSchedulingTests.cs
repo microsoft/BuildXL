@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
+    [Trait("Category", "RushSchedulingTests")]
     public sealed class RushSchedulingTests : RushPipSchedulingTestBase
     {
         public RushSchedulingTests(ITestOutputHelper output)

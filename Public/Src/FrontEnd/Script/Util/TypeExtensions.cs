@@ -85,6 +85,13 @@ namespace BuildXL.FrontEnd.Script.Util
 
         /// <nodoc />
         [Pure]
+        public static bool IsFullSymbol(this RuntimeTypeHandle type)
+        {
+            return type.Equals(typeof(FullSymbol).TypeHandle);
+        }
+
+        /// <nodoc />
+        [Pure]
         public static bool IsFileArtifact(this RuntimeTypeHandle type)
         {
             return type.Equals(typeof(FileArtifact).TypeHandle);

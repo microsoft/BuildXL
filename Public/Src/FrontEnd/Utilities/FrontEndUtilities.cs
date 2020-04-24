@@ -7,20 +7,29 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Declarations;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Evaluation;
+using BuildXL.FrontEnd.Sdk.Mutable;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
+using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Utilities
 {
     /// <summary>
     /// Static methods with common logic for the FrontEnd resolvers
     /// </summary>
-    public class FrontEndUtilities
+    public sealed class FrontEndUtilities
     {
         /// <summary>
         /// Retrieves a list of search locations for an executable, inspecting a list of explicit candidates first or using PATH.
@@ -307,6 +316,104 @@ namespace BuildXL.FrontEnd.Utilities
                     processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(pathTable.StringTable, passThroughVariable));
                 }
             }
+        }
+
+        /// <summary>
+        /// Exposes a declaration of the form '@@public export identifier : type = undefined' at the specified (pos, end) location
+        /// </summary>
+        /// <remarks>
+        /// Line map of the source file is not set
+        /// </remarks>
+        public static void AddExportToSourceFile(TypeScript.Net.Types.SourceFile sourceFile, string identifier, ITypeNode type, int pos, int end)
+        {
+            // A value representing all output directories of the project
+            var outputDeclaration = new VariableDeclaration(identifier, Identifier.CreateUndefined(), type);
+            outputDeclaration.Flags |= NodeFlags.Export | NodeFlags.Public | NodeFlags.ScriptPublic;
+            outputDeclaration.Pos = pos;
+            outputDeclaration.End = end;
+
+            // Final source file looks like
+            //   @@public export outputs: type[] = undefined;
+            // The 'undefined' part is not really important here. The value at runtime has its own special handling in the resolver.
+            sourceFile.Statements.Add(new VariableStatement()
+            {
+                DeclarationList = new VariableDeclarationList(
+                        NodeFlags.Const,
+                        outputDeclaration)
+            });
+        }
+
+        /// <summary>
+        /// Adds a callback for a particular symbol that will be called
+        /// at evaluation time when that symbol is evaluated.
+        /// </summary>
+        /// <remarks>
+        /// Useful for programmatically executing customized evaluation for non-DScript
+        /// resolvers
+        /// </remarks>
+        public static void AddEvaluationCallbackToModuleRegistry(
+            ISourceFile sourceFile,
+            Func<Context, ModuleLiteral, EvaluationStackFrame,Task<EvaluationResult>> evaluationCallback,
+            IModuleRegistry moduleRegistry,
+            Package package,
+            FullSymbol symbol,
+            int position,
+            FrontEndContext context)
+        {
+            var sourceFilePath = sourceFile.GetAbsolutePath(context.PathTable);
+
+            var currentFileModule = ModuleLiteral.CreateFileModule(
+                    sourceFilePath,
+                    moduleRegistry,
+                    package,
+                    sourceFile.LineMap);
+
+            var outputResolvedEntry = new ResolvedEntry(
+                symbol,
+                (Context context, ModuleLiteral env, EvaluationStackFrame args) => evaluationCallback(context, env, args),
+                // The following position is a contract right now with he generated ast in the workspace resolver
+                // we have to find a nicer way to handle and register these.
+                TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(0, position)
+            );
+
+            currentFileModule.AddResolvedEntry(symbol, outputResolvedEntry);
+            currentFileModule.AddResolvedEntry(new FilePosition(position, sourceFilePath), outputResolvedEntry);
+
+            var moduleInfo = new UninstantiatedModuleInfo(
+                // We can register an empty one since we have the module populated properly
+                new Script.SourceFile(
+                    sourceFilePath,
+                    new Declaration[]
+                    {
+                    }),
+                currentFileModule,
+                context.QualifierTable.EmptyQualifierSpaceId);
+
+            moduleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
+        }
+
+        /// <summary>
+        /// Creates a package out of a module
+        /// </summary>
+        /// <remarks>
+        /// TODO: This is DSCript V1 behavior we couldn't get rid of
+        /// </remarks>
+        public static Package CreatePackage(ModuleDefinition moduleDefinition, StringTable stringTable)
+        {
+            var moduleDescriptor = moduleDefinition.Descriptor;
+
+            var packageId = PackageId.Create(StringId.Create(stringTable, moduleDescriptor.Name));
+            var packageDescriptor = new PackageDescriptor
+            {
+                Name = moduleDescriptor.Name,
+                Main = moduleDefinition.MainFile,
+                NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
+                Publisher = null,
+                Version = moduleDescriptor.Version,
+                Projects = new List<AbsolutePath>(moduleDefinition.Specs),
+            };
+
+            return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);
         }
     }
 }

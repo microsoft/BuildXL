@@ -17,6 +17,7 @@ using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
+    [Trait("Category", "RushIntegrationTests")]
     public class RushIntegrationTests : RushIntegrationTestBase
     {
         public RushIntegrationTests(ITestOutputHelper output)

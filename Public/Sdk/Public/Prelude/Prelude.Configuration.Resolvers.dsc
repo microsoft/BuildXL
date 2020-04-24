@@ -335,6 +335,38 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * Defines a collection of custom Rush commands that can later be used as part of 'execute'.
      */
     customCommands?: RushCustomCommand[];
+
+    /**
+     * Instructs the resolver to expose a collection of exported symbols that other resolvers can consume.
+     * Each exported value will have type SharedOpaqueDirectory[], containing the output directories of the specified projects.
+     */
+    exports?: RushExport[];
+}
+
+/**
+ * An exported value to other resolvers. 
+ * A symbol name must be specified (for now, no namespaces are allowed, just a plain name, e.g. 'outputs').
+ * The resolver will expose a 'symbolName' declaration whose value at runtime will be an array of StaticDirectory, with all the output directories 
+ * from the projects specified as content.
+ */
+interface RushExport {
+    symbolName: string;
+    content: RushProjectOutputSelector[];
+}
+
+/**
+ * Project outputs are selected with a package name (a string that will be matched against names declared in package.json), in which case the exposed
+ * outputs under a given symbol will be of all the commands in that project, or it can be a RushProjectOutputs, where specific script commands
+ * can be specified for a given package.
+ */
+type RushProjectOutputSelector = string | RushProjectOutputs;
+
+/**
+ * A project with a name as specified in its corresponding package.json, together with a collection of script commmands
+ */
+interface RushProjectOutputs {
+    packageName: string;
+    commands: string[];
 }
 
 /**

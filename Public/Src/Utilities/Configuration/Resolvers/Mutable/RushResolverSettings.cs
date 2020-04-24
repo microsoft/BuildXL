@@ -35,6 +35,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Execute = resolverSettings.Execute;
             CustomCommands = resolverSettings.CustomCommands;
             RushLibBaseLocation = resolverSettings.RushLibBaseLocation;
+            Exports = resolverSettings.Exports;
         }
 
         /// <inheritdoc/>
@@ -72,5 +73,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public DirectoryArtifact? RushLibBaseLocation { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<IRushExport> Exports { get; set; }
     }
 }

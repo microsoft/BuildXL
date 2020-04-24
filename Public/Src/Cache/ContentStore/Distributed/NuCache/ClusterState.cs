@@ -101,7 +101,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
+        public BoolResult SetInactiveMachines(BitMachineIdSet inactiveMachines)
         {
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
@@ -109,19 +109,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (EnableBinManagerUpdates && BinManager != null)
             {
                 var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
-                BinManager.UpdateAll(activeMachines, InactiveMachines);
+                return BinManager.UpdateAll(activeMachines, InactiveMachines);
             }
+
+            return BoolResult.Success;
         }
 
         /// <summary>
         /// Marks that a machine with <paramref name="machineId"/> is Active.
         /// </summary>
-        public void MarkMachineActive(MachineId machineId)
+        public BoolResult MarkMachineActive(MachineId machineId)
         {
             if (_inactiveMachinesSet[machineId.Index])
             {
-                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
+                return SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
             }
+
+            return BoolResult.Success;
         }
 
         /// <summary>
@@ -219,8 +223,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<MachineLocation[]>("Could not get designated locations because BinManager is null");
             }
 
-            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
-            return locations
+            var locationsResult = BinManager.GetDesignatedLocations(hash, includeExpired);
+            if (!locationsResult)
+            {
+                return new Result<MachineLocation[]>(locationsResult);
+            }
+
+            return locationsResult.Value
                 .Where(machineId => !_inactiveMachinesSet[machineId])
                 .Select(id =>_locationByIdMap[id.Index])
                 .ToArray();
@@ -231,7 +240,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired)
         {
-            return BinManager?.GetDesignatedLocations(hash, includeExpired).Contains(machineId) == true;
+            if (BinManager == null)
+            {
+                return false;
+            }
+
+            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
+            if (!locations)
+            {
+                return false;
+            }
+
+            return locations.Value!.Contains(machineId);
         }
 
         /// <summary>

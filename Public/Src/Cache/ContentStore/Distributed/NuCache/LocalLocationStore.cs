@@ -620,9 +620,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var manager = ClusterState.BinManager;
             if (manager != null)
             {
-                var bytes = manager.Serialize();
-                var serializedString = Convert.ToBase64String(bytes);
-                Database.SetGlobalEntry(BinManagerKey, serializedString);
+                var serializeResult = manager.Serialize();
+                if (serializeResult)
+                {
+                    var bytes = serializeResult.Value!;
+                    var serializedString = Convert.ToBase64String(bytes);
+                    Database.SetGlobalEntry(BinManagerKey, serializedString);
+                }
+                else
+                {
+                    serializeResult.TraceIfFailure(context);
+                }
             }
 
             return await CheckpointManager.CreateCheckpointAsync(context, currentSequencePoint);
@@ -680,14 +688,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (_configuration.UseBinManager && Database.TryGetGlobalEntry(BinManagerKey, out var serializedString))
                 {
                     var bytes = Convert.FromBase64String(serializedString);
-                    try
-                    {
-                        ClusterState.BinManager = BinManager.CreateFromSerialized(bytes, _configuration.ProactiveCopyLocationsThreshold, _clock, _configuration.PreferredLocationsExpiryTime);
-                    }
-                    catch (Exception e)
-                    {
-                        Tracer.Error(context, $"Failed to deserialize the BinManager: {e}");
-                    }
+                    var binManagerResult = BinManager.CreateFromSerialized(
+                        bytes,
+                        _configuration.ProactiveCopyLocationsThreshold,
+                        _clock,
+                        _configuration.PreferredLocationsExpiryTime);
+                    binManagerResult.TraceIfFailure(context);
+
+                    ClusterState.BinManager = binManagerResult.Succeeded ? binManagerResult.Value : null;
                 }
             }
 
@@ -1644,7 +1652,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <inheritdoc />
             public void ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime)
             {
-                _clusterState.MarkMachineActive(sender);
+                _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
 
                 foreach (var hash in hashes.AsStructEnumerable())
                 {
@@ -1655,7 +1663,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <inheritdoc />
             public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
-                _clusterState.MarkMachineActive(sender);
+                _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
 
                 foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
@@ -1666,7 +1674,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <inheritdoc />
             public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
-                _clusterState.MarkMachineActive(sender);
+                _clusterState.MarkMachineActive(sender).TraceIfFailure(context);
                 foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);

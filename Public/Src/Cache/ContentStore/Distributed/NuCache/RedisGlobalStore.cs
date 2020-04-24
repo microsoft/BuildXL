@@ -478,7 +478,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             clusterState.AddUnknownMachines(getUnknownMachinesResult.maxMachineId, getUnknownMachinesResult.unknownMachines);
-            clusterState.SetInactiveMachines(inactiveMachineIdSet);
+            clusterState.SetInactiveMachines(inactiveMachineIdSet).ThrowIfFailure();
+
             Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
             Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
 

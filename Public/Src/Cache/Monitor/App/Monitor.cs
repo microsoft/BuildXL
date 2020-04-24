@@ -166,13 +166,18 @@ namespace BuildXL.Cache.Monitor.App
         /// </summary>
         private void CreateSchedule(Watchlist watchlist)
         {
+            // TODO: single query for all stamps in rules that support it. This should significantly improve performance.
+            // TODO: per-stamp configuration (some stamps are more important than others, query frequency should reflect that)
+            // TODO: query weight (how much does it cost). We should adapt scheduling policy to have lighter queries prioritize earlier than the others.
+            // TODO: stamp configuration knowledge. Stamp configuration affects what our thresholds should be. We should reflect that here.
+            // TODO: add jitter to rules, so that queries to Kusto are spread out over time instead of all at once
             OncePerStamp(baseConfiguration =>
             {
                 var configuration = new LastProducedCheckpointRule.Configuration(baseConfiguration);
                 return Utilities.Yield(new Instantiation()
                 {
                     Rule = new LastProducedCheckpointRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(30),
+                    PollingPeriod = TimeSpan.FromMinutes(40),
                 });
             }, watchlist);
 
@@ -196,15 +201,16 @@ namespace BuildXL.Cache.Monitor.App
                 });
             }, watchlist);
 
-            OncePerStamp(baseConfiguration =>
-            {
-                var configuration = new ActiveMachinesRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation()
-                {
-                    Rule = new ActiveMachinesRule(configuration),
-                    PollingPeriod = configuration.AnomalyDetectionHorizon - TimeSpan.FromMinutes(5),
-                });
-            }, watchlist);
+            // TODO: this rule is too noisy and inaccurate, we should make it work again
+            //OncePerStamp(baseConfiguration =>
+            //{
+            //    var configuration = new ActiveMachinesRule.Configuration(baseConfiguration);
+            //    return Utilities.Yield(new Instantiation()
+            //    {
+            //        Rule = new ActiveMachinesRule(configuration),
+            //        PollingPeriod = configuration.AnomalyDetectionHorizon - TimeSpan.FromMinutes(5),
+            //    });
+            //}, watchlist);
 
             OncePerStamp(baseConfiguration =>
             {
@@ -212,7 +218,7 @@ namespace BuildXL.Cache.Monitor.App
                 return Utilities.Yield(new Instantiation()
                 {
                     Rule = new EventHubProcessingDelayRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(20),
+                    PollingPeriod = TimeSpan.FromMinutes(30),
                 });
             }, watchlist);
 
@@ -222,20 +228,22 @@ namespace BuildXL.Cache.Monitor.App
                 return Utilities.Yield(new Instantiation()
                 {
                     Rule = new BuildFailuresRule(configuration),
-                    PollingPeriod = TimeSpan.FromMinutes(15),
+                    PollingPeriod = TimeSpan.FromMinutes(45),
                 });
             }, watchlist);
 
-            OncePerStamp(baseConfiguration =>
-            {
-                var configuration = new FireAndForgetExceptionsRule.Configuration(baseConfiguration);
-                return Utilities.Yield(new Instantiation()
-                {
-                    Rule = new FireAndForgetExceptionsRule(configuration),
-                    PollingPeriod = configuration.LookbackPeriod - TimeSpan.FromMinutes(5),
-                });
-            }, watchlist);
+            // TODO: fire-and-forget exceptions are now being reported on the dashboards. We should see if this can be recycled.
+            //OncePerStamp(baseConfiguration =>
+            //{
+            //    var configuration = new FireAndForgetExceptionsRule.Configuration(baseConfiguration);
+            //    return Utilities.Yield(new Instantiation()
+            //    {
+            //        Rule = new FireAndForgetExceptionsRule(configuration),
+            //        PollingPeriod = configuration.LookbackPeriod - TimeSpan.FromMinutes(5),
+            //    });
+            //}, watchlist);
 
+            // TODO: this was just too noisy
             //OncePerStamp(baseConfiguration =>
             //{
             //    var configuration = new ContractViolationsRule.Configuration(baseConfiguration);
@@ -299,33 +307,19 @@ namespace BuildXL.Cache.Monitor.App
                 {
                     LookbackPeriod = TimeSpan.FromMinutes(60),
                     DetectionPeriod = TimeSpan.FromMinutes(30),
-                    Match = "LocalContentServer.StartupAsync",
-                    Constraint = $"TimeMs >= {TimeSpan.FromMinutes(1).TotalMilliseconds}",
-                },
-                new OperationPerformanceOutliersRule.DynamicCheck()
-                {
-                    LookbackPeriod = TimeSpan.FromMinutes(60),
-                    DetectionPeriod = TimeSpan.FromMinutes(30),
                     Match = "LocalCacheServer.StartupAsync",
                     Constraint = $"TimeMs >= {TimeSpan.FromMinutes(1).TotalMilliseconds}",
                 },
                 new OperationPerformanceOutliersRule.DynamicCheck()
                 {
-                    LookbackPeriod = TimeSpan.FromMinutes(60),
-                    DetectionPeriod = TimeSpan.FromMinutes(30),
-                    Match = "RedisGlobalStore.RegisterLocalLocationAsync",
-                    Constraint = $"TimeMs >= {TimeSpan.FromSeconds(30).TotalMilliseconds}",
-                },
-                new OperationPerformanceOutliersRule.DynamicCheck()
-                {
-                    LookbackPeriod = TimeSpan.FromDays(1),
+                    LookbackPeriod = TimeSpan.FromHours(12),
                     DetectionPeriod = TimeSpan.FromHours(1),
                     Match = "CheckpointManager.CreateCheckpointAsync",
                     Constraint = $"TimeMs >= {TimeSpan.FromMinutes(1).TotalMilliseconds}",
                 },
                 new OperationPerformanceOutliersRule.DynamicCheck()
                 {
-                    LookbackPeriod = TimeSpan.FromDays(1),
+                    LookbackPeriod = TimeSpan.FromHours(12),
                     DetectionPeriod = TimeSpan.FromHours(1),
                     Match = "CheckpointManager.RestoreCheckpointAsync",
                     Constraint = $"TimeMs >= P95 and P95 >= {TimeSpan.FromMinutes(30).TotalMilliseconds}",

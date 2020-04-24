@@ -118,7 +118,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | where PreciseTimeStamp between (detection .. end);
                 let DescriptiveStatistics = Events
                 | where PreciseTimeStamp between (start .. detection){perhapsLookbackFilter}
-                | summarize hint.shufflekey=Machine hint.num_partitions=64 (P5, P50, P95)=percentiles(TimeMs, 5, 50, 95), Avg=avg(TimeMs), StdDev=stdev(TimeMs), Maximum=max(TimeMs), Minimum=min(TimeMs) by Machine
+                | summarize hint.shufflekey=Machine hint.num_partitions=64 (P50, P95)=percentiles(TimeMs, 50, 95) by Machine
                 | where not(isnull(Machine));
                 DescriptiveStatistics
                 | join kind=rightouter hint.strategy=broadcast hint.num_partitions=64 DetectionEvents on Machine

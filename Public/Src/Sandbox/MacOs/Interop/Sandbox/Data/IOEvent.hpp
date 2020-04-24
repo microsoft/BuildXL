@@ -50,13 +50,13 @@ private:
     // Only used when the IOEvent is backed by an EndpointSecurity message
     pid_t oppid_;
     audit_token_t auditToken_;
-
+    
 public:
 
     IOEvent() {}
 
 #if __APPLE__
-    IOEvent(es_message_t *msg);
+    IOEvent(const es_message_t *msg);
 #endif
 
     IOEvent(pid_t pid,
@@ -81,23 +81,6 @@ public:
         {
             struct stat s;
             mode_ = stat(src_path_.c_str(), &s) == 0 ? s.st_mode : 0;
-        }
-
-        bool src_path_truncated = src_path_.find("/../") != std::string::npos || src_path_.find("/./") != std::string::npos;
-        bool dst_path_truncated = dst_path_.find("/../") != std::string::npos || dst_path_.find("/./") != std::string::npos;;
-
-        if (src_path_truncated)
-        {
-            char resolved[PATH_MAX + 1] = { '\0' };
-            realpath(src_path_.c_str(), resolved);
-            src_path_ = std::string(resolved);
-        }
-
-        if (dst_path_truncated)
-        {
-            char resolved[PATH_MAX + 1] = { '\0' };
-            realpath(dst_path_.c_str(), resolved);
-            dst_path_ = std::string(resolved);
         }
     }
 
@@ -133,12 +116,23 @@ public:
     inline const audit_token_t* GetProcessAuditToken() const { return &auditToken_; }
     inline const es_event_type_t GetEventType() const { return eventType_; }
 
-    inline const char* GetEventPath(int index = 0) const { return (index == 0 ? src_path_ : dst_path_).c_str(); }
-
+    inline const char* GetEventPath(int index = SRC_PATH) const { return (index == SRC_PATH ? src_path_ : dst_path_).c_str(); }
+    inline void SetEventPath(char *value, int index = SRC_PATH)
+    {
+        if (index == SRC_PATH)
+        {
+            src_path_ = std::string(value);
+        }
+        else
+        {
+            dst_path_ = std::string(value);
+        }
+    }
+    
     inline const mode_t GetMode() const { return mode_; }
     inline const bool FSEntryModified() const { return modified_; }
     inline const bool EventPathExists() const { return mode_ != 0; }
-
+    
     const bool IsPlistEvent() const;
     const bool IsDirectorySpecialCharacterEvent() const;
 
@@ -161,6 +155,12 @@ enum IOEventBacking
     Interposing
 };
 
-typedef void (*process_callback)(es_client_t *client, const IOEvent &event, pid_t host, IOEventBacking backing);
+enum ProcessCallbackResult
+{
+    Done = 0,
+    MuteSource
+};
+
+typedef ProcessCallbackResult (*process_callback)(void *sandbox, const IOEvent event, pid_t host, IOEventBacking backing);
 
 #endif /* IOEvent_hpp */

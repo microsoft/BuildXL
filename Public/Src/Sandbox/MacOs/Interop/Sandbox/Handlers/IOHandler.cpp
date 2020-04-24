@@ -79,7 +79,7 @@ AccessCheckResult IOHandler::HandleClose(const IOEvent &event)
     {
         return CheckAndReport(kOpKAuthCloseModified, event.GetEventPath(SRC_PATH), Checkers::CheckWrite, event.GetPid());
     }
-        
+    
     bool isDir = S_ISDIR(event.GetMode());
     return CheckAndReport(kOpKAuthClose, event.GetEventPath(SRC_PATH), Checkers::CheckRead, event.GetPid(), isDir);
 }
@@ -226,6 +226,7 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
         case ES_EVENT_TYPE_NOTIFY_SETACL:
             return HandleGenericWrite(event);
 
+        case ES_EVENT_TYPE_NOTIFY_CHDIR:
         case ES_EVENT_TYPE_NOTIFY_READDIR:
         case ES_EVENT_TYPE_NOTIFY_FSGETPATH:
             return HandleGenericRead(event);
@@ -254,7 +255,8 @@ AccessCheckResult IOHandler::HandleEvent(const IOEvent &event)
 
         case ES_EVENT_TYPE_NOTIFY_UNLINK:
             return HandleUnlink(event);
-
+        case ES_EVENT_TYPE_LAST: 
+            return AccessCheckResult::Invalid();
         default:
             std::string message("Unhandled ES event: ");
             message.append(std::to_string(event.GetEventType()));

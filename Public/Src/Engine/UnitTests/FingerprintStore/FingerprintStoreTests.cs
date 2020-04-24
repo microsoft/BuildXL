@@ -75,13 +75,22 @@ namespace Test.BuildXL.FingerprintStore
                 // There may be a 1-to-n relationship between fingerprint entries to relevant directory membership fingerprints, so they are stored separately
                 // Try to parse out the directory enumeration's hash from the strong fingerprint to validate there is an entry for the directory membership fingerprint
                 var reader = new JsonReader(entry.StrongFingerprintEntry.StrongFingerprintToInputs.Value);
-                XAssert.IsTrue(reader.TryGetPropertyValue(ObservedInputConstants.DirectoryEnumeration, out var directoryFingerprint));
+                var nestedFileEntryFound = false;
 
-                store.TryGetContentHashValue(directoryFingerprint, out var directoryMembers);
-                // Validate this is the correct enumeration
-                XAssert.IsTrue(directoryMembers.Contains(Path.GetFileName(ArtifactToString(nestedFile))));
-
-                directoryMembershipFingerprintEntry = new KeyValuePair<string, string>(directoryFingerprint, directoryMembers);
+                while(reader.TryGetPropertyValue(ObservedInputConstants.DirectoryEnumeration, out var directoryFingerprint))
+                {
+                    store.TryGetContentHashValue(directoryFingerprint, out var directoryMembers);
+                    
+                    // Validate this is the correct enumeration
+                    nestedFileEntryFound = directoryMembers.Contains(Path.GetFileName(ArtifactToString(nestedFile)));
+                    if (nestedFileEntryFound) 
+                    {
+                        directoryMembershipFingerprintEntry = new KeyValuePair<string, string>(directoryFingerprint, directoryMembers);
+                        break;
+                    }
+                }
+            
+                XAssert.IsTrue(nestedFileEntryFound);
             });
 
             // Check that all values of the entry are filled out

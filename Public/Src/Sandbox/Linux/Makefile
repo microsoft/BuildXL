@@ -15,7 +15,7 @@ INC     = \
 
 INC_FLAGS = $(foreach d, $(INC), -I$d)
 
-CXXFLAGS = -c -fPIC --std=c++14 $(INC_FLAGS) 
+CXXFLAGS = -c -fPIC --std=c++17 $(INC_FLAGS) 
 DBGFLAGS = -g -D_DEBUG
 RELFLAGS = -o3 -D_NDEBUG
 LDFLAGS  = -ldl -lpthread

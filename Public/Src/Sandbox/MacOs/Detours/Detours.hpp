@@ -18,37 +18,7 @@
 
 #include "IOEvent.hpp"
 
-static const char* socket_path = "/tmp/buildxl_interpose";
-
 static os_log_t logger = os_log_create(DETOURS_BUNDLE_IDENTIFIER, "Logger");
-
-typedef struct {
-    char data[PATH_MAX] = { '\0' };
-    size_t length;
-} Buffer;
-
-struct PathCacheEntry final
-{
-private:
-    Buffer buffer_;
-public:
-    PathCacheEntry(int identifier, bool isPid = false)
-    {
-        assert(identifier > 0);
-        if (!isPid)
-        {
-            assert(fcntl(identifier, F_GETPATH, buffer_.data) != -1);
-        }
-        else
-        {
-            assert(proc_pidpath(identifier, (void *)buffer_.data, PATH_MAX) > 0);
-        }
-        buffer_.length = strlen(buffer_.data);
-    }
-    
-    ~PathCacheEntry() = default;
-    inline const char* GetPath() const { return buffer_.data; }
-};
 
 #define log(format, ...) os_log(logger, "[[ %s ]] %s: " #format "\n", "com_microsoft_buildxl_detours", __func__, __VA_ARGS__)
 
@@ -69,9 +39,22 @@ public:
     errno = old_errno; \
     return result;
 
+#define DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(type, src, dst, mode, report) \
+    int old_errno = errno; \
+    if (report) { \
+        IOEvent event(getpid(), 0, getppid(), type, src, dst, get_executable_path(getpid()), true); \
+        send_to_sandbox(event, type, false, false); \
+    } \
+    errno = old_errno; \
+    return result;
+
 #define EXEC_EVENT_CONSTRUCTOR(path) \
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXEC, path, "", path, false); \
-    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXEC);
+    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXEC, path, "", get_executable_path(getpid()), false); \
+    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXEC, true);\
+
+#define EXIT_EVENT_CONSTRUCTOR() \
+    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, "", "", get_executable_path(getpid()), false); \
+    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXIT);
 
 #define FORK_EVENT_CONSTRUCTOR(result, child_pid, pid, ppid, cmp) \
     int old_errno = errno; \

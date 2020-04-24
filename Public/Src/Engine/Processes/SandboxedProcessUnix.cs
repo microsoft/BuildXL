@@ -156,15 +156,17 @@ namespace BuildXL.Processes
                 info.DetoursEventListener,
                 info.SidebandWriter);
 
-            m_pendingReports = new ActionBlock<AccessReport>(
-                HandleAccessReport,
-                new ExecutionDataflowBlockOptions
-                {
-                    EnsureOrdered = true,
-                    SingleProducerConstrained = true,
-                    BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    MaxDegreeOfParallelism = 1 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
-                });
+            var useSingleProducer = !(SandboxConnection.Kind == SandboxKind.MacOsHybrid || SandboxConnection.Kind == SandboxKind.MacOsDetours);
+
+            var executionOptions = new ExecutionDataflowBlockOptions
+            {
+                EnsureOrdered = true,
+                SingleProducerConstrained = useSingleProducer,
+                BoundedCapacity = DataflowBlockOptions.Unbounded,
+                MaxDegreeOfParallelism = 1 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
+            };
+            
+            m_pendingReports = new ActionBlock<AccessReport>(HandleAccessReport, executionOptions);
 
             // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
@@ -331,7 +333,7 @@ namespace BuildXL.Processes
             await m_pendingReports.Completion;
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
-            // which is done by the base class) so notify the sandbox kernel extension connection manager about it.
+            // which is done by the base class) so notify the sandbox connection about it.
             SandboxConnection.NotifyPipFinished(PipId, this);
 
             return IgnoreReportedAccesses ? null : m_reports;

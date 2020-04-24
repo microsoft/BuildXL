@@ -103,7 +103,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         public TimeSpan CurrentDrought => DateTime.UtcNow.Subtract(new DateTime(ticks: LastReportReceivedTimestampTicks));
 
         /// <summary>
-        /// Initializes the sandbox kernel extension connection manager, setting up the kernel extension connection and workers that drain the
+        /// Initializes the sandbox kernel extension connection, setting up the kernel extension connection and workers that drain the
         /// kernel event queue and report file accesses
         /// </summary>
         public SandboxConnectionKext(Config config = null, bool skipDisposingForTests = false)

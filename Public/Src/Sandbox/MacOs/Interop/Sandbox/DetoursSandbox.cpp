@@ -4,110 +4,111 @@
 #include "BuildXLSandboxShared.hpp"
 #include "BuildXLException.hpp"
 #include "DetoursSandbox.hpp"
+#include "XPCConstants.hpp"
 
-DetoursSandbox::DetoursSandbox(pid_t host_pid, process_callback callback)
+DetoursSandbox::DetoursSandbox(pid_t host_pid, process_callback callback, void *sandbox, xpc_connection_t bridge)
 {
-    assert(callback != nullptr);
-    eventCallback_ = callback;
+    assert(callback != nullptr && bridge != nullptr);
     
+    eventCallback_ = callback;
+    xpc_bridge_ = bridge;
     hostPid_ = host_pid;
     
     char queueName[PATH_MAX] = { '\0' };
-    sprintf(queueName, "com.microsoft.buildxl.socket.eventqueue_%d", host_pid);
+    sprintf(queueName, "com.microsoft.buildxl.detours.eventqueue_%d", host_pid);
     
     eventQueue_ = dispatch_queue_create(queueName, dispatch_queue_attr_make_with_qos_class(
-        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, -1
+        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
     ));
     
-    if ((socketHandle_ = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-        throw BuildXLException("Could not create socket for IPC interpose observation: " + std::to_string(errno));
-    }
-
-    int flags = fcntl(socketHandle_, F_GETFL) | O_NONBLOCK;
-    if (fcntl(socketHandle_, F_SETFL, flags) < 0)
+    detours_ = xpc_connection_create(NULL, NULL);
+    xpc_connection_set_event_handler(detours_, ^(xpc_object_t peer)
     {
-        throw BuildXLException("Could not setup the socket for non-blocking operation: " + std::to_string(errno));
-    }
-
-    memset(&socketAddr_, 0, sizeof(socketAddr_));
-    socketAddr_.sun_family = AF_UNIX;
-    strncpy(socketAddr_.sun_path, socket_path, sizeof(socketAddr_.sun_path) - 1);
-    unlink(socket_path);
-
-    if (bind(socketHandle_, (struct sockaddr *)&socketAddr_, sizeof(socketAddr_)) < 0) {
-        throw BuildXLException("Could not bind socket for IPC interpose observation: " + std::to_string(errno));
-    }
-
-    if (listen(socketHandle_, SOMAXCONN) < 0)
-    {
-        throw BuildXLException("Could not setup listen() to accept client connections: " + std::to_string(errno));
-    }
-    
-    kqueueHandle_ = kqueue();
-        
-    dispatch_async(eventQueue_, ^
-    {
-        struct kevent eventSet;
-        EV_SET(&eventSet, socketHandle_, EVFILT_READ, EV_ADD | EV_RECEIPT, 0, 0, NULL);
-        assert(-1 != kevent(kqueueHandle_, &eventSet, 1, NULL, 0, NULL));
-          
-        struct kevent eventList[512];
-        
-        while (true)
+        xpc_type_t type = xpc_get_type(peer);
+        if (type != XPC_TYPE_ERROR)
         {
-            int nev = kevent(kqueueHandle_, NULL, 0, eventList, sizeof(eventList), NULL);
-            
-            for (int i = 0; i < nev; i++)
+            xpc_connection_set_event_handler((xpc_connection_t) peer, ^(xpc_object_t message)
             {
-                int fd = (int)eventList[i].ident;
-                
-                if (eventList[i].flags & EV_EOF)
+                xpc_type_t type = xpc_get_type(message);
+                if (type == XPC_TYPE_DICTIONARY)
                 {
-                    close(fd);
-                }
-                else if (fd == socketHandle_)
-                {
-                    struct sockaddr_storage addr;
-                    socklen_t socklen = sizeof(addr);
-                
-                    int connfd = accept(fd, (struct sockaddr *)&addr, &socklen);
-                    assert(connfd != -1);
+                    const char *msg = xpc_dictionary_get_string(message, "IOEvent");
+                    const uint64_t msg_length = xpc_dictionary_get_uint64(message, "IOEvent::Length");
                     
-                    EV_SET(&eventSet, connfd, EVFILT_READ, EV_ADD | EV_RECEIPT, 0, 0, NULL);
-                    kevent(kqueueHandle_, &eventSet, 1, NULL, 0, NULL);
-                    
-                    int flags = fcntl(connfd, F_GETFL, 0);
-                    assert(flags >= 0);
-                    fcntl(connfd, F_SETFL, flags | O_NONBLOCK);
-                }
-                else if (eventList[i].filter == EVFILT_READ)
-                {
-                    char buffer[IOEvent::max_size()];
-                    size_t bytes_read = recv(fd, buffer, IOEvent::max_size(), 0);
-                    assert(bytes_read == IOEvent::max_size());
-                    
-                    imemorystream ims(buffer, bytes_read);
+                    imemorystream ims(msg, msg_length);
                     ims.imbue(std::locale(ims.getloc(), new PipeDelimiter));
                     IOEvent event;
                     ims >> event;
-                    
-                    log_debug("%{public}.*s",(int)bytes_read, buffer);
-                    eventCallback_(nullptr, const_cast<const IOEvent &>(event), GetHostPid(), IOEventBacking::Interposing);
+                
+                    eventCallback_(sandbox, const_cast<const IOEvent &>(event), hostPid_, IOEventBacking::Interposing);
+                        
+                    xpc_object_t reply = xpc_dictionary_create_reply(message);
+                    xpc_dictionary_set_uint64(reply, "response", xpc_response_success);
+                    xpc_connection_send_message((xpc_connection_t) peer, reply);
                 }
-            }
+                else if (type == XPC_TYPE_ERROR)
+                {
+                    if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
+                    {
+
+                    }
+                    else if (message == XPC_ERROR_CONNECTION_INVALID)
+                    {
+
+                    }
+                }
+            });
+            xpc_connection_resume((xpc_connection_t)peer);
+        }
+        else
+        {
+            // NOOP
         }
     });
-        
-    log_debug("%s", "Successfully initialized the Detours sandbox backend.");
+    
+    xpc_connection_set_target_queue(detours_, eventQueue_);
+    xpc_connection_resume(detours_);
+    
+    xpc_object_t post = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_uint64(post, "command", xpc_set_detours_connection);
+    xpc_dictionary_set_connection(post, "connection", detours_);
+    
+    xpc_object_t response = xpc_connection_send_message_with_reply_sync(xpc_bridge_, post);
+    xpc_type_t type = xpc_get_type(response);
+    
+    uint64_t status = 0;
+    
+    if (type == XPC_TYPE_DICTIONARY)
+    {
+        status = xpc_dictionary_get_uint64(response, "response");
+        log_debug("Successfully initialized the Detours sandbox backend - status(%lld).", status);
+    }
+    
+    xpc_release(response);
+
+    
+    if (status != xpc_response_success)
+    {
+        throw BuildXLException("Could not connect to sandbox XPC bridge, aborting!");
+    }
 }
 
 DetoursSandbox::~DetoursSandbox()
 {
-    shutdown(socketHandle_, SHUT_RDWR);
-    unlink(socket_path);
+    xpc_object_t post = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_uint64(post, "command", xpc_kill_detours_connection);
+    xpc_connection_send_message(xpc_bridge_, post);
+    
+    xpc_connection_cancel(detours_);
+    xpc_release(detours_);
+    
+    xpc_bridge_ = nullptr;
+    detours_ = nullptr;
     
     if (eventQueue_ != nullptr)
     {
         dispatch_release(eventQueue_);
     }
+    
+    eventCallback_ = nullptr;
 }

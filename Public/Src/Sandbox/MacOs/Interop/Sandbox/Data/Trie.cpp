@@ -690,6 +690,6 @@ void Trie<T>::traverse(bool computeKey, void *callbackArgs, traverse_fn callback
     #include "SandboxedProcess.hpp"
     template class Trie<SandboxedProcess>;
 #else
-    #include "Detours.hpp"
+    #include "PathCacheEntry.hpp"
     template class Trie<PathCacheEntry>;
 #endif

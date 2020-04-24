@@ -110,7 +110,7 @@ namespace BuildXL.Processes
             {
                 if (code != Sandbox.ReportQueueSuccessCode)
                 {
-                    var message = "EndpointSecurity event delivery failed with error: " + code;
+                    var message = "Sandbox event delivery failed with error: " + code;
                     throw new BuildXLException(message, ExceptionRootCause.MissingRuntimeDependency);
                 }
 

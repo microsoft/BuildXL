@@ -5,7 +5,7 @@
 #include "BuildXLException.hpp"
 
 #if __APPLE__
-IOEvent::IOEvent(es_message_t *msg)
+IOEvent::IOEvent(const es_message_t *msg)
 {
     pid_ = audit_token_to_pid(msg->process->audit_token);
     cpid_ = 0;

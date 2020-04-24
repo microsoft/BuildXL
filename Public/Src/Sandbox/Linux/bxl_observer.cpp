@@ -241,7 +241,6 @@ ssize_t BxlObserver::fd_to_path(int fd, char *buf, size_t bufsiz)
 std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags)
 {
     char fullpath[PATH_MAX] = {0};
-    char finalPath[PATH_MAX] = {0};
     size_t len = 0;
 
     // no pathname given --> read path for dirfd

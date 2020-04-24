@@ -5,7 +5,7 @@
 #include "IOHandler.hpp"
 #include "Sandbox.hpp"
 
-Sandbox* sandbox;
+static Sandbox* sandbox;
 
 extern "C"
 {
@@ -89,7 +89,9 @@ bool Sandbox_SendPipProcessTerminated(pipid_t pipId, pid_t pid)
 Sandbox::Sandbox(pid_t host_pid, Configuration config)
 {
     hostPid_ = host_pid;
-    if (!whitelistedPids_.emplace(host_pid, true).second)
+    configuration_ = config;
+    
+    if (!SetProcessPidPair(GetWhitelistedPidMap(), host_pid, getppid()))
     {
         throw BuildXLException("Could not whitelist build host process id!");
     }
@@ -102,20 +104,37 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
         throw BuildXLException("Could not create Trie for process tracking!");
     }
     
-    switch (config)
+#if __APPLE__
+    xpc_bridge_ = xpc_connection_create_mach_service("com.microsoft.buildxl.sandbox", NULL, 0);
+    xpc_connection_set_event_handler(xpc_bridge_, ^(xpc_object_t message)
+    {
+        xpc_type_t type = xpc_get_type(message);
+        if (type == XPC_TYPE_ERROR)
+        {
+            
+        }
+    });
+    xpc_connection_activate(xpc_bridge_);
+    
+    hybird_event_queue_ = dispatch_queue_create("com.microsoft.buildxl.interop.hybrid_events", dispatch_queue_attr_make_with_qos_class(
+        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
+    ));
+#endif
+    
+    switch (configuration_)
     {
 #if __APPLE__
         case EndpointSecuritySandboxType: {
-            es_ = new EndpointSecuritySandbox(host_pid, &process_event);
+            es_ = new EndpointSecuritySandbox(host_pid, &process_event, (void *)this, xpc_bridge_);
             break;
         }
         case DetoursSandboxType: {
-            detours_ = new DetoursSandbox(host_pid, &process_event);
+            detours_ = new DetoursSandbox(host_pid, &process_event, (void *)this, xpc_bridge_);
             break;
         }
         case HybridSandboxType: {
-            es_ = new EndpointSecuritySandbox(host_pid, &process_event);
-            detours_ = new DetoursSandbox(host_pid, &process_event);
+            es_ = new EndpointSecuritySandbox(host_pid, &process_event, (void *)this, xpc_bridge_);
+            detours_ = new DetoursSandbox(host_pid, &process_event, (void *)this, xpc_bridge_);
             break;
         }
 #elif __linux__
@@ -145,6 +164,15 @@ Sandbox::~Sandbox()
     if (detours_ != nullptr)
     {
         delete detours_;
+    }
+    
+    xpc_connection_cancel(xpc_bridge_);
+    xpc_release(xpc_bridge_);
+    xpc_bridge_ = nullptr;
+    
+    if (hybird_event_queue_)
+    {
+        dispatch_release(hybird_event_queue_);
     }
 #endif
 }

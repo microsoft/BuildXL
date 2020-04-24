@@ -103,6 +103,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
 
             if (requiresJournalScan)
             {
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    Skip = $"Test requires a journaled Windows file system, can't be executed on non-windows systems.";
+                    return;
+                }
+
                 if (!s_canScanJournal.HasValue)
                 {
                     var loggingContext = new LoggingContext("Dummy", "Dummy");

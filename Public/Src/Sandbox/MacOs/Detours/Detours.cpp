@@ -3,111 +3,149 @@
 
 #include "Detours.hpp"
 #include "MemoryStreams.hpp"
+#include "PathCacheEntry.hpp"
 #include "Trie.hpp"
+#include "XPCConstants.hpp"
 
+#pragma mark Static state
+
+static std::once_flag InitializeOpenPathCache;
 static std::once_flag InitializeWritePathCache;
-static std::once_flag InitializeSocket;
-static std::once_flag RetrySocketInitialization;
+static std::once_flag InitializeXPC;
 
-static int socket_handle = -1;
+static xpc_connection_t bxl_connection = nullptr;
+static thread_local bool bxl_realpath_execution = false;
 
 #pragma mark Utility Functions
 
-inline std::string get_executable_path(pid_t pid)
+char *bxl_realpath(const char* file_name, char* buffer)
 {
-    char fullpath[PATH_MAX] = { '\0' };
-    int success = proc_pidpath(pid, (void *) fullpath, PATH_MAX);
-    return success > 0 ? std::string(fullpath) : std::string("/unknown-process");
+    bxl_realpath_execution = true;
+    char *result = realpath(file_name, buffer);
+    bxl_realpath_execution = false;
+    return result;
 }
 
-inline void setup_socket()
+int setup_xpc()
 {
-    if ((socket_handle = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+    char queue_name[PATH_MAX] = { '\0' };
+    sprintf(queue_name, "com.microsoft.buildxl.detours.proc_%d_%u", getpid(), arc4random_uniform(1024^2));
+    
+     dispatch_queue_t xpc_queue = dispatch_queue_create(queue_name, dispatch_queue_attr_make_with_qos_class(
+        DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, -1
+    ));
+    
+    xpc_connection_t xpc_connection = xpc_connection_create_mach_service("com.microsoft.buildxl.sandbox", NULL, 0);
+    xpc_connection_set_event_handler(xpc_connection, ^(xpc_object_t message)
     {
-        log_debug("%s", "Socket creation failed, aborting because conistent sandboxing can't be guaranteed!");
-        abort();
+        xpc_type_t type = xpc_get_type(message);
+        if (type == XPC_TYPE_ERROR)
+        {
+            log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", message);
+            abort();
+        }
+    });
+    
+    xpc_connection_resume(xpc_connection);
+    
+    xpc_object_t xpc_payload = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_uint64(xpc_payload, "command", xpc_get_detours_connection);
+    xpc_object_t response = xpc_connection_send_message_with_reply_sync(xpc_connection, xpc_payload);
+    
+    xpc_type_t type = xpc_get_type(response);
+    uint64_t status = xpc_response_error;
+    
+    if (type == XPC_TYPE_DICTIONARY)
+    {
+        status = xpc_dictionary_get_uint64(response, "response");
+        if (status == xpc_response_success)
+        {
+            xpc_endpoint_t endpoint = (xpc_endpoint_t) xpc_dictionary_get_value(response, "connection");
+            bxl_connection = xpc_connection_create_from_endpoint(endpoint);
+            xpc_connection_set_event_handler(bxl_connection, ^(xpc_object_t message)
+            {
+                xpc_type_t type = xpc_get_type(message);
+                if (type == XPC_TYPE_ERROR)
+                {
+                    log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed: %s", message);
+                    abort();
+                }
+            });
+            
+            xpc_connection_set_target_queue(bxl_connection, xpc_queue);
+            xpc_connection_resume(bxl_connection);
+            xpc_connection_suspend(xpc_connection);
+        }
     }
+ 
+    xpc_release(response);
+    return bxl_connection != nullptr ? EXIT_SUCCESS : EXIT_FAILURE;
+}
 
-    struct sockaddr_un socket_addr;
-    memset(&socket_addr, 0, sizeof(socket_addr));
-    socket_addr.sun_family = AF_UNIX;
-    strncpy(socket_addr.sun_path, socket_path, sizeof(socket_addr.sun_path) - 1);
-
-    int result = connect(socket_handle, (struct sockaddr*)&socket_addr, sizeof(socket_addr));
-    if (result < 0)
+inline void handle_xpc_setup()
+{
+    if (setup_xpc() == EXIT_FAILURE)
     {
-        log_debug("%s", "Connecting to socket failed, aborting because conistent sandboxing can't be guaranteed!");
+        // Abort, sandboxing can't be enabled
         abort();
     }
 }
 
-inline void send_to_sandbox(IOEvent &event, es_event_type_t type = ES_EVENT_TYPE_LAST)
+inline void send_to_sandbox(IOEvent &event, es_event_type_t type = ES_EVENT_TYPE_LAST, bool force_xpc_init = false, bool resolve_paths = true)
 {
     if (event.IsPlistEvent() || event.IsDirectorySpecialCharacterEvent())
     {
         return;
     }
-    
-    std::call_once(InitializeSocket, []()
+ 
+    std::call_once(InitializeXPC, []()
     {
-        setup_socket();
+        handle_xpc_setup();
     });
+    
+    // Some interposed syscalls invalidate XPC sessions, re-initialize when required
+    if (force_xpc_init)
+    {
+        handle_xpc_setup();
+    }
+    
+    if (resolve_paths)
+    {
+        char src_resolved[PATH_MAX + 1] = { '\0' };
+        bxl_realpath(event.GetEventPath(SRC_PATH), src_resolved);
+        event.SetEventPath(src_resolved, SRC_PATH);
+
+        char dst_resolved[PATH_MAX + 1] = { '\0' };
+        bxl_realpath(event.GetEventPath(DST_PATH), dst_resolved);
+        event.SetEventPath(dst_resolved, DST_PATH);
+    }
     
     size_t msg_length = IOEvent::max_size();
     char msg[msg_length];
-    memset(msg, '\0', msg_length);
     
     omemorystream oms(msg, sizeof(msg));
     oms << event;
     
-    uint retries = 0;
-    size_t total_bytes_written = 0;
+    xpc_object_t xpc_payload = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_string(xpc_payload, "IOEvent", msg);
+    xpc_dictionary_set_uint64(xpc_payload, "IOEvent::Length", event.Size());
     
-    // Always send full sized messages although the actual event can be shorter, currently we do this
-    // to avoid implementing complex package chunking logic on the build host
-    while (total_bytes_written < msg_length)
+    xpc_object_t response = xpc_connection_send_message_with_reply_sync(bxl_connection, xpc_payload);
+    xpc_type_t xpc_type = xpc_get_type(response);
+    
+    uint64_t status = xpc_response_error;
+    if (xpc_type == XPC_TYPE_DICTIONARY)
     {
-        ssize_t written = send(socket_handle, msg + total_bytes_written, msg_length - total_bytes_written, 0);
-        if (written < 0)
-        {
-            switch (errno)
-            {
-                case EBADF:
-                case EBUSY:
-                case ENFILE:
-                case EMFILE:
-                case EAGAIN: {
-                    std::call_once(RetrySocketInitialization, [&]()
-                    {
-                        setup_socket();
-                        log_debug("Observation message (%{public}s) could not be transmitted retrying socket setup...", msg);
-                    });
-                    
-                    continue;
-                }
-            }
-            
-            if (retries > 100)
-            {
-                log_debug("Observation message could not be transmitted after several retries, aborting because conistent sandboxing can't be guaranteed - error: %d", errno);
-                abort();
-            }
-            
-            retries++;
-            continue;
-        }
-        else if (written == 0)
-        {
-            log_debug("%s", "Connection reset by host, aborting because conistent sandboxing can't be guaranteed!");
-            abort();
-        }
-        else
-        {
-            total_bytes_written += written;
-        }
+        status = xpc_dictionary_get_uint64(response, "response");
     }
-    log_debug("Successfully sent: %{public}.*s", (int)msg_length, msg);
-    assert(total_bytes_written == msg_length);
+    
+    xpc_release(response);
+    
+    if (status != xpc_response_success)
+    {
+        log_debug("Connecting to XPC bridge service failed, aborting because conistent sandboxing can't be guaranteed - status(%lld)", status);
+        abort();
+    }
 }
 
 #pragma mark Interposing Notes
@@ -127,7 +165,61 @@ inline void send_to_sandbox(IOEvent &event, es_event_type_t type = ES_EVENT_TYPE
     Most of the interposed methods have file descriptor equivalents that are not covered (yet)
 */
 
+#pragma mark Path Utilities
+
+inline std::string get_executable_path(pid_t pid)
+{
+    char fullpath[PATH_MAX] = { '\0' };
+    int success = proc_pidpath(pid, (void *) fullpath, PATH_MAX);
+    return success > 0 ? fullpath : "/unknown-process";
+}
+
 #pragma mark Spawn / Fork Family Functions
+
+extern char** environ;
+
+char* get_env_interposing_entry(char *const *env)
+{
+    uint count = 0;
+    while(environ[count])
+    {
+        if(strstr(environ[count], "libBuildXLDetours") != NULL)
+        {
+            char *value = (char *) calloc(strlen(environ[count]) + 1, sizeof(char));
+            strncpy(value, environ[count], strlen(environ[count]));
+            return value;
+        }
+        
+        count++;
+    }
+    
+    return nullptr;
+}
+
+char** extend_env_with_interposing_lib(char *const *env, char* interpose)
+{
+    if (interpose == nullptr) return (char **)env;
+    
+    uint count = 0;
+    while (env[count]) count++;
+    
+    char **new_env = (char **) malloc(sizeof(char *) * (count + 2));
+    
+    count = 0;
+    while (env[count])
+    {
+        new_env[count] = (char *) calloc(strlen(env[count]) + 1, sizeof(char));
+        memcpy(new_env[count], env[count], strlen(env[count]));
+        count++;
+    }
+    
+    new_env[count] = (char *) calloc(strlen(interpose) + 1, sizeof(char));
+    memcpy(new_env[count], interpose, strlen(interpose));
+    new_env[++count] = NULL;
+    free(interpose);
+    
+    return new_env;
+}
 
 int bxl_posix_spawn(pid_t *child_pid,
     const char *path,
@@ -138,10 +230,14 @@ int bxl_posix_spawn(pid_t *child_pid,
 {
     pid_t inject = 0;
     if (child_pid == NULL) child_pid = &inject;
-
+    
     pid_t pid = getpid();
     pid_t ppid = getppid();
-    int result = posix_spawn(child_pid, path, file_actions, attrp, argv, envp);
+    
+    char *interpose = get_env_interposing_entry(envp);
+    char **new_env = extend_env_with_interposing_lib(envp, interpose);
+    
+    int result = posix_spawn(child_pid, path, file_actions, attrp, argv, new_env);
     FORK_EVENT_CONSTRUCTOR(result, child_pid, pid, ppid, ==)
 }
 DYLD_INTERPOSE(bxl_posix_spawn, posix_spawn)
@@ -158,7 +254,11 @@ int bxl_posix_spawnp(pid_t *child_pid,
     
     pid_t pid = getpid();
     pid_t ppid = getppid();
-    int result = posix_spawnp(child_pid, file, file_actions, attrp, argv, envp);
+    
+    char *interpose = get_env_interposing_entry(envp);
+    char **new_env = extend_env_with_interposing_lib(envp, interpose);
+    
+    int result = posix_spawnp(child_pid, file, file_actions, attrp, argv, new_env);
     FORK_EVENT_CONSTRUCTOR(result, child_pid, pid, ppid, ==)
 }
 DYLD_INTERPOSE(bxl_posix_spawnp, posix_spawnp)
@@ -184,7 +284,10 @@ int bxl_execve(const char *path, char *const argv[], char *const envp[])
 {
     // Sending the event has to happen prior to the execve call as it only ever returns on error
     EXEC_EVENT_CONSTRUCTOR(path)
-    return execve(path, argv, envp);
+    char *interpose = get_env_interposing_entry(envp);
+    char **new_env = extend_env_with_interposing_lib(envp, interpose);
+    
+    return execve(path, argv, new_env);
 }
 DYLD_INTERPOSE(bxl_execve, execve)
 
@@ -192,53 +295,67 @@ DYLD_INTERPOSE(bxl_execve, execve)
 
 void bxl_exit(int s)
 {
-    std::string fullpath = get_executable_path(getpid());
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, "", "", fullpath, false);
-    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXIT);
-
+    EXIT_EVENT_CONSTRUCTOR()
     exit(s);
 }
 DYLD_INTERPOSE(bxl_exit, exit)
 
 void bxl__exit(int s)
 {
-    std::string fullpath = get_executable_path(getpid());
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, "", "", fullpath, false);
-    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXIT);
-
+   EXIT_EVENT_CONSTRUCTOR()
     _exit(s);
 }
 DYLD_INTERPOSE(bxl__exit, _exit)
 
 void bxl__Exit(int s)
 {
-    std::string fullpath = get_executable_path(getpid());
-    IOEvent event(getpid(), 0, getppid(), ES_EVENT_TYPE_NOTIFY_EXIT, "", "", fullpath, false);
-    send_to_sandbox(event, ES_EVENT_TYPE_NOTIFY_EXIT);
-
+    EXIT_EVENT_CONSTRUCTOR()
     _Exit(s);
 }
 DYLD_INTERPOSE(bxl__Exit, _Exit)
 
+void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
+{
+    atexit_b(^()
+    {
+        EXIT_EVENT_CONSTRUCTOR()
+    });
+}
+
 #pragma mark Open / Close Family Functions
+
+// This cache is used to mitigate heavy enumeration operations from tools like clang, e.g. when searching header include paths
+static Trie<PathCacheEntry> *openedPaths_;
 
 int bxl_open(const char *path, int oflag)
 {
+    std::call_once(InitializeOpenPathCache, []()
+    {
+        openedPaths_ = Trie<PathCacheEntry>::createPathTrie();
+    });
+
     int result = open(path, oflag);
     int old_errno = errno;
 
-    es_event_type_t type = ES_EVENT_TYPE_NOTIFY_OPEN;
-    if ((oflag & O_CREAT) == O_CREAT) type = ES_EVENT_TYPE_NOTIFY_CREATE;
-    else if ((oflag & O_TRUNC) == O_TRUNC) type = ES_EVENT_TYPE_NOTIFY_TRUNCATE;
+    bool reported = openedPaths_->get(path) != nullptr;
+    if (!reported)
+    {
+        es_event_type_t type = ES_EVENT_TYPE_NOTIFY_OPEN;
+        if ((oflag & (O_CREAT | O_TRUNC | O_WRONLY)) == O_CREAT) type = ES_EVENT_TYPE_NOTIFY_CREATE;
 
-    IOEvent event(getpid(), 0, getppid(), type, path, "", get_executable_path(getpid()));
-    send_to_sandbox(event);
+        std::shared_ptr<PathCacheEntry> entry(new PathCacheEntry(path, 0));
+        openedPaths_->insert(path, entry);
+        IOEvent event(getpid(), 0, getppid(), type, path, "", get_executable_path(getpid()), true);
+        send_to_sandbox(event);
+    }
 
     errno = old_errno;
     return result;
 }
 DYLD_INTERPOSE(bxl_open, open)
 
+/*
+  
 int bxl_close(int fildes)
 {
     char path[PATH_MAX] = { '\0' };
@@ -258,12 +375,14 @@ int bxl_close(int fildes)
 }
 DYLD_INTERPOSE(bxl_close, close)
 
+ */
+
 #pragma mark Symlink Family Functions
 
 size_t bxl_readlink(const char* path, char* buf, size_t bufsize)
 {
     size_t result = readlink(path, buf, bufsize);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_READLINK, path, "", true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_READLINK, path, "", true, true /* Always report readlinks */)
 }
 DYLD_INTERPOSE(bxl_readlink, readlink)
 
@@ -277,14 +396,14 @@ DYLD_INTERPOSE(bxl_link, link)
 int bxl_symlink(const char *path1, const char *path2)
 {
     int result = symlink(path1, path2);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_LINK, path1, path2, true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_CREATE, path1, path2, true, true)
 }
 DYLD_INTERPOSE(bxl_symlink, symlink)
 
 int bxl_unlink(const char *path)
 {
     int result = unlink(path);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_UNLINK, path, "", true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_UNLINK, path, "", true, true)
 }
 DYLD_INTERPOSE(bxl_unlink, unlink)
 
@@ -293,21 +412,21 @@ DYLD_INTERPOSE(bxl_unlink, unlink)
 int bxl_getattrlist(const char* path, struct attrlist* attrList, void* attrBuf, size_t attrBufSize, unsigned int options)
 {
     int result = getattrlist(path, attrList, attrBuf, attrBufSize, options);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_GETATTRLIST, path, "", true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_GETATTRLIST, path, "", true, !bxl_realpath_execution)
 }
 DYLD_INTERPOSE(bxl_getattrlist, getattrlist)
 
 ssize_t bxl_getxattr(const char *path, const char *name, void *value, size_t size, u_int32_t position, int options)
 {
     ssize_t result = getxattr(path, name, value, size, position, options);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_GETEXTATTR, path, "", true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_GETEXTATTR, path, "", true, !bxl_realpath_execution)
 }
 DYLD_INTERPOSE(bxl_getxattr, getxattr)
 
 ssize_t bxl_listxattr(const char *path, char *namebuff, size_t size, int options)
 {
     ssize_t result = listxattr(path, namebuff, size, options);
-    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_LISTEXTATTR, path, "", true)
+    DEFAULT_EVENT_CONSTRUCTOR_NO_RESOLVE(ES_EVENT_TYPE_NOTIFY_LISTEXTATTR, path, "", true, !bxl_realpath_execution)
 }
 DYLD_INTERPOSE(bxl_listxattr, listxattr)
 
@@ -460,3 +579,19 @@ ssize_t bxl_write(int fildes, const void *buf, size_t nbyte)
     WRITE_EVENT_CONSTRUCTOR(path, "")
 }
 DYLD_INTERPOSE(bxl_write, write)
+
+#pragma mark File System Utility Functions
+
+int bxl_mkdir(const char *path, mode_t mode)
+{
+    int result = mkdir(path, mode);
+    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_CREATE, path, "", true)
+}
+DYLD_INTERPOSE(bxl_mkdir, mkdir)
+
+int bxl_creat(const char *path, mode_t mode)
+{
+    int result = creat(path, mode);
+    DEFAULT_EVENT_CONSTRUCTOR(ES_EVENT_TYPE_NOTIFY_CREATE, path, "", true)
+}
+DYLD_INTERPOSE(bxl_creat, creat)

@@ -129,7 +129,10 @@ export namespace Xcode {
                 incrementBy: 1
             }),
             outputs: args.declaredOutputs,
-            dependencies: args.dependencies
+            dependencies: args.dependencies,
+            allowedSurvivingChildProcessNames: [
+                ...(args.useModernBuildSystem ? [ "XCBBuildService"] : [])
+            ]
         };
 
         // Debug.writeLine([

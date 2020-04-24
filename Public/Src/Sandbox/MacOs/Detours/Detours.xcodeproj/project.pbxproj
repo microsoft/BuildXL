@@ -7,28 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3C794F4F24488FC700EF72E5 /* XPCConstants.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C794F4E24488FC700EF72E5 /* XPCConstants.hpp */; };
 		3C9781C32422CAA500736B09 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C7D6E0E24216E290084AB5D /* libbsm.tbd */; };
+		3C9991AA244E16D500CEB33E /* PathCacheEntry.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C9991A9244E16D500CEB33E /* PathCacheEntry.hpp */; };
+		3CB3E16F24486BF9004D2734 /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB3E16D24486BF9004D2734 /* IOEvent.cpp */; };
+		3CB3E17024486BF9004D2734 /* IOEvent.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CB3E16E24486BF9004D2734 /* IOEvent.hpp */; };
 		3CBBC6952412B3DB00554E2E /* Detours.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CBBC6932412B3DB00554E2E /* Detours.cpp */; };
 		3CBBC6962412B3DB00554E2E /* Detours.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CBBC6942412B3DB00554E2E /* Detours.hpp */; };
 		3CDCF7A7241BCA0C00EF1B8C /* Trie.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CDCF7A5241BCA0C00EF1B8C /* Trie.cpp */; };
 		3CDCF7A8241BCA0C00EF1B8C /* Trie.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CDCF7A6241BCA0C00EF1B8C /* Trie.hpp */; };
 		3CDCF7AC241BCD2900EF1B8C /* BuildXLException.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CDCF7AB241BCD2900EF1B8C /* BuildXLException.hpp */; };
-		3CFA4AE42417C08700F3F69C /* IOEvent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CFA4AE12417C08700F3F69C /* IOEvent.cpp */; };
-		3CFA4AE52417C08700F3F69C /* IOEvent.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CFA4AE22417C08700F3F69C /* IOEvent.hpp */; };
 		3CFA4AE62417C08700F3F69C /* MemoryStreams.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3CFA4AE32417C08700F3F69C /* MemoryStreams.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3C794F4E24488FC700EF72E5 /* XPCConstants.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = XPCConstants.hpp; path = ../App/Sandbox/XPCConstants.hpp; sourceTree = "<group>"; };
 		3C7D6E0C242141130084AB5D /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		3C7D6E0E24216E290084AB5D /* libbsm.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbsm.tbd; path = usr/lib/libbsm.tbd; sourceTree = SDKROOT; };
+		3C9991A9244E16D500CEB33E /* PathCacheEntry.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = PathCacheEntry.hpp; path = ../Interop/Sandbox/Data/PathCacheEntry.hpp; sourceTree = "<group>"; };
+		3CB3E16D24486BF9004D2734 /* IOEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IOEvent.cpp; path = ../Interop/Sandbox/Data/IOEvent.cpp; sourceTree = "<group>"; };
+		3CB3E16E24486BF9004D2734 /* IOEvent.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = IOEvent.hpp; path = ../Interop/Sandbox/Data/IOEvent.hpp; sourceTree = "<group>"; };
 		3CBBC68C2412B33E00554E2E /* libBuildXLDetours.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libBuildXLDetours.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		3CBBC6932412B3DB00554E2E /* Detours.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Detours.cpp; sourceTree = "<group>"; };
 		3CBBC6942412B3DB00554E2E /* Detours.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Detours.hpp; sourceTree = "<group>"; };
 		3CDCF7A5241BCA0C00EF1B8C /* Trie.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Trie.cpp; path = ../Interop/Sandbox/Data/Trie.cpp; sourceTree = "<group>"; };
 		3CDCF7A6241BCA0C00EF1B8C /* Trie.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = Trie.hpp; path = ../Interop/Sandbox/Data/Trie.hpp; sourceTree = "<group>"; };
 		3CDCF7AB241BCD2900EF1B8C /* BuildXLException.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = BuildXLException.hpp; path = ../Interop/Sandbox/Data/BuildXLException.hpp; sourceTree = "<group>"; };
-		3CFA4AE12417C08700F3F69C /* IOEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IOEvent.cpp; path = ../Interop/Sandbox/Data/IOEvent.cpp; sourceTree = "<group>"; };
-		3CFA4AE22417C08700F3F69C /* IOEvent.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = IOEvent.hpp; path = ../Interop/Sandbox/Data/IOEvent.hpp; sourceTree = "<group>"; };
 		3CFA4AE32417C08700F3F69C /* MemoryStreams.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = MemoryStreams.hpp; path = ../Interop/Sandbox/Data/MemoryStreams.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -56,11 +60,11 @@
 		3CBBC6832412B33E00554E2E = {
 			isa = PBXGroup;
 			children = (
-				3CBBC6932412B3DB00554E2E /* Detours.cpp */,
-				3CBBC6942412B3DB00554E2E /* Detours.hpp */,
 				3CFA4AE72417C08F00F3F69C /* External */,
 				3C7D6E0B242141130084AB5D /* Frameworks */,
 				3CBBC68D2412B33E00554E2E /* Products */,
+				3CBBC6932412B3DB00554E2E /* Detours.cpp */,
+				3CBBC6942412B3DB00554E2E /* Detours.hpp */,
 			);
 			sourceTree = "<group>";
 		};
@@ -76,11 +80,13 @@
 			isa = PBXGroup;
 			children = (
 				3CDCF7AB241BCD2900EF1B8C /* BuildXLException.hpp */,
-				3CFA4AE12417C08700F3F69C /* IOEvent.cpp */,
-				3CFA4AE22417C08700F3F69C /* IOEvent.hpp */,
+				3CB3E16D24486BF9004D2734 /* IOEvent.cpp */,
+				3CB3E16E24486BF9004D2734 /* IOEvent.hpp */,
 				3CFA4AE32417C08700F3F69C /* MemoryStreams.hpp */,
+				3C9991A9244E16D500CEB33E /* PathCacheEntry.hpp */,
 				3CDCF7A5241BCA0C00EF1B8C /* Trie.cpp */,
 				3CDCF7A6241BCA0C00EF1B8C /* Trie.hpp */,
+				3C794F4E24488FC700EF72E5 /* XPCConstants.hpp */,
 			);
 			name = External;
 			sourceTree = "<group>";
@@ -92,10 +98,12 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C9991AA244E16D500CEB33E /* PathCacheEntry.hpp in Headers */,
 				3CBBC6962412B3DB00554E2E /* Detours.hpp in Headers */,
-				3CFA4AE52417C08700F3F69C /* IOEvent.hpp in Headers */,
+				3CB3E17024486BF9004D2734 /* IOEvent.hpp in Headers */,
 				3CDCF7A8241BCA0C00EF1B8C /* Trie.hpp in Headers */,
 				3CFA4AE62417C08700F3F69C /* MemoryStreams.hpp in Headers */,
+				3C794F4F24488FC700EF72E5 /* XPCConstants.hpp in Headers */,
 				3CDCF7AC241BCD2900EF1B8C /* BuildXLException.hpp in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -158,7 +166,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3CDCF7A7241BCA0C00EF1B8C /* Trie.cpp in Sources */,
-				3CFA4AE42417C08700F3F69C /* IOEvent.cpp in Sources */,
+				3CB3E16F24486BF9004D2734 /* IOEvent.cpp in Sources */,
 				3CBBC6952412B3DB00554E2E /* Detours.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -288,7 +296,9 @@
 				DEVELOPMENT_TEAM = "";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@executable_path";
 				EXECUTABLE_PREFIX = lib;
+				LD_DYLIB_INSTALL_NAME = "@executable_path";
 				PRODUCT_NAME = BuildXLDetours;
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";
@@ -302,7 +312,9 @@
 				DEVELOPMENT_TEAM = "";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@executable_path";
 				EXECUTABLE_PREFIX = lib;
+				LD_DYLIB_INSTALL_NAME = "@executable_path";
 				PRODUCT_NAME = BuildXLDetours;
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../Windows/DetoursServices";

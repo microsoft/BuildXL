@@ -4,74 +4,122 @@
 #include "BuildXLSandboxShared.hpp"
 #include "BuildXLException.hpp"
 #include "EndpointSecuritySandbox.hpp"
+#include "XPCConstants.hpp"
 
-EndpointSecuritySandbox::EndpointSecuritySandbox(pid_t host_pid, process_callback callback)
+EndpointSecuritySandbox::EndpointSecuritySandbox(pid_t host_pid, process_callback callback, void *sandbox, xpc_connection_t bridge)
 {
-    assert(callback != nullptr);
-    cb_ = callback;
+    assert(callback != nullptr && bridge != nullptr);
+    
+    eventCallback_ = callback;
+    xpc_bridge_ = bridge;
+    hostPid_ = host_pid;
     
     char queueName[PATH_MAX] = { '\0' };
-    sprintf(queueName, "com.microsoft.buildxl.es.eventqueue_%d", host_pid);
+    sprintf(queueName, "com.microsoft.buildxl.es.eventqueue_%d", getpid());
     
     eventQueue_ = dispatch_queue_create(queueName, dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, -1
     ));
     
-    es_new_client_result_t result = es_new_client(&client_, ^(es_client_t *c, const es_message_t *msg)
+    es_connection_ = xpc_connection_create(NULL, NULL);
+    xpc_connection_set_event_handler(es_connection_, ^(xpc_object_t peer)
     {
-        __block es_message_t *cpy = es_copy_message(msg);
-        dispatch_async(eventQueue_, ^()
+        xpc_type_t type = xpc_get_type(peer);
+        if (type != XPC_TYPE_ERROR)
         {
-            IOEvent event(cpy);
-            cb_(c, event, host_pid, IOEventBacking::EndpointSecurity);
-            es_free_message(cpy);
-        });
-    });
+            xpc_connection_set_event_handler((xpc_connection_t) peer, ^(xpc_object_t message)
+            {
+                xpc_type_t type = xpc_get_type(message);
+                if (type == XPC_TYPE_DICTIONARY)
+                {
+                    const char *msg = xpc_dictionary_get_string(message, "IOEvent");
+                    const uint64_t msg_length = xpc_dictionary_get_uint64(message, "IOEvent::Length");
+                
+                    imemorystream ims(msg, msg_length);
+                    ims.imbue(std::locale(ims.getloc(), new PipeDelimiter));
+                    IOEvent event;
+                    ims >> event;
+                    
+                    ProcessCallbackResult result = eventCallback_(sandbox, const_cast<const IOEvent &>(event), hostPid_, IOEventBacking::EndpointSecurity);
+                    
+                    uint64_t response = xpc_response_error;
+                    switch (result)
+                    {
+                        case ProcessCallbackResult::Done:
+                            response = xpc_response_success;
+                            break;
+                        case ProcessCallbackResult::MuteSource:
+                            response = xpc_response_mute_process;
+                            break;
+                    }
+                    
+                    xpc_object_t reply = xpc_dictionary_create_reply(message);
+                    xpc_dictionary_set_uint64(reply, "response", response);
+                    xpc_connection_send_message((xpc_connection_t) peer, reply);
+                }
+                else if (type == XPC_TYPE_ERROR)
+                {
+                    if (message == XPC_ERROR_CONNECTION_INTERRUPTED)
+                    {
 
-    if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
+                    }
+                    else if (message == XPC_ERROR_CONNECTION_INVALID)
+                    {
+
+                    }
+                }
+            });
+            xpc_connection_resume((xpc_connection_t)peer);
+        }
+        else
+        {
+            
+        }
+    });
+    
+    xpc_connection_set_target_queue(es_connection_, eventQueue_);
+    xpc_connection_resume(es_connection_);
+    
+    xpc_object_t post = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_uint64(post, "command", xpc_set_es_connection);
+    xpc_dictionary_set_uint64(post, "host_pid", hostPid_);
+    xpc_dictionary_set_connection(post, "connection", es_connection_);
+    
+    xpc_object_t response = xpc_connection_send_message_with_reply_sync(xpc_bridge_, post);
+    xpc_type_t type = xpc_get_type(response);
+    
+    uint64_t status = 0;
+    
+    if (type == XPC_TYPE_DICTIONARY)
     {
-        throw BuildXLException("Failed creating EndpointSecurity client with error code: " + std::to_string(result));
+        status = xpc_dictionary_get_uint64(response, "response");
+        log_debug("Successfully initialized the EndpointSecurity sandbox backend - status(%lld).", status);
     }
     
-    es_clear_cache_result_t clear_result = es_clear_cache(client_);
-    if (clear_result != ES_CLEAR_CACHE_RESULT_SUCCESS)
+    xpc_release(response);
+    
+    if (status != xpc_response_success)
     {
-        throw BuildXLException("Failed resetting result cache on EndpointSecurity client initialization!");
+        throw BuildXLException("Could not connect to sandbox XPC bridge, aborting!");
     }
-    
-    int event_count = sizeof(es_observed_events_) / sizeof(es_observed_events_[0]);
-    es_return_t status = es_subscribe(client_, (es_event_type_t *)es_observed_events_, event_count);
-    
-    if (status != ES_RETURN_SUCCESS)
-    {
-        throw BuildXLException("Failed subscribing to EndpointSecurity events, please check the sandbox configuration!");
-    }
-    
-    log_debug("Successfully initialized the EndpointSecurity sandbox backend, tracking: %d event(s).", event_count);
 }
 
 EndpointSecuritySandbox::~EndpointSecuritySandbox()
 {
-    if (client_ != nullptr)
-    {
-        es_return_t result = es_unsubscribe_all(client_);
-        if (result != ES_RETURN_SUCCESS)
-        {
-            log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
-        }
+    xpc_object_t post = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_uint64(post, "command", xpc_kill_es_connection);
+    xpc_release(xpc_connection_send_message_with_reply_sync(xpc_bridge_, post));
 
-        result = es_delete_client(client_);
-        if (result != ES_RETURN_SUCCESS)
-        {
-            log_error("%s", "Failed deleting the EndpointSecurity client!\n");
-        }
-    }
+    xpc_connection_cancel(es_connection_);
+    xpc_release(es_connection_);
+    
+    xpc_bridge_ = nullptr;
+    es_connection_ = nullptr;
     
     if (eventQueue_ != nullptr)
     {
         dispatch_release(eventQueue_);
     }
     
-    client_ = nullptr;
-    cb_ = nullptr;
+    eventCallback_ = nullptr;
 }

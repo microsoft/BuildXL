@@ -7,8 +7,6 @@
 #include "AccessHandler.hpp"
 #include "IOEvent.hpp"
 
-#define NO_ERROR 0
-
 struct IOHandler final : public AccessHandler
 {
 public:

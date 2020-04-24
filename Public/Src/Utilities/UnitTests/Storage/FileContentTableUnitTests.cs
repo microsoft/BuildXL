@@ -412,7 +412,7 @@ namespace Test.BuildXL.Storage
         {
             if (!FileUtilities.IsPreciseFileVersionSupportedByEnlistmentVolume)
             {
-                // TODO: Currently failed on OS that does not support precise file version.
+                // TODO: Currently fails on OS that does not support precise file version.
                 return;
             }
 
@@ -448,11 +448,22 @@ namespace Test.BuildXL.Storage
 
                             barrier.SignalAndWait();
 
-                            FileUtilities.DeleteFile(GetFullPath(relativePath));
-
+                            FileUtilities.DeleteFile(GetFullPath(relativePath)); 
                             CreateHardLinkStatus linkStatus = FileUtilities.TryCreateHardLink(GetFullPath(relativePath), GetFullPath(OriginalFile));
+#if PLATFORM_OSX
+                            // Catalina seems to have issues when doing mutli-threaded delete / link operations, let's retry several times..
+                            if (linkStatus != CreateHardLinkStatus.Success)
+                            {
+                                var count = 0;
+                                while (count < ThreadCount)
+                                {
+                                    FileUtilities.DeleteFile(GetFullPath(relativePath)); 
+                                    linkStatus = FileUtilities.TryCreateHardLink(GetFullPath(relativePath), GetFullPath(OriginalFile));
+                                    count++;
+                                }
+                            }
+#endif
                             XAssert.AreEqual(CreateHardLinkStatus.Success, linkStatus);
-
                             RecordContentHash(table, path, s_hashA);
                         });
                 }

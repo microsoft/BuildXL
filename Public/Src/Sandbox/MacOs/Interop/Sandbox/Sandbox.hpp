@@ -16,8 +16,8 @@
 #include <signal.h>
 #include <map>
 
-#define SB_WRONG_BUFFER_SIZE           0x8
-#define SB_INSTANCE_ERROR              0x16
+#define SB_WRONG_BUFFER_SIZE    0x8
+#define SB_INSTANCE_ERROR       0x16
 
 enum Configuration
 {
@@ -49,12 +49,23 @@ class Sandbox final
 private:
     
     pid_t hostPid_ = 0;
-    std::map<pid_t, bool> whitelistedPids_;
+    
+#if __APPLE__
+    dispatch_queue_t hybird_event_queue_;
+    xpc_connection_t xpc_bridge_ = nullptr;
+    std::mutex access_mutex;
+#endif
+    
+    std::map<pid_t, pid_t> whitelistedPids_;
+    std::map<pid_t, pid_t> forceForkedPids_;
+    
     Trie<SandboxedProcess> *trackedProcesses_ = nullptr;
     AccessReportCallback accessReportCallback_ = nullptr;
     
     DetoursSandbox* detours_ = nullptr;
     EndpointSecuritySandbox* es_ = nullptr;
+    
+    Configuration configuration_;
     
 public:
 
@@ -62,20 +73,37 @@ public:
     Sandbox(pid_t host_pid, Configuration config);
     ~Sandbox();
     
+#if __APPLE__
+    inline const bool IsRunningHybrid() const { return configuration_ == Configuration::HybridSandboxType; }
+    inline const dispatch_queue_t GetHybridQueue() const { return hybird_event_queue_; }
+#endif
     
-    inline std::map<pid_t, bool> GetPidMap() { return whitelistedPids_; }
+    inline std::map<pid_t, pid_t>& GetWhitelistedPidMap() { return whitelistedPids_; }
+    inline std::map<pid_t, pid_t>& GetForceForkedPidMap() { return forceForkedPids_; }
     
-    inline const bool RemoveWhitelistedPid(pid_t pid)
+    inline const bool SetProcessPidPair(std::map<pid_t, pid_t>& map, pid_t pid, pid_t ppid)
     {
-        auto result = whitelistedPids_.find(pid);
-        if (result != whitelistedPids_.end())
+#if __APPLE__
+        const std::lock_guard<std::mutex> lock(access_mutex);
+#endif
+        return map.emplace(pid, ppid).second;
+    }
+    
+    inline const bool RemoveProcessPid(std::map<pid_t, pid_t>& map, pid_t pid)
+    {
+#if __APPLE__
+        const std::lock_guard<std::mutex> lock(access_mutex);
+#endif
+        
+        auto result = map.find(pid);
+        if (result != map.end())
         {
-            return (whitelistedPids_.erase(pid) == 1);
+            return (map.erase(pid) == 1);
         }
         
         return false;
     }
-
+    
     inline const void SetAccessReportCallback(AccessReportCallback callback) { accessReportCallback_ = callback; }
     
     std::shared_ptr<SandboxedProcess> FindTrackedProcess(pid_t pid);

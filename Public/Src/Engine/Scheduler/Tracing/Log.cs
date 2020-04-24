@@ -3305,7 +3305,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
-            Message = "Failed to initialize the sandbox kernel extension connection manager: {reason}")]
+            Message = "Failed to initialize the sandbox connection manager: {reason}")]
         public abstract void KextFailedToInitializeConnectionManager(LoggingContext context, string reason);
 
         [GeneratedEvent(
@@ -3314,7 +3314,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
-             Message = "Received unrecoverable error from sandbox kernel extension, please reload the extension and retry, tweaking configuration parameters if necessary (e.g., /numberOfKextConnections, /reportQueueSizeMb).  Error code: {errorCode}.  Additional description: {description}.")]
+             Message = "Received unrecoverable error from sandbox connection, please reload the extension and retry, tweaking configuration parameters if necessary (e.g., /numberOfKextConnections, /reportQueueSizeMb).  Error code: {errorCode}.  Additional description: {description}.")]
         public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
         [GeneratedEvent(

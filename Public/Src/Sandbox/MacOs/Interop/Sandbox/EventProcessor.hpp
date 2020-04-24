@@ -8,38 +8,104 @@
 #include "IOHandler.hpp"
 #include "Sandbox.hpp"
 
-extern Sandbox *sandbox;
-
-static void process_event(es_client_t *client, const IOEvent &event, pid_t host, IOEventBacking backing)
+static ProcessCallbackResult _process_event(Sandbox *sandbox, const IOEvent &event, pid_t host, IOEventBacking backing)
 {
     pid_t pid = event.GetPid();
     if (pid == host)
     {
-        return;
+        return ProcessCallbackResult::Done;
     }
     
-    bool ppid_found = sandbox->GetPidMap().find(event.GetParentPid()) != sandbox->GetPidMap().end();
-    auto original_ppid_found = sandbox->GetPidMap().find(event.GetOriginalParentPid()) != sandbox->GetPidMap().end();
+    bool isInterposedEvent = backing == IOEventBacking::Interposing;
     
-    if (ppid_found || original_ppid_found)
+    bool ppid_found = sandbox->GetWhitelistedPidMap().find(event.GetParentPid()) != sandbox->GetWhitelistedPidMap().end();
+    bool original_ppid_found = sandbox->GetWhitelistedPidMap().find(event.GetOriginalParentPid()) != sandbox->GetWhitelistedPidMap().end();
+    
+    if (isInterposedEvent || (ppid_found || original_ppid_found))
     {
         IOHandler handler = IOHandler(sandbox);
+        
+        if (isInterposedEvent)
+        {
+            // Some Apple tools use posix_spawn* family functions to execute other binaries - those binaries sometimes do
+            // synchronous operations, blocking the caller until their execution finishes. This leads to fork events being reported
+            // after all other I/O events when interposing within the new bianry. Because there is no way to get the child pid before
+            // the posix_spawn* call returns, we have to manually add a fork event here if the parent of the binary in question is
+            // already being tracked.
+            
+            if (event.GetEventType() == ES_EVENT_TYPE_NOTIFY_FORK && !sandbox->GetForceForkedPidMap().empty())
+            {
+                auto it = sandbox->GetForceForkedPidMap().find(event.GetChildPid());
+                if (it != sandbox->GetForceForkedPidMap().end())
+                {
+                    if (it->first == event.GetChildPid() && it->second == event.GetPid())
+                    {
+                        sandbox->RemoveProcessPid(sandbox->GetForceForkedPidMap(), event.GetChildPid());
+                        
+                        log_debug("Ignoring fork event, previously forced fork for child PID(%d) and PPID(%d) with path: %{public}s",
+                                  event.GetChildPid(), event.GetPid(), event.GetExecutablePath());
+                        
+                        return ProcessCallbackResult::Done;
+                    }
+                }
+            }
+            
+            bool isTracked = handler.TryInitializeWithTrackedProcess(pid);
+            if (!isTracked && (event.GetEventType() != ES_EVENT_TYPE_NOTIFY_EXEC && event.GetEventType() != ES_EVENT_TYPE_NOTIFY_EXIT))
+            {
+                IOEvent fork_event(event.GetParentPid(), event.GetPid(), event.GetParentPid(), ES_EVENT_TYPE_NOTIFY_FORK, "", "", event.GetExecutablePath(), false);
+                
+                IOHandler handler = IOHandler(sandbox);
+                if (handler.TryInitializeWithTrackedProcess(fork_event.GetPid()))
+                {
+                    log_debug("Forced fork event for child PID(%d) and PPID(%d) with path: %{public}s",
+                              fork_event.GetChildPid(), fork_event.GetPid(), fork_event.GetExecutablePath());
+                    
+                    sandbox->GetForceForkedPidMap().emplace(fork_event.GetChildPid(), fork_event.GetPid());
+                    handler.HandleEvent(fork_event);
+                }
+            }
+        }
+        
         if (handler.TryInitializeWithTrackedProcess(pid))
         {
+            size_t msg_length = IOEvent::max_size();
+            char msg[msg_length];
+            
+            omemorystream oms(msg, sizeof(msg));
+            oms << event;
+            
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wswitch"
-            switch (event.GetEventType())
+            
+            if (!isInterposedEvent)
             {
-                case ES_EVENT_TYPE_NOTIFY_FORK:
-                    sandbox->GetPidMap().emplace(event.GetPid(), true);
-                    break;
-
-                case ES_EVENT_TYPE_NOTIFY_EXIT:
-                    sandbox->RemoveWhitelistedPid(pid);
-                    break;
+                switch (event.GetEventType())
+                {
+                    case ES_EVENT_TYPE_NOTIFY_FORK:
+                    {
+                        sandbox->SetProcessPidPair(sandbox->GetWhitelistedPidMap(), pid, event.GetParentPid());
+                        break;
+                    }
+                    case ES_EVENT_TYPE_NOTIFY_EXIT:
+                        sandbox->RemoveProcessPid(sandbox->GetWhitelistedPidMap(), pid);
+                        break;
+                }
             }
+            
             handler.HandleEvent(event);
+            
     #pragma clang diagnostic pop
+        }
+        else
+        {
+            // TODO: Delete
+            size_t msg_length = IOEvent::max_size();
+            char msg[msg_length];
+            
+            omemorystream oms(msg, sizeof(msg));
+            oms << event;
+            log_debug("Not tracked: %{public}.*s",(int) event.Size(), msg);
         }
     }
     else
@@ -47,7 +113,7 @@ static void process_event(es_client_t *client, const IOEvent &event, pid_t host,
         switch (backing)
         {
             case IOEventBacking::EndpointSecurity: {
-                es_mute_process(client, event.GetProcessAuditToken());
+                return ProcessCallbackResult::MuteSource;
                 break;
             }
             case IOEventBacking::Interposing: {
@@ -55,6 +121,28 @@ static void process_event(es_client_t *client, const IOEvent &event, pid_t host,
                 break;
             }
         }
+    }
+    
+    return ProcessCallbackResult::Done;
+}
+
+static ProcessCallbackResult process_event(void *handle, const IOEvent event, pid_t host, IOEventBacking backing)
+{
+    Sandbox* sandbox = (Sandbox *) handle;
+#if __APPLE__
+    if (sandbox->IsRunningHybrid())
+    {
+        dispatch_async(sandbox->GetHybridQueue(), ^{
+            // TODO: We can't mute processes when merging ES and detours events asynchronously without introducing some async callback
+            _process_event(sandbox, event, host, backing);
+        });
+        
+        return ProcessCallbackResult::Done;
+    }
+    else
+#endif
+    {
+        return _process_event(sandbox, event, host, backing);
     }
 }
 

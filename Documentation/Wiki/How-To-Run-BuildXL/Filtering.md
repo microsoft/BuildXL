@@ -16,6 +16,7 @@ Here are some filtering shorthands for the bxl.exe command line. Behind the scen
 ## Pip Identifier
 * `bxl.exe PipDE1E34813DC85BE8` Filters a pip based on its identifier
 
+=======
 ## Pip Tags
 * `bxl compile` Filters for all pips that have a tag named 'compile'.
 

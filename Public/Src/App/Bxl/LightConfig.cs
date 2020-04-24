@@ -33,6 +33,7 @@ namespace BuildXL
         public string SubstSource;
         public bool DisablePathTranslation;
         public bool EnableDedup;
+        public string HashType;
 
         // Strangely, this is not configurable via Args.cs
         public bool AnimateTaskbar = true;
@@ -88,6 +89,9 @@ namespace BuildXL
                     case "ENABLEDEDUP+":
                     case "ENABLEDEDUP-":
                         lightConfig.EnableDedup = CommandLineUtilities.ParseBooleanOption(option);
+                        break;
+                    case "HASHTYPE":
+                        lightConfig.HashType = CommandLineUtilities.ParseStringOption(option);
                         break;
                     case "SERVER":
                         lightConfig.Server = CommandLineUtilities.ParseBoolEnumOption(option, true, ServerMode.Enabled, ServerMode.Disabled);

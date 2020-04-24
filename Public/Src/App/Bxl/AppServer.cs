@@ -735,9 +735,13 @@ namespace BuildXL
                 sb.Append(Delimiter);
                 sb.Append("Elevated:" + CurrentProcess.IsElevated);
 
-                // Include HashType because client may switch between VSO or Dedup hashes
+                // Include HashType because client may switch between VSO or Dedup hashes. HashType isn't configurable in the
+                // traditional sense. It's currenty implemented as a global static setting for the application so a server
+                // initialized with one setting may not be reused if that setting changes.
                 sb.Append(Delimiter);
                 sb.Append("EnableDedup:" + lightConfig.EnableDedup);
+                sb.Append(Delimiter);
+                sb.Append("HashType:" + lightConfig.HashType);
 
                 // Subst collapses different paths into the same path. For example, different config locations can have
                 // the same subst'd path, and thus the above full path of config is not sufficient.

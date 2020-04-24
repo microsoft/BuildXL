@@ -86,5 +86,18 @@ namespace Test.BuildXL
                 XAssert.AreEqual(s, p.ToString(pathTable));
             }
         }
+
+        /// <summary>
+        /// This isn't part of the standard congruency test above because the full config parser doesn't extract hashtype
+        /// as data to the config object. Instead it sets it for the running application. That needs to be refactored
+        /// in order to run a proper unit test to make sure the two configurations objects align.
+        /// </summary>
+        [Fact]
+        public void VerifyHashType()
+        {
+            LightConfig lightConfig;
+            XAssert.IsTrue(LightConfig.TryParse(new[] { "/c:fake", "/hashtype:murmur" }, out lightConfig));
+            XAssert.AreEqual("murmur", lightConfig.HashType);
+        }
     }
 }

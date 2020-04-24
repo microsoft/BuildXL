@@ -22,11 +22,20 @@ namespace Transformer {
 
     /** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The root can be any arbitrary directory that is a common ancestor to all the provided directories.
+     * If a filter regex is provided, the resulting directory contains only those files that match that regex.
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[]): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories);
+    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : string): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, directoryFilteringRegexExpression);
+    }
+
+    /** Creates a new shared opaque directory whose content matches the specified regex.
+     * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.     
+    */
+    @@public
+    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, directoryFilteringRegexExpression: string): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory.root, [directory], directoryFilteringRegexExpression);
     }
 
     /** Options for sealing source directory. */
@@ -98,5 +107,8 @@ namespace Transformer {
 
         /** The directories to compose */
         directories: SharedOpaqueDirectory[],
+
+        /** A regular expression defining the files to be included in the resulting directory. */
+        directoryFilteringRegexExpression? : string,
     }
 }

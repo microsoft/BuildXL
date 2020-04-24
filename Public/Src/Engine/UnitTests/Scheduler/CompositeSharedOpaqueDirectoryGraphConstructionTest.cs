@@ -48,10 +48,11 @@ namespace Test.BuildXL.Scheduler
                 outputs2.TryGetOutputDirectory(sodPath2, out var sharedOpaqueDirectory2);
 
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
-                    env.Paths.CreateAbsolutePath(root), 
-                    new[] { sharedOpaqueDirectory1.Root, sharedOpaqueDirectory2.Root }, 
-                    description: null, 
-                    tags: new string[] { }, 
+                    env.Paths.CreateAbsolutePath(root),
+                    new[] { sharedOpaqueDirectory1.Root, sharedOpaqueDirectory2.Root },
+                    contentFilter: null,
+                    description: null,
+                    tags: new string[] { },
                     out var composedSharedOpaque);
 
                 XAssert.IsFalse(result);
@@ -83,6 +84,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root, sourceSealDirectory },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var composedSharedOpaque);
@@ -111,6 +113,7 @@ namespace Test.BuildXL.Scheduler
                 var result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { sharedOpaqueDirectory1.Root },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var composedSharedOpaque);
@@ -121,6 +124,7 @@ namespace Test.BuildXL.Scheduler
                 result = env.PipConstructionHelper.TryComposeSharedOpaqueDirectory(
                     env.Paths.CreateAbsolutePath(root),
                     new[] { composedSharedOpaque },
+                    contentFilter: null,
                     description: null,
                     tags: new string[] { },
                     out var nestedComposedSharedOpaque);

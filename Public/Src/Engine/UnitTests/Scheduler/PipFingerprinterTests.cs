@@ -967,11 +967,12 @@ namespace Test.BuildXL.Scheduler
             var composedDirectories = source.Vary(sd => sd.ComposedDirectories);
             var isComposite = source.Vary(sd => sd.IsComposite);
             var scrub = source.Vary(sd => sd.Scrub);
+            var contentFilter = source.Vary(sd => sd.ContentFilter);
 
             // If the resulting combination will create an invalid seal directory, create a random valid combination.
             if (kind == SealDirectoryKind.Full || kind == SealDirectoryKind.Partial)
             {
-                if (isComposite || composedDirectories.Count > 0 || patterns.Any())
+                if (isComposite || composedDirectories.Count > 0 || patterns.Any() || contentFilter != null)
                 {
                     return null;
                 }
@@ -983,14 +984,14 @@ namespace Test.BuildXL.Scheduler
             }
             else if (kind == SealDirectoryKind.Opaque)
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any() || contentFilter != null)
                 {
                     return null;
                 }
             }
             else if (kind.IsSourceSeal())
             {
-                if (isComposite || composedDirectories.Count > 0 || contents.Any() || directoryContents.Any())
+                if (isComposite || composedDirectories.Count > 0 || contents.Any() || directoryContents.Any() || contentFilter != null)
                 {
                     return null;
                 }
@@ -1006,7 +1007,7 @@ namespace Test.BuildXL.Scheduler
                 }
                 else
                 {
-                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any())
+                    if (composedDirectories.Count > 0 || contents.Any() || patterns.Any() || directoryContents.Any() || contentFilter != null)
                     {
                         return null;
                     }
@@ -1019,7 +1020,8 @@ namespace Test.BuildXL.Scheduler
                     root,
                     composedDirectories,
                     PipProvenance.CreateDummy(m_context),
-                    ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)));
+                    ReadOnlyArray<StringId>.From(source.Vary(sd => sd.Tags)),
+                    contentFilter);
             }
 
             var sealDirectory = new SealDirectory(
@@ -1079,7 +1081,7 @@ namespace Test.BuildXL.Scheduler
                    {
                        new FingerprintingTypeDescriptor<bool>(false, true),
                        new FingerprintingTypeDescriptor<int>(0, -1, 1, 11, 2, 3),
-                       new FingerprintingTypeDescriptor<string>(string.Empty, "A", "1", "Abc", "ABC", "Def", "ABC with suffix"),
+                       new FingerprintingTypeDescriptor<string>(null, string.Empty, "A", "1", "Abc", "ABC", "Def", "ABC with suffix"),
                        new FingerprintingTypeDescriptor<TimeSpan?>(null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)),
                        new FingerprintingTypeDescriptor<StringId>(
                            StringId.Create(stringTable, "A"),

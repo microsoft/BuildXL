@@ -30,9 +30,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             CreatePip(
                 @"root\pipA",
-                out FileArtifact inputA, 
+                out FileArtifact inputA,
                 out FileArtifact outputA,
-                out ProcessWithOutputs pipA, 
+                out ProcessWithOutputs pipA,
                 out DirectoryArtifact soA);
 
             CreatePip(
@@ -45,7 +45,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var root = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "root"));
 
             // We create a composite shared opaque containing both shared opaques
-            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA, soB }, description: null, tags: new string[] { }, out var composedOpaque);
+            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA, soB }, contentFilter: null, description: null, tags: new string[] { }, out var composedOpaque);
             XAssert.IsTrue(result);
 
             // PipC consumes the composed shared opaque and reads from both outputs
@@ -88,7 +88,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var root = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "root"));
 
             // We construct a composite shared opaque that only contains soa (and *not* sob)
-            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA }, description: null, tags: new string[] { }, out var composedOpaque);
+            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA }, contentFilter: null, description: null, tags: new string[] { }, out var composedOpaque);
             XAssert.IsTrue(result);
 
             // PipC consumes the composed shared opaque and reads from both outputs
@@ -107,6 +107,115 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void CompositeSharedOpaqueDirectoryWithFilterReadBehavior(bool validFileAccess)
+        {
+            CreatePip(
+                @"root\pipA",
+                out FileArtifact _,
+                out FileArtifact outputA,
+                out ProcessWithOutputs pipA,
+                out DirectoryArtifact soA);
+
+            CreatePip(
+                @"root\pipB",
+                out FileArtifact _,
+                out FileArtifact outputB,
+                out ProcessWithOutputs _,
+                out DirectoryArtifact soB);
+
+            var root = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "root"));
+
+            // We construct a composite shared opaque using both soA and soB, but apply the filter that matches only soA
+            var filter = $".*{outputA.Path.GetName(Context.PathTable).ToString(Context.StringTable)}$";
+            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA, soB }, contentFilter: filter, description: null, tags: new string[] { }, out var composedOpaque);
+            XAssert.IsTrue(result);
+
+            // PipC consumes the composed shared opaque and reads a file
+            //   validFileAccess == true  => outputA => allowed access
+            //   validFileAccess == false => outputB => DFA (outputB does not match the filter, hence it's not a part of a composite SOD)
+            var builder = CreatePipBuilder(new List<Operation>
+            {
+                Operation.ReadFile(validFileAccess ? outputA : outputB, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            builder.AddInputDirectory(composedOpaque);
+            var pipC = SchedulePipBuilder(builder);
+
+            if (validFileAccess)
+            {
+                RunScheduler().AssertSuccess();
+            }
+            else
+            {
+                IgnoreWarnings();
+                RunScheduler().AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            }
+        }
+
+        /// <summary>
+        /// Pip consumes a filtered SOD (fileA, fileB) and reads both files
+        /// Filter is changed -> SOD (fileA)
+        /// Pip should be a miss and should emit DFA
+        /// </summary>
+        public void FilterChangesShouldAffectCachingIfPipReadsFilteredFile()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var fileA = CreateOutputFileArtifact(sharedOpaqueDir);
+            var fileB = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(fileA, doNotInfer: true),
+                Operation.WriteFile(fileB, doNotInfer: true)                
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            var producedSod = pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath);           
+            var success = PipConstructionHelper.TryComposeSharedOpaqueDirectory(sharedOpaqueDirPath, new[] { producedSod }, contentFilter: ".*", description: null, tags: new string[] { }, out var filteredOpaque);
+            XAssert.IsTrue(success);
+
+            var builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, filteredOpaque, fileA, fileB);
+            var pipB = SchedulePipBuilder(builderB);
+
+            // first run - populate cache
+            RunScheduler().AssertSuccess();
+
+            // reset the graph and this time specify a filter that would exclude fileB
+            ResetPipGraphBuilder();
+
+            pipA = SchedulePipBuilder(builderA);
+
+            producedSod = pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath);
+            var filter = $".*{fileA.Path.GetName(Context.PathTable).ToString(Context.StringTable)}$";
+            success = PipConstructionHelper.TryComposeSharedOpaqueDirectory(sharedOpaqueDirPath, new[] { producedSod }, contentFilter: filter, description: null, tags: new string[] { }, out filteredOpaque);
+            XAssert.IsTrue(success);
+            
+            builderB = CreateOpaqueDirectoryConsumer(CreateOutputFileArtifact(), null, filteredOpaque, fileA, fileB);
+            pipB = SchedulePipBuilder(builderB);
+
+            // since filteredOpaque does not contain fileB, this run should result in a DFA
+            IgnoreWarnings();
+            var result = RunScheduler().AssertFailure();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+
+            result
+                // pipA should be a hit
+                .AssertCacheHitWithoutAssertingSuccess(pipA.Process.PipId)
+                // pipB should be a miss (access to fileB is no longer valid)
+                .AssertCacheMissWithoutAssertingSuccess(pipB.Process.PipId)
+                // pipB should have a weak FP hit (file accesses are checked during strong FP computation)
+                .AssertNumWeakFingerprintMisses(0);            
+        }
+
+
         [Fact]
         public void DuplicateContentIsAllowedInCompositeSharedOpaqueDirectory()
         {
@@ -120,7 +229,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var root = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "root"));
 
             // We construct a composite shared opaque that constains soA twice
-            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA, soA }, description: null, tags: new string[] { }, out var composedOpaque);
+            var result = PipConstructionHelper.TryComposeSharedOpaqueDirectory(root, new[] { soA, soA }, contentFilter: null, description: null, tags: new string[] { }, out var composedOpaque);
             XAssert.IsTrue(result);
 
             // PipB consumes the composed shared opaque and reads from outputA
@@ -159,17 +268,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             
             builderA.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath), SealDirectoryKind.SharedOpaque);
             builderA.AddTags(Context.StringTable, "pipA");
-            
+
             var pipA = SchedulePipBuilder(builderA);
 
             // composite shared opaque - consists of a single shared opaque produced by PipA
-            var success = PipConstructionHelper.TryComposeSharedOpaqueDirectory(rootPath, new[] { pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath) }, description: null, tags: new string[] { }, out var composedOpaque);
+            var success = PipConstructionHelper.TryComposeSharedOpaqueDirectory(rootPath, new[] { pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath) }, contentFilter: null, description: null, tags: new string[] { }, out var composedOpaque);
             XAssert.IsTrue(success);
 
             // PipB - consumes composite shared opaque directory
             // note: there is no direct dependency on PipA
             var builderB = CreatePipBuilder(new Operation[]
-            {                
+            {
                 Operation.ReadRequiredFile(outputA, doNotInfer: true),  // dynamic output of PipA
                 Operation.ReadFile(inputB),                             // dummy input, so we can force pipB to re-run
                 Operation.WriteFile(CreateOutputFileArtifact())

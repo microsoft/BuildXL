@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
@@ -42,6 +43,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_sealPatterns;
         private SymbolAtom m_sealScrub;
         private SymbolAtom m_sealOutputDirectories;
+        private SymbolAtom m_sealDirectories;
+        private SymbolAtom m_sealDirectoryContentFilter;
 
         private void InitializeSealDirectoryNames()
         {
@@ -53,6 +56,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_sealPatterns = Symbol("patterns");
             m_sealScrub = Symbol("scrub");
             m_sealOutputDirectories = Symbol("outputDirectories");
+            m_sealDirectories = Symbol("directories");
+            m_sealDirectoryContentFilter = Symbol("directoryFilteringRegexExpression");
         }
 
         private CallSignature SealPartialDirectorySignature => SealDirectorySignature;
@@ -69,7 +74,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private CallSignature ComposeSharedOpaqueDirectoriesSignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.PathType, new ArrayType(AmbientTypes.ObjectType)),
-            optional: OptionalParameters(new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType),
+            optional: OptionalParameters(PrimitiveType.StringType, new ArrayType(PrimitiveType.StringType), PrimitiveType.StringType),
             returnType: AmbientTypes.StaticDirectoryType);
 
         private EvaluationResult SealDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
@@ -82,12 +87,26 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             return SealDirectoryHelper(context, env, args, SealDirectoryKind.Partial);
         }
 
-        private static EvaluationResult ComposeSharedOpaqueDirectories(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        private EvaluationResult ComposeSharedOpaqueDirectories(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
-            AbsolutePath root = Args.AsPath(args, 0, false);
-            ArrayLiteral contents = Args.AsArrayLiteral(args, 1);
-            var tags = Args.AsStringArrayOptional(args, 2);
-            var description = Args.AsStringOptional(args, 3);
+            AbsolutePath root;
+            ArrayLiteral contents;
+            Regex directoryFilteringRegex;            
+
+            if (args.Length > 0 && args[0].Value is ObjectLiteral)
+            {
+                var obj = Args.AsObjectLiteral(args, 0);
+                var directory = Converter.ExtractDirectory(obj, m_sealRoot, allowUndefined: false);
+                root = directory.Path;
+                contents = Converter.ExtractArrayLiteral(obj, m_sealDirectories, allowUndefined: false);
+                directoryFilteringRegex = Converter.ExtractRegex(obj, m_sealDirectoryContentFilter, allowUndefined: true);
+            }
+            else
+            {
+                root = Args.AsPath(args, 0, false);
+                contents = Args.AsArrayLiteral(args, 1);
+                directoryFilteringRegex = Args.AsRegexOptional(args, 2);                
+            }
 
             var directories = new DirectoryArtifact[contents.Length];
 
@@ -96,7 +115,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 directories[i] = Converter.ExpectSharedOpaqueDirectory(contents[i], context: new ConversionContext(pos: i, objectCtx: contents)).Root;
             }
 
-            if (!context.GetPipConstructionHelper().TryComposeSharedOpaqueDirectory(root, directories, description, tags, out var compositeSharedOpaque))
+            if (!context.GetPipConstructionHelper().TryComposeSharedOpaqueDirectory(root, directories, directoryFilteringRegex?.ToString(), description: null, tags: null, out var compositeSharedOpaque))
             {
                 // Error should have been logged
                 return EvaluationResult.Error;
@@ -106,7 +125,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             return new EvaluationResult(result);
         }
-        
 
         private EvaluationResult SealSourceDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {

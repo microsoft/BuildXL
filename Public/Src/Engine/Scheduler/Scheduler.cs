@@ -65,6 +65,7 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Scheduler
 {
@@ -158,6 +159,8 @@ namespace BuildXL.Scheduler
         /// <see cref="ILayoutConfiguration.SharedOpaqueSidebandDirectory"/> directory name.
         /// </summary>
         public const string SharedOpaqueSidebandDirectory = "SharedOpaqueSidebandState";
+
+        private const int SealDirectoryContentFilterTimeoutMs = 1_000; // 1s 
 
 #endregion Constants
 
@@ -6062,16 +6065,37 @@ namespace BuildXL.Scheduler
 
                 // Aggregates the content of all non-composite directories and report it
                 using (var pooledAggregatedContent = Pools.FileArtifactSetPool.GetInstance())
+                using (var filteredContentWrapper = Pools.FileArtifactListPool.GetInstance())
                 {
                     HashSet<FileArtifact> aggregatedContent = pooledAggregatedContent.Instance;
+                    var filteredContent = filteredContentWrapper.Instance;
                     foreach (var directoryElement in nonCompositeDirectories)
                     {
                         var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
                         aggregatedContent.AddRange(memberContents);
                     }
 
+                    // if the filter is specified, restrict the final content
+                    if (pip.ContentFilter != null)
+                    {
+                        var regex = new Regex(pip.ContentFilter,
+                            RegexOptions.IgnoreCase,
+                            TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
+
+                        foreach (var fileArtifact in aggregatedContent)
+                        {
+                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)))
+                            {
+                                filteredContent.Add(fileArtifact);
+                            }
+                        }
+                    }
+
                     // the directory artifacts that this composite shared opaque consists of might or might not be materialized
-                    m_fileContentManager.ReportDynamicDirectoryContents(pip.Directory, aggregatedContent, PipOutputOrigin.NotMaterialized);
+                    m_fileContentManager.ReportDynamicDirectoryContents(
+                        pip.Directory,
+                        pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent,
+                        PipOutputOrigin.NotMaterialized);
                 }
             }
         }

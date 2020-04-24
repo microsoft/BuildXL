@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using BuildXL.FrontEnd.Script.Literals;
 using BuildXL.FrontEnd.Script.Values;
@@ -186,6 +187,22 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         public static string ExpectString(EvaluationResult value, in ConversionContext context = default(ConversionContext))
         {
             return ExpectRef<string>(value, context);
+        }
+
+        /// <summary>
+        /// Converts an object to Regex.
+        /// </summary>
+        public static Regex ExpectRegex(EvaluationResult value, in ConversionContext context = default(ConversionContext))
+        {
+            string regexStr = ExpectRef<string>(value, context);
+            try
+            {
+                return new Regex(regexStr);
+            }
+            catch (ArgumentException)
+            {
+                throw new ConvertException(new[] { typeof(string), typeof(Regex) }, value, context.ErrorContext);
+            }
         }
 
         /// <summary>
@@ -576,6 +593,23 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             }
 
             return ExpectDirectory(
+                value,
+                context: new ConversionContext(name: property, objectCtx: literal));
+        }
+
+
+        /// <summary>
+        /// Extracts a Regex instance from a given object.
+        /// </summary>       
+        public static Regex ExtractRegex(ObjectLiteral literal, SymbolAtom property, bool allowUndefined = false)
+        {
+            var value = literal[property];
+            if (allowUndefined && value.IsUndefined)
+            {
+                return null;
+            }
+
+            return ExpectRegex(
                 value,
                 context: new ConversionContext(name: property, objectCtx: literal));
         }

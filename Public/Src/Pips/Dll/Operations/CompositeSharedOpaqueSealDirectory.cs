@@ -13,18 +13,24 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     public sealed class CompositeSharedOpaqueSealDirectory : SealDirectory
     {
+        private readonly string m_contentFilter;
+
         /// <inheritdoc/>
         public override IReadOnlyList<DirectoryArtifact> ComposedDirectories { get; }
 
         /// <inheritdoc/>
         public override bool IsComposite => true;
-        
+
+        /// <inheritdoc/>
+        public override string ContentFilter => m_contentFilter;
+
         /// <nodoc/>
         public CompositeSharedOpaqueSealDirectory(
             AbsolutePath directoryRoot,
             IReadOnlyList<DirectoryArtifact> composedDirectories,
             PipProvenance provenance,
-            ReadOnlyArray<StringId> tags) 
+            ReadOnlyArray<StringId> tags,
+            string contentFilter) 
                 : base(
                     directoryRoot, 
                     CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
@@ -37,6 +43,7 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(composedDirectories != null);
 
             ComposedDirectories = composedDirectories;
+            m_contentFilter = contentFilter;
         }
 
         internal static CompositeSharedOpaqueSealDirectory InternalDeserializeCompositeSharedOpaqueSealDirectory(PipReader reader)
@@ -46,7 +53,8 @@ namespace BuildXL.Pips.Operations
                 artifact.Path,
                 reader.ReadArray(reader1 => reader1.ReadDirectoryArtifact()),
                 reader.ReadPipProvenance(),
-                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()));
+                reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
+                reader.ReadNullableString());
 
             directory.SetDirectoryArtifact(artifact);
             Contract.Assume(directory.IsInitialized && directory.Directory == artifact);
@@ -63,6 +71,7 @@ namespace BuildXL.Pips.Operations
             writer.WriteReadOnlyList(ComposedDirectories, (w, v) => w.Write(v));
             writer.Write(Provenance);
             writer.Write(Tags, (w, v) => w.Write(v));
+            writer.WriteNullableString(m_contentFilter);
         }
     }
 }

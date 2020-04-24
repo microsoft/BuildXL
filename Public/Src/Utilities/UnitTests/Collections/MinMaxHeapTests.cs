@@ -18,6 +18,7 @@ namespace Test.BuildXL.Utilities.Collections
         [Fact]
         public void EmptyHeapOperations()
         {
+
             var heap = new MinMaxHeap<double>(1, Comparer<double>.Default);
             Assert.True(heap.Count == 0);
 

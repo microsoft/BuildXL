@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.Logging.External
         /// <summary>
         /// Whether to set unobserved task exceptions as observed.
         /// </summary>
-        public bool CatchUnobservedTaskExceptions { get; set; } = false;
+        public bool ObserveUnobservedTaskExceptions { get; set; } = true;
 
         /// <nodoc />
         public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration)
@@ -252,19 +253,31 @@ namespace BuildXL.Cache.Logging.External
         private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
         {
             var exception = args.Exception;
+            var exceptionObserver = new TaskExceptionObserver();
 
             try
             {
-                _host.Warning("An exception has occurred in an unobserved task. Process may exit. Exception=[{0}]", exception);
+                if (!exceptionObserver.IsWellKnownException(exception))
+                {
+                    _nlog.Log(Translate(Severity.Warning), "Exception has occurred in an unobserved task. Process may exit. Exception=[{0}]", exception);
+                }
             }
-            catch (Exception loggerException)
+            catch (Exception nLogException)
             {
-                Console.WriteLine("Logger threw exception: {0} while trying to log an unobserved task exception: {1}",
-                                  loggerException,
-                                  exception);
+                try
+                {
+                    _host.Warning("NLog threw exception: {0} while trying to log an unobserved task exception: {1}", nLogException, exception);
+                }
+                catch (Exception hostException)
+                {
+                    Console.WriteLine("NLog threw exception: {0} Host logger threw exception: {1} while trying to log an unobserved task exception: {2}",
+                        nLogException,
+                        hostException,
+                        exception);
+                }
             }
 
-            if (CatchUnobservedTaskExceptions && !args.Observed)
+            if (ObserveUnobservedTaskExceptions && exceptionObserver.IsWellKnownException(exception) && !args.Observed)
             {
                 args.SetObserved();
             }

@@ -125,7 +125,8 @@ namespace BuildXL.Cache.Host.Configuration
         /// TTL to be set in Redis for memoization entries.
         /// </summary>
         [DataMember]
-        public int RedisMemoizationExpiryTimeMinutes {
+        public int RedisMemoizationExpiryTimeMinutes
+        {
             get => _redisMemoizationExpiryTimeMinutes == 0 ? ContentHashBumpTimeMinutes : _redisMemoizationExpiryTimeMinutes;
             set => _redisMemoizationExpiryTimeMinutes = value;
         }
@@ -675,7 +676,15 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int? MachineExpiryMinutes { get; set; }
+        public int? MachineStateRecomputeIntervalMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? MachineActiveToClosedIntervalMinutes { get; set; }
+
+        [DataMember]
+        [Validation.Range(1, int.MaxValue)]
+        public int? MachineActiveToExpiredIntervalMinutes { get; set; }
 
         // Files smaller than this will use the untrusted hash
         [DataMember]
@@ -722,7 +731,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int? MaximumConcurrentPutAndPlaceFileOperations { get; set; } 
+        public int? MaximumConcurrentPutAndPlaceFileOperations { get; set; }
 
         [DataMember]
         public bool EnableMetadataStore { get; set; } = false;

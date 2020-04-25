@@ -136,7 +136,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             ClusterState = new ClusterState(machineMappings[0].Id, machineMappings);
 
-            return await UpdateClusterStateAsync(context, ClusterState);
+            // When we start up, we don't want to modify the previous state set until we know if we need to do anything
+            // about it.
+            return await UpdateClusterStateAsync(context, ClusterState, MachineState.Unknown);
         }
 
         public async Task<MachineMapping> RegisterMachineAsync(OperationContext context, MachineLocation machineLocation)
@@ -441,32 +443,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         #endregion Role Management
 
         /// <inheritdoc />
-        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState)
+        public Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, MachineState machineState = MachineState.Open)
         {
             return context.PerformOperationAsync(
                 Tracer,
-                () => UpdateClusterStateCoreAsync(context, clusterState),
+                () => UpdateClusterStateCoreAsync(context, clusterState, machineState),
                 Counters[GlobalStoreCounters.UpdateClusterState]);
         }
 
-        private async Task<BoolResult> UpdateClusterStateCoreAsync(OperationContext context, ClusterState clusterState)
+        private async Task<BoolResult> UpdateClusterStateCoreAsync(OperationContext context, ClusterState clusterState, MachineState machineState)
         {
-            (var inactiveMachineIdSet, var getUnknownMachinesResult) = await _clusterStateKey.UseReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
+            (var inactiveMachineIdSet, var closedMachineIdSet, var getUnknownMachinesResult) = await _clusterStateKey.UseReplicatedHashAsync(context, _configuration.RetryWindow, RedisOperation.UpdateClusterState, async (batch, key) =>
             {
-                var heartbeatResultTask = CallHeartbeatAsync(context, clusterState, batch, key, MachineState.Active);
+                var heartbeatResultTask = CallHeartbeatAsync(context, clusterState, batch, key, machineState);
 
                 var getUnknownMachinesTask = batch.GetUnknownMachinesAsync(
                     key,
                     clusterState.MaxMachineId);
-
 
                 await Task.WhenAll(heartbeatResultTask, getUnknownMachinesTask);
 
                 var heartbeatResult = await heartbeatResultTask;
                 var getUnknownMachinesResult = await getUnknownMachinesTask;
 
-                return (heartbeatResult, getUnknownMachinesResult);
+                return (heartbeatResult.inactiveMachineIdSet, heartbeatResult.closedMachineIdSet, getUnknownMachinesResult);
             }).ThrowIfFailureAsync();
+            Contract.Assert(inactiveMachineIdSet != null, "inactiveMachineIdSet != null");
+            Contract.Assert(closedMachineIdSet != null, "closedMachineIdSet != null");
 
             if (getUnknownMachinesResult.maxMachineId != clusterState.MaxMachineId)
             {
@@ -478,7 +481,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             clusterState.AddUnknownMachines(getUnknownMachinesResult.maxMachineId, getUnknownMachinesResult.unknownMachines);
-            clusterState.SetInactiveMachines(inactiveMachineIdSet).ThrowIfFailure();
+            clusterState.SetMachineStates(inactiveMachineIdSet, closedMachineIdSet).ThrowIfFailure();
 
             Tracer.Debug(context, $"Inactive machines: Count={inactiveMachineIdSet.Count}, [{string.Join(", ", inactiveMachineIdSet)}]");
             Tracer.TrackMetric(context, "InactiveMachineCount", inactiveMachineIdSet.Count);
@@ -504,7 +507,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return BoolResult.Success;
         }
 
-        private async Task<BitMachineIdSet> CallHeartbeatAsync(
+        private async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet)> CallHeartbeatAsync(
             OperationContext context,
             ClusterState clusterState,
             RedisBatch batch,
@@ -513,28 +516,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var heartbeatResults = await Task.WhenAll(clusterState.LocalMachineMappings.Select(async machineMapping =>
             {
-                (MachineState priorState, BitMachineIdSet inactiveMachineIdSet) = await batch.HeartbeatAsync(
+                (MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet) = await batch.HeartbeatAsync(
                     key,
                     machineMapping.Id.Index,
                     state,
                     _clock.UtcNow,
-                    _configuration.RecomputeInactiveMachinesExpiry,
-                    _configuration.MachineExpiry);
+                    _configuration.MachineStateRecomputeInterval,
+                    _configuration.MachineActiveToClosedInterval,
+                    _configuration.MachineActiveToExpiredInterval);
 
                 if (priorState != state)
                 {
                     Tracer.Debug(context, $"Machine {machineMapping} state changed from {priorState} to {state}");
                 }
 
-                if (priorState == MachineState.Unavailable || priorState == MachineState.Expired)
+                if (priorState == MachineState.DeadUnavailable || priorState == MachineState.DeadExpired)
                 {
                     clusterState.LastInactiveTime = _clock.UtcNow;
                 }
 
-                return inactiveMachineIdSet;
+                return (priorState, inactiveMachineIdSet, closedMachineIdSet);
             }).ToList());
 
-            return heartbeatResults.FirstOrDefault() ?? BitMachineIdSet.EmptyInstance;
+            return heartbeatResults.Any()
+                ? heartbeatResults.First()
+                : (priorState: MachineState.Unknown, inactiveMachineIdSet: BitMachineIdSet.EmptyInstance,
+                    closedMachineIdSet: BitMachineIdSet.EmptyInstance);
         }
 
         /// <inheritdoc />
@@ -601,19 +608,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context)
+        public async Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state)
         {
+            var counter = state switch
+            {
+                MachineState.Unknown => GlobalStoreCounters.SetMachineStateUnknown,
+                MachineState.Open => GlobalStoreCounters.SetMachineStateOpen,
+                MachineState.DeadUnavailable => GlobalStoreCounters.SetMachineStateDeadUnavailable,
+                MachineState.Closed => GlobalStoreCounters.SetMachineStateClosed,
+                _ => throw new NotImplementedException($"Unexpected machine state transition to state: {state}"),
+            };
+
             return await context.PerformOperationAsync(
                 Tracer,
-                () =>
+                async () =>
                 {
-                    return _clusterStateKey.UseReplicatedHashAsync(
+                    var result = await _clusterStateKey.UseReplicatedHashAsync(
                         context,
                         _configuration.RetryWindow,
-                        RedisOperation.InvalidateLocalMachine,
-                        (batch, key) => CallHeartbeatAsync(context, ClusterState, batch, key, MachineState.Unavailable));
+                        RedisOperation.SetLocalMachineState,
+                        (batch, key) => CallHeartbeatAsync(context, ClusterState, batch, key, state)).ThrowIfFailureAsync();
 
-                }, Counters[GlobalStoreCounters.InvalidateLocalMachine]);
+                    return new Result<MachineState>(result.priorState);
+                },
+                counter: Counters[counter],
+                extraEndMessage: r => r.Succeeded ? $"OldState=[{r.Value}] NewState=[{state}]" : $"NewState=[{state}]");
         }
 
         /// <inheritdoc />

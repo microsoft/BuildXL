@@ -25,9 +25,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ClusterState ClusterState { get; }
 
         /// <summary>
-        /// Calls a central store and updates <paramref name="state"/> based on the result.
+        /// Calls a central store and updates <paramref name="clusterState"/> based on the result.
         /// </summary>
-        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState state);
+        Task<BoolResult> UpdateClusterStateAsync(OperationContext context, ClusterState clusterState, MachineState machineState = MachineState.Open);
 
         /// <summary>
         /// Notifies a central store that another machine should be selected as a master.
@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that the current machine (and all associated machine ids) is about to be repaired and will be inactive.
         /// </summary>
-        Task<BoolResult> InvalidateLocalMachineAsync(OperationContext context);
+        Task<Result<MachineState>> SetLocalMachineStateAsync(OperationContext context, MachineState state);
 
         /// <summary>
         /// Gets the list of <see cref="ContentLocationEntry"/> for every hash specified by <paramref name="contentHashes"/> from a central store.

@@ -123,6 +123,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private const string BinManagerKey = "LocalLocationStore.BinManager";
 
+        /// <summary>
+        /// This is the machine state reported during heartbeat. Initialized as <see cref="MachineState.Unknown"/> in
+        /// order to avoid updates at first.
+        /// </summary>
+        private MachineState _heartbeatMachineState = MachineState.Unknown;
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
@@ -291,6 +297,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
 
+            // We need to detect what our previous exit state was in order to choose the appropriate recovery strategy.
+            var fetchLastMachineStateResult = await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Unknown);
+            var lastMachineState = MachineState.Unknown;
+            if (fetchLastMachineStateResult.Succeeded)
+            {
+                lastMachineState = fetchLastMachineStateResult.Value;
+            }
+
+            _heartbeatMachineState = lastMachineState switch
+            {
+                // Here, when we set a Closed state, it means we will wait until the next heartbeat after
+                // reconciliation finishes before announcing ourselves as open.
+                MachineState.Unknown => MachineState.Open,
+                MachineState.Open => MachineState.Open,
+                MachineState.DeadUnavailable => MachineState.Closed,
+                MachineState.DeadExpired => MachineState.Closed,
+                MachineState.Closed => MachineState.Open,
+                _ => throw new NotImplementedException($"Unknown machine state: {lastMachineState}"),
+            };
+
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(
                 _ =>
@@ -336,9 +362,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+            _heartbeatMachineState = MachineState.Closed;
+
 #pragma warning disable AsyncFixer02
             _heartbeatTimer?.Dispose();
 #pragma warning restore AsyncFixer02
+
+            await GlobalStore.SetLocalMachineStateAsync(context, MachineState.Closed).IgnoreFailure();
 
             if (EventStore != null)
             {
@@ -423,7 +453,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _lastCheckpointTime = _lastRestoreTime;
                     }
 
-                    var updateResult = await UpdateClusterStateAsync(context);
+                    var updateResult = await UpdateClusterStateAsync(context, machineState: _heartbeatMachineState);
 
                     if (!updateResult)
                     {
@@ -533,7 +563,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
+        private Task<BoolResult> UpdateClusterStateAsync(OperationContext context, MachineState machineState)
         {
             var startMaxMachineId = ClusterState.MaxMachineId;
 
@@ -550,7 +580,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         postDbMaxMachineId = ClusterState.MaxMachineId;
                     }
 
-                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState);
+                    var updateResult = await GlobalStore.UpdateClusterStateAsync(context, ClusterState, machineState);
                     postGlobalMaxMachineId = ClusterState.MaxMachineId;
 
                     // Update the local database with new machines if the cluster state was updated from the global store
@@ -836,7 +866,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Update cluster. Query global to ensure that we have all machines ids (even those which may not be added
                 // to local db yet.)
-                var result = await UpdateClusterStateAsync(context);
+                var result = await UpdateClusterStateAsync(context, machineState: MachineState.Unknown);
                 if (!result)
                 {
                     return new GetBulkLocationsResult(result);
@@ -925,7 +955,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return RegisterAction.RecentRemoveEagerGlobal;
             }
 
-            if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.RecomputeInactiveMachinesExpiry.Multiply(5)))
+            if (ClusterState.LastInactiveTime.IsRecent(now, _configuration.MachineStateRecomputeInterval.Multiply(5)))
             {
                 // The machine was recently inactive. We should eagerly register content for some amount of time (a few heartbeats) because content may be currently filtered from other machines
                 // local db results due to inactive machines filter.
@@ -1395,7 +1425,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new ReconciliationResult(postInitializationResult);
             }
 
-            return await context.PerformOperationAsync(
+            var result = await context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
@@ -1444,6 +1474,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     MarkReconciled(machineId);
+
                     return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
 
                     async Task<Result<CounterCollection<ReconciliationCycleCounters>>> performReconciliationCycleAsync()
@@ -1563,15 +1594,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
+
+            if (result.Succeeded)
+            {
+                _heartbeatMachineState = MachineState.Open;
+            }
+
+            return result;
         }
 
         /// <nodoc />
-        public Task<BoolResult> InvalidateLocalMachineAsync(OperationContext operationContext, MachineId machineId)
+        public async Task<BoolResult> InvalidateLocalMachineAsync(OperationContext operationContext, MachineId machineId)
         {
             // Unmark reconcile since the machine is invalidated
             MarkReconciled(machineId, reconciled: false);
 
-            return GlobalStore.InvalidateLocalMachineAsync(operationContext);
+            _heartbeatMachineState = MachineState.DeadUnavailable;
+            return await GlobalStore.SetLocalMachineStateAsync(operationContext, MachineState.DeadUnavailable);
         }
 
         /// <nodoc />

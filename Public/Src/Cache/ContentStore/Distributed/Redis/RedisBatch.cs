@@ -412,17 +412,16 @@ return { requestedIncrement, currentValue }";
             return (maxMachineId, unknownMachines);
         }
 
-        /// <inheritdoc />
-        public async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet)> HeartbeatAsync(
+        /// <nodoc />
+        public async Task<(MachineState priorState, BitMachineIdSet inactiveMachineIdSet, BitMachineIdSet closedMachineIdSet)> HeartbeatAsync(
             string clusterStateKey,
             int machineId,
             MachineState declaredState,
             DateTime currentTime,
-            TimeSpan recomputeExpiryInterval,
-            TimeSpan machineExpiryInterval)
+            TimeSpan recomputeInterval,
+            TimeSpan machineActiveToClosedInterval,
+            TimeSpan machineActiveToExpiredInterval)
         {
-            // -- (MachineState: priorState, BitSet: inactiveMachineBitSet)
-            // Heartbeat(string clusterStateKey, int machineId, MachineStatus declaredState, long currentTime, long recomputeExpiryInterval, long machineExpiryInterval)
             var redisOperation =
                 new RedisOperationAndResult<RedisResult>(
                     batch =>
@@ -434,8 +433,9 @@ return { requestedIncrement, currentValue }";
                                 machineId,
                                 (int)declaredState,
                                 GetUnixTimeSecondsFromDateTime(currentTime),
-                                (long)recomputeExpiryInterval.TotalSeconds,
-                                (long)machineExpiryInterval.TotalSeconds
+                                (long)recomputeInterval.TotalSeconds,
+                                (long)machineActiveToClosedInterval.TotalSeconds,
+                                (long)machineActiveToExpiredInterval.TotalSeconds
                             }));
 
             _redisOperations.Add(redisOperation);
@@ -444,7 +444,9 @@ return { requestedIncrement, currentValue }";
             var priorState = (MachineState)(int)arrayResult[0];
             var inactiveMachinesData = (byte[])arrayResult[1] ?? CollectionUtilities.EmptyArray<byte>();
             var inactiveMachineIdSet = new BitMachineIdSet(inactiveMachinesData, 0);
-            return (priorState, inactiveMachineIdSet);
+            var closedMachinesData = (byte[])arrayResult[2] ?? CollectionUtilities.EmptyArray<byte>();
+            var closedMachineIdSet = new BitMachineIdSet(closedMachinesData, 0);
+            return (priorState, inactiveMachineIdSet, closedMachineIdSet);
         }
 
         /// <inheritdoc />

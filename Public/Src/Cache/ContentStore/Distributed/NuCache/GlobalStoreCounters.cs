@@ -50,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        InvalidateLocalMachine,
+        SetMachineStateDeadUnavailable,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -70,5 +70,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         GetBulkEntrySingleResult,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        SetMachineStateOpen,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        SetMachineStateClosed,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        SetMachineStateUnknown,
     }
 }

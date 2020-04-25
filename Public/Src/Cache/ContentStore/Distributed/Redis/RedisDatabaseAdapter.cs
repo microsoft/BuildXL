@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        InvalidateLocalMachine,
+        SetLocalMachineState,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]

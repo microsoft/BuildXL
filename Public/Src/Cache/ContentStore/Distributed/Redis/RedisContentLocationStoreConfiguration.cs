@@ -34,14 +34,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int MinReplicaCountToImmediateEvict { get; set; } = RedisContentLocationStoreConstants.DefaultMinReplicaCountToImmediateEvict;
 
         /// <summary>
+        /// The time before a machine is marked as closed from its last heartbeat as open.
+        /// </summary>
+        public TimeSpan MachineActiveToClosedInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
         /// The time before machines are marked as expired and locations are eligible for garbage collection from the local database
         /// </summary>
-        public TimeSpan MachineExpiry { get; set; } = TimeSpan.FromHours(1);
+        public TimeSpan MachineActiveToExpiredInterval { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
         /// The interval at which cluster state should be mirror by master machine
         /// </summary>
-        public TimeSpan ClusterStateMirrorInterval => MachineExpiry.Multiply(0.5);
+        public TimeSpan ClusterStateMirrorInterval => MachineActiveToExpiredInterval.Multiply(0.5);
 
         /// <summary>
         /// Indicates whether cluster state should be mirrored to secondary redis

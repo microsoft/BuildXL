@@ -855,7 +855,8 @@ namespace ContentStoreTest.Distributed.Sessions
             Func<TestContext, Task> testFunc,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
             int iterations = 1,
-            TestContext outerContext = null)
+            TestContext outerContext = null,
+            bool ensureLiveness = true)
         {
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
@@ -898,6 +899,29 @@ namespace ContentStoreTest.Distributed.Sessions
                     var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
 
                     await testContext.StartupAsync(implicitPin);
+
+                    // This mode is meant to make sure that all machines are alive and ready to go
+                    if (ensureLiveness)
+                    {
+                        for (int i = 0; i < testContext.Sessions.Count; i++)
+                        {
+                            var localStore = testContext.GetLocationStore(i);
+
+                            var globalStore = localStore.LocalLocationStore.GlobalStore;
+                            var state = (await globalStore.SetLocalMachineStateAsync(testContext, MachineState.Unknown).ShouldBeSuccess()).Value;
+                            if (state == MachineState.Closed)
+                            {
+                                await localStore.ReconcileAsync(testContext, force: true).ShouldBeSuccess();
+                                await localStore.LocalLocationStore.HeartbeatAsync(testContext, inline: true).ShouldBeSuccess();
+                            }
+                        }
+
+                        for (int i = 0; i < testContext.Sessions.Count; i++)
+                        {
+                            var localStore = testContext.GetLocationStore(i);
+                            await localStore.LocalLocationStore.HeartbeatAsync(testContext, inline: true).ShouldBeSuccess();
+                        }
+                    }
 
                     await testFunc(testContext);
 

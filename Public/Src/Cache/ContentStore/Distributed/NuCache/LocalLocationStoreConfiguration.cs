@@ -55,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Interval between cluster state recomputations.
         /// </summary>
-        public TimeSpan RecomputeInactiveMachinesExpiry { get; set; } = TimeSpan.FromMinutes(1);
+        public TimeSpan MachineStateRecomputeInterval { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <summary>
         /// The TTL on entries in RedisGlobalStore

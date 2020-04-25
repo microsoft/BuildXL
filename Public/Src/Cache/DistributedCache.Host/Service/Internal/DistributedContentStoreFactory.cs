@@ -186,7 +186,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisContentLocationStoreConfiguration.MachineRisk = v);
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => redisContentLocationStoreConfiguration.LocationEntryExpiry = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.MachineExpiryMinutes, v => redisContentLocationStoreConfiguration.MachineExpiry = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineStateRecomputeIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineStateRecomputeInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineActiveToClosedIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineActiveToClosedInterval = TimeSpan.FromMinutes(v));
+            ApplyIfNotNull(_distributedSettings.MachineActiveToExpiredIntervalMinutes, v => redisContentLocationStoreConfiguration.MachineActiveToExpiredInterval = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.TouchFrequencyMinutes, v => redisContentLocationStoreConfiguration.TouchFrequency = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.EvictionMinAgeMinutes, v => redisContentLocationStoreConfiguration.EvictionMinAge = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.RetryWindowSeconds, v => redisContentLocationStoreConfiguration.RetryWindow = TimeSpan.FromSeconds(v));
@@ -220,7 +222,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionVariant,
-                    v => {
+                    v =>
+                    {
                         if (Enum.TryParse<FullRangeCompactionVariant>(v, out var variant))
                         {
                             dbConfig.FullRangeCompactionVariant = variant;
@@ -276,7 +279,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var contentStoreSettings = FromDistributedSettings(_distributedSettings);
 
-            ConfigurationModel configurationModel = configurationModel 
+            ConfigurationModel configurationModel = configurationModel
                 = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(resolvedSettings.Settings.CacheSizeQuotaString)));
 
             _logger.Debug("Creating a distributed content store");

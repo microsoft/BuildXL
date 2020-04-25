@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             if (reputation == MachineReputation.Good
                 && _clusterState != null
                 && _clusterState.TryResolveMachineId(location, out var machineId)
-                && _clusterState.IsMachineMarkedInactive(machineId))
+                && (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId)))
             {
                 _context.Debug($"Marked machine {machineId}='{location}' active due to report of good reputation.");
                 _clusterState.MarkMachineActive(machineId).IgnoreFailure();
@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
             if (_clusterState != null 
                 && _clusterState.TryResolveMachineId(machine, out var machineId))
             {
-                if (_clusterState.IsMachineMarkedInactive(machineId))
+                if (_clusterState.IsMachineMarkedInactive(machineId) || _clusterState.IsMachineMarkedClosed(machineId))
                 {
                     return MachineReputation.Inactive;
                 }

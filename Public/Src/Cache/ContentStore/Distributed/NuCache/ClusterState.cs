@@ -16,11 +16,8 @@ using BuildXL.Utilities.Threading;
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// State of all known machines in the stamp.
+    /// State of all known machines in the stamp
     /// </summary>
-    /// <remarks>
-    /// The cluster state tracks inactive machines as well as a bi-directional map for machineId to machine location and other way around.
-    /// </remarks>
     public sealed class ClusterState
     {
         /// <summary>
@@ -44,6 +41,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private BitMachineIdSet _inactiveMachinesSet = BitMachineIdSet.EmptyInstance;
 
+        private BitMachineIdSet _closedMachinesSet = BitMachineIdSet.EmptyInstance;
+
         /// <summary>
         /// The time at which the machine was last in an inactive state
         /// </summary>
@@ -58,6 +57,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Returns a list of inactive machines.
         /// </summary>
         public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
+
+        /// <summary>
+        /// Returns a list of closed machines.
+        /// </summary>
+        public IReadOnlyList<MachineId> ClosedMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
         /// <summary>
         /// Gets a list of machine ids representing unique CAS instances on the current machine
@@ -100,14 +104,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _inactiveMachinesSet[machineId];
         }
 
-        /// <nodoc />
-        public BoolResult SetInactiveMachines(BitMachineIdSet inactiveMachines)
+        /// <summary>
+        /// Gets whether a machine is marked closed
+        /// </summary>
+        public bool IsMachineMarkedClosed(MachineId machineId)
         {
-            _inactiveMachinesSet = inactiveMachines;
-            InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
+            return _closedMachinesSet[machineId];
+        }
 
-            if (EnableBinManagerUpdates && BinManager != null)
+        /// <nodoc />
+        public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet closedMachines = null)
+        {
+            bool updateBinManager = false;
+            if (inactiveMachines != null)
             {
+                _inactiveMachinesSet = inactiveMachines;
+                InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
+                updateBinManager = true;
+            }
+
+            if (closedMachines != null)
+            {
+                _closedMachinesSet = closedMachines;
+                ClosedMachines = closedMachines.EnumerateMachineIds().ToArray();
+            }
+
+            if (EnableBinManagerUpdates && BinManager != null && updateBinManager)
+            {
+                // Closed machines aren't included in the bin manager's update because they are expected to be back
+                // soon, so it doesn't make much sense to reorganize the stamp because of them.
                 var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
                 return BinManager.UpdateAll(activeMachines, InactiveMachines);
             }
@@ -120,9 +145,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public BoolResult MarkMachineActive(MachineId machineId)
         {
-            if (_inactiveMachinesSet[machineId.Index])
+            if (_inactiveMachinesSet[machineId.Index] || _closedMachinesSet[machineId.Index])
             {
-                return SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
+                return SetMachineStates((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId), (BitMachineIdSet)_closedMachinesSet.Remove(machineId));
             }
 
             return BoolResult.Success;
@@ -195,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using (_lock.AcquireReadLock())
             {
                 var candidates = _locationByIdMap
-                    .Where((location, index) => location.Data != null && !_inactiveMachinesSet[index])
+                    .Where((location, index) => location.Data != null && !_inactiveMachinesSet[index] && !_closedMachinesSet[index])
                     .Except(except)
                     .ToList();
                 if (candidates.Any())
@@ -230,7 +255,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return locationsResult.Value
-                .Where(machineId => !_inactiveMachinesSet[machineId])
+                .Where(machineId => !_inactiveMachinesSet[machineId] && !_closedMachinesSet[machineId])
                 .Select(id =>_locationByIdMap[id.Index])
                 .ToArray();
         }

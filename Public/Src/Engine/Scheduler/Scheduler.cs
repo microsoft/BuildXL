@@ -794,6 +794,17 @@ namespace BuildXL.Scheduler
         /// </summary>
         private LoggingContext m_executePhaseLoggingContext;
 
+
+        /// <summary>
+        /// Logging interval in ms for performance information. A time interval of 0 represents no restrictions to logging (always log)
+        /// </summary>
+        private int m_loggingIntervalPeriodMs;
+
+        /// <summary>
+        /// Previous UTC time when the UpdateStatus logs where logged 
+        /// </summary>
+        private DateTime m_previousStatusLogTimeUTC;
+
         /// <summary>
         /// The fingerprint of the build engine.
         /// </summary>
@@ -1212,6 +1223,9 @@ namespace BuildXL.Scheduler
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
+
+            m_loggingIntervalPeriodMs = GetLoggingPeriodInMsForExecution(configuration);
+            m_previousStatusLogTimeUTC = DateTime.UtcNow.AddMilliseconds(-1 * m_loggingIntervalPeriodMs); // Reducing by loggingIntervalPeriodMs to enable logging in the first call to UpdateStatus
             m_pipTwoPhaseCache = pipTwoPhaseCache ?? new PipTwoPhaseCache(loggingContext, cache, context, m_semanticPathExpander);
             m_runnablePipPerformance = new ConcurrentDictionary<PipId, RunnablePipPerformanceInfo>();
 
@@ -1296,6 +1310,14 @@ namespace BuildXL.Scheduler
             ProcessInContainerManager = new ProcessInContainerManager(loggingContext, Context.PathTable);
             VmInitializer = vmInitializer;
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes); 
+        }
+
+
+        private static int GetLoggingPeriodInMsForExecution(IConfiguration configuration)
+        {
+            return configuration.Logging.StatusFrequencyMs != 0 ?
+                configuration.Logging.StatusFrequencyMs :
+                configuration.Logging.GetTimerUpdatePeriodInMs();
         }
 
         /// <summary>
@@ -2063,6 +2085,13 @@ namespace BuildXL.Scheduler
         {
             lock (m_statusLock)
             {
+                DateTime utcNow = DateTime.UtcNow;
+                bool isLoggingEnabled = !overwriteable || (utcNow > m_previousStatusLogTimeUTC.AddMilliseconds(m_loggingIntervalPeriodMs));
+                if (isLoggingEnabled)
+                {
+                    m_previousStatusLogTimeUTC = utcNow;
+                }
+
                 m_unresponsivenessFactor = ComputeUnresponsivenessFactor(expectedCallbackFrequency, m_statusLastCollected, DateTime.UtcNow);
                 m_maxUnresponsivenessFactor = Math.Max(m_unresponsivenessFactor, m_maxUnresponsivenessFactor);
                 m_statusLastCollected = DateTime.UtcNow;
@@ -2113,7 +2142,7 @@ namespace BuildXL.Scheduler
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);
 
                 // Only log process counters for distributed build
-                if (IsDistributedBuild)
+                if (isLoggingEnabled && IsDistributedBuild)
                 {
                     Logger.Log.ProcessStatus(
                         m_executePhaseLoggingContext,
@@ -2140,7 +2169,7 @@ namespace BuildXL.Scheduler
                         LocalWorker.TotalProcessSlots - LocalWorker.AcquiredProcessSlots));
 
                 // Log pip statistics to CloudBuild.
-                if (m_configuration.InCloudBuild())
+                if (isLoggingEnabled && m_configuration.InCloudBuild())
                 {
                     CloudBuildEventSource.Log.DominoContinuousStatisticsEvent(new DominoContinuousStatisticsEvent
                     {
@@ -2164,39 +2193,42 @@ namespace BuildXL.Scheduler
                 PipStateCountersSnapshot writeFileStats = new PipStateCountersSnapshot();
                 writeFileStats.AggregateByPipTypes(m_pipStateCountersSnapshots, new PipType[] { PipType.WriteFile });
 
-                // Log pip statistics to Console
-                LogPipStatus(
-                    m_executePhaseLoggingContext,
-                    pipsSucceeded: m_pipTypesToLogCountersSnapshot.DoneCount,
-                    pipsFailed: m_pipTypesToLogCountersSnapshot[PipState.Failed],
-                    pipsSkippedDueToFailedDependencies: m_pipTypesToLogCountersSnapshot.SkippedDueToFailedDependenciesCount,
-                    pipsRunning: m_pipTypesToLogCountersSnapshot.RunningCount,
-                    pipsReady: pipsReady,
-                    pipsWaiting: pipsWaiting,
-                    pipsWaitingOnSemaphore: semaphoreQueued,
-                    servicePipsRunning: m_serviceManager.RunningServicesCount,
-                    perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
-                    pipsWaitingOnResources: pipsWaitingOnResources,
-                    procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
-                    procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
-                    procsFailed: m_processStateCountersSnapshot[PipState.Failed],
-                    procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
+                if (isLoggingEnabled)
+                {
+                    // Log pip statistics to Console
+                    LogPipStatus(
+                        m_executePhaseLoggingContext,
+                        pipsSucceeded: m_pipTypesToLogCountersSnapshot.DoneCount,
+                        pipsFailed: m_pipTypesToLogCountersSnapshot[PipState.Failed],
+                        pipsSkippedDueToFailedDependencies: m_pipTypesToLogCountersSnapshot.SkippedDueToFailedDependenciesCount,
+                        pipsRunning: m_pipTypesToLogCountersSnapshot.RunningCount,
+                        pipsReady: pipsReady,
+                        pipsWaiting: pipsWaiting,
+                        pipsWaitingOnSemaphore: semaphoreQueued,
+                        servicePipsRunning: m_serviceManager.RunningServicesCount,
+                        perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
+                        pipsWaitingOnResources: pipsWaitingOnResources,
+                        procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
+                        procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
+                        procsFailed: m_processStateCountersSnapshot[PipState.Failed],
+                        procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
 
-                    // This uses a seemingly peculiar calculation to make sure it makes sense regardless of whether pipelining
-                    // is on or not. Pending is an intentionally invented state since it doesn't correspond to a real state
-                    // in the scheduler. It is basically meant to be a bucket of things that could be run if more parallelism
-                    // were available. This technically isn't true because cache lookups fall in there as well, but it's close enough.
-                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.RunningPipExecutorProcesses.Count,
-                    procsWaiting: m_processStateCountersSnapshot[PipState.Waiting],
-                    procsCacheHit: m_numProcessPipsSatisfiedFromCache,
-                    procsNotIgnored: m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot.IgnoredCount,
-                    limitingResource: limitingResource.ToString(),
-                    perfInfoForLog: m_perfInfo.LogResourceSummary,
-                    overwriteable: overwriteable,
-                    copyFileDone: copyFileStats.DoneCount,
-                    copyFileNotDone: copyFileStats.Total - copyFileStats.DoneCount - copyFileStats.IgnoredCount,
-                    writeFileDone: writeFileStats.DoneCount,
-                    writeFileNotDone: writeFileStats.Total - writeFileStats.DoneCount - writeFileStats.IgnoredCount);
+                        // This uses a seemingly peculiar calculation to make sure it makes sense regardless of whether pipelining
+                        // is on or not. Pending is an intentionally invented state since it doesn't correspond to a real state
+                        // in the scheduler. It is basically meant to be a bucket of things that could be run if more parallelism
+                        // were available. This technically isn't true because cache lookups fall in there as well, but it's close enough.
+                        procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.RunningPipExecutorProcesses.Count,
+                        procsWaiting: m_processStateCountersSnapshot[PipState.Waiting],
+                        procsCacheHit: m_numProcessPipsSatisfiedFromCache,
+                        procsNotIgnored: m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot.IgnoredCount,
+                        limitingResource: limitingResource.ToString(),
+                        perfInfoForLog: m_perfInfo.LogResourceSummary,
+                        overwriteable: overwriteable,
+                        copyFileDone: copyFileStats.DoneCount,
+                        copyFileNotDone: copyFileStats.Total - copyFileStats.DoneCount - copyFileStats.IgnoredCount,
+                        writeFileDone: writeFileStats.DoneCount,
+                        writeFileNotDone: writeFileStats.Total - writeFileStats.DoneCount - writeFileStats.IgnoredCount);
+                }
 
                 // Number of process pips that are not completed yet.
                 long numProcessPipsPending = m_processStateCountersSnapshot[PipState.Waiting] + m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running];

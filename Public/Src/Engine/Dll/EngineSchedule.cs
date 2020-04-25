@@ -117,6 +117,8 @@ namespace BuildXL.Engine
 
         private CancellableTimedAction m_updateStatusAction;
 
+        private const int UpdateStatusIntervalMs = 2000;
+
         private EngineSchedule(
             EngineContext context,
             FileContentTable fileContentTable,
@@ -1403,8 +1405,7 @@ namespace BuildXL.Engine
             Justification = "Dispose is indeed being called on the Timer object, not just the Dispose method FxCop expects")]
         internal bool ExecuteScheduledPips(
             LoggingContext loggingContext,
-            WorkerService workerService,
-            ILoggingConfiguration loggingConfiguration)
+            WorkerService workerService)
         {
             LogDiskFreeSpace(loggingContext, executionStart: true);
 
@@ -1413,11 +1414,10 @@ namespace BuildXL.Engine
             Scheduler.Start(loggingContext);
 
             bool success = true;
-            int timerPeriodMs = GetTimerPeriodInMsForExecutionStatus(loggingConfiguration);
 
             m_updateStatusAction = new CancellableTimedAction(
-                () => Scheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: timerPeriodMs),
-                timerPeriodMs,
+                () => Scheduler.UpdateStatus(overwriteable: true, expectedCallbackFrequency: UpdateStatusIntervalMs),
+                UpdateStatusIntervalMs,
                 "SchedulerUpdateStatus");
 
             m_updateStatusAction.Start();
@@ -1444,14 +1444,6 @@ namespace BuildXL.Engine
             PipTable.WhenDone().Wait();
 
             return success;
-        }
-
-        private static int GetTimerPeriodInMsForExecutionStatus(ILoggingConfiguration loggingConfiguration)
-        {
-            // If ResourceSamplingFrequencyMs is passed by the user, use it as timer period.
-            return loggingConfiguration.StatusFrequencyMs != 0
-                ? loggingConfiguration.StatusFrequencyMs
-                : loggingConfiguration.GetTimerUpdatePeriodInMs();
         }
 
         private static void LogDiskFreeSpace(LoggingContext loggingContext, bool executionStart)

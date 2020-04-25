@@ -1965,8 +1965,7 @@ namespace BuildXL.Engine
                                             "PhaseLoggingContext's root context doesn't match pm's root.");
                                         success &= engineSchedule.ExecuteScheduledPips(
                                             executePhaseLoggingContext,
-                                            workerservice,
-                                            Configuration.Logging);
+                                            workerservice);
                                         ValidateSuccessMatches(success, engineLoggingContext);
                                     }
                                 }

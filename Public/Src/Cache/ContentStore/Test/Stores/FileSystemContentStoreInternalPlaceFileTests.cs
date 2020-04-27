@@ -15,6 +15,8 @@ using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Native.IO;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
@@ -331,6 +333,38 @@ namespace ContentStoreTest.Stores
                         await store.ShutdownAsync(context).ShouldBeSuccess();
                     }
                 }
+            }
+        }
+
+        [Fact]
+        public async Task RecoverFromFailedHardlink()
+        {
+            // Checks that if some content has allow attribute write set to false, we'll set it to true and succeed hardlinks.
+
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+                var store = Create(testDirectory.Path, _clock);
+
+                await store.StartupAsync(context).ShouldBeSuccess();
+
+                var putResult = await store.PutRandomAsync(context, ValueSize).ShouldBeSuccess();
+                var pathInCache = store.GetPrimaryPathFor(putResult.ContentHash);
+
+                FileSystem.DenyAttributeWrites(pathInCache);
+
+                var placeResult = await store.PlaceFileAsync(
+                    context,
+                    putResult.ContentHash,
+                    destinationPath: testDirectory.CreateRandomFileName(),
+                    FileAccessMode.ReadOnly,
+                    FileReplacementMode.FailIfExists,
+                    FileRealizationMode.HardLink,
+                    pinRequest: null).ShouldBeSuccess();
+
+                placeResult.Code.Should().Be(PlaceFileResult.ResultCode.PlacedWithHardLink);
+
+                await store.ShutdownAsync(context).ShouldBeSuccess();
             }
         }
     }

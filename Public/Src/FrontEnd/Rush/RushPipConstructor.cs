@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
@@ -46,7 +47,14 @@ namespace BuildXL.FrontEnd.Rush
         private readonly ConcurrentDictionary<RushProject, ProcessOutputs> m_processOutputsPerProject = new ConcurrentDictionary<RushProject, ProcessOutputs>();
 
         private readonly ConcurrentBigMap<RushProject, IReadOnlySet<RushProject>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<RushProject, IReadOnlySet<RushProject>>();
-        
+
+        /// <summary>
+        /// Base directory where all rush logs are located
+        /// </summary>
+        internal static AbsolutePath LogDirectoryBase(IConfiguration configuration, PathTable pathTable) => configuration.Layout.OutputDirectory
+                .Combine(pathTable, "Logs")
+                .Combine(pathTable, "Rush");
+
         /// <nodoc/>
         public RushPipConstructor(
             FrontEndContext context,
@@ -226,8 +234,10 @@ namespace BuildXL.FrontEnd.Rush
                 {
                     processBuilder.AddInputDirectory(output.Root);
                 }
-                // Add all known output files
-                foreach (FileArtifact output in processOutputs.GetOutputFiles())
+                
+                // Add all known output files, but exclude logs
+                foreach (FileArtifact output in processOutputs.GetOutputFiles()
+                    .Where(fa => !fa.Path.IsWithin(m_context.PathTable, LogDirectoryBase(m_frontEndHost.Configuration, m_context.PathTable))))
                 {
                     processBuilder.AddInputFile(output);
                 }
@@ -409,9 +419,7 @@ namespace BuildXL.FrontEnd.Rush
             // We hardcode the log to go under the output directory Logs/Rush (and follow the project structure underneath)
             // The 'official' log directory (defined by Configuration.Logging) is not stable in CloudBuild across machines, and therefore it would
             // introduce cache misses
-            var result = m_frontEndHost.Configuration.Layout.OutputDirectory
-                .Combine(PathTable, "Logs")
-                .Combine(PathTable, "Rush")
+            var result = LogDirectoryBase(m_frontEndHost.Configuration, m_context.PathTable)
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot)
                 .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.Name))
                 .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.ScriptCommandName));

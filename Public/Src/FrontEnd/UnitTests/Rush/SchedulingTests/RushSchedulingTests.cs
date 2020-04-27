@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Linq;
+using BuildXL.FrontEnd.Rush;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -90,6 +91,24 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             // The script name should be part of the process tags
             XAssert.Contains(processTags, StringId.Create(StringTable, "some-script"));
+        }
+
+        [Fact]
+        public void LogFilesAreNotADependency()
+        {
+            var project1 = CreateRushProject();
+            var project2 = CreateRushProject(dependencies: new[] { project1 });
+
+            var result = Start()
+                .Add(project1)
+                .Add(project2)
+                .ScheduleAll();
+                
+            var dependencies = result.RetrieveSuccessfulProcess(project2).Dependencies;
+                
+            // None of the dependencies should be under the log directory
+            XAssert.IsTrue(dependencies.All(dep => 
+                !dep.Path.IsWithin(PathTable, RushPipConstructor.LogDirectoryBase(result.Configuration, PathTable))));
         }
     }
 }

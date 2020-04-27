@@ -115,7 +115,7 @@ namespace Test.DScript.Ast.Scheduling
                     schedulingResults[rushProject] = (result.Succeeded, result.Succeeded? null : result.Failure.Describe(), result.Succeeded? result.Result : null);
                 }
 
-                return new SchedulingResult<TProject>(controller.PipGraph, schedulingResults);
+                return new SchedulingResult<TProject>(controller.PipGraph, schedulingResults, controller.Configuration);
             }
         }
 

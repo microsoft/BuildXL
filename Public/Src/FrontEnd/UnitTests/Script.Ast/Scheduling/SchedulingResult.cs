@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Utilities.FormattableStringEx;
 
@@ -19,17 +20,24 @@ namespace Test.DScript.Ast.Scheduling
         private readonly Dictionary<TProject, (bool success, string failureDetail, Process process)> m_schedulingResult;
 
         /// <summary>
+        /// The configuration that was used for scheduling
+        /// </summary>
+        public IConfiguration Configuration { get; }
+
+        /// <summary>
         /// The scheduled graph
         /// </summary>
         public IMutablePipGraph PipGraph { get; }
 
         /// <nodoc/>
-        internal SchedulingResult(IMutablePipGraph pipGraph, Dictionary<TProject, (bool, string, Process)> schedulingResult)
+        internal SchedulingResult(IMutablePipGraph pipGraph, Dictionary<TProject, (bool, string, Process)> schedulingResult, IConfiguration configuration)
         {
-            Contract.Requires(schedulingResult != null);
+            Contract.RequiresNotNull(schedulingResult);
+            Contract.RequiresNotNull(configuration);
 
             PipGraph = pipGraph;
             m_schedulingResult = schedulingResult;
+            Configuration = configuration;
         }
 
         /// <summary>

@@ -127,7 +127,7 @@ namespace BuildXL.Native.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.SandboxedProcessExecutor,
-            Message = "[{pipDescription}] AccessViolationException is occurred in Detours. AnyInjectionFailure: {anyInjectionFailure}")]
-        public abstract void DetouredProcessAccessViolationException(LoggingContext context, string pipDescription, bool anyInjectionFailure);
+            Message = "[{pipDescription}] AccessViolationException is occurred in Detours.")]
+        public abstract void DetouredProcessAccessViolationException(LoggingContext context, string pipDescription);
     }
 }

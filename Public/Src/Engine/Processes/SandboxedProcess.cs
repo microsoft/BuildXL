@@ -407,7 +407,7 @@ namespace BuildXL.Processes
                 }
                 catch (AccessViolationException)
                 {
-                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports?.PipDescription ?? "", detouredProcess.HasDetoursInjectionFailures);
+                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports?.PipDescription ?? "");
                     throw;
                 }
                 finally

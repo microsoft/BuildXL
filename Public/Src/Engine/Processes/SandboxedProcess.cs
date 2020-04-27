@@ -24,6 +24,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
 using Microsoft.Win32.SafeHandles;
+using static BuildXL.Interop.Windows.Memory;
+using static BuildXL.Utilities.OperatingSystemHelper;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 #endif
@@ -407,7 +409,19 @@ namespace BuildXL.Processes
                 }
                 catch (AccessViolationException)
                 {
-                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, m_reports?.PipDescription ?? "");
+                    int ramPercent = 0, availableRamMb = 0, availablePageFileMb = 0, totalPageFileMb = 0;
+
+                    MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+                    if (GlobalMemoryStatusEx(memoryStatusEx))
+                    {
+                        ramPercent = (int)memoryStatusEx.dwMemoryLoad;
+                        availableRamMb = new FileSize(memoryStatusEx.ullAvailPhys).MB;
+                        availablePageFileMb = new FileSize(memoryStatusEx.ullAvailPageFile).MB;
+                        totalPageFileMb = new FileSize(memoryStatusEx.ullTotalPageFile).MB;
+                    }
+
+                    string memUsage = $"RamPercent: {ramPercent}, AvailableRamMb: {availableRamMb}, AvailablePageFileMb: {availablePageFileMb}, TotalPageFileMb: {totalPageFileMb}";
+                    Native.Tracing.Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, (m_reports?.PipDescription ?? "") + " - " + memUsage);
                     throw;
                 }
                 finally

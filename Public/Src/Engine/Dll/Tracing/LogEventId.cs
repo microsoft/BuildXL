@@ -70,6 +70,8 @@ namespace BuildXL.Engine.Tracing
         PostponingDeletionOfSharedOpaqueOutputs = 872,
         DeletingOutputsFromExtraneousSidebandFilesStarted = 873,
 
+        ScrubbingCancelled = 880,
+
         ConfigUnsafeDisabledFileAccessMonitoring = 900,
         ConfigUnsafeIgnoringChangeJournal = 901,
         ConfigUnsafeUnexpectedFileAccessesAsWarnings = 902,

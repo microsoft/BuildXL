@@ -24,6 +24,7 @@ using Xunit.Abstractions;
 using Mount=BuildXL.Utilities.Configuration.Mutable.Mount;
 using BuildXL.Processes;
 using BuildXL.Utilities.Collections;
+using BuildXL.Engine.Tracing;
 
 namespace Test.BuildXL.Engine
 {
@@ -33,6 +34,8 @@ namespace Test.BuildXL.Engine
 
         private DirectoryScrubber Scrubber { get; }
 
+        private CancellationTokenSource m_cancellationTokenSource { get; }
+
         public MountScrubberTests(ITestOutputHelper output)
             : base(output)
         {
@@ -41,8 +44,9 @@ namespace Test.BuildXL.Engine
             RegisterEventSource(global::BuildXL.Pips.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
 
+            m_cancellationTokenSource = new CancellationTokenSource();
             Scrubber = new DirectoryScrubber(
-               new CancellationToken(),
+               m_cancellationTokenSource.Token,
                LoggingContext,
                m_loggingConfiguration,
                maxDegreeParallelism: 2);
@@ -289,7 +293,7 @@ namespace Test.BuildXL.Engine
         public void DeleteFilesCanDeleteFile()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
-            
+
             string fullFilePath = WriteFile(Path.Combine(rootDir, "out.txt"));
             XAssert.IsTrue(File.Exists(fullFilePath));
 
@@ -297,6 +301,51 @@ namespace Test.BuildXL.Engine
 
             XAssert.IsFalse(File.Exists(fullFilePath));
             XAssert.AreEqual(1, numDeleted);
+        }
+
+        [Fact]
+        public void DeleteFilesCancellationDoesNotCrash()
+        {
+            const int FileDeletionsAllowed = 2;
+            var testHook = new DirectoryScrubber.TestHooks
+            {
+                OnDeletion = new Action<string, int>((path, numDeletedSoFar) =>
+                {
+                    if (numDeletedSoFar > FileDeletionsAllowed) { m_cancellationTokenSource.Cancel(); }
+                })
+            };
+
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
+
+            List<string> files = new List<string>();
+
+            for (var i = 0; i < FileDeletionsAllowed * 3; i++)
+            {
+                string fullFilePath = WriteFile(Path.Combine(rootDir, $"out{i}.txt"));
+                XAssert.FileExists(fullFilePath);
+                files.Add(fullFilePath);
+            }
+
+            XAssert.IsFalse(m_cancellationTokenSource.IsCancellationRequested);
+
+            var numDeleted = Scrubber.DeleteFiles(files.ToArray(), testHook: testHook);
+            XAssert.IsTrue(m_cancellationTokenSource.IsCancellationRequested);
+            XAssert.Equals(FileDeletionsAllowed, numDeleted);
+        }
+
+        [Fact]
+        public void DeleteFilesWithPreExistingCancellationDoesNotCrash()
+        {
+            string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesCanDeleteFile));
+
+            string fullFilePath = WriteFile(Path.Combine(rootDir, "out.txt"));
+            XAssert.FileExists(fullFilePath);
+
+            m_cancellationTokenSource.Cancel();
+            var numDeleted = Scrubber.DeleteFiles(new[] { fullFilePath });
+
+            XAssert.FileExists(fullFilePath);
+            XAssert.AreEqual(0, numDeleted);
         }
 
         [TheoryIfSupported(requiresSymlinkPermission: true)]

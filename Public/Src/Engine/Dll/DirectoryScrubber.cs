@@ -410,7 +410,10 @@ namespace BuildXL.Engine
         /// Deletion failures are handled gracefully (by logging a warning).
         /// Returns the number of successfully deleted files.
         /// </summary>
-        public int DeleteFiles(IReadOnlyList<string> filePaths, bool logDeletedFiles = true)
+        public int DeleteFiles(
+            IReadOnlyList<string> filePaths, 
+            bool logDeletedFiles = true,
+            TestHooks testHook = null)
         {
             int numRemoved = 0;
             using (var timer = new Timer(
@@ -419,18 +422,27 @@ namespace BuildXL.Engine
                 dueTime: m_loggingConfiguration.GetTimerUpdatePeriodInMs(),
                 period: m_loggingConfiguration.GetTimerUpdatePeriodInMs()))
             {
-                filePaths
+                try
+                {
+                    filePaths
                     .AsParallel()
                     .WithDegreeOfParallelism(m_maxDegreeParallelism)
                     .WithCancellation(m_cancellationToken)
                     .ForAll(path =>
                     {
-                        if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path, logDeletedFiles))
+                        testHook?.OnDeletion?.Invoke(path, numRemoved);
+                        if (!m_cancellationToken.IsCancellationRequested &&
+                            FileUtilities.FileExistsNoFollow(path) &&
+                            TryDeleteFile(m_loggingContext, path, logDeletedFiles))
                         {
                             Interlocked.Increment(ref numRemoved);
                         }
                     });
-                Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Count, numRemoved, 0);
+                    Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Count, numRemoved, 0);
+                }
+                catch (OperationCanceledException) {
+                    Tracing.Logger.Log.ScrubbingCancelled(m_loggingContext, filePaths.Count, numRemoved);
+                }
                 return numRemoved;
             }
         }
@@ -453,6 +465,18 @@ namespace BuildXL.Engine
                 Tracing.Logger.Log.ScrubbingExternalFileOrDirectoryFailed(loggingContext, path, ex.LogEventMessage);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Test hooks for DirectoryScrubber
+        /// </summary>
+        public class TestHooks
+        {
+            /// <summary>
+            /// Method to be called on deletion calls from Unit Tests
+            /// Receives file path as a string and number of files already removed as inputs
+            /// </summary>
+            public Action<string, int> OnDeletion { get; set; }
         }
     }
 }

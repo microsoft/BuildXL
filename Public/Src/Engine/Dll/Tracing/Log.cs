@@ -1910,6 +1910,16 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingFinished(LoggingContext context, int directoryCount, int totalFiles, int deletedFiles, int deletedDirectoriesRecursively);
 
         [GeneratedEvent(
+            (int)LogEventId.ScrubbingCancelled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Stop,
+            Message = EventConstants.PhasePrefix + "Scrubbing cancelled by cancellation token. Cancellation was triggered after {deletedFiles} out of {totalFiles} files were deleted.")]
+        public abstract void ScrubbingCancelled(LoggingContext context, int totalFiles, int deletedFiles);
+
+        [GeneratedEvent(
             (int)LogEventId.ScrubbingStatus,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

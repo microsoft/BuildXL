@@ -225,7 +225,7 @@ namespace BuildXL.SandboxedProcessExecutor
             info.StandardOutputObserver = m_outputErrorObserver.ObserveStandardOutputForWarning;
             info.StandardErrorObserver = m_outputErrorObserver.ObserveStandardErrorForWarning;
 
-            if (!TryPrepareTemporaryFolders(info))
+            if (!TryPrepareWorkingDirectory(info) || !TryPrepareTemporaryFolders(info))
             {
                 return false;
             }
@@ -266,6 +266,24 @@ namespace BuildXL.SandboxedProcessExecutor
             throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status:X}, Description: {description}), please reload the extension and retry.");
         }
 
+        private bool TryPrepareWorkingDirectory(SandboxedProcessInfo info)
+        {
+            if (!Directory.Exists(info.WorkingDirectory))
+            {
+                try
+                {
+                    FileUtilities.CreateDirectory(info.WorkingDirectory);
+                }
+                catch (BuildXLException e)
+                {
+                    m_logger.LogError($"Failed to prepare temporary folder '{info.WorkingDirectory}': {e.ToStringDemystified()}");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private bool TryPrepareTemporaryFolders(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
@@ -289,16 +307,19 @@ namespace BuildXL.SandboxedProcessExecutor
 
             foreach (var tmpEnvVar in BuildParameters.DisallowedTempVariables)
             {
-                string tempPath = info.EnvironmentVariables[tmpEnvVar];
+                if (info.EnvironmentVariables.ContainsKey(tmpEnvVar))
+                {
+                    string tempPath = info.EnvironmentVariables[tmpEnvVar];
 
-                try
-                {
-                    FileUtilities.CreateDirectory(tempPath);
-                }
-                catch (BuildXLException e)
-                {
-                    m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
-                    return false;
+                    try
+                    {
+                        FileUtilities.CreateDirectory(tempPath);
+                    }
+                    catch (BuildXLException e)
+                    {
+                        m_logger.LogError($"Failed to prepare temporary folder '{tempPath}': {e.ToStringDemystified()}");
+                        return false;
+                    }
                 }
             }
 

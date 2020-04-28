@@ -83,14 +83,11 @@ namespace BuildXL.Scheduler.Tracing
                     using (await concurrencyLimiter.AcquireAsync())
                     {
                         var filePath = path.Combine(pathTable, name);
+                        ExpandedAbsolutePath expandedFilePath = filePath.Expand(pathTable);
+
                         var storeResult = await cache.ArtifactContentCache.TryStoreAsync(
                             FileRealizationMode.Copy,
-                            filePath.Expand(pathTable));
-
-                        if (storeResult.Succeeded)
-                        {
-                            Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
-                        }
+                            expandedFilePath);
 
                         var result = storeResult.Then(result => new StringKeyedHash()
                         {
@@ -98,7 +95,15 @@ namespace BuildXL.Scheduler.Tracing
                             ContentHash = result.ToBondContentHash()
                         });
 
-                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, I($"Saving fingerprint store to cache: Success='{storeResult.Succeeded}', FilePath='{filePath}' Key='{result.Result.Key}' Hash='{result.Result.ContentHash.ToContentHash()}'"));
+                        string message = I($"Saving fingerprint store to cache: Success='{result.Succeeded}', FilePath='{expandedFilePath}'");
+
+                        if (result.Succeeded)
+                        {
+                            Interlocked.Add(ref size.Value, new FileInfo(filePath.ToString(pathTable)).Length);
+                            message += I($", Key='{result.Result.Key}', Hash='{result.Result.ContentHash.ToContentHash()}'");
+                        }
+
+                        Logger.Log.GettingFingerprintStoreTrace(loggingContext, message);
                         return result;
                     }
                 });

@@ -11,10 +11,14 @@ config({
         ...globR(d`Public/Sdk/UnitTests`, "module.config.dsc"),
         ...globR(d`Private/Wdg`, "module.config.dsc"),
         ...globR(d`Private/QTest`, "module.config.dsc"),
-        ...globR(d`Private/CloudTest`, "module.config.dsc"),
         ...globR(d`Private/InternalSdk`, "module.config.dsc"),
         ...globR(d`Private/Tools`, "module.config.dsc"),
         ...globR(d`Public/Sdk/SelfHost`, "module.config.dsc"),
+
+        // Internal only modules
+        ...addIf(importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal,
+           ...globR(d`Private/CloudTest`, "module.config.dsc")
+        ),
     ],
 
     frontEnd: {

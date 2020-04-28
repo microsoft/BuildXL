@@ -221,24 +221,7 @@ export interface TestRunArguments {
          * this is an optional settings for executing the test processs to 
          * allow for overidding the process execution settings
          * */
-        exec?: {
-            /** Tools dependencies. */
-            dependencies?: Transformer.InputArtifact[];
-            /** Tool outputs */
-            outputs?: Transformer.Output[];
-            /** Regex that would be used to extract errors from the output. */
-            errorRegex?: string;
-            /** Regex that would be used to extract warnings from the output. */
-            warningRegex?: string;
-            /** Environment variables. */
-            environmentVariables?: Transformer.EnvironmentVariable[];
-            /** Unsafe arguments */
-            unsafe?: Transformer.UnsafeExecuteArguments;
-            /** Mutexes to avoid running certain tests simultaneously */
-            acquireMutexes?: string[];
-            /** Semaphores to acquire when running tests */
-            acquireSemaphores?: Transformer.SemaphoreInfo[];
-        };
+        exec?: Transformer.ExecuteArgumentsComposible;
 
         /**
          * Some test frameworks might want to wrap other test runners

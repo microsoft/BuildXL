@@ -383,6 +383,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "GvfsTestHelpersForBuildXL",
+          "Version": "0.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "ILRepack",
           "Version": "2.0.16"
         }

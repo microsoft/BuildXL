@@ -41,6 +41,9 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Symbol.App.Core", version: "18.163.29708-buildid11260482", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
     { id: "Symbol.Client", version: "18.163.29708-buildid11260482", dependentPackageIdsToSkip: ["*"] },
 
+    // CloudTest internal dependencies
+    { id: "GvfsTestHelpersForBuildXL", version: "0.1.0"},
+
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "13.3.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0", osSkip: [ "macOS", "unix" ] },

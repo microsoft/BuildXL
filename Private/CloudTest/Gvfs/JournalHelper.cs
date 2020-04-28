@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeJournalService;
@@ -18,18 +20,25 @@ namespace BuildXL.CloudTest.Gvfs
     {
         public string WorkingFolder {get;}
 
-        private readonly FileChangeTrackingSet m_changeTracker;
+        public string TestFolder {get;}
 
-        private readonly IChangeJournalAccessor m_journal;
+        private FileChangeTrackingSet m_changeTracker;
+
+        private IChangeJournalAccessor m_journal;
 
         private List<ChangedPathInfo> m_changes = new List<ChangedPathInfo>();
 
         public JournalHelper()
         {
+            TestFolder = Path.GetDirectoryName(Assembly.GetAssembly(typeof(JournalHelper)).Location);
+
             WorkingFolder = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), Guid.NewGuid().ToString());
             var workingRoot = Path.GetPathRoot(WorkingFolder);
             Directory.CreateDirectory(WorkingFolder);
+        }
 
+        public void StartTracking()
+        {
             var loggingContext = new LoggingContext("JournalTesting", "Dummy");
 
             VolumeMap volumeMap = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
@@ -46,8 +55,18 @@ namespace BuildXL.CloudTest.Gvfs
             );
         }
 
+        public virtual string GetPath(string path)
+        {
+            return Path.Combine(WorkingFolder, path);
+        }
+
         public void TrackPath(string path)
         {
+            if (m_changeTracker == null)
+            {
+                StartTracking();
+            }
+
             Analysis.IgnoreResult(m_changeTracker.TryProbeAndTrackPath(path));
         }
 
@@ -61,11 +80,12 @@ namespace BuildXL.CloudTest.Gvfs
 
         public void SnapCheckPoint(int? nrOfExpectedOperations = null)
         {
+            XAssert.IsNotNull(m_changeTracker);
+            
             m_changes.Clear();
             using (m_changeTracker.Subscribe(this))
             {
-                // $REview: @Iman: Why does default null not mean infinite, I constatly get timeout errors...
-                var result = m_changeTracker.TryProcessChanges(m_journal, TimeSpan.FromMinutes(1));
+                var result = m_changeTracker.TryProcessChanges(m_journal, null);
                 XAssert.IsTrue(result.Succeeded);
             }
             
@@ -80,11 +100,21 @@ namespace BuildXL.CloudTest.Gvfs
             AssertOperation(new ChangedPathInfo(filePath, PathChanges.NewlyPresentAsFile));
         }
 
+        public void AssertChangeFile(string filePath)
+        {
+            AssertOperation(new ChangedPathInfo(filePath, PathChanges.DataOrMetadataChanged));
+        }
+
+        public void AssertDeleteFile(string filePath)
+        {
+            AssertOperation(new ChangedPathInfo(filePath, PathChanges.Removed));
+        }
+
         private void AssertOperation(ChangedPathInfo expectedChange)
         {
             if (!m_changes.Remove(expectedChange))
             {
-                XAssert.Fail(GetChangeReport($"Expected to find change {expectedChange.Path} -- {expectedChange.PathChanges.ToString()}"));
+                XAssert.Fail(GetChangeReport($"Expected to find change {PrintChange(expectedChange)}"));
             }
         }
 
@@ -105,6 +135,11 @@ namespace BuildXL.CloudTest.Gvfs
             {
                 XAssert.Fail(GetChangeReport($"Encountered {m_changes.Count} unexpected changes:"));
             }
+        }
+
+        private string PrintChange(ChangedPathInfo change)
+        {
+            return $"{change.Path} -- {change.PathChanges.ToString()}";
         }
 
         void IObserver<ChangedPathInfo>.OnCompleted()

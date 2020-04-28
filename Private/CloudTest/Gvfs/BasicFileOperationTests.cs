@@ -9,18 +9,18 @@ namespace BuildXL.CloudTest.Gvfs
 {
     public class BasicFileOperationTests
     {
+        /// <summary>
+        /// This test is a smoke test for the journal code
+        /// </summary>
         [Fact]
-        public void EditFile()
+        public void CreateFile()
         {
             using (var helper = new JournalHelper())
             {
-                var filePath = Path.Combine(helper.WorkingFolder, "a.txt");
-                
+                var filePath = helper.GetPath("a.txt");
+
                 // Track
                 helper.TrackPath(filePath);
-                // $REview: @Iman: Why does tracking a non-existent file require adding the parent folder?
-                // If this is true, I'll implement it in the helper
-                helper.TrackPath(helper.WorkingFolder);
 
                 // Do
                 File.WriteAllText(filePath, "hi");
@@ -31,5 +31,46 @@ namespace BuildXL.CloudTest.Gvfs
             }
             
         }
+
+        public void EditFile()
+        {
+            using (var helper = new JournalHelper())
+            {
+                var filePath = helper.GetPath("a.txt");
+                File.WriteAllText(filePath, "hi-old"); 
+
+                // Track
+                helper.TrackPath(filePath);
+
+                // Do
+                File.WriteAllText(filePath, "hi");
+
+                // Check
+                helper.SnapCheckPoint();
+                helper.AssertChangeFile(filePath);
+            }
+            
+        }
+
+        public void DeleteFile()
+        {
+            using (var helper = new JournalHelper())
+            {
+                var filePath = helper.GetPath("a.txt");
+                File.WriteAllText(filePath, "hi-old"); 
+
+                // Track
+                helper.TrackPath(filePath);
+
+                // Do
+                File.WriteAllText(filePath, "hi");
+
+                // Check
+                helper.SnapCheckPoint();
+                helper.AssertDeleteFile(filePath);
+            }
+            
+        }
+
     }
 }

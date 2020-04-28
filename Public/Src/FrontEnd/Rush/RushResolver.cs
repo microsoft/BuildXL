@@ -8,6 +8,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Evaluation;
@@ -209,23 +211,35 @@ namespace BuildXL.FrontEnd.Rush
                 return Task.FromResult<bool?>(null);
             }
             
-            var package = FrontEndUtilities.CreatePackage(module.Definition, m_context.StringTable);
+            var exportsFileModule = ModuleLiteral.CreateFileModule(
+                    m_rushWorkspaceResolver.ExportsFile,
+                    moduleRegistry,
+                    FrontEndUtilities.CreatePackage(module.Definition, m_context.StringTable),
+                    module.Specs[m_rushWorkspaceResolver.ExportsFile].LineMap);
 
             // For each symbol defined in the rush resolver settings for exports, add all specified project outputs
             int pos = 1;
             foreach(var export in Exports)
             {
-                FrontEndUtilities.AddEvaluationCallbackToModuleRegistry(
-                    module.Specs[m_rushWorkspaceResolver.ExportsFile],
-                    (context, moduleLiteral, evaluationStackFrame) =>  CollectProjectOutputsAsync(module.Definition.Specs, moduleLiteral.Qualifier.QualifierId, export),
-                    moduleRegistry,
-                    package,
+                FrontEndUtilities.AddEvaluationCallbackToFileModule(
+                    exportsFileModule,
+                    (context, moduleLiteral, evaluationStackFrame) => 
+                        CollectProjectOutputsAsync(module.Definition.Specs, moduleLiteral.Qualifier.QualifierId, export),
                     export.FullSymbol,
-                    pos,
-                    m_context);
+                    pos);
                 
                 pos += 2;
             }
+
+            var moduleInfo = new UninstantiatedModuleInfo(
+                // We can register an empty one since we have the module populated properly
+                new SourceFile(
+                    m_rushWorkspaceResolver.ExportsFile,
+                    new Declaration[] {}),
+                exportsFileModule,
+                m_context.QualifierTable.EmptyQualifierSpaceId);
+
+            moduleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
 
             return Task.FromResult<bool?>(true);
         }

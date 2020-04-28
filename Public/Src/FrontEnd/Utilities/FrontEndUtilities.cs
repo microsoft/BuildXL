@@ -351,23 +351,14 @@ namespace BuildXL.FrontEnd.Utilities
         /// Useful for programmatically executing customized evaluation for non-DScript
         /// resolvers
         /// </remarks>
-        public static void AddEvaluationCallbackToModuleRegistry(
-            ISourceFile sourceFile,
+        public static void AddEvaluationCallbackToFileModule(
+            FileModuleLiteral fileModule,
             Func<Context, ModuleLiteral, EvaluationStackFrame,Task<EvaluationResult>> evaluationCallback,
-            IModuleRegistry moduleRegistry,
-            Package package,
             FullSymbol symbol,
-            int position,
-            FrontEndContext context)
+            int position)
         {
-            var sourceFilePath = sourceFile.GetAbsolutePath(context.PathTable);
-
-            var currentFileModule = ModuleLiteral.CreateFileModule(
-                    sourceFilePath,
-                    moduleRegistry,
-                    package,
-                    sourceFile.LineMap);
-
+            var sourceFilePath = fileModule.Path;
+            
             var outputResolvedEntry = new ResolvedEntry(
                 symbol,
                 (Context context, ModuleLiteral env, EvaluationStackFrame args) => evaluationCallback(context, env, args),
@@ -376,20 +367,8 @@ namespace BuildXL.FrontEnd.Utilities
                 TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(0, position)
             );
 
-            currentFileModule.AddResolvedEntry(symbol, outputResolvedEntry);
-            currentFileModule.AddResolvedEntry(new FilePosition(position, sourceFilePath), outputResolvedEntry);
-
-            var moduleInfo = new UninstantiatedModuleInfo(
-                // We can register an empty one since we have the module populated properly
-                new Script.SourceFile(
-                    sourceFilePath,
-                    new Declaration[]
-                    {
-                    }),
-                currentFileModule,
-                context.QualifierTable.EmptyQualifierSpaceId);
-
-            moduleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
+            fileModule.AddResolvedEntry(symbol, outputResolvedEntry);
+            fileModule.AddResolvedEntry(new FilePosition(position, sourceFilePath), outputResolvedEntry);
         }
 
         /// <summary>

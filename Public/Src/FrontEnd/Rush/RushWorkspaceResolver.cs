@@ -60,6 +60,8 @@ namespace BuildXL.FrontEnd.Rush
         
         private IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> m_computedCommands;
 
+        private FullSymbol AllProjectsSymbol { get; set; }
+
         /// <inheritdoc/>
         public RushWorkspaceResolver()
         {
@@ -101,6 +103,7 @@ namespace BuildXL.FrontEnd.Rush
             m_computedCommands = computedCommands;
 
             ExportsFile = m_resolverSettings.Root.Combine(m_context.PathTable, "exports.dsc");
+            AllProjectsSymbol = FullSymbol.Create(m_context.SymbolTable, "all");
 
             return true;
         }
@@ -113,20 +116,34 @@ namespace BuildXL.FrontEnd.Rush
             IReadOnlyCollection<DeserializedRushProject> deserializedProjects,
             out IReadOnlyCollection<ResolvedRushExport> resolvedExports)
         {
-            resolvedExports = CollectionUtilities.EmptyArray<ResolvedRushExport>();
+            // Build dictionaries to speed up subsequent look-ups
+            var nameToDeserializedProjects = deserializedProjects.ToDictionary(kvp => kvp.Name, kvp => kvp);
+            var nameAndCommandToProjects = projects.ToDictionary(kvp => (kvp.Name, kvp.ScriptCommandName), kvp => kvp);
+
+            var exports = new List<ResolvedRushExport>();
+            resolvedExports = exports;
+
+            // Add a baked-in 'all' symbol, with all the scheduled projects
+            exports.Add(new ResolvedRushExport(AllProjectsSymbol,
+                nameAndCommandToProjects.Values.ToList()));
 
             if (m_resolverSettings.Exports == null)
             {
                 return true;
             }
 
-            // Build dictionaries to speed up subsequent look-ups
-            var nameToDeserializedProjects = deserializedProjects.ToDictionary(kvp => kvp.Name, kvp => kvp);
-            var nameAndCommandToProjects = projects.ToDictionary(kvp => (kvp.Name, kvp.ScriptCommandName), kvp => kvp);
-
-            var exports = new List<ResolvedRushExport>();
             foreach (var export in m_resolverSettings.Exports)
             {
+                // The export symbol cannot be one of the reserved ones (which for now is just one: 'all')
+                if (export.SymbolName == AllProjectsSymbol)
+                {
+                    Tracing.Logger.Log.SpecifiedExportIsAReservedName(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        AllProjectsSymbol.ToString(m_context.SymbolTable));
+                    return false;
+                }
+
                 var projectsForSymbol = new List<RushProject>();
 
                 foreach (var project in export.Content)
@@ -209,7 +226,6 @@ namespace BuildXL.FrontEnd.Rush
                 exports.Add(new ResolvedRushExport(export.SymbolName, projectsForSymbol));
             }
 
-            resolvedExports = exports;
             return true;
         }
 

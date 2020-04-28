@@ -139,5 +139,43 @@ import {{exportSymbol}} from 'rushTest';
 
             Assert.True(result.IsSuccess);
         }
+
+        [Fact]
+        public void AllProjectsSymbolIsAlwaysExported()
+        {
+            // Set up a rush resolver side-by-side with a DScript resolver and consume value 'all' 
+            var config =
+                Build(
+                    moduleName: "rushTest",
+                    addDScriptResolver: true)
+               .AddRushProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
+               // Consume 'all' from DScript
+               .AddSpec("import {all} from 'rushTest';")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public void ReservedSymbolIsHandled()
+        {
+            var config =
+                Build(rushExports: $"[{{symbolName: 'all', content: []}}]")
+               .AddRushProject("@ms/project-A", "src/A")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.False(result.IsSuccess);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+            AssertErrorEventLogged(LogEventId.SpecifiedExportIsAReservedName);
+        }
     }
 }

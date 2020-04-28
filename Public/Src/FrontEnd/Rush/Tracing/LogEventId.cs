@@ -31,5 +31,6 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         SpecifiedCommandForExportDoesNotExist = 11714,
         SpecifiedPackageForExportDoesNotExist = 11715,
         RequestedExportIsNotPresent = 11716,
+        SpecifiedExportIsAReservedName = 11717,
     }
 }

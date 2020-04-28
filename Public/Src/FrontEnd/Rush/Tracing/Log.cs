@@ -195,6 +195,16 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
-        public abstract void RequestedExportIsNotPresent(LoggingContext context, Location location, string symbol, string projectName, string scriptCommandName); 
+        public abstract void RequestedExportIsNotPresent(LoggingContext context, Location location, string symbol, string projectName, string scriptCommandName);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.SpecifiedExportIsAReservedName,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "The specified symbol '{symbol}' is a reserved name.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void SpecifiedExportIsAReservedName(LoggingContext context, Location location, string symbol);
     }
 }

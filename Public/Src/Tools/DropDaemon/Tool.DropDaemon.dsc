@@ -89,6 +89,7 @@ export namespace DropDaemon {
             f`Tool.DropDaemonRunner.dsc`,
             f`Tool.DropDaemonRunnerOfficeShim.dsc`,
             f`Tool.DropDaemonInterfaces.dsc`,
+            f`Tool.DropDaemonCloudBuildHelper.dsc`,
             {file: f`LiteralFiles/package.dsc.literal`, targetFileName: a`package.dsc`},
             {file: f`LiteralFiles/package.config.dsc.literal`, targetFileName: a`package.config.dsc`},
             {

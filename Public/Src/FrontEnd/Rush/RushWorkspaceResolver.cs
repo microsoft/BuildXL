@@ -125,7 +125,7 @@ namespace BuildXL.FrontEnd.Rush
 
             // Add a baked-in 'all' symbol, with all the scheduled projects
             exports.Add(new ResolvedRushExport(AllProjectsSymbol,
-                nameAndCommandToProjects.Values.ToList()));
+                nameAndCommandToProjects.Values.Where(rushProject => rushProject.CanBeScheduled()).ToList()));
 
             if (m_resolverSettings.Exports == null)
             {

@@ -29,6 +29,7 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Utilities").Storage.dll,
         importFrom("BuildXL.Tools").ServicePipDaemon.dll,
 
+        importFrom("ItemStore.Shared").pkg,
         importFrom("ArtifactServices.App.Shared").pkg,
         importFrom("ArtifactServices.App.Shared.Cache").pkg,
         importFrom("Microsoft.ApplicationInsights").pkg,

@@ -271,8 +271,8 @@ export function executable(args: Arguments): Managed.Assembly {
                 name: "Newtonsoft.Json",
                 publicKeyToken: "30ad4fe6b2a6aeed",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-11.0.0.0",
-                newVersion: "11.0.0.0",
+                oldVersion: "0.0.0.0-12.0.0.0",
+                newVersion: "12.0.0.0",
             },
             {
                 name: "Microsoft.VstsContentStore",

@@ -32,7 +32,6 @@ namespace BuildXL
     {
         internal const string BuildXlAppServerConfigVariable = "BUILDXL_APP_SERVER_CONFIG";
 
-        [STAThread]
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public static int Main(string[] rawArgs)
         {

@@ -8,7 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
+using BuildXL.Storage.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Storage
@@ -126,6 +128,25 @@ namespace BuildXL.Storage
         {
             s_isInitialized = true;
             HashInfo = HashInfoLookup.Find(hashType);
+
+            if (hashType == HashType.DedupNodeOrChunk || hashType == HashType.DedupNode)
+            {
+                if (DedupNodeHashAlgorithm.IsComChunkerSupported)
+                { 
+                    if (DedupNodeHashAlgorithm.ComChunkerLoadError.Value != null)
+                    {
+                        Logger.Log.ComChunkerFailulre(Events.StaticContext, DedupNodeHashAlgorithm.ComChunkerLoadError.Value.ToString());
+                    }
+                    else
+                    {
+                        Logger.Log.ChunkerType(Events.StaticContext, nameof(ComChunker));
+                    }
+                }
+                else
+                {
+                    Logger.Log.ChunkerType(Events.StaticContext, nameof(ManagedChunker));
+                }
+            }
         }
 
         /// <summary>

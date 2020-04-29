@@ -29,17 +29,12 @@ namespace VstsTest {
             VstsInterfaces.dll,
             Vsts.dll,
 
-            importFrom("Newtonsoft.Json.v10").pkg,
+            importFrom("Newtonsoft.Json").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
-        deploymentOptions: {
-            excludedDeployableItems: [
-            // This code uses newtonsoft v10 but depends transitively on code with the latest version. This needs to use v10, so block deployment of the latest version.
-            importFrom("Newtonsoft.Json").pkg,
-        ]},
         runtimeContent: [
             {
                 subfolder: r`redisServer`,

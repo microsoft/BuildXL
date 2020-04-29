@@ -158,6 +158,12 @@ namespace Tool.DropDaemon
             // create and set up timer for triggering the batch block
             TimeSpan timerInterval = m_config.NagleTime;
             m_batchTimer = new Timer(FlushBatchBlock, null, timerInterval, timerInterval);
+
+            if (m_config.ArtifactLogName != null)
+            {
+                DropAppTraceSource.SingleInstance.SetSourceLevel(System.Diagnostics.SourceLevels.Verbose);
+                Tracer.AddFileTraceListener(Path.Combine(m_config.LogDir, m_config.ArtifactLogName));
+            }
         }
 
         /// <summary>
@@ -257,6 +263,7 @@ namespace Tool.DropDaemon
                 new DropClientTelemetry(ServiceEndpoint, Tracer, enable: m_config.EnableTelemetry),
                 Tracer);
             Interlocked.Add(ref Stats.AuthTimeMs, ElapsedMillis(startTime));
+
             return client;
         }
 
@@ -550,7 +557,7 @@ namespace Tool.DropDaemon
                             relativePath: m_dropItem.RelativeDropPath,
                             fileSize: m_dropItem.FileLength,
                             blobId: m_dropItem.BlobIdentifier),
-                        m_dropItem.FullFilePath);
+                        absolutePath: null); // If we pass it in, the client will actually try to use the file, and we cannot be sure that it has been materialized.
                 }
                 else
                 {

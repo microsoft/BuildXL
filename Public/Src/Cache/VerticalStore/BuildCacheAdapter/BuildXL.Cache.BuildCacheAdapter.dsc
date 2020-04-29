@@ -35,9 +35,6 @@ namespace BuildCacheAdapter {
             BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("WindowsAzure.Storage").pkg,
-        ],
-        runtimeContentToSkip: [
-            importFrom("Newtonsoft.Json.v10").pkg, // CloudStore has to rely on NewtonSoft.Json version 10. BuildXL and asp.net core depend on 11.
         ]
     });
 }

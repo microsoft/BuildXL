@@ -52,8 +52,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
             GetMountFunctionName,
             HasMountFunctionName,
             GetTemplateFunctionName,
-            GetBuildEngineDirectoryFunctionName,
-            GetDominoBinDirectoryFunctionName,
             GetLastActiveUseModuleNameFunctionName,
         };
 

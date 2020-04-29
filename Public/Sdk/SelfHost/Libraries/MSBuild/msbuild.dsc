@@ -20,7 +20,7 @@ export const msbuildRuntimeContent = [
     importFrom("Microsoft.Build.Runtime").pkg,
     importFrom("SystemMemoryForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
     importFrom("SystemNumericsVectorsForMSBuild").pkg,
-    importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("SystemRuntimeCompilerServicesUnsafeForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     
     ...BuildXLSdk.isDotNetCoreBuild ? [

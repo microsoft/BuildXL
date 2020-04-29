@@ -9,7 +9,7 @@ using StackExchange.Redis;
 
 namespace ContentStoreTest.Distributed.Redis
 {
-    internal class TestDatabase : IDatabaseAsync, IBatch, IDatabase
+    internal class TestDatabase : IBatch, IDatabase
     {
         private readonly ITestRedisDatabase _testDb;
         private readonly IBatch _testBatch;
@@ -19,6 +19,8 @@ namespace ContentStoreTest.Distributed.Redis
             _testDb = testDb;
             _testBatch = testBatch;
         }
+
+        public long KeyTouch(RedisKey[] keys, CommandFlags flags = CommandFlags.None) => 0;
 
         public int Database => throw new NotImplementedException();
 
@@ -310,6 +312,15 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public global::System.Collections.Generic.IAsyncEnumerable<HashEntry> HashScanAsync(
+            RedisKey key,
+            RedisValue pattern = new RedisValue(),
+            int pageSize = 250,
+            long cursor = 0,
+            int pageOffset = 0,
+            CommandFlags flags = CommandFlags.None) =>
+            throw new NotImplementedException();
+
         public IEnumerable<HashEntry> HashScan(RedisKey key, RedisValue pattern, int pageSize, CommandFlags flags)
         {
             throw new NotImplementedException();
@@ -330,6 +341,8 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public long HashStringLength(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None) => 0;
+
         public Task HashSetAsync(RedisKey key, HashEntry[] hashFields, CommandFlags flags = CommandFlags.None)
         {
             throw new NotImplementedException();
@@ -339,6 +352,8 @@ namespace ContentStoreTest.Distributed.Redis
         {
             return _testDb.HashSetAsync(key, hashField, value, when, flags);
         }
+
+        public Task<long> HashStringLengthAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None) => null;
 
         public RedisValue[] HashValues(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
@@ -1265,6 +1280,24 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public global::System.Collections.Generic.IAsyncEnumerable<RedisValue> SetScanAsync(
+            RedisKey key,
+            RedisValue pattern = new RedisValue(),
+            int pageSize = 250,
+            long cursor = 0,
+            int pageOffset = 0,
+            CommandFlags flags = CommandFlags.None) =>
+            throw new NotImplementedException();
+
+        public global::System.Collections.Generic.IAsyncEnumerable<SortedSetEntry> SortedSetScanAsync(
+            RedisKey key,
+            RedisValue pattern = new RedisValue(),
+            int pageSize = 250,
+            long cursor = 0,
+            int pageOffset = 0,
+            CommandFlags flags = CommandFlags.None) =>
+            throw new NotImplementedException();
+
         public IEnumerable<SortedSetEntry> SortedSetScan(RedisKey key, RedisValue pattern, int pageSize, CommandFlags flags)
         {
             throw new NotImplementedException();
@@ -1370,10 +1403,20 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public bool StreamCreateConsumerGroup(RedisKey key, RedisValue groupName, RedisValue? position = null, bool createStream = true, CommandFlags flags = CommandFlags.None) => false;
+
         public Task<bool> StreamCreateConsumerGroupAsync(RedisKey key, RedisValue groupName, RedisValue? position = null, CommandFlags flags = CommandFlags.None)
         {
             throw new NotImplementedException();
         }
+
+        public Task<bool> StreamCreateConsumerGroupAsync(
+            RedisKey key,
+            RedisValue groupName,
+            RedisValue? position = null,
+            bool createStream = true,
+            CommandFlags flags = CommandFlags.None) =>
+            null;
 
         public long StreamDelete(RedisKey key, RedisValue[] messageIds, CommandFlags flags = CommandFlags.None)
         {
@@ -1490,20 +1533,58 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public StreamEntry[] StreamReadGroup(
+            RedisKey key,
+            RedisValue groupName,
+            RedisValue consumerName,
+            RedisValue? position = null,
+            int? count = null,
+            bool noAck = false,
+            CommandFlags flags = CommandFlags.None) =>
+            new StreamEntry[] { };
+
         public RedisStream[] StreamReadGroup(StreamPosition[] streamPositions, RedisValue groupName, RedisValue consumerName, int? countPerStream = null, CommandFlags flags = CommandFlags.None)
         {
             throw new NotImplementedException();
         }
+
+        public RedisStream[] StreamReadGroup(
+            StreamPosition[] streamPositions,
+            RedisValue groupName,
+            RedisValue consumerName,
+            int? countPerStream = null,
+            bool noAck = false,
+            CommandFlags flags = CommandFlags.None) =>
+            new RedisStream[] { };
 
         public Task<StreamEntry[]> StreamReadGroupAsync(RedisKey key, RedisValue groupName, RedisValue consumerName, RedisValue? position = null, int? count = null, CommandFlags flags = CommandFlags.None)
         {
             throw new NotImplementedException();
         }
 
+        public Task<StreamEntry[]> StreamReadGroupAsync(
+            RedisKey key,
+            RedisValue groupName,
+            RedisValue consumerName,
+            RedisValue? position = null,
+            int? count = null,
+            bool noAck = false,
+            CommandFlags flags = CommandFlags.None) =>
+            null;
+
         public Task<RedisStream[]> StreamReadGroupAsync(StreamPosition[] streamPositions, RedisValue groupName, RedisValue consumerName, int? countPerStream = null, CommandFlags flags = CommandFlags.None)
         {
             throw new NotImplementedException();
         }
+
+        public Task<RedisStream[]> StreamReadGroupAsync(
+            StreamPosition[] streamPositions,
+            RedisValue groupName,
+            RedisValue consumerName,
+            int? countPerStream = null,
+            bool noAck = false,
+            CommandFlags flags = CommandFlags.None) =>
+            null;
 
         public long StreamTrim(RedisKey key, int maxLength, bool useApproximateMaxLength = false, CommandFlags flags = CommandFlags.None)
         {
@@ -1727,10 +1808,16 @@ namespace ContentStoreTest.Distributed.Redis
             throw new NotImplementedException();
         }
 
+        public bool KeyTouch(RedisKey key, CommandFlags flags = CommandFlags.None) => false;
+
         public Task<RedisValue> StringSetRangeAsync(RedisKey key, long offset, RedisValue value, CommandFlags flags = CommandFlags.None)
         {
             return _testDb.StringSetRangeAsync(key, offset, value);
         }
+
+        public Task<bool> KeyTouchAsync(RedisKey key, CommandFlags flags = CommandFlags.None) => null;
+
+        public Task<long> KeyTouchAsync(RedisKey[] keys, CommandFlags flags = CommandFlags.None) => null;
 
         public bool TryWait(Task task)
         {

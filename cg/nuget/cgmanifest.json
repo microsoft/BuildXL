@@ -2652,7 +2652,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Pipelines.Sockets.Unofficial",
-          "Version": "2.0.22"
+          "Version": "2.1.6"
         }
       }
     },
@@ -2733,7 +2733,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "StackExchange.Redis",
-          "Version": "2.0.601"
+          "Version": "2.1.30"
         }
       }
     },
@@ -3039,7 +3039,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.PerformanceCounter",
-          "Version": "4.5.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3237,7 +3237,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "4.5.3"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3633,7 +3633,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Runtime.CompilerServices.Unsafe",
-          "Version": "4.5.2"
+          "Version": "4.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.CompilerServices.Unsafe",
+          "Version": "4.7.0"
         }
       }
     },
@@ -4002,7 +4011,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Channels",
-          "Version": "4.5.0"
+          "Version": "4.7.0"
         }
       }
     },

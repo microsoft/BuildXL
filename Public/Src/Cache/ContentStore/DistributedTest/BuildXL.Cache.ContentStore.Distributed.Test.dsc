@@ -51,6 +51,7 @@ namespace DistributedTest {
                 importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
                 importFrom("System.IdentityModel.Tokens.Jwt").pkg
             ),
+            ...redisPackages,
             Distributed.dll,
             ...Distributed.eventHubPackagages,
             UtilitiesCore.dll,
@@ -70,7 +71,6 @@ namespace DistributedTest {
             importFrom("Grpc.Core.Api").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
 
-            importFrom("StackExchange.Redis").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
             importFrom("WindowsAzure.Storage").pkg,

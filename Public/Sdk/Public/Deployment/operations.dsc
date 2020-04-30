@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import {Transformer} from "Sdk.Transformers";
+
 @@public
 export const emptyFlattenedResult : FlattenedResult = {
     flattenedFiles: Map.empty<RelativePath, { file: File, disambiguationData: any }>(),
@@ -112,7 +114,7 @@ function flattenItem(
 
     const contentType = typeof item;
 
-    if (isStaticDirectory(item)) {
+    if (Transformer.isStaticDirectory(item)) {
         return flattenStaticDirectory(item, targetFolder, handleDuplicateFile, currentResult, provenance);
     }
 
@@ -297,22 +299,6 @@ function isRenamedFile(item: DeployableItem) : item is RenamedFile {
 
 function isFile(item:DeployableItem) : item is File {
     return typeof item === "File";
-}
-
-function isStaticDirectory(item:DeployableItem) : item is StaticDirectory {
-    const itemType = typeof item;
-    switch (itemType) {
-        case "FullStaticContentDirectory":
-        case "PartialStaticContentDirectory":
-        case "SourceAllDirectory":
-        case "SourceTopDirectory":
-        case "SharedOpaqueDirectory":
-        case "ExclusiveOpaqueDirectory":
-        case "StaticDirectory":
-            return true;
-        default:
-            false;
-    }
 }
 
 function isNestedDefinition(item:DeployableItem) : item is NestedDefinition {

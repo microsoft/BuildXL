@@ -111,4 +111,24 @@ namespace Transformer {
         /** A regular expression defining the files to be included in the resulting directory. */
         directoryFilteringRegexExpression? : string,
     }
+
+    /**
+     * Returns whether the given item is a static directory or any of its subclasses
+     */
+    @@public
+    export function isStaticDirectory(item) : item is StaticDirectory {
+        const itemType = typeof item;
+        switch (itemType) {
+            case "FullStaticContentDirectory":
+            case "PartialStaticContentDirectory":
+            case "SourceAllDirectory":
+            case "SourceTopDirectory":
+            case "SharedOpaqueDirectory":
+            case "ExclusiveOpaqueDirectory":
+            case "StaticDirectory":
+                return true;
+            default:
+                false;
+        }
+    }
 }

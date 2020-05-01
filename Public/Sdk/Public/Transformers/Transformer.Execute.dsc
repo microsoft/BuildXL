@@ -209,6 +209,12 @@ namespace Transformer {
          * File to write the change affected input list of the pip before it execute.
          */
         changeAffectedInputListWrittenFile?: Path;
+
+        /**
+         * When this option is set to true bxl cannot cancel the pip due to correctness reasons.
+         * Defaults to false. 
+         */
+        uncancellable?: boolean;
     }
 
     @@public

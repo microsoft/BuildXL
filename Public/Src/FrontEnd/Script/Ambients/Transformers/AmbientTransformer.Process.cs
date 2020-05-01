@@ -98,6 +98,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeKeepOutputsWritable;
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
+        private SymbolAtom m_uncancellable;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
         private SymbolAtom m_executeEnableMultiLineErrorScanning;
@@ -239,6 +240,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeKeepOutputsWritable = Symbol("keepOutputsWritable");
             m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
+            m_uncancellable = Symbol("uncancellable");
             m_executeTags = Symbol("tags");
             m_executeServiceShutdownCmd = Symbol("serviceShutdownCmd");
             m_executeServiceFinalizationCmds = Symbol("serviceFinalizationCmds");
@@ -654,6 +656,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_disableCacheLookup) == true)
             {
                 processBuilder.Options |= Process.Options.DisableCacheLookup;
+            }
+
+            // uncancellable flag
+            if (Converter.ExtractOptionalBoolean(obj, m_uncancellable) == true)
+            {
+                processBuilder.Options |= Process.Options.Uncancellable;
             }
 
             // Surviving process settings.

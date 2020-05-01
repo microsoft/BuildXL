@@ -1333,7 +1333,7 @@ namespace BuildXL.Scheduler
             var processMonitoringLogger = new ProcessExecutionMonitoringLogger(operationContext, pip, context, environment.State.ExecutionLog);
 
             // Service related pips cannot be cancelled
-            bool allowResourceBasedCancellation = pip.ServiceInfo == null || pip.ServiceInfo.Kind == ServicePipKind.None;
+            bool allowResourceBasedCancellation = !pip.ProcessOptions.HasFlag(Process.Options.Uncancellable) && (pip.ServiceInfo == null || pip.ServiceInfo.Kind == ServicePipKind.None);
 
             DateTime start;
 

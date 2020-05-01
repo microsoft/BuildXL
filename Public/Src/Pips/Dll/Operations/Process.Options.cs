@@ -147,6 +147,11 @@ namespace BuildXL.Pips.Operations
             /// statically specified inputs are used instead.
             /// </remarks>
             TrustStaticallyDeclaredAccesses = 1 << 16,
+
+            /// <summary>
+            /// When this option is set, the scheduler will not be able to cancel the specified pip for perforance purposes.
+            /// </summary>
+            Uncancellable = 1 << 17,
         }
     }
 }

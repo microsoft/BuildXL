@@ -13,6 +13,8 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace BuildXL.CloudTest.Gvfs
 {
@@ -22,14 +24,17 @@ namespace BuildXL.CloudTest.Gvfs
 
         public string TestFolder {get;}
 
+        public ITestOutputHelper TestOutput { get; }
+
         private FileChangeTrackingSet m_changeTracker;
 
         private IChangeJournalAccessor m_journal;
 
         private List<ChangedPathInfo> m_changes = new List<ChangedPathInfo>();
 
-        public JournalHelper()
+        public JournalHelper(ITestOutputHelper testOutput)
         {
+            TestOutput = testOutput;
             TestFolder = Path.GetDirectoryName(Assembly.GetAssembly(typeof(JournalHelper)).Location);
 
             WorkingFolder = Path.Combine(Environment.GetEnvironmentVariable("TEMP"), Guid.NewGuid().ToString());
@@ -60,14 +65,16 @@ namespace BuildXL.CloudTest.Gvfs
             return Path.Combine(WorkingFolder, path);
         }
 
-        public void TrackPath(string path)
+        public FileChangeTrackingSet.ProbeResult TrackPath(string path)
         {
             if (m_changeTracker == null)
             {
                 StartTracking();
             }
 
-            Analysis.IgnoreResult(m_changeTracker.TryProbeAndTrackPath(path));
+            var result = m_changeTracker.TryProbeAndTrackPath(path);
+            XAssert.PossiblySucceeded(result);
+            return result.Result;
         }
 
         public void TrackPaths(params string[] paths)
@@ -78,7 +85,7 @@ namespace BuildXL.CloudTest.Gvfs
             }
         }
 
-        public void SnapCheckPoint(int? nrOfExpectedOperations = null)
+        public virtual void SnapCheckPoint(int? nrOfExpectedOperations = null)
         {
             XAssert.IsNotNull(m_changeTracker);
             
@@ -88,7 +95,9 @@ namespace BuildXL.CloudTest.Gvfs
                 var result = m_changeTracker.TryProcessChanges(m_journal, null);
                 XAssert.IsTrue(result.Succeeded);
             }
-            
+
+            TestOutput.WriteLine(GetChangeReport("Snapped changes"));
+
             if (nrOfExpectedOperations.HasValue)
             {
                 XAssert.AreEqual(nrOfExpectedOperations.Value, m_changes.Count);
@@ -97,44 +106,75 @@ namespace BuildXL.CloudTest.Gvfs
 
         public void AssertCreateFile(string filePath)
         {
-            AssertOperation(new ChangedPathInfo(filePath, PathChanges.NewlyPresentAsFile));
+            AssertExactChanges(filePath, PathChanges.NewlyPresentAsFile);
         }
 
         public void AssertChangeFile(string filePath)
         {
-            AssertOperation(new ChangedPathInfo(filePath, PathChanges.DataOrMetadataChanged));
+            AssertExactChanges(filePath, PathChanges.DataOrMetadataChanged);
         }
 
         public void AssertDeleteFile(string filePath)
         {
-            AssertOperation(new ChangedPathInfo(filePath, PathChanges.Removed));
+            AssertExactChanges(filePath, PathChanges.Removed);
         }
 
-        private void AssertOperation(ChangedPathInfo expectedChange)
+        public void AssertDeleteOrChangeFile(string filePath, bool retrackFile = true)
         {
-            if (!m_changes.Remove(expectedChange))
+            var changesForPath = AssertAnyChange(filePath, PathChanges.Removed | PathChanges.DataOrMetadataChanged);
+            if (retrackFile && changesForPath.HasFlag(PathChanges.Removed))
             {
-                XAssert.Fail(GetChangeReport($"Expected to find change {PrintChange(expectedChange)}"));
+                TrackPath(filePath);
             }
         }
 
-        private string GetChangeReport(string header)
+        public PathChanges ChangesForPath(string filePath) => m_changes
+            .Where(c => c.Path == filePath)
+            .Aggregate(PathChanges.None, (acc, elem) => acc | elem.PathChanges);
+
+        public void AssertNoChange(string filePath)
+        {
+            AssertExactChanges(filePath, PathChanges.None);
+        }
+
+        public PathChanges AssertAnyChange(string filePath, PathChanges changes)
+        {
+            var changesForPath = ChangesForPath(filePath);
+            if ((changesForPath & changes) == 0)
+            {
+                XAssert.Fail(GetChangeReport($"Expected to find at least ONE of {changes} changes for '{filePath}'; instead, found {changesForPath}"));
+            }
+            return changesForPath;
+        }
+
+        public void AssertAllChanges(string filePath, PathChanges changes)
+        {
+            var changesForPath = ChangesForPath(filePath);
+            if (changesForPath.HasFlag(changes))
+            {
+                XAssert.Fail(GetChangeReport($"Expected to find ALL of {changes} changes for '{filePath}'; instead, found {changesForPath}"));
+            }
+        }
+
+        public void AssertExactChanges(string filePath, PathChanges changes)
+        {
+            XAssert.AreEqual(changes, ChangesForPath(filePath), "\nChanges for file '{0}' disagree", filePath);
+        }
+
+        public string GetChangeReport(string header)
         {
             var builder = new StringBuilder();
             builder.AppendLine(header);
+            builder.AppendLine("Changes found:");
             foreach (var change in m_changes)
             {
-                builder.AppendLine($" - {change.Path} -- {change.PathChanges.ToString()}");
+                builder.AppendLine($" - {change.Path} -- {change.PathChanges}");
             }
             return builder.ToString();
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
-            if (m_changes.Count > 0)
-            {
-                XAssert.Fail(GetChangeReport($"Encountered {m_changes.Count} unexpected changes:"));
-            }
         }
 
         private string PrintChange(ChangedPathInfo change)

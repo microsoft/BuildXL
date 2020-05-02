@@ -17,9 +17,17 @@ export declare const qualifier : GvfsTestQualifer;
 const gvfsPkg = importFrom("GvfsTestHelpersForBuildXL").Contents.all;
 
 @@public
-export const dll = BuildXLSdk.library({
+export const dll = BuildXLSdk.test({
     assemblyName: "BuildXL.CloudTest.Gvfs",
     sources: globR(d`.`, "*.cs"), 
+    testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+    runTestArgs: {
+        // These tests require Detours to run itself, so we won't detour the test runner process itself
+        unsafeTestRunArguments: {
+            runWithUntrackedDependencies: true
+        },
+    },
+    skipTestRun: true,
     skipDocumentationGeneration: true,
     references: [
         importFrom("BuildXL.Utilities").dll,
@@ -35,8 +43,8 @@ export const dll = BuildXLSdk.library({
     ],
     runtimeContent: [
         f`BuildXL.CloudTest.Gvfs.JobGroup.xml`,
-        f`setup.cmd`, // This is called from cloudtest JobGroup.xml file
-        f`runTests.cmd`, // This is just for local testing.
+        f`Setup.cmd`, // This is called from cloudtest JobGroup.xml file
+        f`RunTests.cmd`, // This is just for local testing.
         ...importFrom("Sdk.Managed.Testing.XUnit").additionalNetCoreRuntimeContent,
         gvfsPkg,
     ],

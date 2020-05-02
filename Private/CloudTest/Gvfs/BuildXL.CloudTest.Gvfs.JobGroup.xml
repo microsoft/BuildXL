@@ -9,7 +9,7 @@
             <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\Gvfs\*"/>
         </BuildFiles>
         <Scripts>
-            <Script Path="[WorkingDirectory]\setup.cmd" Args="" />
+            <Script Path="[WorkingDirectory]\Setup.cmd" Args="" />
         </Scripts>
     </Setup>
 

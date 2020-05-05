@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _chunker.Dispose();
         }
 
-        private sealed class Session : IChunkerSession
+        private class Session : IChunkerSession
         {
             private static readonly ByteArrayPool PushBufferPool = new ByteArrayPool((int)Chunker.MinPushBufferSize);
             private static readonly Pool<List<ChunkInfo>> ChunksSeenPool = new Pool<List<ChunkInfo>>(() => new List<ChunkInfo>(), list => list.Clear());

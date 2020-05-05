@@ -228,7 +228,7 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task<IEnumerable<DropItem>> IDropServiceClient.ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        Task<IEnumerable<DropItem>> IDropServiceClient.ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions)
         {
             throw new NotImplementedException();
         }

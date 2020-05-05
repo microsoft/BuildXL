@@ -112,8 +112,5 @@ namespace BuildXL.Storage.Tracing
         InvalidChangeKindsOfInputChange = 8204,
         InvalidInputChange = 8205,
         InputChangeListFileNotFound = 8206,
-
-        ComChunkerFailulre = 8207,
-        ChunkerType = 8208,
     }
 }

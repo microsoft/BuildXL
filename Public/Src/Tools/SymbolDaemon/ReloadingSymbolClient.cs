@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
-using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 
@@ -85,11 +84,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        public Task<IEnumerable<Request>> GetAllRequestsAsync(CancellationToken cancellationToken)
         {
             return RetryAsync(
                 nameof(ISymbolServiceClient.GetAllRequestsAsync),
-                (client, ct) => client.GetAllRequestsAsync(ct, sizeOptions, expirationDateOptions),
+                (client, ct) => client.GetAllRequestsAsync(ct),
                 cancellationToken);
         }
 
@@ -144,11 +143,11 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(string continueFromRequestId, int pageSize, CancellationToken cancellationToken, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
+        public Task<IEnumerable<Request>> GetRequestPaginatedAsync(string continueFromRequestId, int pageSize, CancellationToken cancellationToken)
         {
             return RetryAsync(
                  nameof(ISymbolServiceClient.GetRequestPaginatedAsync),
-                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct, sizeOptions, expirationDateOptions),
+                 (client, ct) => client.GetRequestPaginatedAsync(continueFromRequestId, pageSize, ct),
                  cancellationToken);
         }
 

@@ -21,7 +21,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
-using Microsoft.VisualStudio.Services.Graph;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -673,8 +672,7 @@ namespace Tool.DropDaemon
                 verbose: conf.Get(Verbose),
                 enableTelemetry: conf.Get(EnableTelemetry),
                 enableChunkDedup: conf.Get(EnableChunkDedup),
-                logDir: conf.Get(LogDir),
-                artifactLogName: conf.Get(ArtifactLogName));
+                logDir: conf.Get(LogDir));
         }
 
         private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);

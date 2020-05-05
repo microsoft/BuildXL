@@ -135,7 +135,8 @@ config({
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
-                { id: "Newtonsoft.Json", version: "12.0.3" },
+                { id: "Newtonsoft.Json", version: "11.0.2" },
+                { id: "Newtonsoft.Json", version: "10.0.3", alias: "Newtonsoft.Json.v10" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
@@ -203,9 +204,8 @@ config({
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "5.2.6",
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1",
                     dependentPackageIdsToSkip: ["Xamarin.Android.Support.CustomTabs", "Xamarin.Android.Support.v7.AppCompat"] },
-                { id: "System.Private.Uri", version: "4.3.2" },
 
                 // CloudStore dependencies
                 { id: "DeduplicationSigned", version: "1.0.14" },
@@ -235,7 +235,7 @@ config({
 
                 { id: "DotNet.Glob", version: "2.0.3" },
                 { id: "Minimatch", version: "1.1.0.0" },
-                { id: "Microsoft.ApplicationInsights", version: "2.11.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
+                { id: "Microsoft.ApplicationInsights", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.Agent.Intercept", version: "2.0.7" },
                 { id: "Microsoft.ApplicationInsights.DependencyCollector", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.3.0" },

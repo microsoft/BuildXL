@@ -20,7 +20,7 @@ namespace Vsts {
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
             ContentStore.Vsts.dll,
-            importFrom("Newtonsoft.Json").pkg,
+            importFrom("Newtonsoft.Json.v10").pkg,
             importFrom("System.Interactive.Async").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`/lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

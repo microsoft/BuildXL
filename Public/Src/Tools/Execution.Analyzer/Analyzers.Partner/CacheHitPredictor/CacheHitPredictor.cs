@@ -236,7 +236,7 @@ namespace BuildXL.Execution.Analyzer
 #if NET_FRAMEWORK
             var platformParameters = new PlatformParameters(PromptBehavior.Auto);
 #else
-            PlatformParameters platformParameters = null; // .NET Core does not support interactive auth.
+            var platformParameters = new PlatformParameters();
 #endif
 
             var authenticationResult = authenticationContext.AcquireTokenAsync(Resource, Client, RedirectUri, platformParameters).GetAwaiter().GetResult();

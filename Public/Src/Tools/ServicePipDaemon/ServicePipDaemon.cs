@@ -169,13 +169,6 @@ namespace Tool.ServicePipDaemon
         });
 
         /// <nodoc />
-        public static readonly StrOption ArtifactLogName = RegisterDaemonConfigOption(new StrOption("artifactLogName")
-        {
-            HelpText = "Name for artifact-side log file",
-            IsRequired = false
-        });
-
-        /// <nodoc />
         public static readonly StrOption File = new StrOption("file")
         {
             ShortName = "f",

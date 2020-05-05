@@ -380,7 +380,7 @@ namespace BuildXL.Cache.Monitor.App
                 using var stream = File.OpenText(stateFilePath);
                 var serializer = CreateSerializer();
 
-                var state = (Dictionary<string, PersistableEntry>?)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
+                var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
                 if (state is null)
                 {
                     // Happens when the file is empty

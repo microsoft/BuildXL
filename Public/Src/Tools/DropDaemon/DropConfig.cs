@@ -67,11 +67,6 @@ namespace Tool.DropDaemon
         /// </summary>
         public string LogDir { get; }
 
-        /// <summary>
-        ///     File name for artifact-side logs
-        /// </summary>
-        public string ArtifactLogName { get; }
-
         #endregion
 
         #region Defaults
@@ -118,8 +113,7 @@ namespace Tool.DropDaemon
             bool? verbose = null,
             bool? enableTelemetry = null,
             bool? enableChunkDedup = null,
-            string logDir = null,
-            string artifactLogName = null)
+            string logDir = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -130,7 +124,6 @@ namespace Tool.DropDaemon
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             EnableChunkDedup = enableChunkDedup ?? DefaultEnableChunkDedup;
             LogDir = logDir;
-            ArtifactLogName = artifactLogName;
         }
     }
 }

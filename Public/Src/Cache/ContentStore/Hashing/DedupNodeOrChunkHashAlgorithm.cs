@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -52,12 +51,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _chunks.Clear();
             _session = _chunker.BeginChunking(SaveChunks);
+            _lastNode = null;
         }
 
         /// <inheritdoc />
         protected override void HashCore(byte[] array, int ibStart, int cbSize)
         {
-            _lastNode = null;
             _session.PushBuffer(array, ibStart, cbSize);
         }
 

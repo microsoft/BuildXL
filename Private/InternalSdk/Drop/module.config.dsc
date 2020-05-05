@@ -48,15 +48,3 @@ module({
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`Microsoft.Windows.Debuggers.SymstoreInterop.dsc`]
 });
-
-module({
-    name: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Microsoft.VisualStudio.Services.BlobStore.Client.Cache.dsc`]
-});
-
-module({
-    name: "Microsoft.Azure.Storage.Common", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Microsoft.Azure.Storage.Common.dsc`]
-});

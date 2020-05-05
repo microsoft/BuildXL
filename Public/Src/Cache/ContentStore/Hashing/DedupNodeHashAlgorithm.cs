@@ -13,33 +13,21 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public sealed class DedupNodeHashAlgorithm : HashAlgorithm
     {
-        /// <nodoc />
-        public static Lazy<Exception> ComChunkerLoadError = new Lazy<Exception>(() =>
-        {
-            try
-            {
-                var chunker = new ComChunker();
-                using var session = chunker.BeginChunking(chunk => { });
-                var content = new byte[1024 * 1024 + 1];
-                session.PushBuffer(content, 0, content.Length);
-                return null;
-            }
-            catch (Exception e)
-            {
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-                return e;
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-            }
-        });
-
         /// <summary>
         /// Creates a chunker appropriate to the runtime environment
         /// </summary>
         public static IChunker CreateChunker()
         {
-            if (IsComChunkerSupported && ComChunkerLoadError.Value == null)
+            if (IsComChunkerSupported)
             {
-                return new ComChunker();
+                try
+                {
+                    return new ComChunker();
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    // Some older versions of windows. Fall back to managed chunker.
+                }
             }
 
             return new ManagedChunker();

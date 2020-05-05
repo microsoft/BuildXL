@@ -115,6 +115,15 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
+        public Task<IEnumerable<DropItem>> ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions = RetrievalOptions.ExcludeSoftDeleted)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.ListAsync),
+                (client, ct) => client.ListAsync(dropNamePrefix, pathOptions, includeNonFinalizedDrops, ct, retrievalOptions),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
         public Task UploadAndAssociateAsync(string dropName, List<FileBlobDescriptor> preComputedBlobIds, bool abortIfAlreadyExists, AssociationsStatus firstAssociationStatus, CancellationToken cancellationToken)
         {
             return RetryAsync(
@@ -175,15 +184,6 @@ namespace Tool.ServicePipDaemon
         }
 
         #endregion
-
-        /// <inheritdoc />
-        public Task<IEnumerable<DropItem>> ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
-        {
-            return RetryAsync(
-                    nameof(IDropServiceClient.ListAsync),
-                    (client, ct) => client.ListAsync(dropNamePrefix, pathOptions, includeNonFinalizedDrops, ct, retrievalOptions, sizeOptions, expirationDateOptions),
-                    cancellationToken);
-        }
 
         /// <inheritdoc />
         public string GetVersionString()

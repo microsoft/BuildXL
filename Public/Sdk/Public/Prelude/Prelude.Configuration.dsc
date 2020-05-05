@@ -302,6 +302,14 @@ interface UnsafeSandboxConfiguration {
      * by introducing non-deterministic behavior.
      */
     doubleWritePolicy?: DoubleWritePolicy;
+    
+    /**
+     * Makes sure any access that contains a directory symlink gets properly processed
+     * This is an experimental flag, and hopefully will eventually become the norm.
+     * This option is not actually unsafe, it is here to stress its experimental nature.
+     * Only has an effect on Windows-based OS. Mac sandbox already processes symlinks correctly.
+     */
+    processSymlinkedAccesses? : boolean;
 }
 
 type DoubleWritePolicy =  

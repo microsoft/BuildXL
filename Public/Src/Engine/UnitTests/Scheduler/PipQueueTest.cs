@@ -647,6 +647,8 @@ namespace Test.BuildXL.Scheduler
             public VmInitializer VmInitializer { get; }
 
             public ITempCleaner TempCleaner { get; }
+
+            public SymlinkedAccessResolver SymlinkedAccessResolver => null;
         }
     }
 

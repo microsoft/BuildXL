@@ -360,6 +360,9 @@ namespace BuildXL.Native.IO.Unix
         public string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false) => throw new NotImplementedException();
 
         /// <inheritdoc />
+        public bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false) => throw new NotImplementedException();
+
+        /// <inheritdoc />
         public OpenFileResult TryOpenFileById(
             SafeFileHandle existingHandleOnVolume,
             FileId fileId,

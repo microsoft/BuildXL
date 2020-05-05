@@ -44,6 +44,15 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Constructs an expanded absolute path under the assumption that the expanded path is the result
+        /// of expanding the given absolute path.
+        /// </summary>
+        public static ExpandedAbsolutePath CreateUnsafe(AbsolutePath path, string expandedPath)
+        {
+            Contract.Requires(path.IsValid);
+            return new ExpandedAbsolutePath(path, expandedPath);
+        }
+        /// <summary>
         /// Constructs an expanded absolute path with the given file name
         /// </summary>
         private ExpandedAbsolutePath(AbsolutePath path, string expandedPath)

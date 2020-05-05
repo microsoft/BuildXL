@@ -614,6 +614,14 @@ namespace BuildXL.Native.IO
         string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false);
 
         /// <summary>
+        /// Attempts to open a handle to the given path and then calls <see cref="GetFinalPathNameByHandle(SafeFileHandle, bool)"/>
+        /// </summary>
+        /// <remarks>
+        /// This function never throws. On failure <paramref name="nativeErrorCode"/> contains the error.
+        /// </remarks>
+        bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false);
+
+        /// <summary>
         /// Flushes cached pages for a file back to the filesystem. Unlike <c>FlushFileBuffers</c>, this does NOT
         /// issue a *disk-wide* cache flush, and so does NOT guarantee that written data is durable on disk (but it does
         /// force pages dirtied by e.g. a writable memory-mapping to be visible to the filesystem).

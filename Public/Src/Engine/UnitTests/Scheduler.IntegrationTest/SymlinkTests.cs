@@ -1041,6 +1041,42 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void ResolvedSymlinkCachingBehavior()
+        {
+            // Turn on symlink processing
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
+
+            // Create a source file via a directory symlink
+            string symlinkDir = Path.Combine(SourceRoot, "symlinkDir");
+            string targetDirectory = Path.Combine(SourceRoot, "targetDir");
+            FileUtilities.CreateDirectory(targetDirectory);
+
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(symlinkDir, targetDirectory, isTargetFile: false));
+
+            FileArtifact symlinkFile = CreateSourceFile(symlinkDir);
+            FileArtifact outFile = CreateOutputFileArtifact();
+
+            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(symlinkFile),
+                Operation.WriteFile(outFile),
+            }).Process;
+
+            // First run should be a miss, second one a hit
+            RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertSuccess().AssertCacheHit(pip.PipId);
+
+            // Now delete the symlinked directory. Observe this operation does not remove the target directory.
+            Directory.Delete(symlinkDir);
+            // Let's make sure the target is still there
+            XAssert.IsTrue(File.Exists(Path.Combine(targetDirectory, symlinkFile.Path.GetName(Context.PathTable).ToString(Context.StringTable))));
+            
+            // Next run should be a cache miss
+            RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
+        }
+
+
         /// <summary>
         /// Pips delete their outputs before running. When a symlink is declared as output,
         /// we should delete the symlink itself and not the underlying target file.

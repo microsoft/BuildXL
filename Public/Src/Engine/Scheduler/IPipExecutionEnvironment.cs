@@ -10,6 +10,7 @@ using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Processes.Containers;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -214,6 +215,14 @@ namespace BuildXL.Scheduler
         /// Returns whether pip <paramref name="to"/> is reachable from pip <paramref name="from"/>
         /// </summary>
         bool IsReachableFrom(PipId from, PipId to);
+
+        /// <summary>
+        /// Resolves file accesses containing symlinked paths
+        /// </summary>
+        /// <remarks>
+        /// Not null only when <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is true
+        /// </remarks>
+        [CanBeNull] SymlinkedAccessResolver SymlinkedAccessResolver { get; }
     }
 
     /// <summary>

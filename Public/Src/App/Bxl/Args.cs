@@ -1972,6 +1972,9 @@ namespace BuildXL
                 case "LAZYSODELETION":
                     scheduleConfiguration.UnsafeLazySODeletion = experimentalOptionAndValue.Item2;
                     break;
+                case "PROCESSSYMLINKEDACCESSES":
+                    sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = experimentalOptionAndValue.Item2;
+                    break;
                 default:
                     throw CommandLineUtilities.Error(Strings.Args_Experimental_UnsupportedValue, experimentalOptionAndValue.Item1);
             }

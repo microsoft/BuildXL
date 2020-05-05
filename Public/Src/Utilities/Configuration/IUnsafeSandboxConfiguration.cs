@@ -155,6 +155,18 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool ProbeDirectorySymlinkAsDirectory { get; }
 
+
+        /// <summary>
+        /// Makes sure any access that contains a directory symlink gets properly processed
+        /// </summary>
+        /// <remarks>
+        /// This is an experimental flag, and hopefully will eventually become the norm.
+        /// This option is not actually unsafe, it is here to stress its experimental nature.
+        /// Only has an effect on Windows-based OS. Mac sandbox already process symlinks correctly.
+        /// </remarks>
+        bool? ProcessSymlinkedAccesses { get; }
+
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -205,6 +217,11 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
             writer.Write(@this.IgnoreCreateProcessReport);
             writer.Write(@this.ProbeDirectorySymlinkAsDirectory);
+            writer.Write(@this.ProcessSymlinkedAccesses.HasValue);
+            if (@this.ProcessSymlinkedAccesses.HasValue)
+            {
+                writer.Write(@this.ProcessSymlinkedAccesses.Value);
+            }
         }
 
         /// <nodoc/>
@@ -232,6 +249,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
                 IgnoreCreateProcessReport = reader.ReadBoolean(),
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
+                ProcessSymlinkedAccesses = reader.ReadBoolean() ? (bool?) reader.ReadBoolean() : null,
             };
         }
 
@@ -260,7 +278,9 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
                 && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
-                && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory);
+                && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
+                && IsAsSafeOrSafer(lhs.ProcessSymlinkedAccesses(), rhs.ProcessSymlinkedAccesses(), SafeDefaults.ProcessSymlinkedAccesses());
+
         }
 
         /// <nodoc />

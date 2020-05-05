@@ -186,6 +186,27 @@ namespace BuildXL.Processes
                 Method);
         }
 
+        /// <nodoc/>
+        public ReportedFileAccess CreateWithPath(string path, AbsolutePath manifestPath)
+        {
+            return new ReportedFileAccess(
+                Operation,
+                Process,
+                RequestedAccess,
+                Status,
+                ExplicitlyReported,
+                Error,
+                Usn,
+                DesiredAccess,
+                ShareMode,
+                CreationDisposition,
+                FlagsAndAttributes,
+                manifestPath,
+                path,
+                EnumeratePattern,
+                Method);
+        }
+
         /// <summary>
         /// Error code returned when probing for an absent file.
         /// </summary>

@@ -56,7 +56,8 @@ namespace BuildXL.Pips.Graph
         /// 79: Change the field name in unsafe option from "PreserveOutputInfo" to nameof(PreserveOutputsInfo)
         /// 80: Added ProbeDirectorySymlinkAsDirectory in IUnsafeSandboxConfiguration.
         /// 81: Add OutputDirectoryContents for SealDirectories
+        /// 82: Add ProcessSymlinkedAcceses in SandboxConfiguration
         /// </remarks>
-        TwoPhaseV2 = 81,
+        TwoPhaseV2 = 82,
     }
 }

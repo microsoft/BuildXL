@@ -2070,6 +2070,147 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresSymlinkPermission: true)]
+        public async Task DirSymlinksAreProperlyResolvedAsync()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var symbolTable = context.SymbolTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = tempFiles.GetUniqueDirectory();
+                string symlinkDir = Path.Combine(workingDirectory, "symlinkDir");
+                string targetDirectory = Path.Combine(workingDirectory, "targetDir");
+                FileUtilities.CreateDirectory(targetDirectory);
+
+                var success = FileUtilities.TryCreateSymbolicLink(symlinkDir, targetDirectory, isTargetFile: false);
+                XAssert.IsTrue(success.Succeeded);
+
+                var sharedOpaqueRoot = Path.Combine(symlinkDir, "sharedOpaque");
+
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, sharedOpaqueRoot);
+
+                // Create two shared opaques with the same root. One will act as an input to the pip, the other one as an
+                // output directory
+                var sharedOpaqueInput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 1, isSharedOpaque: true);
+                var sharedOpaqueOutput = new DirectoryArtifact(AbsolutePath.Create(context.PathTable, sharedOpaqueRoot), 2, isSharedOpaque: true);
+
+                // The shared opaque input contains input/in.txt
+                var inputUndersharedOpaqueRoot = Path.Combine(sharedOpaqueRoot, "input", "in.txt");
+                Directory.CreateDirectory(sharedOpaqueRoot);
+                Directory.CreateDirectory(Path.Combine(sharedOpaqueRoot, "input"));
+                File.WriteAllText(inputUndersharedOpaqueRoot, "Foo");
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    // Reads 'input/in.txt' (under the shared opaque input) and creates 'nested/out.txt' (under the shared opaque output)
+                    arguments.Add("type");
+                    arguments.Add(@"input\in.txt");
+                    arguments.Add("&&");
+                    arguments.Add("mkdir");
+                    arguments.Add("nested");
+                    arguments.Add("&&");
+                    arguments.Add("echo");
+                    arguments.Add("foo");
+                    arguments.Add(">");
+                    arguments.Add(@"nested\out.txt");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueInput }),
+                    ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaqueOutput }),
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.Empty,
+                    ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    new PipProvenance(
+                        0,
+                        ModuleId.Invalid,
+                        StringId.Invalid,
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "SharedOpaqueAccesses")),
+                        LocationData.Invalid,
+                        QualifierId.Unqualified,
+                        PipData.Invalid),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                var inputUnderSharedOpaqueAbsolutePath = AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot);
+
+                DirectoryTranslator translator = null;
+                if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+                {
+                    translator = new DirectoryTranslator();
+                    translator.AddTranslation(substSource, substTarget);
+                    translator.Seal();
+                }
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration 
+                    { 
+                        FileAccessIgnoreCodeCoverage = true, 
+                        FailUnexpectedFileAccesses = false, 
+                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { ProcessSymlinkedAccesses = true } 
+                    },
+                    pip,
+                    fileAccessWhitelist: null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
+                    new TestDirectoryArtifactContext(
+                            SealDirectoryKind.SharedOpaque,
+                            new FileArtifact[] { FileArtifact.CreateOutputFile(inputUnderSharedOpaqueAbsolutePath) }),
+                    symlinkedAccessResolver: new SymlinkedAccessResolver(context, translator));
+
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Succeeded, result.Status);
+
+                var targetDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, targetDirectory);
+                var symlinkDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, symlinkDir);
+                var sharedOpaqueRootViaRealPath = targetDirectoryAbsolutePath.Combine(
+                    context.PathTable, "sharedOpaque");
+                var inputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
+                    context.PathTable, RelativePath.Create(context.StringTable, "input/in.txt"));
+                var outputViaRealPath = sharedOpaqueRootViaRealPath.Combine(
+                    context.PathTable, RelativePath.Create(context.StringTable, "nested/out.txt"));
+
+                // There shouldn't be any file access that points to in.txt via the symlink
+                XAssert.ContainsNot(result.ObservedFileAccesses.Select(fa => fa.Path), inputUnderSharedOpaqueAbsolutePath);
+                // There should be an access that points to in.txt via the resolved path
+                var inputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == inputViaRealPath);
+                // The manifest path also has to be resolved (this is a declared input, so the manifest matches the path)
+                XAssert.Equals(inputViaRealPath, inputAccessViaRealPath.Accesses.First().ManifestPath);
+                // There should be an access that points to out.txt via the resolved path
+                var outputAccessViaRealPath = result.ObservedFileAccesses.Single(oa => oa.Path == outputViaRealPath);
+                // The manifest path also has to be resolved (this is an output under a shared opaque, so 
+                // the manifest is the root of the opaque)
+                XAssert.Equals(sharedOpaqueRootViaRealPath, outputAccessViaRealPath.Accesses.Single().ManifestPath);
+                // There should be a read access on the symlink itself
+                var symlinkRead = result.ObservedFileAccesses.Single(oa => oa.Path == symlinkDirectoryAbsolutePath);
+                XAssert.Equals(FileDesiredAccess.GenericRead, symlinkRead.Accesses.Single().DesiredAccess);
+            }
+        }
+
         private class TestSemanticPathExpander : SemanticPathExpander
         {
             private readonly IEnumerable<AbsolutePath> m_writableRoots;
@@ -2175,7 +2316,8 @@ namespace Test.BuildXL.Processes.Detours
             IReadOnlyDictionary<string, string> rootMap,
             SemanticPathExpander expander,
             IDirectoryArtifactContext directoryArtifactContext = null,
-            Action<int> processIdListener = null)
+            Action<int> processIdListener = null,
+            SymlinkedAccessResolver symlinkedAccessResolver = null)
         {
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
@@ -2199,7 +2341,8 @@ namespace Test.BuildXL.Processes.Detours
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
                 tempDirectoryCleaner: MoveDeleteCleaner,
-                processIdListener: processIdListener).RunAsync(sandboxConnection: GetSandboxConnection());
+                processIdListener: processIdListener,
+                symlinkedAccessResolver: symlinkedAccessResolver).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

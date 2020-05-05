@@ -73,6 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
             IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
             ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
+            ProcessSymlinkedAccesses = template.ProcessSymlinkedAccesses;
         }
 
         /// <inheritdoc />
@@ -134,5 +135,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool ProbeDirectorySymlinkAsDirectory { get; set; }
+
+        /// <inheritdoc />
+        public bool? ProcessSymlinkedAccesses { get; set; }
+
     }
 }

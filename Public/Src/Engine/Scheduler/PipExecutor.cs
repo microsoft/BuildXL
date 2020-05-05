@@ -1418,7 +1418,8 @@ namespace BuildXL.Scheduler
                                     tempDirectoryCleaner: environment.TempCleaner,
                                     incrementalTools: configuration.IncrementalTools,
                                     changeAffectedInputs: changeAffectedInputs,
-                                    detoursListener: detoursEventListener);
+                                    detoursListener: detoursEventListener,
+                                    symlinkedAccessResolver: environment.SymlinkedAccessResolver);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -3272,7 +3273,8 @@ namespace BuildXL.Scheduler
                 directoryTranslator: environment.DirectoryTranslator,
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
-                incrementalTools: configuration.IncrementalTools);
+                incrementalTools: configuration.IncrementalTools,
+                symlinkedAccessResolver: environment.SymlinkedAccessResolver);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

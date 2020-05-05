@@ -183,6 +183,7 @@ namespace BuildXL.Processes
         private readonly IReadOnlyList<AbsolutePath> m_changeAffectedInputs;
         
         private readonly IDetoursEventListener m_detoursListener;
+        private readonly SymlinkedAccessResolver m_symlinkedAccessResolver;
 
         /// <summary>
         /// Whether the process invokes an incremental tool with preserveOutputs mode.
@@ -239,7 +240,8 @@ namespace BuildXL.Processes
             SubstituteProcessExecutionInfo shimInfo = null,
             IReadOnlyList<RelativePath> incrementalTools = null,
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
-            IDetoursEventListener detoursListener = null)
+            IDetoursEventListener detoursListener = null,
+            SymlinkedAccessResolver symlinkedAccessResolver = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -376,6 +378,7 @@ namespace BuildXL.Processes
 
             m_changeAffectedInputs = changeAffectedInputs;
             m_detoursListener = detoursListener;
+            m_symlinkedAccessResolver = symlinkedAccessResolver;
         }
 
         /// <inheritdoc />
@@ -3410,6 +3413,34 @@ namespace BuildXL.Processes
                         continue;
                     }
 
+                    // Let's resolve all intermediate symlink dirs if configured.
+                    // TODO: this logic will be eventually replaced by doing the right thing on detours side.
+                    // This option is Windows-specific
+                    ReportedFileAccess finalReported;
+                    if (m_sandboxConfig.UnsafeSandboxConfiguration.ProcessSymlinkedAccesses())
+                    {
+                        Contract.Assume(m_symlinkedAccessResolver != null);
+                        if (m_symlinkedAccessResolver.ResolveDirectorySymlinks(reported, parsedPath, out finalReported, out var finalPath))
+                        {
+                            // If the final path falls under a configured policy that ignores accesses, then we also ignore it
+                            var success = m_fileAccessManifest.TryFindManifestPathFor(finalPath, out _, out var nodePolicy);
+                            if (success & (nodePolicy & FileAccessPolicy.ReportAccess) == 0)
+                            {
+                                continue;
+                            }
+
+                            // Let's generate read accesses for the intermediate dir symlinks on the original path, so we avoid
+                            // underbuilds if those change
+                            m_symlinkedAccessResolver.AddReadsForIntermediateSymlinks(m_fileAccessManifest, reported, parsedPath, accessesByPath);
+
+                            parsedPath = finalPath;
+                        }
+                    }
+                    else
+                    {
+                        finalReported = reported;
+                    }
+
                     bool shouldExclude = false;
 
                     // Remove special accesses see Bug: #121875.
@@ -3422,7 +3453,7 @@ namespace BuildXL.Processes
                     }
                     else
                     {
-                        if (AbsolutePath.TryCreate(m_context.PathTable, reported.Process.Path, out AbsolutePath processPath)
+                        if (AbsolutePath.TryCreate(m_context.PathTable, finalReported.Process.Path, out AbsolutePath processPath)
                             && (excludedToolsAndPaths.Contains((processPath, parsedPath))
                                 || GetSpecialCaseRulesForSpecialTools(processPath, parsedPath)))
                         {
@@ -3434,7 +3465,7 @@ namespace BuildXL.Processes
                     accessesByPath.TryGetValue(parsedPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
                     accessesByPath[parsedPath] =
                         !shouldExclude
-                        ? existingAccessesToPath.Add(reported)
+                        ? existingAccessesToPath.Add(finalReported)
                         : existingAccessesToPath;
                 }
 

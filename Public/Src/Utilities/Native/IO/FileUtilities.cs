@@ -942,6 +942,12 @@ namespace BuildXL.Native.IO
             return s_fileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
         }
 
+        /// <see cref="IFileSystem.TryGetFinalPathNameByPath(string, out string, out int, bool)"/>
+        public static bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
+        {
+            return s_fileSystem.TryGetFinalPathNameByPath(path, out finalPath, out nativeErrorCode, volumeGuidPath);
+        }
+
         /// <see cref="IFileSystem.FlushPageCacheToFilesystem(SafeFileHandle)"/>
         public static unsafe NtStatus FlushPageCacheToFilesystem(SafeFileHandle handle)
         {

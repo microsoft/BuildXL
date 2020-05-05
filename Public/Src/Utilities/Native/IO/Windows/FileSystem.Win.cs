@@ -2783,6 +2783,45 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
+        public bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
+        {
+            Contract.RequiresNotNullOrEmpty(path);
+
+            SafeFileHandle handle = CreateFileW(
+                ToLongPathIfExceedMaxPath(path),
+                FileDesiredAccess.None,
+                FileShare.None,
+                lpSecurityAttributes: IntPtr.Zero,
+                dwCreationDisposition: FileMode.Open,
+                dwFlagsAndAttributes: FileFlagsAndAttributes.FileFlagBackupSemantics,
+                hTemplateFile: IntPtr.Zero);
+            
+            nativeErrorCode = Marshal.GetLastWin32Error();
+
+            if (handle.IsInvalid)
+            {
+                finalPath = string.Empty;
+                return false;
+            }
+
+            using (handle)
+            {
+                try
+                {
+                    finalPath = GetFinalPathNameByHandle(handle, volumeGuidPath);
+                    return true;
+                }
+                catch(NativeWin32Exception ex)
+                {
+                    finalPath = string.Empty;
+                    nativeErrorCode = ex.NativeErrorCode;
+
+                    return false;
+                }
+            }
+        }
+
+        /// <inheritdoc />
         public string GetFinalPathNameByHandle(SafeFileHandle handle, bool volumeGuidPath = false)
         {
             const int VolumeNameGuid = 0x1;
@@ -2792,7 +2831,8 @@ namespace BuildXL.Native.IO.Windows
             int neededSize = NativeIOConstants.MaxPath;
             do
             {
-                pathBuffer.EnsureCapacity(neededSize);
+                // Capacity must include the null terminator character
+                pathBuffer.EnsureCapacity(neededSize + 1);
                 neededSize = GetFinalPathNameByHandleW(handle, pathBuffer, pathBuffer.Capacity, flags: volumeGuidPath ? VolumeNameGuid : 0);
                 if (neededSize == 0)
                 {
@@ -2813,22 +2853,39 @@ namespace BuildXL.Native.IO.Windows
 
                 Contract.Assume(neededSize < NativeIOConstants.MaxLongPath);
             }
-            while (neededSize > pathBuffer.Capacity);
+            while (neededSize >= pathBuffer.Capacity);
 
-            const string ExpectedPrefix = LongPathPrefix;
-            Contract.Assume(pathBuffer.Length >= ExpectedPrefix.Length, "Expected a long-path prefix");
-            for (int i = 0; i < ExpectedPrefix.Length; i++)
+            bool expectedPrefixIsPresent = true;
+
+            // The returned path can either have a \\?\ or a \??\ prefix
+            // Observe LongPathPrefix and NtPathPrefix have the same length
+            if (pathBuffer.Length >= LongPathPrefix.Length)
             {
-                Contract.Assume(pathBuffer[i] == ExpectedPrefix[i], "Expected a long-path prefix");
+                for (int i = 0; i < LongPathPrefix.Length; i++)
+                {
+                    int currentChar = pathBuffer[i];
+                    if (!(currentChar == LongPathPrefix[i] || currentChar == NtPathPrefix[i]))
+                    {
+                        expectedPrefixIsPresent = false;
+                        break;
+                    }
+                }
+                
+            }
+            else
+            {
+                expectedPrefixIsPresent = false;
             }
 
-            if (volumeGuidPath)
+            // Some paths do not come back with any prefixes. This is the case for example of unix-like paths
+            // that some tools, even on Windows, decide to probe
+            if (volumeGuidPath || !expectedPrefixIsPresent)
             {
                 return pathBuffer.ToString();
             }
             else
             {
-                return pathBuffer.ToString(startIndex: ExpectedPrefix.Length, length: pathBuffer.Length - ExpectedPrefix.Length);
+                return pathBuffer.ToString(startIndex: LongPathPrefix.Length, length: pathBuffer.Length - LongPathPrefix.Length);
             }
         }
 

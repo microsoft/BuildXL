@@ -145,22 +145,35 @@ namespace BuildXL
             switch (eventData.EventId)
             {
                 case (int)LogEventId.PipProcessError:
+                {
+                    addPipErrors(new PipProcessErrorEventFields(eventData.Payload, false));
+                }
+                break;
+                case (int)SharedLogEventId.DistributionWorkerForwardedError:
+                {
+                    var actualEventId = (int)eventData.Payload[1];
+                    if (actualEventId == (int)LogEventId.PipProcessError)
                     {
-                        var payload = eventData.Payload;
-
-                        m_buildViewModel.BuildSummary.PipErrors.Add(new BuildSummaryPipDiagnostic
-                        {
-                            SemiStablePipId = $"Pip{((long)eventData.Payload[0]):X16}",
-                            PipDescription = (string)eventData.Payload[1],
-                            SpecPath = (string)eventData.Payload[2],
-                            ToolName = (string)eventData.Payload[4],
-                            ExitCode = (int)eventData.Payload[8],
-                            Output = (string)eventData.Payload[5],
-                        }); 
+                        addPipErrors(new PipProcessErrorEventFields(eventData.Payload, true));
                     }
-                    break;
+                }
+                break;
+            }
+
+            void addPipErrors(PipProcessErrorEventFields pipProcessErrorEventFields)
+            {
+                m_buildViewModel.BuildSummary.PipErrors.Add(new BuildSummaryPipDiagnostic
+                {
+                    SemiStablePipId = $"Pip{(pipProcessErrorEventFields.PipSemiStableHash):X16}",
+                    PipDescription = pipProcessErrorEventFields.PipDescription,
+                    SpecPath = pipProcessErrorEventFields.PipSpecPath,
+                    ToolName = pipProcessErrorEventFields.PipExe,
+                    ExitCode = pipProcessErrorEventFields.ExitCode,
+                    Output = pipProcessErrorEventFields.OutputToLog,
+                });
             }
         }
+
 
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
@@ -169,7 +182,7 @@ namespace BuildXL
         }
 
         /// <inheritdoc />
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
         }
 
@@ -204,16 +217,29 @@ namespace BuildXL
                 builder.Append(";code=DX");
                 builder.Append(eventData.EventId.ToString("D4"));
             }
-           
+
+            var newArgs = args;
             // construct a short message for ADO console
-            if (eventData.EventId == (int)LogEventId.PipProcessError)
+            if ((eventData.EventId == (int)LogEventId.PipProcessError)
+                || (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError && (int)args[1] == (int)LogEventId.PipProcessError))
             {
-                args[0] = Pip.FormatSemiStableHash((long)args[0]);
-                message = "[{0}, {10}, {2}] - failed with exit code {8}, {9}\r\n{5}\r\n{6}\r\n{7}";
+                var pipProcessError = new PipProcessErrorEventFields(eventData.Payload, eventData.EventId != (int)LogEventId.PipProcessError);
+                args[0] = Pip.FormatSemiStableHash(pipProcessError.PipSemiStableHash);
+                args[1] = pipProcessError.ShortPipDescription;
+                args[2] = pipProcessError.PipSpecPath;
+                args[3] = pipProcessError.ExitCode;
+                args[4] = pipProcessError.OptionalMessage;
+                args[5] = pipProcessError.OutputToLog;
+                args[6] = pipProcessError.MessageAboutPathsToLog;
+                args[7] = pipProcessError.PathsToLog;
+                message = "[{0}, {1}, {2}] - failed with exit code {3}, {4}\r\n{5}\r\n{6}\r\n{7}";
+            }
+            else if (eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedError || eventData.EventId == (int)SharedLogEventId.DistributionWorkerForwardedWarning)
+            {
+                message = "{0}";
             }
 
             body = string.Format(CultureInfo.CurrentCulture, message, args);
-
             builder.Append(";]");
 
             // substitute newlines in the message

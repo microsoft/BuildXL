@@ -36,5 +36,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// The keywords of the original event
         /// </summary>
         public long EventKeywords { get; set; }
+
+        /// <summary>
+        /// The original PipProcessError event
+        /// </summary>
+        public PipProcessErrorEventFields PipProcessErrorEvent { get; set; }
     }
 }

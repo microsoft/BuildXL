@@ -29,7 +29,7 @@ namespace BuildXL.Execution.Analyzer
         {
         }
 
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.ff}] {text}");
         }

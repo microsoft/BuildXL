@@ -71,7 +71,7 @@ namespace BuildXL.Tracing
                     m_finalStatistics.AddOrUpdate(key, value, (k, v) => value);
                 }
 
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
             }
         }
 

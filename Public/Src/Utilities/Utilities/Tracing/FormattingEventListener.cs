@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Performs the final output activity for the listener.
         /// </summary>
-        protected abstract void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text,bool doNotTranslatePaths = false);
+        protected abstract void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false);
 
         /// <summary>
         /// Enables sending log output to ETW via the provider logger
@@ -183,7 +183,7 @@ namespace BuildXL.Utilities.Tracing
 
                 // Don't translate paths in the DominoInvocation event since that contains bxl.exe's command line. It
                 // is useful to see exactly how BuildXL was invoked since some of those options control the translation.
-                Output(level, eventData.EventId, eventData.EventName, eventData.Keywords, full, doNotTranslatePaths: DoNotTranslatePath(eventData.EventId));
+                Output(level, eventData, full, doNotTranslatePaths: DoNotTranslatePath(eventData.EventId));                         
             }
         }
 

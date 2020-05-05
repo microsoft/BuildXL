@@ -165,16 +165,45 @@ namespace BuildXL.Engine.Distribution
                 switch (eventLevel)
                 {
                     case EventLevel.Error:
-                        Logger.Log.DistributionWorkerForwardedError(
-                            m_loggingContext,
-                            new WorkerForwardedEvent()
-                            {
-                                Text = forwardedEvent.Text,
-                                WorkerName = worker.Name,
-                                EventId = forwardedEvent.EventId,
-                                EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,
-                            });
+                        if (forwardedEvent.EventId == (int)BuildXL.Processes.Tracing.LogEventId.PipProcessError)
+                        {
+                            var pipProcessErrorEvent = new PipProcessErrorEventFields(
+                                forwardedEvent.PipProcessErrorEvent.PipSemiStableHash,
+                                forwardedEvent.PipProcessErrorEvent.PipDescription,
+                                forwardedEvent.PipProcessErrorEvent.PipSpecPath,
+                                forwardedEvent.PipProcessErrorEvent.PipWorkingDirectory,
+                                forwardedEvent.PipProcessErrorEvent.PipExe,
+                                forwardedEvent.PipProcessErrorEvent.OutputToLog,
+                                forwardedEvent.PipProcessErrorEvent.MessageAboutPathsToLog,
+                                forwardedEvent.PipProcessErrorEvent.PathsToLog,
+                                forwardedEvent.PipProcessErrorEvent.ExitCode,
+                                forwardedEvent.PipProcessErrorEvent.OptionalMessage,
+                                forwardedEvent.PipProcessErrorEvent.ShortPipDescription);
+                            Logger.Log.DistributionWorkerForwardedError(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.Name,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                    PipProcessErrorEvent = pipProcessErrorEvent,
+                                });
+                        } else
+                        {
+                            Logger.Log.DistributionWorkerForwardedError(
+                                m_loggingContext,
+                                new WorkerForwardedEvent()
+                                {
+                                    Text = forwardedEvent.Text,
+                                    WorkerName = worker.Name,
+                                    EventId = forwardedEvent.EventId,
+                                    EventName = forwardedEvent.EventName,
+                                    EventKeywords = forwardedEvent.EventKeywords,
+                                });
+                        }
+
                         m_loggingContext.SpecifyErrorWasLogged((ushort)forwardedEvent.EventId);
                         break;
                     case EventLevel.Warning:
@@ -186,7 +215,7 @@ namespace BuildXL.Engine.Distribution
                                 WorkerName = worker.Name,
                                 EventId = forwardedEvent.EventId,
                                 EventName = forwardedEvent.EventName,
-                                EventKeywords = forwardedEvent.EventKeywords,
+                                EventKeywords = forwardedEvent.EventKeywords,                               
                             });
                         break;
                     default:

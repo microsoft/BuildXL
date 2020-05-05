@@ -426,8 +426,8 @@ namespace BuildXL
                     if (messageStart != -1)
                     {
                         // Note - the MessageLevel below are really just for the sake of colorization
-                        Output(EventLevel.Informational, eventData.EventId, eventData.EventName, eventData.Keywords, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
-                        Output(EventLevel.Error, eventData.EventId, eventData.EventName, eventData.Keywords, output);
+                        Output(EventLevel.Informational, eventData, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
+                        Output(EventLevel.Error, eventData, output);
                         return;
                     }
                 }
@@ -461,8 +461,8 @@ namespace BuildXL
                     if (messageStart != -1)
                     {
                         // Note - the MessageLevel below are really just for the sake of colorization
-                        Output(EventLevel.Informational, eventData.EventId, eventData.EventName, eventData.Keywords, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
-                        Output(EventLevel.Warning, eventData.EventId, eventData.EventName, eventData.Keywords, warnings);
+                        Output(EventLevel.Informational, eventData, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
+                        Output(EventLevel.Warning, eventData, warnings);
 
                         return;
                     }
@@ -513,12 +513,12 @@ namespace BuildXL
             }
             else
             {
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, finalMessage);
+                Output(eventData.Level, eventData, finalMessage);
             }
         }
 
         /// <inheritdoc />
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
             m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
         }

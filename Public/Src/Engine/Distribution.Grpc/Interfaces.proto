@@ -87,6 +87,11 @@ message EventMessage
 
     // The message for the event
     string Text = 6;
+
+    oneof ErrorEvent {
+       // The original pipProcessError event if exist
+       PipProcessErrorEvent PipProcessErrorEvent = 7;
+    }
 }
 
 // Information about completed pips and events logged on worker
@@ -270,4 +275,18 @@ message PipGraphCacheDescriptor {
     bytes EngineState = 13;
     bytes HistoricTableSizes = 14;
     bytes PipGraphId = 15;
+}
+
+message PipProcessErrorEvent {
+    int64 PipSemiStableHash = 1;
+    string PipDescription = 2;
+    string PipSpecPath = 3;
+    string PipWorkingDirectory = 4;
+    string PipExe = 5;
+    string OutputToLog = 6;
+    string MessageAboutPathsToLog = 7;
+    string PathsToLog = 8;
+    int32 ExitCode = 9;
+    string OptionalMessage = 10;
+    string ShortPipDescription = 11;
 }

@@ -128,7 +128,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <inheritdoc />
-        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        protected override void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
         {
             m_writer.WriteLine(level, (m_translator != null && !doNotTranslatePaths) ? m_translator.Translate(text) : text);
 

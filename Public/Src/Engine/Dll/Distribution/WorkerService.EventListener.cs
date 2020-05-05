@@ -10,6 +10,7 @@ using BuildXL.Engine.Distribution.OpenBond;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Processes.Tracing;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -44,20 +45,40 @@ namespace BuildXL.Engine.Distribution
             }
 
             [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
-            protected override async void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+            protected override async void Output(EventLevel level, EventWrittenEventArgs eventData, string text, bool doNotTranslatePaths = false)
             {
                 if ((level != EventLevel.Error) && (level != EventLevel.Warning))
                 {
                     return;
                 }
 
-                if (((long)eventKeywords & (long)Keywords.NotForwardedToMaster) > 0)
+                if (((long)eventData.Keywords & (long)Keywords.NotForwardedToMaster) > 0)
                 { 
                     return;
                 }
 
                 try
                 {
+                    PipProcessErrorEvent pipProcessErrorEvent = null;
+                    if (eventData.EventId == (int)LogEventId.PipProcessError)
+                    {
+                        var pipProcessErrorEventFields = new PipProcessErrorEventFields(eventData.Payload, false);
+                        pipProcessErrorEvent = new PipProcessErrorEvent()
+                        {
+                            PipSemiStableHash = pipProcessErrorEventFields.PipSemiStableHash,
+                            PipDescription = pipProcessErrorEventFields.PipDescription,
+                            PipSpecPath = pipProcessErrorEventFields.PipSpecPath,
+                            PipWorkingDirectory = pipProcessErrorEventFields.PipWorkingDirectory,
+                            PipExe = pipProcessErrorEventFields.PipExe,
+                            OutputToLog = pipProcessErrorEventFields.OutputToLog,
+                            MessageAboutPathsToLog = pipProcessErrorEventFields.MessageAboutPathsToLog,
+                            PathsToLog = pipProcessErrorEventFields.PathsToLog,
+                            ExitCode = pipProcessErrorEventFields.ExitCode,
+                            OptionalMessage = pipProcessErrorEventFields.OptionalMessage,
+                            ShortPipDescription = pipProcessErrorEventFields.ShortPipDescription,
+                        };
+                    }
+                    
                     await m_workerService.SendEventMessagesAsync(
                         forwardedEvents: new List<EventMessage>(1)
                                          {
@@ -65,10 +86,11 @@ namespace BuildXL.Engine.Distribution
                                          {
                                              Id = Interlocked.Increment(ref m_nextEventId),
                                              Level = (int)level,
-                                             EventKeywords = (long)eventKeywords,
-                                             EventId = id,
-                                             EventName = eventName,
-                                             Text = text,
+                                             EventKeywords = (long)eventData.Keywords,
+                                             EventId = eventData.EventId,
+                                             EventName = eventData.EventName,
+                                             Text = text,                                             
+                                             PipProcessErrorEvent = pipProcessErrorEvent,
                                          },
                                          });
                 }

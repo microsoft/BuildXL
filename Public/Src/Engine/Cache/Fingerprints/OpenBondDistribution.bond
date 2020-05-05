@@ -108,6 +108,21 @@ struct PipCompletionData
 	5: int32 Step;
 }
 
+struct PipProcessErrorEvent
+{
+    1: int64 PipSemiStableHash;
+    2: string PipDescription;
+    3: string PipSpecPath;
+    4: string PipWorkingDirectory;
+    5: string PipExe;
+    6: string OutputToLog;
+    7: string MessageAboutPathsToLog;
+    8: string PathsToLog;
+    9: int32 ExitCode;
+    10: string OptionalMessage;
+    11: string ShortPipDescription;
+}
+
 /// Events that have been logged on workers and are transited to the master. Any changes here may require changes
 /// to TrackingEventListener.cs
 struct EventMessage
@@ -130,6 +145,9 @@ struct EventMessage
 
     /// The message for the event
     6: string Text;
+
+    /// The original pipProcessError event
+    7: nullable<PipProcessErrorEvent> PipProcessErrorEvent;
 }
 
 /// Information about completed pips and events logged on worker

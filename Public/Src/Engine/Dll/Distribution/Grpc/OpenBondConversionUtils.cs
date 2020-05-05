@@ -65,15 +65,35 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             foreach (var i in message.ForwardedEvents)
             {
-                workerNotificationArgs.ForwardedEvents.Add(new EventMessage()
+                var eventMessage = new EventMessage()
                 {
                     EventId = i.EventId,
                     EventKeywords = i.EventKeywords,
                     EventName = i.EventName,
                     Id = i.Id,
                     Level = i.Level,
-                    Text = i.Text
-                });
+                    Text = i.Text,
+                };
+
+                if (i.PipProcessErrorEvent != null)
+                {
+                    eventMessage.PipProcessErrorEvent = new global::BuildXL.Distribution.Grpc.PipProcessErrorEvent()
+                    {
+                        PipSemiStableHash = i.PipProcessErrorEvent.PipSemiStableHash,
+                        PipDescription = i.PipProcessErrorEvent.PipDescription,
+                        PipSpecPath = i.PipProcessErrorEvent.PipSpecPath,
+                        PipWorkingDirectory = i.PipProcessErrorEvent.PipWorkingDirectory,
+                        PipExe = i.PipProcessErrorEvent.PipExe,
+                        OutputToLog = i.PipProcessErrorEvent.OutputToLog,
+                        MessageAboutPathsToLog = i.PipProcessErrorEvent.MessageAboutPathsToLog,
+                        PathsToLog = i.PipProcessErrorEvent.PathsToLog,
+                        ExitCode = i.PipProcessErrorEvent.ExitCode,
+                        OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                    };
+                }
+
+                workerNotificationArgs.ForwardedEvents.Add(eventMessage);
             }
 
             return workerNotificationArgs;
@@ -104,7 +124,21 @@ namespace BuildXL.Engine.Distribution.Grpc
                     EventName = i.EventName,
                     Id = i.Id,
                     Level = i.Level,
-                    Text = i.Text
+                    Text = i.Text,
+                    PipProcessErrorEvent = i.ErrorEventCase == EventMessage.ErrorEventOneofCase.PipProcessErrorEvent ? new OpenBond.PipProcessErrorEvent()
+                    {
+                        PipSemiStableHash = i.PipProcessErrorEvent.PipSemiStableHash,
+                        PipDescription = i.PipProcessErrorEvent.PipDescription,
+                        PipSpecPath = i.PipProcessErrorEvent.PipSpecPath,
+                        PipWorkingDirectory = i.PipProcessErrorEvent.PipWorkingDirectory,
+                        PipExe = i.PipProcessErrorEvent.PipExe,
+                        OutputToLog = i.PipProcessErrorEvent.OutputToLog,
+                        MessageAboutPathsToLog = i.PipProcessErrorEvent.MessageAboutPathsToLog,
+                        PathsToLog = i.PipProcessErrorEvent.PathsToLog,
+                        ExitCode = i.PipProcessErrorEvent.ExitCode,
+                        OptionalMessage = i.PipProcessErrorEvent.OptionalMessage,
+                        ShortPipDescription = i.PipProcessErrorEvent.ShortPipDescription
+                    } : null,
                 });
             }
 

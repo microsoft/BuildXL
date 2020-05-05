@@ -51,13 +51,13 @@ namespace BuildXL.Tracing
             if (eventData.EventId == (int)LogEventId.StatusHeader)
             {
                 Contract.AssertNotNull(eventData.Payload);
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
             }
             else if (eventData.EventId == (int)LogEventId.Status)
             {
                 Contract.AssertNotNull(eventData.Payload);
                 var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
+                Output(eventData.Level, eventData, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }
     }

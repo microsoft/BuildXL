@@ -8,7 +8,7 @@ using System.Linq;
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
     /// <summary>
-    /// Result of <see cref="RedisContentLocationStore.GetRedisInfoAsync"/>.
+    /// Result of <see cref="RedisDatabaseAdapter.GetRedisInfoAsync"/>.
     /// </summary>
     internal class RedisInfoStats
     {

@@ -7,9 +7,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public enum ProactiveCopyLocationSource
     {
         /// <nodoc />
-        PredictionStore,
-
-        /// <nodoc />
         DesignatedLocation,
 
         /// <nodoc />

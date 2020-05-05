@@ -58,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly CancellationToken _token;
 
         private readonly IContentStoreInternal _store;
+        private readonly IDistributedLocationStore? _distributedStore;
 
         private readonly BlockingCollection<QuotaRequest> _reserveQueue;
 
@@ -88,7 +89,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         private Task? _processReserveRequestsTask;
 
-        private readonly DistributedEvictionSettings _distributedEvictionSettings;
         private static readonly Task<PurgeResult> CompletedPurgeTask = Task.FromResult(new PurgeResult(reserveSize: 0, hashesToPurgeCount: 0, quotaDescription: null));
 
         private Task<PurgeResult> _purgeTask = CompletedPurgeTask;
@@ -109,16 +109,17 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentStoreInternalTracer tracer,
             QuotaKeeperConfiguration configuration,
             CancellationToken token,
-            IContentStoreInternal store)
+            IContentStoreInternal store,
+            IDistributedLocationStore? distributedStore)
         {
             _contentStoreTracer = tracer;
             _tracer = new Tracer(name: Component);
             _allContentSize = configuration.ContentDirectorySize;
             _token = token;
             _store = store;
+            _distributedStore = distributedStore;
             _reserveQueue = new BlockingCollection<QuotaRequest>();
             _evictionQueue =  new ConcurrentQueue<ReserveSpaceRequest>();
-            _distributedEvictionSettings = configuration.DistributedEvictionSettings;
             _rules = CreateRules(fileSystem, configuration, store);
             Counters = new CounterCollection<QuotaKeeperCounters>();
         }
@@ -129,13 +130,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentStoreInternalTracer tracer,
             CancellationToken token,
             IContentStoreInternal store,
+            IDistributedLocationStore? distributedStore,
             QuotaKeeperConfiguration configuration)
         {
             Contract.RequiresNotNull(fileSystem);
             Contract.RequiresNotNull(tracer);
             Contract.RequiresNotNull(configuration);
 
-            return new QuotaKeeper(fileSystem, tracer, configuration, token, store);
+            return new QuotaKeeper(fileSystem, tracer, configuration, token, store, distributedStore);
         }
 
         /// <inheritdoc />
@@ -228,7 +230,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             IContentStoreInternal store)
         {
             var rules = new List<IQuotaRule>();
-            var distributedEvictionSettings = configuration.DistributedEvictionSettings;
 
             if (configuration.EnableElasticity)
             {
@@ -515,7 +516,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Returns true if the purge process should be stopped.
         /// </summary>
-        internal bool StopPurging([NotNullWhen(true)]out string? stopReason, [NotNullWhen(true)]out IQuotaRule? activeRule)
+        internal bool StopPurging([NotNullWhen(true)]out string? stopReason, [NotNullWhen(false)]out IQuotaRule? activeRule)
         {
             activeRule = null;
             var reserveSize = _requestedSize;
@@ -636,7 +637,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return finalPurgeResult;
                 },
                 Counters[QuotaKeeperCounters.PurgeCall],
-                traceErrorsOnly: true); // the results are traced explicitely by contentStoreTracer
+                traceErrorsOnly: true); // the results are traced explicitly by contentStoreTracer
 
             // Tests rely on the PurgeCount to be non-0.
             _contentStoreTracer.PurgeStop(context, operationResult);
@@ -676,7 +677,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var purger = new Purger(
                 context,
                 this,
-                _distributedEvictionSettings,
+                _distributedStore,
                 contentHashesWithInfo,
                 new PurgeResult(reserveSize, contentHashesWithInfo.Count, $"[{string.Join(", ", _rules.Select(r => r.Quota))}]"),
                 _token);

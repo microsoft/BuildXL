@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// </summary>
         protected string GetFullOutput() => _outputTextWriter?.GetFullOutput() ?? string.Empty;
 
-        /// <inheritdoc />
+        /// <nodoc />
         protected TestWithOutput(ITestOutputHelper output)
         {
             Output = output;
@@ -88,7 +88,18 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
 
         ~TestWithOutput()
         {
-            Debug.Assert(false, $"Instance of type {GetType()} was not disposed!");
+            var output = Output;
+            if (output != null)
+            {
+                try
+                {
+                    output.WriteLine($"Instance of type {GetType()} was not disposed!");
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine($"WriteLine failed: {e}");
+                }
+            }
         }
 
         /// <inheritodc />

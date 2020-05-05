@@ -30,6 +30,7 @@ namespace ContentStoreTest.Distributed.Redis
         /// </summary>
         public void Dispose()
         {
+            Console.WriteLine("LocalRedisFixture.Dispose");
             while (true)
             {
                 var database = DatabasePool.GetInstance();

@@ -39,7 +39,7 @@ namespace ContentStoreTest.Sessions
         protected const HashType ContentHashType = HashType.Vso0;
         private const long DefaultMaxSize = 1 * 1024 * 1024;
         protected static readonly CancellationToken Token = CancellationToken.None;
-        protected readonly string Scenario;
+        protected string Scenario;
 
         protected ServiceClientContentSessionTestBase(string scenario, ITestOutputHelper output = null)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, output)

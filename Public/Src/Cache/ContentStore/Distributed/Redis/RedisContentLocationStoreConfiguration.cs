@@ -3,13 +3,13 @@
 
 using System;
 using System.Threading;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
     /// <summary>
-    /// Configuration properties for <see cref="RedisContentLocationStore"/>
+    /// Configuration properties for <see cref="RedisGlobalStore"/>
     /// </summary>
     public class RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
     {
@@ -22,16 +22,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Gets or sets size of batch calls to Redis.
         /// </summary>
         public int RedisBatchPageSize { get; set; } = RedisContentLocationStoreConstants.DefaultBatchSize;
-
-        /// <summary>
-        /// Gets or sets minimum replica count to determine safe eviction during distributed eviction.
-        /// </summary>
-        public int MinReplicaCountToSafeEvict { get; set; } = RedisContentLocationStoreConstants.DefaultMinReplicaCountToSafeEvict;
-
-        /// <summary>
-        /// Gets or sets minimum replica count to determine immediate eviction during distributed eviction.
-        /// </summary>
-        public int MinReplicaCountToImmediateEvict { get; set; } = RedisContentLocationStoreConstants.DefaultMinReplicaCountToImmediateEvict;
 
         /// <summary>
         /// The time before a machine is marked as closed from its last heartbeat as open.
@@ -67,14 +57,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             Keyspace = "Default:"
         };
-
-        /// <summary>
-        /// Configuration of redis garbage collection.
-        /// </summary>
-        public RedisGarbageCollectionConfiguration GarbageCollectionConfiguration { get; set; }
-
-        /// <nodoc />
-        public bool GarbageCollectionEnabled => GarbageCollectionConfiguration != null;
 
         /// <summary>
         /// Expiry time for all blobs stored in Redis.
@@ -119,75 +101,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Timeout for GetBlob operations.
         /// </summary>
         public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;
-
-        /// <summary>
-        /// Indicates the mode used when writing content locations
-        /// </summary>
-        public ContentLocationMode WriteMode { get; set; } = ContentLocationMode.Redis;
-
-        /// <summary>
-        /// Indicates the mode used when reading content locations
-        /// </summary>
-        public ContentLocationMode ReadMode { get; set; } = ContentLocationMode.Redis;
-
-        /// <nodoc />
-        public bool HasWriteMode(ContentLocationMode mode)
-        {
-            return (WriteMode & mode) == mode;
-        }
-
-        /// <nodoc />
-        public bool HasReadMode(ContentLocationMode mode)
-        {
-            return (ReadMode & mode) == mode;
-        }
-
-        /// <nodoc />
-        public bool HasReadOrWriteMode(ContentLocationMode mode)
-        {
-            return HasReadMode(mode) || HasWriteMode(mode);
-        }
-    }
-
-    /// <summary>
-    /// Configuration class for redis garbage collection process.
-    /// </summary>
-    public class RedisGarbageCollectionConfiguration
-    {
-        /// <summary>
-        /// Time between garbage collections.
-        /// </summary>
-        public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
-
-        /// <summary>
-        /// Gets the name of the key which controls the least for redis garbage collection
-        /// </summary>
-        public string GarbageCollectionLeaseKey { get; set; } = "RedisGcRoleLeaseKey";
-
-        /// <summary>
-        /// Number of iterations between throttling and progress reporting.
-        /// </summary>
-        public int IterationsInBatch { get; set; } = 50;
-
-        /// <summary>
-        /// The delay between GC batches.
-        /// </summary>
-        public TimeSpan DelayBetweenBatches { get; set; } = TimeSpan.FromMilliseconds(250);
-
-        /// <summary>
-        /// Number of entries retrieved during one scan redis call.
-        /// </summary>
-        public int ScanBatchSize { get; set; } = 1000;
-
-        /// <summary>
-        /// The delay between entries last access time and the GC time when an empty entry is considered eligible for garbage collection.
-        /// </summary>
-        /// <remarks>
-        /// Non-zero time here is important for work-arounding the issue with distributed eviction.
-        /// Currently, the client may clear the last bit of the entry and later during distributed eviction process it may decided to add the bit back.
-        /// If we'll remove the entry in that time window, the entry will be lost forever.
-        /// To avoid this race condition, only empty records that were accessed longer than 5 minutes are considered eligible for deletion.
-        /// </remarks>
-        public TimeSpan MaximumEntryLastAccessTime { get; set; } = TimeSpan.FromMinutes(5);
     }
 }

@@ -35,10 +35,10 @@ namespace ContentStoreTest.Stores
         {
         }
 
-        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
             var config = new ContentStoreConfiguration(_quota);
-            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, nagleQueue: nagleBlock, settings: ContentStoreSettings);
+            return new TestFileSystemContentStoreInternal(FileSystem, clock, rootPath, config, settings: ContentStoreSettings);
         }
 
         protected override int ContentSizeToStartSoftPurging(int numberOfBlobs)

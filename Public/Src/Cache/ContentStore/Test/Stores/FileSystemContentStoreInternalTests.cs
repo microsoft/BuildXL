@@ -93,7 +93,7 @@ namespace ContentStoreTest.Stores
             {
                 var context = new Context(Logger);
 
-                var store = CreateStore(testDirectory, Settings, WithMockDistributedLocationStore(mockDistributedLocationStore));
+                var store = CreateStore(testDirectory, Settings, mockDistributedLocationStore);
 
                 await store.StartupAsync(context).ShouldBeSuccess();
 
@@ -253,29 +253,14 @@ namespace ContentStoreTest.Stores
         private static ContentStoreSettings Settings =>
             new ContentStoreSettings() {SelfCheckSettings = new SelfCheckSettings() {StartSelfCheckInStartup = false}};
         
-        private static DistributedEvictionSettings WithMockDistributedLocationStore(MockDistributedLocationStore mock)
+        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings, IDistributedLocationStore distributedStore)
         {
-            return new DistributedEvictionSettings(
-                (context, contentHashesWithInfo, cts, urgencyHint) => null,
-                locationStoreBatchSize: 42,
-                replicaCreditInMinutes: null,
-                distributedStore: mock);
-        }
-
-        private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings, DistributedEvictionSettings distributedEvictionSettings)
-        {
-            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, distributedEvictionSettings: distributedEvictionSettings, nagleQueue: EmptyNagleQueue(), settings: settings);
+            return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, distributedStore: distributedStore, settings: settings);
         }
 
         private TestFileSystemContentStoreInternal CreateStore(DisposableDirectory testDirectory, ContentStoreSettings settings)
         {
             return new TestFileSystemContentStoreInternal(FileSystem, Clock, testDirectory.Path, Config, settings: settings);
-        }
-
-        private NagleQueue<ContentHash> EmptyNagleQueue()
-        {
-            return NagleQueue<ContentHash>.CreateUnstarted(1, TimeSpan.MaxValue, 42);
-
         }
     }
 }

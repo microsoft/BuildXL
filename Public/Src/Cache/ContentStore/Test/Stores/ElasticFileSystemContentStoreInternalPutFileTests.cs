@@ -105,9 +105,9 @@ namespace ContentStoreTest.Stores
             });
         }
 
-        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
-            return CreateElastic(rootPath, clock, nagleBlock, new MaxSizeQuota(MaxSizeHard));
+            return CreateElastic(rootPath, clock, new MaxSizeQuota(MaxSizeHard));
         }
     }
 }

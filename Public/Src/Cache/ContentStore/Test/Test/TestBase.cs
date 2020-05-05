@@ -64,7 +64,7 @@ namespace ContentStoreTest.Test
 
         private void OnTaskSchedulerOnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs args)
         {
-            Logger.Error("Task unobserved exception: " + args.Exception);
+            Logger.Error($"Task unobserved exception in test {GetType()}: {args.Exception}");
         }
 
         protected virtual IAbsFileSystem CreateFileSystem()

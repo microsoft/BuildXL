@@ -6,13 +6,10 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
     /// <summary>
-    /// Counters used by <see cref="RedisContentLocationStoreBase"/>.
+    /// Counters used by <see cref="IContentLocationStore"/> implementations.
     /// </summary>
     public enum ContentLocationStoreCounters
     {
-        /// <nodoc />
-        DatabaseStoreUpdate,
-
         /// <nodoc />
         DatabaseStoreAdd,
 
@@ -39,27 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        CompileLocations,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ProcessLocationMappings,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
         RegisterLocalLocation,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ResolveLocations,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ResolveLocations_GetLocationMapping,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ResolveLocations_CreateContentHashWithSizeAndLocations,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
@@ -86,40 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         BackgroundTouchBulk,
 
         /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        InfoStats,
-
-        // Subset of counters related to redis's garbage collection
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        RedisGc_GarbageCollectShard,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        RedisGc_GarbageCollectBatch,
-
-        /// <summary>
-        /// Number of keys cleaned because they are too old and contain no machines
-        /// </summary>
-        RedisGc_CleanedKeysCount,
-
-        /// <summary>
-        /// Number of keys cleanable because they are too old and contain no machines
-        /// </summary>
-        RedisGc_CleanableKeysCount,
-
-        /// <summary>
-        /// Number of keys cleaned because they are too old and contain no machines
-        /// </summary>
-        RedisGc_MalformedKeysCount,
-
-        /// <summary>
-        /// Number of entries retrieved during GC process.
-        /// </summary>
-        RedisGc_EntriesCount,
-
-        /// <nodoc />
         LocationAddRecentInactiveEager,
 
         /// <nodoc />
@@ -144,12 +87,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         StaleLastAccessTimeUpdates,
 
         /// <nodoc />
-        EffectiveLastAccessTimeLookupHit,
-
-        /// <nodoc />
-        EffectiveLastAccessTimeLookupMiss,
-
-        /// <nodoc />
         IncrementalCheckpointFilesDownloaded,
 
         /// <nodoc />
@@ -163,24 +100,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         ReconciliationCycles,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        PutBlob,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        GetBlob,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        ProactiveReplication,
-
-        /// <nodoc />
-        ProactiveReplication_Succeeded,
-
-        /// <nodoc />
-        ProactiveReplication_Failed,
 
         /// <nodoc />
         RestoreCheckpointsSkipped,

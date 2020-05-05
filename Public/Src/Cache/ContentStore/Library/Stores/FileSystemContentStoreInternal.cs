@@ -63,6 +63,8 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </remarks>
     public class FileSystemContentStoreInternal : StartupShutdownBase, IContentStoreInternal, IContentDirectoryHost
     {
+        private readonly IDistributedLocationStore _distributedStore;
+
         /// <nodoc />
         public const bool DefaultApplyDenyWriteAttributesOnContent = false;
 
@@ -166,8 +168,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         private readonly LockSet<ContentHash> _lockSet = new LockSet<ContentHash>();
 
-        private readonly NagleQueue<ContentHash> _nagleQueue;
-
         private bool _applyDenyWriteAttributesOnContent;
 
         private IContentChangeAnnouncer _announcer;
@@ -204,11 +204,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly Action _preEvictFileAction = null;
 
         /// <summary>
-        ///     Configuration for Distributed Eviction.
-        /// </summary>
-        private readonly DistributedEvictionSettings _distributedEvictionSettings;
-
-        /// <summary>
         /// Stream containing the empty file.
         /// </summary>
         private readonly Stream _emptyFileStream = new MemoryStream(CollectionUtilities.EmptyArray<byte>(), false);
@@ -238,12 +233,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             IClock clock,
             AbsolutePath rootPath,
             ConfigurationModel configurationModel = null,
-            NagleQueue<ContentHash> nagleQueue = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            ContentStoreSettings settings = null)
+            ContentStoreSettings settings = null,
+            IDistributedLocationStore distributedStore = null)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
+
+            _distributedStore = distributedStore;
 
             _tracer = new ContentStoreInternalTracer(settings);
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
@@ -254,7 +250,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                 throw new CacheException("Root path does not provide enough room for cache paths to fit MAX_PATH");
             }
 
-            _nagleQueue = nagleQueue;
             Clock = clock;
             FileSystem = fileSystem;
             _configurationModel = configurationModel ?? new ConfigurationModel();
@@ -271,7 +266,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             _pinContextCount = 0;
             _maxPinSize = -1;
 
-            _distributedEvictionSettings = distributedEvictionSettings;
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
 
             _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
@@ -379,17 +373,19 @@ namespace BuildXL.Cache.ContentStore.Stores
             // Notify distributed store that the content is gone from this machine
             // The first 3 things are happening in the first call.
             await EvictCoreAsync(
-                context,
-                new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
-                force: true, // Need to evict an invalid content even if it is pinned.
-                onlyUnlinked: false,
-                size => { QuotaKeeper.OnContentEvicted(size); })
+                    context,
+                    new ContentHashWithLastAccessTimeAndReplicaCount(contentHash, Clock.UtcNow),
+                    force: true, // Need to evict an invalid content even if it is pinned.
+                    onlyUnlinked: false,
+                    size => { QuotaKeeper.OnContentEvicted(size); })
                 .TraceIfFailure(context);
 
-            if (_distributedEvictionSettings?.DistributedStore != null)
+
+            if (_distributedStore != null)
             {
-                await _distributedEvictionSettings.DistributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
+                await _distributedStore.UnregisterAsync(context, new ContentHash[] {contentHash}, context.Token)
                     .TraceIfFailure(context);
+
             }
         }
 
@@ -719,18 +715,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                         RootPath,
                         Configuration.HistoryBufferSize);
 
-            _distributedEvictionSettings?.InitializeDistributedEviction(
-                UpdateContentWithLastAccessTimeAsync,
-                _tracer,
-                GetPinnedSize,
-                _nagleQueue);
-
-            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, _distributedEvictionSettings, size);
+            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, size);
             QuotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,
                 ShutdownStartedCancellationToken,
                 this,
+                _distributedStore,
                 quotaKeeperConfiguration);
 
             var result = await QuotaKeeper.StartupAsync(context);
@@ -2265,12 +2256,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                                 }
                                 else
                                 {
-                                    // Notify Redis of eviction when Distributed Eviction is turned off
-                                    if (_distributedEvictionSettings == null)
-                                    {
-                                        _nagleQueue?.Enqueue(contentHash);
-                                    }
-
                                     successfullyEvictedHash = true;
                                 }
 

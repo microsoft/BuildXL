@@ -193,7 +193,7 @@ namespace ContentStoreTest.Distributed.Redis
         {
             StartRedisServerIfNeeded();
 
-            var database = GetDatabase().WithKeyPrefix(RedisContentLocationStoreFactory.DefaultKeySpace);
+            var database = GetDatabase().WithKeyPrefix(ContentLocationStoreFactory.DefaultKeySpace);
 
             try
             {
@@ -221,7 +221,7 @@ namespace ContentStoreTest.Distributed.Redis
                 foreach (KeyValuePair<RedisKey, RedisValue> kvp in initialData)
                 {
                     string key = kvp.Key;
-                    key = key.Substring(RedisContentLocationStoreFactory.DefaultKeySpace.Length);
+                    key = key.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
                     if (expiryData != null && expiryData.TryGetValue(kvp.Key, out var expiryDate))
                     {
                         database.StringSet(key, kvp.Value, expiryDate - _clock.UtcNow);
@@ -238,7 +238,7 @@ namespace ContentStoreTest.Distributed.Redis
                 foreach (KeyValuePair<RedisKey, RedisValue[]> kvp in setData)
                 {
                     string key = kvp.Key;
-                    key = key.Substring(RedisContentLocationStoreFactory.DefaultKeySpace.Length);
+                    key = key.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
                     database.SetAdd(key, kvp.Value);
                 }
             }
@@ -524,9 +524,9 @@ port {portNumber}";
             foreach (RedisKey key in GetKeys())
             {
                 string stringKey = key;
-                stringKey = stringKey.Substring(RedisContentLocationStoreFactory.DefaultKeySpace.Length);
+                stringKey = stringKey.Substring(ContentLocationStoreFactory.DefaultKeySpace.Length);
                 RedisKey redisKey = stringKey;
-                redisKey = redisKey.Prepend(RedisContentLocationStoreFactory.DefaultKeySpace);
+                redisKey = redisKey.Prepend(ContentLocationStoreFactory.DefaultKeySpace);
                 if (!dict.ContainsKey(redisKey))
                 {
                     var type = database.KeyType(key);

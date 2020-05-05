@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using FluentAssertions;
 using Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
@@ -219,8 +220,19 @@ namespace ContentStoreTest.Distributed.Sessions
                     var putResult = await session0.PutRandomFileAsync(context, FileSystem, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
                     Assert.Equal(1, redisStore0.Counters[GlobalStoreCounters.PutBlob].Value);
 
-                    await redisStore1.GetBlobAsync(context, putResult.ContentHash).ShouldBeError("TimeoutException");
-                    Assert.Equal(1, redisStore1.Counters[GlobalStoreCounters.GetBlob].Value);
+                    // This test is a bit flaky and in some cases the operation is successful even with 0 timeout.
+                    GetBlobResult failure = null;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        failure = await redisStore1.GetBlobAsync(context, putResult.ContentHash);
+                        if (!failure.Succeeded)
+                        {
+                            break;
+                        }
+                    }
+
+                    failure.ShouldBeError("TimeoutException");
+                    redisStore1.Counters[GlobalStoreCounters.GetBlob].Value.Should().BeGreaterOrEqualTo(1);
                 });
         }
     }

@@ -16,7 +16,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Native.IO;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;

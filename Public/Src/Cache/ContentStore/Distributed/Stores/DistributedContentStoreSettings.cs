@@ -242,11 +242,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaximumConcurrentPutAndPlaceFileOperations { get; set; } = 512;
 
         /// <summary>
-        /// Name of the blob with the snapshot of the content placement predictions.
-        /// </summary>
-        public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
-
-        /// <summary>
         /// Used in tests to inline put blob execution.
         /// </summary>
         public bool InlinePutBlobs { get; set; } = false;
@@ -271,11 +266,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// The batch size used by the location store
         /// </summary>
         public int LocationStoreBatchSize { get; set; }
-
-        /// <summary>
-        /// The time to live after last use for content entries in Redis
-        /// </summary>
-        public TimeSpan? ContentHashBumpTime { get; set; }
 
         /// <summary>
         /// Max size for storing blobs in the ContentLocationStore

@@ -25,7 +25,7 @@ namespace ContentStoreTest.Distributed.Redis
 {
     public class RaidedRedisDatabaseAdapterTests : TestBase
     {
-        private const string DefaultKeySpace = RedisContentLocationStoreFactory.DefaultKeySpace;
+        private const string DefaultKeySpace = ContentLocationStoreFactory.DefaultKeySpace;
 
         private static readonly IDictionary<RedisKey, RedisValue> InitialTestData = new Dictionary<RedisKey, RedisValue>
         {
@@ -61,25 +61,25 @@ namespace ContentStoreTest.Distributed.Redis
             var retryWindow = TimeSpan.FromSeconds(1);
 
             // Running for the first time, both operation should be successful.
-            var r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, ExecuteAsync, retryWindow, concurrent: true);
+            var r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, (adapter, token) => ExecuteAsync(context, adapter, token), retryWindow, concurrent: true);
             r.primary.ShouldBeSuccess();
             r.secondary.ShouldBeSuccess();
 
             secondaryDb.FailNextOperation();
-            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, ExecuteAsync, retryWindow, concurrent: true);
+            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, (adapter, token) => ExecuteAsync(context, adapter, token), retryWindow, concurrent: true);
             r.primary.ShouldBeSuccess();
             // The second redis should fail when we'll try to use it the second time.
             r.secondary.ShouldBeError();
 
             primaryDb.FailNextOperation();
-            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, ExecuteAsync, retryWindow, concurrent: true);
+            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, (adapter, token) => ExecuteAsync(context, adapter, token), retryWindow, concurrent: true);
             // Now all the instance should fail.
             r.primary.ShouldBeError();
             r.secondary.ShouldBeSuccess();
 
             primaryDb.FailNextOperation();
             secondaryDb.FailNextOperation();
-            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, ExecuteAsync, retryWindow, concurrent: true);
+            r = await raidedDatabaseAdapter.ExecuteRaidedAsync(context, (adapter, token) => ExecuteAsync(context, adapter, token), retryWindow, concurrent: true);
             // Now all the instance should fail.
             r.primary.ShouldBeError();
             r.secondary.ShouldBeError();
@@ -110,7 +110,7 @@ namespace ContentStoreTest.Distributed.Redis
 
             var r = await raidedDatabaseAdapter.ExecuteRaidedAsync(
                 context,
-                ExecuteAsync,
+                (adapter, token) => ExecuteAsync(context, adapter, token),
                 retryWindow,
                 concurrent: true);
             r.primary.ShouldBeSuccess();
@@ -118,10 +118,12 @@ namespace ContentStoreTest.Distributed.Redis
             r.secondary.Should().BeNull();
         }
 
-        private static Task<BoolResult> ExecuteAsync(RedisDatabaseAdapter adapter, CancellationToken token)
+        private static Task<BoolResult> ExecuteAsync(OperationContext context, RedisDatabaseAdapter adapter, CancellationToken token)
         {
             var redisBatch = adapter.CreateBatchOperation(RedisOperation.All);
             var first = redisBatch.StringGetAsync("first");
+
+            first.FireAndForget(context, redisBatch);
 
             // Execute the batch
             return adapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, token);

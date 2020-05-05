@@ -117,6 +117,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
+        // Obsolete: Used by old redis only.
         public int ContentHashBumpTimeMinutes { get; set; } = 2880;
 
         private int _redisMemoizationExpiryTimeMinutes;
@@ -497,9 +498,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsMasterEligible { get; set; } = false;
 
-        [DataMember]
-        public bool IsRedisGarbageCollectionEnabled { get; set; } = false;
-
         /// <summary>
         /// Disabling reconciliation is an unsafe option that can cause builds to fail because the machine's state can be off compared to the LLS's state.
         /// Please do not set this property for long period of time. 
@@ -647,20 +645,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? CentralStorageOperationTimeoutInMinutes { get; set; }
-
-        /// <summary>
-        /// Valid values: LocalLocationStore, Redis, Both (see ContentStore.Distributed.ContentLocationMode)
-        /// </summary>
-        [DataMember]
-        [Validation.Enum(typeof(ContentLocationMode))]
-        public string ContentLocationReadMode { get; set; } = nameof(ContentLocationMode.Redis);
-
-        /// <summary>
-        /// Valid values: LocalLocationStore, Redis, Both (see ContentStore.Distributed.ContentLocationMode)
-        /// </summary>
-        [DataMember]
-        [Validation.Enum(typeof(ContentLocationMode))]
-        public string ContentLocationWriteMode { get; set; } = nameof(ContentLocationMode.Redis);
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

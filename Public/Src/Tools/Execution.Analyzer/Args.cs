@@ -340,11 +340,6 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
-#if NET_FRAMEWORK
-                case AnalysisMode.ContentPlacement:
-                    m_analyzer = InitializeContentPlacementAnalyzer();
-                    break;
-#endif
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
                     break;
@@ -649,13 +644,6 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteXLGToDBHelp(writer);
-
-//writer.WriteLine("");
-//WriteDominoInvocationHelp(writer);
-#if NET_FRAMEWORK
-            writer.WriteLine("");
-            WriteContentPlacementAnalyzerHelp(writer);
-#endif
         }
 
         public void LogEventSummary()

@@ -78,7 +78,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
-            Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
+            Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, contentStoreSettings: default, distributedStore: null);
 
             if (distributedSettings?.EnableMetadataStore == true)
             {

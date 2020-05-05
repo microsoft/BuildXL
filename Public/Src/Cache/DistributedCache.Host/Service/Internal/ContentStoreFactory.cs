@@ -1,13 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Utils;
-
+#nullable enable
 namespace BuildXL.Cache.Host.Service.Internal
 {
     public class ContentStoreFactory
@@ -18,12 +16,10 @@ namespace BuildXL.Cache.Host.Service.Internal
         public static IContentStore CreateContentStore(
             IAbsFileSystem fileSystem,
             AbsolutePath rootPath,
-            NagleQueue<ContentHash> evictionAnnouncer,
-            DistributedEvictionSettings distributedEvictionSettings,
-            ContentStoreSettings contentStoreSettings,
-            TrimBulkAsync trimBulkAsync,
-            ConfigurationModel configurationModel = null)
+            ContentStoreSettings? contentStoreSettings,
+            IDistributedLocationStore? distributedStore,
+            ConfigurationModel? configurationModel = null)
             => new FileSystemContentStore(
-                fileSystem, SystemClock.Instance, rootPath, configurationModel, evictionAnnouncer, distributedEvictionSettings, trimBulkAsync, contentStoreSettings);
+                fileSystem, SystemClock.Instance, rootPath, configurationModel, distributedStore, contentStoreSettings);
     }
 }

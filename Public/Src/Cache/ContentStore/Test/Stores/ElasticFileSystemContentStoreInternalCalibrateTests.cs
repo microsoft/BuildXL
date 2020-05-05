@@ -6,15 +6,12 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
-using BuildXL.Cache.ContentStore.Utils;
 using Xunit;
 
 namespace ContentStoreTest.Stores
@@ -108,9 +105,9 @@ namespace ContentStoreTest.Stores
             });
         }
 
-        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
-            return CreateElastic(rootPath, clock, nagleBlock, new MaxSizeQuota(InitialMaxSizeHard), WindowSize);
+            return CreateElastic(rootPath, clock, new MaxSizeQuota(InitialMaxSizeHard), WindowSize);
         }
 
         private static MemoryStream RandomStream(long size)

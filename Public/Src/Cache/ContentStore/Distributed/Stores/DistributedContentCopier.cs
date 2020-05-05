@@ -90,8 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             OperationContext operationContext,
             IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
-            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync,
-            Action<IReadOnlyList<MachineLocation>> handleBadLocations = null)
+            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             var cts = operationContext.Token;
 
@@ -180,12 +179,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                 // now that retries are exhausted, combine the missing and bad locations.
                 badContentLocations.UnionWith(missingContentLocations);
-
-                if (badContentLocations.Any())
-                {
-                    // This will go away when LLS is the only content location store
-                    handleBadLocations?.Invoke(badContentLocations.ToList());
-                }
 
                 if (!putResult.Succeeded)
                 {

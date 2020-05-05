@@ -252,8 +252,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 AzureStorageSecretName = Host.StoreSecret("Storage_Unspecified", "Unused"),
 
                 IsContentLocationDatabaseEnabled = true,
-                ContentLocationReadMode = nameof(ContentLocationMode.Redis),
-                ContentLocationWriteMode = nameof(ContentLocationMode.Both),
                 UseDistributedCentralStorage = true,
                 ContentHashBumpTimeMinutes = 60,
                 MachineActiveToClosedIntervalMinutes = 5,
@@ -343,7 +341,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 Token,
                 dataRootPath: rootPath.Path,
                 configuration: configuration,
-                keyspace: RedisContentLocationStoreFactory.DefaultKeySpace
+                keyspace: ContentLocationStoreFactory.DefaultKeySpace
             );
 
             arguments.Overrides = new TestHostOverrides(this, index);
@@ -388,8 +386,6 @@ namespace ContentStoreTest.Distributed.Sessions
             _overrideDistributed = s =>
             {
                 s.IsPinBetterEnabled = true;
-                s.ContentLocationReadMode = nameof(ContentLocationMode.LocalLocationStore);
-                s.ContentLocationWriteMode = nameof(ContentLocationMode.LocalLocationStore);
                 overrideDistributed?.Invoke(s);
             };
             _overrideRedis = overrideRedis;
@@ -1756,7 +1752,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var sessions = context.Sessions;
                     var session0 = context.GetDistributedSession(0);
 
-                    var redisStore0 = context.GetRedisStore(session0);
+                    var redisStore0 = context.GetContentLocationStore(session0);
 
                     string content = "MyContent";
                     // Inserting the content into session 0

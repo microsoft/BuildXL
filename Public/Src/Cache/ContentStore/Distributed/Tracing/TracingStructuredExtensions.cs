@@ -160,7 +160,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
 
             var message = $"{tracer.Name}: Starting content location store. "
                           + "Features: "
-                          + $"ReadMode={configuration.ReadMode}, WriteMode={configuration.WriteMode}, "
                           + $"ReconciliationEnabled={configuration.EnableReconciliation}, "
                           + $"MachineReputationEnabled={configuration.ReputationTrackerConfiguration?.Enabled ?? false}, "
                           + $"Checkpoint={configuration.Checkpoint != null}, "

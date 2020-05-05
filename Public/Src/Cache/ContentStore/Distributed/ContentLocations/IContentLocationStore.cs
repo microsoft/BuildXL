@@ -35,11 +35,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         MachineReputationTracker MachineReputationTracker { get; }
 
         /// <summary>
-        /// Updates the remote store with the content locations for a set of content hashes.
-        /// </summary>
-        Task<BoolResult> UpdateBulkAsync(Context context, IReadOnlyList<ContentHashWithSizeAndLocations> contentHashesWithSizeAndLocations, CancellationToken cts, UrgencyHint urgencyHint, LocationStoreOption locationStoreOption);
-
-        /// <summary>
         /// Enumerates the content locations for a given set of content hashes.
         /// </summary>
         Task<GetBulkLocationsResult> GetBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, GetBulkOrigin origin);
@@ -50,29 +45,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
 
         /// <summary>
-        /// Removes bad content locations from a particular set of content hashes.
-        /// </summary>
-        /// <remarks>
-        /// This operation is impelmented for non-LLS case only!
-        /// </remarks>
-        Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint);
-
-        /// <summary>
         /// Invalidates all content for the machine in the content location store
         /// </summary>
-        Task<BoolResult> InvalidateLocalMachineAsync(Context context, ILocalContentStore localStore, CancellationToken cts);
-
-        /// <summary>
-        /// Runs garbage collection on the content location store
-        /// </summary>
-        Task<BoolResult> GarbageCollectAsync(OperationContext context);
-
-        /// <summary>
-        /// Unregisters the local location from the content tracker for each hash if provided last-access time and remote last-access time are in sync.
-        /// When Item2 in the tuple is true, the local location is left registered if the content doesn't exist at the minimum number of replicas (defined in Redis config).
-        /// </summary>
-        /// <returns>List of hashes with their remote last-access time, replica count, and whether or not its safe to evict.</returns>
-        Task<ObjectResult<IList<ContentHashWithLastAccessTimeAndReplicaCount>>> TrimOrGetLastAccessTimeAsync(Context context, IList<Tuple<ContentHashWithLastAccessTimeAndReplicaCount, bool>> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint);
+        Task<BoolResult> InvalidateLocalMachineAsync(Context context, CancellationToken cts);
 
         /// <summary>
         /// Updates the expiry of provided hashes in the content tracker to current time.

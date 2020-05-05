@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
@@ -19,7 +18,6 @@ using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed;
-using Test.BuildXL.TestUtilities.Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -44,46 +42,33 @@ namespace ContentStoreTest.Distributed.Sessions
             _redis = redis;
         }
 
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
         {
             var rootPath = testDirectory.Path / "Root";
             var configurationModel = new ConfigurationModel(configuration);
-            var fileCopier = new TestFileCopier();
 
-            var localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
-            var localMachineDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+            var primaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
+            var secondaryDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
 
             var localMachineLocation = new MachineLocation(rootPath.Path);
-            var storeFactory = new MockRedisContentLocationStoreFactory(localDatabase, localMachineDatabase, rootPath);
+            var storeFactory = new MockContentLocationStoreFactory(primaryDatabase, secondaryDatabase, rootPath);
 
             var settings = CreateSettings();
-
-            var distributedCopier = new DistributedContentCopier<AbsolutePath>(
-                settings,
-                FileSystem,
-                fileCopier,
-                fileCopier,
-                copyRequester: null,
-                storeFactory.PathTransformer,
-                SystemClock.Instance);
 
             return new DistributedContentStore<AbsolutePath>(
                 localMachineLocation,
                 rootPath,
-                (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
+                (contentStoreSettings, distributedStore) =>
                     new FileSystemContentStore(
                         FileSystem,
                         SystemClock.Instance,
                         rootPath,
                         configurationModel,
-                        nagleQueue: nagleBlock,
-                        distributedEvictionSettings: distributedEvictionSettings,
                         settings: contentStoreSettings,
-                        trimBulkAsync: trimBulkAsync),
+                        distributedStore: distributedStore),
                 storeFactory,
                 settings: settings,
-                distributedCopier: distributedCopier);
+                distributedCopier: storeFactory.GetCopier());
         }
 
         protected virtual DistributedContentStoreSettings CreateSettings()

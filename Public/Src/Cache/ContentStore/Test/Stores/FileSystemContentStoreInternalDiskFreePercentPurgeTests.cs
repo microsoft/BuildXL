@@ -29,7 +29,7 @@ namespace ContentStoreTest.Stores
         {
         }
 
-        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock, NagleQueue<ContentHash> nagleBlock = null)
+        protected override TestFileSystemContentStoreInternal Create(AbsolutePath rootPath, ITestClock clock)
         {
             Contract.Assert(ReferenceEquals(clock, Clock));
             var config = new ContentStoreConfiguration(null, _quota);
@@ -40,7 +40,6 @@ namespace ContentStoreTest.Stores
                 config,
                 contentHashWithSize => ((MyMemoryFileSystem)FileSystem).ContentAdded(contentHashWithSize.Size),
                 contentHashWithSize => ((MyMemoryFileSystem)FileSystem).ContentEvicted(contentHashWithSize.Size),
-                nagleBlock,
                 settings: ContentStoreSettings
                 );
         }

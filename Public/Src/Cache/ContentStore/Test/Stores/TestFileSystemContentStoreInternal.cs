@@ -19,7 +19,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using FluentAssertions;
-using BuildXL.Cache.ContentStore.Utils;
 using Xunit;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -45,10 +44,9 @@ namespace ContentStoreTest.Stores
             ContentStoreConfiguration configuration,
             Action<ContentHashWithSize> onContentAdded = null,
             Action<ContentHashWithSize> onContentEvicted = null,
-            NagleQueue<ContentHash> nagleQueue = null,
             ContentStoreSettings settings = null,
-            DistributedEvictionSettings distributedEvictionSettings = null)
-            : base(fileSystem, clock, rootPath, new ConfigurationModel(configuration), nagleQueue: nagleQueue, settings: settings, distributedEvictionSettings: distributedEvictionSettings)
+            IDistributedLocationStore distributedStore = null)
+            : base(fileSystem, clock, rootPath, new ConfigurationModel(configuration), settings: settings, distributedStore: distributedStore)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);

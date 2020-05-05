@@ -44,12 +44,6 @@ namespace ContentStoreTest.Distributed.Stores
             _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
         }
 
-        /// <inheritdoc />
-        public override void Dispose()
-        {
-            _clientCache.Dispose();
-        }
-
         [Fact]
         public async Task CopyExistingFile()
         {

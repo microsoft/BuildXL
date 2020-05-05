@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Stores;
 
-// ReSharper disable All
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
@@ -21,6 +21,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Creates and returns a file location cache for the given session.
         /// </summary>
-        Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation, ILocalContentStore localContentStore);
+        Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation, ILocalContentStore? localContentStore);
     }
 }

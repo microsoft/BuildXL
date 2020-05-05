@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <summary>
-    ///     Instance of a RemoveFromTravcker operation for tracing purposes.
+    ///     Instance of a RemoveFromTracker operation for tracing purposes.
     /// </summary>
     public sealed class RemoveFromTrackerCall<TTracer> : TracedCall<TTracer, StructResult<long>>, IDisposable
         where TTracer : ContentStoreTracer

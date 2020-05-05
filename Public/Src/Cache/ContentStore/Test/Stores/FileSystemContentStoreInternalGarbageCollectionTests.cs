@@ -33,13 +33,6 @@ namespace ContentStoreTest.Stores
         [Fact]
         public async Task EvictionAnnouncesHash()
         {
-            bool batchProcessWasCalled = false;
-            var nagleQueue = NagleQueue<ContentHash>.Create(
-                hashes => { batchProcessWasCalled = true; return Task.FromResult(42); },
-                maxDegreeOfParallelism: 1,
-                interval: TimeSpan.FromMinutes(1),
-                batchSize: 1);
-
             await TestStore(
                 _context,
                 _clock,
@@ -57,10 +50,7 @@ namespace ContentStoreTest.Stores
                         _clock.Increment();
                         await store.SyncAsync(_context);
                     }
-                },
-                nagleQueue);
-
-            batchProcessWasCalled.Should().BeTrue();
+                });
         }
 
         [Fact]

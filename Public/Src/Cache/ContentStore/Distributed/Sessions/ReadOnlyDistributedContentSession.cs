@@ -56,19 +56,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         internal CounterCollection<Counters> SessionCounters { get; } = new CounterCollection<Counters>();
 
-        private RocksDbContentPlacementPredictionStore? _predictionStore;
         private string? _buildId = null;
         private ContentHash? _buildIdHash = null;
-        private IEnumerable<MachineLocation> _buildRingMachines = CollectionUtilities.EmptyArray<MachineLocation>();
+        private MachineLocation[] _buildRingMachines = CollectionUtilities.EmptyArray<MachineLocation>();
         private readonly ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
         private readonly ResultNagleQueue<ContentHash, ContentHashWithSizeAndLocations> _proactiveCopyGetBulkNagleQueue;
 
-        private static readonly string PredictionBlobNameFile = "blobName.txt";
-
-        // The method used for remote pins depends on which pin configuraiton is enabled.
+        // The method used for remote pins depends on which pin configuration is enabled.
         private readonly RemotePinAsync _remotePinner;
-
-        private BackgroundTaskTracker? _backgroundTaskTracker;
 
         /// <summary>
         /// The store that persists content locations to a persistent store.
@@ -92,11 +87,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected readonly DistributedContentCopier<T> DistributedCopier;
 
         private readonly IDistributedContentCopierHost _copierHost;
-
-        /// <summary>
-        /// Updates content tracker lazily or eagerly based on local age.
-        /// </summary>
-        private readonly ContentTrackerUpdater? _contentTrackerUpdater;
 
         /// <summary>
         /// Settings for the session.
@@ -123,7 +113,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             DistributedContentCopier<T> contentCopier,
             IDistributedContentCopierHost copierHost,
             MachineLocation localMachineLocation,
-            ContentTrackerUpdater? contentTrackerUpdater = null,
             DistributedContentStoreSettings? settings = default)
             : base(name)
         {
@@ -138,7 +127,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Settings = settings ?? DistributedContentStoreSettings.DefaultSettings;
             _copierHost = copierHost;
             _remotePinner = PinFromMultiLevelContentLocationStore;
-            _contentTrackerUpdater = contentTrackerUpdater;
             DistributedCopier = contentCopier;
             PutAndPlaceFileGate = new SemaphoreSlim(Settings.MaximumConcurrentPutAndPlaceFileOperations);
 
@@ -151,7 +139,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _backgroundTaskTracker = new BackgroundTaskTracker(Name, new Context(context));
             var canHibernate = Inner is IHibernateContentSession ? "can" : "cannot";
             Tracer.Debug(context, $"Session {Name} {canHibernate} hibernate");
             await Inner.StartupAsync(context).ThrowIfFailure();
@@ -159,8 +146,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             _proactiveCopyGetBulkNagleQueue.Start(hashes => GetLocationsForProactiveCopyAsync(context.CreateNested(Tracer.Name), hashes));
 
             TryRegisterMachineWithBuildId(context);
-
-            await InitializePredictionStoreAsync(context);
 
             return BoolResult.Success;
         }
@@ -186,37 +171,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private Task InitializePredictionStoreAsync(OperationContext context)
-        {
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    var centralStorage = (ContentLocationStore as TransitioningContentLocationStore)?.LocalLocationStore?.CentralStorage;
-
-                    if (centralStorage != null && Settings.ContentPlacementPredictionsBlob != null)
-                    {
-                        var checkpointDirectory = Path.Combine(LocalCacheRootMachineLocation.Path, "PlacementPredictions");
-                        _predictionStore = new RocksDbContentPlacementPredictionStore(checkpointDirectory, clean: false);
-                        await _predictionStore.StartupAsync(context).ThrowIfFailure();
-
-                        var fileName = Path.Combine(checkpointDirectory, PredictionBlobNameFile);
-                        if (!File.Exists(fileName) || File.ReadAllText(fileName) != Settings.ContentPlacementPredictionsBlob)
-                        {
-                            Directory.Delete(checkpointDirectory);
-
-                            Directory.CreateDirectory(checkpointDirectory);
-
-                            var zipFile = Path.Combine(checkpointDirectory, "snapshot.zip");
-                            await centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, new AbsolutePath(zipFile)).ThrowIfFailure();
-                            _predictionStore.UncompressSnapshot(context, zipFile).ThrowIfFailure();
-                        }
-                    }
-
-                    return BoolResult.Success;
-                });
-        }
-
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
@@ -228,12 +182,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 await ContentLocationStore.TrimBulkAsync(context, new[] { _buildIdHash.Value }, context.Token, UrgencyHint.Nominal)
                     .IgnoreErrorsAndReturnCompletion();
-            }
-
-            if (_backgroundTaskTracker != null)
-            {
-                await _backgroundTaskTracker.Synchronize();
-                await _backgroundTaskTracker.ShutdownAsync(context);
             }
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();
@@ -249,7 +197,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             base.DisposeCore();
 
             Inner.Dispose();
-            _backgroundTaskTracker?.Dispose();
         }
 
         /// <inheritdoc />
@@ -845,19 +792,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         return innerPutResult;
 
-                    },
-                    handleBadLocations: badContentLocations =>
-                    {
-                        Tracer.Debug(
-                            operationContext.Context,
-                            $"Removing bad content locations for content hash {hashInfo.ContentHash.ToShortString()}: {string.Join(",", badContentLocations)}");
-                        _backgroundTaskTracker?.Add(
-                            () =>
-                                ContentLocationStore.TrimBulkAsync(
-                                    operationContext.Context,
-                                    new[] { new ContentHashAndLocations(hashInfo.ContentHash, badContentLocations) },
-                                    CancellationToken.None,
-                                    UrgencyHint.Low));
                     });
 
                 if (bytes != null && putResult.Succeeded)
@@ -1104,8 +1038,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task UpdateContentTrackerWithLocalHitsAsync(Context context, IReadOnlyList<ContentHashWithSizeAndLastAccessTime> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint)
         {
-            IReadOnlyList<ContentHashWithSize> hashesToEagerUpdate;
-
             if (Disposed)
             {
                 // Nothing to do.
@@ -1118,22 +1050,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return BoolTask.True;
             }
 
-            if (_contentTrackerUpdater != null)
-            {
-                // Filter out hashes that can be lazily updated based on content's local age.
-                hashesToEagerUpdate = _contentTrackerUpdater.ScheduleHashTouches(context, contentHashesWithInfo).ToList();
-                Tracer.Debug(context, $"Updating {hashesToEagerUpdate.Count}/{contentHashesWithInfo.Count} in the content tracker eagerly");
 
-                if (hashesToEagerUpdate.Count == 0)
-                {
-                    // No eager hashes, just return.
-                    return BoolTask.True;
-                }
-            }
-            else
-            {
-                hashesToEagerUpdate = contentHashesWithInfo.Select(x => new ContentHashWithSize(x.Hash, x.Size)).ToList();
-            }
+            IReadOnlyList<ContentHashWithSize> hashesToEagerUpdate = contentHashesWithInfo.Select(x => new ContentHashWithSize(x.Hash, x.Size)).ToList();
 
             // Wait for update to complete on remaining hashes to cover case where the record has expired and another machine in the ring requests it immediately after this pin succeeds.
             return UpdateContentTrackerWithNewReplicaAsync(context, hashesToEagerUpdate, cts, urgencyHint);
@@ -1146,15 +1064,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             var originalLength = hashes.Count;
             if (_buildIdHash.HasValue)
             {
-#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
-                var tmp = new List<ContentHash>(hashes.Count() + 1);
-                tmp.AddRange(hashes);
-                tmp.Add(_buildIdHash.Value);
-                hashes = tmp;
-#else
                 // Add build id hash to hashes so build ring machines can be updated
-                hashes = hashes.Append(_buildIdHash.Value).ToList();
-#endif
+                hashes = hashes.AppendItem(_buildIdHash.Value).ToList();
             }
 
             var result = await MultiLevelUtilities.RunMultiLevelWithMergeAsync(
@@ -1178,15 +1089,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (_buildIdHash.HasValue)
             {
-#if NET_FRAMEWORK_462 // This is just temporary until vpack upgrades to net472
-                var tmp = new List<MachineLocation>(result.Last().Locations.Count() + 1);
-                tmp.AddRange(result.Last().Locations);
-                tmp.Add(LocalCacheRootMachineLocation);
-                _buildRingMachines = tmp;
-#else
                 // Update build ring machines with retrieved locations
-                _buildRingMachines = result.Last().Locations.Append(LocalCacheRootMachineLocation);
-#endif
+                _buildRingMachines = result.Last().Locations.AppendItem(LocalCacheRootMachineLocation).ToArray();
                 return result.Take(originalLength).ToList();
             }
             else
@@ -1259,18 +1163,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 Result<MachineLocation>? getLocationResult = null;
                 var source = ProactiveCopyLocationSource.Random;
-
-                // Try to select machine from prediction store.
-                if (_predictionStore != null && path != null)
-                {
-                    var machines = _predictionStore.GetTargetMachines(context, path);
-                    if (machines?.Count > 0)
-                    {
-                        var index = ThreadSafeRandom.Generator.Next(0, machines.Count);
-                        getLocationResult = new MachineLocation(machines[index]);
-                        source = ProactiveCopyLocationSource.PredictionStore;
-                    }
-                }
 
                 // Try to select one of the designated machines for this hash.
                 if (Settings.ProactiveCopyUsePreferredLocations && getLocationResult?.Succeeded != true)

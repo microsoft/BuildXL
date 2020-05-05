@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -25,7 +24,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             OperationContext operationContext,
             IDistributedContentCopierHost host,
             ContentHashWithSizeAndLocations hashInfo,
-            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync,
-            Action<IReadOnlyList<MachineLocation>> handleBadLocations = null);
+            Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync);
     }
 }

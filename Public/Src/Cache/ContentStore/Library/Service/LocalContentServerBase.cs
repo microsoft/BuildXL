@@ -249,6 +249,11 @@ namespace BuildXL.Cache.ContentStore.Service
             // This is a workaround to make sure hibernated sessions are fully restored
             // before FileSystemContentStore can evict the content.
             var result = await tryStartupCoreAsync();
+            if (!result)
+            {
+                // We should not be running post initialization operation if the startup operation failed.
+                return result;
+            }
 
             foreach (var store in StoresByName.Values)
             {

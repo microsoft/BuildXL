@@ -9,7 +9,7 @@ namespace BuildXL.Cache.Logging.Test
     public class TestTaskExceptionObserver
     {
         [Fact]
-        public void UnkownExceptionType()
+        public void UnknownExceptionType()
         {
             var knownException = new Exception("KNOWN");
             var unknownException = new Exception("RANDOM");

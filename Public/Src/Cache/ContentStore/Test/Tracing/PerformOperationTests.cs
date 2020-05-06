@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
@@ -192,6 +193,102 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             fullOutput.Should().Contain("failure2");
             fullOutput.Should().Contain(error);
         }
+
+        [Fact]
+        public void TraceOperationStartedEmitsComponentAndOperation()
+        {
+            var tracer = new Tracer("MyTracer");
+            var mock = new StructuredLoggerMock();
+            var context = new OperationContext(new Context(mock));
+
+            // Running a successful operation first
+            var result = context.CreateOperation(
+                    tracer,
+                    () => new CustomResult())
+                .Run(caller: "success");
+
+            mock.LogOperationStartedArgument.OperationName.Should().Be("success");
+            mock.LogOperationStartedArgument.TracerName.Should().Be("MyTracer");
+        }
+
+        private class StructuredLoggerMock : IStructuredLogger
+        {
+            public void Dispose()
+            {
+            }
+
+            public Severity CurrentSeverity { get; }
+
+            public int ErrorCount { get; }
+
+            public void Flush()
+            {
+            }
+
+            public void Always(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Fatal(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Error(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Error(Exception exception, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void ErrorThrow(Exception exception, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Warning(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Info(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Debug(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Debug(Exception exception)
+            {
+            }
+
+            public void Diagnostic(string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Log(Severity severity, string message)
+            {
+            }
+
+            public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
+            {
+            }
+
+            public void Log(Severity severity, string correlationId, string message)
+            {
+            }
+
+            public OperationStarted LogOperationStartedArgument;
+
+            public void LogOperationStarted(in OperationStarted operation)
+            {
+                LogOperationStartedArgument = operation;
+            }
+
+            public void LogOperationFinished(in OperationResult result)
+            {
+            }
+        }
+
 
         private class CustomResult : BoolResult
         {

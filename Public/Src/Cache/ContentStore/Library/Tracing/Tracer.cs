@@ -218,7 +218,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     message = $"{message} {additionalInfo}";
                 }
 
-                Debug(context, message);
+                Severity severity = Severity.Debug;
+                context.OperationStarted(message, operationName, Name, severity, OperationKind.None);
             }
         }
 

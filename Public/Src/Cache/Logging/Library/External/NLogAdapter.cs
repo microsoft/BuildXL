@@ -7,6 +7,8 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using NLog;
+using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
 namespace BuildXL.Cache.Logging.External
 {
@@ -149,26 +151,73 @@ namespace BuildXL.Cache.Logging.External
         }
 
         /// <inheritdoc />
-        public void LogOperationFinished(in OperationResult result)
+        public void LogOperationStarted(in OperationStarted operation)
         {
-            var severity = result.Severity;
+            var severity = operation.Severity;
 
-            var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: result.Message);
-            logLine.Exception = result.Exception;
-            logLine.Properties[MetaData.CorrelationId] = result.OperationId;
-            logLine.Properties[MetaData.OperationName] = result.OperationName;
-            logLine.Properties[MetaData.OperationComponent] = result.TracerName;
-            // Arguments can take arbitrary information. It should be space separated
-            // key values.
-            logLine.Properties[MetaData.OperationArguments] = "Kind=" + result.OperationKind;
-            logLine.Properties[MetaData.OperationResult] = result.Status;
-            logLine.Properties[MetaData.OperationDuration] = result.Duration;
+            var logLine = CreateLogEventInfo(operation);
 
             _nlog.Log(logLine);
 
             if (severity == Severity.Error)
             {
                 Interlocked.Increment(ref _errorCount);
+            }
+        }
+
+        /// <inheritdoc />
+        public void LogOperationFinished(in OperationResult result)
+        {
+            var severity = result.Severity;
+            var logLine = CreateLogEventInfo(result);
+
+            _nlog.Log(logLine);
+
+            if (severity == Severity.Error)
+            {
+                Interlocked.Increment(ref _errorCount);
+            }
+        }
+
+        /// <summary>
+        /// Helper method that creates <see cref="LogEventInfo"/> from <see cref="OperationStarted"/>
+        /// </summary>
+        internal static LogEventInfo CreateLogEventInfo(in OperationStarted operation)
+        {
+            var logLine = new NLog.LogEventInfo(level: Translate(operation.Severity), loggerName: null, message: operation.Message);
+            SetCoreProperties(logLine, operation);
+            return logLine;
+        }
+
+        /// <summary>
+        /// Helper method that creates <see cref="LogEventInfo"/> from <see cref="OperationResult"/>
+        /// </summary>
+        internal static LogEventInfo CreateLogEventInfo(in OperationResult result)
+        {
+            var severity = result.Severity;
+            
+            var logLine = new NLog.LogEventInfo(level: Translate(severity), loggerName: null, message: result.Message);
+            SetCoreProperties(logLine, result);
+
+            logLine.Exception = result.Exception;
+            logLine.Properties[MetaData.OperationResult] = result.Status;
+            logLine.Properties[MetaData.OperationDuration] = result.Duration;
+
+            return logLine;
+        }
+
+        private static void SetCoreProperties<T>(NLog.LogEventInfo logLine, T operation)
+            where T : IOperationInfo
+        {
+            logLine.Properties[MetaData.CorrelationId] = operation.OperationId;
+            logLine.Properties[MetaData.OperationName] = operation.OperationName;
+            logLine.Properties[MetaData.OperationComponent] = operation.TracerName;
+
+            // Arguments can take arbitrary information. It should be space separated
+            // key values.
+            if (operation.OperationKind != OperationKind.None)
+            {
+                logLine.Properties[MetaData.OperationArguments] = "Kind=" + operation.OperationKind;
             }
         }
 
@@ -381,9 +430,6 @@ namespace BuildXL.Cache.Logging.External
 
             /// <nodoc />
             public const string OperationDuration = nameof(OperationDuration);
-
-            /// <nodoc />
-            public const string OperationException = nameof(OperationException);
         }
     }
 }

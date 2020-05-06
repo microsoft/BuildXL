@@ -11,6 +11,7 @@ namespace Test {
             Library.dll,
 
             importFrom("WindowsAzure.Storage").pkg,
+            importFrom("NLog").pkg,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,

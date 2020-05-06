@@ -76,6 +76,9 @@ namespace BuildXL.Cache.Logging.External
         public void Log(Severity severity, string correlationId, string message) => _logger.Log(severity, correlationId, message);
 
         /// <inheritdoc />
+        public void LogOperationStarted(in OperationStarted operation) => _logger.LogOperationStarted(operation);
+
+        /// <inheritdoc />
         public void LogOperationFinished(in OperationResult result)
         {
             // Need to call the both loggers, because the first one will write to the file and

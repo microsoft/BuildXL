@@ -167,6 +167,29 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <summary>
+        /// Trace operation start.
+        /// </summary>
+        public void OperationStarted(
+            string message,
+            string operationName,
+            string componentName,
+            Severity severity,
+            OperationKind kind)
+        {
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                // Note, that 'message' here is a plain message from the client
+                // without correlation id.
+                var operation = new OperationStarted(message, operationName, componentName, kind, _idAsString, severity);
+                structuredLogger.LogOperationStarted(operation);
+            }
+            else
+            {
+                TraceMessage(severity, message);
+            }
+        }
+
+        /// <summary>
         /// Trace operation completion.
         /// </summary>
         public void OperationFinished(string message, string operationName, string componentName, ResultBase result, TimeSpan duration, Severity successSeverity, OperationKind kind)

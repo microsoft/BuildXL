@@ -14,6 +14,11 @@
         void Log(Severity severity, string correlationId, string message);
 
         /// <summary>
+        /// Traces that an operation has started.
+        /// </summary>
+        void LogOperationStarted(in OperationStarted operation);
+
+        /// <summary>
         /// Traces that an operation has finished and records the metrics associated with the operation.
         /// </summary>
         void LogOperationFinished(in OperationResult result);

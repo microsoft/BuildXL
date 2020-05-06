@@ -2137,6 +2137,15 @@ namespace BuildXL.Processes
                     }
                 }
 
+                if (ShouldSandboxedProcessExecuteInVm)
+                {
+                    // User profiles are tricky on the Admin VM since it's potentially running some of the first processes launched
+                    // on a newly provisioned VM. When this happens various directories that would usually already be existing may be created.
+                    // We assign a generous access policy for CreateDirectory access under the user profile to handle this.
+                    m_fileAccessManifest.AddScope(userProfilePath, values: FileAccessPolicy.AllowCreateDirectory, mask: FileAccessPolicy.AllowAll);
+                    m_fileAccessManifest.AddScope(redirectedUserProfilePath, values: FileAccessPolicy.AllowCreateDirectory, mask: FileAccessPolicy.AllowAll);
+                }
+
                 foreach (AbsolutePath path in pip.UntrackedScopes)
                 {
                     // Note that untracked scopes are quite dangerous. We allow writes, reads, and probes for non-existent files.

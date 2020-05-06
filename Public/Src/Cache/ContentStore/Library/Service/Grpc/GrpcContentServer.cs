@@ -783,14 +783,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 if (trace)
                 {
-                    context.TracingContext.Debug($"Starting GRPC operation {caller}.");
+                    context.TracingContext.Debug($"Starting GRPC operation {caller} for session {sessionId}.");
                 }
 
                 var result = await taskFunc(context, session!);
 
                 if (trace)
                 {
-                    context.TracingContext.Debug($"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms.");
+                    context.TracingContext.Debug($"GRPC operation {caller} is finished in {sw.Elapsed.TotalMilliseconds}ms for session {sessionId}.");
                 }
 
                 return result;

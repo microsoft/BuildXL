@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             var statsResult = await Store.GetStatsAsync(operationContext);
             if (statsResult.Succeeded)
             {
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operationContext, s));
+                Tracer.TraceStatisticsAtShutdown(operationContext, statsResult.CounterSet);
             }
 
             return BoolResult.Success;

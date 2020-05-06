@@ -161,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 #if NET_FRAMEWORK
                 LocalCacheStatsEventSource.Instance.Stats(statsResult.CounterSet);
 #endif
-                statsResult.CounterSet!.LogOrderedNameValuePairs(s => Tracer.Debug(context, s));
+                Tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet!);
             }
         }
 

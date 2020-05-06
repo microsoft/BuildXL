@@ -533,7 +533,12 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             _logIncrementalStatsTimer?.Dispose();
-            await LogIncrementalStatsAsync(context);
+            _logMachineStatsTimer?.Dispose();
+
+            if (Tracer.EnableTraceStatisticsAtShutdown)
+            {
+                await LogIncrementalStatsAsync(context);
+            }
 
             // Stop the session expiration timer.
             _sessionExpirationCheckTimer?.Dispose();
@@ -645,6 +650,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             _sessionExpirationCheckTimer?.Dispose();
             _logIncrementalStatsTimer?.Dispose();
+            _logMachineStatsTimer?.Dispose();
 
             _serviceReadinessChecker.Dispose();
 

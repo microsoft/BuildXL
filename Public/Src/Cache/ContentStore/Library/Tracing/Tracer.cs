@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 // ReSharper disable UnusedMemberInSuper.Global
 
@@ -21,6 +22,17 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
+    /// <summary>
+    /// Global configuration that controls some aspects of tracing, like whether to trace statistics.
+    /// </summary>
+    public static class GlobalTracerConfiguration
+    {
+        /// <summary>
+        /// If true the statistics is traced at components shutdown.
+        /// </summary>
+        public static bool EnableTraceStatisticsAtShutdown { get; set; } = true;
+    }
+
     public class Tracer
     {
         // If this flag is set, then the trace name will be used in all the tracing operations.
@@ -49,8 +61,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         public Tracer(string name, bool useTracerName = false)
         {
-            _useTracerName = useTracerName;
             Contract.Requires(name != null);
+
+            _useTracerName = useTracerName;
 
             Name = name;
         }
@@ -311,6 +324,25 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 var messageText = CreateMessageText(result, duration, message, operationName);
 
                 OperationFinishedCore(context, result, duration, messageText, OperationKind.None, traceErrorsOnly ? Severity.Diagnostic : Severity.Debug, operationName);
+            }
+        }
+
+        /// <inheritdoc cref="GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown"/>
+        public bool EnableTraceStatisticsAtShutdown => GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown;
+
+        /// <summary>
+        /// Trace stats during component's shutdown.
+        /// </summary>
+        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string extraMessage = null)
+        {
+            if (EnableTraceStatisticsAtShutdown)
+            {
+                if (!string.IsNullOrEmpty(extraMessage))
+                {
+                    context.Debug(extraMessage);
+                }
+
+                counterSet.LogOrderedNameValuePairs(s => Debug(context, s));
             }
         }
     }

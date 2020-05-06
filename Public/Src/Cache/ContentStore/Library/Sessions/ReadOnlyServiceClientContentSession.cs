@@ -130,7 +130,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             var counterSet = new CounterSet();
             counterSet.Merge(GetCounters(), $"{Tracer.Name}.");
-            counterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operationContext, s));
+            Tracer.TraceStatisticsAtShutdown(operationContext, counterSet);
 
             return result;
         }

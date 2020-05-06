@@ -799,7 +799,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (statsResult)
             {
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
+                _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet);
             }
 
             return result;

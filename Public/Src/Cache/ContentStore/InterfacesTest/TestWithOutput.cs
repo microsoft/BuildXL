@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using BuildXL.Cache.ContentStore.Tracing;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest
@@ -57,6 +58,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
     /// </summary>
     public abstract class TestWithOutput : IDisposable
     {
+        private readonly bool _oldEnableTraceAtShutdownValue;
         private readonly TextWriter _oldConsoleOutput;
         private readonly TextWriter _oldConsoleErrorOutput;
 
@@ -75,6 +77,9 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// <nodoc />
         protected TestWithOutput(ITestOutputHelper output)
         {
+            _oldEnableTraceAtShutdownValue = GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown;
+            GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown = false;
+
             Output = output;
             if (output != null)
             {
@@ -105,6 +110,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest
         /// <inheritodc />
         public virtual void Dispose()
         {
+            GlobalTracerConfiguration.EnableTraceStatisticsAtShutdown = _oldEnableTraceAtShutdownValue;
             if (Output != null)
             {
                 // Need to restore an old console output to prevent invalid operation exceptions when tracing is happening after all the tests are finished.

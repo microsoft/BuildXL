@@ -125,8 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 }
                 else
                 {
-                    context.Debug("DistributedCache Stats:");
-                    stats.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
+                    _tracer.TraceStatisticsAtShutdown(context, stats.CounterSet, "DistributedCache Stats:");
                 }
 
                 var innerCacheShutdown = await _innerICache.ShutdownAsync(context);

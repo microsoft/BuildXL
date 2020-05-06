@@ -57,6 +57,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         public class TestContext
         {
+            private readonly bool _traceStoreStatistics;
             public readonly Context Context;
             public readonly Context[] StoreContexts;
             public readonly TestFileCopier TestFileCopier;
@@ -68,12 +69,13 @@ namespace ContentStoreTest.Distributed.Sessions
             public readonly int Iteration;
 
             public TestContext(TestContext other)
-                : this(other.Context, other.FileCopier, other.Directories, other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(), other.Iteration)
+                : this(other.Context, other.FileCopier, other.Directories, other.Stores.Select((store, i) => (store, other.Servers[i])).ToList(), other.Iteration, other._traceStoreStatistics)
             {
             }
 
-            public TestContext(Context context, IAbsolutePathFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration)
+            public TestContext(Context context, IAbsolutePathFileCopier fileCopier, IList<DisposableDirectory> directories, IList<(IContentStore store, IStartupShutdown server)> stores, int iteration, bool traceStoreStatistics = false)
             {
+                _traceStoreStatistics = traceStoreStatistics;
                 Context = context;
                 StoreContexts = stores.Select((s, index) => CreateContext(index, iteration)).ToArray();
                 TestFileCopier = fileCopier as TestFileCopier;
@@ -132,7 +134,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     session.Dispose();
                 }
 
-                await LogStatsAsync();
+                if (_traceStoreStatistics)
+                {
+                    await LogStatsAsync();
+                }
 
                 await ShutdownStoresAsync();
             }

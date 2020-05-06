@@ -63,7 +63,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             AssertDependencyAndDependent(projectC, projectA, result);
         }
 
-        [Fact(Skip = "This should eventually hold, but for now we are not declaring an opaque at the root to avoid node_modules scrubbing delays")]
+        [Fact]
         public void OutputDirectoryIsCreatedAtTheProjectRoot()
         {
             var project = CreateRushProject();

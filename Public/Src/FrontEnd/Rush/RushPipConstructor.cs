@@ -246,21 +246,9 @@ namespace BuildXL.FrontEnd.Rush
 
         private void ProcessOutputs(RushProject project, ProcessBuilder processBuilder)
         {
-            // HACK HACK. We are missing output dirs with exclusions, so we don't include node_modules here, which is a pain for scrubbing.
-            // So let's add known common directories one by one
-            // Ideally we'd like to say 'the root of the project without node_modules'. No projects are supposed to write there.
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "lib")), SealDirectoryKind.SharedOpaque);
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "temp")), SealDirectoryKind.SharedOpaque);
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "dist")), SealDirectoryKind.SharedOpaque);
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "release")), SealDirectoryKind.SharedOpaque);
-            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder.Combine(PathTable, "src")), SealDirectoryKind.SharedOpaque);
-
-            // HACK HACK. Only build projects generate these files at the root of the project. So don't add them twice otherwise graph construction complains
-            if (project.ScriptCommandName == "build")
-            {
-                processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.js"), 0), FileExistence.Optional);
-                processBuilder.AddOutputFile(new FileArtifact(project.ProjectFolder.Combine(PathTable, "test-api.d.ts"), 0), FileExistence.Optional);
-            }
+            // Each project is automatically allowed to write anything under its project root
+            // TODO: we should exclude node_modules when shared opaques start to support exclusions
+            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder), SealDirectoryKind.SharedOpaque);
 
             // Some projects share their temp folder across their build scripts (e.g. build and test)
             // So we cannot make them share the temp folder with the infrastructure we have today

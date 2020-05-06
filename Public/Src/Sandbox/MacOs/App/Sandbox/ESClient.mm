@@ -28,17 +28,14 @@ ESClient::ESClient(dispatch_queue_t event_queue, pid_t host_pid, xpc_endpoint_t 
     
     es_new_client_result_t result = es_new_client(&client_, ^(es_client_t *c, const es_message_t *message)
     {
-        __block es_message_t * observation = es_copy_message(message);
-        
-        pid_t pid = audit_token_to_pid(observation->process->audit_token);
+        pid_t pid = audit_token_to_pid(message->process->audit_token);
         if (host_pid_ == pid || getppid() == pid || getpid() == pid)
         {
-            es_mute_process(client_, &observation->process->audit_token);
-            es_free_message(observation);
+            es_mute_process(client_, &message->process->audit_token);
             return;
         }
         
-        IOEvent event(observation);
+        IOEvent event(message);
         
         size_t msg_length = IOEvent::max_size();
         char msg[msg_length];
@@ -62,14 +59,12 @@ ESClient::ESClient(dispatch_queue_t event_queue, pid_t host_pid, xpc_endpoint_t 
             switch (status)
             {
                 case xpc_response_mute_process:
-                    if (client_) es_mute_process(client_, &observation->process->audit_token);
+                    if (client_) es_mute_process(client_, event.GetProcessAuditToken());
                     break;
                 case xpc_response_error:
                 case xpc_response_failure:
                     break;
             }
-            
-            es_free_message(observation);
         });
     });
 

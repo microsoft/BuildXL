@@ -352,7 +352,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ ! -d \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\" ]]; then\n    #mkdir \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\"\n    ln -s \"/Users/krisso/Work/BuildXL/Out/Bin/debug/osx-x64\" \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\"\n    ln -s \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\" \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\"\nfi\n";
+			shellScript = "if [[ ! -d \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" ]]; then\n    mkdir \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\"\n    ln -s \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/CoreClrBundle\" \"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/$BUNDLE_CONTENTS_FOLDER_PATH/ManagedBundle\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

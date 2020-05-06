@@ -5,13 +5,12 @@
 #import "ESConstants.hpp"
 #import "XPCConstants.hpp"
 
-static xpc_endpoint_t detours_endpoint = nullptr;
-static xpc_endpoint_t es_endpoint = nullptr;
-
-static ESClient *client;
+xpc_endpoint_t detours_endpoint = nullptr;
+xpc_endpoint_t es_endpoint = nullptr;
+ESClient *client = nullptr;
 
 int main(void)
-{
+{    
     dispatch_queue_t xpc_queue = dispatch_queue_create("com.microsoft.buildxl.sandbox.xpc_queue", dispatch_queue_attr_make_with_qos_class(
         DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, -1
     ));
@@ -87,12 +86,8 @@ int main(void)
                     }
                 }
                 else if (type == XPC_TYPE_ERROR)
-                {
-                    if (es_endpoint)
-                    {
-                        if (client) client->TearDown();
-                        es_endpoint = nullptr;
-                    }
+                {                    
+                    // TODO: Get ESClient mappings implemented to do proper cleanup
                 }
             });
             

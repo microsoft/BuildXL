@@ -407,6 +407,8 @@ namespace BuildXL.SandboxExec
 
             // Enable explicit file access reporting
             sandboxProcessInfo.FileAccessManifest.ReportFileAccesses = true;
+            sandboxProcessInfo.FileAccessManifest.ReportUnexpectedFileAccesses = true;
+            sandboxProcessInfo.FileAccessManifest.MonitorNtCreateFile = true;
             sandboxProcessInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             sandboxProcessInfo.FileAccessManifest.PipId = Interlocked.Increment(ref s_pipIdCounter);
             return sandboxProcessInfo;

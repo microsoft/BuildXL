@@ -307,7 +307,12 @@ namespace BuildXL.Engine
                                         {
                                             Interlocked.Increment(ref filesEncountered);
 
-                                            if (!isPathInBuild(fullPath))
+                                            // For the Windows case we never want to delete directory symlinks. Rationale: creating
+                                            // them as part of the build is not supported yet (so we should never delete them) and
+                                            // we may end up here if the content of a dir symlink is already being deleted in another thread
+                                            // (using the real path or another symlink that points to the same location) and therefore we 
+                                            // got a !shouldEnumerateDirectory because allEnumeratedDirectories.GetOrAdd(realPath) returned false
+                                            if (!isPathInBuild(fullPath) && (OperatingSystemHelper.IsMacOS || !isDirectorySymlink))
                                             {
                                                 // File is not in the build, delete it.
                                                 if (TryDeleteFile(pm.LoggingContext, fullPath, logRemovedFiles))

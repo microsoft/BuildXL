@@ -415,7 +415,7 @@ namespace Test.BuildXL.Engine
                         nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
             XAssert.IsFalse(File.Exists(fileUnderTarget));
-            XAssert.IsFalse(Directory.Exists(fullSymlinkPath));
+            XAssert.Equals(OperatingSystemHelper.IsMacOS, !Directory.Exists(fullSymlinkPath));
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -482,15 +482,26 @@ namespace Test.BuildXL.Engine
             var fileUnderSymlinkDir = Path.Combine(symlinkDirectory, "file.txt");
             File.WriteAllText(fileUnderSymlinkDir, "content");
 
-            Scrubber.RemoveExtraneousFilesAndDirectories(
-                isPathInBuild: path => false,
-                pathsToScrub: new[] { rootDir },
-                blockedPaths: CollectionUtilities.EmptyArray<string>(),
-                nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
+            try
+            {
+                Scrubber.RemoveExtraneousFilesAndDirectories(
+                    isPathInBuild: path => false,
+                    pathsToScrub: new[] { rootDir },
+                    blockedPaths: CollectionUtilities.EmptyArray<string>(),
+                    nonDeletableRootDirectories: CollectionUtilities.EmptyArray<string>());
 
-            XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
-            XAssert.IsFalse(Directory.Exists(realDirectory));
-            XAssert.IsFalse(Directory.Exists(symlinkDirectory));
+                XAssert.IsFalse(File.Exists(fileUnderSymlinkDir));
+                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(realDirectory));
+                XAssert.Equals(!OperatingSystemHelper.IsMacOS, Directory.Exists(symlinkDirectory));
+            }
+            finally 
+            {
+                // On Windows, the temp directory cleaner has problems with cycles. So let's remove the symlink dir explicitly here
+                if (!OperatingSystemHelper.IsMacOS)
+                {
+                    Directory.Delete(symlinkDirectory);
+                }
+            }
         }
 
         [TheoryIfSupported(requiresSymlinkPermission: true)]

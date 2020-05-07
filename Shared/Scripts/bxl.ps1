@@ -116,7 +116,10 @@ param(
 
     [Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
-	
+
+    [Parameter(Mandatory=$false)]
+    [switch]$UseVfs = $false,
+
     [string]$VsoAccount = "mseng",
 
     [string]$CacheNamespace = "BuildXLSelfhost",
@@ -335,6 +338,10 @@ function Get-CacheConfig {
          UseRocksDbMemoizationStore = $true;
     };
 
+    if ($UseVfs) {
+        $localCache.Add("VfsCasRoot", "[VfsCasRoot]");
+    }
+
     if (! $UseSharedCache) {
         return $localCache;
     }
@@ -412,6 +419,7 @@ function Run-ProcessWithNormalizedPath {
         $remappedArgs += "/substTarget:$NormalizationDrive\ /substSource:$enlistmentrootTrimmed\"
 
         $remappedArgs += " /logProcessDetouringStatus+ /logProcessData+ /logProcesses+";
+
         Write-Host -ForegroundColor Green $remappedExecutableRunner @remappedArgs;
         $p = Start-Process -FilePath $remappedExecutableRunner -ArgumentList $remappedArgs -WorkingDirectory (pwd).Path -NoNewWindow -PassThru;
         Wait-Process -InputObject $p;
@@ -487,6 +495,10 @@ if (! $DoNotUseDefaultCacheConfigFilePath) {
     Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
+}
+
+if ($UseVfs) {
+    $AdditionalBuildXLArguments += "/vfsCasRoot:" + (Join-Path $cacheDirectory vfs);
 }
 
 if ($useDeployment.EnableServerMode) {

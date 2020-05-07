@@ -26,21 +26,11 @@ using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
 {
-    public abstract class ContentSessionTests : TestWithOutput
+    public abstract class ContentSessionTests : ContentSessionTestsBase
     {
-        protected const string Name = "name";
-        protected const int ContentByteCount = 100;
-        protected const HashType ContentHashType = HashType.Vso0;
-        protected const long DefaultMaxSize = 1 * 1024 * 1024;
         private static readonly Task CompletedTask = Task.FromResult(0);
-        protected static readonly CancellationToken Token = CancellationToken.None;
-
-        protected readonly IAbsFileSystem FileSystem;
-        protected readonly ILogger Logger;
 
         private readonly bool _canHibernate;
-
-        private bool _disposed;
 
         /// <summary>
         /// Gets a value indicating whether to run tests for bulk methods
@@ -51,37 +41,10 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
         protected virtual bool RunBulkMethodTests => true;
 
         protected ContentSessionTests(Func<IAbsFileSystem> createFileSystemFunc, ILogger logger, bool canHibernate = true, ITestOutputHelper output = null)
-            : base(output)
+            : base(createFileSystemFunc, logger, output)
         {
-            FileSystem = createFileSystemFunc();
-            Logger = logger;
             _canHibernate = canHibernate;
         }
-
-        /// <inheritdoc />
-        public override void Dispose()
-        {
-            base.Dispose();
-
-            if (_disposed)
-            {
-                return;
-            }
-
-            FileSystem?.Dispose();
-            Logger?.Flush();
-
-            _disposed = true;
-        }
-
-        protected virtual long MaxSize => DefaultMaxSize;
-
-        protected ContentStoreConfiguration CreateStoreConfiguration()
-        {
-            return new ContentStoreConfiguration(new MaxSizeQuota($"{MaxSize}"));
-        }
-
-        protected abstract IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration);
 
         [Fact]
         public void EnumNoneValuesAreZero()
@@ -596,101 +559,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
                 pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().ToHashSet();
                 Assert.Equal(contentHashes, pinnedContentHashes);
             });
-        }
-
-        protected async Task RunReadOnlyTestAsync(ImplicitPin implicitPin, Func<Context, IReadOnlyContentSession, Task> funcAsync)
-        {
-            var context = new Context(Logger);
-            using (var directory = new DisposableDirectory(FileSystem))
-            {
-                var config = CreateStoreConfiguration();
-
-                using (var store = CreateStore(directory, config))
-                {
-                    try
-                    {
-                        await store.StartupAsync(context).ShouldBeSuccess();
-
-                        var createResult = store.CreateReadOnlySession(context, Name, implicitPin).ShouldBeSuccess();
-                        using (var session = createResult.Session)
-                        {
-                            try
-                            {
-                                await session.StartupAsync(context).ShouldBeSuccess();
-                                await funcAsync(context, session);
-                            }
-                            finally
-                            {
-                                await session.ShutdownAsync(context).ShouldBeSuccess();
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        await store.ShutdownAsync(context).ShouldBeSuccess();
-                    }
-                }
-            }
-        }
-
-        protected async Task RunTestAsync(ImplicitPin implicitPin, DisposableDirectory directory, Func<Context, IContentSession, Task> funcAsync)
-        {
-            var context = new Context(Logger);
-
-            bool useNewDirectory = directory == null;
-            if (useNewDirectory)
-            {
-                directory = new DisposableDirectory(FileSystem);
-            }
-
-            try
-            {
-                var config = CreateStoreConfiguration();
-
-                using (var store = CreateStore(directory, config))
-                {
-                    try
-                    {
-                        await store.StartupAsync(context).ShouldBeSuccess();
-
-                        var createResult = store.CreateSession(context, Name, implicitPin).ShouldBeSuccess();
-                        using (var session = createResult.Session)
-                        {
-                            try
-                            {
-                                Assert.False(session.StartupStarted);
-                                Assert.False(session.StartupCompleted);
-                                Assert.False(session.ShutdownStarted);
-                                Assert.False(session.ShutdownCompleted);
-
-                                await session.StartupAsync(context).ShouldBeSuccess();
-
-                                await funcAsync(context, session);
-                            }
-                            finally
-                            {
-                                await session.ShutdownAsync(context).ShouldBeSuccess();
-                            }
-
-                            Assert.True(session.StartupStarted);
-                            Assert.True(session.StartupCompleted);
-                            Assert.True(session.ShutdownStarted);
-                            Assert.True(session.ShutdownCompleted);
-                        }
-                    }
-                    finally
-                    {
-                        await store.ShutdownAsync(context).ShouldBeSuccess();
-                    }
-                }
-            }
-            finally
-            {
-                if (useNewDirectory)
-                {
-                    directory.Dispose();
-                }
-            }
         }
     }
 }

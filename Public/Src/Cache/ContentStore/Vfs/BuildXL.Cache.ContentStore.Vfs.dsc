@@ -3,15 +3,12 @@
 import * as ManagedSdk from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 
-namespace VfsApplication {
-    export declare const qualifier: BuildXLSdk.FullFrameworkQualifier;
-
+namespace VfsLibrary {
     @@public
-    export const exe = BuildXLSdk.executable({
-        assemblyName: "bvfs",
+    export const dll = BuildXLSdk.library({
+        assemblyName: "BuildXL.Cache.ContentStore.Vfs",
         sources: globR(d`.`,"*.cs"),
         skipDocumentationGeneration: true,
-        appConfig: f`App.Config`,
         references: [
             UtilitiesCore.dll,
             Grpc.dll,
@@ -33,8 +30,8 @@ namespace VfsApplication {
 
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
         ],
-        runtimeContent: [
-
+        internalsVisibleTo: [
+            "BuildXL.Cache.ContentStore.Vfs.Test",
         ]
     });
 }

@@ -3,6 +3,7 @@
 
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -22,24 +23,27 @@ namespace BuildXL.Cache.ContentStore.Vfs
     public class VirtualizedContentStore : StartupShutdownBase, IContentStore
     {
         private readonly IContentStore _innerStore;
-        private readonly VfsCasConfiguration _configuration;
-        private readonly Logger _logger;
+        internal VfsCasConfiguration Configuration { get; }
+        private readonly ILogger _logger;
         internal VfsTree Tree { get; }
 
-        private VfsProvider _provider;
+        /// <summary>
+        /// Internal for testing purposes only.
+        /// </summary>
+        internal VfsProvider Provider { get; set; }
         private VfsContentManager _contentManager;
         private IContentSession _vfsContentSession;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentStore));
 
         /// <nodoc />
-        public VirtualizedContentStore(IContentStore innerStore, Logger logger, VfsCasConfiguration configuration)
+        public VirtualizedContentStore(IContentStore innerStore, ILogger logger, VfsCasConfiguration configuration)
         {
             _logger = logger;
             _innerStore = innerStore;
-            _configuration = configuration;
+            Configuration = configuration;
 
-            Tree = new VfsTree(_configuration);
+            Tree = new VfsTree(Configuration);
         }
 
         /// <inheritdoc />
@@ -97,10 +101,10 @@ namespace BuildXL.Cache.ContentStore.Vfs
             _vfsContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
             await _vfsContentSession.StartupAsync(context).ThrowIfFailure();
 
-            _contentManager = new VfsContentManager(_logger, _configuration, Tree, _vfsContentSession);
-            _provider = new VfsProvider(_logger, _configuration, _contentManager, Tree);
+            _contentManager = new VfsContentManager(_logger, Configuration, Tree, _vfsContentSession);
+            Provider = new VfsProvider(_logger, Configuration, _contentManager, Tree);
 
-            if (!_provider.StartVirtualization())
+            if (!Provider.StartVirtualization())
             {
                 return new BoolResult("Unable to start virtualizing");
             }
@@ -111,6 +115,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            Provider.StopVirtualization();
+
             // Close all sessions?
             var result = await base.ShutdownCoreAsync(context);
 

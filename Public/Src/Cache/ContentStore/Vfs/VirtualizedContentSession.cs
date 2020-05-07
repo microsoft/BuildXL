@@ -86,13 +86,18 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 }
             }
 
-            var virtualPath = _contentManager.ToVirtualPath(path);
+            var placementData = new VfsFilePlacementData(contentHash, realizationMode, accessMode);
+
+            var virtualPath = _store.Configuration.UseSymlinks
+                ? _contentManager.TryCreateSymlink(operationContext, path, placementData, replace: replacementMode == FileReplacementMode.ReplaceExisting).ThrowIfFailure()
+                : _contentManager.ToVirtualPath(path);
+
             if (virtualPath == null)
             {
                 return await _innerSession.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint);
             }
 
-            _contentManager.Tree.AddFileNode(virtualPath, new VfsFilePlacementData(contentHash, realizationMode, accessMode));
+            _contentManager.Tree.AddFileNode(virtualPath, placementData);
             return new PlaceFileResult(GetPlaceResultCode(realizationMode, accessMode), fileSize: -1 /* Unknown */);
         }
 

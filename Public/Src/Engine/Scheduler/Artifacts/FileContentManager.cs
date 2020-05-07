@@ -1890,7 +1890,7 @@ namespace BuildXL.Scheduler.Artifacts
             FileMaterializationInfo materializationInfo;
             if (!TryGetInputContent(file, out materializationInfo))
             {
-                var hash = m_host.LocalDiskContentStore.ComputePathHash(file.Path.ToString(Context.PathTable));
+                var hash = m_host.LocalDiskContentStore.ComputePathHash(file.Path);
                 materializationInfo = new FileMaterializationInfo(FileContentInfo.CreateWithUnknownLength(hash), file.Path.GetName(Context.PathTable));
             }
 

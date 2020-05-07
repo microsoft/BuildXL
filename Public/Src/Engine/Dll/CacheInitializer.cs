@@ -257,7 +257,8 @@ namespace BuildXL.Engine
         internal static Possible<ICacheConfigData> TryGetCacheConfigData(
             PathTable pathTable,
             string cacheDirectory,
-            ICacheConfiguration config)
+            ICacheConfiguration config,
+            RootTranslator rootTranslator = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(pathTable.IsValid);
@@ -284,6 +285,21 @@ namespace BuildXL.Engine
             cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
             cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
+
+            var vfsCasRoot = config.VfsCasRoot.IsValid 
+                ? config.VfsCasRoot.ToString(pathTable)
+                : "";
+
+            if (rootTranslator != null && !string.IsNullOrEmpty(vfsCasRoot))
+            {
+                // VFS needs real path so use root translator to resolve to real path.
+                vfsCasRoot = rootTranslator.Translate(vfsCasRoot);
+            }
+
+            // Escape path separation chars to json format
+            vfsCasRoot = vfsCasRoot.Replace(@"\", @"\\");
+
+            cacheConfigContent = cacheConfigContent.Replace("[VfsCasRoot]", vfsCasRoot);
 
             ICacheConfigData cacheConfigData;
             Exception exception;
@@ -322,7 +338,7 @@ namespace BuildXL.Engine
             ICacheCoreSession session = null;
             try
             {
-                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config);
+                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config, rootTranslator);
                 if (!cacheConfigData.Succeeded)
                 {
                     return cacheConfigData.Failure;

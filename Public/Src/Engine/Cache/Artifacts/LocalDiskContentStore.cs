@@ -20,6 +20,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
+using VfsUtilities = BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Engine.Cache.Artifacts
@@ -123,10 +124,9 @@ namespace BuildXL.Engine.Cache.Artifacts
             using (Counters.StartStopwatch(LocalDiskContentStoreCounter.TryMaterializeTime))
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
-                bool virtualize = !(symlinkTarget.IsValid || reparsePointInfo?.IsActionableReparsePoint == true) && IsVirtualizedPath(expandedPath.ExpandedPath);
 
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
-                if (!virtualize && FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
+                if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
                 {
                     var openFlags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
 
@@ -215,13 +215,6 @@ namespace BuildXL.Engine.Cache.Artifacts
                     if (!possibleMaterialization.Succeeded)
                     {
                         return possibleMaterialization.Failure.Annotate("Try materialize file from cache failed");
-                    }
-                    else if (virtualize)
-                    {
-                        return possibleMaterialization.Then(p =>
-                            new ContentMaterializationResult(
-                                ContentMaterializationOrigin.DeployedFromCache,
-                                TrackedFileContentInfo.CreateUntrackedWithUnknownLength(contentHash, PathExistence.ExistsAsFile)));
                     }
                 }
                 else
@@ -568,7 +561,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
                                         finalLocation = possibleFinalLocation.Result;
 
-                                        hash = ComputePathHash(finalLocation);
+                                        hash = ComputePathHash(finalLocation, out var isVirtual);
                                         contentPath = expandedPath;
                                         contentLength = finalLocation.Length;
                                         Tracing.Logger.Log.HashedSymlinkAsTargetPath(m_loggingContext, expandedPath, finalLocation);
@@ -656,7 +649,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         public ContentHash ComputePathHash(AbsolutePath path)
         {
-            return ComputePathHash(Expand(path).ExpandedPath);
+            return ComputePathHash(Expand(path).ExpandedPath, out _);
         }
 
         /// <summary>
@@ -681,7 +674,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// <summary>
         /// Computes hash of a given file path.
         /// </summary>
-        public ContentHash ComputePathHash(string filePath)
+        public ContentHash ComputePathHash(string filePath, out bool isVirtual)
         {
             Contract.Requires(filePath != null);
 
@@ -690,6 +683,17 @@ namespace BuildXL.Engine.Cache.Artifacts
                 filePath = m_pathToNormalizedPathTranslator.Translate(filePath);
             }
 
+            if (m_vfsCasRoot != null && filePath.IsPathWithin(m_vfsCasRoot))
+            {
+                if (VfsUtilities.TryGetRelativePath(filePath, m_vfsCasRoot, out var relativePath)
+                    && VfsUtilities.TryParseCasRelativePath(relativePath, out var placementData))
+                {
+                    isVirtual = true;
+                    return placementData.Hash;
+                }
+            }
+
+            isVirtual = false;
             return ContentHashingUtilities.HashString(filePath.ToUpperInvariant());
         }
 
@@ -977,6 +981,10 @@ namespace BuildXL.Engine.Cache.Artifacts
                             {
                                 VersionedFileIdentityAndContentInfo? identityAndContentInfo = default;
 
+                                var fileContentInfo = IsVirtualizedPath(path.ExpandedPath)
+                                    ? FileContentInfo.CreateWithUnknownLength(hash, PathExistence.ExistsAsFile)
+                                    : new FileContentInfo(hash, length);
+
                                 if (recordPathInFileContentTable)
                                 {
                                     // strict: is disabled since we instead flush in TryFlushAndHashFile
@@ -986,14 +994,14 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             hash,
                                             length,
                                             strict: false);
-                                    identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, new FileContentInfo(hash, length));
+                                    identityAndContentInfo = new VersionedFileIdentityAndContentInfo(identity, fileContentInfo);
                                 }
 
                                 if (!trackPath)
                                 {
                                     // We are not interested in tracking the file (perhaps because it has been tracked, see our handling of copy-file pip),
                                     // but we need the file length, and potentially need to ensure that the file name casing match.
-                                    return new TrackedFileContentInfo(new FileContentInfo(hash, length), FileChangeTrackingSubscription.Invalid, fileName);
+                                    return new TrackedFileContentInfo(fileContentInfo, FileChangeTrackingSubscription.Invalid, fileName);
                                 }
 
                                 Contract.Assert(recordPathInFileContentTable && identityAndContentInfo.HasValue);

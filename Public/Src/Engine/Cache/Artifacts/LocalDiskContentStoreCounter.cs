@@ -23,6 +23,11 @@ namespace BuildXL.Engine.Cache.Artifacts
         HashFileContentSizeBytes,
 
         /// <summary>
+        /// The amount of bytes of file content hashed
+        /// </summary>
+        DiscoveredVirtualFiles,
+
+        /// <summary>
         /// The amount of time spent in TryProbeForExistence
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

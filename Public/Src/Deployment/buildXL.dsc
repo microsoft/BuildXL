@@ -25,6 +25,9 @@ namespace BuildXL {
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
             importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
+                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
+            ]),
 
             // tools
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [{

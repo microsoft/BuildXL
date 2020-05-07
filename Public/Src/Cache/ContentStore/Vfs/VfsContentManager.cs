@@ -6,12 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Native.IO;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Vfs
@@ -30,9 +32,14 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
         public CounterCollection<VfsCounters> Counters { get; } = new CounterCollection<VfsCounters>();
 
+        /// <summary>
+        /// Unique integral id for files under vfs cas root
+        /// </summary>
+        private int _nextVfsCasTargetFileUniqueId;
+
         public VfsTree Tree { get; }
         private readonly VfsCasConfiguration _configuration;
-        private readonly Logger _logger;
+        private readonly ILogger _logger;
 
         private readonly Tracer _tracer = new Tracer(nameof(VfsContentManager));
 
@@ -40,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         private readonly DisposableDirectory _tempDirectory;
         private readonly PassThroughFileSystem _fileSystem;
 
-        public VfsContentManager(Logger logger, VfsCasConfiguration configuration, VfsTree tree, IContentSession contentSession)
+        public VfsContentManager(ILogger logger, VfsCasConfiguration configuration, VfsTree tree, IContentSession contentSession)
         {
             _logger = logger;
             _configuration = configuration;
@@ -121,6 +128,44 @@ namespace BuildXL.Cache.ContentStore.Vfs
             }
 
             return null;
+        }
+
+        internal Result<VirtualPath> TryCreateSymlink(OperationContext context, AbsolutePath sourcePath, VfsFilePlacementData data, bool replace)
+        {
+            return context.PerformOperation(
+                _tracer,
+                () =>
+                {
+                    _fileSystem.CreateDirectory(sourcePath.Parent);
+
+                    if (replace)
+                    {
+                        FileUtilities.DeleteFile(sourcePath.Path);
+                    }
+
+                    var index = Interlocked.Increment(ref _nextVfsCasTargetFileUniqueId);
+                    VirtualPath casRelativePath = VfsUtilities.CreateCasRelativePath(data, index);
+
+                    var virtualPath = _configuration.VfsCasRelativeRoot / casRelativePath;
+
+                    Tree.AddFileNode(virtualPath.Path, data);
+                    // Ensure existence of the virtual directory in the VFS CAS root
+                    //Tree.GetOrAddDirectoryNode((_configuration.VfsCasRelativeRoot / casRelativePath).Parent.Path);
+
+                    var fullTargetPath = _configuration.VfsCasRootPath / casRelativePath;
+                    var result = FileUtilities.TryCreateSymbolicLink(symLinkFileName: sourcePath.Path, targetFileName: fullTargetPath.Path, isTargetFile: true);
+                    if (result.Succeeded)
+                    {
+                        return Result.Success(virtualPath.Path);
+                    }
+                    else
+                    {
+                        return Result.FromErrorMessage<VirtualPath>(result.Failure.DescribeIncludingInnerFailures());
+                    }
+                },
+                extraStartMessage: $"SourcePath={sourcePath}, Hash={data.Hash}",
+                messageFactory: r => $"SourcePath={sourcePath}, Hash={data.Hash}, TargetPath={r.GetValueOrDefault()}",
+                counter: Counters[VfsCounters.TryCreateSymlink]);
         }
 
         /// <inheritdoc />

@@ -68,6 +68,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         ///     "RetryIntervalSeconds":{24},
         ///     "RetryCount":{25},
         ///     "ReplaceExistingOnPlaceFile":{26},
+        ///     "VfsCasRoot": "{27}",
+        ///     "UseVfsSymlinks": "{28}",
         /// }
         /// </remarks>
         public sealed class Config : CasConfig
@@ -87,6 +89,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// Path to the log file for the cache.
             /// </summary>
             public string CacheLogPath { get; set; }
+
+            /// <summary>
+            /// Path to the root of VFS cas
+            /// </summary>
+            [DefaultValue(null)]
+            public string VfsCasRoot { get; set; }
+
+            /// <summary>
+            /// Indicates whether symlinks should be used to specify VFS files
+            /// </summary>
+            [DefaultValue(true)]
+            public bool UseVfsSymlinks { get; set; } = true;
 
             /// <summary>
             /// If true, use a different CAS for streams, specified by <see cref="StreamCAS"/>.
@@ -298,6 +312,16 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             Config cacheConfig = possibleCacheConfig.Result;
 
+            return await InitializeCacheAsync(cacheConfig, activityId);
+        }
+
+        /// <summary>
+        /// Create cache using configuration
+        /// </summary>
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(Config cacheConfig, Guid activityId)
+        {
+            Contract.Requires(cacheConfig != null);
+
             try
             {
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
@@ -308,6 +332,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     : CreateLocalCacheWithSingleCas(cacheConfig, logger);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
+                if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
+                {
+                    localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
+                            {
+                                RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
+                                UseSymlinks = cacheConfig.UseVfsSymlinks
+                            }.Build());
+                }
+
                 var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
 
                 var startupResult = await cache.StartupAsync();

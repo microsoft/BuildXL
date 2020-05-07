@@ -1240,7 +1240,13 @@ namespace BuildXL
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateOption(
                             "vfsCasRoot",
-                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                            opt =>
+                            {
+                                cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable);
+
+                                // VFS CAS root should be untracked for purposes of sandboxing.
+                                sandboxConfiguration.GlobalUnsafeUntrackedScopes.Add(cacheConfiguration.VfsCasRoot);
+                            }),
                         /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
                         OptionHandlerFactory.CreateOption(
                             "viewer",

@@ -3,13 +3,14 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
     internal static class LoggingUtilities
     {
-        public static T PerformOperation<T>(this Logger log, string args, Func<T> action, [CallerMemberName] string caller = null)
+        public static T PerformOperation<T>(this ILogger log, string args, Func<T> action, [CallerMemberName] string caller = null)
         {
             log.Debug($"{caller}({args})");
             var result = action();

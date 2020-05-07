@@ -53,6 +53,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// </summary>
         private readonly bool _passContentToMemoization;
 
+        /// <summary>
+        /// Gets whether stats should be from only content store.
+        /// This is to avoid aggregating equivalent stats when content and memoization
+        /// are backed by the same instance.
+        /// </summary>
+        protected virtual bool UseOnlyContentStats => false;
+
         /// <nodoc />
         protected OneLevelCacheBase(Guid id, bool passContentToMemoization)
         {
@@ -154,7 +161,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         private async Task LogStatsAsync(OperationContext context)
         {
-            var statsResult = await StatsAsync(context).ConfigureAwait(false);
+            var statsResult = await GetStatsCoreAsync(context).ConfigureAwait(false);
 
             if (statsResult.Succeeded)
             {
@@ -229,7 +236,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <inheritdoc />
         public Task<GetStatsResult> GetStatsAsync(Context context)
         {
-            return GetStatsCall<Tracer>.RunAsync(Tracer, new OperationContext(context), () => StatsAsync(context));
+            return GetStatsCall<Tracer>.RunAsync(Tracer, new OperationContext(context), () => GetStatsCoreAsync(context));
         }
 
         private Task<BoolResult> IfNotNull<T>(T? source, Func<T, Task<BoolResult>> func)
@@ -253,19 +260,18 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             return getStats(source);
         }
 
-        private async Task<GetStatsResult> StatsAsync(Context context)
+        private async Task<GetStatsResult> GetStatsCoreAsync(Context context)
         {
-            var counters = new CounterSet();
-
             // Both ContentStore and MemoizationStore may be null if startup failed.
             // Using a helper function to avoid NRE.
             var statsResult = await GetStatsResultCoreAsync(ContentStore, store => store.GetStatsAsync(context)).ConfigureAwait(false);
 
-            if (!statsResult)
+            if (!statsResult || UseOnlyContentStats)
             {
                 return statsResult;
             }
 
+            var counters = new CounterSet();
             counters.Merge(statsResult.CounterSet);
 
             statsResult = await GetStatsResultCoreAsync(MemoizationStore, store => store.GetStatsAsync(context)).ConfigureAwait(false);

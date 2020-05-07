@@ -151,7 +151,7 @@ config({
                 { id: "VisualCppTools.Community.VS2017Layout", version: "14.11.25506", osSkip: [ "macOS", "unix" ] },
 
                 // ProjFS (virtual file system)
-                { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
+                { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },
 
                 // RocksDb
                 { id: "RocksDbSharp", version: "5.8.0-b20200303.4", alias: "RocksDbSharpSigned" },

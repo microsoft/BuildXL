@@ -2535,7 +2535,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Windows.ProjFS",
-          "Version": "1.0.19079.1"
+          "Version": "1.2.19351.1"
         }
       }
     },

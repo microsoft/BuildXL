@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob;
 using StrongFingerprintToHashListDictionary = System.Collections.Concurrent.ConcurrentDictionary<BuildXL.Cache.MemoizationStore.Interfaces.Sessions.StrongFingerprint, BuildXL.Cache.MemoizationStore.VstsInterfaces.Blob.BlobContentHashListWithCacheMetadata>;
@@ -31,24 +30,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// </summary>
         public bool TryGetValue(string cacheNamespace, StrongFingerprint strongFingerprint, out BlobContentHashListWithCacheMetadata value)
         {
-            BlobContentHashListWithCacheMetadata existingValue;
-
             // Try to get the existing value
             var contentHashListCacheDictionary = _cacheNamespaceToContentHashListCacheDictionary.GetOrAdd(
                 cacheNamespace,
-                key => new ConcurrentDictionary<StrongFingerprint, BlobContentHashListWithCacheMetadata>());
-            while (contentHashListCacheDictionary.TryGetValue(strongFingerprint, out existingValue))
+                key => new StrongFingerprintToHashListDictionary());
+
+            while (contentHashListCacheDictionary.TryGetValue(strongFingerprint, out BlobContentHashListWithCacheMetadata existingValue))
             {
-                if (!existingValue.Determinism.IsDeterministic)
+                if (existingValue.Determinism.IsDeterministic)
                 {
                     // The value is either tool deterministic or it's cache deterministic and has not expired, so it's usable
                     value = existingValue;
                     return true;
                 }
-
-                if (
-                    ((ICollection<KeyValuePair<StrongFingerprint, BlobContentHashListWithCacheMetadata>>)contentHashListCacheDictionary).Remove(
-                        new KeyValuePair<StrongFingerprint, BlobContentHashListWithCacheMetadata>(strongFingerprint, existingValue)))
+                
+                if (contentHashListCacheDictionary.Remove(strongFingerprint, existingValue))
                 {
                     // Removal was successful, so nothing usable
                     value = null;
@@ -69,7 +65,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             // If there was a race, keep the value with the better determinism
             var contentHashListCacheDictionary = _cacheNamespaceToContentHashListCacheDictionary.GetOrAdd(
                 cacheNamespace,
-                key => new ConcurrentDictionary<StrongFingerprint, BlobContentHashListWithCacheMetadata>());
+                key => new StrongFingerprintToHashListDictionary());
+
             contentHashListCacheDictionary.AddOrUpdate(
                 strongFingerprint,
                 newValue,

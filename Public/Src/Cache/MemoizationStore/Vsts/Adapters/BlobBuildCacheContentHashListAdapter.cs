@@ -67,10 +67,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 {
                     if (selectorAndPossible.ContentHashList != null)
                     {
-                        BlobContentHashListCache.Instance.AddValue(
-                            cacheNamespace,
-                            new StrongFingerprint(weakFingerprint, selectorAndPossible.Selector),
-                            selectorAndPossible.ContentHashList);
+                        if (selectorAndPossible.ContentHashList.Determinism.IsDeterministic)
+                        {
+                            BlobContentHashListCache.Instance.AddValue(
+                                cacheNamespace,
+                                new StrongFingerprint(weakFingerprint, selectorAndPossible.Selector),
+                                selectorAndPossible.ContentHashList);
+                        }
 
                         if (selectorAndPossible.ContentHashList.ContentHashListWithDeterminism.MetadataBlobDownloadUri != null)
                         {

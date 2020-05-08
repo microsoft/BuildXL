@@ -1,6 +1,14 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200501.3 (Release [62855](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62855)).  Released 5/6/2020
+- Improved logging for memory AccessViolations
+- Update linux runtime to Ubuntu 18.04
+- Drop upload support for Rush resolver
+- Incremental work towards supporting chunk level dedup in drop
+- Allow pips to specify they are uncancelable
+- Misc bug fixes
+
 # 0.1.0-20200424.6 (Release [62176](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62176)).  Released 4/29/2020
 - Nicer rendering for batched cache miss analysis result.
 - Shared opaque filtering.

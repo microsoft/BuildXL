@@ -13,7 +13,7 @@ namespace VstsInterfaces {
             ContentStore.VstsInterfaces.dll,
             Interfaces.dll,
             NetFx.System.Runtime.Serialization.dll,
-            importFrom("Newtonsoft.Json.v10").pkg,
+            importFrom("Newtonsoft.Json").pkg,
         ],
     });
 }

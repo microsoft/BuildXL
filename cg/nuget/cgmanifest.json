@@ -33,7 +33,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -42,7 +42,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared.Cache",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -195,7 +195,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.App.Core",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -204,7 +204,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.Client",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -402,7 +402,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ItemStore.Shared",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -429,7 +429,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ApplicationInsights",
-          "Version": "2.3.0"
+          "Version": "2.11.0"
         }
       }
     },
@@ -1130,6 +1130,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Azure.Storage.Common",
+          "Version": "11.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Bcl",
           "Version": "1.1.10"
         }
@@ -1752,7 +1761,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Clients.ActiveDirectory",
-          "Version": "4.5.1"
+          "Version": "5.2.6"
         }
       }
     },
@@ -2211,7 +2220,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.ArtifactServices.Shared",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -2220,7 +2229,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -2229,7 +2238,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client.Cache",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -2238,7 +2247,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
-          "Version": "16.163.0-internal202001081"
+          "Version": "16.170.0-internal202005071"
         }
       }
     },
@@ -2247,7 +2256,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
-          "Version": "16.163.0-internal202001081"
+          "Version": "16.170.0-internal202005071"
         }
       }
     },
@@ -2589,16 +2598,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Newtonsoft.Json",
-          "Version": "10.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Newtonsoft.Json",
-          "Version": "11.0.2"
+          "Version": "12.0.3"
         }
       }
     },
@@ -2760,7 +2760,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.App.Core",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -2769,7 +2769,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.Client",
-          "Version": "18.163.29708-buildid11260482"
+          "Version": "18.170.30107-buildid12084297"
         }
       }
     },
@@ -3481,6 +3481,15 @@
         "NuGet": {
           "Name": "System.Private.DataContractSerialization",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Private.Uri",
+          "Version": "4.3.2"
         }
       }
     },

@@ -38,7 +38,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private static readonly Guid IteratorComGuid = new Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8");
         private readonly IDedupIterateChunksHash32 _chunkHashIterator;
         private IDedupChunkLibrary _chunkLibrary;
-        private bool _pushBufferCalled;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Chunker"/> class.
@@ -48,6 +47,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _chunkLibrary = NativeMethods.CreateChunkLibrary();
             _chunkLibrary.InitializeForPushBuffers();
 
+            Contract.Assert(
+                Thread.CurrentThread.GetApartmentState() == ApartmentState.MTA,
+                "Thread must be in MTA ApartmentState");
+
             object chunksEnum;
             _chunkLibrary.StartChunking(IteratorComGuid, out chunksEnum);
             _chunkHashIterator = (IDedupIterateChunksHash32)chunksEnum;
@@ -56,17 +59,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc/>
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
-            Reset();
             return new Session(this, chunkCallback);
-        }
-
-        /// <summary>
-        /// Reinitializes this instance for reuse.
-        /// </summary>
-        private void Reset()
-        {
-            _pushBufferCalled = false;
-            _chunkHashIterator.Reset();
         }
 
         /// <summary>
@@ -94,13 +87,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 throw new IndexOutOfRangeException();
             }
 
-            if (_pushBufferCalled)
-            {
-                throw new InvalidOperationException("PushBuffer can only be called once.");
-            }
-
-            _pushBufferCalled = true;
-
             fixed (byte* ptr = &buffer[startOffset])
             {
                 _chunkHashIterator.PushBuffer(ptr, (uint)count);
@@ -114,11 +100,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         private unsafe void DonePushing(Action<ChunkInfo> chunkCallback)
         {
-            if (_pushBufferCalled)
-            {
-                _chunkHashIterator.Drain();
-                ProcessChunks(chunkCallback);
-            }
+            _chunkHashIterator.Drain();
+            ProcessChunks(chunkCallback);
+            _chunkHashIterator.Reset();
         }
 
         /// <inheritdoc/>
@@ -133,8 +117,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void ProcessChunks(Action<ChunkInfo> chunkCallback)
         {
-            Contract.Assert(_pushBufferCalled);
-
             uint ulFetchedChunks;
             do
             {
@@ -166,7 +148,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc/>
-        public readonly struct Session : IChunkerSession, IDisposable
+        private sealed class Session : IChunkerSession, IDisposable
         {
             private readonly ComChunkerNonDeterministic _chunker;
             private readonly Action<ChunkInfo> _chunkCallback;
@@ -187,38 +169,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc/>
             public void Dispose()
             {
-                try
-                {
-                    _chunker.DonePushing(_chunkCallback);
-                }
-                catch (COMException e) when ((uint)e.ErrorCode == 0x80565319)
-                {
-                    // Maybe in in an "invalid state"
-                }
-            }
-
-            /// <inheritdoc/>
-            public override bool Equals(object obj)
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <inheritdoc/>
-            public override int GetHashCode()
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <nodoc />
-            public static bool operator ==(Session left, Session right)
-            {
-                throw new InvalidOperationException();
-            }
-
-            /// <nodoc />
-            public static bool operator !=(Session left, Session right)
-            {
-                throw new InvalidOperationException();
+                _chunker.DonePushing(_chunkCallback);
             }
         }
 
@@ -377,8 +328,8 @@ namespace Microsoft.DataDeduplication.Interop
         /// <nodoc />
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
         public byte[] Hash; // 32-byte chunk hash value
-    } 
-    
+    }
+
     /// <nodoc />
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8")]
     unsafe public interface IDedupIterateChunksHash32

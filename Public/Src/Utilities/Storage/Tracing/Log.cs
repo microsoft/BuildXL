@@ -734,6 +734,24 @@ namespace BuildXL.Storage.Tracing
             Message = "Directory '{path}' is enumerated multiple times with different resulting directory fingerprints; this indicates that the membership of directory changed during the build")]
         public abstract void ConflictDirectoryMembershipFingerprint(LoggingContext loggingContext, string path);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.ComChunkerFailulre,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "COM chunker failed to initialize. Using ManagedChunker instead. Exception: '{exception}'")]
+        public abstract void ComChunkerFailulre(LoggingContext loggingContext, string exception);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ChunkerType,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "Using chunker '{chunkerType}'")]
+        public abstract void ChunkerType(LoggingContext loggingContext, string chunkerType);
+
         public class FileCombinerStats
         {
             public long BeginCount;

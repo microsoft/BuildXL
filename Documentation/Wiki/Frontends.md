@@ -1,5 +1,6 @@
 BuildXL supports a wide variety of build languages and packaging systems. The engine is architected by allowing multiple frontends to coordinate and collaborate on constructing a build graph. Examples of frontends are:
 
+* [Rush](Frontends/rush-onboarding.md)
 * MsBuild (in development)
 * CMake (in development)
 * Ninja (in development)

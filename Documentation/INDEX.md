@@ -68,6 +68,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [XLG Debugger](Wiki/Advanced-Features/XLG-Debugger/INDEX.md) 
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
 
+## Onboarding
+* [Onboarding a Rush repo](Wiki/Frontends/rush-onboarding.md)
+
 ## Troubleshooting
 * [DX Error Codes](Wiki/Error-Codes)
 * [Common Issues]()

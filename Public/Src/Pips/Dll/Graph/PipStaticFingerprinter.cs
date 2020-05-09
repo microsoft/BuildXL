@@ -105,7 +105,8 @@ namespace BuildXL.Pips.Graph
                             "ComposedDirectoryFingerprints",
                             sealDirectory.ComposedDirectories,
                             (fp, d) => fp.Add(d.Path, m_sealDirectoryFingerprintLookup(d).Hash));
-                        hasher.Add("ContentFilter", sealDirectory.ContentFilter ?? "");
+                        hasher.Add("ContentFilter", 
+                            sealDirectory.ContentFilter.HasValue ? $"{sealDirectory.ContentFilter.Value.Kind} {sealDirectory.ContentFilter.Value.Regex}" : "");
                         completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
                         completeFingerprintText = FingerprintTextEnabled
                             ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText

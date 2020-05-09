@@ -1168,6 +1168,11 @@ namespace Test.BuildXL.Scheduler
                            ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories, 
                            ContainerIsolationLevel.IsolateExclusiveOpaqueOutputDirectories, 
                            ContainerIsolationLevel.IsolateOutputFiles),
+
+                       new FingerprintingTypeDescriptor<SealDirectoryContentFilter?>(
+                           null,
+                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Include, ".*"),
+                           new SealDirectoryContentFilter(SealDirectoryContentFilter.ContentFilterKind.Exclude, ".*"))
                    };
         }
 

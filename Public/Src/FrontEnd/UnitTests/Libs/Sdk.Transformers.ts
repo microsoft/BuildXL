@@ -333,15 +333,15 @@ namespace Transformer {
      * The provided root can be any arbitrary directory that is a common ancestor to all the provided directories
     */
     @@public
-    export function composeSharedOpaqueDirectories(rootOrArgs: any, directories: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : string): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(rootOrArgs, directories, directoryFilteringRegexExpression);
+    export function composeSharedOpaqueDirectories(rootOrArgs: any, directories: SharedOpaqueDirectory[], contentFilter?: any): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(rootOrArgs, directories, contentFilter);
     }
 
     /** Creates a new shared opaque directory whose content matches the specified regex.
     */
    @@public
-   export function filterSharedOpaqueDirectory(directory: any, directoryFilteringRegexExpression: string): SharedOpaqueDirectory {
-       return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory, [], directoryFilteringRegexExpression);
+   export function filterSharedOpaqueDirectory(directory: any, contentFilter?: any): SharedOpaqueDirectory {
+       return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory, [], contentFilter);
    }
 
     /** Options for sealing source directory. */

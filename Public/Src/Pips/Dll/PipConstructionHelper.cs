@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -315,7 +316,7 @@ namespace BuildXL.Pips
         public bool TryComposeSharedOpaqueDirectory(
             AbsolutePath directoryRoot,
             IReadOnlyList<DirectoryArtifact> contents,
-            [CanBeNull] string contentFilter,
+            SealDirectoryContentFilter? contentFilter,
             [CanBeNull] string description,
             [CanBeNull] string[] tags,
             out DirectoryArtifact sharedOpaqueDirectory)
@@ -331,8 +332,9 @@ namespace BuildXL.Pips
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Count.ToString(CultureInfo.InvariantCulture), 
-                    " shared opaque directories, filter: '", contentFilter != null ? contentFilter : "",  "']" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Count.ToString(CultureInfo.InvariantCulture),
+                    " shared opaque directories, filter: ",
+                    contentFilter.HasValue ? $"'{contentFilter.Value.Regex}' (kind: {Enum.GetName(typeof(SealDirectoryContentFilter.ContentFilterKind),     contentFilter.Value.Kind)})" : "''",  "]" });
 
             sharedOpaqueDirectory = PipGraph.ReserveSharedOpaqueDirectory(directoryRoot);
 

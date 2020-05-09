@@ -311,9 +311,9 @@ namespace BuildXL.Pips
         internal readonly ReadOnlyArray<StringId> Patterns;
         internal readonly bool IsComposite;
         internal readonly bool Scrub;
-        internal readonly string ContentFilter;
+        internal readonly SealDirectoryContentFilter? ContentFilter;
 
-        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub, string contentFilter)
+        public SealDirectoryMutablePipState(PipType piptype, long semiStableHash, PageableStoreId storeId, SealDirectoryKind sealDirectoryKind, ReadOnlyArray<StringId> patterns, bool isComposite, bool scrub, SealDirectoryContentFilter? contentFilter)
             : base(piptype, semiStableHash, storeId)
         {
             SealDirectoryKind = sealDirectoryKind;
@@ -329,7 +329,17 @@ namespace BuildXL.Pips
             writer.Write(Patterns, (w, v) => w.Write(v));
             writer.Write(IsComposite);
             writer.Write(Scrub);
-            writer.WriteNullableString(ContentFilter);
+            if (ContentFilter != null)
+            {
+                writer.Write(true);
+                writer.Write((byte)ContentFilter.Value.Kind);
+                writer.Write(ContentFilter.Value.Regex);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
@@ -338,7 +348,11 @@ namespace BuildXL.Pips
             var patterns = reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId());
             var isComposite = reader.ReadBoolean();
             var scrub = reader.ReadBoolean();
-            var contentFilter = reader.ReadNullableString();
+            SealDirectoryContentFilter? contentFilter = null;
+            if (reader.ReadBoolean())
+            {
+                contentFilter = new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString());
+            }
 
             return new SealDirectoryMutablePipState(pipType, semiStableHash, storeId, sealDirectoryKind, patterns, isComposite, scrub, contentFilter);
         }

@@ -13,7 +13,7 @@ namespace BuildXL.Pips.Operations
     /// </summary>
     public sealed class CompositeSharedOpaqueSealDirectory : SealDirectory
     {
-        private readonly string m_contentFilter;
+        private readonly SealDirectoryContentFilter? m_contentFilter;
 
         /// <inheritdoc/>
         public override IReadOnlyList<DirectoryArtifact> ComposedDirectories { get; }
@@ -22,7 +22,7 @@ namespace BuildXL.Pips.Operations
         public override bool IsComposite => true;
 
         /// <inheritdoc/>
-        public override string ContentFilter => m_contentFilter;
+        public override SealDirectoryContentFilter? ContentFilter => m_contentFilter;
 
         /// <nodoc/>
         public CompositeSharedOpaqueSealDirectory(
@@ -30,7 +30,7 @@ namespace BuildXL.Pips.Operations
             IReadOnlyList<DirectoryArtifact> composedDirectories,
             PipProvenance provenance,
             ReadOnlyArray<StringId> tags,
-            string contentFilter) 
+            SealDirectoryContentFilter? contentFilter) 
                 : base(
                     directoryRoot, 
                     CollectionUtilities.EmptySortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>(OrdinalFileArtifactComparer.Instance),
@@ -54,7 +54,9 @@ namespace BuildXL.Pips.Operations
                 reader.ReadArray(reader1 => reader1.ReadDirectoryArtifact()),
                 reader.ReadPipProvenance(),
                 reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
-                reader.ReadNullableString());
+                reader.ReadBoolean()
+                    ? new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString())
+                    : (SealDirectoryContentFilter?)null);
 
             directory.SetDirectoryArtifact(artifact);
             Contract.Assume(directory.IsInitialized && directory.Directory == artifact);
@@ -71,7 +73,16 @@ namespace BuildXL.Pips.Operations
             writer.WriteReadOnlyList(ComposedDirectories, (w, v) => w.Write(v));
             writer.Write(Provenance);
             writer.Write(Tags, (w, v) => w.Write(v));
-            writer.WriteNullableString(m_contentFilter);
+            if(m_contentFilter != null)
+            {
+                writer.Write(true);
+                writer.Write((byte)m_contentFilter.Value.Kind);
+                writer.Write(m_contentFilter.Value.Regex);
+            }           
+            else
+            {
+                writer.Write(false);
+            }
         }
     }
 }

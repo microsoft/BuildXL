@@ -6115,13 +6115,14 @@ namespace BuildXL.Scheduler
                     // if the filter is specified, restrict the final content
                     if (pip.ContentFilter != null)
                     {
-                        var regex = new Regex(pip.ContentFilter,
+                        var regex = new Regex(pip.ContentFilter.Value.Regex,
                             RegexOptions.IgnoreCase,
                             TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
+                        var isIncludeFilter = pip.ContentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Include;
 
                         foreach (var fileArtifact in aggregatedContent)
                         {
-                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)))
+                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
                             {
                                 filteredContent.Add(fileArtifact);
                             }

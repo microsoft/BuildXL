@@ -68,5 +68,5 @@ namespace _PreludeAmbientHack_Transformer {
     export declare function sealDirectory(root: any, files: File[], tags?: string[], description?: string, scrub?: boolean): FullStaticContentDirectory;
     export declare function sealSourceDirectory(root: any, option?: number, tags?: string[], description?: string, patterns?: string[]): SourceDirectory;
     export declare function sealPartialDirectory(root: any, files: File[], tags?: string[], description?: string): PartialStaticContentDirectory;
-    export declare function composeSharedOpaqueDirectories(root: any, directories: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : string): SharedOpaqueDirectory;
+    export declare function composeSharedOpaqueDirectories(root: any, directories: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : any): SharedOpaqueDirectory;
 }

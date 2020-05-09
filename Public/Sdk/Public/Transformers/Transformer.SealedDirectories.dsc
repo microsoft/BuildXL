@@ -22,20 +22,20 @@ namespace Transformer {
 
     /** Creates a shared opaque directory whose content is the aggregation of a collection of shared opaque directories.
      * The root can be any arbitrary directory that is a common ancestor to all the provided directories.
-     * If a filter regex is provided, the resulting directory contains only those files that match that regex.
+     * If a filter is provided, the resulting directory contains only those files that satisfy that filter.
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], directoryFilteringRegexExpression? : string): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, directoryFilteringRegexExpression);
+    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: ComposedSharedOpaqueDirectoryContentFilter): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, contentFilter);
     }
 
-    /** Creates a new shared opaque directory whose content matches the specified regex.
+    /** Creates a new shared opaque directory whose content satisfies the specified filter.
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.     
     */
     @@public
-    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, directoryFilteringRegexExpression: string): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory.root, [directory], directoryFilteringRegexExpression);
+    export function filterSharedOpaqueDirectory(directory: SharedOpaqueDirectory, contentFilter: ComposedSharedOpaqueDirectoryContentFilter): SharedOpaqueDirectory {
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(directory.root, [directory], contentFilter);
     }
 
     /** Options for sealing source directory. */
@@ -109,7 +109,16 @@ namespace Transformer {
         directories: SharedOpaqueDirectory[],
 
         /** A regular expression defining the files to be included in the resulting directory. */
-        directoryFilteringRegexExpression? : string,
+        contentFilter?: ComposedSharedOpaqueDirectoryContentFilter,
+    }
+
+    @@public
+    export interface ComposedSharedOpaqueDirectoryContentFilter {
+        /** Whether this is an include or exclude filter. */
+        kind : "Include" | "Exclude",
+
+        /** A regular expression defining the files to be included/excluded in the resulting directory. */
+        regex : string,
     }
 
     /**

@@ -460,6 +460,8 @@ namespace BuildXL.Scheduler.Tracing
 
         TopPipsPerformanceInfo = 14508,
 
+        CompositeSharedOpaqueContentDetermined = 14509,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

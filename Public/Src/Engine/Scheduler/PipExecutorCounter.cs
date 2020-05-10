@@ -1202,6 +1202,15 @@ namespace BuildXL.Scheduler
         /// an explicitly declared output and inside a shared opaque directory.
         /// </summary>
         ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput,
+
+        /// <summary>
+        /// Time spent computing which files must be included in a composite SOD. Includes:
+        /// - getting the list of files for each directory inside of a composite SOD
+        /// - deduping this list
+        /// - applying a filter (if specified)
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ComputeCompositeSharedOpaqueContentDuration,
     }
 
     /// <summary>

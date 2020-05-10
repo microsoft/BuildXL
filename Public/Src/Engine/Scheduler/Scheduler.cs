@@ -4654,7 +4654,7 @@ namespace BuildXL.Scheduler
                 case PipType.SealDirectory:
                     // SealDirectory pips are also scheduler internal. Once completed, we can unblock consumers of the corresponding DirectoryArtifact
                     // and mark the contained paths as immutable (thus no longer requiring a rewrite count).
-                    return ExecuteSealDirectoryPip(operationContext, (SealDirectory)pip);
+                    return ExecuteSealDirectoryPip(operationContext, environment, (SealDirectory)pip);
 
                 case PipType.Value:
                 case PipType.SpecFile:
@@ -6062,7 +6062,7 @@ namespace BuildXL.Scheduler
         /// <remarks>
         /// The scheduler lock need not be held.
         /// </remarks>
-        private PipResult ExecuteSealDirectoryPip(OperationContext operationContext, SealDirectory pip)
+        private PipResult ExecuteSealDirectoryPip(OperationContext operationContext, IPipExecutionEnvironment environment, SealDirectory pip)
         {
             Contract.Requires(pip != null);
 
@@ -6075,7 +6075,7 @@ namespace BuildXL.Scheduler
                 if (pip.IsComposite)
                 {
                     Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
-                    ReportCompositeOpaqueContents(pip);
+                    ReportCompositeOpaqueContents(environment, pip);
                 }
 
                 m_fileContentManager.RegisterStaticDirectory(pip.Directory);
@@ -6090,7 +6090,7 @@ namespace BuildXL.Scheduler
             return PipResult.Create(result, pipStart);
         }
 
-        private void ReportCompositeOpaqueContents(SealDirectory pip)
+        private void ReportCompositeOpaqueContents(IPipExecutionEnvironment environment, SealDirectory pip)
         {
             Contract.Assert(pip.IsComposite);
             Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
@@ -6106,27 +6106,33 @@ namespace BuildXL.Scheduler
                 {
                     HashSet<FileArtifact> aggregatedContent = pooledAggregatedContent.Instance;
                     var filteredContent = filteredContentWrapper.Instance;
-                    foreach (var directoryElement in nonCompositeDirectories)
+                    long duration;
+                    using (var sw = PipExecutionCounters[PipExecutorCounter.ComputeCompositeSharedOpaqueContentDuration].Start())
                     {
-                        var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
-                        aggregatedContent.AddRange(memberContents);
-                    }
-
-                    // if the filter is specified, restrict the final content
-                    if (pip.ContentFilter != null)
-                    {
-                        var regex = new Regex(pip.ContentFilter.Value.Regex,
-                            RegexOptions.IgnoreCase,
-                            TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
-                        var isIncludeFilter = pip.ContentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Include;
-
-                        foreach (var fileArtifact in aggregatedContent)
+                        foreach (var directoryElement in nonCompositeDirectories)
                         {
-                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
+                            var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
+                            aggregatedContent.AddRange(memberContents);
+                        }
+
+                        // if the filter is specified, restrict the final content
+                        if (pip.ContentFilter != null)
+                        {
+                            var regex = new Regex(pip.ContentFilter.Value.Regex,
+                                RegexOptions.IgnoreCase,
+                                TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
+                            var isIncludeFilter = pip.ContentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Include;
+
+                            foreach (var fileArtifact in aggregatedContent)
                             {
-                                filteredContent.Add(fileArtifact);
+                                if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
+                                {
+                                    filteredContent.Add(fileArtifact);
+                                }
                             }
                         }
+
+                        duration = sw.Elapsed.ToMilliseconds();
                     }
 
                     // the directory artifacts that this composite shared opaque consists of might or might not be materialized
@@ -6134,6 +6140,23 @@ namespace BuildXL.Scheduler
                         pip.Directory,
                         pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent,
                         PipOutputOrigin.NotMaterialized);
+
+                    Logger.Log.CompositeSharedOpaqueContentDetermined(
+                        m_loggingContext,
+                        pip.GetDescription(environment.Context),
+                        nonCompositeDirectories.Count,
+                        aggregatedContent.Count,
+                        pip.ContentFilter == null ? aggregatedContent.Count : filteredContent.Count,
+                        duration);
+
+                    ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
+                    {
+                        PipId = pip.PipId,
+                        DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)>.From(
+                            new[] {
+                                (pip.Directory, ReadOnlyArray<FileArtifact>.From(pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent))
+                            })
+                    });
                 }
             }
         }

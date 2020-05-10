@@ -3564,6 +3564,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "{perPipPerformanceInfo}")]
         public abstract void TopPipsPerformanceInfo(LoggingContext loggingContext, string perPipPerformanceInfo);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CompositeSharedOpaqueContentDetermined,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Directory content computed: [{dirCount} directories, {originalFileCount} files] -> {finalFileCount} files in {durationMs} ms.")]
+        public abstract void CompositeSharedOpaqueContentDetermined(LoggingContext loggingContext, string pipDescription, int dirCount, int originalFileCount, int finalFileCount, long durationMs);
     }
 }
 #pragma warning restore CA1823 // Unused field

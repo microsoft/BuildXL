@@ -313,7 +313,8 @@ namespace BuildXL.FrontEnd.Rush
             PipConstructionUtilities.UntrackUserConfigurableArtifacts(processBuilder, m_resolverSettings);
 
             var logDirectory = GetLogDirectory(project);
-            var logFile = logDirectory.Combine(PathTable, "build.log");
+            processBuilder.SetStandardOutputFile(logDirectory.Combine(m_context.PathTable, "build.log"));
+            processBuilder.SetStandardErrorFile(logDirectory.Combine(m_context.PathTable, "error.log"));
 
             using (processBuilder.ArgumentsBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
             {
@@ -333,10 +334,6 @@ namespace BuildXL.FrontEnd.Rush
                         }
                     }
                 }
-
-                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromString(">"));
-                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(logFile));
-                processBuilder.AddOutputFile(logFile, FileExistence.Required);
             }
 
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);

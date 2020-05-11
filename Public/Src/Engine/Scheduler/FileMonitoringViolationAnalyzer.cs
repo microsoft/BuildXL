@@ -425,9 +425,26 @@ namespace BuildXL.Scheduler
         /// </remarks>
         private static IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> GetOutputArtifactInfoMap(Process pip, ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
-            return pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites ?
-                outputsContent.ToDictionary(kvp => kvp.fileArtifact, kvp => kvp.fileInfo) :
-                CollectionUtilities.EmptyDictionary<FileArtifact, FileMaterializationInfo>();
+            if (pip.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites)
+            {
+                var result = new Dictionary<FileArtifact, FileMaterializationInfo>(outputsContent.Length);
+                foreach (var kvp in outputsContent)
+                {
+                    // outputContents may have duplicate content. See PipExecutor.GetCacheHitExecutionResult
+                    // So let's consider that, but make sure it is consistent
+                    if (!result.TryAdd(kvp.fileArtifact, kvp.fileInfo))
+                    {
+                        Contract.Assert(result[kvp.fileArtifact].FileContentInfo.Hash == kvp.fileInfo.FileContentInfo.Hash, 
+                            "outputsContent may have duplicated content, but file materialization hash should be the same for the same file artifact");
+                    }
+                }
+
+                return result;
+            }
+            else
+            {
+                return CollectionUtilities.EmptyDictionary<FileArtifact, FileMaterializationInfo>();
+            }
         }
 
         /// <inheritdoc />

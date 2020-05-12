@@ -229,15 +229,6 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 TestMachineIndex = index,
                 TestIteration = iteration,
-                ConnectionSecretNamesMap = new Dictionary<string, RedisContentSecretNames>()
-                {
-                    {
-                        ".*",
-                        new RedisContentSecretNames(
-                            redisContentSecretName: Host.StoreSecret("ContentRedis", localDatabase.ConnectionString),
-                            redisMachineLocationsSecretName: Host.StoreSecret("MachineRedis", localDatabase.ConnectionString))
-                    }
-                },
                 IsDistributedContentEnabled = true,
                 KeySpacePrefix = "TestPrefix",
 

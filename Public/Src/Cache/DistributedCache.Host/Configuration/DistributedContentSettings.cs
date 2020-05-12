@@ -139,13 +139,6 @@ namespace BuildXL.Cache.Host.Configuration
         private IDictionary<string, string> ConnectionSecretNameMap { get; set; }
 
         /// <summary>
-        /// The map of environment to connection secret pairs (one for content locations and one for machine ids)
-        /// </summary>
-        /// <remarks>Internal for access by config validation rules</remarks>
-        [DataMember]
-        public IDictionary<string, RedisContentSecretNames> ConnectionSecretNamesMap { get; set; }
-
-        /// <summary>
         /// The map of drive paths to alternate paths to access them
         /// </summary>
         [DataMember]
@@ -799,29 +792,7 @@ namespace BuildXL.Cache.Host.Configuration
         public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
-
-        /// <summary>
-        /// Gets the secret name to connect to Redis for a particular CloudBuild stamp.
-        /// </summary>
-        /// <param name="stampId">The ID of the stamp.</param>
-        /// <returns>The secret name in the AP secret store.</returns>
-        public RedisContentSecretNames GetRedisConnectionSecretNames(string stampId)
-        {
-            if (!IsDistributedContentEnabled)
-            {
-                return null;
-            }
-
-            if (ConnectionSecretNamesMap != null)
-            {
-                return ConnectionSecretNamesMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase))
-                    .Value;
-            }
-
-            return new RedisContentSecretNames(
-                ConnectionSecretNameMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase)).Value);
-        }
-
+        
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
         {
             if (AlternateDriveMap != null)

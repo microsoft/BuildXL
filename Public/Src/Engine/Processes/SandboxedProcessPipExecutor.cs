@@ -4650,7 +4650,7 @@ namespace BuildXL.Processes
                         m_pip.SemiStableHash,
                         m_pipDescription,
                         numErrors,
-                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => $"{p.Path} ({p.ProcessId})")));
+                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => $"{p.Path} ({p.ProcessId}) {getProcessArgs(p)}")));
             }
 
             return numErrors;
@@ -4658,6 +4658,16 @@ namespace BuildXL.Processes
             static bool hasProcessName(ReportedProcess pr, string name)
             {
                 return string.Equals(Path.GetFileName(pr.Path), name, StringComparison.OrdinalIgnoreCase);
+            }
+
+            static string getProcessArgs(ReportedProcess pr)
+            {
+                if (string.IsNullOrWhiteSpace(pr.ProcessArgs))
+                {
+                    return string.Empty;
+                }
+
+                return pr.ProcessArgs.Substring(0, Math.Min(256, pr.ProcessArgs.Length));
             }
         }
 

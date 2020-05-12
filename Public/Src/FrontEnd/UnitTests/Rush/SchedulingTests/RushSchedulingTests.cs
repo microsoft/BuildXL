@@ -110,5 +110,19 @@ namespace Test.BuildXL.FrontEnd.Rush
             XAssert.IsTrue(dependencies.All(dep => 
                 !dep.Path.IsWithin(PathTable, RushPipConstructor.LogDirectoryBase(result.Configuration, PathTable))));
         }
+
+        [Fact]
+        public void RedirectedUserProfileIsAnOutputDirectory()
+        {
+            var project = CreateRushProject();
+
+            var processOutputDirectories = Start()
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .DirectoryOutputs;
+
+            XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => RushPipConstructor.UserProfile(project, PathTable) ==  outputDirectory.Path));
+        }
     }
 }

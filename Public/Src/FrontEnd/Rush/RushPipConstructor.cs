@@ -55,6 +55,13 @@ namespace BuildXL.FrontEnd.Rush
                 .Combine(pathTable, "Logs")
                 .Combine(pathTable, "Rush");
 
+        /// <summary>
+        /// Project-specific user profile folder
+        /// </summary>
+        internal static AbsolutePath UserProfile(RushProject project, PathTable pathTable) => project.TempFolder
+            .Combine(pathTable, "USERPROFILE")
+            .Combine(pathTable, project.ScriptCommandName);
+
         /// <nodoc/>
         public RushPipConstructor(
             FrontEndContext context,
@@ -153,7 +160,7 @@ namespace BuildXL.FrontEnd.Rush
             // redirect the user profile so it points under the temp folder
             // use a different path for each build command, since there are tools that happen to generate the same file for, let's say, build and test
             // and we want to avoid double writes as much as possible
-            env["USERPROFILE"] = project.TempFolder.Combine(PathTable, "USERPROFILE").Combine(PathTable, project.ScriptCommandName).ToString(PathTable);
+            env["USERPROFILE"] = UserProfile(project, PathTable).ToString(PathTable);
             
             return env;
         }
@@ -256,8 +263,11 @@ namespace BuildXL.FrontEnd.Rush
             // of the same depedency chain and eagerly delete the folder every time a pip finishes)
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.TempFolder), SealDirectoryKind.SharedOpaque);
 
+            // This makes sure the folder the user profile is pointing to gets actually created
+            processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(UserProfile(project, PathTable)), SealDirectoryKind.SharedOpaque);
+
             // Add all the additional output directories that the rush graph knows about
-            foreach(var outputDirectory in project.OutputDirectories)
+            foreach (var outputDirectory in project.OutputDirectories)
             {
                 processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(outputDirectory), SealDirectoryKind.SharedOpaque);
             }

@@ -4101,7 +4101,7 @@ namespace BuildXL.Processes
         private void FormatOutputAndPaths(string standardOut, string standardError,
             string standardOutPath, string standardErrorPath,
             out string outputToLog, out string pathsToLog, out string extraMessage,
-            bool errorWasTruncated,
+            bool messageWasTruncated,
             bool errorWasFiltered)
         {
             // Only display error/out if it is non-empty. This avoids adding duplicated newlines in the message.
@@ -4113,13 +4113,13 @@ namespace BuildXL.Processes
 
             if (errorWasFiltered)
             {
-                extraMessage = "This error has been filtered by a regex. ";
+                extraMessage = "This message has been filtered by a regex. ";
             }
 
             var stdInLogDir = false;
             string standardOutPathInLog = string.Empty;
             string standardErrorPathInLog = string.Empty;
-            if (errorWasTruncated)
+            if (messageWasTruncated)
             {
                 if (m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
                 {
@@ -4158,7 +4158,7 @@ namespace BuildXL.Processes
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardErrorPathInLog);
 
-            pathsToLog = !errorWasTruncated
+            pathsToLog = !messageWasTruncated
                 ? string.Empty
                 : stdInLogDir
                 ? stdPathsInLogDir

@@ -160,7 +160,7 @@ err3" };
 * <error> *
 * </error> *
 * <error>err2</error> * <error>err3</error> *
-This error has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) in the log directory.";
+This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) in the log directory.";
 
                 XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
             }
@@ -170,7 +170,7 @@ This error has been filtered by a regex. Please find the complete stdout/stderr 
 * <error> *
 * </error> *
 * <error>err2</error> * <error>err3</error> *
-This error has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
+This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
 
                 XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
             }

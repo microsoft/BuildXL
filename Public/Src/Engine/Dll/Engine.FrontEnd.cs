@@ -602,8 +602,12 @@ namespace BuildXL.Engine
             Configuration = t.Item3;
 
             // Copy the graph files to the session output
-            m_executionLogGraphCopy = TryCreateHardlinksToScheduleFilesInSessionFolder(loggingContext, serializer);
-            m_previousInputFilesCopy = TryCreateHardlinksToPreviousInputFilesInSessionFolder(loggingContext, serializer);
+            if (Configuration.Distribution.BuildRole != DistributedBuildRoles.Worker)
+            {
+                // No need to link these files to the logs directory on workers since they are redundant with what's on the master
+                m_executionLogGraphCopy = TryCreateHardlinksToScheduleFilesInSessionFolder(loggingContext, serializer);
+                m_previousInputFilesCopy = TryCreateHardlinksToPreviousInputFilesInSessionFolder(loggingContext, serializer);
+            }
 
             return GraphReuseResult.CreateForFullReuse(t.Item1, inputChanges);
         }

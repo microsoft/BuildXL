@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200506.4 (Release [63394](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=63394)).  Released 5/13/2020
+- Fix for DisallowedFileAccess under user profile when running pips under admin VM in CloudBuild
+- [Windows] Not scrubbing directory symlinks anymore
+- [macOS] Catalina adjustments
+- Improvements to ADO listener
+- Various bug fixes
+
 # 0.1.0-20200501.3 (Release [62855](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=62855)).  Released 5/6/2020
 - Improved logging for memory AccessViolations
 - Update linux runtime to Ubuntu 18.04

@@ -299,6 +299,7 @@ export function runQTest(args: QTestArguments): Result {
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
             ...addIf(flakyFile !== undefined, flakyFile),
+            f`Q:\cmd\t\out\binaries\x86ret\bin\i386\CodeCoverage.pdb`,
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that

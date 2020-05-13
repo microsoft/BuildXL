@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Default interval, in seconds, between client retries.
         /// </summary>
-        public const int DefaultRetryIntervalSeconds = 5;
+        public const int DefaultRetryIntervalSeconds = 10;
 
         /// <summary>
         ///     Default number of client retries to attempt before giving up.

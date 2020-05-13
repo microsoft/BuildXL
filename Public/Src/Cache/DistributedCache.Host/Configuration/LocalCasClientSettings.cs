@@ -10,7 +10,7 @@ namespace BuildXL.Cache.Host.Configuration
     public class LocalCasClientSettings
     {
         public const uint DefaultConnectionsPerSession = 4;
-        public const uint DefaultRetryIntervalSecondsOnFailServiceCalls = 5;
+        public const uint DefaultRetryIntervalSecondsOnFailServiceCalls = 10;
         public const uint DefaultRetryCountOnFailServiceCalls = 12;
 
         [JsonConstructor]

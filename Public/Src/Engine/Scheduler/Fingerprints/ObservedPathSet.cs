@@ -111,12 +111,12 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Computes content hash of this object (by serializing it and hashing the serialized bytes).
         /// </summary>
-        public async Task<ContentHash> ToContentHash(PathTable pathTable, PathExpander pathExpander)
+        public async Task<ContentHash> ToContentHash(PathTable pathTable, PathExpander pathExpander, bool preservePathCasing)
         {
             using (var pathSetBuffer = new System.IO.MemoryStream())
             using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
             {
-                Serialize(pathTable, writer, pathExpander);
+                Serialize(pathTable, writer, preservePathCasing, pathExpander);
                 return await ContentHashingUtilities.HashContentStreamAsync(pathSetBuffer);
             }
         }
@@ -128,6 +128,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public void Serialize(
             PathTable pathTable,
             BuildXLWriter writer,
+            bool preservePathCasing,
             PathExpander pathExpander = null,
             Action<BuildXLWriter, AbsolutePath> pathWriter = null,
             Action<BuildXLWriter, StringId> stringWriter = null)
@@ -168,7 +169,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 {
                     // Try to tokenize the path if the pathExpander is given.
                     string expanded =  pathExpander?.ExpandPath(pathTable, entry.Path) ?? entry.Path.ToString(pathTable);
-                    if (!OperatingSystemHelper.IsUnixOS)
+                    if (!OperatingSystemHelper.IsUnixOS && !preservePathCasing)
                     {
                         expanded = expanded.ToUpperInvariant();
                     }

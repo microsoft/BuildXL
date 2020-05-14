@@ -30,4 +30,5 @@ enum Options{
     EnforceWeakFingerprintAugmentation = 65536;
     TrustStaticallyDeclaredAccesses = 131072;
     Uncancellable = 262144;
+    PreservePathSetCasing = 524288;
 }

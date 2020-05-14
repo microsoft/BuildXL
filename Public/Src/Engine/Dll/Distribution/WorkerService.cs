@@ -238,7 +238,7 @@ namespace BuildXL.Engine.Distribution
                 var writer = pooledWriter.Instance;
                 PipId pipId = completionData.PipId;
 
-                m_resultSerializer.Serialize(writer, completionData.ExecutionResult);
+                m_resultSerializer.Serialize(writer, completionData.ExecutionResult, completionData.PreservePathSetCasing);
 
                 // TODO: ToArray is expensive here. Think about alternatives.
                 var dataByte = ((MemoryStream)writer.BaseStream).ToArray();
@@ -706,6 +706,8 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(found, "Could not find corresponding build completion data for executed pip on worker");
 
             pipCompletion.ExecutionResult = executionResult;
+            // To preserve the path set casing is an option only available for process pips
+            pipCompletion.PreservePathSetCasing = pip.PipType == PipType.Process ? ((Process)pip).PreservePathSetCasing : false;
 
             if (step == PipExecutionStep.MaterializeOutputs && m_config.FireForgetMaterializeOutput)
             {

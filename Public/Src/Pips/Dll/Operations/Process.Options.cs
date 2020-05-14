@@ -152,6 +152,16 @@ namespace BuildXL.Pips.Operations
             /// When this option is set, the scheduler will not be able to cancel the specified pip for perforance purposes.
             /// </summary>
             Uncancellable = 1 << 17,
+
+            /// <summary>
+            /// When set, the serialized path set of this process is not normalized wrt casing
+            /// </summary>
+            /// <remarks>
+            /// This is already the behavior when running in a non-Windows OS, therefore this option only has a effect on Windows systems.
+            /// Setting this option increases the chance BuildXL will preserve path casing on Windows, at the cost of less efficient
+            /// caching, where the same weak fingerprint may have different path sets that only differ in casing.
+            /// </remarks>
+            PreservePathSetCasing = 1 << 18,
         }
     }
 }

@@ -821,6 +821,7 @@ namespace Test.BuildXL.Scheduler
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
             var preserveOutputWhitelist = source.Vary(p => p.PreserveOutputWhitelist);
             bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
+            bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -862,6 +863,11 @@ namespace Test.BuildXL.Scheduler
             if (requiresAdmin)
             {
                 options |= Process.Options.RequiresAdmin;
+            }
+
+            if (preservePathSetCasing)
+            {
+                options |= Process.Options.PreservePathSetCasing;
             }
 
             return new Process(

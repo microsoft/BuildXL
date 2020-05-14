@@ -722,6 +722,12 @@ namespace BuildXL.Pips.Operations
         public bool NeedsToRunInContainer => (ProcessOptions & Options.NeedsToRunInContainer) != 0;
 
         /// <summary>
+        /// <see cref="Options.PreservePathSetCasing"/>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public bool PreservePathSetCasing => (ProcessOptions & Options.PreservePathSetCasing) != 0;
+
+        /// <summary>
         /// Shortcut; <see cref="ServiceInfo.ShutdownPipId"/>.
         /// </summary>
         public PipId ShutdownProcessPipId => ServiceInfo?.ShutdownPipId ?? PipId.Invalid;

@@ -190,10 +190,13 @@ namespace Test.BuildXL.FrontEnd.Rush
             File.WriteAllText(pathToRushJson, updatedRushJson);
         }
 
-        public static string CreatePackageJson(string projectName, (string, string)[] scriptCommands = null, string[] dependencies = null)
+        public static string CreatePackageJson(
+            string projectName, 
+            (string, string)[] scriptCommands = null, 
+            (string dependency, string version)[] dependenciesWithVersions = null)
         {
             scriptCommands ??= new[] { ("build", "node ./main.js") };
-            dependencies ??= new string[] { };
+            dependenciesWithVersions ??= new (string, string)[] { };
 
             return $@"
 {{
@@ -205,7 +208,7 @@ namespace Test.BuildXL.FrontEnd.Rush
   }},
   ""main"": ""main.js"",
   ""dependencies"": {{
-        {string.Join(",", dependencies.Select(dep => $"\"{dep}\":\"0.0.1\""))}
+        {string.Join(",", dependenciesWithVersions.Select(depAndVer => $"\"{depAndVer.dependency}\":\"{depAndVer.version}\""))}
     }}
 }}
 ";

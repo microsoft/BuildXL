@@ -620,7 +620,8 @@ namespace BuildXL.Scheduler.Cache
             ContentHash? pathSetHash,
             WeakContentFingerprint? weakFingerprint,
             StrongContentFingerprint? strongFingerprint,
-            bool isExecution)
+            bool isExecution,
+            bool preservePathCasing)
         {
             if (metadata != null && metadataHash.HasValue)
             {
@@ -642,7 +643,7 @@ namespace BuildXL.Scheduler.Cache
 
             if (pathSet.HasValue && pathSetHash.HasValue)
             {
-                if (TryAdd(pathSetHash.Value, pathSet.Value))
+                if (TryAdd(pathSetHash.Value, pathSet.Value, preservePathCasing))
                 {
                     Counters.IncrementCounter(
                         isExecution
@@ -680,7 +681,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Adding pathset
         /// </summary>
-        private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet)
+        private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet, bool preservePathCasing)
         {
             using (Counters.StartStopwatch(PipCachingCounter.HistoricTryAddPathSetDuration))
             {
@@ -693,6 +694,7 @@ namespace BuildXL.Scheduler.Cache
                                 added = TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));
                                 return s_genericSuccessTask;
                             },
+                        preservePathCasing,
                         pathSetHash: hash
                     ).GetAwaiter().GetResult()
                 );

@@ -15,20 +15,35 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
     public static class RushIntegrationTestsHelper
     {
         /// <summary>
-        /// Utility for adding a node spec together with a corresponding package.json
+        /// <see cref="AddRushProject(SpecEvaluationBuilder, string, string, string, string[], (string, string)[])"/>
         /// </summary>
         public static SpecEvaluationBuilder AddRushProject(
+            this SpecEvaluationBuilder builder,
+            string packageName,
+            string packageFolder,
+            string content = null,
+            string[] dependencies = null,
+            (string, string)[] scriptCommands = null)
+        {
+            var dependenciesWithVersions = dependencies?.Select(dep => (dep, "0.0.1"))?.ToArray();
+            return AddRushProjectWithExplicitVersions(builder, packageName, packageFolder, content, dependenciesWithVersions, scriptCommands);
+        }
+
+        /// <summary>
+        /// Utility for adding a node spec together with a corresponding package.json
+        /// </summary>
+        public static SpecEvaluationBuilder AddRushProjectWithExplicitVersions(
             this SpecEvaluationBuilder builder, 
             string packageName, 
             string packageFolder, 
             string content = null,
-            string[] dependencies = null, 
+            (string, string)[] dependenciesWithVersions = null, 
             (string, string)[] scriptCommands = null)
         {
             return builder
                 .AddSpec(Path.Combine(packageFolder, "main.js"), content ?? "function A(){}")
                 .AddSpec(Path.Combine(packageFolder, "package.json"), 
-                    RushIntegrationTestBase.CreatePackageJson(packageName, scriptCommands, dependencies ?? new string[] { }));
+                    RushIntegrationTestBase.CreatePackageJson(packageName, scriptCommands, dependenciesWithVersions ?? new (string, string)[] { }));
         }
 
         /// <summary>

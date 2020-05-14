@@ -310,6 +310,10 @@ namespace BuildXL.FrontEnd.Rush
             // to avoid a large number of path sets
             processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
 
+            // Try to preserve path set casing since many JavaScript projects deal with paths in a case-sensitive way
+            // Otherwise in Windows we force path sets to be all uppercase
+            processBuilder.Options |= Process.Options.PreservePathSetCasing;
+
             // By default the double write policy is to allow same content double writes.
             processBuilder.DoubleWritePolicy |= DoubleWritePolicy.AllowSameContentDoubleWrites;
 

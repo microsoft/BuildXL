@@ -262,6 +262,7 @@ namespace BuildXL.Scheduler.Tracing
             PathSet.Serialize(
                 writer.PathTable, 
                 writer, 
+                preservePathCasing: false,
                 pathWriter: (w, v) => w.Write(v), 
                 stringWriter: (w, v) => ((BinaryLogger.EventWriter)w).WriteDynamicStringId(v));
             writer.WriteReadOnlyList(PriorStrongFingerprints, (w, v) => w.Write(v));

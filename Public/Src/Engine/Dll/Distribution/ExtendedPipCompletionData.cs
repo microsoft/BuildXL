@@ -42,5 +42,7 @@ namespace BuildXL.Engine.Distribution
         internal TaskSourceSlim<ExecutionResult> StepExecutionCompleted { get; set; } = TaskSourceSlim.Create<ExecutionResult>();
 
         internal ExecutionResult ExecutionResult { get; set; }
+
+        internal bool PreservePathSetCasing { get; set; }
     }
 }

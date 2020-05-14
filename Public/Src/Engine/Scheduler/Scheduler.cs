@@ -4017,7 +4017,8 @@ namespace BuildXL.Scheduler
                                 cacheHitData.PathSetHash,
                                 cacheResult.WeakFingerprint,
                                 cacheHitData.StrongFingerprint,
-                                isExecution: false);
+                                isExecution: false,
+                                process.PreservePathSetCasing);
                         }
                     }
 
@@ -4287,7 +4288,8 @@ namespace BuildXL.Scheduler
                             executionResult.TwoPhaseCachingInfo?.PathSetHash,
                             executionResult.TwoPhaseCachingInfo?.WeakFingerprint,
                             executionResult.TwoPhaseCachingInfo?.StrongFingerprint,
-                            isExecution: !executionResult.Converged);
+                            isExecution: !executionResult.Converged,
+                            preservePathCasing: processRunnable.Process.PreservePathSetCasing);
                     }
 
                     // Output content is reported here to ensure that it happens both on worker executing PostProcess and

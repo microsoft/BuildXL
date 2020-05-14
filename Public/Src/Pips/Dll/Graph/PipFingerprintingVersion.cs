@@ -57,7 +57,8 @@ namespace BuildXL.Pips.Graph
         /// 80: Added ProbeDirectorySymlinkAsDirectory in IUnsafeSandboxConfiguration.
         /// 81: Add OutputDirectoryContents for SealDirectories
         /// 82: Add ProcessSymlinkedAcceses in SandboxConfiguration
+        /// 83: Add PreservePathSetCasing in Process.Options
         /// </remarks>
-        TwoPhaseV2 = 82,
+        TwoPhaseV2 = 83,
     }
 }

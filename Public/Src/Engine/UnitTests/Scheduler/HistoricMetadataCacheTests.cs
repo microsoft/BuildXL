@@ -78,7 +78,7 @@ namespace Test.BuildXL.Scheduler
                                             }
                     };
 
-                var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1);
+                var storedPathSet1 = await cache.TryStorePathSetAsync(pathSet1, preservePathCasing: false);
                 var storedMetadata1 = await cache.TryStoreMetadataAsync(metadata1);
 
                 var weakFingerprint1 = new WeakContentFingerprint(FingerprintUtilities.CreateRandom());
@@ -124,7 +124,7 @@ namespace Test.BuildXL.Scheduler
                                          }
                     };
 
-                var storedPathSet2 = await cache.TryStorePathSetAsync(pathSet2);
+                var storedPathSet2 = await cache.TryStorePathSetAsync(pathSet2, preservePathCasing: false);
                 var storedMetadata2 = await cache.TryStoreMetadataAsync(metadata2);
                 var cacheEntry2 = new CacheEntry(storedMetadata2.Result, nameof(HistoricMetadataCacheTests), ArrayView<ContentHash>.Empty);
 

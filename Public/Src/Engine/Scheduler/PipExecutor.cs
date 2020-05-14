@@ -1865,7 +1865,7 @@ namespace BuildXL.Scheduler
                 {
                     start = DateTime.UtcNow;
                     var pathSet = observedInputValidationResult.GetPathSet(state.UnsafeOptions);
-                    var pathSetHash = await environment.State.Cache.SerializePathSetAsync(pathSet);
+                    var pathSetHash = await environment.State.Cache.SerializePathSetAsync(pathSet, pip.PreservePathSetCasing);
 
                     // This strong fingerprint is meaningless and not-cached, but compute it for the sake of
                     // execution analyzer logic that rely on having a successful strong fingerprint
@@ -2530,7 +2530,7 @@ namespace BuildXL.Scheduler
                         var minPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Min();
                         var maxPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Max();
 
-                        var weakAugmentingPathSetHashResult = await cache.TryStorePathSetAsync(weakAugmentingPathSet);
+                        var weakAugmentingPathSetHashResult = await cache.TryStorePathSetAsync(weakAugmentingPathSet, processRunnable.Process.PreservePathSetCasing);
                         string addAugmentingPathSetResultDescription;
 
                         if (weakAugmentingPathSetHashResult.Succeeded)
@@ -4747,7 +4747,7 @@ namespace BuildXL.Scheduler
             var weakFingerprint = fingerprintComputation.Value.WeakFingerprint;
 
             var pathSet = observedInputProcessingResult.GetPathSet(state.UnsafeOptions);
-            Possible<ContentHash> maybePathSetStored = await environment.State.Cache.TryStorePathSetAsync(pathSet);
+            Possible<ContentHash> maybePathSetStored = await environment.State.Cache.TryStorePathSetAsync(pathSet, process.PreservePathSetCasing);
             if (!maybePathSetStored.Succeeded)
             {
                 Logger.Log.TwoPhaseFailedToStoreMetadataForCacheEntry(

@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.Engine.Tracing;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -198,6 +200,50 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Rush.Tracing.LogEventId.ProjectGraphConstructionError);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+        }
+
+        [Fact]
+        public void IntermediateDirectoryCasingIsPreserved()
+        {
+            var testCache = new TestCache();
+
+            // Run a project that writes a file under a nested directory
+            var config = (CommandLineConfiguration)Build()
+                    .AddRushProjectWithExplicitVersions(
+                        "@ms/project-A", 
+                        "src/A", 
+                        "var fs = require('fs'); fs.mkdirSync('CamelCasedLib'); fs.writeFileSync('CamelCasedLib/out.txt', 'hello');",
+                        new[] { ("path", "0.12.7") })
+                    .PersistSpecsAndGetConfiguration();
+
+            config.Cache.CacheGraph = true;
+            config.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            config.Cache.Incremental = true;
+
+            var engineResult = RunRushProjects(
+                config,
+                new[] { ("src/A", "@ms/project-A") },
+                testCache);
+
+            // Make sure the directory was written with the expected case (via a case sensitive comparison)
+            Assert.True(engineResult.IsSuccess);
+            string intermediateDir = Directory.EnumerateDirectories(Path.Combine(SourceRoot, "src", "A"))
+                .First(dir => dir.EndsWith("CamelCasedLib", StringComparison.Ordinal));
+            Assert.NotNull(intermediateDir);
+
+            // Delete the created directory and run from cache
+            FileUtilities.DeleteDirectoryContents(intermediateDir, deleteRootDirectory: true);
+
+            engineResult = RunRushProjects(
+                config,
+                new[] { ("src/A", "@ms/project-A") },
+                testCache);
+
+            // The result should have preserved casing
+            Assert.True(engineResult.IsSuccess);
+            intermediateDir = Directory.EnumerateDirectories(Path.Combine(SourceRoot, "src", "A"))
+                .First(dir => dir.EndsWith("CamelCasedLib", StringComparison.Ordinal));
+            Assert.NotNull(intermediateDir);
         }
     }
 }

@@ -106,12 +106,12 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Stores path set for pip for use during two phase lookup
         /// </summary>
-        public virtual Task<Possible<ContentHash>> TryStorePathSetAsync(ObservedPathSet pathSet)
+        public virtual Task<Possible<ContentHash>> TryStorePathSetAsync(ObservedPathSet pathSet, bool preservePathCasing)
         {
             return TrySerializedAndStorePathSetAsync(pathSet, (pathSetHash, pathSetBuffer) =>
             {
                 return TryStorePathSetContentAsync(pathSetHash, pathSetBuffer);
-            });
+            }, preservePathCasing);
         }
 
         /// <summary>
@@ -139,22 +139,22 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Serializes a path set.
         /// </summary>
-        public async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet)
+        public async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet, bool preservePathCasing)
         {
             using (var pathSetBuffer = new MemoryStream())
             {
-                return await SerializePathSetAsync(pathSet, pathSetBuffer);
+                return await SerializePathSetAsync(pathSet, pathSetBuffer, preservePathCasing);
             }
         }
 
         /// <summary>
         /// Serializes a path set to the given buffer.
         /// </summary>
-        protected async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet, MemoryStream pathSetBuffer, ContentHash? pathSetHash = null)
+        protected async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet, MemoryStream pathSetBuffer, bool preservePathCasing, ContentHash? pathSetHash = null)
         {
             using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
             {
-                pathSet.Serialize(PathTable, writer, m_pathExpander);
+                pathSet.Serialize(PathTable, writer, preservePathCasing, m_pathExpander);
 
                 if (pathSetHash == null)
                 {
@@ -174,11 +174,12 @@ namespace BuildXL.Scheduler.Cache
         protected async Task<Possible<ContentHash>> TrySerializedAndStorePathSetAsync(
             ObservedPathSet pathSet, 
             Func<ContentHash, MemoryStream, Task<Possible<Unit>>> storeAsync,
+            bool preservePathCasing,
             ContentHash? pathSetHash = null)
         {
             using (var pathSetBuffer = new MemoryStream())
             {
-                var hash = await SerializePathSetAsync(pathSet, pathSetBuffer, pathSetHash);
+                var hash = await SerializePathSetAsync(pathSet, pathSetBuffer, preservePathCasing, pathSetHash);
                 var maybeStored = await storeAsync(hash, pathSetBuffer);
                 if (!maybeStored.Succeeded)
                 {
@@ -437,7 +438,8 @@ namespace BuildXL.Scheduler.Cache
             ContentHash? pathSetHash,
             WeakContentFingerprint? weakFingerprint,
             StrongContentFingerprint? strongFingerprint,
-            bool isExecution)
+            bool isExecution,
+            bool preservePathCasing)
         {
         }
 

@@ -190,7 +190,7 @@ namespace Test.BuildXL.Scheduler
             ObservedPathSet roundtripA = SerializeRoundTripAndAssertEquivalent(pathTable, pathSetA);
             XAssert.AreEqual(4, roundtripA.Paths.Length);
 
-            ContentHash pathSetHashA = await pathSetA.ToContentHash(pathTable, pathExpanderA);
+            ContentHash pathSetHashA = await pathSetA.ToContentHash(pathTable, pathExpanderA, preservePathCasing: false);
 
             var pathExpanderB = new MountPathExpander(pathTable);
             AddMount(pathExpanderB, pathTable, AbsolutePath.Create(pathTable, X("/y/users/BUser")), "UserProfile", isSystem: true);
@@ -207,7 +207,7 @@ namespace Test.BuildXL.Scheduler
             ObservedPathSet roundtripB = SerializeRoundTripAndAssertEquivalent(pathTable, pathSetB);
             XAssert.AreEqual(4, roundtripB.Paths.Length);
 
-            ContentHash pathSetHashB = await pathSetB.ToContentHash(pathTable, pathExpanderB);
+            ContentHash pathSetHashB = await pathSetB.ToContentHash(pathTable, pathExpanderB, preservePathCasing: false);
 
             AssertTrue(pathSetHashA == pathSetHashB);
         }
@@ -221,7 +221,7 @@ namespace Test.BuildXL.Scheduler
 
         private static void AssertCompressedSizeExpected(PathTable pathTable, ObservedPathSet pathSet, params string[] uncompressedStrings)
         {
-            long compressedSize = GetSizeOfSerializedContent(writer => pathSet.Serialize(pathTable, writer));
+            long compressedSize = GetSizeOfSerializedContent(writer => pathSet.Serialize(pathTable, writer, preservePathCasing: false));
 
             int numberOfUniquePaths = ObservedPathSetTestUtilities.RemoveDuplicates(pathSet).Count;
 
@@ -258,7 +258,7 @@ namespace Test.BuildXL.Scheduler
             {
                 using (var writer = new BuildXLWriter(stream: mem, debug: true, leaveOpen: true, logStats: true))
                 {
-                    original.Serialize(pathTable, writer, pathExpander);
+                    original.Serialize(pathTable, writer, preservePathCasing: false, pathExpander);
                 }
 
                 mem.Position = 0;

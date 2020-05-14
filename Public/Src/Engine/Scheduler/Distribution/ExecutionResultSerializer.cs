@@ -189,7 +189,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Serialize result to writer
         /// </summary>
-        public void Serialize(BuildXLWriter writer, ExecutionResult result)
+        public void Serialize(BuildXLWriter writer, ExecutionResult result, bool preservePathCasing)
         {
             writer.Write(m_maxSerializableAbsolutePathIndex);
 
@@ -232,7 +232,7 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             writer.Write(result.PathSet.HasValue);
-            result.PathSet?.Serialize(m_executionContext.PathTable, writer, pathWriter: WriteAbsolutePath);
+            result.PathSet?.Serialize(m_executionContext.PathTable, writer, preservePathCasing, pathWriter: WriteAbsolutePath);
 
             bool sendCacheLookupCounters = result.CacheLookupPerfInfo != null;
             writer.Write(sendCacheLookupCounters);

@@ -106,7 +106,7 @@ namespace Test.BuildXL.Scheduler
             using (var writer = new BuildXLWriter(false, stream, true, false))
             using (var reader = new BuildXLReader(false, stream, true))
             {
-                serializer.Serialize(writer, processExecutionResult);
+                serializer.Serialize(writer, processExecutionResult, preservePathCasing: false);
 
                 stream.Position = 0;
 

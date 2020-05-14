@@ -1232,11 +1232,21 @@ namespace BuildXL.Scheduler
             m_fileChangeTrackerFile = m_configuration.Layout.SchedulerFileChangeTrackerFile;
             m_incrementalSchedulingStateFile = m_configuration.Layout.IncrementalSchedulingStateFile;
 
+            var numChangedGvfsProjections = m_journalState.VolumeMap?.ChangedGvfsProjections.Count ?? 0;
+
             m_shouldCreateIncrementalSchedulingState =
                 m_journalState.IsEnabled &&
                 m_configuration.Schedule.IncrementalScheduling &&
                 m_configuration.Distribution.BuildRole == DistributedBuildRoles.None &&
-                m_configuration.Schedule.ForceSkipDependencies == ForceSkipDependenciesMode.Disabled;
+                m_configuration.Schedule.ForceSkipDependencies == ForceSkipDependenciesMode.Disabled &&
+                numChangedGvfsProjections == 0;
+
+            if (numChangedGvfsProjections > 0)
+            {
+                Logger.Log.IncrementalSchedulingDisabledDueToGvfsProjectionChanges(
+                    m_loggingContext,
+                    string.Join(", ", m_journalState.VolumeMap.ChangedGvfsProjections));
+            }
 
             // Execution log targets
             m_executionLogFileTarget = CreateExecutionLog(

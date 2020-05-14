@@ -226,6 +226,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void JournalDetectedInputChanges(LoggingContext context, string specFile, string directory);
 
         [GeneratedEvent(
+            (ushort)LogEventId.JournalDetectedGvfsProjectionChanges,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Engine,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            Message = EventConstants.PhasePrefix + "USN journal: One or more GVFS_projection files changed: {gvfsProjectionFiles}. All graph inputs will be checked for changes explicitly.")]
+        public abstract void JournalDetectedGvfsProjectionChanges(LoggingContext context, string gvfsProjectionFiles);
+
+        [GeneratedEvent(
             (ushort)LogEventId.JournalProcessingStatisticsForGraphReuseCheck,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

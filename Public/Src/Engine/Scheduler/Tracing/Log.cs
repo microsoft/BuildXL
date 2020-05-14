@@ -2530,6 +2530,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingNewlyPresentFile(LoggingContext context, string path);
 
         [GeneratedEvent(
+            (int)LogEventId.IncrementalSchedulingDisabledDueToGvfsProjectionChanges,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Incremental scheduling disabled because GVFS projection files changed: {gvfsProjectionFiles}")]
+        public abstract void IncrementalSchedulingDisabledDueToGvfsProjectionChanges(LoggingContext context, string gvfsProjectionFiles);
+
+        [GeneratedEvent(
             (int)LogEventId.IncrementalSchedulingNewlyPresentDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -995,6 +995,9 @@ namespace BuildXL
                             "trackBuildsInUserFolder",
                             opt => engineConfiguration.TrackBuildsInUserFolder = opt),
                         OptionHandlerFactory.CreateBoolOption(
+                            "trackGvfsProjections",
+                            opt => engineConfiguration.TrackGvfsProjections = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "trackMethodInvocations",
                             opt => frontEndConfiguration.TrackMethodInvocations = opt),
                         OptionHandlerFactory.CreateOption(

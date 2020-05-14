@@ -799,6 +799,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_TrackBuildsInUserFolder" xml:space="preserve">
     <value>When enabled, {ShortProductName} will log every build invocation in the users folder so the viewer and analyzers can use that to figure out what to use. Defaults to on.</value>
   </data>
+  <data name="HelpText_DisplayHelp_TrackGvfsProjections" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will track every .gvfs/GVFS_projection file found in any readable mount and disable features that depend on USN journal scanning whenever any of those files change. Defaults to off.</value>
+  </data>
   <data name="HelpText_DisplayHelp_TrackMethodInvocations" xml:space="preserve">
     <value>When enabled, {ShortProductName} captures most frequently invoked {ShortScriptName} methods. Defaults to off.</value>
   </data>

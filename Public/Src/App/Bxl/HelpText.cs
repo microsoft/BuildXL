@@ -346,6 +346,11 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
             hw.WriteOption(
+                "/trackGvfsProjections[+-]",
+                Strings.HelpText_DisplayHelp_TrackGvfsProjections,
+                HelpLevel.Verbose
+                );
+            hw.WriteOption(
                 "/trackMethodInvocations[+|-]",
                 string.Format(
                     CultureInfo.InvariantCulture,

@@ -172,7 +172,7 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(journal != null);
             Contract.Ensures(Contract.Result<FileChangeTracker>().TrackingState == FileChangeTrackingState.BuildingInitialChangeTrackingSet);
 
-            return new FileChangeTracker(
+            var tracker = new FileChangeTracker(
                 loggingContext,
                 correlatedId ?? FileEnvelopeId.Create(),
                 FileChangeTrackingState.BuildingInitialChangeTrackingSet,
@@ -180,6 +180,17 @@ namespace BuildXL.Storage.ChangeTracking
                 journal,
                 FileChangeTrackingSet.CreateForAllCapableVolumes(loggingContext, volumeMap, journal),
                 buildEngineFingerprint);
+
+            foreach (var gvfsProjectionFile in volumeMap.GvfsProjections)
+            {
+                var maybeTracking = tracker.TryProbeAndTrackPath(gvfsProjectionFile);
+                if (!maybeTracking.Succeeded)
+                {
+                    Logger.Log.TrackChangesToGvfsProjectionFailed(loggingContext, gvfsProjectionFile, maybeTracking.Failure.DescribeIncludingInnerFailures());
+                }
+            }
+
+            return tracker;
         }
 
         /// <summary>

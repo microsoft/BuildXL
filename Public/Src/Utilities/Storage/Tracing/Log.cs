@@ -752,6 +752,15 @@ namespace BuildXL.Storage.Tracing
             Message = "Using chunker '{chunkerType}'")]
         public abstract void ChunkerType(LoggingContext loggingContext, string chunkerType);
 
+        [GeneratedEvent(
+            (int)LogEventId.TrackChangesToGvfsProjectionFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "Failed to track GVFS projection file '{0}'; error: {1}")]
+        public abstract void TrackChangesToGvfsProjectionFailed(LoggingContext context, string gvfsProjectionFile, string errorMessage);
+
         public class FileCombinerStats
         {
             public long BeginCount;

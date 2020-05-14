@@ -235,9 +235,7 @@ namespace BuildXL.Engine.Tracing
 
         JournalProcessingStatisticsForGraphReuseCheckTelemetry = 2888,
         GraphInputArtifactChangesTokensMismatch = 2889,
-
-
-
+        JournalDetectedGvfsProjectionChanges = 2890,
 
         FailedToResolveHistoricMetadataCacheFileName = 2940,
         LoadingHistoricMetadataCacheFailed = 2941,

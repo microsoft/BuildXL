@@ -162,6 +162,16 @@ namespace BuildXL.Utilities.Configuration
         bool TrackBuildsInUserFolder { get; }
 
         /// <summary>
+        /// Whether to track GVFS projection files (found in .gvfs/GVFS_projection).
+        /// Tracking these files will ensure that features that depend on USN journal scanning
+        /// (e.g., incremental scheduling) are disabled whenever a GVFS projection changes.
+        /// 
+        /// Reason: whenever GVFS projection changes there could exist pending filed
+        ///         materializations for which USN records don't exist yet).
+        /// </summary>
+        bool TrackGvfsProjections { get; }
+
+        /// <summary>
         /// Whether or not to use file content table.
         /// </summary>
         bool? UseFileContentTable { get; }

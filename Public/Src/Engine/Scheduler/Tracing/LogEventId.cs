@@ -354,7 +354,7 @@ namespace BuildXL.Scheduler.Tracing
         IncrementalSchedulingDirtyPipChanges = 8060,
         IncrementalSchedulingProcessGraphChange = 8061,
 
-        // FREE SLOT 8062
+        IncrementalSchedulingDisabledDueToGvfsProjectionChanges = 8062,
         JournalProcessingStatisticsForSchedulerTelemetry = 8063,
 
         IncrementalSchedulingPreciseChange = 8064,

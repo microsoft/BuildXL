@@ -1013,7 +1013,7 @@ namespace BuildXL.Engine
                 // Loading the file change tracker succeeded, and the loaded file change tracker is in the tracking mode.
                 if (atomicSaveToken == fileChangeTracker.FileEnvelopeId)
                 {
-                    graphInputArtifactChanges = new GraphInputArtifactChanges(loggingContext);
+                    graphInputArtifactChanges = new GraphInputArtifactChanges(loggingContext, journalState.VolumeMap.GvfsProjections);
                 }
                 else
                 {

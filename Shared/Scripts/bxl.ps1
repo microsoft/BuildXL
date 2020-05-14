@@ -134,7 +134,10 @@ param(
     [switch]$UseManagedSharedCompilation = $true,
 
     [Parameter(ValueFromRemainingArguments=$true)]
-    [string[]]$DominoArguments
+    [string[]]$DominoArguments,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoQTest = $false
 )
 
 $ErrorActionPreference = "Stop";
@@ -284,7 +287,12 @@ if (-not ($DominoArguments -like '*/ado*') -and $isMicrosoftInternal) {
     $AdditionalBuildXLArguments += @("/exp:LazySODeletion");
 }
 
-$AdditionalBuildXLArguments += @("/p:[Sdk.BuildXL]useQTest=true");
+if ($NoQTest) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]useQTest=false";
+}
+else {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]useQTest=true";
+}
 
 if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArguments -match "logPrefix:.*").Length -eq 0) {
     $AdditionalBuildXLArguments += "/logsToRetain:20";

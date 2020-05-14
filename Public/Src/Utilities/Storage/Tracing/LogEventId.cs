@@ -115,5 +115,6 @@ namespace BuildXL.Storage.Tracing
 
         ComChunkerFailulre = 8207,
         ChunkerType = 8208,
+        TrackChangesToGvfsProjectionFailed = 8209,
     }
 }

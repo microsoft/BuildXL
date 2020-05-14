@@ -104,6 +104,14 @@ namespace BuildXL.Utilities
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
+        /// Comparer to use when comparing paths as strings.
+        /// On Linux, a case-sensitive string comparer is returned; elsewhere, a case-insensitive comparer is returned.
+        /// </summary>
+        public static StringComparer PathComparer { get; } = IsLinuxOS
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+
+        /// <summary>
         /// Gets the current OS description e.g. "Windows 10 Enterprise 10.0.10240"
         /// </summary>
         public static string GetOSVersion()

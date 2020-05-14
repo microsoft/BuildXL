@@ -28,7 +28,7 @@ namespace BuildXL.Storage.FileContentTableAccessor
                 return true;
             }
 
-            VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(new LoggingContext(nameof(IFileContentTableAccessor)));
+            VolumeMap volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(new LoggingContext(nameof(IFileContentTableAccessor)));
 
             if (volumeMap == null)
             {

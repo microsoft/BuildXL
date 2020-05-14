@@ -33,6 +33,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
             LogStatistics = true;
             TrackBuildsInUserFolder = true;
+            TrackGvfsProjections = false;
             UseFileContentTable = default;
             AllowDuplicateTemporaryDirectory = false;
         }
@@ -72,6 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
             LogStatistics = template.LogStatistics;
             TrackBuildsInUserFolder = template.TrackBuildsInUserFolder;
+            TrackGvfsProjections = template.TrackGvfsProjections;
             UseFileContentTable = template.UseFileContentTable;
             AllowDuplicateTemporaryDirectory = template.AllowDuplicateTemporaryDirectory;
         }
@@ -160,6 +162,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool TrackBuildsInUserFolder { get; set; }
+
+        /// <inheritdoc />
+        public bool TrackGvfsProjections { get; set; }
 
         /// <inheritdoc />
         public bool? UseFileContentTable { get; set; }

@@ -38,7 +38,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// </summary>
         public static VolumeMap TryCreateMapOfAllLocalVolumes(LoggingContext loggingContext, IReadOnlyList<string> junctionRoots = null)
         {
-            var volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
+            var volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
 
             // We want to skip volumes that are not local to VM.
             volumeMap.SkipTrackingJournalIncapableVolume = HasRelocatedTempInVm;

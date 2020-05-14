@@ -1570,7 +1570,7 @@ namespace BuildXL.Engine
             return DoRun(loggingContext, engineState, disposeFrontEnd: false);
         }
 
-        private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, LoggingContext loggingContext)
+        private VolumeMap TryGetVolumeMapOfAllLocalVolumes(PerformanceMeasurement pm, MountsTable mountsTable, LoggingContext loggingContext)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -1578,7 +1578,10 @@ namespace BuildXL.Engine
             }
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
-            VolumeMap volumeMap = VolumeMap.TryCreateMapOfAllLocalVolumes(loggingContext, junctionRoots);
+            IReadOnlyList<string> gvfsProjections = Configuration.Engine.TrackGvfsProjections
+                ? DiscoverGvfsProjectionFiles(mountsTable)
+                : CollectionUtilities.EmptyArray<string>();
+            VolumeMap volumeMap = VolumeMap.CreateMapOfAllLocalVolumes(loggingContext, junctionRoots, gvfsProjections);
 
             if (volumeMap == null)
             {
@@ -1590,7 +1593,7 @@ namespace BuildXL.Engine
 
         private JournalState GetJournalStateWithVolumeMap(VolumeMap volumeMap, LoggingContext loggingContext)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            if (OperatingSystemHelper.IsUnixOS || !Configuration.Engine.ScanChangeJournal)
             {
                 return JournalState.DisabledJournal;
             }
@@ -1598,22 +1601,37 @@ namespace BuildXL.Engine
             Contract.Requires(volumeMap != null);
             Contract.Requires(loggingContext != null);
 
-            // Under some configurations, we access the change journal (i.e., actually scan the journal).
-            if (Configuration.Engine.ScanChangeJournal)
+            var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(
+                volumeMap,
+                m_initialCommandLineConfiguration.Startup.ConfigFile.ToString(Context.PathTable));
+
+            if (!maybeJournal.Succeeded)
             {
-                var maybeJournal = JournalAccessorGetter.TryGetJournalAccessor(
-                    volumeMap,
-                    m_initialCommandLineConfiguration.Startup.ConfigFile.ToString(Context.PathTable));
-
-                if (maybeJournal.Succeeded)
-                {
-                    return JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result);
-                }
-
                 Logger.Log.FailedToGetJournalAccessor(loggingContext, maybeJournal.Failure.Describe());
+                return JournalState.DisabledJournal;
             }
 
-            return JournalState.DisabledJournal;
+            return JournalState.CreateEnabledJournal(volumeMap, maybeJournal.Result);
+        }
+
+        private IReadOnlyList<string> DiscoverGvfsProjectionFiles(MountsTable mountsTable)
+        {
+            var result = new HashSet<string>(OperatingSystemHelper.PathComparer);
+            var readableMountRoots = mountsTable.AllMounts.Where(m => m.IsReadable).Select(m => m.Path);
+            foreach (var mountRoot in readableMountRoots)
+            {
+                for (var path = mountRoot; path.IsValid; path = path.GetParent(Context.PathTable))
+                {
+                    var gvfsProjectionFile = Path.Combine(path.ToString(Context.PathTable), ".gvfs", "GVFS_projection");
+                    if (File.Exists(gvfsProjectionFile))
+                    {
+                        result.Add(gvfsProjectionFile);
+                        break;
+                    }
+                }
+            }
+
+            return result.ToList();
         }
 
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
@@ -1739,7 +1757,8 @@ namespace BuildXL.Engine
                             var recovery = FailureRecoveryFactory.Create(engineLoggingContext, Context.PathTable, Configuration);
                             bool recoveryStatus = recovery.TryRecoverIfNeeded();
 
-                            var volumeMap = TryGetVolumeMapOfAllLocalVolumes(pm, loggingContext);
+                            var mountsTable = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
+                            var volumeMap = TryGetVolumeMapOfAllLocalVolumes(pm, mountsTable, loggingContext);
                             var journalState = GetJournalStateWithVolumeMap(volumeMap, loggingContext);
 
                             if (!OperatingSystemHelper.IsUnixOS)
@@ -2789,6 +2808,8 @@ namespace BuildXL.Engine
                         inputTrackerForGraphConstruction = InputTracker.CreateDisabledTracker(loggingContext);
                     }
 
+                    // must not use previously created 'mountsTable' (in 'DoRun') because the context
+                    // and its path table might have been invalidated/changed in the meantime
                     var mountsTable = MountsTable.CreateAndRegister(loggingContext, Context, Configuration, m_initialCommandLineConfiguration.Startup.Properties);
 
                     using (var frontEndEngineAbstraction = new FrontEndEngineImplementation(

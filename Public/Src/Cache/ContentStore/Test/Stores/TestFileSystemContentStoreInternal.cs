@@ -26,9 +26,6 @@ namespace ContentStoreTest.Stores
 {
     public sealed class TestFileSystemContentStoreInternal : FileSystemContentStoreInternal, IContentChangeAnnouncer
     {
-        public AbsolutePath ThrowOnUpgradeLegacyVsoHashedContentFileRename;
-        public AbsolutePath ThrowOnUpgradeLegacyVsoHashedContentDirectoryRename;
-        public AbsolutePath ThrowOnUpgradeLegacyVsoHashedContentDirectoryDelete;
         public AbsolutePath ThrowOnAttemptedDeletePath;
         public bool DeleteContentDirectoryAfterDispose;
         public Func<IReadOnlyList<ContentHash>, Task<IReadOnlyList<ContentHash>>> OnLruEnumeration;
@@ -72,17 +69,11 @@ namespace ContentStoreTest.Stores
             }
         }
 
-        public static int CurrentVersionNumber => (int)VersionHistory.CurrentVersion;
-
         public long ContentDirectorySize() => ContentDirectory.GetSizeAsync().GetAwaiter().GetResult();
 
         public long QuotaKeeperSize() => QuotaKeeper?.CurrentSize ?? 0;
 
         public AbsolutePath RootPathForTest => RootPath;
-
-        public SerializedDataValue SerializedDataVersionForTest => SerializedDataVersion;
-
-        public AbsolutePath VersionFilePathForTest => VersionFilePath;
 
         public ConcurrentDictionary<ContentHash, Pin> PinMapForTest => PinMap;
 
@@ -92,18 +83,6 @@ namespace ContentStoreTest.Stores
         {
             DeleteReadOnlyFile(GetPrimaryPathFor(contentHash));
             FileSystem.WriteAllBytes(GetPrimaryPathFor(contentHash), new byte[] {0});
-        }
-
-        public async Task<ContentFileInfo> GetCacheFileInfo(ContentHash contentHash)
-        {
-            ContentFileInfo info = null;
-
-            await ContentDirectory.UpdateAsync(contentHash, false, Clock, fileInfo =>
-            {
-                info = fileInfo;
-                return null;
-            });
-            return info;
         }
 
         internal AbsolutePath GetReplicaPathForTest(ContentHash contentHash, int replicaIndex)
@@ -121,46 +100,6 @@ namespace ContentStoreTest.Stores
         {
             _onContentEvicted?.Invoke(item);
             return Task.FromResult(0);
-        }
-
-        protected override void UpgradeLegacyVsoContentRenameDirectory(AbsolutePath sourcePath, AbsolutePath destinationPath)
-        {
-            if (ThrowOnUpgradeLegacyVsoHashedContentDirectoryRename == sourcePath)
-            {
-                throw new IOException();
-            }
-
-            base.UpgradeLegacyVsoContentRenameDirectory(sourcePath, destinationPath);
-        }
-
-        protected override void UpgradeLegacyVsoContentRenameFile(AbsolutePath sourcePath, AbsolutePath destinationPath)
-        {
-            if (ThrowOnUpgradeLegacyVsoHashedContentFileRename == sourcePath)
-            {
-                throw new IOException();
-            }
-
-            base.UpgradeLegacyVsoContentRenameFile(sourcePath, destinationPath);
-        }
-
-        protected override void UpgradeLegacyVsoContentDeleteDirectory(AbsolutePath directory)
-        {
-            if (ThrowOnUpgradeLegacyVsoHashedContentDirectoryDelete == directory)
-            {
-                throw new IOException();
-            }
-
-            base.UpgradeLegacyVsoContentDeleteDirectory(directory);
-        }
-
-        protected override void DeleteReadOnlyFile(AbsolutePath path)
-        {
-            if (path == ThrowOnAttemptedDeletePath)
-            {
-                throw new IOException();
-            }
-
-            base.DeleteReadOnlyFile(path);
         }
 
         public override async Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync()

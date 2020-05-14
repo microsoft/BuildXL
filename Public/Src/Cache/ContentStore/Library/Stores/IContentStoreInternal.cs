@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Gets or sets the announcer to receive updates when content added and removed.
         /// </summary>
-        IContentChangeAnnouncer Announcer { get; set; }
+        IContentChangeAnnouncer? Announcer { get; set; }
 
         /// <summary>
         ///     Pin existing content.
@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="pinContext">
         ///     Context that will hold the pin record.
         /// </param>
-        Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext pinContext);
+        Task<PinResult> PinAsync(Context context, ContentHash contentHash, PinContext? pinContext);
 
         /// <summary>
         ///     Pin existing content.
@@ -73,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Context that will hold the pin record.
         /// </param>
         /// <param name="options">Options that controls the behavior of the operation.</param>
-        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions? options = default);
+        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext? pinContext, PinBulkOptions? options = default);
 
         /// <summary>
         /// Adds the content to the store without rehashing it.

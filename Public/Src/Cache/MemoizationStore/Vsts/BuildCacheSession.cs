@@ -287,7 +287,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutFileCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
+            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, hashType, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint));
@@ -302,7 +302,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutFileCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
+            return Tracer.ContentSessionTracer.PutFileAsync(new OperationContext(context), path, realizationMode, contentHash, trustedHash: false, () =>
                     WriteThroughContentSession != null
                     ? WriteThroughContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint)
                     : BackingContentSession.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint));
@@ -316,7 +316,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutStreamCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), hashType, () =>
+            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), hashType, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, hashType, stream, cts, urgencyHint));
@@ -330,7 +330,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return PutStreamCall<ContentSessionTracer>.RunAsync(Tracer.ContentSessionTracer, new OperationContext(context), contentHash, () =>
+            return Tracer.ContentSessionTracer.PutStreamAsync(new OperationContext(context), contentHash, () =>
                 WriteThroughContentSession != null
                 ? WriteThroughContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint)
                 : BackingContentSession.PutStreamAsync(context, contentHash, stream, cts, urgencyHint));

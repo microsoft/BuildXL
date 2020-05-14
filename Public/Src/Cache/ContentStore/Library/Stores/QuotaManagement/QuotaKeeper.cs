@@ -38,11 +38,6 @@ namespace BuildXL.Cache.ContentStore.Stores
     }
 
     /// <summary>
-    /// Quota rules use this to evict content.
-    /// </summary>
-    public delegate Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked);
-
-    /// <summary>
     /// The entity that maintains and enforces the content quota.
     /// </summary>
     public sealed class QuotaKeeper : StartupShutdownBase
@@ -53,7 +48,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public const string Component = "QuotaKeeper";
 
         private readonly ContentStoreInternalTracer _contentStoreTracer;
-        private readonly Tracer _tracer;
 
         private readonly CancellationToken _token;
 
@@ -95,12 +89,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly object _purgeTaskLock = new object();
 
         /// <inheritdoc />
-        protected override Tracer Tracer => _tracer;
+        protected override Tracer Tracer { get; }
 
         /// <summary>
         /// Gets performances counters for a current instance.
         /// </summary>
-
         public CounterCollection<QuotaKeeperCounters> Counters { get; }
 
         /// <nodoc />
@@ -113,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             IDistributedLocationStore? distributedStore)
         {
             _contentStoreTracer = tracer;
-            _tracer = new Tracer(name: Component);
+            Tracer = new Tracer(name: Component);
             _allContentSize = configuration.ContentDirectorySize;
             _token = token;
             _store = store;
@@ -167,13 +160,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (_processReserveRequestsTask != null)
             {
-                context.TraceDebug($"{_tracer.Name}: waiting for pending reservation requests.");
+                context.TraceDebug($"{Tracer.Name}: waiting for pending reservation requests.");
                 await _processReserveRequestsTask;
             }
 
             if (!_purgeTask.IsCompleted)
             {
-                context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
+                context.TraceDebug($"{Tracer.Name}: waiting for purge task.");
                 return await _purgeTask;
             }
 
@@ -208,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var operationContext = new OperationContext(context);
 
             return operationContext.PerformOperationAsync(
-                _tracer,
+                Tracer,
                 () => syncCoreAsync());
 
             async Task<BoolResult> syncCoreAsync()
@@ -266,7 +259,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private Task<BoolResult> SendPurgeRequest(OperationContext context, string reason)
         {
             return context.PerformOperationAsync(
-                _tracer,
+                Tracer,
                 () =>
                 {
                     var emptyRequest = QuotaRequest.Purge();
@@ -285,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             return context.PerformOperationAsync(
-                _tracer,
+                Tracer,
                 () =>
                 {
                     var emptyRequest = QuotaRequest.Synchronize();
@@ -352,7 +345,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             var operationContext = new OperationContext(context, _token);
             return operationContext.PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     if (!rule.CanBeCalibrated)
@@ -376,7 +369,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             if (_token.IsCancellationRequested)
             {
                 reason = $"{operation} exiting due to shutdown.";
-                _tracer.Debug(context, reason);
+                Tracer.Debug(context, reason);
             }
 
             return reason != null;
@@ -430,7 +423,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 else
                 {
-                    _tracer.Debug(context, $"{Component}: EvictUntilTheHardLimitAsync failed with " + evictionResult);
+                    Tracer.Debug(context, $"{Component}: EvictUntilTheHardLimitAsync failed with " + evictionResult);
                     // Eviction may fail, but this could be fine if all the rules that above the hard limit can be calibrated.
                     return SuccessIfOnlyCalibrateableRulesAboveHardLimit(context, reserveSize);
                 }
@@ -474,7 +467,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // All rules that reached their hard limits can be calibrated. We will disable such rules temporarily until calibration.
             foreach (var rule in rulesNotInsideHardLimit.Where(rule => rule.CanBeCalibrated))
             {
-                _tracer.Debug(context, $"Disabling rule '{rule}'.");
+                Tracer.Debug(context, $"Disabling rule '{rule}'.");
                 rule.IsEnabled = false;
             }
 
@@ -488,7 +481,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var checkResult = rule.IsInsideSoftLimit(size);
                 if (!checkResult)
                 {
-                    exceedReason = checkResult.ErrorMessage;
+                    exceedReason = checkResult.ErrorMessage!;
                     return true;
                 }
             }
@@ -504,7 +497,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 var checkResult = rule.IsInsideHardLimit(size);
                 if (!checkResult)
                 {
-                    exceedReason = checkResult.ErrorMessage;
+                    exceedReason = checkResult.ErrorMessage!;
                     return true;
                 }
             }
@@ -551,7 +544,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     if (_purgeTask.IsCompleted)
                     {
-                        _tracer.Debug(context, $"{Component}: Purge stated because {reason}. Current Size={CurrentSize}");
+                        Tracer.Debug(context, $"{Component}: Purge stated because {reason}. Current Size={CurrentSize}");
                         _purgeTask = Task.Run(() => PurgeAsync(context));
                     }
                 }
@@ -616,7 +609,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             var operationContext = new OperationContext(context);
             var operationResult = await operationContext.PerformOperationAsync(
-                _tracer,
+                Tracer,
                 async () =>
                 {
                     var finalPurgeResult = new PurgeResult();
@@ -723,7 +716,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     bool traceRequest = (requestCount % 1000) == 0;
 
                     var result = await operationContext.PerformOperationAsync(
-                        _tracer,
+                        Tracer,
                         () => ProcessQuotaRequestAsync(context, request),
                         extraEndMessage: r => $"Request='{request}'. CurrentContentSize={CurrentSize}. Request#={requestCount}",
                         caller: nameof(ProcessQuotaRequestAsync),
@@ -749,7 +742,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 catch (Exception e)
                 {
-                    _tracer.Error(context, $"{Component}: Purge loop failed for '{request}' with unexpected error: {e}");
+                    Tracer.Error(context, $"{Component}: Purge loop failed for '{request}' with unexpected error: {e}");
                 }
             }
         }

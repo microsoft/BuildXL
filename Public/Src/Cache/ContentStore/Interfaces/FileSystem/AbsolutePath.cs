@@ -152,6 +152,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         }
 
         /// <summary>
+        /// Gets a non-null parent and throws if the parent is null.
+        /// </summary>
+        public AbsolutePath GetParent()
+        {
+            var parent = Parent;
+            Contract.Check(parent != null)?.Assert($"Parent of {this} must not be null");
+            return parent;
+        }
+
+        /// <summary>
         /// Removes leading long path prefix from the <paramref name="path"/> if necessary.
         /// </summary>
         public static string RemoveLongPathPrefixIfNeeded(string path)

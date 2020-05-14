@@ -221,7 +221,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 DiskFreePercent = 0;
                 CacheRootPath = null;
                 SingleInstanceTimeoutInSeconds = ContentStoreConfiguration.DefaultSingleInstanceTimeoutSeconds;
-                ApplyDenyWriteAttributesOnContent = FileSystemContentStoreInternal.DefaultApplyDenyWriteAttributesOnContent;
+                ApplyDenyWriteAttributesOnContent = ContentStoreConfiguration.DefaultApplyDenyWriteAttributesOnContent;
                 UseStreamCAS = false;
                 StreamCAS = null;
                 ReplaceExistingOnPlaceFile = false;
@@ -289,7 +289,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 // Setting it to empty to support conversion by CacheFactory.
                 CacheRootPath = string.Empty;
                 SingleInstanceTimeoutInSeconds = ContentStoreConfiguration.DefaultSingleInstanceTimeoutSeconds;
-                ApplyDenyWriteAttributesOnContent = FileSystemContentStoreInternal.DefaultApplyDenyWriteAttributesOnContent;
+                ApplyDenyWriteAttributesOnContent = ContentStoreConfiguration.DefaultApplyDenyWriteAttributesOnContent;
 
                 // Elasticity.
                 EnableElasticity = false;

@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class with resulting stream.
         /// </summary>
-        public OpenStreamResult(Stream stream)
+        public OpenStreamResult(Stream? stream)
         {
             Code = stream != null ? ResultCode.Success : ResultCode.ContentNotFound;
             Stream = stream;

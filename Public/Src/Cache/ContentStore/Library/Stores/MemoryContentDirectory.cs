@@ -110,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (!_fileSystem.DirectoryExists(directoryPath))
             {
-                throw new ArgumentException("must be path to a directory", nameof(directoryPath));
+                throw new ArgumentException("must be path to an existing directory", nameof(directoryPath));
             }
 
             FilePath = _filePath;

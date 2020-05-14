@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -847,7 +848,7 @@ namespace ContentStoreTest.Stores
                 contentInfoList.Count.Should().Be(0);
             });
         }
-
+        
         private static async Task<int> CreateRandomStore(TStore store, Context context, int fileCount)
         {
             var byteCount = 0;

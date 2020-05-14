@@ -115,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            Provider.StopVirtualization();
+            Provider?.StopVirtualization();
 
             // Close all sessions?
             var result = await base.ShutdownCoreAsync(context);

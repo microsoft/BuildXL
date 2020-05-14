@@ -20,6 +20,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public const int DefaultSingleInstanceTimeoutSeconds = 60 * 30;
 
+        /// <nodoc />
+        public const bool DefaultApplyDenyWriteAttributesOnContent = false;
+
         /// <summary>
         ///     Convenience factory method for creating configuration with hard limit in megabytes.
         /// </summary>

@@ -36,6 +36,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <nodoc />
-        public CounterSet? CounterSet => Value;
+        public CounterSet CounterSet => Value!;
     }
 }

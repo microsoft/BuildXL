@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <summary>
         /// Use an existing resource if possible, else create a new one.
         /// </summary>
-        /// <param name="key">Key to lookup an exisiting resource, if one exists.</param>
+        /// <param name="key">Key to lookup an existing resource, if one exists.</param>
         public async Task<ResourceWrapper<TObject>> CreateAsync(TKey key)
         {
             using (Counter[ResourcePoolCounters.CreationTime].Start())
@@ -147,7 +147,14 @@ namespace BuildXL.Cache.ContentStore.Utils
                     }
                 }
 
-                var allTasks = Task.WhenAll(shutdownTasks.ToArray());
+                var shutdownTasksArray = shutdownTasks.ToArray();
+                if (shutdownTasksArray.Length == 0)
+                {
+                    // Early return to avoid extra async steps and unnecessary traces that we "cleaned up 0" resources.
+                    return;
+                }
+
+                var allTasks = Task.WhenAll(shutdownTasksArray);
                 try
                 {
                     await allTasks;

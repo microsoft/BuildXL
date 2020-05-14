@@ -52,8 +52,8 @@ function createWindow() {
     });
 
     const session = electron.session.fromPartition('persist:name');
-    session.clearCache(() => { });
-    session.clearStorageData({}, (data: any) => { });
+    session.clearCache();
+    session.clearStorageData();
 
     mainWindow.loadURL(`file://${__dirname}/App.html`);
 
@@ -86,12 +86,12 @@ function createWindow() {
                 break;
             case "-":
                 if (input.control && input.type == "keyDown") {
-                    contents.getZoomLevel(level => contents.setZoomLevel(level - 1));
+                    contents.setZoomLevel(contents.getZoomLevel() - 1);
                 }
                 break;
             case "=":
                 if (input.control && input.type == "keyDown") {
-                    contents.getZoomLevel(level => contents.setZoomLevel(level + 1));
+                    contents.setZoomLevel(contents.getZoomLevel() + 1);
                 }
                 break;
             case "0":

@@ -22,7 +22,7 @@
     "react-dom": "16.8.6",
     "react-router-dom": "5.0.1",
     "request": "2.88",
-    "request-promise-native": "1.0.7",
+    "request-promise-native": "1.0.8",
     "userhome": "1.0.0"
   },
   "devDependencies": {
@@ -32,7 +32,7 @@
     "@types/react-router-dom": "4.3.4",
     "@types/request-promise-native": "1.0.16",
     "asar": "2.0.1",
-    "electron-prebuilt-compile": "4.0.0",
+    "electron-prebuilt-compile": "8.2.0",
     "rcedit": "2.0.0",
     "typescript": "3.5.3"
   },

@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -20,7 +19,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(
+        System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(
             Context context,
             Fingerprint weakFingerprint,
             CancellationToken cts,

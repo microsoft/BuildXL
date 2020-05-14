@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
-
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -57,7 +55,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             throw new System.NotImplementedException();
         }

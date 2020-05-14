@@ -29,7 +29,7 @@ namespace Library {
             importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
             importFrom("System.Data.SQLite.Core").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
 
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             ...importFrom("BuildXL.Utilities").Native.securityDlls,

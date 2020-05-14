@@ -19,7 +19,7 @@ namespace Grpc {
             importFrom("Grpc.Core").pkg,
             importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         tools: {
             csc: {

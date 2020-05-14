@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -296,11 +294,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
         {
             foreach (var weakFingerprint in weakFingerprints)
             {
-                var getSelectorsEnumerator = session.GetSelectors(context, weakFingerprint, Token);
-                Async::System.Collections.Generic.IAsyncEnumerator<GetSelectorResult> enumerator = getSelectorsEnumerator.GetEnumerator();
-                while (await enumerator.MoveNext(CancellationToken.None))
+                await foreach(var result in session.GetSelectors(context, weakFingerprint, Token))
                 {
-                    GetSelectorResult result = enumerator.Current;
                     result.Succeeded.Should().BeTrue();
                 }
             }
@@ -333,10 +328,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Performance.Sessions
 
         private async Task<List<StrongFingerprint>> EnumerateStrongFingerprintsAsync(Context context, IMemoizationStore store, int count)
         {
-            var asyncEnumerator = store.EnumerateStrongFingerprints(context).GetEnumerator();
+            var asyncEnumerator = store.EnumerateStrongFingerprints(context).GetAsyncEnumerator();
             var strongFingerprints = new List<StrongFingerprint>();
 
-            for (int i = 0; i < count && await asyncEnumerator.MoveNext() && asyncEnumerator.Current.Succeeded; i++)
+            for (int i = 0; i < count && await asyncEnumerator.MoveNextAsync() && asyncEnumerator.Current.Succeeded; i++)
             {
                 strongFingerprints.Add(asyncEnumerator.Current.Data);
             }

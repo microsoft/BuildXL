@@ -24,7 +24,7 @@ namespace Interfaces {
             ...addIf(qualifier.targetFramework === "netstandard2.0",
                 importFrom("System.Threading.Tasks.Dataflow").pkg
             ),
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
             importFrom("WindowsAzure.Storage").pkg,
         ],
         nullable: true,

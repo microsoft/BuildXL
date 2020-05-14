@@ -237,6 +237,16 @@ export function library(args: Arguments): Managed.Assembly {
 }
 
 @@public
+export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
+        importFrom("System.Threading.Tasks.Extensions").pkg,
+        importFrom("System.Linq.Async").pkg,
+        // .NET Core version is tricky, because there are some crucial differences between .netcoreapp and netstandard
+        (qualifier.targetFramework === "netcoreapp3.1" 
+          ? importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg
+          : importFrom("Microsoft.Bcl.AsyncInterfaces").pkg)
+    ];
+
+@@public
 export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult {
     if (!isHostOsOsx) {
         const asm = executable(args);

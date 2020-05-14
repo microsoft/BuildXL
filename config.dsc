@@ -220,7 +220,7 @@ config({
                 { id: "System.Diagnostics.PerformanceCounter", version: "4.7.0" },
                 { id: "System.Threading.Channels", version: "4.7.0",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
-                { id: "System.Interactive.Async", version: "3.1.1" },
+                { id: "System.Linq.Async", version: "4.0.0"},
                 { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
                 { id: "Redis-64", version: "3.0.503", osSkip: [ "macOS", "unix" ] },
                 { id: "Redis-osx-x64", version: "1.0.0", osSkip: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal

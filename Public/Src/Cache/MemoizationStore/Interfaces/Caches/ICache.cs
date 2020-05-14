@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
 using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -43,6 +42,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Caches
         /// <summary>
         ///     Asynchronously enumerates the known strong fingerprints.
         /// </summary>
-        Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context);
+        System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context);
     }
 }

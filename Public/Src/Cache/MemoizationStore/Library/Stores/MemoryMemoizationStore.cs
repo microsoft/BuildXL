@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -92,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        internal Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
+        internal System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
         {
             var result = GetSelectorsCore(context, weakFingerprint, cts);
             if (result)
@@ -221,7 +220,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc/>
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return _records.Select(record => new StructResult<StrongFingerprint>(record.StrongFingerprint)).ToAsyncEnumerable();
         }

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
@@ -111,7 +110,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
             return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => Database.EnumerateStrongFingerprintsAsync(ctx));

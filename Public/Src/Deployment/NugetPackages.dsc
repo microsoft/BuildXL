@@ -235,7 +235,7 @@ namespace NugetPackages {
             importFrom("Microsoft.Azure.EventHubs").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Data.SQLite.Core").withQualifier(net472PackageQualifer).pkg,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
-            importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
+            ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             importFrom("Grpc.Core").withQualifier(net472PackageQualifer).pkg,
             importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
@@ -258,7 +258,7 @@ namespace NugetPackages {
             buildXLUtilitiesIdentity,
 
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
-            importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
+            ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             importFrom("WindowsAzure.Storage").withQualifier(net472PackageQualifer).pkg,
         ]
     });
@@ -267,7 +267,7 @@ namespace NugetPackages {
         id: buildXLCacheHashingIdentity.id,
         deployment: Cache.NugetPackages.hashing,
         dependencies: [
-            importFrom("System.Interactive.Async").withQualifier(net472PackageQualifer).pkg,
+            ...BuildXLSdk.withQualifier(net472PackageQualifer).bclAsyncPackages,
             importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472PackageQualifer).pkg,
             importFrom("RuntimeContracts").withQualifier(net472PackageQualifer).pkg,
         ]

@@ -26,11 +26,8 @@ export const redisPackages = [
             importFrom("System.IO.Pipelines").pkg,
             importFrom("System.Threading.Channels").pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-            // Workaround to avoid compilation issues due to duplicate definition of IAsyncEnumerable<T>
-            // Redis.StackExchange package references .netstandard2 and the tests are running under .NET Core App 3.1
-            // and Microsoft.Bcl.AsyncInterfaces package was changed between .netstandard2 and .netstandard2.1
-            importFrom("Microsoft.Bcl.AsyncInterfaces").withQualifier({targetFramework: "netstandard2.1"}).pkg,
           ]),
+    ...BuildXLSdk.bclAsyncPackages,
     // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
     importFrom("System.Threading.Tasks.Extensions").pkg,
     importFrom("Pipelines.Sockets.Unofficial").pkg,

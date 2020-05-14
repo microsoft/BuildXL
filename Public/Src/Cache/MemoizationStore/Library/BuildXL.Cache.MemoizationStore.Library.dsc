@@ -20,11 +20,9 @@ namespace Library {
             
             importFrom("BuildXL.Utilities").dll,
 
-            ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
-
             importFrom("System.Data.SQLite.Core").pkg,
-            importFrom("System.Interactive.Async").pkg,
-
+            ...BuildXLSdk.bclAsyncPackages,
+            
             importFrom("Grpc.Core").pkg,
             importFrom("Grpc.Core.Api").pkg,
             importFrom("Google.Protobuf").pkg,

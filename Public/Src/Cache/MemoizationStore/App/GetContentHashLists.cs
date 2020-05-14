@@ -59,38 +59,35 @@ namespace BuildXL.Cache.MemoizationStore.App
                     new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism });
 
                 var enumerationStopwatch = Stopwatch.StartNew();
-                using (var strongFingerprints = store.EnumerateStrongFingerprints(context).GetEnumerator())
+                int strongFingerprintCount = 0;
+                await foreach(var strongFingerprint in store.EnumerateStrongFingerprints(context).WithCancellation(_token))
                 {
-                    int strongFingerprintCount = 0;
-                    while (await strongFingerprints.MoveNext(_token))
-                    {
-                        strongFingerprintCount++;
-                        printerBlock.Post(strongFingerprints.Current);
-                    }
+                    strongFingerprintCount++;
+                    printerBlock.Post(strongFingerprint);
+                }
 
-                    enumerationStopwatch.Stop();
+                enumerationStopwatch.Stop();
 
-                    var getterStopwatch = Stopwatch.StartNew();
-                    printerBlock.Complete();
-                    await printerBlock.Completion;
-                    getterStopwatch.Stop();
+                var getterStopwatch = Stopwatch.StartNew();
+                printerBlock.Complete();
+                await printerBlock.Completion;
+                getterStopwatch.Stop();
 
-                    _logger.Always($"{strongFingerprintCount} records");
-                    _logger.Always($"Enumerate time: {(int)enumerationStopwatch.Elapsed.TotalMilliseconds}ms");
-                    if (printContentHashLists)
-                    {
-                        _logger.Always($"Get time: {(int)getterStopwatch.Elapsed.TotalMilliseconds}ms");
-                    }
+                _logger.Always($"{strongFingerprintCount} records");
+                _logger.Always($"Enumerate time: {(int)enumerationStopwatch.Elapsed.TotalMilliseconds}ms");
+                if (printContentHashLists)
+                {
+                    _logger.Always($"Get time: {(int)getterStopwatch.Elapsed.TotalMilliseconds}ms");
+                }
 
-                    var statsResult = await store.GetStatsAsync(context).ConfigureAwait(false);
-                    statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
+                var statsResult = await store.GetStatsAsync(context).ConfigureAwait(false);
+                statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
 
-                    // Useful for debugging LRU behavior.
-                    if (preShutdownDelaySeconds > 0)
-                    {
-                        _logger.Always($"Delaying {preShutdownDelaySeconds} seconds before store shutdown");
-                        await Task.Delay(TimeSpan.FromSeconds(preShutdownDelaySeconds), _token);
-                    }
+                // Useful for debugging LRU behavior.
+                if (preShutdownDelaySeconds > 0)
+                {
+                    _logger.Always($"Delaying {preShutdownDelaySeconds} seconds before store shutdown");
+                    await Task.Delay(TimeSpan.FromSeconds(preShutdownDelaySeconds), _token);
                 }
             });
 

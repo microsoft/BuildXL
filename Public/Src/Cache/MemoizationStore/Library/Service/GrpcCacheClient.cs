@@ -112,33 +112,29 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// </summary>
         public async Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
         {
-            using (var enumerator = strongFingerprints.ToResultsAsyncEnumerable().Buffer(BatchSize).GetEnumerator())
+            await foreach (var sfBatch in strongFingerprints.ToResultsAsyncEnumerable().Buffer(BatchSize).WithCancellation(context.Token))
             {
-                while (await enumerator.MoveNext(context.Token))
+                var result = await PerformOperationAsync(
+                    context,
+                    async sessionContext =>
                 {
-                    var sfBatch = enumerator.Current;
-                    var result = await PerformOperationAsync(
-                        context,
-                        async sessionContext =>
+                    var request = new IncorporateStrongFingerprintsRequest()
                     {
-                        var request = new IncorporateStrongFingerprintsRequest()
-                        {
-                            Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
-                        };
+                        Header = new RequestHeader(context.TracingContext.Id, sessionContext.SessionId),
+                    };
 
-                        request.StrongFingerprints.AddRange(sfBatch.Select(sf => sf.ToGrpc()));
+                    request.StrongFingerprints.AddRange(sfBatch.Select(sf => sf.ToGrpc()));
 
-                        var response = await SendGrpcRequestAndThrowIfFailedAsync(
-                            sessionContext,
-                            async () => await Client.IncorporateStrongFingerprintsAsync(request));
+                    var response = await SendGrpcRequestAndThrowIfFailedAsync(
+                        sessionContext,
+                        async () => await Client.IncorporateStrongFingerprintsAsync(request));
 
-                        return BoolResult.Success;
-                    });
+                    return BoolResult.Success;
+                });
 
-                    if (!result)
-                    {
-                        return result;
-                    }
+                if (!result)
+                {
+                    return result;
                 }
             }
 

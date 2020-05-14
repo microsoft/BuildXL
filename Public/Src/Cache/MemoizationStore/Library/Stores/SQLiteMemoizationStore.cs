@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-extern alias Async;
 using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
@@ -322,18 +321,18 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
+        public System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             context.Debug($"{nameof(SQLiteMemoizationStore)}.{nameof(EnumerateStrongFingerprints)}({context.Id})");
-            return AsyncEnumerable.CreateEnumerable(
-                () =>
+            return AsyncEnumerable.Create(
+                token =>
                 {
                     const long pageLimit = 100;
                     long offset = 0;
                     IEnumerator<StrongFingerprint> strongFingerprints = null;
                     StructResult<StrongFingerprint> error = null;
-                    return AsyncEnumerable.CreateEnumerator(
-                        async cancellationToken =>
+                    return AsyncEnumerator.Create(
+                        async () =>
                         {
                             try
                             {
@@ -362,7 +361,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             }
                         },
                         () => error ?? new StructResult<StrongFingerprint>(strongFingerprints.Current),
-                        () => { strongFingerprints?.Dispose(); });
+                        () => { strongFingerprints?.Dispose(); return new ValueTask(); });
                 });
         }
 
@@ -390,7 +389,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Enumerate known selectors for a given weak fingerprint.
         /// </summary>
-        internal Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
+        internal System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectors(Context context, Fingerprint weakFingerprint, CancellationToken cts)
         {
             return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable(() => getSelectorsCore());
 

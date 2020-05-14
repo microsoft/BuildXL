@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.App
             RunSQLiteStoreSession(new AbsolutePath(root), lruEnabled: true, funcAsync: async (context, store, session) =>
             {
                 IEnumerable<GetSelectorResult> results =
-                    await session.GetSelectors(context, new Fingerprint(weakFingerprint), CancellationToken.None, UrgencyHint.Nominal).ToList(CancellationToken.None);
+                    await session.GetSelectors(context, new Fingerprint(weakFingerprint), CancellationToken.None, UrgencyHint.Nominal).ToListAsync();
 
                 foreach (GetSelectorResult result in results)
                 {

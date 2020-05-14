@@ -135,7 +135,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 
             return RunReadOnlyTestAsync(context, async session =>
             {
-                IEnumerable<GetSelectorResult> tasks = await session.GetSelectors(context, weakFingerprint, Token).ToList();
+                IEnumerable<GetSelectorResult> tasks = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(0, tasks.Count());
             });
         }
@@ -159,7 +159,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                 await session.AddOrGetContentHashListAsync(
                     context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(CancellationToken.None);
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -391,9 +391,9 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var context = new Context(Logger);
             return RunTestAsync(context, async store =>
             {
-                using (var strongFingerprintEnumerator = store.EnumerateStrongFingerprints(context).GetEnumerator())
+                await foreach(var strongFingerprint in store.EnumerateStrongFingerprints(context))
                 {
-                    Assert.Equal(false, await strongFingerprintEnumerator.MoveNext());
+                    Assert.Equal(false,strongFingerprint);
                 }
             });
         }
@@ -411,7 +411,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             {
                 var expected = await AddRandomContentHashListsAsync(context, strongFingerprintCount, session);
                 var enumerated =
-                    (await cache.EnumerateStrongFingerprints(context).ToList())
+                    (await cache.EnumerateStrongFingerprints(context).ToListAsync())
                     .Where(result => result.Succeeded)
                     .Select(result => result.Data)
                     .ToHashSet();

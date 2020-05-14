@@ -68,7 +68,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
                 _clock.Increment();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList(CancellationToken.None);
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync(CancellationToken.None);
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];
@@ -104,7 +104,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                 await ((SQLiteMemoizationStore)store).SyncAsync();
 
-                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToList();
+                List<GetSelectorResult> getSelectorResults = await session.GetSelectors(context, weakFingerprint, Token).ToListAsync();
                 Assert.Equal(2, getSelectorResults.Count);
 
                 GetSelectorResult r1 = getSelectorResults[0];

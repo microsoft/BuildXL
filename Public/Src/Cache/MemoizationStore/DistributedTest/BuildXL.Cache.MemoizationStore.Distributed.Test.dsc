@@ -37,7 +37,7 @@ namespace DistributedTest {
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         runtimeContent: [
             {

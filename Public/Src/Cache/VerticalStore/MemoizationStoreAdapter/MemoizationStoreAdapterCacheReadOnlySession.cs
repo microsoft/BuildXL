@@ -127,7 +127,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 {
                     try
                     {
-                        var results = await ReadOnlyCacheSession.GetSelectors(new Context(Logger), weak.ToMemoization(), CancellationToken.None).ToList();
+                        var results = await ReadOnlyCacheSession.GetSelectors(new Context(Logger), weak.ToMemoization(), CancellationToken.None).ToListAsync();
                         tcs.SetResult(results);
                         return results.Any() ? results.First().FromMemoization(weak, CacheId) : StrongFingerprintSentinel.Instance;
                     }

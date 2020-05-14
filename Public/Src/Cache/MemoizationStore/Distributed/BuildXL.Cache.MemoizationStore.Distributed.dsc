@@ -18,7 +18,7 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

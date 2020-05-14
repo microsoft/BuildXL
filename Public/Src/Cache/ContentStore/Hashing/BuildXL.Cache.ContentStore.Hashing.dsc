@@ -23,7 +23,6 @@ namespace Hashing {
             [
                 importFrom("System.Threading.Tasks.Dataflow").pkg,
             ]),
-            importFrom("System.Interactive.Async").pkg,
         ],
         runtimeContent: Context.getCurrentHost().os !== "win" ? [] : [
             {

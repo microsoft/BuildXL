@@ -16,7 +16,7 @@ namespace App {
             BuildXLSdk.isFullFramework 
                 ? importFrom("CLAP").pkg
                 : importFrom("CLAP-DotNetCore").pkg,
-            importFrom("System.Interactive.Async").pkg,
+            ...BuildXLSdk.bclAsyncPackages,
         ],
         tools: {
             csc: {

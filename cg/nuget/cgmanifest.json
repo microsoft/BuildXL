@@ -284,6 +284,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "GVFS.Installers",
+          "Version": "1.0.20099.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Google.Protobuf",
           "Version": "3.11.2"
         }

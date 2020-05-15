@@ -77,6 +77,18 @@ namespace BuildXL.CloudTest.Gvfs
             return result.Result;
         }
 
+        public FileChangeTrackingSet.EnumerationResult TrackDir(string dir)
+        {
+            if (m_changeTracker == null)
+            {
+                StartTracking();
+            }
+
+            var result = m_changeTracker.TryEnumerateDirectoryAndTrackMembership(dir, (_, __) => { });
+            XAssert.PossiblySucceeded(result);
+            return result.Result;
+        }
+
         public void TrackPaths(params string[] paths)
         {
             foreach (var path in paths)

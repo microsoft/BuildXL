@@ -55,13 +55,18 @@ if ERRORLEVEL 1 (
     echo "**** [WARNING] Could not install .NET Core; continuing hoping for the best"
 )
 
-call :InstallApp Gvfs https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/SetupGVFS.%GvfsVersion%.exe "%ProgramFiles%\gvfs\gvfs.exe"
+REM call :DownloadAndInstallApp Gvfs https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/SetupGVFS.%GvfsVersion%.exe "%ProgramFiles%\gvfs\gvfs.exe"
+REM call :DownloadAndInstallApp Git https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/Git-%GitVersion%-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
+
+call :InstallApp %~dp0..\GvfsInstallers\gvfs\SetupGVFS.1.0.20099.1.exe "%ProgramFiles%\gvfs\gvfs.exe"
 if ERRORLEVEL 1 (
+    echo "**** [ERROR] Failed to install GVFS"
     exit /b 1
 )
 
-call :InstallApp Git https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/Git-%GitVersion%-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
+call :InstallApp %~dp0..\GvfsInstallers\g4w\Git-2.26.0.vfs.1.2-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
 if ERRORLEVEL 1 (
+    echo "**** [ERROR] Failed to install Git for GVFS"
     exit /b 1
 )
 
@@ -96,7 +101,7 @@ git config --list
 
 goto :Done
 
-:InstallApp
+:DownloadAndInstallApp
     set Name=%1
     set DownloadUrl=%2
     set InstalledExe=%3
@@ -104,13 +109,20 @@ goto :Done
     echo =====================================
     Echo == Downloading %Name% from %DownloadUrl%
     powershell -NoProfile -ExecutionPolicy unrestricted -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DownloadUrl%' -OutFile C:\Temp\setup%Name%.exe"
-    Echo == Installing %Name%
-    C:\Temp\setup%Name%.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /SP- /LOG
-    Echo == Waiting until %Name% is installed
+    call :InstallApp C:\Temp\setup%Name%.exe %InstalledExe%
+    goto :EOF
+
+:InstallApp
+    set Installer=%1
+    set InstalledExe=%2
+
+    Echo == Installing %Installer%
+    %Installer% /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /SP- /LOG
+    Echo == Waiting until %Installer% is installed
     powershell -NoProfile -ExecutionPolicy unrestricted -Command "Start-Sleep -Seconds 120"
     %InstalledExe% --version
     if ERRORLEVEL 1 (
-        echo Did not find %Name%. Install must have failed
+        echo Did not find %InstalledExe%. Install must have failed
         echo.
         echo dir %ProgramFiles% /s/b
         echo.

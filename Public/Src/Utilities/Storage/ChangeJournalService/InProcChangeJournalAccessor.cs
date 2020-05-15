@@ -15,7 +15,6 @@ namespace BuildXL.Storage.ChangeJournalService
 {
     /// <summary>
     /// Change journal accessor that directly operates upon a local volume's change journal.
-    /// Since accessing a volume is a privileged operation, this accessor only works in an elevated process.
     /// </summary>
     public sealed class InProcChangeJournalAccessor : IChangeJournalAccessor
     {

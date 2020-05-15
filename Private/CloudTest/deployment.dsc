@@ -16,6 +16,12 @@ namespace GvfsDeployment {
                 contents: [
                     Gvfs.dll,
                 ]
+            },
+            {
+                subfolder: "GvfsInstallers",
+                contents: [
+                    importFrom("GVFS.Installers").pkg.contents
+                ]
             }
         ] 
     };

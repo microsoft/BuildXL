@@ -105,6 +105,60 @@ namespace BuildXL.CloudTest.Gvfs
 
         [Theory]
         [MemberData(nameof(RepoConfigData))]
+        public void TestDirMembership(RepoConfig repoCfg)
+        {
+            using var helper = Clone(repoCfg);
+
+            // track a file that doesn't exist
+            var dir = helper.GetPath(@"src\files\subfolder");
+            var result = helper.TrackDir(dir);
+            XAssert.AreEqual(PathExistence.ExistsAsDirectory, result.Existence);
+
+            // switch to a new branch where that file does exist
+            using var reseter = helper.GitCheckout("newFileInSubfolder");
+
+            // immediately snap changes
+            helper.SnapCheckPoint();
+
+            // assert directory membership changes
+            helper.AssertAnyChange(dir, PathChanges.MembershipChanged);
+        }
+
+        // [Theory] // BUG in VFSforGit: projection for `src/files` folder is not updated
+        [MemberData(nameof(RepoConfigData))]
+        public void TestAbsentFileAndDir(RepoConfig repoCfg)
+        {
+            using var helper = Clone(repoCfg);
+
+            // track a file that doesn't exist
+            var dir = helper.GetPath(@"src\files");
+            var absentDir = helper.GetPath(@"src\files\newSubfolder");
+            var absentFile = helper.GetPath(@"src\files\newSubfolder\newSubfolderFile.txt");
+            var dirResult = helper.TrackDir(dir);
+            var absentDirResult = helper.TrackDir(absentDir);
+            var absentFileResult = helper.TrackPath(absentFile);
+            XAssert.AreEqual(PathExistence.ExistsAsDirectory, dirResult.Existence);
+            XAssert.AreEqual(PathExistence.Nonexistent, absentDirResult.Existence);
+            XAssert.AreEqual(PathExistence.Nonexistent, absentFileResult.Existence);
+
+            // switch to a new branch where that file does exist
+            using var reseter = helper.GitCheckout("newFileInNewSubfolder");
+
+            // immediately snap changes
+            helper.SnapCheckPoint();
+
+            XAssert.FileExists(absentFile);
+            XAssert.DirectoryExists(absentDir);
+
+            // assert directory membership changes
+            helper.AssertAnyChange(dir, PathChanges.MembershipChanged);
+            helper.AssertAnyChange(absentDir, PathChanges.NewlyPresentAsDirectory);
+            helper.AssertAnyChange(absentFile, PathChanges.NewlyPresentAsFile);
+        }
+
+
+        [Theory]
+        [MemberData(nameof(RepoConfigData))]
         public void NewFileWhenParentFolderIsNotMaterialzedBeforeOperation(RepoConfig repoCfg)
         {
             using var helper = Clone(repoCfg);
@@ -120,17 +174,9 @@ namespace BuildXL.CloudTest.Gvfs
             // immediately snap changes
             helper.SnapCheckPoint();
 
-            if (repoCfg.RepoKind == RepoKind.Git)
-            {
-                // assert that 'CreateFile' USN entry was recorded
-                helper.AssertCreateFile(file);
-            }
-            else
-            {
-                // because of GVFS lazy materialization no 'CreateFile' USN change is recorded;
-                // instead, assert that the GVFS projection file (indicating that file projections changed) has changed
-                helper.AssertDeleteOrChangeFile(helper.GetGvfsProjectionFilePath());
-            }
+            // assert that 'CreateFile' USN entry was recorded
+            helper.AssertCreateFile(file);
+            XAssert.FileExists(file);
         }
 
         [Theory]
@@ -145,23 +191,17 @@ namespace BuildXL.CloudTest.Gvfs
             helper.TrackPath(file);
             helper.TrackPath(file2);
 
-            // Operation (materializes parent folder but not files)
+            // materialize files before git checkout
             helper.AssertFileOnDisk(file);
             helper.AssertFileOnDisk(file2, expectExists: false);
             using var reseter = helper.GitCheckout("newFileInSubfolder");
 
+            // snap changes
             helper.SnapCheckPoint();
-            if (repoCfg.RepoKind == RepoKind.Git)
-            {
-                // this change is recorded ONLY when GVFS lazy materialization is NOT used
-                helper.AssertCreateFile(file2);
-            }
-            else
-            {
-                // when GVFS lazy materialization is used, assert that GVFS projections changed
-                helper.AssertDeleteOrChangeFile(helper.GetGvfsProjectionFilePath());
-            }
-        }
+
+            helper.AssertCreateFile(file2);
+            XAssert.FileExists(file2);
+         }
 
         [Theory]
         [MemberData(nameof(RepoConfigData))]
@@ -180,9 +220,11 @@ namespace BuildXL.CloudTest.Gvfs
                 // switch to a new branch where absent file exists
                 using var reseter = helper.GitCheckout("newFileInSubfolder");
 
+                // materialize files
                 helper.AssertFileOnDisk(file);
                 helper.AssertFileOnDisk(file2);
 
+                // the USN journal must be up to date at this point because of the previous materialization
                 helper.SnapCheckPoint();
                 helper.AssertCreateFile(file2);
             }

@@ -285,6 +285,18 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <nodoc/>
+        public static void DirectoryExists(string path, string message = "")
+        {
+            IsTrue(Directory.Exists(path), "Directory not found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
+        public static void DirectoryDoesNotExist(string path, string message = "")
+        {
+            IsFalse(Directory.Exists(path), "Directory found at path {0}. {1}", path, message);
+        }
+
+        /// <nodoc/>
         public static void AreNotEqual<T>(T expected, T actual)
         {
             Assert.NotEqual(expected, actual);

@@ -6,15 +6,15 @@
 
     <Setup TimeoutMins="15">
         <BuildFiles>
-            <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\Gvfs\*"/>
+            <Copy IsRecursive="true" Dest="[WorkingDirectory]\" Src="[BuildRoot]\CloudTest\[BuildType]\*"/>
         </BuildFiles>
         <Scripts>
-            <Script Path="[WorkingDirectory]\Setup.cmd" Args="" />
+            <Script Path="[WorkingDirectory]\Gvfs\Setup.cmd" Args="" />
         </Scripts>
     </Setup>
 
     <TestJob OwnerAliases="buildxl-cloudtest" Name="BuildXL.CloudTest.Gvfs">
-        <Execution Type="Exe" Path="c:\dotnet\dotnet.exe" Args=" [WorkingDirectory]\xunit.console.dll [WorkingDirectory]\BuildXL.CloudTest.Gvfs.dll -noshadow -noappdomain -xml [LoggingDirectory]\testResult.xunit.xml -html [LoggingDirectory]\testResults.html -nunit [LoggingDirectory]\testResult.xml" Parser="NUnitXml"/>
+        <Execution Type="Exe" Path="c:\dotnet\dotnet.exe" Args=" [WorkingDirectory]\Gvfs\xunit.console.dll [WorkingDirectory]\Gvfs\BuildXL.CloudTest.Gvfs.dll -noshadow -noappdomain -xml [LoggingDirectory]\testResult.xunit.xml -html [LoggingDirectory]\testResults.html -nunit [LoggingDirectory]\testResult.xml" Parser="NUnitXml"/>
     </TestJob>
 
     <Cleanup TimeoutMins="3"/>

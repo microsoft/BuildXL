@@ -45,6 +45,27 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
+        public async Task OpenEmptyStreamShouldWorkIfCalledMultipleTimes()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var context = new Context(Logger);
+
+                var store = CreateStore(testDirectory);
+                var emptyHash = VsoHashInfo.Instance.EmptyHash;
+
+                var openStreamResult = await store.OpenStreamAsync(context, emptyHash, pinRequest: null).ShouldBeSuccess();
+                // Normal use case, "using" the stream.
+                using (openStreamResult.Stream)
+                {
+                }
+
+                // Even though the stream was closed, we should be able to get an empty stream again
+                await store.OpenStreamAsync(context, emptyHash, pinRequest: null).ShouldBeSuccess();
+            }
+        }
+
+        [Fact]
         public void PathWithTildaShouldNotCauseArgumentException()
         {
             var path = PathGeneratorUtilities.GetAbsolutePath("e", @".BuildXLCache\Shared\VSO0\364\~DE-1");

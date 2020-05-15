@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Stream containing the empty file.
         /// </summary>
-        private readonly Stream _emptyFileStream = new MemoryStream(CollectionUtilities.EmptyArray<byte>(), writable: false);
+        private readonly Stream _emptyFileStream = new NonClosingEmptyMemoryStream();
 
         /// <summary>
         ///     Cumulative count of instances of the content directory being discovered as out of sync with the disk.
@@ -2640,6 +2640,19 @@ namespace BuildXL.Cache.ContentStore.Stores
         public Task<PutResult> PutFileAsync(Context context, AbsolutePath path, ContentHash contentHash, FileRealizationMode realizationMode, Func<Stream, Stream> wrapStream, PinRequest? pinRequest)
         {
             return PutFileImplAsync(context, path, realizationMode, contentHash, pinRequest, wrapStream);
+        }
+
+        private class NonClosingEmptyMemoryStream : MemoryStream
+        {
+            public NonClosingEmptyMemoryStream()
+                : base(CollectionUtilities.EmptyArray<byte>(), writable: false)
+            {
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                // Intentionally doing nothing to avoid closing the stream.
+            }
         }
     }
 }

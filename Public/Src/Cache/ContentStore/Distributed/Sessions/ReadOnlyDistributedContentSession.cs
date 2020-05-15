@@ -1118,7 +1118,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             string? path = null)
         {
             var hash = info.ContentHash;
-            if (!_pendingProactivePuts.Add(hash))
+            if (!_pendingProactivePuts.Add(hash)
+                || info.ContentHash.IsEmptyHash()) // No reason to push an empty hash to another machine.
             {
                 return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
             }

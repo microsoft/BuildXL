@@ -674,6 +674,41 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public async Task ProactiveCopyForEmptyHash2TimesDistributedTest()
+        {
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            int machineCount = 3;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+
+                    // Insert random file #1 into worker #1
+                    var putResult1 = await sessions[0].PutContentAsync(context, string.Empty).ShouldBeSuccess();
+                    var hash1 = putResult1.ContentHash;
+
+                    var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // We should not be pushing empty hashes to other machines.
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(1);
+
+                    // Empty file should not be closed in the process.
+                    putResult1 = await sessions[0].PutContentAsync(context, string.Empty).ShouldBeSuccess();
+                },
+                implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
         public async Task PushedProactiveCopyDistributedTest()
         {
             EnableProactiveCopy = true;

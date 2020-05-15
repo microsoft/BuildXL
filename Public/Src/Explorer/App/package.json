@@ -44,6 +44,7 @@
     "http-signature": "^1.2.0",
     "mime": "^2.4.0",
     "request": "~2.88.0",
-    "form-data": "^2.5.0"
+    "form-data": "^2.5.0",
+    "lodash" : "^4.17.15"
   }
 }

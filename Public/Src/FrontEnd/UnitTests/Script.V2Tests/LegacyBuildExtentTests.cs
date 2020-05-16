@@ -36,7 +36,7 @@ namespace Test.DScript.Ast.DScriptV2
         [InlineData(ConfigTemplateWithProjects)]
         public void TestNonFilteredLegacyEvaluation(string configTemplate)
         {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: false).RootSpec("config.dsc");
+            var builder = CreateBuilder(configTemplate).RootSpec("config.dsc");
             builder.EvaluateWithNoErrors();
 
             var pips = GetPipsWithoutModuleAndSpec();

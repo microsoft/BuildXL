@@ -317,6 +317,7 @@ export function test(args: TestArguments): TestResult {{
                     {
                         ConfigFile = configFilePath,
                     },
+                    DisableDefaultSourceResolver = false,
                 };
             return configuration;
         }

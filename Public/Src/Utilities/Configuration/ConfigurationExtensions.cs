@@ -21,7 +21,9 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool DisableDefaultSourceResolver(this IConfiguration configuration)
         {
-            return configuration.DisableDefaultSourceResolver ?? false;
+            // The default source resolver is still needed when modules or projects are specified. So in case an explicit value is not provided
+            // disable it when no modules nor projects are defined. In this way we avoid the enumeration of the whole repo looking for DScript files.
+            return configuration.DisableDefaultSourceResolver ?? (configuration.Modules?.Count == 0 && configuration.Projects?.Count == 0);
         }
 
         /// <summary>

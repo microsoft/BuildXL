@@ -42,6 +42,8 @@ namespace Test.BuildXL.FrontEnd.Ninja
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
+        protected override bool DisableDefaultSourceResolver => true;
+
         protected NinjaPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -202,7 +204,6 @@ build install: phony {dummyFile}
             bool includeProjectRoot = true,
             bool includeSpecFile = true) => $@"
 config({{
-    disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'Ninja',

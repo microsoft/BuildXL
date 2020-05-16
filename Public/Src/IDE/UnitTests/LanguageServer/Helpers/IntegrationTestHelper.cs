@@ -42,7 +42,8 @@ config({{
             kind: ""SourceResolver"",
             modules: [ f`{s_pathToPreludeModuleConfig}` ],
         }},
-    ]
+    ],
+    disableDefaultSourceResolver: false,
 }});";
 
         /// <summary>

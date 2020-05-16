@@ -51,6 +51,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <nodoc/>
         protected string RelativePathToDotnetExe => "dotnet";
 
+        protected override bool DisableDefaultSourceResolver => true;
+
         /// <summary>
         /// Path to Microsoft.Build.Tasks.CodeAnalysis.dll, where csc task is located
         /// </summary>
@@ -296,7 +298,6 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             string dotnetSearchLocations = null,
             bool useSharedCompilation = false) => $@"
 config({{
-    disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'MsBuild',

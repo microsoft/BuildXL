@@ -61,6 +61,8 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         private string RushTempFolder => Path.Combine(TestRoot, "RUSH_TEMP_FOLDER").Replace("\\", "/");
 
+        protected override bool DisableDefaultSourceResolver => true;
+
         protected RushIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -230,7 +232,6 @@ namespace Test.BuildXL.FrontEnd.Rush
             string moduleName,
             bool addDScriptResolver) => $@"
 config({{
-    disableDefaultSourceResolver: true,
     resolvers: [
         {{
             kind: 'Rush',

@@ -708,36 +708,37 @@ namespace Test.BuildXL.FrontEnd.Core
             var configFile = configFilePath ?? AbsolutePath.Create(FrontEndContext.PathTable, TestOutputDirectory)
                                  .Combine(FrontEndContext.PathTable, "config.dsc");
             var config = new CommandLineConfiguration
-                         {
-                             Startup =
-                             {
-                                 ConfigFile = configFile,
-                             },
-                             FrontEnd = GetFrontEndConfiguration(isDebugged),
-                             Engine =
-                             {
-                                 TrackBuildsInUserFolder = false,
-                             },
-                             Schedule =
-                             {
-                                 MaxProcesses = DegreeOfParallelism,
-                                 DisableProcessRetryOnResourceExhaustion = true,
-                             },
-                             // DS tests don't need the extra I/O this adds
-                             Logging =
-                             {
-                                LogExecution = false,
-                                StoreFingerprints = false,
-                             },
-                             Layout =
-                             {
-                                 SourceDirectory = configFile.GetParent(PathTable),
-                                 OutputDirectory = configFile.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out")
-                             },
-                             Cache = {
-                                         CacheSpecs = enableSpecCache ? SpecCachingOption.Enabled : SpecCachingOption.Disabled
-                                     },
-                         };
+            {
+                Startup =
+                {
+                    ConfigFile = configFile,
+                },
+                FrontEnd = GetFrontEndConfiguration(isDebugged),
+                Engine =
+                {
+                    TrackBuildsInUserFolder = false,
+                },
+                Schedule =
+                {
+                    MaxProcesses = DegreeOfParallelism,
+                    DisableProcessRetryOnResourceExhaustion = true,
+                },
+                // DS tests don't need the extra I/O this adds
+                Logging =
+                {
+                    LogExecution = false,
+                    StoreFingerprints = false,
+                },
+                Layout =
+                {
+                    SourceDirectory = configFile.GetParent(PathTable),
+                    OutputDirectory = configFile.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out")
+                },
+                Cache = {
+                    CacheSpecs = enableSpecCache ? SpecCachingOption.Enabled : SpecCachingOption.Disabled
+                },
+                DisableDefaultSourceResolver = DisableDefaultSourceResolver,
+            };
 
             if (enableSpecCache)
             {
@@ -747,6 +748,11 @@ namespace Test.BuildXL.FrontEnd.Core
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, FrontEndContext.PathTable, bxlExeLocation: null, inTestMode: true);
             return config;
         }
+
+        /// <summary>
+        /// The default is true, but many tests rely on automatic spec discovery
+        /// </summary>
+        protected virtual bool DisableDefaultSourceResolver => false;
 
         private void CloneModuleRegistry(ModuleRegistry sharedModuleRegistry)
         {
@@ -805,7 +811,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 UseSpecPublicFacadeAndAstWhenAvailable = false,
                 CycleDetectorStartupDelay = 1,
                 EnableIncrementalFrontEnd = false,
-                AllowUnsafeAmbient = true
+                AllowUnsafeAmbient = true,
             };
         }
 

@@ -29,7 +29,6 @@ namespace Test.DScript.Ast.DScriptV2
 
         private const string TemplateWithPackagesBody = @"
         modules: [ f`src/package.config.dsc` ],
-        disableDefaultSourceResolver: <<DDSR>>,
         resolvers: [{
             kind: 'SourceResolver',
             modules: [f`lib/package.config.dsc`, f`Sdk.Prelude/package.config.dsc`, f`Sdk.Transformers/package.config.dsc` ]
@@ -37,7 +36,6 @@ namespace Test.DScript.Ast.DScriptV2
 
         private const string TemplateWithProjectsBody = @"
         projects: [ f`src/package.dsc` ],
-        disableDefaultSourceResolver: <<DDSR>>,
         resolvers: [{
             kind: 'SourceResolver',
             modules: [ f`lib/package.config.dsc`, f`Sdk.Prelude/package.config.dsc`, f`Sdk.Transformers/package.config.dsc` ]
@@ -68,10 +66,10 @@ export const copy1 = Transformer.copyFile(importFrom('Lib').file1, Context.getNe
                 .ToArray();
         }
 
-        protected SpecEvaluationBuilder CreateBuilder(string configTemplate, bool disableDefaultSourceResolver)
+        protected SpecEvaluationBuilder CreateBuilder(string configTemplate)
         {
             return new SpecEvaluationBuilder(this)
-                .LegacyConfiguration(configTemplate.Replace("<<DDSR>>", disableDefaultSourceResolver.ToString().ToLowerInvariant()))
+                .LegacyConfiguration(configTemplate)
                 .AddFullPrelude()
                 .AddSpec(@"lib/package.config.dsc", V1Module("Lib"))
                 .AddSpec(@"lib/package.dsc", LibPackageContent)

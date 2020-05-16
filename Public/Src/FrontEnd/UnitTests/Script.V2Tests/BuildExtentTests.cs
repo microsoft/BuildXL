@@ -32,7 +32,7 @@ namespace Test.DScript.Ast.DScriptV2
         [InlineData(ConfigTemplateWithProjects)]
         public void TestNonFilteredEvaluation(string configTemplate)
         {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: false).RootSpec("config.dsc");
+            var builder = CreateBuilder(configTemplate).RootSpec("config.dsc");
             builder.EvaluateWithNoErrors();
 
             var pips = GetPipsWithoutModuleAndSpec();
@@ -43,46 +43,12 @@ namespace Test.DScript.Ast.DScriptV2
             XAssert.ArrayEqual(new[] { "copy1", "file1", "file2" }, GetOrderedValuePipValues(pips));
         }
 
-        /// <summary>
-        /// Default source resolver is disabled --> all known modules should be evaluated
-        /// Concretely, the only known modules are 'Lib' and 'Sdk.Prelude', so only 'file1' and 'file2' from "Lib" should be evaluated
-        /// </summary>
-        [Theory]
-        [InlineData(ConfigTemplateWithPackages)]
-        [InlineData(ConfigTemplateWithProjects)]
-        public void TestNonFilteredEvaluationWithDefaultSourceResolverDisabled(string configTemplate)
-        {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: true).RootSpec("config.dsc");
-            builder.EvaluateWithNoErrors();
-
-            var pips = GetPipsWithoutModuleAndSpec();
-            XAssert.AreEqual(4, pips.Length);
-            AssertPipTypeCount(pips, PipType.WriteFile, 2);
-            AssertPipTypeCount(pips, PipType.Value, 2);
-            XAssert.ArrayEqual(new[] { "file1", "file2" }, GetOrderedValuePipValues(pips));
-        }
-
-        [Theory]
-        [InlineData(ConfigTemplateWithPackages)]
-        [InlineData(ConfigTemplateWithProjects)]
-        public void TestFilteredEvaluationWithDefaultSourceResolverDisabled(string configTemplate)
-        {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: true).RootSpec(@"lib/package.dsc");
-            builder.EvaluateWithNoErrors();
-
-            var pips = GetPipsWithoutModuleAndSpec();
-            XAssert.AreEqual(4, pips.Length);
-            AssertPipTypeCount(pips, PipType.WriteFile, 2);
-            AssertPipTypeCount(pips, PipType.Value, 2);
-            XAssert.ArrayEqual(new[] { "file1", "file2" }, GetOrderedValuePipValues(pips));
-        }
-
         [Theory]
         [InlineData(ConfigTemplateWithPackages)]
         [InlineData(ConfigTemplateWithProjects)]
         public void TestFilteredEvaluationOfExternalModuleShouldIncludeAllPipsFromThatModule(string configTemplate)
         {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: false).RootSpec(@"lib/package.dsc");
+            var builder = CreateBuilder(configTemplate).RootSpec(@"lib/package.dsc");
             builder.EvaluateWithNoErrors();
 
             var pips = GetPipsWithoutModuleAndSpec();
@@ -100,7 +66,7 @@ namespace Test.DScript.Ast.DScriptV2
         [InlineData(ConfigTemplateWithProjects)]
         public void TestFilteredEvaluationOfOwnModuleShouldNotIncludeUnusedValuesFromExternalModules(string configTemplate)
         {
-            var builder = CreateBuilder(configTemplate, disableDefaultSourceResolver: false).RootSpec(@"src/package.dsc");
+            var builder = CreateBuilder(configTemplate).RootSpec(@"src/package.dsc");
 
             builder.EvaluateWithNoErrors();
 

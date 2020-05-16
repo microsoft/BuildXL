@@ -235,9 +235,6 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         internal bool TrackFilesUnderInvalidMountsForTests = false;
 
-        private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents =
-            SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new FileArtifact[0], OrdinalFileArtifactComparer.Instance);
-
         /// <summary>
         /// Holds change affected artifacts of the build
         /// </summary>
@@ -691,8 +688,14 @@ namespace BuildXL.Scheduler.Artifacts
             var sealDirectoryKind = m_host.GetSealDirectoryKind(directoryArtifact);
             if (sealDirectoryKind.IsDynamicKind())
             {
-                // If sealContents does not have the dynamic directory, then the dynamic directory has no content and it is produced by another worker.
-                return m_sealContents.TryGetValue(directoryArtifact, out contents) ? contents : s_emptySealContents;
+                if (m_sealContents.TryGetValue(directoryArtifact, out contents))
+                {
+                    return contents;
+                }
+                else
+                {
+                    Contract.Assert(false, $"{directoryArtifact} content has not been registered with FileContentManager.");
+                }
             }
 
             if (!m_sealContents.TryGetValue(directoryArtifact, out contents))

@@ -26,8 +26,19 @@ namespace Transformer {
      * The resulting directory behaves as any other shared opaque, and can be used as a directory dependency.
     */
     @@public
-    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: ComposedSharedOpaqueDirectoryContentFilter): SharedOpaqueDirectory {
-        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, contentFilter);
+    export function composeSharedOpaqueDirectories(root: (Directory | ComposeSharedOpaqueDirectoriesArguments), directories?: SharedOpaqueDirectory[], contentFilter?: (string | ComposedSharedOpaqueDirectoryContentFilter)): SharedOpaqueDirectory {
+        let filter: ComposedSharedOpaqueDirectoryContentFilter = undefined;
+
+        if (contentFilter !== undefined) {
+            if (typeof contentFilter === "string") {
+                filter = {kind: "Include", regex: contentFilter};
+            }
+            else {
+                filter = contentFilter;
+            }
+        }
+
+        return _PreludeAmbientHack_Transformer.composeSharedOpaqueDirectories(root, directories, filter);
     }
 
     /** Creates a new shared opaque directory whose content satisfies the specified filter.

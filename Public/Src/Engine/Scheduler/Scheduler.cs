@@ -6107,70 +6107,113 @@ namespace BuildXL.Scheduler
             Contract.Assert(pip.IsComposite);
             Contract.Assert(pip.Kind == SealDirectoryKind.SharedOpaque);
 
-            // Aggregates the content of all non-composite directories and report it
-            using (var pooledAggregatedContent = Pools.FileArtifactSetPool.GetInstance())
-            using (var filteredContentWrapper = Pools.FileArtifactListPool.GetInstance())
+            using (var pooledNonCompositeDirectories = Pools.DirectoryArtifactListPool.GetInstance())
             {
-                HashSet<FileArtifact> aggregatedContent = pooledAggregatedContent.Instance;
-                var filteredContent = filteredContentWrapper.Instance;
-                long duration;
-                using (var sw = PipExecutionCounters[PipExecutorCounter.ComputeCompositeSharedOpaqueContentDuration].Start())
+                var nonCompositeDirectories = pooledNonCompositeDirectories.Instance;
+                FlattenCompositeOpaqueDirectory(pip, nonCompositeDirectories);
+
+                // Aggregates the content of all non-composite directories and report it
+                using (var pooledAggregatedContent = Pools.FileArtifactSetPool.GetInstance())
+                using (var filteredContentWrapper = Pools.FileArtifactListPool.GetInstance())
                 {
-                    foreach (var directoryElement in pip.ComposedDirectories)
+                    HashSet<FileArtifact> aggregatedContent = pooledAggregatedContent.Instance;
+                    var filteredContent = filteredContentWrapper.Instance;
+                    long duration;
+                    using (var sw = PipExecutionCounters[PipExecutorCounter.ComputeCompositeSharedOpaqueContentDuration].Start())
                     {
-                        // Regardless whether directoryElement is a non-composite or composite directory, it was
-                        // produced by an upstream pip (ProcessPip/SealDirectoryPip respectively). At this point,
-                        // FileContentManager must know the content of this directory artifact.
-                        var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
-                        aggregatedContent.AddRange(memberContents);
-                    }
-
-                    // if the filter is specified, restrict the final content
-                    if (pip.ContentFilter != null)
-                    {
-                        var regex = new Regex(pip.ContentFilter.Value.Regex,
-                            RegexOptions.IgnoreCase,
-                            TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
-                        var isIncludeFilter = pip.ContentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Include;
-
-                        foreach (var fileArtifact in aggregatedContent)
+                        foreach (var directoryElement in nonCompositeDirectories)
                         {
-                            if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
+                            var memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
+                            aggregatedContent.AddRange(memberContents);
+                        }
+
+                        // if the filter is specified, restrict the final content
+                        if (pip.ContentFilter != null)
+                        {
+                            var regex = new Regex(pip.ContentFilter.Value.Regex,
+                                RegexOptions.IgnoreCase,
+                                TimeSpan.FromMilliseconds(SealDirectoryContentFilterTimeoutMs));
+                            var isIncludeFilter = pip.ContentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Include;
+
+                            foreach (var fileArtifact in aggregatedContent)
                             {
-                                filteredContent.Add(fileArtifact);
+                                if (regex.IsMatch(fileArtifact.Path.ToString(Context.PathTable)) == isIncludeFilter)
+                                {
+                                    filteredContent.Add(fileArtifact);
+                                }
                             }
                         }
+
+                        duration = sw.Elapsed.ToMilliseconds();
                     }
 
-                    duration = sw.Elapsed.ToMilliseconds();
+                    // the directory artifacts that this composite shared opaque consists of might or might not be materialized
+                    m_fileContentManager.ReportDynamicDirectoryContents(
+                        pip.Directory,
+                        pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent,
+                        PipOutputOrigin.NotMaterialized);
+
+                    Logger.Log.CompositeSharedOpaqueContentDetermined(
+                        m_loggingContext,
+                        pip.GetDescription(environment.Context),
+                        nonCompositeDirectories.Count,
+                        aggregatedContent.Count,
+                        pip.ContentFilter == null ? aggregatedContent.Count : filteredContent.Count,
+                        duration);
+
+                    ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
+                    {
+                        PipId = pip.PipId,
+                        DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)>.From(
+                            new[] {
+                                (pip.Directory, ReadOnlyArray<FileArtifact>.From(pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent))
+                            })
+                    });
                 }
-
-                // the directory artifacts that this composite shared opaque consists of might or might not be materialized
-                m_fileContentManager.ReportDynamicDirectoryContents(
-                    pip.Directory,
-                    pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent,
-                    PipOutputOrigin.NotMaterialized);
-
-                Logger.Log.CompositeSharedOpaqueContentDetermined(
-                    m_loggingContext,
-                    pip.GetDescription(environment.Context),
-                    pip.ComposedDirectories.Count,
-                    aggregatedContent.Count,
-                    pip.ContentFilter == null ? aggregatedContent.Count : filteredContent.Count,
-                    duration);
-
-                ExecutionLog?.PipExecutionDirectoryOutputs(new PipExecutionDirectoryOutputs
-                {
-                    PipId = pip.PipId,
-                    DirectoryOutputs = ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifact> fileArtifactArray)>.From(
-                        new[] {
-                            (pip.Directory, ReadOnlyArray<FileArtifact>.From(pip.ContentFilter == null ? aggregatedContent : (IEnumerable<FileArtifact>)filteredContent))
-                        })
-                });
             }
         }
 
-        #region IFileContentManagerHost Members
+        /// <summary>
+        /// Populates the given list with all non-composite directory artifacts that are part of a composite opaque directory pip.
+        /// </summary>
+        /// <remarks>
+        /// All the returned elements are opaque directories
+        /// </remarks>
+        private void FlattenCompositeOpaqueDirectory(SealDirectory pip, List<DirectoryArtifact> flattenedList)
+        {
+            using (var pooledPending = Pools.DirectoryArtifactQueuePool.GetInstance())
+            {
+                var pending = pooledPending.Instance;
+
+                // All composed directory of the pip are enqueued as pending
+                foreach (var initialDirectory in pip.ComposedDirectories)
+                {
+                    pending.Enqueue(initialDirectory);
+                }
+
+                while (pending.Count > 0)
+                {
+                    var nestedDirectory = pending.Dequeue();
+                    var nestedPipId = PipGraph.GetSealedDirectoryNode(nestedDirectory).ToPipId();
+
+                    if (m_pipTable.IsSealDirectoryComposite(nestedPipId))
+                    {
+                        var nestedPip = (SealDirectory)PipGraph.GetSealedDirectoryPip(nestedDirectory, PipQueryContext.SchedulerExecuteSealDirectoryPip);
+                        foreach (var pendingDirectory in nestedPip.ComposedDirectories)
+                        {
+                            pending.Enqueue(pendingDirectory);
+                        }
+                    }
+                    else
+                    {
+                        Contract.Assert(nestedDirectory.IsOutputDirectory());
+                        flattenedList.Add(nestedDirectory);
+                    }
+                }
+            }
+        }
+
+#region IFileContentManagerHost Members
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         LoggingContext IFileContentManagerHost.LoggingContext => m_executePhaseLoggingContext;

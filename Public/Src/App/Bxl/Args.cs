@@ -389,6 +389,9 @@ namespace BuildXL
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableEmptyingWorkingSet",
+                            sign => schedulingConfiguration.EnableEmptyingWorkingSet = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableHistoricCommitMemoryProjection",
                             sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
                         OptionHandlerFactory.CreateBoolOption(
@@ -516,17 +519,11 @@ namespace BuildXL
                             "forcePopulatePackageCache",
                             sign => frontEndConfiguration.ForcePopulatePackageCache = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "usePackagesFromFileSystem",
-                            sign => frontEndConfiguration.UsePackagesFromFileSystem = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "forceUseEngineInfoFromCache",
                             sign => schedulingConfiguration.ForceUseEngineInfoFromCache = sign),
                         OptionHandlerFactory.CreateOption(
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
-                            "validateCgManifestForNugets",
-                            opt => frontEndConfiguration.ValidateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "hardExitOnErrorInDetours",
                             sign => sandboxConfiguration.HardExitOnErrorInDetours = sign),
@@ -654,6 +651,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "lowPriority",
                             sign => schedulingConfiguration.LowPriority = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "manageMemoryMode",
+                            opt => schedulingConfiguration.ManageMemoryMode = CommandLineUtilities.ParseEnumOption<ManageMemoryMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "maskUntrackedAccesses",
                             sign => sandboxConfiguration.MaskUntrackedAccesses = sign),
@@ -1230,8 +1230,14 @@ namespace BuildXL
                             "useLargeNtClosePreallocatedList",
                             sign => sandboxConfiguration.UseLargeNtClosePreallocatedList = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "usePackagesFromFileSystem",
+                            sign => frontEndConfiguration.UsePackagesFromFileSystem = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "usePartialEvaluation",
                             sign => frontEndConfiguration.UsePartialEvaluation = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "validateCgManifestForNugets",
+                            opt => frontEndConfiguration.ValidateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "validateDistribution",
                             sign => distributionConfiguration.ValidateDistribution = sign),

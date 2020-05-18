@@ -4,9 +4,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -26,7 +28,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public async Task TestResourceManagerCancellationPreference()
         {
-            ProcessResourceManager resourceManager = new ProcessResourceManager();
+            ProcessResourceManager resourceManager = new ProcessResourceManager(null);
 
             var workItem1 = CreateWorkItem(resourceManager, estimatedRamUsage: 1, reportedRamUsage: 1);
 
@@ -40,7 +42,7 @@ namespace Test.BuildXL.Scheduler
             var workItem4 = CreateWorkItem(resourceManager, estimatedRamUsage: 1, reportedRamUsage: 1);
 
             var workItem4Cancelled = workItem4.WaitForCancellation();
-            resourceManager.TryFreeResources(requiredRamMb: 1);
+            RunResourceManager(resourceManager, requiredSizeMb: 1, mode: ManageMemoryMode.CancellationRam);
 
             // Ensure only work item 4 was cancelled since that is all that is required to free necessary RAM
             XAssert.IsTrue(await workItem4Cancelled);
@@ -50,7 +52,7 @@ namespace Test.BuildXL.Scheduler
             workItem4.Verify(expectedCancellationCount: 1, expectedExecutionCount: 1, expectedCompleted: false);
 
             var workItem3Cancelled = workItem3.WaitForCancellation();
-            resourceManager.TryFreeResources(requiredRamMb: 1000);
+            RunResourceManager(resourceManager, requiredSizeMb: 1000, mode: ManageMemoryMode.CancellationRam);
 
             // Ensure only work item 3 was cancelled since that is all that is required to free necessary RAM
             XAssert.IsTrue(await workItem3Cancelled);
@@ -63,7 +65,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public async Task TestResourceManagerCancellationPreferenceMultiple()
         {
-            ProcessResourceManager resourceManager = new ProcessResourceManager();
+            ProcessResourceManager resourceManager = new ProcessResourceManager(null);
 
             // Highest RAM, but oldest pip so it is not cancelled
             var workItem1 = CreateWorkItem(resourceManager, estimatedRamUsage: 1, reportedRamUsage: 10000);
@@ -80,7 +82,7 @@ namespace Test.BuildXL.Scheduler
 
             // Attempt to free more RAM than occupied by all work items (oldest pips should be retained even though
             // it must be freed to attempt to meet resource requirements)
-            resourceManager.TryFreeResources(requiredRamMb: 20000);
+            RunResourceManager(resourceManager, requiredSizeMb: 20000, mode: ManageMemoryMode.CancellationRam);
 
             // Ensure only work item 2 AND 3 were cancelled since that is all that is required to free necessary RAM
             XAssert.IsTrue(await workItem2Cancelled);
@@ -92,9 +94,23 @@ namespace Test.BuildXL.Scheduler
             workItem4.Verify(expectedCancellationCount: 1, expectedExecutionCount: 1, expectedCompleted: false);
         }
 
+        private void RunResourceManager(ProcessResourceManager resourceManager, int requiredSizeMb, ManageMemoryMode mode)
+        {
+            resourceManager.RefreshMemoryCounters();
+            resourceManager.TryManageResources(requiredSizeMb, mode);
+        }
+
         private ResourceManagerWorkItemTracker CreateWorkItem(ProcessResourceManager resourceManager, int estimatedRamUsage = 0, bool allowCancellation = true, int reportedRamUsage = 1)
         {
-            return new ResourceManagerWorkItemTracker(LoggingContext, resourceManager, (uint)Interlocked.Increment(ref m_nextId), estimatedRamUsage, allowCancellation) { RamUsage = reportedRamUsage };
+            return new ResourceManagerWorkItemTracker(
+                LoggingContext, 
+                resourceManager, 
+                (uint)Interlocked.Increment(ref m_nextId), 
+                estimatedRamUsage, 
+                allowCancellation)
+            { 
+                RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(reportedRamUsage, reportedRamUsage, reportedRamUsage, reportedRamUsage, reportedRamUsage)
+            };
         }
 
         private class ResourceManagerWorkItemTracker
@@ -109,25 +125,26 @@ namespace Test.BuildXL.Scheduler
             public Task<int> ExecutionTask { get; private set; }
             private readonly Func<Task<int>> m_execute;
 
-            public int RamUsage { get; set; } = 1;
+            public ProcessMemoryCountersSnapshot RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(1, 1, 1, 1, 1);
 
             public ResourceManagerWorkItemTracker(LoggingContext loggingContext, ProcessResourceManager resourceManager, uint id, int estimatedRamUsage, bool allowCancellation)
             {
                 ExecutionCompletionSource = TaskSourceSlim.Create<int>();
                 m_cancellationCompletionSource = TaskSourceSlim.Create<Unit>();
-                m_execute = () => ExecutionTask = resourceManager.ExecuteWithResources(
+                var context = BuildXLContext.CreateInstanceForTesting();
+                m_execute = () => ExecutionTask = resourceManager.ExecuteWithResourcesAsync(
                     OperationContext.CreateUntracked(loggingContext),
-                    new PipId(id),
+                    SchedulerTest.CreateDummyProcess(context, new PipId(id)),
                     ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage, estimatedRamUsage, estimatedRamUsage),
                     allowCancellation,
-                    async (cancellationToken, registerQueryRamUsage) =>
+                    async (resourceScope) =>
                 {
                     m_startSemaphore.Release();
-                    registerQueryRamUsage(() => RamUsage);
+                    resourceScope.RegisterQueryRamUsageMb(() => RamUsage);
 
                     ExecutionCount++;
                     var currrentCancellationCompletionSource = m_cancellationCompletionSource;
-                    cancellationToken.Register(() =>
+                    resourceScope.Token.Register(() =>
                     {
                         XAssert.IsTrue(m_startSemaphore.Wait(millisecondsTimeout: 100000));
 
@@ -138,7 +155,7 @@ namespace Test.BuildXL.Scheduler
 
                     var result = await Task.WhenAny(currrentCancellationCompletionSource.Task, ExecutionCompletionSource.Task);
 
-                    cancellationToken.ThrowIfCancellationRequested();
+                    resourceScope.Token.ThrowIfCancellationRequested();
 
                     XAssert.IsTrue(ExecutionCompletionSource.Task.IsCompleted, "This task should be completed since the cancellation task implies the cancellation token would throw in the preceding line of code.");
 

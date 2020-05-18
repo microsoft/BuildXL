@@ -383,5 +383,10 @@ namespace BuildXL.Utilities.Configuration
         /// Enable less aggresive memory projection by using average memory usage instead of peak usage
         /// </summary>
         bool EnableLessAggresiveMemoryProjection { get; }
+
+        /// <summary>
+        /// Mode for managing memory during builds
+        /// </summary>
+        ManageMemoryMode ManageMemoryMode { get; }
     }
 }

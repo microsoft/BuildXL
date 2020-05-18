@@ -104,7 +104,8 @@ namespace BuildXL.Processes
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 containerConfiguration: ContainerConfiguration.DisabledIsolation,
-                pipProperties: pipProperties);
+                pipProperties: pipProperties,
+                timedOut: false);
         }
 
         internal static SandboxedProcessPipExecutionResult DetouringFailure(SandboxedProcessPipExecutionResult result)
@@ -128,7 +129,8 @@ namespace BuildXL.Processes
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: result.MaxDetoursHeapSizeInBytes,
                 containerConfiguration: result.ContainerConfiguration,
-                pipProperties: result.PipProperties);
+                pipProperties: result.PipProperties,
+                timedOut: result.TimedOut);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToUserSpecifiedExitCode(
@@ -165,7 +167,8 @@ namespace BuildXL.Processes
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 containerConfiguration: containerConfiguration,
-                pipProperties: pipProperties);
+                pipProperties: pipProperties,
+                timedOut: false);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
@@ -200,7 +203,8 @@ namespace BuildXL.Processes
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 containerConfiguration: containerConfiguration,
-                pipProperties: pipProperties);
+                pipProperties: pipProperties,
+                timedOut: false);
         }
 
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
@@ -223,7 +227,8 @@ namespace BuildXL.Processes
                    result.DetouringStatuses,
                    result.MaxDetoursHeapSizeInBytes,
                    result.ContainerConfiguration,
-                   result.PipProperties);
+                   result.PipProperties,
+                   result.TimedOut);
 
         /// <summary>
         /// Indicates if the pip succeeded.
@@ -316,6 +321,10 @@ namespace BuildXL.Processes
         /// </summary>
         public bool IsCancelledDueToResourceExhaustion { get; set; }
 
+        /// <summary>
+        /// How long the process has been suspended
+        /// </summary>
+        public long SuspendedDurationMs { get; set; }
 
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(
@@ -337,7 +346,8 @@ namespace BuildXL.Processes
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
             long maxDetoursHeapSize,
             ContainerConfiguration containerConfiguration,
-            Dictionary<string, int> pipProperties)
+            Dictionary<string, int> pipProperties,
+            bool timedOut)
         {
             Contract.Requires(
                 (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
@@ -370,6 +380,7 @@ namespace BuildXL.Processes
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
             ContainerConfiguration = containerConfiguration;
             PipProperties = pipProperties;
+            TimedOut = timedOut;
         }
 
         /// <summary>
@@ -396,5 +407,10 @@ namespace BuildXL.Processes
         /// Duration of process start time in milliseconds
         /// </summary>
         public long ProcessStartTimeMs { get; set; }
+
+        /// <summary>
+        /// Whether it is timedout
+        /// </summary>
+        public bool TimedOut { get; set; }
     }
 }

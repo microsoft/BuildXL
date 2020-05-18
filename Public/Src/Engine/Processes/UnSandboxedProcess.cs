@@ -208,7 +208,7 @@ namespace BuildXL.Processes
         public string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public ulong? GetActivePeakWorkingSet()
+        public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
             try
             {
@@ -217,7 +217,7 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return Dispatch.GetActivePeakWorkingSet(Process.Handle, ProcessId);
+                return Dispatch.GetMemoryCountersSnapshot(Process.Handle, ProcessId);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch
@@ -226,6 +226,12 @@ namespace BuildXL.Processes
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
+
+        /// <inheritdoc />
+        public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend) => EmptyWorkingSetResult.None; // Only SandboxedProcess is supported.
+
+        /// <inheritdoc />
+        public bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize() => 0;

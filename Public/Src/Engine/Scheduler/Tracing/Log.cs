@@ -1230,8 +1230,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Cancelled process execution due to exceeding resource threshold. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Peak commit memory: {peakCommitMb} MB. Expected commit memory: {expectedCommitMb} MB. Cancel time (ms): {cancelMilliseconds}")]
-        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int peakCommitMb, int expectedCommitMb, int cancelMilliseconds);
+            Message = "[{pipDescription}] Cancelled process execution due to {reason}. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Peak commit memory: {peakCommitMb} MB. Expected commit memory: {expectedCommitMb} MB. Cancel time (ms): {cancelMilliseconds}")]
+        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int peakCommitMb, int expectedCommitMb, int cancelMilliseconds);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion,
@@ -1239,8 +1239,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Attempting to cancel process execution due to exceeding resource threshold. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB.")]
-        internal abstract void StartCancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, long elapsedMs, int peakMemoryMb, int expectedMemoryMb);
+            Message = "[{pipDescription}] Attempting to cancel process execution due to {reason}. ScopeId: {scopeId}. Elapsed execution time: {elapsedMs} ms. ExpectedPeakWorkingSet: {expectedPeakWorkingSetMb} MB, PeakWorkingSet: {peakWorkingSetMb} MB, LastWorkingSet: {lastWorkingSetMb} MB, LastCommitSize: {lastCommitSizeMb} MB.")]
+        internal abstract void StartCancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, int scopeId, long elapsedMs, int expectedPeakWorkingSetMb, int peakWorkingSetMb, int lastWorkingSetMb, int lastCommitSizeMb);
 
         [GeneratedEvent(
             (int)LogEventId.LogMismatchedDetoursErrorCount,
@@ -1278,6 +1278,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Pip cache metadata belongs to another pip: {details}")]
         public abstract void PipCacheMetadataBelongToAnotherPip(LoggingContext context, long pipSemiStableHash, string pipDescription, string details);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipTimedOutDueToSuspend,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Pip is timed-out due to suspend. SuspendDuration: {suspendDurationMs}, WallClockDuration: {wallClockDurationMs}")]
+        public abstract void PipTimedOutDueToSuspend(LoggingContext context, long pipSemiStableHash, string pipDescription, long suspendDurationMs, long wallClockDurationMs);
 
         [GeneratedEvent(
             (int)LogEventId.PipWillBeRetriedDueToExitCode,
@@ -3573,6 +3582,33 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "{perPipPerformanceInfo}")]
         public abstract void TopPipsPerformanceInfo(LoggingContext loggingContext, string perPipPerformanceInfo);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipRetryDueToLowMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Pip will be retried due to Low Memory. DefaultWorkingSetUsage: {defaultWorkingSetUsage}, ExpectedWorkingSetUsage: {expectedWorkingSetUsage}, ActualWorkingSetUsage: {actualWorkingSetUsage}")]
+        internal abstract void PipRetryDueToLowMemory(LoggingContext loggingContext, string pipDescription, int defaultWorkingSetUsage, int expectedWorkingSetUsage, int actualWorkingSetUsage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.EmptyWorkingSet,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipSemiStableHash}] Pip emptied working set. IsSuspendEnabled: {isSuspend}, Result: {result}, ExpectedPeakWorkingSet: {expectedPeakWorkingSet}, ExpectedAverageWorkingSet: {expectedAverageWorkingSet}, BeforePeakWorkingSet: {beforePeakWorkingSet}, BeforeWorkingSet: {beforeWorkingSet}, BeforeAverageWorkingSet: {beforeAverageWorkingSet}, BeforeCommitSize: {beforeCommitSize}, AfterWorkingSet: {afterWorkingSet}")]
+        internal abstract void EmptyWorkingSet(LoggingContext loggingContext, string pipSemiStableHash, bool isSuspend, string result, int expectedPeakWorkingSet, int expectedAverageWorkingSet, int beforePeakWorkingSet, int beforeWorkingSet, int beforeAverageWorkingSet, int beforeCommitSize, int afterWorkingSet);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ResumeProcess,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipSemiStableHash}] Pip resumed. Result: {result}, BeforeWorkingSetUsage: {beforeWorkingSetUsage}, BeforeCommitSize: {beforeCommitSize}, RamMbNeededForResume: {ramMbNeededForResume}")]
+        internal abstract void ResumeProcess(LoggingContext loggingContext, string pipSemiStableHash, bool result, int beforeWorkingSetUsage, int beforeCommitSize, int ramMbNeededForResume);
 
         [GeneratedEvent(
             (ushort)LogEventId.CompositeSharedOpaqueContentDetermined,

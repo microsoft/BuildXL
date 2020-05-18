@@ -9,10 +9,12 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
@@ -418,11 +420,53 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// <see cref="SandboxedProcess.GetActivePeakWorkingSet"/>
+        /// <see cref="SandboxedProcess.GetMemoryCountersSnapshot"/>
         /// </summary>
-        public ulong? GetActivePeakWorkingSet()
+        public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
-            return m_activeProcess?.GetActivePeakWorkingSet();
+            return m_activeProcess?.GetMemoryCountersSnapshot();
+        }
+
+        /// <summary>
+        /// <see cref="SandboxedProcess.TryEmptyWorkingSet"/>
+        /// </summary>
+        public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend)
+        {
+            var result = m_activeProcess?.TryEmptyWorkingSet(isSuspend) ?? EmptyWorkingSetResult.None;
+
+            if (result.HasFlag(EmptyWorkingSetResult.EmptyWorkingSetFailed) &&
+                result.HasFlag(EmptyWorkingSetResult.SetMaxWorkingSetFailed) &&
+                result.HasFlag(EmptyWorkingSetResult.SuspendFailed))
+            {
+                var errorCode = Marshal.GetLastWin32Error();
+                Tracing.Logger.Log.ResumeOrSuspendProcessError(
+                    m_loggingContext,
+                    m_pip.FormattedSemiStableHash,
+                    result.ToString(),
+                    errorCode);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// <see cref="SandboxedProcess.TryResumeProcess"/>
+        /// </summary>
+        public bool TryResumeProcess()
+        {
+            var result = m_activeProcess?.TryResumeProcess();
+
+            if (result == false)
+            {
+                var errorCode = Marshal.GetLastWin32Error();
+                Tracing.Logger.Log.ResumeOrSuspendProcessError(
+                    m_loggingContext,
+                    m_pip.FormattedSemiStableHash,
+                    "ResumeProcess",
+                    errorCode);
+            }
+
+            return result ?? false;
         }
 
         private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)
@@ -1825,7 +1869,8 @@ namespace BuildXL.Processes
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 containerConfiguration: m_containerConfiguration,
-                pipProperties: pipProperties);
+                pipProperties: pipProperties,
+                timedOut: result.TimedOut);
         }
 
         private async Task<(bool Success, Dictionary<string, int> PipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)

@@ -568,7 +568,7 @@ namespace BuildXL.Scheduler.Distribution
                 // processes running (the number of acquired slots is 0)
                 if (AcquiredProcessSlots != 0 && AcquiredProcessSlots + processRunnablePip.Weight > (EffectiveTotalProcessSlots * loadFactor))
                 {
-                    limitingResource = WorkerResource.AvailableProcessSlots;
+                    limitingResource = MemoryResourceAvailable ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
                     return false;
                 }
 

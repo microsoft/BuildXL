@@ -9,6 +9,8 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Management;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -125,11 +127,36 @@ namespace BuildXL.Utilities
 
             m_drives = drives.ToArray();
 
-            // Initialize network telemetry objects
-            InitializeNetworkMonitor();
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                // Initialize network telemetry objects
+                InitializeNetworkMonitor();
+
+                InitializeWMI();
+            }
 
             // Perform all initialization before starting the timer
             m_collectionTimer = new Timer(Collect, null, 0, 0);
+        }
+
+        private ManagementScope m_scope;
+        private ManagementObjectSearcher m_querySearcher;
+
+        private void InitializeWMI()
+        {
+            try
+            {
+                m_scope = new ManagementScope(String.Format("\\\\{0}\\root\\CIMV2", "."), null);
+                m_scope.Connect();
+
+                ObjectQuery query = new ObjectQuery("SELECT AvailableBytes, ModifiedPageListBytes, FreeAndZeroPageListBytes, StandbyCacheCoreBytes, StandbyCacheNormalPriorityBytes, StandbyCacheReserveBytes FROM Win32_PerfFormattedData_PerfOS_Memory");
+                m_querySearcher = new ManagementObjectSearcher(m_scope, query);
+            }
+#pragma warning disable ERP022
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         /// <summary>
@@ -172,6 +199,11 @@ namespace BuildXL.Utilities
                 double? machineTotalPhysicalBytes = null;
                 double? commitUsedBytes = null;
                 double? commitLimitBytes = null;
+
+                double? modifiedPagelistBytes = null;
+                double? freePagelistBytes = null;
+                double? standbyPagelistBytes = null;
+
                 DiskStats[] diskStats = null;
 
                 if (!OperatingSystemHelper.IsUnixOS)
@@ -193,6 +225,8 @@ namespace BuildXL.Utilities
                     }
 
                     diskStats = GetDiskCountersWindows();
+
+                    TryGetRAMDetails(ref modifiedPagelistBytes, ref freePagelistBytes, ref standbyPagelistBytes);
                 }
                 else
                 {
@@ -242,13 +276,40 @@ namespace BuildXL.Utilities
                             machineKbitsPerSecSent: machineKbitsPerSecSent,
                             machineKbitsPerSecReceived: machineKbitsPerSecReceived,
                             diskStats: diskStats,
-                            gcHeldBytes: processHeldBytes);
+                            gcHeldBytes: processHeldBytes,
+                            modifiedPagelistBytes: modifiedPagelistBytes,
+                            freePagelistBytes: freePagelistBytes,
+                            standbyPagelistBytes: standbyPagelistBytes);
                     }
                 }
 
                 // restart network monitor to start new measurement
                 m_networkMonitor?.StartMeasurement();
             }
+        }
+
+        private void TryGetRAMDetails(ref double? modifiedPagelistBytes, ref double? freePagelistBytes, ref double? standbyPagelistBytes)
+        {
+            try
+            {
+                if (m_querySearcher != null)
+                {
+                    foreach (ManagementObject WmiObject in m_querySearcher.Get())
+                    {
+                        modifiedPagelistBytes = (UInt64)WmiObject["ModifiedPageListBytes"];
+                        freePagelistBytes = (UInt64)WmiObject["FreeAndZeroPageListBytes"];
+
+                        standbyPagelistBytes = (UInt64)WmiObject["StandbyCacheCoreBytes"];
+                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheNormalPriorityBytes"];
+                        standbyPagelistBytes += (UInt64)WmiObject["StandbyCacheReserveBytes"];
+                    }
+                }
+            }
+#pragma warning disable ERP022 // TODO: This should really handle specific errors
+            catch (Exception)
+            {
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         private static double BytesToKbits(long bytes)
@@ -604,6 +665,40 @@ namespace BuildXL.Utilities
             /// Working Set for just this process
             /// </summary>
             public int ProcessWorkingSetMB;
+
+            /// <summary>
+            /// Modified pagelist that is a part of used RAM
+            /// </summary>
+            /// <remarks>
+            /// Pages in the modified pagelist are dirty and waiting to be written to the pagefile.
+            /// </remarks>
+            internal int? ModifiedPagelistMb;
+
+            /// <summary>
+            /// Free pagelist that is a part of available RAM
+            /// </summary>
+            internal int? FreePagelistMb;
+
+            /// <summary>
+            /// Standby pagelist that is a part of used RAM
+            /// </summary>
+            /// <remarks>
+            /// Pages in the standby pagelist are clean and they can be reused for the same process or used as free pages for other processes.
+            /// </remarks>
+            internal int? StandbyPagelistMb;
+
+            /// <summary>
+            /// Effective Available RAM = Modified pagelist + Available RAM
+            /// </summary>
+            /// <remarks>
+            /// When modified pagelist is not available, EffectiveAvailableRAM equals to AvailableRAM.
+            /// </remarks>
+            public int? EffectiveAvailableRamMb;
+
+            /// <summary>
+            /// Effective RAM usage percentage = (TotalRam - Effective Available RAM) / TotalRAM
+            /// </summary>
+            public int? EffectiveRamUsagePercentage;
         }
 
         /// <summary>
@@ -682,6 +777,15 @@ namespace BuildXL.Utilities
             /// </summary>
             public readonly Aggregation MachineKbitsPerSecReceived;
 
+            /// <nodoc />
+            public readonly Aggregation ModifiedPagelistMB;
+
+            /// <nodoc />
+            public readonly Aggregation FreePagelistMB;
+
+            /// <nodoc />
+            public readonly Aggregation StandbyPagelistMB;
+
             /// <summary>
             /// Stats about disk usage. This is guarenteed to be in the same order as <see cref="GetDrives"/>
             /// </summary>
@@ -758,6 +862,9 @@ namespace BuildXL.Utilities
                 MachineBandwidth = new Aggregation();
                 MachineKbitsPerSecSent = new Aggregation();
                 MachineKbitsPerSecReceived = new Aggregation();
+                ModifiedPagelistMB = new Aggregation();
+                StandbyPagelistMB = new Aggregation();
+                FreePagelistMB = new Aggregation();
 
                 List<Tuple<string, Aggregation>> aggs = new List<Tuple<string, Aggregation>>();
                 List<DiskStatistics> diskStats = new List<DiskStatistics>();
@@ -807,6 +914,27 @@ namespace BuildXL.Utilities
                         perfInfo.AvailableRamMb = availableRam;
                         consoleSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
                         logFileSummary.AppendFormat(" RAM:{0}%", ramUsagePercentage);
+                    }
+
+                    if (ModifiedPagelistMB.Latest > 0)
+                    {
+                        perfInfo.ModifiedPagelistMb = SafeConvert.ToInt32(ModifiedPagelistMB.Latest);
+                    }
+
+                    if (FreePagelistMB.Latest > 0)
+                    {
+                        perfInfo.FreePagelistMb = SafeConvert.ToInt32(FreePagelistMB.Latest);
+                    }
+
+                    if (StandbyPagelistMB.Latest > 0)
+                    {
+                        perfInfo.StandbyPagelistMb = SafeConvert.ToInt32(StandbyPagelistMB.Latest);
+                    }
+
+                    if (perfInfo.TotalRamMb.HasValue)
+                    {
+                        perfInfo.EffectiveAvailableRamMb = perfInfo.AvailableRamMb.Value + (perfInfo.ModifiedPagelistMb ?? 0);
+                        perfInfo.EffectiveRamUsagePercentage = SafeConvert.ToInt32(100.0 * (perfInfo.TotalRamMb.Value - perfInfo.EffectiveAvailableRamMb.Value) / perfInfo.TotalRamMb.Value);
                     }
 
                     if (CommitLimitMB.Latest > 0)
@@ -915,7 +1043,10 @@ namespace BuildXL.Utilities
                 double? machineKbitsPerSecSent,
                 double? machineKbitsPerSecReceived,
                 DiskStats[] diskStats,
-                double? gcHeldBytes)
+                double? gcHeldBytes,
+                double? modifiedPagelistBytes,
+                double? freePagelistBytes,
+                double? standbyPagelistBytes)
             {
                 Interlocked.Increment(ref m_sampleCount);
 
@@ -932,6 +1063,9 @@ namespace BuildXL.Utilities
                 MachineBandwidth.RegisterSample(machineBandwidth);
                 MachineKbitsPerSecSent.RegisterSample(machineKbitsPerSecSent);
                 MachineKbitsPerSecReceived.RegisterSample(machineKbitsPerSecReceived);
+                ModifiedPagelistMB.RegisterSample(BytesToMB(modifiedPagelistBytes));
+                FreePagelistMB.RegisterSample(BytesToMB(freePagelistBytes));
+                StandbyPagelistMB.RegisterSample(BytesToMB(standbyPagelistBytes));
 
                 Contract.Assert(m_diskStats.Length == diskStats.Length);
                 for (int i = 0; i < diskStats.Length; i++)

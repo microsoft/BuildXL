@@ -263,6 +263,7 @@ namespace BuildXL.Scheduler.Tracing
         PipCacheMetadataBelongToAnotherPip = 3700,
 
         PipIpcFailedDueToInfrastructureError = 3701,
+        PipTimedOutDueToSuspend = 3702,
 
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)
 
@@ -457,10 +458,12 @@ namespace BuildXL.Scheduler.Tracing
         OperationTrackerAssert = 14506,
 
         ExcessivePipRetriesDueToLowMemory = 14507,
-
         TopPipsPerformanceInfo = 14508,
 
         CompositeSharedOpaqueContentDetermined = 14509,
+        PipRetryDueToLowMemory = 14510,
+        EmptyWorkingSet = 14511,
+        ResumeProcess = 14512,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

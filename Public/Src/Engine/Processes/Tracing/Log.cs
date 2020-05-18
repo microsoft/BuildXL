@@ -1062,5 +1062,14 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "Cannot read sideband file '{fileName}': {error}")]
         public abstract void CannotReadSidebandFileWarning(LoggingContext context, string fileName, string error);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ResumeOrSuspendProcessError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "[{pipSemiStableHash}] occurred an error for {failedOperation}: {errorCode}")]
+        public abstract void ResumeOrSuspendProcessError(LoggingContext context, string pipSemiStableHash, string failedOperation, int errorCode);
     }
 }

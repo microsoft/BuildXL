@@ -62,7 +62,8 @@ namespace BuildXL.Scheduler
             Contract.Requires(executionPerformance.ExecutionLevel == PipExecutionLevel.Executed);
 
             m_entryTimeToLive = DefaultTimeToLive;
-            DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds));
+            // Deduct the suspended duration from the process execution time.
+            DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds - executionPerformance.SuspendedDurationMs));
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
             MemoryCounters = executionPerformance.MemoryCounters;
             DiskIOInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.IO.GetAggregateIO().TransferCount / 1024);

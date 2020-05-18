@@ -45,8 +45,8 @@ namespace Test.BuildXL.Scheduler
             {
                 CreateHistoricCache(loggingContext, hmcFolderName, out context, out cache, out var memoryArtifactCache);
 
-                var process1 = CreateDummyProcess(context, new PipId(1));
-                var process2 = CreateDummyProcess(context, new PipId(2));
+                var process1 = SchedulerTest.CreateDummyProcess(context, new PipId(1));
+                var process2 = SchedulerTest.CreateDummyProcess(context, new PipId(2));
 
                 var pathTable = context.PathTable;
 
@@ -211,42 +211,6 @@ namespace Test.BuildXL.Scheduler
                 new PathExpander(),
                 AbsolutePath.Create(context.PathTable, Path.Combine(TemporaryDirectory, locationName)),
                 loadTask);
-        }
-
-        private static Process CreateDummyProcess(PipExecutionContext context, PipId pipId)
-        {
-            var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, X("/X/exe")));
-            List<FileArtifact> dependencies = new List<FileArtifact> { exe };
-
-            var p = new Process(
-                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
-                executable: exe,
-                workingDirectory: AbsolutePath.Create(context.PathTable, X("/X")),
-                arguments: new PipDataBuilder(context.StringTable).ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
-                responseFile: FileArtifact.Invalid,
-                responseFileData: PipData.Invalid,
-                environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
-                standardInput: FileArtifact.Invalid,
-                standardOutput: FileArtifact.Invalid,
-                standardError: FileArtifact.Invalid,
-                standardDirectory: AbsolutePath.Create(context.PathTable, X("/X/std")),
-                warningTimeout: null,
-                timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.From(dependencies),
-                outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
-                orderDependencies: ReadOnlyArray<PipId>.Empty,
-                untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
-                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
-                tags: ReadOnlyArray<StringId>.Empty,
-                successExitCodes: ReadOnlyArray<int>.Empty,
-                semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
-                provenance: PipProvenance.CreateDummy(context),
-                toolDescription: StringId.Invalid,
-                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty)
-            { PipId = pipId };
-
-            return p;
         }
 
         private static void AssertPathSetEquals(PathTable pathTable1, ObservedPathSet pathSet1, PathTable pathTable2, ObservedPathSet pathSet2)

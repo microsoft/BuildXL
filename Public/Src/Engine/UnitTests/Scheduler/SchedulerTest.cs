@@ -2853,5 +2853,44 @@ namespace Test.BuildXL.Scheduler
 
             return new RootFilter(filter);
         }
+
+        /// <summary>
+        /// Create a dummy process
+        /// </summary>
+        public static Process CreateDummyProcess(PipExecutionContext context, PipId pipId)
+        {
+            var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, X("/X/exe")));
+            List<FileArtifact> dependencies = new List<FileArtifact> { exe };
+
+            var p = new Process(
+                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                executable: exe,
+                workingDirectory: AbsolutePath.Create(context.PathTable, X("/X")),
+                arguments: new PipDataBuilder(context.StringTable).ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                responseFile: FileArtifact.Invalid,
+                responseFileData: PipData.Invalid,
+                environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
+                standardInput: FileArtifact.Invalid,
+                standardOutput: FileArtifact.Invalid,
+                standardError: FileArtifact.Invalid,
+                standardDirectory: AbsolutePath.Create(context.PathTable, X("/X/std")),
+                warningTimeout: null,
+                timeout: null,
+                dependencies: ReadOnlyArray<FileArtifact>.From(dependencies),
+                outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                orderDependencies: ReadOnlyArray<PipId>.Empty,
+                untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                tags: ReadOnlyArray<StringId>.Empty,
+                successExitCodes: ReadOnlyArray<int>.Empty,
+                semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                provenance: PipProvenance.CreateDummy(context),
+                toolDescription: StringId.Invalid,
+                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty)
+            { PipId = pipId };
+
+            return p;
+        }
     }
 }

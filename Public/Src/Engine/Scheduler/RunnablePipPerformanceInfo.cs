@@ -54,6 +54,23 @@ namespace BuildXL.Scheduler
 
         internal long InputMaterializationCostMbForChosenWorker { get; private set; }
 
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        internal int RetryCountDueToStoppedWorker { get; private set; }
+
+        /// <summary>
+        /// Number of retries attempted for this pip
+        /// </summary>
+        internal int RetryCountDueToLowMemory { get; private set; }
+
+        internal int RetryCount => RetryCountDueToStoppedWorker + RetryCountDueToLowMemory;
+
+        /// <summary>
+        /// Suspended duration of the process due to memory management
+        /// </summary>
+        internal long SuspendedDurationMs { get; private set; }
+
         /// <remarks>
         /// MaterializeOutput is executed per each worker
         /// so the single index of the array might be concurrently mutated.
@@ -71,6 +88,23 @@ namespace BuildXL.Scheduler
             SendRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
             QueueDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)DispatcherKind.Materialize + 1], isThreadSafe: false);
             Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
+        }
+
+        internal void Retried(bool isRetriedDueToResourceExhaustion)
+        {
+            if (isRetriedDueToResourceExhaustion)
+            {
+                RetryCountDueToLowMemory++;
+            }
+            else
+            {
+                RetryCountDueToStoppedWorker++;
+            }
+        }
+
+        internal void Suspended(long suspendedDurationMs)
+        {
+            SuspendedDurationMs += suspendedDurationMs;
         }
 
         internal void Enqueued(DispatcherKind kind)

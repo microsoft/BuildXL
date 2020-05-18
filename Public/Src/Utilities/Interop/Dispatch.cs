@@ -3,6 +3,8 @@
 
 using System;
 using System.Runtime.InteropServices;
+using BuildXL.Interop.Unix;
+using static BuildXL.Interop.Windows.Memory;
 
 namespace BuildXL.Interop
 {
@@ -89,6 +91,45 @@ namespace BuildXL.Interop
                     return Unix.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS
                         ? peakMemoryUsage
                         : (ulong?)null;
+            }
+        }
+
+        /// <summary>
+        /// Returns the memory counters of a specific process
+        /// </summary>
+        /// <param name="handle">When calling from Windows the SafeProcessHandle is required</param>
+        /// <param name="pid">On non-windows systems a process id has to be provided</param>
+        public static ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot(IntPtr handle, int pid)
+        {
+            switch (s_currentOS)
+            {
+                case OperatingSystem.Win:
+                    var counters = Windows.Memory.GetMemoryUsageCounters(handle);
+                    if (counters != null)
+                    {
+                        return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                            counters.PeakWorkingSetSize,
+                            counters.WorkingSetSize,
+                            (counters.WorkingSetSize + counters.PeakWorkingSetSize) / 2,
+                            counters.PeakPagefileUsage,
+                            counters.PagefileUsage);
+                    }
+
+                    return null;
+
+                default:
+                    ulong peakMemoryUsage = 0;
+                    if (Unix.Memory.GetPeakWorkingSetSize(pid, ref peakMemoryUsage) == MACOS_INTEROP_SUCCESS)
+                    { 
+                        return ProcessMemoryCountersSnapshot.CreateFromBytes(
+                            peakWorkingSet: peakMemoryUsage,
+                            lastWorkingSet: peakMemoryUsage,
+                            averageWorkingSet: peakMemoryUsage,
+                            peakCommitSize: 0,
+                            lastCommitSize: 0);
+                    }
+                    
+                    return null;
             }
         }
     }

@@ -85,9 +85,9 @@ namespace BuildXL.Utilities
         public int ProcessId => m_processId != -1 ? m_processId : (m_processId = Process.Id);
 
         /// <summary>
-        /// Gets active peak memory usage.
+        /// Gets memory counters of the process
         /// </summary>
-        public ulong? GetActivePeakWorkingSet()
+        public ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot()
         {
             try
             {
@@ -95,8 +95,8 @@ namespace BuildXL.Utilities
                 {
                     return null;
                 }
-
-                return Dispatch.GetActivePeakWorkingSet(Process.Handle, ProcessId);
+                
+                return Dispatch.GetMemoryCountersSnapshot(Process.Handle, ProcessId);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch

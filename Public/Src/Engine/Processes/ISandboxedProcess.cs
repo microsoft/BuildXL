@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 
 namespace BuildXL.Processes
 {
@@ -28,7 +29,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the peak working set while the process is active. If the process exits, the peak working set is considered null.
         /// </summary>
-        ulong? GetActivePeakWorkingSet();
+        ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot();
+
+        /// <summary>
+        /// Attempt to empty the working set of this process and optionally suspend the process.
+        /// </summary>
+        EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend);
+
+        /// <summary>
+        /// Attempt to resume the suspended process
+        /// </summary>
+        bool TryResumeProcess();
 
         /// <summary>
         /// Gets the maximum heap size of the sandboxed process.

@@ -216,6 +216,11 @@ namespace BuildXL.Pips
         /// </summary>
         public ushort ProcessorsInPercents { get; }
 
+        /// <summary>
+        /// Suspended duration in ms
+        /// </summary>
+        public long SuspendedDurationMs { get; }
+
         /// <nodoc />
         public ProcessPipExecutionPerformance(
             PipExecutionLevel level,
@@ -229,7 +234,8 @@ namespace BuildXL.Pips
             TimeSpan kernelTime,
             ProcessMemoryCounters memoryCounters,
             uint numberOfProcesses,
-            uint workerId)
+            uint workerId,
+            long suspendedDurationMs)
             : base(level, executionStart, executionStop, workerId)
         {
             Contract.Requires(executionStart.Kind == DateTimeKind.Utc);
@@ -251,6 +257,7 @@ namespace BuildXL.Pips
             double cpuTime = KernelTime.TotalMilliseconds + UserTime.TotalMilliseconds;
             double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
             ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
+            SuspendedDurationMs = suspendedDurationMs;
         }
 
         /// <summary>
@@ -287,6 +294,8 @@ namespace BuildXL.Pips
             writer.Write(KernelTime);
             MemoryCounters.Serialize(writer);
             writer.WriteCompact(NumberOfProcesses);
+            writer.WriteCompact(SuspendedDurationMs);
+
         }
 
         internal static ProcessPipExecutionPerformance Deserialize(BuildXLReader reader, PipExecutionLevel level, DateTime executionStart, DateTime executionStop, uint workerId)
@@ -301,7 +310,7 @@ namespace BuildXL.Pips
             ProcessMemoryCounters memoryCounters = ProcessMemoryCounters.Deserialize(reader);
 
             uint numberOfProcesses = reader.ReadUInt32Compact();
-
+            long suspendedDurationMs = reader.ReadInt64Compact();
             return new ProcessPipExecutionPerformance(
                 fingerprint: fingerprint,
                 level: level,
@@ -314,7 +323,8 @@ namespace BuildXL.Pips
                 kernelTime: kernelTime,
                 memoryCounters: memoryCounters,
                 numberOfProcesses: numberOfProcesses,
-                workerId: workerId);
+                workerId: workerId,
+                suspendedDurationMs: suspendedDurationMs);
         }
 
         private static FileMonitoringViolationCounters ReadFileMonitoringViolationCounters(BuildXLReader reader)

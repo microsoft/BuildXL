@@ -1160,6 +1160,9 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public int RamPercent;
 
+        /// <nodoc />
+        public int AfterRamPercent;
+
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
@@ -1169,6 +1172,9 @@ namespace BuildXL.Scheduler.Tracing
         /// Available Ram in MB
         /// </summary>
         public int RamFreeMb;
+
+        /// <nodoc />
+        public int AfterRamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the

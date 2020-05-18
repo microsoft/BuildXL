@@ -12,6 +12,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -113,7 +114,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
                 {
                     AvailableRamMb = 100,
+                    EffectiveAvailableRamMb = 100,
                     RamUsagePercentage = 99,
+                    EffectiveRamUsagePercentage = 99,
                     TotalRamMb = 10000,
                     CommitUsedMb = 10000,
                     CommitUsagePercentage = 10,
@@ -146,7 +149,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                 GenerateSyntheticMachinePerfInfo = (lc, s) => new PerformanceCollector.MachinePerfInfo()
                 {
                     AvailableRamMb = 9000,
+                    EffectiveAvailableRamMb = 9000,
                     RamUsagePercentage = 10,
+                    EffectiveRamUsagePercentage = 10,
                     TotalRamMb = 10000,
                     CommitUsedMb = 99000,
                     CommitUsagePercentage = 99,
@@ -1397,7 +1402,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
-
+            Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
             Configuration.Schedule.NumRetryFailedPipsDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
 
             var processA = CreateAndSchedulePipBuilder(new Operation[]
@@ -1431,7 +1436,9 @@ namespace IntegrationTest.BuildXL.Scheduler
                         return new PerformanceCollector.MachinePerfInfo()
                         {
                             AvailableRamMb = 100,
+                            EffectiveAvailableRamMb = 100,
                             RamUsagePercentage = 99,
+                            EffectiveRamUsagePercentage = 99,
                             TotalRamMb = 10000,
                             CommitUsedMb = 5000,
                             CommitUsagePercentage = 50,
@@ -1442,7 +1449,98 @@ namespace IntegrationTest.BuildXL.Scheduler
                     return new PerformanceCollector.MachinePerfInfo()
                     {
                         AvailableRamMb = 9000,
+                        EffectiveAvailableRamMb = 9000,
                         RamUsagePercentage = 10,
+                        EffectiveRamUsagePercentage = 10,
+                        TotalRamMb = 10000,
+                        CommitUsedMb = 5000,
+                        CommitUsagePercentage = 50,
+                        CommitLimitMb = 10000,
+                    };
+                }
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
+            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
+            AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
+            AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
+
+            if (!allowLowMemoryRetry)
+            {
+                AssertWarningEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
+            }
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // suspend/resume is not available on macOS
+        public void SuspendResumePipOnHighMemoryUsage()
+        {
+            Configuration.Schedule.MinimumTotalAvailableRamMb = 10000;
+            Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+            Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
+
+            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+            });
+
+            var processB = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Block(),
+                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+            });
+
+            bool triggeredResume = false;
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (triggeredResume)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    if (scheduler.State.ResourceManager.NumSuspended > 0)
+                    {
+                        triggeredResume = true;
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 9000,
+                            EffectiveAvailableRamMb = 9000,
+                            RamUsagePercentage = 10,
+                            EffectiveRamUsagePercentage = 10,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    if (scheduler.MaxExternalProcessesRan == 2)
+                    {
+                        return new PerformanceCollector.MachinePerfInfo()
+                        {
+                            AvailableRamMb = 100,
+                            EffectiveAvailableRamMb = 100,
+                            RamUsagePercentage = 99,
+                            EffectiveRamUsagePercentage = 99,
+                            TotalRamMb = 10000,
+                            CommitUsedMb = 5000,
+                            CommitUsagePercentage = 50,
+                            CommitLimitMb = 10000,
+                        };
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo()
+                    {
+                        AvailableRamMb = 9000,
+                        EffectiveAvailableRamMb = 9000,
+                        RamUsagePercentage = 10,
+                        EffectiveRamUsagePercentage = 10,
                         TotalRamMb = 10000,
                         CommitUsedMb = 5000,
                         CommitUsagePercentage = 50,
@@ -1454,14 +1552,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
 
             AssertErrorEventLogged(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
-            AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
-            AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
-            AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
-
-            if (!allowLowMemoryRetry)
-            {
-                AssertWarningEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
-            }
+            AssertVerboseEventLogged(LogEventId.EmptyWorkingSet);
+            AssertVerboseEventLogged(LogEventId.ResumeProcess);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

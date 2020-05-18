@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -65,7 +66,6 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
-using System.Text.RegularExpressions;
 
 namespace BuildXL.Scheduler
 {
@@ -1617,8 +1617,6 @@ namespace BuildXL.Scheduler
             {
                 m_fileContentManager.LogStats(loggingContext);
 
-                m_chooseWorkerCpu?.LogStats();
-
                 OperationTracker.Stop(Context, m_configuration.Logging, PipExecutionCounters, Worker.WorkerStatusOperationKinds);
 
                 LogCriticalPath(statistics, buildSummary);
@@ -1925,6 +1923,7 @@ namespace BuildXL.Scheduler
             statistics.Add("TotalPeakCommitSizeMb", (long)m_totalPeakCommitSizeMb);
             statistics.Add("TotalAverageCommitSizeMb", (long)m_totalAverageCommitSizeMb);
 
+            m_chooseWorkerCpu?.LogStats(statistics);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -1982,8 +1981,12 @@ namespace BuildXL.Scheduler
             {
                 { "Cpu Percent", data => data.CpuPercent },
                 { "Ram Percent", data => data.RamPercent },
+                { "EffectiveRam Percent", data => m_perfInfo.EffectiveRamUsagePercentage ?? 0},
                 { "Used Ram Mb", data => data.RamUsedMb },
                 { "Free Ram Mb", data => data.RamFreeMb },
+                { "ModifiedPagelistMb", data => m_perfInfo.ModifiedPagelistMb ?? 0},
+                { "FreePagelistMb", data => m_perfInfo.FreePagelistMb ?? 0},
+                { "StandByPagelistMb", data => m_perfInfo.StandbyPagelistMb ?? 0},
                 { "Commit Percent", data => data.CommitPercent },
                 { "Used Commit Mb", data => data.CommitUsedMb },
                 { "Free Commit Mb", data => data.CommitFreeMb },
@@ -2003,6 +2006,14 @@ namespace BuildXL.Scheduler
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
+                { "ProcessRetriesDueToResourceLimits", data => PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessRetriesDueToResourceLimits)},
+                { "EmptyWorkingSetSucceeded", data => PipExecutionCounters.GetCounterValue(PipExecutorCounter.EmptyWorkingSetSucceeded)},
+                { "ResourceManager_TotalUsedWorkingSet", data => State.ResourceManager.TotalUsedWorkingSet},
+                { "ResourceManager_TotalUsedPeakWorkingSet", data => State.ResourceManager.TotalUsedPeakWorkingSet},
+                { "ResourceManager_TotalRamNeededForResume", data => State.ResourceManager.TotalRamMbNeededForResume},
+                { "ResourceManager_LastRequiredSize", data => State.ResourceManager.LastRequiredSizeMb},
+                { "ResourceManager_LastManageMemoryMode", data => State.ResourceManager.LastManageMemoryMode?.ToString() ?? ""},
+                { "ResourceManager_NumSuspended", data => State.ResourceManager.NumSuspended},
                 {
                     EnumTraits<PipState>.EnumerateValues(), (rows, state) =>
                     {
@@ -2173,6 +2184,7 @@ namespace BuildXL.Scheduler
                 m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ??
                     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
+
                 UpdateResourceAvailability(m_perfInfo);
 
                 // Of the pips in choose worker, how many could be executing on the local worker but are not due to
@@ -2492,7 +2504,7 @@ namespace BuildXL.Scheduler
         private void UpdateResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo)
         {
             var resourceManager = State.ResourceManager;
-            resourceManager.UpdateRamUsageForResourceScopes();
+            resourceManager.RefreshMemoryCounters();
 
             MemoryResource memoryResource = MemoryResource.Available;
 
@@ -2526,8 +2538,8 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
-                bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
+                bool exceededMaxRamUtilizationPercentage = perfInfo.EffectiveRamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
+                bool underMinimumAvailableRam = perfInfo.EffectiveAvailableRamMb.Value < m_configuration.Schedule.MinimumTotalAvailableRamMb;
 
                 if (exceededMaxRamUtilizationPercentage && underMinimumAvailableRam)
                 {
@@ -2557,12 +2569,14 @@ namespace BuildXL.Scheduler
                 LocalWorker.TotalCommitMb = int.MaxValue;
             }
 
+            bool isCommitCriticalLevel = false;
             if (perfInfo.CommitUsagePercentage != null)
             {
                 int availableCommit = m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value;
 
-                if (perfInfo.CommitUsagePercentage.Value > 98)
+                if (perfInfo.CommitUsagePercentage.Value >= 98)
                 {
+                    isCommitCriticalLevel = true;
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowCommitMemory);
 
                     if (!m_hitLowCommitMemoryPerfSmell)
@@ -2583,8 +2597,28 @@ namespace BuildXL.Scheduler
 
             ToggleMemoryResourceAvailability(perfInfo, memoryResource);
 
-            // If ram resource is not available, cancel the running pips.
-            if (memoryResource.HasFlag(MemoryResource.LowRam))
+            resourceManager.LastRequiredSizeMb = 0;
+            resourceManager.LastManageMemoryMode = null;
+
+            var defaultManageMemoryMode = m_scheduleConfiguration.ManageMemoryMode;
+
+            if (isCommitCriticalLevel)
+            {
+                // If commit usage is at the critical level (>= 98%), cancel pips to avoid out-of-page file errors.
+                int desiredCommitPercentToFreeSlack = EngineEnvironmentSettings.DesiredCommitPercentToFreeSlack.Value ?? 0;
+
+                // 98-95 = 3 + slack
+                int desiredCommitPercentToFree = (perfInfo.CommitUsagePercentage.Value - m_configuration.Schedule.MaximumCommitUtilizationPercentage) + desiredCommitPercentToFreeSlack;
+
+                // Ensure percentage to free is in valid percent range [0, 100]
+                desiredCommitPercentToFree = Math.Max(0, Math.Min(100, desiredCommitPercentToFree));
+
+                // Get the megabytes to free
+                var desiredCommitMbToFree = (perfInfo.CommitLimitMb.Value * desiredCommitPercentToFree) / 100;
+
+                resourceManager.TryManageResources(desiredCommitMbToFree, ManageMemoryMode.CancellationCommit);
+            }
+            else if (memoryResource.HasFlag(MemoryResource.LowRam))
             {
 #if PLATFORM_OSX
                 bool simulateHighMemory = m_testHooks?.SimulateHighMemoryPressure ?? false;
@@ -2607,6 +2641,9 @@ namespace BuildXL.Scheduler
                             maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
                 }
 
+                // CancellationRam is the only mode for OSX. 
+                defaultManageMemoryMode = ManageMemoryMode.CancellationRam;
+
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
 #else
                 // We only retry when the ram memory is not available. 
@@ -2615,18 +2652,48 @@ namespace BuildXL.Scheduler
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
 #endif
                 {
-                    // Free down to the specified max RAM utilization percentage with 10% slack
-                    var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
+                    int desiredRamPercentToFreeSlack = EngineEnvironmentSettings.DesiredRamPercentToFreeSlack.Value ?? 5;
+
+                    // Free down to the specified max RAM utilization percentage with some slack
+                    int desiredRamPercentToFree = (perfInfo.EffectiveRamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + desiredRamPercentToFreeSlack;
 
                     // Ensure percentage to free is in valid percent range [0, 100]
-                    desiredRamToFreePercentage = Math.Max(0, Math.Min(100, desiredRamToFreePercentage));
+                    desiredRamPercentToFree = Math.Max(0, Math.Min(100, desiredRamPercentToFree));
 
                     // Get the megabytes to free
-                    var desiredRamToFreeMb = (perfInfo.TotalRamMb.Value * desiredRamToFreePercentage) / 100;
-
-                    // Call the resource manager to cancel pips as necessary
-                    resourceManager.TryFreeResources(desiredRamToFreeMb);
+                    var desiredRamMbToFree = (perfInfo.TotalRamMb.Value * desiredRamPercentToFree) / 100;
+                    
+                    resourceManager.TryManageResources(desiredRamMbToFree, defaultManageMemoryMode);
                 }
+            }
+            else if (perfInfo.RamUsagePercentage.HasValue 
+                    && m_configuration.Schedule.MaximumRamUtilizationPercentage > perfInfo.RamUsagePercentage.Value
+                    && resourceManager.NumSuspended > 0)
+            {
+                // Use EffectiveAvailableRam when to throttle the scheduler and cancel more.
+
+                // We might use the actual available ram to resume though. 
+                // If there is available ram, then resume any suspended pips.
+                // 90% memory - current percent = availableRamForResume
+                // When it is resumed, start from the larger execution time. 
+
+                var desiredRamPercentToUse = m_configuration.Schedule.MaximumRamUtilizationPercentage - perfInfo.RamUsagePercentage.Value; 
+
+                // Ensure percentage is in valid percent range [0, 100]
+                desiredRamPercentToUse = Math.Max(0, Math.Min(100, desiredRamPercentToUse));
+
+                // Get the megabytes to free
+                var desiredRamMbToUse = (perfInfo.TotalRamMb.Value * desiredRamPercentToUse) / 100;
+
+                resourceManager.TryManageResources(desiredRamMbToUse, ManageMemoryMode.Resume);
+            }
+
+            if (resourceManager.NumActive == 0 && resourceManager.NumSuspended > 0)
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.CancelSuspendedPipDueToNoRunningProcess);
+
+                // If there is no active process pips running, cancel one pip to check whether the scheduler will move forward.
+                resourceManager.TryManageResources(1, ManageMemoryMode.CancellationRam);
             }
         }
 
@@ -2703,14 +2770,14 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            if (runnablePip.RetryCountDueToStoppedWorker < m_pipRetryCountersDueToNetworkFailures.Length)
+            if (runnablePip.Performance.RetryCountDueToStoppedWorker < m_pipRetryCountersDueToNetworkFailures.Length)
             {
-                m_pipRetryCountersDueToNetworkFailures[runnablePip.RetryCountDueToStoppedWorker]++;
+                m_pipRetryCountersDueToNetworkFailures[runnablePip.Performance.RetryCountDueToStoppedWorker]++;
             }
 
-            if(runnablePip.RetryCountDueToLowMemory > 0)
+            if(runnablePip.Performance.RetryCountDueToLowMemory > 0)
             {
-                m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
+                m_pipRetryCountersDueToLowMemory.AddOrUpdate(runnablePip.Performance.RetryCountDueToLowMemory, 1, (id, count) => count + 1);
             }
 
             using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.OnPipCompletedDuration))
@@ -4120,9 +4187,9 @@ namespace BuildXL.Scheduler
                         }
 
                         if (m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory.HasValue &&
-                            processRunnable.RetryCountDueToLowMemory == m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory)
+                            processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory)
                         {
-                            Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.RetryCountDueToLowMemory);
+                            Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
                         }
 
                         // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
@@ -4133,6 +4200,8 @@ namespace BuildXL.Scheduler
                             averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
                             peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
                             averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
+
+                        Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
 
                         return processRunnable.SetPipResult(executionResult.Result);
                     }
@@ -4995,7 +5064,7 @@ namespace BuildXL.Scheduler
                 IList<long> totalQueueRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalSendRequestDurations = new long[(int)PipExecutionStep.Done + 1];
                 IList<long> totalCacheLookupStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
-                long totalCacheMissAnalysisDuration = 0;
+                long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0;
                 long totalInputMaterializationExtraCostMbDueToUnavailability = 0;
 
                 var summaryTable = new StringBuilder();
@@ -5070,6 +5139,7 @@ namespace BuildXL.Scheduler
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
 
                     totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
+                    totalSuspendedDuration += performance.SuspendedDurationMs;
                     totalInputMaterializationExtraCostMbDueToUnavailability += (performance.InputMaterializationCostMbForChosenWorker - performance.InputMaterializationCostMbForBestWorker);
 
                     index++;
@@ -5233,7 +5303,12 @@ namespace BuildXL.Scheduler
 
                 builder.AppendLine();
                 builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
+                builder.AppendLine(I($"{"Total Suspended Duration (ms) on the Critical Path",-106}: {totalSuspendedDuration,10}"));
+                builder.AppendLine(I($"{"Total Retry Count on the Critical Path",-106}: {totalRetryCount,10}"));
+
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
+                statistics.Add("CriticalPath.TotalSuspendedDurationMs", totalSuspendedDuration);
+                statistics.Add("CriticalPath.TotalRetryCount", totalRetryCount);
                 statistics.Add("CriticalPath.TotalInputMaterializationExtraCostMbDueToUnavailability", totalInputMaterializationExtraCostMbDueToUnavailability);
 
                 builder.AppendLine();
@@ -5326,6 +5401,16 @@ namespace BuildXL.Scheduler
                     if (performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                     {
                         stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
+                    }
+
+                    if (performanceInfo.SuspendedDurationMs != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"SuspendedDurationMs",-88}: {performanceInfo.SuspendedDurationMs,10}"));
+                    }
+
+                    if (performanceInfo.RetryCount != 0)
+                    {
+                        stringBuilder.AppendLine(I($"\t\t  {"RetryCount",-88}: {performanceInfo.RetryCount,10}"));
                     }
                 }
 

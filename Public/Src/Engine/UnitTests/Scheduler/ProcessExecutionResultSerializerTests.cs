@@ -53,7 +53,8 @@ namespace Test.BuildXL.Scheduler
                     TimeSpan.FromMinutes(3),
                     ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326, 12326),
                     33,
-                    7),
+                    7,
+                    0),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
                 fileAccessViolationsNotWhitelisted: new[]
                 {

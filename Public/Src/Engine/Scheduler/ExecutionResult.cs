@@ -477,7 +477,7 @@ namespace BuildXL.Scheduler
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
-                    m_isCancelledDueToResourceExhaustion = isCancelledDueToResourceExhaustion
+                    m_isCancelledDueToResourceExhaustion = isCancelledDueToResourceExhaustion,
                 };
             return processExecutionResult;
         }
@@ -748,7 +748,8 @@ namespace BuildXL.Scheduler
                             kernelTime: jobAccounting.KernelTime,
                             memoryCounters: jobAccounting.MemoryCounters,
                             numberOfProcesses: jobAccounting.NumberOfProcesses,
-                            workerId: 0);
+                            workerId: 0,
+                            suspendedDurationMs: processResult.SuspendedDurationMs);
                     }
                 }
                 else

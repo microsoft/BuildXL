@@ -20,7 +20,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableLazyOutputMaterialization = true;
             UseHistoricalPerformanceInfo = true;
             TreatDirectoryAsAbsentFileOnHashingInputContent = true;
-            MaximumRamUtilizationPercentage = 85;
+            MaximumRamUtilizationPercentage = 90;
+            MaximumCommitUtilizationPercentage = 95;
             MinimumTotalAvailableRamMb = 500;
             MaximumAllowedMemoryPressureLevel = Memory.PressureLevel.Normal;
 
@@ -78,8 +79,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InputChanges = AbsolutePath.Invalid;
 
             EnableSetupCostWhenChoosingWorker = true;
-            MaximumCommitUtilizationPercentage = 95;
             EnableLessAggresiveMemoryProjection = false;
+            ManageMemoryMode = ManageMemoryMode.CancellationRam;
         }
 
         /// <nodoc />
@@ -156,6 +157,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
             NumRetryFailedPipsDueToLowMemory = template.NumRetryFailedPipsDueToLowMemory;
             EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
+            ManageMemoryMode = template.ManageMemoryMode;
         }
 
         /// <inheritdoc />
@@ -375,5 +377,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool EnableLessAggresiveMemoryProjection { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableEmptyingWorkingSet { get; set; }
+
+        /// <inheritdoc />
+        public ManageMemoryMode ManageMemoryMode { get; set; }
     }
 }

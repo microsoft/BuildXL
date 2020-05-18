@@ -62,16 +62,6 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Number of retries attempted for this pip
         /// </summary>
-        public int RetryCountDueToStoppedWorker { get; private set; }
-
-        /// <summary>
-        /// Number of retries attempted for this pip
-        /// </summary>
-        public int RetryCountDueToLowMemory { get; private set; }
-
-        /// <summary>
-        /// Number of retries attempted for this pip
-        /// </summary>
         public readonly int MaxRetryLimitForStoppedWorker;
 
         /// <summary>
@@ -209,8 +199,6 @@ namespace BuildXL.Scheduler
             ScheduleTime = DateTime.UtcNow;
             Performance = new RunnablePipPerformanceInfo(ScheduleTime);
             m_pip = pip;
-            RetryCountDueToStoppedWorker = 0;
-            RetryCountDueToLowMemory = 0;
             MaxRetryLimitForStoppedWorker = maxRetryLimitForStoppedWorker;
         }
 
@@ -296,19 +284,14 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipExecutionStep SetPipResult(in PipResult result)
         {
+            Performance.Suspended(ExecutionResult?.PerformanceInformation?.SuspendedDurationMs ?? 0);
+
             if (result.Status == PipResultStatus.Canceled &&
                 !Environment.IsTerminating)
             {
                 SetWorker(null);
 
-                if (ExecutionResult?.IsCancelledDueToResourceExhaustion == true)
-                {
-                    RetryCountDueToLowMemory++;
-                }
-                else
-                {
-                    RetryCountDueToStoppedWorker++;
-                }
+                Performance.Retried(ExecutionResult?.IsCancelledDueToResourceExhaustion ?? false);
 
                 return DecideNextStepForRetry();
             }
@@ -338,7 +321,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public bool ShouldRetryDueToStoppedWorker()
         {
-            return MaxRetryLimitForStoppedWorker > RetryCountDueToStoppedWorker;
+            return MaxRetryLimitForStoppedWorker > Performance.RetryCountDueToStoppedWorker;
         }
 
         /// <summary>
@@ -533,7 +516,8 @@ namespace BuildXL.Scheduler
                         kernelTime: performanceInformation.KernelTime,
                         memoryCounters: performanceInformation.MemoryCounters,
                         numberOfProcesses: performanceInformation.NumberOfProcesses,
-                        workerId: performanceInformation.WorkerId);
+                        workerId: performanceInformation.WorkerId,
+                        suspendedDurationMs: performanceInformation.SuspendedDurationMs);
                 }
                 else
                 {
@@ -552,7 +536,8 @@ namespace BuildXL.Scheduler
                             kernelTime: TimeSpan.Zero,
                             memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0, 0, 0),
                             numberOfProcesses: 0,
-                            workerId: 0);
+                            workerId: 0,
+                            suspendedDurationMs: 0);
                 }
             }
             else

@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Utilities;
 
 namespace BuildXL.Processes
@@ -57,7 +58,13 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override ulong? GetActivePeakWorkingSet() => m_processExecutor?.GetActivePeakWorkingSet();
+        public override ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot() => m_processExecutor?.GetMemoryCountersSnapshot();
+
+        /// <inheritdoc />
+        public override EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend) => EmptyWorkingSetResult.None; // Only SandboxedProcess is supported.
+
+        /// <inheritdoc />
+        public override bool TryResumeProcess() => false; // Currently, only SandboxedProcess is supported.
 
         /// <inheritdoc />
         public override async Task<SandboxedProcessResult> GetResultAsync()

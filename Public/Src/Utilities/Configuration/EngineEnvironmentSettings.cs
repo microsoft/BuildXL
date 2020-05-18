@@ -15,6 +15,21 @@ namespace BuildXL.Utilities.Configuration
     /// </summary>
     public static class EngineEnvironmentSettings
     {
+        /// <nodoc />
+        public static readonly Setting<int?> DesiredCommitPercentToFreeSlack = CreateSetting("BuildXLDesiredCommitPercentToFreeSlack", value => ParseInt32(value));
+
+        /// <nodoc />
+        public static readonly Setting<int?> DesiredRamPercentToFreeSlack = CreateSetting("BuildXLDesiredRamPercentToFreeSlack", value => ParseInt32(value));
+
+        /// <nodoc />
+        public static readonly Setting<bool> DisableUseAverageCountersForResume = CreateSetting("BuildXLDisableUseAverageCountersForResume", value => value == "1");
+
+        /// <nodoc />
+        public static readonly Setting<bool> SetMaxWorkingSetToMin = CreateSetting("BuildXLSetMaxWorkingSetToMin", value => value == "1");
+
+        /// <nodoc />
+        public static readonly Setting<bool> SetMaxWorkingSetToPeakBeforeResume = CreateSetting("BuildXLSetMaxWorkingSetToPeakBeforeResume", value => value == "1");
+
         /// <summary>
         /// The maximum number pips to perform the on-the-fly cache miss analysis
         /// </summary>

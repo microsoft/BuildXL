@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 
@@ -69,7 +70,13 @@ namespace BuildXL.Processes
         public virtual string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public abstract ulong? GetActivePeakWorkingSet();
+        public abstract ProcessMemoryCountersSnapshot? GetMemoryCountersSnapshot();
+
+        /// <inheritdoc />
+        public abstract EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend);
+
+        /// <inheritdoc />
+        public abstract bool TryResumeProcess();
 
         /// <inheritdoc />
         public virtual long GetDetoursMaxHeapSize() => 0;

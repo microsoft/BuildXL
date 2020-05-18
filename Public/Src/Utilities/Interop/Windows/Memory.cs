@@ -54,6 +54,11 @@ namespace BuildXL.Interop.Windows
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
 
+        /// <nodoc />
+        [DllImport(BuildXL.Interop.Libraries.WindowsPsApi, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EmptyWorkingSet(IntPtr handle);
+
         /// <summary>
         /// Get memory usage with all counters for Windows
         /// </summary>
@@ -64,5 +69,33 @@ namespace BuildXL.Interop.Windows
                 ? processMemoryCounters
                 : null;
         }
+
+        /// <nodoc />
+        public enum WorkingSetSizeFlags
+        {
+            /// <summary>
+            /// The WorkingSet cannot go below the configured minimum value
+            /// </summary>
+            MinEnable = 1 << 0,
+
+            /// <summary>
+            /// The WorkingSet can go below the configured minimum value
+            /// </summary>
+            MinDisable = 1 << 1,
+
+            /// <summary>
+            /// The WorkingSet cannot exceed the configured maximum value
+            /// </summary>
+            MaxEnable = 1 << 2,
+
+            /// <summary>
+            /// The WorkingSet can exceed the configured maximum value
+            /// </summary>
+            MaxDisable = 1 << 3,
+        }
+
+        /// <nodoc />
+        [DllImport(Libraries.WindowsKernel32, SetLastError = true)]
+        public static extern bool SetProcessWorkingSetSizeEx(IntPtr handle, UIntPtr min, UIntPtr max, WorkingSetSizeFlags flags);
     }
 }

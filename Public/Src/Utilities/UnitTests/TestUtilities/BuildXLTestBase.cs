@@ -243,6 +243,24 @@ namespace Test.BuildXL.TestUtilities
         /// the previous assertion (of the same event).
         /// This is useful when there is some expected non-deterministic error condition (due to a race, for example)
         /// </summary>
+        protected void AllowErrorEventLoggedAtLeastOnce(Enum eventId)
+        {
+            Contract.Requires(eventId != null, "Argument eventId cannot be null.");
+            Contract.Requires(EventListener != null);
+
+            AssertEventLogged(eventId, 1, allowMore: true);
+            var eventCount = EventListener.GetEventCount(Convert.ToInt32(eventId, CultureInfo.InvariantCulture));
+            if (eventCount > 0)
+            {
+                m_expectedErrorCount += eventCount;
+            }
+        }
+
+        /// <summary>
+        /// Allows the test's event listener to maybe record instances of the given error event ID since 
+        /// the previous assertion (of the same event).
+        /// This is useful when there is some expected non-deterministic error condition (due to a race, for example)
+        /// </summary>
         protected void AllowErrorEventMaybeLogged(Enum eventId)
         {
             Contract.Requires(eventId != null, "Argument eventId cannot be null.");

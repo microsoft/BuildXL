@@ -634,6 +634,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/manageMemoryMode:<memory mode>",
+                Strings.HelpText_DisplayHelp_ManageMemoryMode,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/phase:<engine phase>",
                 Strings.HelpText_DisplayHelp_Phase);
 

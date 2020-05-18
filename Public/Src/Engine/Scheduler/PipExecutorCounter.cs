@@ -754,11 +754,6 @@ namespace BuildXL.Scheduler
         IpcPipsSucceededRemotely,
 
         /// <summary>
-        /// Counts the number of times processes were killed and retried due to resource limits
-        /// </summary>
-        ProcessRetriesDueToResourceLimits,
-
-        /// <summary>
         /// The end-to-end time spent running a process, including any possible retries
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -805,6 +800,38 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         QueryRamUsageDuration,
+
+        /// <summary>
+        /// The time spent emptying the working set
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        ResumeProcessDuration,
+
+        /// <summary>
+        /// The time spent emptying the working set
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        EmptyWorkingSetDuration,
+
+        /// <summary>
+        /// The number of successful EmptyWorkingSet operations
+        /// </summary>
+        EmptyWorkingSetSucceeded,
+
+        /// <summary>
+        /// The number of times pips empty their workingset more than once. 
+        /// </summary>
+        EmptyWorkingSetSucceededMoreThanOnce,
+
+        /// <summary>
+        /// Counts the number of times processes were killed and retried due to resource limits
+        /// </summary>
+        ProcessRetriesDueToResourceLimits,
+
+        /// <summary>
+        /// Counts the number of times processes were killed and retried due to suspend or resume failures
+        /// </summary>
+        ProcessRetriesDueToSuspendOrResumeFailure,
 
         /// <summary>
         /// The time spent cancelling processes due exceeding resource limits
@@ -1196,6 +1223,11 @@ namespace BuildXL.Scheduler
         /// Number of times when the available commit is in the critical level.
         /// </summary>
         CriticalLowCommitMemory,
+
+        /// <summary>
+        /// Number of times when we cancel a suspended pip due to the lack of active processes.
+        /// </summary>
+        CancelSuspendedPipDueToNoRunningProcess,
 
         /// <summary>
         /// Number of times ExistingFileProbe was reclassified as AbsentPathProbe due to path being both

@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
+using BuildXL.Interop;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
@@ -1342,29 +1343,33 @@ namespace BuildXL.Scheduler
 
             // Execute the process when resources are available
             SandboxedProcessPipExecutionResult executionResult = await environment.State.ResourceManager
-                .ExecuteWithResources(
+                .ExecuteWithResourcesAsync(
                     operationContext,
-                    pip.PipId,
+                    pip,
                     expectedMemoryCounters,
                     allowResourceBasedCancellation,
-                    async (resourceLimitCancellationToken, registerQueryRamUsageMb) =>
+                    async (resourceScope) =>
                     {
                         // Inner cancellation token source for tracking cancellation time
                         using (var innerResourceLimitCancellationTokenSource = new CancellationTokenSource())
-                        using (operationContext.StartOperation(PipExecutorCounter.ProcessPossibleRetryWallClockDuration))
+                        using (var counter = operationContext.StartOperation(PipExecutorCounter.ProcessPossibleRetryWallClockDuration))
                         {
-                            int lastObservedPeakRamUsage = 0;
+                            ProcessMemoryCountersSnapshot lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
                             TimeSpan? cancellationStartTime = null;
-                            resourceLimitCancellationToken.Register(
+                            resourceScope.Token.Register(
                                 () =>
                                 {
                                     cancellationStartTime = TimestampUtilities.Timestamp;
                                     Logger.Log.StartCancellingProcessPipExecutionDueToResourceExhaustion(
                                         operationContext,
                                         processDescription,
-                                        (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
-                                        peakMemoryMb: lastObservedPeakRamUsage,
-                                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb);
+                                        resourceScope.CancellationReason?.ToString() ?? "",
+                                        resourceScope.ScopeId,
+                                        (long)(counter.Duration?.TotalMilliseconds ?? -1),
+                                        expectedMemoryCounters.PeakWorkingSetMb,
+                                        lastObservedMemoryCounters.PeakWorkingSetMb,
+                                        lastObservedMemoryCounters.LastWorkingSetMb,
+                                        lastObservedMemoryCounters.LastCommitSizeMb);
 
                                     using (operationContext.StartAsyncOperation(PipExecutorCounter.ResourceLimitCancelProcessDuration))
                                     {
@@ -1388,7 +1393,7 @@ namespace BuildXL.Scheduler
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
                             while (true)
                             {
-                                lastObservedPeakRamUsage = 0;
+                                lastObservedMemoryCounters = default(ProcessMemoryCountersSnapshot);
 
                                 var executor = new SandboxedProcessPipExecutor(
                                     context,
@@ -1420,17 +1425,44 @@ namespace BuildXL.Scheduler
                                     changeAffectedInputs: changeAffectedInputs,
                                     detoursListener: detoursEventListener,
                                     symlinkedAccessResolver: environment.SymlinkedAccessResolver);
-
-                                registerQueryRamUsageMb(
+                                
+                                resourceScope.RegisterQueryRamUsageMb(
                                     () =>
                                     {
                                         using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
-                                            lastObservedPeakRamUsage =
-                                                (int)ByteSizeFormatter.ToMegabytes(executor.GetActivePeakWorkingSet() ?? 0);
+                                            lastObservedMemoryCounters = executor.GetMemoryCountersSnapshot() ?? default(ProcessMemoryCountersSnapshot);
+                                            return lastObservedMemoryCounters;
                                         }
+                                    });
 
-                                        return lastObservedPeakRamUsage;
+                                resourceScope.RegisterEmptyWorkingSet(
+                                    (bool isSuspend) =>
+                                    {
+                                        using (counters[PipExecutorCounter.EmptyWorkingSetDuration].Start())
+                                        {
+                                            var result = executor.TryEmptyWorkingSet(isSuspend);
+                                            if (result == EmptyWorkingSetResult.Success)
+                                            {
+                                                counters.IncrementCounter(PipExecutorCounter.EmptyWorkingSetSucceeded);
+
+                                                if (resourceScope.SuspendedDurationMs > 0)
+                                                {
+                                                    counters.IncrementCounter(PipExecutorCounter.EmptyWorkingSetSucceededMoreThanOnce);
+                                                }
+                                            }
+
+                                            return result;
+                                        }
+                                    });
+
+                                resourceScope.RegisterResumeProcess(
+                                    () =>
+                                    {
+                                        using (counters[PipExecutorCounter.ResumeProcessDuration].Start())
+                                        {
+                                            return executor.TryResumeProcess();
+                                        }
                                     });
 
                                 // Increment the counters only on the first try.
@@ -1594,18 +1626,24 @@ namespace BuildXL.Scheduler
 
                             counters.DecrementCounter(PipExecutorCounter.ExternalProcessCount);
 
-                            result.IsCancelledDueToResourceExhaustion = resourceLimitCancellationToken.IsCancellationRequested;
+                            result.SuspendedDurationMs = resourceScope.SuspendedDurationMs;
 
                             if (result.Status == SandboxedProcessPipExecutionStatus.Canceled)
                             {
-                                if (resourceLimitCancellationToken.IsCancellationRequested)
+                                if (resourceScope.CancellationReason.HasValue)
                                 {
-                                    TimeSpan? cancelTime = TimestampUtilities.Timestamp - cancellationStartTime;
+                                    result.IsCancelledDueToResourceExhaustion = true;
 
-                                    counters.IncrementCounter(PipExecutorCounter.ProcessRetriesDueToResourceLimits);
+                                    counters.IncrementCounter(resourceScope.CancellationReason == ProcessResourceManager.ResourceScopeCancellationReason.ResourceLimits ?
+                                        PipExecutorCounter.ProcessRetriesDueToResourceLimits :
+                                        PipExecutorCounter.ProcessRetriesDueToSuspendOrResumeFailure);
+
+                                    TimeSpan? cancelTime = TimestampUtilities.Timestamp - cancellationStartTime;
+                                    
                                     Logger.Log.CancellingProcessPipExecutionDueToResourceExhaustion(
                                         operationContext,
                                         processDescription,
+                                        resourceScope.CancellationReason.ToString(),
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
                                         expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
@@ -1613,6 +1651,11 @@ namespace BuildXL.Scheduler
                                         expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
+                            }
+
+                            if (result.TimedOut && result.SuspendedDurationMs > 0)
+                            { 
+                                Logger.Log.PipTimedOutDueToSuspend(operationContext, pip.SemiStableHash, processDescription, result.SuspendedDurationMs, result.ProcessSandboxedProcessResultMs);
                             }
 
                             if (userRetry)

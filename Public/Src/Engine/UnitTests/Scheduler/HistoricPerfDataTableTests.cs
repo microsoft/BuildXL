@@ -56,7 +56,8 @@ namespace Test.BuildXL.Scheduler
                     kernelTime,
                     ProcessMemoryCounters.CreateFromBytes(peakMemoryUsage, peakMemoryUsage, peakMemoryUsage, peakMemoryUsage),
                     numberOfProcesses,
-                    workerId);
+                    workerId,
+                    0);
                 var data = new ProcessPipHistoricPerfData(performance);
                 data = data.Merge(data);
                 Analysis.IgnoreResult(data);
@@ -124,7 +125,8 @@ namespace Test.BuildXL.Scheduler
                         TimeSpan.FromMilliseconds(execTime / 2),
                         ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024, 1024),
                         1,
-                        workerId: 0);
+                        workerId: 0,
+                        suspendedDurationMs: 0);
 
                     ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
                     table[semiStableHash] = runTimeData;
@@ -164,7 +166,8 @@ namespace Test.BuildXL.Scheduler
                 TimeSpan.FromMilliseconds(execTime / 2),
                 ProcessMemoryCounters.CreateFromMb(1024, 1024, 1024, 1024),
                 1,
-                workerId: 0);
+                workerId: 0,
+                suspendedDurationMs: 0);
 
             ProcessPipHistoricPerfData runTimeData = new ProcessPipHistoricPerfData(processPipExecutionPerformance);
             HistoricPerfDataTable table = new HistoricPerfDataTable(LoggingContext);

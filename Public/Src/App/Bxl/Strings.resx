@@ -1057,4 +1057,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
     <value>Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0.</value>
   </data>
+  <data name="HelpText_DisplayHelp_ManageMemoryMode" xml:space="preserve">
+    <value>Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory.</value>
+  </data>
 </root>

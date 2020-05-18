@@ -91,7 +91,13 @@ namespace BuildXL.Storage
         /// If the file must be hashed (cache miss), the computed hash is stored in the file content table.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
-        public static async Task<VersionedFileIdentityAndContentInfoWithOrigin> GetAndRecordContentHashAsync(
+        public static async
+#if NET_COREAPP
+                            ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
+#else
+                            Task<VersionedFileIdentityAndContentInfoWithOrigin>
+#endif
+                                                                                     GetAndRecordContentHashAsync(
             this FileContentTable fileContentTable,
             string path,
             bool? strict = default,
@@ -136,7 +142,13 @@ namespace BuildXL.Storage
         /// If the file must be hashed (cache miss), the computed hash is stored in the file content table.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if accessing the local path specified by 'key' fails.</exception>
-        public static async Task<VersionedFileIdentityAndContentInfoWithOrigin> GetAndRecordContentHashAsync(
+        public static async
+#if NET_COREAPP
+                            ValueTask<VersionedFileIdentityAndContentInfoWithOrigin>
+#else
+                            Task<VersionedFileIdentityAndContentInfoWithOrigin>
+#endif
+                                                                                     GetAndRecordContentHashAsync(
             this FileContentTable fileContentTable,
             FileStream contentStream,
             bool? strict = default, 

@@ -34,8 +34,10 @@ BuildXL is very strict when it comes to declare dependencies on other artifacts 
 
 Missing dependencies will usually manifest as a dependency violation error, indicating what a pip produced a file consumed by another pip in an undeclared manner. The fix is usually about adding the missing dependency in the corresponding ```package.json```.
 
+You can try running the [JavaScript dependency fixer](../Advanced-Features/Javascript-dependency-fixer.md), an analyzer that will attempt to fix missing dependencies by observing the dependency violation errors coming from a previous build.
+
 ### Rewrites
-Rewrites are problematic since it is not clear whether a dependency on the file being rewritten is supposed to see the original or the rewritten version of it. With coordinators like Rush, it is not possible to statically specify rewrites, so BuildXL blocks rewrites coming from Rush. The recommendation is to refactor the code to avoid the rewrite, and instead produce a new file with the rewritten content, where now dependencies can decide to consume the original or the new file.
+We call a rewrite the case of a two different pips writing to the same file (regardless of whether those writes race or not). Rewrites are problematic since it is not clear whether a dependency on the file being rewritten is supposed to see the original or the rewritten version of it. With coordinators like Rush, it is not possible to statically specify rewrites, so BuildXL blocks rewrites coming from Rush. The recommendation is to refactor the code to avoid the rewrite, and instead produce a new file with the rewritten content, where now dependencies can decide to consume the original or the new file.
 
 There is however an escape hatch when rewrites occur. A file (or a directory scope) can be flagged as `untracked`. This means BuildXL will ignore the rewrite on that particular file/scope. It is worth noting this is an **unsafe** option. On one hand, it opens the door to non-deterministic builds, since consumers may get different versions of the file on each run. On the other hand, untracking a file will cause BuildXL to ignore changes on that file when deciding whether a pip needs to be re-run or it is safe to retrieve from the cache. So underbuilds are possible. Let's see an example:
 

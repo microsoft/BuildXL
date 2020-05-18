@@ -1672,7 +1672,9 @@ namespace BuildXL.Scheduler
                     break;
             }
 
-            if (isError)
+            // If the unsafe flag that turns violations errors into warnings 
+            // is enabled, we also want to log those.
+            if (isError || !m_unexpectedFileAccessesAsErrors)
             {
                 m_executionLog?.DependencyViolationReported(new DependencyViolationEventData
                 {

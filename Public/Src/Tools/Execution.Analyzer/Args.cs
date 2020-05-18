@@ -348,6 +348,9 @@ namespace BuildXL.Execution.Analyzer
                     ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
                     m_analyzer = InitializeDebugLogsAnalyzer();
                     break;
+                case AnalysisMode.JavaScriptDependencyFixer:
+                    m_analyzer = JavaScriptDependencyFixerAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -644,6 +647,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteXLGToDBHelp(writer);
+
+            writer.WriteLine("");
+            WriteJavaScriptDependencyFixerHelp(writer);
         }
 
         public void LogEventSummary()

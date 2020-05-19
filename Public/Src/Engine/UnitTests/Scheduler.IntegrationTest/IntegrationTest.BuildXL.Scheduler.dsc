@@ -16,22 +16,7 @@ namespace Scheduler.IntegrationTest {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: true
             },
-            parallelGroups: [
-                "AllowedUndeclaredReadsTests",
-                "BaselineTests",
-                "FileAccessPolicyTests",
-                "IncrementalSchedulingTests",
-                "LazyMaterializationTests",
-                "NonStandardOptionsTests",
-                "OpaqueDirectoryTests",
-                "PreserveOutputsTests",
-                "PreserveOutputsReuseOutputsTests",
-                "PreserveOutputsReuseIncSchedTests",
-                "PreserveOutputsIncSchedTests",
-                "SharedOpaqueDirectoryTests",
-                "StoreNoOutputsToCacheTests",
-                "WhitelistTests"
-            ]
+            parallelBucketCount: 30
         },
         references: [
             Scheduler.dll,

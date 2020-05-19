@@ -42,31 +42,28 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        protected override async Task<PutResult> PutStreamCoreAsync(
+        protected override Task<PutResult> PutStreamCoreAsync(
             OperationContext operationContext, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            // We need a seekable stream, that can give its length. If the input stream is seekable, we can use it directly.
-            // Otherwise, we need to create a temp file for this purpose.
-            var putStream = stream;
-            Stream disposableStream = null;
-            if (!stream.CanSeek)
-            {
-                putStream = TempFileStreamFactory.Create(operationContext, stream);
-                disposableStream = putStream;
-            }
-
-            using (disposableStream)
-            {
-                return await PerformRetries(
-                    operationContext,
-                    () => RpcClient.PutStreamAsync(operationContext, hashType, putStream),
-                    retryCounter: retryCounter);
-            }
+            return PutStreamCoreAsync(
+                operationContext,
+                stream,
+                retryCounter,
+                args => RpcClient.PutStreamAsync(operationContext, hashType, args.putStream, args.createDirectory));
         }
 
         /// <inheritdoc />
-        protected override async Task<PutResult> PutStreamCoreAsync(
+        protected override Task<PutResult> PutStreamCoreAsync(
             OperationContext operationContext, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
+        {
+            return PutStreamCoreAsync(
+                operationContext,
+                stream,
+                retryCounter,
+                args => RpcClient.PutStreamAsync(operationContext, contentHash, args.putStream, args.createDirectory));
+        }
+
+        private async Task<PutResult> PutStreamCoreAsync(OperationContext operationContext, Stream stream, Counter retryCounter, Func<(Stream putStream, bool createDirectory), Task<PutResult>> putStreamAsync)
         {
             // We need a seekable stream, that can give its length. If the input stream is seekable, we can use it directly.
             // Otherwise, we need to create a temp file for this purpose.
@@ -78,11 +75,13 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 disposableStream = putStream;
             }
 
+            bool createDirectory = false;
             using (disposableStream)
             {
                 return await PerformRetries(
                     operationContext,
-                    () => RpcClient.PutStreamAsync(operationContext, contentHash, putStream),
+                    () => putStreamAsync((putStream, createDirectory)),
+                    onRetry: r => createDirectory = true,
                     retryCounter: retryCounter);
             }
         }

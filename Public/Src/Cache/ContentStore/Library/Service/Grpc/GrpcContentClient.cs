@@ -362,22 +362,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <inheritdoc />
-        public Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream)
+        public Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream, bool createDirectory)
         {
             return PutStreamInternalAsync(
                 context,
                 stream,
                 contentHash,
+                createDirectory: createDirectory,
                 (sessionContext, tempFile) => PutFileAsync(sessionContext, contentHash, tempFile, FileRealizationMode.HardLink));
         }
 
         /// <inheritdoc />
-        public Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream)
+        public Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream, bool createDirectory)
         {
             return PutStreamInternalAsync(
                 context,
                 stream,
                 new ContentHash(hashType),
+                createDirectory: createDirectory,
                 (sessionContext, tempFile) => PutFileAsync(sessionContext, hashType, tempFile, FileRealizationMode.HardLink));
         }
 
@@ -436,7 +438,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private async Task<PutResult> PutStreamInternalAsync(Context context, Stream stream, ContentHash contentHash, Func<SessionContext, AbsolutePath, Task<PutResult>> putFileFunc)
+        private async Task<PutResult> PutStreamInternalAsync(Context context, Stream stream, ContentHash contentHash, bool createDirectory, Func<SessionContext, AbsolutePath, Task<PutResult>> putFileFunc)
         {
             var sessionContextResult = await CreateSessionContextAsync(context);
             if (!sessionContextResult)
@@ -451,6 +453,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (stream.CanSeek)
                 {
                     stream.Position = 0;
+                }
+
+                if (createDirectory)
+                {
+                    var parentDirectory = tempFile.Parent;
+                    if (!FileSystem.DirectoryExists(parentDirectory))
+                    {
+                        FileSystem.CreateDirectory(parentDirectory);
+                    }
                 }
 
                 using (var fileStream = await FileSystem.OpenAsync(tempFile, FileAccess.Write, FileMode.Create, FileShare.Delete))

@@ -58,12 +58,12 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream);
+        Task<PutResult> PutStreamAsync(Context context, HashType hashType, Stream stream, bool createDirectory);
 
         /// <summary>
         /// Add content from a stream.
         /// </summary>
-        Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream);
+        Task<PutResult> PutStreamAsync(Context context, ContentHash contentHash, Stream stream, bool createDirectory);
 
         /// <summary>
         /// Add content from a file.

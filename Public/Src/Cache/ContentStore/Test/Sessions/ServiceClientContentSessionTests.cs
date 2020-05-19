@@ -414,5 +414,29 @@ namespace ContentStoreTest.Sessions
                 }
             }
         }
+
+        [Fact]
+        public Task PutStreamRecreatesDirectory()
+        {
+            return RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+            {
+                var firstPut = await session.PutRandomAsync(context, ContentHashType, provideHash: false, size: 100, Token).ShouldBeSuccess();
+
+                var s = await session.OpenStreamAsync(context, firstPut.ContentHash, Token).ShouldBeSuccess();
+
+                if (s.Stream is FileStream fs)
+                {
+                    var path = fs.Name;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        var directory = new AbsolutePath(path).Parent;
+                        fs.Dispose();
+                        FileSystem.DeleteDirectory(directory, DeleteOptions.All);
+                    }
+
+                    await session.PutRandomAsync(context, ContentHashType, provideHash: false, size: 100, Token).ShouldBeSuccess();
+                }
+            });
+        }
     }
 }

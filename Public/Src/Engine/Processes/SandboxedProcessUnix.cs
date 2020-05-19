@@ -122,6 +122,37 @@ namespace BuildXL.Processes
         /// </summary>
         internal const string ShellExecutable = "/bin/sh";
 
+        /// <summary>
+        /// Optional directory where root jail should be established.
+        /// </summary>
+        internal string RootJail { get; }
+
+        /// <summary>
+        /// If <see cref="RootJail"/> is set:
+        ///    if <paramref name="path"/> is relative to <see cref="RootJail"/> returns an absolute path which
+        ///    when accessed from the root jail resolves to path at location <paramref name="path"/>; otherwise throws.
+        ///
+        /// If <see cref="RootJail"/> is null:
+        ///    returns <paramref name="path"/>
+        /// </summary>
+        internal string ToPathInsideRootJail(string path)
+        {
+            if (RootJail == null)
+            {
+                return path;
+            }
+
+            if (!path.StartsWith(RootJail))
+            {
+                ThrowBuildXLException($"Path '{path}' is not relative to root jail: '{RootJail}'");
+            }
+
+            var jailRelativePath = path.Substring(RootJail.Length);
+            return jailRelativePath[0] == '/'
+                ? jailRelativePath
+                : "/" + jailRelativePath;
+        }
+
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info, bool ignoreReportedAccesses = false, bool? overrideMeasureTime = null)
             : base(info)
@@ -136,6 +167,7 @@ namespace BuildXL.Processes
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
+            RootJail = info.RootJail;
 
             MeasureCpuTime = overrideMeasureTime.HasValue
                 ? overrideMeasureTime.Value
@@ -423,25 +455,39 @@ namespace BuildXL.Processes
 
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
-            string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
-            string escapedArguments     = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
-
-            string env = string.Empty;            
-            string line = I($"exec {info.FileName} {escapedArguments} {redirectedStdin}");
+            string redirectedStdin = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
+            string escapedArguments = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string cmdLine = $"{info.FileName} {escapedArguments} {redirectedStdin}";
 
             LogProcessState("Feeding stdin");
 
+            var lines = new List<string>();
+
+            if (info.RootJail != null)
+            {
+                lines.Add($"sudo chroot --userspec=$(id -u):$(id -g) {info.RootJail} {ShellExecutable}");
+                lines.Add($"cd \"{info.WorkingDirectory}\"");
+            }
+
             if (info.SandboxConnection.Kind == SandboxKind.MacOsHybrid || info.SandboxConnection.Kind == SandboxKind.MacOsDetours)
             {
-                await Process.StandardInput.WriteLineAsync($"export {DetoursEnvVar}={DetoursFile}");
+                lines.Add($"export {DetoursEnvVar}={DetoursFile}");
             }
 
             foreach (var envKvp in info.SandboxConnection.AdditionalEnvVarsToSet(info.FileAccessManifest.PipId))
             {
-                await Process.StandardInput.WriteLineAsync($"export {envKvp.Item1}={envKvp.Item2}");
+                lines.Add($"export {envKvp.Item1}={envKvp.Item2}");
             }
 
-            await Process.StandardInput.WriteLineAsync(line);
+            lines.Add($"exec {cmdLine}");
+
+            foreach (string line in lines)
+            {
+                await Process.StandardInput.WriteLineAsync(line);
+            }
+
+            LogDebug("Done feeding stdin:" + Environment.NewLine + string.Join(Environment.NewLine, lines));
+
             Process.StandardInput.Close();
         }
 

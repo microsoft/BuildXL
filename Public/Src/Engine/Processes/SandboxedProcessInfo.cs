@@ -256,6 +256,11 @@ namespace BuildXL.Processes
         public string WorkingDirectory { get; set; }
 
         /// <summary>
+        /// Root jail directory (can be null)
+        /// </summary>
+        public string RootJail { get; set; }
+
+        /// <summary>
         /// Environment variables (can be null)
         /// </summary>
         public IBuildParameters EnvironmentVariables { get; set; }
@@ -450,6 +455,7 @@ namespace BuildXL.Processes
                 writer.Write(StandardOutputEncoding, (w, v) => w.Write(v));
                 writer.Write(StandardErrorEncoding, (w, v) => w.Write(v));
                 writer.WriteNullableString(WorkingDirectory);
+                writer.WriteNullableString(RootJail);
                 writer.Write(
                     EnvironmentVariables,
                     (w, v) => w.WriteReadOnlyList(
@@ -513,6 +519,7 @@ namespace BuildXL.Processes
                 Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 string workingDirectory = reader.ReadNullableString();
+                string chrootDirectory = reader.ReadNullableString();
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
                 if (envVars != null)
@@ -556,6 +563,7 @@ namespace BuildXL.Processes
                     StandardOutputEncoding = standardOutputEncoding,
                     StandardErrorEncoding = standardErrorEncoding,
                     WorkingDirectory = workingDirectory,
+                    RootJail = chrootDirectory,
                     EnvironmentVariables = buildParameters,
                     AllowedSurvivingChildProcessNames = allowedSurvivingChildNames,
                     MaxLengthInMemory = maxLengthInMemory,

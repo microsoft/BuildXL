@@ -73,8 +73,7 @@ namespace BuildXL.Processes
             internal string ReportsFifoPath { get; }
             internal string FamPath { get; }
 
-            internal static string GetDebugLogPath(string famPath) => Path.ChangeExtension(famPath, ".log");
-            internal string DebugLogPath => GetDebugLogPath(FamPath);
+            internal string DebugLogJailPath { get; }
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
@@ -82,12 +81,13 @@ namespace BuildXL.Processes
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Thread m_workerThread;
 
-            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath)
+            internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, string debugLogPath)
             {
                 m_failureCallback = failureCallback;
                 Process = process;
                 ReportsFifoPath = reportsFifoPath;
                 FamPath = famPath;
+                DebugLogJailPath = debugLogPath;
 
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
                 m_activeProcesses = new HashSet<int>
@@ -406,13 +406,24 @@ namespace BuildXL.Processes
 
             // TODO: the ROOT_PID env var is a temporary solution for breakway processes
             yield return ("__BUILDXL_ROOT_PID", info.Process.ProcessId.ToString());
-            yield return ("__BUILDXL_FAM_PATH", info.FamPath);
-            yield return ("LD_PRELOAD", DetoursLibFile);
-            if (IsInTestMode)
+            yield return ("__BUILDXL_FAM_PATH", info.Process.ToPathInsideRootJail(info.FamPath));
+            if (info.DebugLogJailPath != null)
             {
-                info.LogDebug("Setting sandbox debug log path to: " + info.DebugLogPath);
-                yield return ("__BUILDXL_LOG_PATH", info.DebugLogPath);
+                yield return ("__BUILDXL_LOG_PATH", info.DebugLogJailPath);
             }
+            yield return ("LD_PRELOAD", CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile) + ":$LD_PRELOAD");
+        }
+
+        private static string CopyToRootJailIfNeeded(string rootJailDir, string file)
+        {
+            if (rootJailDir == null)
+            {
+                return file;
+            }
+
+            var basename = Path.GetFileName(file);
+            File.Copy(file, Path.Combine(rootJailDir, basename));
+            return "/" + basename;
         }
 
         /// <inheritdoc />
@@ -421,12 +432,14 @@ namespace BuildXL.Processes
             Contract.Requires(process.Started);
             Contract.Requires(process.PipId != 0);
 
-            string fifoPath = $"{FileUtilities.GetTempPath()}.Pip{process.PipSemiStableHash:X}.{process.ProcessId}.fifo";
+            string rootDir = process.RootJail ?? Path.GetTempPath();
+            string fifoPath = Path.Combine(rootDir, $"bxl_Pip{process.PipSemiStableHash:X}.{process.ProcessId}.fifo");
             string famPath = Path.ChangeExtension(fifoPath, ".fam");
-
+            string debugLogPath = null;
             if (IsInTestMode)
             {
-                fam.AddPath(toAbsPath(Info.GetDebugLogPath(famPath)), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
+                debugLogPath = process.ToPathInsideRootJail(Path.ChangeExtension(fifoPath, ".log"));
+                fam.AddPath(toAbsPath(debugLogPath), mask: FileAccessPolicy.MaskAll, values: FileAccessPolicy.AllowAll);
             }
 
             // serialize FAM
@@ -435,7 +448,7 @@ namespace BuildXL.Processes
                 var debugFlags = true;
                 ArraySegment<byte> manifestBytes = fam.GetPayloadBytes(
                     loggingContext,
-                    new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = fifoPath },
+                    new FileAccessSetup { DllNameX64 = string.Empty, DllNameX86 = string.Empty, ReportPath = process.ToPathInsideRootJail(fifoPath) },
                     wrapper.Instance,
                     timeoutMins: 10, // don't care
                     debugFlagsMatch: ref debugFlags);
@@ -456,7 +469,7 @@ namespace BuildXL.Processes
             process.LogDebug($"Created FIFO at '{fifoPath}'");
 
             // create and save info for this pip
-            var info = new Info(m_failureCallback, process, fifoPath, famPath);
+            var info = new Info(m_failureCallback, process, fifoPath, famPath, debugLogPath);
             if (!m_pipProcesses.TryAdd(process.PipId, info))
             {
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");

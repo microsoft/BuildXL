@@ -215,6 +215,9 @@ namespace BuildXL.FrontEnd.Rush
                 processBuilder.AddInputFile(FileArtifact.CreateSourceFile(sourceFile));
             }
 
+            // Add package.json, which should always be present at the root of the project
+            processBuilder.AddInputFile(FileArtifact.CreateSourceFile(project.ProjectPath(PathTable)));
+
             // In this case all the transitive closure is automatically exposed to the project as direct references. This is standard for
             // JavaScript projects.
             var transitiveReferences = new HashSet<RushProject>();

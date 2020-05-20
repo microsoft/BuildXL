@@ -27,6 +27,26 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
+        public async Task CopyFileAsyncShouldOverrideContentWhenReplaceExistingFlagIsPassed()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem))
+            {
+                var sourcePath = testDirectory.Path / "source.txt";
+                var destinationPath = testDirectory.Path / "destination.txt";
+                string sourceContent = "Short text";
+                string defaultDestinationContent = sourceContent + ". Some extra stuff.";
+
+                FileSystem.WriteAllText(sourcePath, sourceContent);
+                FileSystem.WriteAllText(destinationPath, defaultDestinationContent);
+
+                // CopyFileAsync should truncate the existing content.
+                await FileSystem.CopyFileAsync(sourcePath, destinationPath, true);
+                var destinationContent = FileSystem.ReadAllText(destinationPath);
+                Assert.Equal(sourceContent + Environment.NewLine, destinationContent);
+            }
+        }
+
+        [Fact]
         public async Task DoNotFailWithFileNotFoundExceptionWhenTheFileIsDeletedDuringOpenAsyncCall()
         {
             // There was a race condition in PassThroughFileSystem.OpenAsync implementation

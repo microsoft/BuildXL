@@ -439,7 +439,9 @@ namespace BuildXL.Cache.ContentStore.FileSystem
 
                 CreateDirectory(destinationPath.Parent);
 
-                var mode = replaceExisting ? FileMode.OpenOrCreate : FileMode.CreateNew;
+                // If asked to replace the file Create mode must be use to truncate the content of the file
+                // if the target file larger than the source.
+                var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
 
                 using (var writeStream = TryOpenFile(
                     destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))

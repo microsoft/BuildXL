@@ -147,6 +147,12 @@ namespace BuildXL.Utilities
                 ThrowBuildXLException($"Process creation failed: File '{Process.StartInfo.FileName}' not found", new Win32Exception(0x2));
             }
 
+            if (!string.IsNullOrWhiteSpace(Process.StartInfo.WorkingDirectory) &&
+                !System.IO.Directory.Exists(Process.StartInfo.WorkingDirectory))
+            {
+                System.IO.Directory.CreateDirectory(Process.StartInfo.WorkingDirectory);
+            }
+
             try
             {
                 Process.Start();

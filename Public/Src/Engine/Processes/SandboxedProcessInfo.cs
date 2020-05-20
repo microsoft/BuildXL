@@ -258,6 +258,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// Root jail directory (can be null)
         /// </summary>
+        /// <remarks>
+        /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
+        /// </remarks>
         public string RootJail { get; set; }
 
         /// <summary>

@@ -243,6 +243,10 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = ShellExecutable;
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
+            if (RootJail != null)
+            {
+                process.StartInfo.WorkingDirectory = Path.Combine(RootJail, info.WorkingDirectory);
+            }
 
             return process;
         }
@@ -455,7 +459,7 @@ namespace BuildXL.Processes
 
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
-            string redirectedStdin = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
+            string redirectedStdin = processStdinFileName != null ? $" < {ToPathInsideRootJail(processStdinFileName)}" : string.Empty;
             string escapedArguments = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
             string cmdLine = $"{info.FileName} {escapedArguments} {redirectedStdin}";
 
@@ -465,7 +469,7 @@ namespace BuildXL.Processes
 
             if (info.RootJail != null)
             {
-                lines.Add($"sudo chroot --userspec=$(id -u):$(id -g) {info.RootJail} {ShellExecutable}");
+                lines.Add($"sudo chroot --userspec=$(id -u):$(id -g) \"{info.RootJail}\" {ShellExecutable}");
                 lines.Add($"cd \"{info.WorkingDirectory}\"");
             }
 

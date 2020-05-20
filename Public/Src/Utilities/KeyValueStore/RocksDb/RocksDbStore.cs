@@ -296,7 +296,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // means its optimized for not having a key.
                     .SetFilterPolicy(BloomFilterPolicy.Create(10, false))
                     // Use a hash index in SST files to speed up point lookup.
-                    .SetIndexType(BlockBasedTableIndexType.HashSearch)
+                    .SetIndexType(BlockBasedTableIndexType.Hash)
                     // Whether to use the whole key or a prefix of it (obtained through the prefix extractor below).
                     // Since the prefix extractor is a no-op, better performance is achieved by turning this off (i.e.
                     // setting it to true).
@@ -306,7 +306,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 #if PLATFORM_OSX
                     // As advised by the official documentation, LZ4 is the preferred compression algorithm, our RocksDB
                     // dynamic library has been compiled to support this on macOS. Fallback to Snappy on other systems (default).
-                    .SetCompression(CompressionTypeEnum.rocksdb_lz4_compression)
+                    .SetCompression(Compression.Lz4)
 #endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());
@@ -950,7 +950,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
 
                 // We need to use the instance directly because RocksDbSharp does not handle the case where full range compaction is desired.
-                RocksDbSharp.Native.Instance.rocksdb_compact_range_cf(m_store.Handle, columnFamilyInfo.Handle.Handle, start, start?.GetLongLength(0) ?? 0, limit, limit?.GetLongLength(0) ?? 0);
+                RocksDbSharp.Native.Instance.rocksdb_compact_range_cf(
+                    db: m_store.Handle, 
+                    column_family: columnFamilyInfo.Handle.Handle, 
+                    start_key: start, 
+                    start_key_len: new UIntPtr((ulong)(start?.GetLongLength(0) ?? 0)), 
+                    limit_key: limit, 
+                    limit_key_len: new UIntPtr((ulong)(limit?.GetLongLength(0) ?? 0)));
             }
         } // RocksDbStore
     } // KeyValueStoreAccessor

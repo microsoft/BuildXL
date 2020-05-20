@@ -19,6 +19,11 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     public abstract class StartupShutdownSlimBase : IStartupShutdownSlim
     {
+        // Tracking instance id to simplify debugging of double shutdown issues.
+        private static int CurrentInstanceId;
+        private static int GetCurrentInstanceId() => Interlocked.Increment(ref CurrentInstanceId);
+        private readonly int _instanceId = GetCurrentInstanceId();
+
         private readonly CancellationTokenSource _shutdownStartedCancellationTokenSource = new CancellationTokenSource();
 
         /// <nodoc />
@@ -87,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     var result = await operationContext.PerformInitializationAsync(
                         Tracer,
                         () => StartupCoreAsync(operationContext),
-                        endMessageFactory: ExtraStartupMessageFactory);
+                        endMessageFactory: r => $"Id={_instanceId}." + ExtraStartupMessageFactory?.Invoke(r));
                     StartupCompleted = true;
 
                     return result;
@@ -108,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 }
             }
 
-            Contract.Check(!ShutdownStarted)?.Assert($"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on this instance.");
+            Contract.Check(!ShutdownStarted)?.Assert($"Cannot shut down '{Tracer.Name}' because ShutdownAsync method was already called on the instance with Id={_instanceId}.");
             TriggerShutdownStarted();
 
             if (ShutdownCompleted)
@@ -119,7 +124,8 @@ namespace BuildXL.Cache.ContentStore.Utils
             var operationContext = new OperationContext(context);
             var result = await operationContext.PerformOperationAsync(
                 Tracer,
-                () => ShutdownCoreAsync(operationContext));
+                () => ShutdownCoreAsync(operationContext),
+                extraEndMessage: r => $"Id={_instanceId}.");
             ShutdownCompleted = true;
 
             return result;

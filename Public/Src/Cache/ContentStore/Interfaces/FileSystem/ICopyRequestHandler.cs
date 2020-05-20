@@ -21,7 +21,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         /// <param name="context">The context of the operation</param>
         /// <param name="hash">The hash of the file to be copied.</param>
-        Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash);
+        /// <param name="token">A cancellation token</param>
+        Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token);
     }
 
     /// <summary>

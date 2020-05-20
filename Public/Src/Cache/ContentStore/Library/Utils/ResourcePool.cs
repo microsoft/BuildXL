@@ -141,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     {
                         _resourceDict.Remove(kvp.Key);
 
-                        // Cannot await within a lock
+                        // Shutting down all the resources in parallel
                         shutdownTasks.Add(resourceValue.ShutdownAsync(_context));
                         amountRemoved++;
                     }
@@ -154,19 +154,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     return;
                 }
 
-                var allTasks = Task.WhenAll(shutdownTasksArray);
-                try
-                {
-                    await allTasks;
-                }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-                catch (Exception)
-                {
-                    // If Task.WhenAll throws in an await, it unwraps the AggregateException and only
-                    // throws the first inner exception. We want to see all failed shutdowns.
-                    _tracer.Error(_context, $"Shutdown of unused resource failed after removal from resource cache. {allTasks.Exception}");
-                }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                await ShutdownGrpcClientsAsync(shutdownTasksArray);
 
                 Counter[ResourcePoolCounters.Cleaned].Add(shutdownTasks.Count);
 
@@ -196,28 +184,27 @@ namespace BuildXL.Cache.ContentStore.Utils
                 throw new InvalidOperationException("No one should be holding the lock on Dispose");
             }
 
-            var taskList = new List<Task>();
-            foreach (var resourceKvp in _resourceDict)
-            {
-                // Check boolresult.
-                taskList.Add(resourceKvp.Value.Value.ShutdownAsync(_context));
-            }
+            var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).ToArray();
+            ShutdownGrpcClientsAsync(shutdownTasks).GetAwaiter().GetResult();
 
-            var allTasks = Task.WhenAll(taskList.ToArray());
+            _semaphore.Dispose();
+        }
+
+        private async Task ShutdownGrpcClientsAsync(Task<BoolResult>[] shutdownTasks)
+        {
+            var allTasks = Task.WhenAll(shutdownTasks);
             try
             {
-                allTasks.GetAwaiter().GetResult();
+                // If the shutdown failed with unsuccessful BoolResult, then the result is already traced. No need to any extra steps.
+                await allTasks;
             }
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch (Exception)
+            catch (Exception e)
             {
+                new ErrorResult(e).IgnoreFailure();
                 // If Task.WhenAll throws in an await, it unwraps the AggregateException and only
                 // throws the first inner exception. We want to see all failed shutdowns.
-                _tracer.Error(_context, $"Shutdown of unused resources failed after removal from resource cache. {allTasks.Exception}");
+                _tracer.Error(_context, $"Shutdown of unused resource failed after removal from resource cache. {allTasks.Exception}");
             }
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-            
-            _semaphore.Dispose();
         }
     }
 }

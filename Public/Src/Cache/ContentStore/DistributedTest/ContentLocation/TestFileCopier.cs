@@ -119,7 +119,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
-            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
+            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);
         }
 
         public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source, MachineLocation targetMachine)

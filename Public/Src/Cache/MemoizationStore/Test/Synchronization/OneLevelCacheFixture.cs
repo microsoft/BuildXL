@@ -145,6 +145,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
             public BoolResult StartupAsyncResult { get; set; } = BoolResult.Success;
             public BoolResult ShutdownAsyncResult { get; set; } = BoolResult.Success;
 
+            public override bool StartupCompleted => true;
+
             protected override Tracer Tracer { get; } = new Tracer("mock");
 
             protected override Task<BoolResult> StartupCoreAsync(OperationContext context) => Task.FromResult(StartupAsyncResult);

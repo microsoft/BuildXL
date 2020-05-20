@@ -24,13 +24,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     {
         private readonly IContentSession _contentSession;
 
-        public bool StartupCompleted => throw new NotImplementedException();
+        public bool StartupCompleted => true;
 
-        public bool StartupStarted => throw new NotImplementedException();
+        public bool StartupStarted => true;
 
-        public bool ShutdownCompleted => throw new NotImplementedException();
+        public bool ShutdownCompleted => false;
 
-        public bool ShutdownStarted => throw new NotImplementedException();
+        public bool ShutdownStarted => false;
 
         public TestContentStore(IContentSession testContentSession)
         {
@@ -166,13 +166,13 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
     {
         private readonly IMemoizationSession _memoizationSession;
 
-        public bool StartupCompleted => throw new NotImplementedException();
+        public bool StartupCompleted => true;
 
-        public bool StartupStarted => throw new NotImplementedException();
+        public bool StartupStarted => true;
 
-        public bool ShutdownCompleted => throw new NotImplementedException();
+        public bool ShutdownCompleted => false;
 
-        public bool ShutdownStarted => throw new NotImplementedException();
+        public bool ShutdownStarted => false;
 
         public TestMemoizationStore(IMemoizationSession iMemoizationSession)
         {

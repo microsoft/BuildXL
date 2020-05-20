@@ -535,7 +535,8 @@ namespace BuildXL.Cache.ContentStore.Service
             _logIncrementalStatsTimer?.Dispose();
             _logMachineStatsTimer?.Dispose();
 
-            if (Tracer.EnableTraceStatisticsAtShutdown)
+            // Don't trace statistics if configured and only if startup was successful.
+            if (Tracer.EnableTraceStatisticsAtShutdown && StartupCompleted)
             {
                 await LogIncrementalStatsAsync(context);
             }
@@ -618,7 +619,7 @@ namespace BuildXL.Cache.ContentStore.Service
         private async Task<BoolResult> ShutdownStoresAsync(Context context)
         {
             var tasks = new List<Task<BoolResult>>(StoresByName.Count);
-            tasks.AddRange(StoresByName.Select(kvp => kvp.Value.ShutdownAsync(context)));
+            tasks.AddRange(StoresByName.Select(kvp => kvp.Value.ShutdownIfStartedAsync(context)));
             await TaskSafetyHelpers.WhenAll(tasks);
 
             var result = BoolResult.Success;

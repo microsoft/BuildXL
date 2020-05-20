@@ -126,11 +126,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             await LogStatsAsync(context);
 
-            var contentStoreTask = IfNotNull(ContentStore, store => Task.Run(() => store.ShutdownAsync(context)));
+            var contentStoreTask = IfNotNull(ContentStore, store => Task.Run(() => store.ShutdownIfStartedAsync(context)));
 
             // This code potentially may cause unobserved task exception, but this is possible only when the callback
             // provided into Task.Run fails (like with NRE). But this should not be happening (anymore at least).
-            var memoizationStoreResult = await IfNotNull(MemoizationStore, store => store.ShutdownAsync(context)).ConfigureAwait(false);
+            var memoizationStoreResult = await IfNotNull(MemoizationStore, store => store.ShutdownIfStartedAsync(context)).ConfigureAwait(false);
             var contentStoreResult = await contentStoreTask.ConfigureAwait(false);
 
             BoolResult result;
@@ -326,11 +326,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
+        public async Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash, CancellationToken token)
         {
             if (ContentStore is ICopyRequestHandler innerCopyStore)
             {
-                return await innerCopyStore.HandleCopyFileRequestAsync(context, hash);
+                return await innerCopyStore.HandleCopyFileRequestAsync(context, hash, token);
             }
 
             return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");

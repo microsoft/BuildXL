@@ -222,7 +222,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             public int CopyAttempts = 0;
 #pragma warning disable 649
-            public CopyFileResult CopyToAsyncResult;
+            public CopyFileResult CopyToAsyncResult = CopyFileResult.Success;
 #pragma warning restore 649
             public CopyFileResult[] CustomResults;
 

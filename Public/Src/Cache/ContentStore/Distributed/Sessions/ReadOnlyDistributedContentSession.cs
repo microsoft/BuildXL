@@ -1257,7 +1257,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
                         if (streamResult.Succeeded)
                         {
-                            return streamResult.Stream;
+                            return streamResult.Stream!;
                         }
 
                         return new Result<Stream>(streamResult);

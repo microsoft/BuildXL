@@ -144,7 +144,15 @@ namespace ContentStoreTest.Distributed.Sessions
 
             protected virtual async Task ShutdownStoresAsync()
             {
-                await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) => await server.ShutdownAsync(StoreContexts[index])));
+                await TaskSafetyHelpers.WhenAll(
+                    Servers.Select(
+                        async (server, index) =>
+                        {
+                            if (!server.ShutdownCompleted)
+                            {
+                                await server.ShutdownAsync(StoreContexts[index]).ThrowIfFailure();
+                            }
+                        }));
 
                 foreach (var server in Servers)
                 {

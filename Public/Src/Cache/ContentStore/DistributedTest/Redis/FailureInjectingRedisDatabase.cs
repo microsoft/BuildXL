@@ -60,7 +60,7 @@ namespace ContentStoreTest.Distributed.Redis
                 }
                 else
                 {
-                    throw new InvalidOperationException("Unknown exception has occurred.");
+                    throw new InvalidOperationException($"Unknown exception has occurred. Calls={Calls}, FailingQuery={FailingQuery}, _fail={_fail}.");
                 }
             }
         }

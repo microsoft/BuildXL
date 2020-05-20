@@ -10,15 +10,17 @@ using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using StackExchange.Redis;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Redis
 {
-    public class RedisDatabaseAdapterTests
+    public class RedisDatabaseAdapterTests : TestWithOutput
     {
         private const string DefaultKeySpace = ContentLocationStoreFactory.DefaultKeySpace;
 
@@ -27,6 +29,11 @@ namespace ContentStoreTest.Distributed.Redis
             { GetKey("first"), "one" },
             { GetKey("second"), "two" },
         };
+
+        public RedisDatabaseAdapterTests(ITestOutputHelper output)
+            : base(output)
+        {
+        }
 
         [Fact]
         public async Task ExecuteBatchOperationRetriesOnRedisExceptions()

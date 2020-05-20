@@ -755,7 +755,9 @@ namespace ContentStoreTest.Distributed.Sessions
             PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
-            var storeCount = 2;
+            // Using 3 stores to avoid the flakiness.
+            // With 2 stores its possible that the proactive copy will fail because the right target won't be found.
+            var storeCount = 3;
 
             ConfigureWithOneMaster(dcs =>
             {
@@ -3852,6 +3854,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterSession = sessions[context.GetMasterIndex()];
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
                     var master = context.GetMaster();
+                    var workerIndex = context.GetFirstWorkerIndex();
                     var worker = context.GetFirstWorker();
 
                     var ctx = new OperationContext(context);
@@ -3864,7 +3867,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // Ensure safe shutdown
                     await workerSession.ShutdownAsync(ctx).ShouldBeSuccess();
-                    await worker.ShutdownAsync(ctx).ShouldBeSuccess();
+                    // Shutting down the entire store to avoid issue with double shut down.
+                    await context.Servers[workerIndex].ShutdownAsync(ctx).ShouldBeSuccess();
 
                     // Reload cluster state from Redis
                     await master.LocalLocationStore.HeartbeatAsync(ctx, inline: true).ShouldBeSuccess();

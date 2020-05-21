@@ -4,10 +4,11 @@
 using System;
 using System.IO;
 using BuildXL;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Processes.Tracing;
 using BuildXL.ViewModel;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -29,32 +30,52 @@ namespace Test.BuildXL
                 m_eventFields = new PipProcessErrorEventFields(eventData.Payload, false);
             };
 
-            var testElements = CreatePipProcessErrorTestElement();
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.console, DateTime.Now, testElements.viewModel, false, null))
+            using (var testElements = PipProcessErrorTestElement.Create(this))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null))
             {
                 listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
-                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessError(LoggingContext,
-                    testElements.pipProcessError.PipSemiStableHash,
-                    testElements.pipProcessError.PipDescription,
-                    testElements.pipProcessError.PipSpecPath,
-                    testElements.pipProcessError.PipWorkingDirectory,
-                    testElements.pipProcessError.PipExe,
-                    testElements.pipProcessError.OutputToLog,
-                    testElements.pipProcessError.MessageAboutPathsToLog,
-                    testElements.pipProcessError.PathsToLog,
-                    testElements.pipProcessError.ExitCode,
-                    testElements.pipProcessError.OptionalMessage,
-                    testElements.pipProcessError.ShortPipDescription);
-                testElements.console.ValidateCall(MessageLevel.Info, testElements.expectingConsoleLog);
-                XAssert.AreEqual(m_eventFields, testElements.pipProcessError, "You may edit the PipProcessError event fields, update the test and/or struct PipProcessErrorEventFields.");
+                testElements.LogPipProcessError();
+                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+                XAssert.AreEqual(m_eventFields, testElements.PipProcessError, "You may edit the PipProcessError event fields, update the test and/or struct PipProcessErrorEventFields.");
                 AssertErrorEventLogged(LogEventId.PipProcessError);
             }
         }
 
         [Fact]
+        public void ValidateErrorCap()
+        {
+            m_eventListener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+            m_eventListener.NestedLoggerHandler += eventData =>
+            {
+                m_eventFields = new PipProcessErrorEventFields(eventData.Payload, false);
+            };
+
+            using (var testElements = PipProcessErrorTestElement.Create(this))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null))
+            {
+                listener.RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+                listener.MaxIssuesToLog = 1;
+
+                // First log should go through as normal
+                testElements.LogPipProcessError();
+                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+
+                // Second will log the message about being truncated
+                testElements.LogPipProcessError();
+                testElements.Console.ValidateCall(MessageLevel.Info, "truncated");
+
+                // Third should result in no more messages logged
+                testElements.LogPipProcessError();
+                testElements.Console.ValidateNoCall();
+            }
+
+            // The TestEventListener is watching all errors, not the AzureDevOpsListener processed ones. Make sure it's cool with seeing 3 errors
+            AssertErrorEventLogged(LogEventId.PipProcessError, 3);
+        }
+
+        [Fact]
         public void ForwardedPipProcessErrorTest()
         {
-            var testElements = CreatePipProcessErrorTestElement();
             var eventName = "PipProcessError";
             var text = "Pip process error message";
             var pipSemiStableHash = (long)24;
@@ -65,7 +86,8 @@ namespace Test.BuildXL
                 m_eventFields = new PipProcessErrorEventFields(eventData.Payload, true);
             };
 
-            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.console, DateTime.Now, testElements.viewModel, false, null))
+            using (var testElements = PipProcessErrorTestElement.Create(this))
+            using (AzureDevOpsListener listener = new AzureDevOpsListener(Events.Log, testElements.Console, DateTime.Now, testElements.ViewModel, false, null))
             {
                 listener.RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionWorkerForwardedError(LoggingContext, new WorkerForwardedEvent()
@@ -74,40 +96,74 @@ namespace Test.BuildXL
                     EventName = eventName,
                     EventKeywords = 0,
                     Text = text,
-                    PipProcessErrorEvent = testElements.pipProcessError,
+                    PipProcessErrorEvent = testElements.PipProcessError,
                 });
-                testElements.console.ValidateCall(MessageLevel.Info, testElements.expectingConsoleLog);
-                XAssert.IsTrue(testElements.viewModel.BuildSummary.PipErrors.Exists(e => e.SemiStablePipId == $"Pip{(pipSemiStableHash):X16}"));
-                XAssert.AreEqual(m_eventFields, testElements.pipProcessError, "You may edit the PipProcessError and/or WorkerForwardedEvent fields, and/or struct PipProcessErrorEventFields.");
+                testElements.Console.ValidateCall(MessageLevel.Info, testElements.ExpectingConsoleLog);
+                XAssert.IsTrue(testElements.ViewModel.BuildSummary.PipErrors.Exists(e => e.SemiStablePipId == $"Pip{(pipSemiStableHash):X16}"));
+                XAssert.AreEqual(m_eventFields, testElements.PipProcessError, "You may edit the PipProcessError and/or WorkerForwardedEvent fields, and/or struct PipProcessErrorEventFields.");
                 AssertErrorEventLogged(SharedLogEventId.DistributionWorkerForwardedError);
             }
         }
 
-        private (PipProcessErrorEventFields pipProcessError, string expectingConsoleLog, MockConsole console, BuildViewModel viewModel) CreatePipProcessErrorTestElement()
+        /// <summary>
+        /// Encapsulates some boilerplate code shared by tests that require calls to log methods
+        /// </summary>
+        private class PipProcessErrorTestElement : IDisposable
         {
+            public PipProcessErrorEventFields PipProcessError;
+            public string ExpectingConsoleLog;
+            public MockConsole Console;
+            public BuildViewModel ViewModel;
+            private LoggingContext m_loggingContext;
 
-            var pipProcessError = new PipProcessErrorEventFields(
-                (long)24,
-                "my cool pip",
-                @"specs\mypip.dsc",
-                @"specs\workingDir",
-                "coolpip.exe",
-                "Failure message Line1\r\nFailure message Line2\rFailure message Line3\n",
-                "Find output file in following path:",
-                @"specs\workingDir\out.txt",
-                -1,
-                "what does this do?",
-                "my pip");
+            public static PipProcessErrorTestElement Create(BuildXLTestBase testBase)
+            {
+                var result = new PipProcessErrorTestElement();
+                var pipProcessError = new PipProcessErrorEventFields(
+                    (long)24,
+                    "my cool pip",
+                    @"specs\mypip.dsc",
+                    @"specs\workingDir",
+                    "coolpip.exe",
+                    "Failure message Line1\r\nFailure message Line2\rFailure message Line3\n",
+                    "Find output file in following path:",
+                    @"specs\workingDir\out.txt",
+                    -1,
+                    "what does this do?",
+                    "my pip");
 
-            var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
-            var expectingConsoleLog = @$"##vso[task.logIssue type=error;][Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
+                var processedOutputToLog = "Failure message Line1%0D%0A##[error]Failure message Line2%0D##[error]Failure message Line3%0A##[error]";
+                result.ExpectingConsoleLog = @$"##vso[task.logIssue type=error;][Pip0000000000000018, {pipProcessError.ShortPipDescription}, {pipProcessError.PipSpecPath}] - failed with exit code {pipProcessError.ExitCode}, {pipProcessError.OptionalMessage}%0D%0A##[error]{processedOutputToLog}%0D%0A##[error]{pipProcessError.MessageAboutPathsToLog}%0D%0A##[error]{pipProcessError.PathsToLog}";
+                result.PipProcessError = pipProcessError;
+                result.Console = new MockConsole();
+                result.ViewModel = new BuildViewModel();
+                var buildSummaryFilePath = Path.Combine(testBase.TestOutputDirectory, "test.md");
+                result.ViewModel.BuildSummary = new BuildSummary(buildSummaryFilePath);
+                result.m_loggingContext = testBase.LoggingContext;
 
-            var console = new MockConsole();
-            var viewModel = new BuildViewModel();
-            var buildSummaryFilePath = Path.Combine(TestOutputDirectory, "test.md");
-            viewModel.BuildSummary = new BuildSummary(buildSummaryFilePath);
+                return result;
+            }
 
-            return (pipProcessError, expectingConsoleLog, console, viewModel);
+            public void LogPipProcessError()
+            {
+                global::BuildXL.Processes.Tracing.Logger.Log.PipProcessError(m_loggingContext,
+                    PipProcessError.PipSemiStableHash,
+                    PipProcessError.PipDescription,
+                    PipProcessError.PipSpecPath,
+                    PipProcessError.PipWorkingDirectory,
+                    PipProcessError.PipExe,
+                    PipProcessError.OutputToLog,
+                    PipProcessError.MessageAboutPathsToLog,
+                    PipProcessError.PathsToLog,
+                    PipProcessError.ExitCode,
+                    PipProcessError.OptionalMessage,
+                    PipProcessError.ShortPipDescription);
+            }
+
+            public void Dispose()
+            {
+                Console.Dispose();
+            }
         }
 
         [Fact]

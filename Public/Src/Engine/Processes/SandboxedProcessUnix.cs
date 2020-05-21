@@ -245,7 +245,7 @@ namespace BuildXL.Processes
             process.StartInfo.RedirectStandardInput = true;
             if (RootJail != null)
             {
-                process.StartInfo.WorkingDirectory = Path.Combine(RootJail, info.WorkingDirectory);
+                process.StartInfo.WorkingDirectory = Path.Combine(RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
             }
 
             return process;

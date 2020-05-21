@@ -754,5 +754,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             rejectionReason = RejectionReason.Accepted;
             return true;
         }
+
+        /// <inheritdoc />
+        public Result<MachineLocation> GetMasterLocation()
+        {
+            if (!TryGetLocalLocationStore(out var lls))
+            {
+                return new Result<MachineLocation>(errorMessage: "LLS is not supported");
+            }
+
+            var master = lls.ClusterState.MasterMachineLocation;
+            if (!master.HasValue)
+            {
+                return new Result<MachineLocation>(errorMessage: "Master is unknown");
+            }
+
+            return master.Value;
+        }
     }
 }

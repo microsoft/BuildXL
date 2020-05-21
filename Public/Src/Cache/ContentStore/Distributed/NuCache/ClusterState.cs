@@ -82,6 +82,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool EnableBinManagerUpdates { get; set; }
 
         /// <nodoc />
+        public MachineLocation? MasterMachineLocation { get; set; } = null;
+
+        /// <nodoc />
         public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> allLocalMachineIds)
         {
             PrimaryMachineId = primaryMachineId;
@@ -285,6 +288,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)
         {
             BinManager ??= new BinManager(locationsPerBin, _idByLocationMap.Values, clock, expiryTime);
+        }
+
+        /// <nodoc />
+        internal void SetMasterMachine(MachineLocation producer)
+        {
+            MasterMachineLocation = producer;
         }
     }
 }

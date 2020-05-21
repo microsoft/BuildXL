@@ -28,7 +28,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool CheckpointAvailable => !string.IsNullOrEmpty(CheckpointId);
 
         /// <nodoc />
-        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime)
+        public MachineLocation Producer { get; }
+
+        /// <nodoc />
+        public CheckpointState(Role role, EventSequencePoint startSequencePoint, string checkpointId, DateTime checkpointTime, MachineLocation producer)
         {
             Contract.Requires(!string.IsNullOrEmpty(checkpointId));
 
@@ -36,6 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             StartSequencePoint = startSequencePoint;
             CheckpointId = checkpointId;
             CheckpointTime = checkpointTime;
+            Producer = producer;
         }
 
         /// <nodoc />

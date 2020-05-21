@@ -179,12 +179,39 @@ namespace ContentStoreTest.Distributed.Stores
             }
         }
 
+        [Fact]
+        public void DoesDeprioritizeMaster()
+        {
+            using (var directory = new DisposableDirectory(FileSystem))
+            {
+                var machineLocations = new MachineLocation[] { new MachineLocation("Master"), new MachineLocation("NotMaster1"), new MachineLocation("NotMaster2") };
+                var (distributedCopier, mockFileCopier) = CreateMocks(FileSystem, directory.Path, TimeSpan.FromMilliseconds(10), masterLocation: machineLocations[0]);                
+
+                var hash = ContentHash.Random();
+                var hashWithLocations = new ContentHashWithSizeAndLocations(
+                    hash,
+                    size: 99,
+                    machineLocations);
+
+                var result = DistributedContentCopier<AbsolutePath>.DeprioritizeMaster(distributedCopier, hashWithLocations);
+                result.ContentHash.Should().Be(hashWithLocations.ContentHash);
+                result.Size.Should().Be(hashWithLocations.Size);
+
+                var locs = result.Locations;
+                locs.Count.Should().Be(machineLocations.Length);
+                locs[0].Should().Be(machineLocations[1]);
+                locs[1].Should().Be(machineLocations[2]);
+                locs[2].Should().Be(machineLocations[0]);
+            }
+        }
+
         public static (TestDistributedContentCopier, MockFileCopier) CreateMocks(
             IAbsFileSystem fileSystem,
             AbsolutePath rootDirectory,
             TimeSpan retryInterval,
             int retries = 1,
-            MachineLocation[] designatedLocations = null)
+            MachineLocation[] designatedLocations = null,
+            MachineLocation? masterLocation = null)
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
@@ -202,7 +229,8 @@ namespace ContentStoreTest.Distributed.Stores
                 existenceChecker,
                 copyRequester: null,
                 new TestDistributedContentCopier.NoOpPathTransformer(rootDirectory),
-                designatedLocations);
+                designatedLocations,
+                masterLocation);
             return (contentCopier, mockFileCopier);
         }
 
@@ -252,6 +280,8 @@ namespace ContentStoreTest.Distributed.Stores
         public readonly NoOpPathTransformer PathTransformer;
         private readonly MachineLocation[] _designatedLocations;
 
+        private readonly MachineLocation? _masterLocation;
+
         public TestDistributedContentCopier(
             AbsolutePath workingDirectory,
             DistributedContentStoreSettings settings,
@@ -260,12 +290,14 @@ namespace ContentStoreTest.Distributed.Stores
             IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
             IContentCommunicationManager copyRequester,
             IPathTransformer<AbsolutePath> pathTransformer,
-            MachineLocation[] designatedLocations)
+            MachineLocation[] designatedLocations,
+            MachineLocation? masterLocation = null)
             : base(settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, TestSystemClock.Instance)
         {
             WorkingFolder = workingDirectory;
             PathTransformer = pathTransformer as NoOpPathTransformer;
             _designatedLocations = designatedLocations;
+            _masterLocation = masterLocation;
         }
 
         public AbsolutePath WorkingFolder { get; }
@@ -273,6 +305,16 @@ namespace ContentStoreTest.Distributed.Stores
         public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
         {
             return _designatedLocations;
+        }
+
+        public Result<MachineLocation> GetMasterLocation()
+        {
+            if (!_masterLocation.HasValue)
+            {
+                return new Result<MachineLocation>(errorMessage: "Master is unknown");
+            }
+
+            return _masterLocation.Value;
         }
 
         public void ReportReputation(MachineLocation location, MachineReputation reputation)

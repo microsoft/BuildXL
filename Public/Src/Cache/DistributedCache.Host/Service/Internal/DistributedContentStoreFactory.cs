@@ -312,6 +312,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                                                       EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                                                       LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
                                                       PrioritizeDesignatedLocationsOnCopies = distributedSettings.PrioritizeDesignatedLocationsOnCopies,
+                                                      DeprioritizeMasterOnCopies = distributedSettings.DeprioritizeMasterOnCopies,
                                                       RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                                                       CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
                                                       AreBlobsSupported = redisContentLocationStoreConfiguration.AreBlobsSupported,

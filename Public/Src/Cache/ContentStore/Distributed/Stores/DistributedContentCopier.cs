@@ -111,6 +111,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     Contract.Assert(hashInfo.Locations != null);
                 }
 
+                if (_settings.DeprioritizeMasterOnCopies)
+                {
+                    hashInfo = DeprioritizeMaster(host, hashInfo);
+                }
+
                 //DateTime defaults to 01/01/0001 when we initialize the array.
                 //This forloop initializes each element to the current time relative to the passed clock instance
                 //We use the time from a clock instance in case future tests try to simulate the progression of time.
@@ -147,6 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
+                    Contract.AssertNotNull(hashInfo.Locations);
                     if (missingContentLocations.Count == hashInfo.Locations.Count)
                     {
                         Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} are reported missing. Not retrying for hash {hashInfo.ContentHash.ToShortString()}.");
@@ -215,6 +221,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Tracer.TrackMetric(c, "RemoteCopyFileFailed", 1);
                 _counters[DistributedContentCopierCounters.RemoteFilesFailedCopy].Increment();
             }
+        }
+
+        /// <nodoc />
+        public static ContentHashWithSizeAndLocations DeprioritizeMaster(IDistributedContentCopierHost host, ContentHashWithSizeAndLocations hashInfo)
+        {
+            if (host.GetMasterLocation().TryGetValue(out var masterLocation))
+            {
+                var locations = hashInfo.Locations;
+                Contract.AssertNotNull(locations);
+
+                int? masterIndex = null;
+
+                // Don't care if we find the master at the last position, that's where we want it.
+                var lastIndex = locations.Count - 1;
+                for (var i = 0; i < lastIndex; i++)
+                {
+                    if (locations[i].Equals(masterLocation))
+                    {
+                        masterIndex = i;
+                        break;
+                    }
+                }
+
+                // Found it, place it at the end. Need to allocate because locations is read only.
+                if (masterIndex != null)
+                {
+                    var reprioritized = new MachineLocation[locations.Count];
+                    for (int i = 0, j = 0; j < locations.Count; i++, j++)
+                    {
+                        // Skip the master, we'll do it afterwards.
+                        if (j == masterIndex)
+                        {
+                            j++;
+                        }
+
+                        reprioritized[i] = locations[j];
+                    }
+
+                    reprioritized[locations.Count - 1] = locations[masterIndex.Value];
+
+                    return new ContentHashWithSizeAndLocations(hashInfo.ContentHash, hashInfo.Size, reprioritized);
+                }
+            }
+
+            return hashInfo;
         }
 
 

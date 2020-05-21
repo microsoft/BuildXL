@@ -578,7 +578,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     Tracer.Debug(context, $"Getting checkpoint state: Found checkpoint '{maxCheckpoint}'");
 
-                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime));
+                    return Result.Success(new CheckpointState(_role.Value, new EventSequencePoint(maxCheckpoint.SequenceNumber), maxCheckpoint.CheckpointId, maxCheckpoint.CheckpointCreationTime, new MachineLocation(maxCheckpoint.MachineName)));
                 },
                 Counters[GlobalStoreCounters.GetCheckpointState]);
         }

@@ -3037,6 +3037,7 @@ namespace ContentStoreTest.Distributed.Sessions
             ;
             var localContentDirectoryPath = @"D:\temp\Directory.backup.bin";
             var machineId = 4;
+            var producerMachineLocation = new MachineLocation();
 
             TestClock.UtcNow = DateTime.Parse("2020-02-19 21:30:0.0Z").ToUniversalTime();
 
@@ -3058,7 +3059,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var lls = context.GetLocalLocationStore(0);
 
-                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow))
+                    await lls.CheckpointManager.RestoreCheckpointAsync(context, new CheckpointState(Role.Worker, new EventSequencePoint(DateTime.UtcNow), checkpointId, DateTime.UtcNow, producerMachineLocation))
                         .ShouldBeSuccess();
 
                     // Uncomment this line to create a checkpoint to keep alive the content in storage

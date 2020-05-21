@@ -439,6 +439,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                           _lastRestoreTime));
                     BoolResult result;
 
+                    if (CurrentRole == Role.Master)
+                    {
+                        ClusterState.SetMasterMachine(_configuration.PrimaryMachineLocation);
+                    }
+                    else
+                    {
+                        ClusterState.SetMasterMachine(checkpointState.Producer);
+                    }
+
                     if (shouldRestore || forceRestore)
                     {
                         result = await RestoreCheckpointStateAsync(context, checkpointState);

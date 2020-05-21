@@ -434,6 +434,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _privateCas.Contains(contentHash);
         }
 
+        /// <inheritdoc />
+        public Result<MachineLocation> GetMasterLocation()
+        {
+            var master = _locationStore.ClusterState.MasterMachineLocation;
+            if (!master.HasValue)
+            {
+                return new Result<MachineLocation>(errorMessage: "Master is unknown");
+            }
+
+            return master.Value;
+        }
+
         /// <summary>
         /// Defines content location store functionality needed for <see cref="DistributedCentralStorage"/>
         /// </summary>

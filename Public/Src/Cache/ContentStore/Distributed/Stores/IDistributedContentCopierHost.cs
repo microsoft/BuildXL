@@ -30,5 +30,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Returns the designated locations for a particular hash.
         /// </summary>
         Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash);
+
+        /// <summary>
+        /// Returns the machine location of the master.
+        /// </summary>
+        Result<MachineLocation> GetMasterLocation();
     }
 }

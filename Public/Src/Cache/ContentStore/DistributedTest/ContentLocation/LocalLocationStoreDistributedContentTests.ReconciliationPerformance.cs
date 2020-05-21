@@ -80,6 +80,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 credentials: new AzureBlobStorageCredentials(storageConnectionString),
                 containerName: "checkpoints",
                 checkpointsKey: checkpointsKey);
+            var producerMachineLocation = new MachineLocation();
 
             ConfigureWithOneMaster(s =>
             {
@@ -102,7 +103,8 @@ namespace ContentStoreTest.Distributed.Sessions
                         Role.Worker,
                         EventSequencePoint.Parse("24382354"),
                         "MD5:8C4856EA13F6AD59B65D8F6781D2A2F9||DCS||incrementalCheckpoints/24382354.10a0ca0f-d63f-4992-a088-f67bd00abd8a.checkpointInfo.txt|Incremental",
-                        DateTime.Now);
+                        DateTime.Now,
+                        producerMachineLocation);
                     // Next heartbeat workers to restore checkpoint
                     await worker.LocalLocationStore.ProcessStateAsync(new OperationContext(context), checkpointState, inline: true, forceRestore: true).ShouldBeSuccess();
                     var reconcileResult = await worker.ReconcileAsync(context).ShouldBeSuccess();

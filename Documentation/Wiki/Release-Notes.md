@@ -1,6 +1,18 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200517.1 (Release [64507](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=64507)).  Released 5/20/2020
+- Allow client to recreate directories
+- Process Execution: implement chroot jail for *nix
+- Updated QTest nuget package to 20.5.15.183816
+- Introduce emptyWorkingSet feature as an alternative to cancellation
+- Disable DScript default source resolver by default
+- [Bug] Avoid ObjectDisposedException when the empty hash is pushed to the machine twice
+- [Bug] Untrack CodeCoverage.pdb that cause DFA
+- Track GVFS_projection file if configured
+- [Rush] Allow configuring to preserve the pathset casing at the pip process level.
+- Make composite Shared Opaque Directory content filters more flexible
+
 # 0.1.0-20200506.4 (Release [63394](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=63394)).  Released 5/13/2020
 - Fix for DisallowedFileAccess under user profile when running pips under admin VM in CloudBuild
 - [Windows] Not scrubbing directory symlinks anymore

@@ -42,6 +42,23 @@ namespace ContentStoreTest.Utils
             AssertBytes(new byte[] {0x98, 0x76}, bytes);
         }
 
+#if NET_COREAPP
+        [Fact]
+        public void PreallocatedHexToBytesBasics()
+        {
+            var buffer = new byte[100];
+            ReadOnlySpan<byte> bytes = HexUtilities.HexToBytes("0123456789ABCDEFabcdef", buffer);
+            AssertBytes(new byte[] {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xAB, 0xCD, 0xEF}, bytes);
+
+            bytes = HexUtilities.HexToBytes(string.Empty, buffer);
+            AssertBytes(new byte[0], bytes);
+
+            // Odd number of hex digits - last should be ignored.
+            bytes = HexUtilities.HexToBytes("fAbCd", buffer);
+            AssertBytes(new byte[] {0xFA, 0xBC}, bytes);
+        }
+#endif
+
         [Fact]
         public void BytesToHexBasics()
         {
@@ -109,5 +126,17 @@ namespace ContentStoreTest.Utils
                 Assert.Equal(expected[i], actual[i]);
             }
         }
+
+#if NET_COREAPP
+    // ReSharper disable once UnusedParameter.Local
+    private static void AssertBytes(byte[] expected, ReadOnlySpan<byte> actual)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], actual[i]);
+        }
+    }
+#endif
     }
 }

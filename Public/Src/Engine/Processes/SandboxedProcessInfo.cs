@@ -18,6 +18,45 @@ using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes
 {
+    /// <nodoc />
+    public readonly struct RootJailInfo
+    {
+        /// <summary>Root directory</summary>
+        public string RootJail { get; }
+
+        /// <summary>User id to set for the <c>--userspec</c> switch to <c>chroot</c></summary>
+        public int? UserId { get; }
+
+        /// <summary>Group id to set for the <c>--userspec</c> switch to <c>chroot</c></summary>
+        public int? GroupId {get; }
+
+        /// <nodoc />
+        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null)
+        {
+            Contract.RequiresNotNull(rootJail);
+            RootJail = rootJail;
+            UserId = userId;
+            GroupId = groupId;
+        }
+
+        /// <nodoc />
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.Write(RootJail);
+            writer.Write(UserId, (w, v) => w.WriteCompact(v));
+            writer.Write(GroupId, (w, v) => w.WriteCompact(v));
+        }
+
+        /// <nodoc />
+        public static RootJailInfo Deserialize(BuildXLReader reader)
+        {
+            return new RootJailInfo(
+                rootJail: reader.ReadString(),
+                userId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
+                groupId: reader.ReadNullableStruct(r => r.ReadInt32Compact()));
+        }
+    }
+
     /// <summary>
     /// Data-structure that holds all information needed to launch a sandboxed process.
     /// </summary>
@@ -134,8 +173,8 @@ namespace BuildXL.Processes
             SidebandWriter sidebandWriter = null,
             bool createJobObjectForCurrentProcess = true)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(fileName != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(fileName);
 
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest;
@@ -183,8 +222,8 @@ namespace BuildXL.Processes
                   sandboxConnection,
                   createJobObjectForCurrentProcess: createJobObjectForCurrentProcess)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(fileName != null);
+            Contract.RequiresNotNull(pathTable);
+            Contract.RequiresNotNull(fileName);
         }
 
         /// <summary>
@@ -260,8 +299,22 @@ namespace BuildXL.Processes
         /// </summary>
         /// <remarks>
         /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
+        ///
+        /// DEPRECATED; use "RootJailInfo" instead
         /// </remarks>
-        public string RootJail { get; set; }
+        public string RootJail
+        {
+            get { return RootJailInfo?.RootJail; }
+            set { RootJailInfo = new RootJailInfo(value); }
+        }
+
+        /// <summary>
+        /// Root jail information (can be null)
+        /// </summary>
+        /// <remarks>
+        /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
+        /// </remarks>
+        public RootJailInfo? RootJailInfo { get; set; } 
 
         /// <summary>
         /// Environment variables (can be null)
@@ -458,7 +511,7 @@ namespace BuildXL.Processes
                 writer.Write(StandardOutputEncoding, (w, v) => w.Write(v));
                 writer.Write(StandardErrorEncoding, (w, v) => w.Write(v));
                 writer.WriteNullableString(WorkingDirectory);
-                writer.WriteNullableString(RootJail);
+                writer.Write(RootJailInfo, (w, v) => v.Serialize(w));
                 writer.Write(
                     EnvironmentVariables,
                     (w, v) => w.WriteReadOnlyList(
@@ -522,7 +575,7 @@ namespace BuildXL.Processes
                 Encoding standardOutputEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 Encoding standardErrorEncoding = reader.ReadNullable(r => r.ReadEncoding());
                 string workingDirectory = reader.ReadNullableString();
-                string chrootDirectory = reader.ReadNullableString();
+                RootJailInfo? rootJailInfo = reader.ReadNullableStruct(r => BuildXL.Processes.RootJailInfo.Deserialize(r));
                 IBuildParameters buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
                 if (envVars != null)
@@ -566,7 +619,7 @@ namespace BuildXL.Processes
                     StandardOutputEncoding = standardOutputEncoding,
                     StandardErrorEncoding = standardErrorEncoding,
                     WorkingDirectory = workingDirectory,
-                    RootJail = chrootDirectory,
+                    RootJailInfo = rootJailInfo,
                     EnvironmentVariables = buildParameters,
                     AllowedSurvivingChildProcessNames = allowedSurvivingChildNames,
                     MaxLengthInMemory = maxLengthInMemory,

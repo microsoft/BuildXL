@@ -78,7 +78,7 @@ namespace Test.BuildXL.Processes.Detours
             {
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
-                RootJail = useRootJail ? A("C", "RootJail") : null,
+                RootJailInfo = useRootJail ? (RootJailInfo?)new RootJailInfo(A("C", "RootJail"), 123, 234) : null,
                 EnvironmentVariables = buildParameters,
                 Timeout = TimeSpan.FromMinutes(15),
                 PipSemiStableHash = 0x12345678,
@@ -113,7 +113,9 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(info.FileName, readInfo.FileName);
                 XAssert.AreEqual(info.Arguments, readInfo.Arguments);
                 XAssert.AreEqual(info.WorkingDirectory, readInfo.WorkingDirectory);
-                XAssert.AreEqual(info.RootJail, readInfo.RootJail);
+                XAssert.AreEqual(info.RootJailInfo?.RootJail, readInfo.RootJailInfo?.RootJail);
+                XAssert.AreEqual(info.RootJailInfo?.UserId, readInfo.RootJailInfo?.UserId);
+                XAssert.AreEqual(info.RootJailInfo?.GroupId, readInfo.RootJailInfo?.GroupId);
                 var readEnvVars = readInfo.EnvironmentVariables.ToDictionary();
                 XAssert.AreEqual(envVars.Count, readEnvVars.Count);
                 foreach (var kvp in envVars)

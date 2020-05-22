@@ -167,7 +167,7 @@ namespace BuildXL.Processes
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
-            RootJail = info.RootJail;
+            RootJail = info.RootJailInfo?.RootJail;
 
             MeasureCpuTime = overrideMeasureTime.HasValue
                 ? overrideMeasureTime.Value
@@ -315,7 +315,8 @@ namespace BuildXL.Processes
         }
 
         private string DetoursFile => Path.Combine(Path.GetDirectoryName(AssemblyHelper.GetThisProgramExeLocation()), "libBuildXLDetours.dylib");
-        private string DetoursEnvVar { get; } = "DYLD_INSERT_LIBRARIES";
+        private const string DetoursEnvVar = "DYLD_INSERT_LIBRARIES";
+        private const string EofDelim = "__EOF__";
 
         /// <inheritdoc />
         protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
@@ -469,9 +470,10 @@ namespace BuildXL.Processes
 
             lines.Add("set -e");
 
-            if (info.RootJail != null)
+            if (info.RootJailInfo != null)
             {
-                lines.Add($"sudo chroot --userspec=$(id -u):$(id -g) \"{info.RootJail}\" {ShellExecutable}");
+                lines.Add($"sudo chroot --userspec={userIdExpr()}:{groupIdExpr()} \"{info.RootJailInfo?.RootJail}\" {ShellExecutable} <<{EofDelim}");
+                lines.Add("set -e");
                 lines.Add($"cd \"{info.WorkingDirectory}\"");
             }
 
@@ -486,6 +488,10 @@ namespace BuildXL.Processes
             }
 
             lines.Add($"exec {cmdLine}");
+            if (info.RootJailInfo != null)
+            {
+                lines.Add(EofDelim);
+            }
 
             foreach (string line in lines)
             {
@@ -495,6 +501,9 @@ namespace BuildXL.Processes
             LogDebug("Done feeding stdin:" + Environment.NewLine + string.Join(Environment.NewLine, lines));
 
             Process.StandardInput.Close();
+
+            string userIdExpr() => info.RootJailInfo?.UserId?.ToString() ?? "$(id -u)";
+            string groupIdExpr() => info.RootJailInfo?.GroupId?.ToString() ?? "$(id -u)";
         }
 
         internal override void FeedStdErr(SandboxedProcessOutputBuilder builder, string line)

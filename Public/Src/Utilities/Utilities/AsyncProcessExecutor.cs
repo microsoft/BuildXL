@@ -150,7 +150,14 @@ namespace BuildXL.Utilities
             if (!string.IsNullOrWhiteSpace(Process.StartInfo.WorkingDirectory) &&
                 !System.IO.Directory.Exists(Process.StartInfo.WorkingDirectory))
             {
-                System.IO.Directory.CreateDirectory(Process.StartInfo.WorkingDirectory);
+                try
+                {
+                    System.IO.Directory.CreateDirectory(Process.StartInfo.WorkingDirectory);
+                }
+                catch (Exception e)
+                {
+                    ThrowBuildXLException($"Process creation failed: Working directory '{Process.StartInfo.WorkingDirectory}' cannot be created", e);
+                }
             }
 
             try

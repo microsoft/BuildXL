@@ -243,9 +243,9 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = ShellExecutable;
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
-            if (RootJail != null)
+            if (info.RootJail != null)
             {
-                process.StartInfo.WorkingDirectory = Path.Combine(RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
+                process.StartInfo.WorkingDirectory = Path.Combine(info.RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
             }
 
             return process;
@@ -466,6 +466,8 @@ namespace BuildXL.Processes
             LogProcessState("Feeding stdin");
 
             var lines = new List<string>();
+
+            lines.Add("set -e");
 
             if (info.RootJail != null)
             {

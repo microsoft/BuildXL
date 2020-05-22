@@ -33,7 +33,7 @@ namespace BuildXL.Processes
     {
         private ISet<ReportedFileAccess> EmptyFileAccessesSet => new HashSet<ReportedFileAccess>();
 
-        private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
+        private static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
@@ -127,7 +127,7 @@ namespace BuildXL.Processes
             TimeoutDumpDirectory = info.TimeoutDumpDirectory;
             ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
 
-            info.Timeout = info.Timeout ?? DefaultProcessTimeout;
+            info.Timeout ??= s_defaultProcessTimeout;
 
             m_output = new SandboxedProcessOutputBuilder(
                 info.StandardOutputEncoding ?? Console.OutputEncoding,
@@ -145,7 +145,7 @@ namespace BuildXL.Processes
 
             m_processExecutor = new AsyncProcessExecutor(
                 CreateProcess(info),
-                info.Timeout ?? DefaultProcessTimeout,
+                info.Timeout ?? s_defaultProcessTimeout,
                 line => FeedStdOut(m_output, line),
                 line => FeedStdErr(m_error, line),
                 info.Provenance,
@@ -311,6 +311,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates a <see cref="Process"/>.
         /// </summary>
+        /// <remarks>
+        /// This method is called in the constructor of <see cref="UnsandboxedProcess"/>. During the construction,
+        /// the instance is only partially created. Thus, do not access member fields in the body of this method.
+        /// The created process should only depends on the passed <see cref="SandboxedProcessInfo"/> or some constant/static data.
+        /// </remarks>
         protected virtual Process CreateProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(!Started);

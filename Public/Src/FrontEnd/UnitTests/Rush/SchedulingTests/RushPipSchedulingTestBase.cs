@@ -24,15 +24,29 @@ namespace Test.BuildXL.FrontEnd.Rush
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class RushPipSchedulingTestBase : PipSchedulingTestBase<RushProject, RushResolverSettings>
     {
+        private AbsolutePath m_commonTempFolder = AbsolutePath.Invalid;
+
         /// <nodoc/>
         public RushPipSchedulingTestBase(ITestOutputHelper output, bool usePassThroughFileSystem = false) : base(output, usePassThroughFileSystem)
         {
         }
 
         /// <summary>
+        /// Starts the addition of projects using a given Rush common temp folder
+        /// </summary>
+        public ProjectBuilder<RushProject, RushResolverSettings> StartWithCommonTempFolder(
+            AbsolutePath commonTempFolder,
+            RushResolverSettings resolverSettings = null,
+            QualifierId currentQualifier = default,
+            QualifierId[] requestedQualifiers = default)
+        {
+            m_commonTempFolder = commonTempFolder;
+            return Start(resolverSettings, currentQualifier, requestedQualifiers);
+        }
+
+        /// <summary>
         /// Starts the addition of projects
         /// </summary>
-        /// <returns></returns>
         public override ProjectBuilder<RushProject, RushResolverSettings> Start(
             RushResolverSettings resolverSettings = null, 
             QualifierId currentQualifier = default, 
@@ -44,6 +58,12 @@ namespace Test.BuildXL.FrontEnd.Rush
             if (settings.Root == AbsolutePath.Invalid)
             {
                 settings.Root = AbsolutePath.Create(PathTable, TestRoot);
+            }
+
+            // If the common temp folder is not set explicitly, use <sourceRoot>/common/temp, which is usually the Rush default
+            if (!m_commonTempFolder.IsValid)
+            {
+                m_commonTempFolder = settings.Root.Combine(PathTable, RelativePath.Create(StringTable, "common/temp"));
             }
 
             return base.Start(settings, currentQualifier, requestedQualifiers);
@@ -91,6 +111,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 context,
                 frontEndHost,
                 moduleDefinition,
+                new RushConfiguration(m_commonTempFolder),
                 resolverSettings,
                 userDefinedEnvironment,
                 userDefinedPassthroughVariables,

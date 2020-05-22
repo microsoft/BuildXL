@@ -36,6 +36,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CustomCommands = resolverSettings.CustomCommands;
             RushLibBaseLocation = resolverSettings.RushLibBaseLocation;
             Exports = resolverSettings.Exports;
+            TrackDependenciesWithShrinkwrapDepsFile = resolverSettings.TrackDependenciesWithShrinkwrapDepsFile;
         }
 
         /// <inheritdoc/>
@@ -76,5 +77,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IRushExport> Exports { get; set; }
+
+        /// <inheritdoc/>
+        public bool? TrackDependenciesWithShrinkwrapDepsFile { get; set; }
     }
 }

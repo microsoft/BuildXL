@@ -341,6 +341,17 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * Each exported value will have type SharedOpaqueDirectory[], containing the output directories of the specified projects.
      */
     exports?: RushExport[];
+
+    /**
+     * Uses each project shrinkwrap-deps.json as a way to track changes in dependencies instead of tracking all actual file dependencies 
+     * under the Rush common temp folder.
+     * Setting this option improves the chances of cache hits when compatible dependencies are placed on disk, which may not be the same ones
+     * used by previous builds. It may also give some performance advantages since there are actually less files to hash and track for changes.
+     * However, it opens the door to underbuilds in the case any package.json is modified and BuildXL is executed without 
+     * running 'rush update/install' first, since shrinkwrap-deps.json files may be out of date.
+     * Defaults to false.
+     */
+    trackDependenciesWithShrinkwrapDepsFile?: boolean;
 }
 
 /**

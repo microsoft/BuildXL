@@ -88,11 +88,12 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushBaseLibLocation = "",
             string rushExports = null,
             string moduleName = "Test",
-            bool addDScriptResolver = false)
+            bool addDScriptResolver = false,
+            string commonTempFolder = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
-                ["RUSH_TEMP_FOLDER"] = RushTempFolder,
+                ["RUSH_TEMP_FOLDER"] = commonTempFolder ?? RushTempFolder,
             };
 
             return Build(
@@ -102,7 +103,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 rushBaseLibLocation,
                 rushExports,
                 moduleName,
-                addDScriptResolver);
+                addDScriptResolver,
+                commonTempFolder);
         }
 
         /// <inheritdoc/>
@@ -113,11 +115,12 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushBaseLibLocation = "",
             string rushExports = null,
             string moduleName = "Test",
-            bool addDScriptResolver = false)
+            bool addDScriptResolver = false,
+            string commonTempFolder = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
-                ["RUSH_TEMP_FOLDER"] = new DiscriminatingUnion<string, UnitValue>(RushTempFolder),
+                ["RUSH_TEMP_FOLDER"] = new DiscriminatingUnion<string, UnitValue>(commonTempFolder ?? RushTempFolder),
             };
 
             // We reserve the null string for a true undefined.
@@ -136,7 +139,10 @@ namespace Test.BuildXL.FrontEnd.Rush
                     rushBaseLibLocation: rushBaseLibLocation,
                     rushExports: rushExports,
                     moduleName: moduleName,
-                    addDScriptResolver: addDScriptResolver));
+                    addDScriptResolver: addDScriptResolver,
+                    // Let's assume for simplicity that if a custom common temp folder is passed, that means
+                    // we want to use the shrinkwrap-deps file to track dependencies
+                    trackDependenciesWithShrinkwrapDepsFile: commonTempFolder != null));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -230,7 +236,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushBaseLibLocation,
             string rushExports,
             string moduleName,
-            bool addDScriptResolver) => $@"
+            bool addDScriptResolver,
+            bool trackDependenciesWithShrinkwrapDepsFile) => $@"
 config({{
     resolvers: [
         {{
@@ -243,6 +250,7 @@ config({{
             {(customRushCommands != null ? $"customCommands: {customRushCommands}," : string.Empty)}
             {(rushBaseLibLocation != null ? $"rushLibBaseLocation: d`{rushBaseLibLocation}`," : string.Empty)}
             {(rushExports != null ? $"exports: {rushExports}," : string.Empty)}
+            {(trackDependenciesWithShrinkwrapDepsFile ? $"trackDependenciesWithShrinkwrapDepsFile: true," : string.Empty)}
         }},
         {(addDScriptResolver?  "{kind: 'DScript', modules: [f`module.config.dsc`]}" : string.Empty)}
     ],

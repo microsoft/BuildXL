@@ -359,6 +359,7 @@ namespace BuildXL.FrontEnd.Rush
             var pipConstructor = new RushPipConstructor(m_context,
                 m_host,
                 result.ModuleDefinition,
+                result.RushGraph.Configuration,
                 m_rushResolverSettings,
                 m_rushWorkspaceResolver.UserDefinedEnvironment,
                 m_rushWorkspaceResolver.UserDefinedPassthroughVariables,

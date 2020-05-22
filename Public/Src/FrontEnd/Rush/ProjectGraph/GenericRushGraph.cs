@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Utilities;
 
 namespace BuildXL.FrontEnd.Rush.ProjectGraph
 {
@@ -14,10 +15,14 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
     public class GenericRushGraph<TProject>
     {
         /// <nodoc/>
-        public GenericRushGraph(IReadOnlyCollection<TProject> projects)
+        public GenericRushGraph(IReadOnlyCollection<TProject> projects, RushConfiguration configuration)
         {
             Projects = projects;
+            Configuration = configuration;
         }
+
+        /// <nodoc/>
+        public RushConfiguration Configuration { get; }
 
         /// <nodoc/>
         public IReadOnlyCollection<TProject> Projects { get; }

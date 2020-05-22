@@ -43,6 +43,9 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         public AbsolutePath ProjectPath(PathTable pathTable) => ProjectFolder.Combine(pathTable, "package.json");
 
         /// <nodoc/>
+        public AbsolutePath ShrinkwrapDepsFile(PathTable pathTable) => TempFolder.Combine(pathTable, "shrinkwrap-deps.json");
+
+        /// <nodoc/>
         public IReadOnlyCollection<TDepedency> Dependencies { get; internal set; }
 
         /// <nodoc/>

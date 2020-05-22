@@ -33,7 +33,7 @@ namespace BuildXL.FrontEnd.Rush
 
         private readonly FrontEndHost m_frontEndHost;
         private readonly ModuleDefinition m_moduleDefinition;
-
+        private readonly RushConfiguration m_rushConfiguration;
         private readonly IRushResolverSettings m_resolverSettings;
 
         private AbsolutePath Root => m_resolverSettings.Root;
@@ -67,6 +67,7 @@ namespace BuildXL.FrontEnd.Rush
             FrontEndContext context,
             FrontEndHost frontEndHost,
             ModuleDefinition moduleDefinition,
+            RushConfiguration rushConfiguration,
             IRushResolverSettings resolverSettings,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables,
@@ -83,6 +84,7 @@ namespace BuildXL.FrontEnd.Rush
             m_context = context;
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
+            m_rushConfiguration = rushConfiguration;
             m_resolverSettings = resolverSettings;
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
@@ -218,6 +220,13 @@ namespace BuildXL.FrontEnd.Rush
             // Add package.json, which should always be present at the root of the project
             processBuilder.AddInputFile(FileArtifact.CreateSourceFile(project.ProjectPath(PathTable)));
 
+            // If dependencies should be tracked via the project-level shrinkwrap-deps file, then force an input
+            // dependency on it
+            if (m_resolverSettings.TrackDependenciesWithShrinkwrapDepsFile == true)
+            {
+                processBuilder.AddInputFile(FileArtifact.CreateSourceFile(project.ShrinkwrapDepsFile(PathTable)));
+            }
+
             // In this case all the transitive closure is automatically exposed to the project as direct references. This is standard for
             // JavaScript projects.
             var transitiveReferences = new HashSet<RushProject>();
@@ -323,6 +332,13 @@ namespace BuildXL.FrontEnd.Rush
             // Untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
             // any attempt to read into the user profile will fail to compute its corresponding hash
             processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+
+            // If dependencies are tracked with the shrinkwrap-deps file, then untrack everything under the Rush common temp folder, where all package
+            // dependencies are placed
+            if (m_resolverSettings.TrackDependenciesWithShrinkwrapDepsFile == true)
+            {
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_rushConfiguration.CommonTempFolder));
+            }
 
             // Add the associated build script name as a tag, so filtering on 'build' or 'test' can happen
             processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(new[] { StringId.Create(m_context.StringTable, project.ScriptCommandName) });

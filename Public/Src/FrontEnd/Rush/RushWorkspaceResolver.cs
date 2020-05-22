@@ -598,7 +598,9 @@ namespace BuildXL.FrontEnd.Rush
                 rushProject.SetDependencies(projectDependencies);
             }
 
-            return new RushGraph(new List<RushProject>(resolvedProjects.Values.Select(kvp => kvp.rushProject)));
+            return new RushGraph(
+                new List<RushProject>(resolvedProjects.Values.Select(kvp => kvp.rushProject)), 
+                flattenedRushGraph.Configuration);
         }
 
         private bool ValidateDeserializedProject(RushProject project, out string failure)

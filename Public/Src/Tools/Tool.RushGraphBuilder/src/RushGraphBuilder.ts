@@ -3,10 +3,18 @@ import * as semver from 'semver';
 import * as BxlConfig from './BuildXLConfigurationReader';
 
 /**
- * A Rush graph, for what matters to BuildXL, is just a collection of projects
+ * A Rush graph, for what matters to BuildXL, is just a collection of projects and some graph-level configuration data
  */
 export interface RushGraph {
     projects: RushProject[];
+    configuration: RushConfiguration;
+}
+
+/**
+ * Graph-level rush configuration with data that BuildXL cares about
+ */
+export interface RushConfiguration {
+    commonTempFolder: string;
 }
 
 /**
@@ -58,7 +66,10 @@ export function buildGraph(rushConfigurationFile: string, pathToRushLib:string):
         projects.push(p);
     }
 
-    return {projects: projects};
+    return {
+        projects: projects, 
+        configuration: {commonTempFolder: rushConf.commonTempFolder}
+    };
 }
 
 function getDependencies(configuration, project) : Set<string> {

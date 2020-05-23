@@ -277,9 +277,11 @@ if ($Vs -or $VsAll) {
     }
 }
 
+# Various tools consume language pack files under this path if they are installed. Untrack them to prevent DFAs in local builds
+$AdditionalBuildXLArguments +=@("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
+
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
 $AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/storeFingerprints", "/cacheMiss", "/enableEvaluationThrottling");
-
 
 # Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
 # running under ADO (so we keep the feature out of PR validations for now).

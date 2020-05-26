@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Whether to trace diagnostic-level messages emitted by <see cref="FileSystemContentStore"/> and <see cref="FileSystemContentStoreInternal"/> like hashing or placing files.
         /// </summary>
-        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = true;
 
         /// <summary>
         /// If a file system operation takes longer than this threshold it will be traced regardless of other flags.

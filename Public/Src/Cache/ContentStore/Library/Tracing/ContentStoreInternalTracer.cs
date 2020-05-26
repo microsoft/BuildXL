@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly TimeSpan _longOperationDurationThreshold;
 
         public ContentStoreInternalTracer(ContentStoreSettings? settings)
-            : this(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? false, settings.GetLongOperationDurationThreshold())
+            : this(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? true, settings.GetLongOperationDurationThreshold())
         { }
 
         public ContentStoreInternalTracer(bool traceDiagnosticEvents, TimeSpan longOperationDurationThreshold)

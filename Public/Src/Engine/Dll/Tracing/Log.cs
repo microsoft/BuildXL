@@ -351,6 +351,14 @@ namespace BuildXL.Engine.Tracing
         public abstract void SerializingPipGraphComplete(LoggingContext context, GraphCacheSaveStatistics graphCacheSaveStatistics);
 
         [GeneratedEvent(
+            (ushort)LogEventId.FailedReloadPipGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Failed to reload pip graph: {message}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Engine)]
+        public abstract void FailedReloadPipGraph(LoggingContext context, string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToDuplicateGraphFile,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Failed to create a duplicate of {file} in {directory}. The execution log may not be usable. Error: {message}",

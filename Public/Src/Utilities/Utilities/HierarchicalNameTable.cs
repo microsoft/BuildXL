@@ -1980,7 +1980,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            return null;
+            throw new BuildXLException("Failed to read serialization state of hierarchical name table; the state is potentially corrupted");
         }
 
         #endregion

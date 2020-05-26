@@ -236,14 +236,7 @@ namespace BuildXL.Engine.Tracing
         JournalProcessingStatisticsForGraphReuseCheckTelemetry = 2888,
         GraphInputArtifactChangesTokensMismatch = 2889,
         JournalDetectedGvfsProjectionChanges = 2890,
-
-        FailedToResolveHistoricMetadataCacheFileName = 2940,
-        LoadingHistoricMetadataCacheFailed = 2941,
-        SavingHistoricMetadataCacheFailed = 2942,
-        HistoricMetadataCacheLoaded = 2943,
-        HistoricMetadataCacheSaved = 2944,
-
-        // Reserved  = 2890,
+        
         // Reserved = 2891,
 
         WrittenBuildInvocationToUserFolder = 2892,
@@ -253,6 +246,13 @@ namespace BuildXL.Engine.Tracing
         FailureLaunchingBuildExplorerFileNotFound = 2895,
         FailureLaunchingBuildExplorerException = 2896,
 
+        FailedToResolveHistoricMetadataCacheFileName = 2940,
+        LoadingHistoricMetadataCacheFailed = 2941,
+        SavingHistoricMetadataCacheFailed = 2942,
+        HistoricMetadataCacheLoaded = 2943,
+        HistoricMetadataCacheSaved = 2944,
+
+        FailedReloadPipGraph = 2986,
         InputTrackerDetectedMountChanged = 2987,
 
 

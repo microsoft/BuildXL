@@ -487,12 +487,20 @@ namespace BuildXL.Engine
             EngineState engineState,
             InputTracker.InputChanges inputChanges)
         {
-            Tuple<PipGraph, EngineContext> t = EngineSchedule.LoadPipGraphAsync(
-                Context,
-                serializer,
-                Configuration,
-                loggingContext,
-                engineState).GetAwaiter().GetResult();
+            Tuple<PipGraph, EngineContext> t = null;
+            try
+            {
+                t = EngineSchedule.LoadPipGraphAsync(
+                    Context,
+                    serializer,
+                    Configuration,
+                    loggingContext,
+                    engineState).GetAwaiter().GetResult();
+            }
+            catch (BuildXLException e)
+            {
+                Logger.Log.FailedReloadPipGraph(loggingContext, e.ToString());
+            }
 
             if (t == null)
             {
@@ -571,22 +579,31 @@ namespace BuildXL.Engine
             InputTracker.InputChanges inputChanges,
             string buildEngineFingerprint)
         {
-            Tuple<EngineSchedule, EngineContext, IConfiguration> t = EngineSchedule.LoadAsync(
-                Context,
-                serializer,
-                cacheInitializationTask,
-                FileContentTable,
-                journalState,
-                Configuration,
-                loggingContext,
-                m_collector,
-                m_directoryTranslator,
-                engineState,
-                symlinkDefinitionFile: IsDistributedWorker ? 
-                    m_workerSymlinkDefinitionFile.Value :
-                    Configuration.Layout.SymlinkDefinitionFile,
-                tempCleaner: m_tempCleaner,
-                buildEngineFingerprint).GetAwaiter().GetResult();
+            Tuple<EngineSchedule, EngineContext, IConfiguration> t = null;
+
+            try
+            {
+                t = EngineSchedule.LoadAsync(
+                    Context,
+                    serializer,
+                    cacheInitializationTask,
+                    FileContentTable,
+                    journalState,
+                    Configuration,
+                    loggingContext,
+                    m_collector,
+                    m_directoryTranslator,
+                    engineState,
+                    symlinkDefinitionFile: IsDistributedWorker ?
+                        m_workerSymlinkDefinitionFile.Value :
+                        Configuration.Layout.SymlinkDefinitionFile,
+                    tempCleaner: m_tempCleaner,
+                    buildEngineFingerprint).GetAwaiter().GetResult();
+            }
+            catch (BuildXLException e)
+            {
+                Logger.Log.FailedReloadPipGraph(loggingContext, e.ToString());
+            }
 
             if (t == null)
             {

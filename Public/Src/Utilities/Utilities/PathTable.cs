@@ -88,13 +88,15 @@ namespace BuildXL.Utilities
             Contract.RequiresNotNull(stringTableTask);
 
             var state = await ReadSerializationStateAsync(reader, stringTableTask);
+            Contract.AssertNotNull(state);
             var stringTable = await stringTableTask;
-            if (state != null && stringTable != null)
+            
+            if (stringTable != null)
             {
                 return new PathTable(state, stringTable);
             }
 
-            return null;
+            throw new BuildXLException("Failed to deserialize path table because its deserialized string table is null; the string table is potentially corrupted");
         }
 
         /// <summary>

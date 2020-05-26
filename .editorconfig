@@ -8,7 +8,8 @@ indent_style = space
 indent_size = 4
 
 [*.cs]
-
+dotnet_diagnostic.IDE0073.severity = warning
+file_header_template = Copyright (c) Microsoft Corporation.\nLicensed under the MIT License.
 #######################################################################################
 #                             C# code style settings                                  #
 #######################################################################################

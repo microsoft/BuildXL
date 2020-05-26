@@ -1,4 +1,7 @@
-﻿using BuildXL.Cache.ContentStore.Interfaces.Results;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {

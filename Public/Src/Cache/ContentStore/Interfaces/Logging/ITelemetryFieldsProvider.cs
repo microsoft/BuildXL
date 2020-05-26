@@ -1,4 +1,7 @@
-﻿namespace BuildXL.Cache.ContentStore.Interfaces.Logging
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
     /// <summary>
     /// Provides CASaaS with basic information about the environment it runs in. This is used to obtain logging

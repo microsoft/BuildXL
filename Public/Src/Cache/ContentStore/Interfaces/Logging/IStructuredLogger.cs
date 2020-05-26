@@ -1,4 +1,7 @@
-﻿namespace BuildXL.Cache.ContentStore.Interfaces.Logging
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
     /// <summary>
     /// Provides logging with structure for when additional (non-message) information needs to be transmitted.

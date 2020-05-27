@@ -263,7 +263,7 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public EnumerateDirectoryResult EnumerateDirectoryEntries(string directoryPath, Action<string, FileAttributes> handleEntry, bool isEnumerationForDirectoryDeletion = false) =>
+         public EnumerateDirectoryResult EnumerateDirectoryEntries(string directoryPath, Action<string, FileAttributes> handleEntry, bool isEnumerationForDirectoryDeletion = false) =>
             EnumerateDirectoryEntries(directoryPath, false, (currentDirectory, fileName, fileAttributes) => handleEntry(fileName, fileAttributes), isEnumerationForDirectoryDeletion);
 
         private static Regex TranslatePattern(string pattern)

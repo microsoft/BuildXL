@@ -611,7 +611,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Cleaning output directory '{destinationPath}' for pip {pipDescription} resulted in error: {errorMessage}")]
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
-
+        
         [GeneratedEvent(
             (ushort)LogEventId.StorageSymlinkDirInOutputDirectoryWarning,
             EventGenerators = EventGenerators.LocalOnly,
@@ -620,7 +620,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "[{pipDescription}] Pip produced a directory symlink or junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
         public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
-
+        
         [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,
             EventGenerators = EventGenerators.LocalOnly,
@@ -1210,7 +1210,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Stopping further process execution due to {reason}:" + 
+            Message = "Stopping further process execution due to {reason}:" +
             " (available RAM MB: {availableRam} < {minimumAvailableRam})" +
             " (used RAM percentage: {ramUtilization} > {maximumRamUtilization})" +
             " (used Commit percentage: {commitUtilization} > {maximumCommitUtilization})")]
@@ -2972,7 +2972,7 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.Storage,
             Message = "{message}")]
         public abstract void HistoricPerfDataCacheTrace(LoggingContext context, string message);
-        
+
         [GeneratedEvent(
             (int)LogEventId.HistoricMetadataCacheTrace,
             EventGenerators = EventGenerators.LocalOnly,

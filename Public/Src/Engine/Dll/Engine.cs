@@ -2327,6 +2327,7 @@ namespace BuildXL.Engine
                 { "unsafe_IgnoreNonCreateFileReparsePoints", Logger.Log.ConfigIgnoreNonCreateFileReparsePoints },
                 { "unsafe_IgnoreNtCreateFile", Logger.Log.ConfigUnsafeMonitorNtCreateFileOff },
                 { "unsafe_IgnoreReparsePoints", Logger.Log.ConfigIgnoreReparsePoints },
+                { "unsafe_IgnoreFullSymlinkResolving", Logger.Log.ConfigIgnoreFullSymlinkResolving },
                 { "unsafe_IgnorePreloadedDlls", Logger.Log.ConfigIgnorePreloadedDlls },
                 { "unsafe_IgnoreDynamicWritesOnAbsentProbes", Logger.Log.ConfigIgnoreDynamicWritesOnAbsentProbes },
                 { "unsafe_IgnoreSetFileInformationByHandle", Logger.Log.ConfigIgnoreSetFileInformationByHandle },

@@ -1025,12 +1025,12 @@ namespace Test.BuildXL.Processes.Detours
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
-                    context, 
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false }, 
-                    pip, 
-                    fileAccessWhitelist: null, 
-                    new Dictionary<string, string>(), 
-                    SemanticPathExpander.Default, 
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
+                    pip,
+                    fileAccessWhitelist: null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
                             SealDirectoryKind.SharedOpaque,
                             new FileArtifact[] { FileArtifact.CreateOutputFile(AbsolutePath.Create(context.PathTable, inputUndersharedOpaqueRoot)) }));
@@ -1110,7 +1110,7 @@ namespace Test.BuildXL.Processes.Detours
                     null,
                     ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
                     ReadOnlyArray<FileArtifactWithAttributes>.Empty,
-                    ReadOnlyArray<DirectoryArtifact>.Empty, 
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
                     ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(new DirectoryArtifact[] { sharedOpaque }),
                     ReadOnlyArray<PipId>.Empty,
                     ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
@@ -1643,7 +1643,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 expectedDumpPath = Path.Combine(TestOutputDirectory, pip.FormattedSemiStableHash);
 
-                // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH 
+                // Very occasionally the child dump fails to be collected due to ERROR_PARTIAL_COPY (0x12B) or ERROR_BAD_LENGTH
                 // Check for the masked version of this in the native error code of the process dump message and ignore when it is hit
                 if (EventListener.GetEventCount((int)ProcessesLogEventId.PipFailedToCreateDumpFile) == 1 &&
                     (EventListener.GetLog().Contains("-2147024597")) // -2147024597 && 0x0FFF == 0x12B (ERROR_PARTIAL_COPY)
@@ -1862,7 +1862,7 @@ namespace Test.BuildXL.Processes.Detours
 
         [Fact]
         public async Task CreateDirectoryAllowed()
-        {   
+        {
             var context = BuildXLContext.CreateInstanceForTesting();
 
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
@@ -2057,11 +2057,11 @@ namespace Test.BuildXL.Processes.Detours
 
                 SandboxedProcessPipExecutionResult result = await RunProcess(
                     context,
-                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true }, 
-                    pip, 
-                    null, 
-                    new Dictionary<string, string>(), 
-                    SemanticPathExpander.Default, 
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
+                    pip,
+                    null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
                     null);
 
                 XAssert.AreEqual(1, result.PipProperties["Foo"]);
@@ -2264,7 +2264,7 @@ namespace Test.BuildXL.Processes.Detours
             Action<int> processIdListener = null)
         {
             return AssertProcessCompletesWithStatusAsync(
-                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, 
+                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist,
                 directoryArtifactContext: directoryArtifactContext,
                 processIdListener: processIdListener);
         }

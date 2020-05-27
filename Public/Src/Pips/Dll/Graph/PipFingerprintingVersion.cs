@@ -58,7 +58,8 @@ namespace BuildXL.Pips.Graph
         /// 81: Add OutputDirectoryContents for SealDirectories
         /// 82: Add ProcessSymlinkedAcceses in SandboxConfiguration
         /// 83: Add PreservePathSetCasing in Process.Options
+        /// 84: Added IgnoreFullSymlinkResolving in IUnsafeSandboxConfiguration.
         /// </remarks>
-        TwoPhaseV2 = 83,
+        TwoPhaseV2 = 84,
     }
 }

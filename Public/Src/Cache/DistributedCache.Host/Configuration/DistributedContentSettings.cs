@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using Newtonsoft.Json;
 
@@ -391,6 +390,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int MaxGrpcClientCount { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        [DataMember]
+        public bool UseUnsafeByteStringConstruction { get; set; } = false;
 
         /// <summary>
         /// Maximum cached age for GRPC clients.

@@ -125,6 +125,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         public int? BufferSizeForGrpcCopies { get; private set; }
 
+        /// <summary>
+        /// If true, then the unsafe version of ByteString construction is used that avoids extra copy of the byte[].
+        /// </summary>
+        public bool UseUnsafeByteStringConstruction { get; set; }
+
         /// <nodoc />
         public const int DefaultProactivePushCountLimit = 128;
 

@@ -61,7 +61,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 distributedSettings,
                 new AbsolutePath(_arguments.DataRootPath),
                 isDistributed: !isLocal);
-            var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration);
+            var localServerConfiguration = CreateLocalServerConfiguration(cacheConfig.LocalCasSettings.ServiceSettings, serviceConfiguration, distributedSettings);
 
             if (isLocal)
             {
@@ -209,7 +209,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private static LocalServerConfiguration CreateLocalServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)
+        private static LocalServerConfiguration CreateLocalServerConfiguration(
+            LocalCasServiceSettings localCasServiceSettings,
+            ServiceConfiguration serviceConfiguration,
+            DistributedContentSettings distributedSettings)
         {
             serviceConfiguration.GrpcPort = localCasServiceSettings.GrpcPort;
             serviceConfiguration.BufferSizeForGrpcCopies = localCasServiceSettings.BufferSizeForGrpcCopies;
@@ -217,9 +220,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             serviceConfiguration.ProactivePushCountLimit = localCasServiceSettings.MaxProactivePushRequestHandlers;
 
             var localContentServerConfiguration = new LocalServerConfiguration(serviceConfiguration);
+            
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.GrpcThreadPoolSize, value => localContentServerConfiguration.GrpcThreadPoolSize = value);
+            ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value => localContentServerConfiguration.UseUnsafeByteStringConstruction = value);
 
             return localContentServerConfiguration;
         }

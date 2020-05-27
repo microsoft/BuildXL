@@ -333,7 +333,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Trace stats during component's shutdown.
         /// </summary>
-        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string extraMessage = null)
+        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string extraMessage = null, string prefix = null)
         {
             if (EnableTraceStatisticsAtShutdown)
             {
@@ -342,7 +342,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Debug(extraMessage);
                 }
 
-                counterSet.LogOrderedNameValuePairs(s => Debug(context, s));
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    counterSet.LogOrderedNameValuePairs(s => Debug(context, s));
+                }
+                else
+                {
+                    counterSet.LogOrderedNameValuePairs(s => Debug(context, $"{prefix}.{s}"));
+                }
             }
         }
     }

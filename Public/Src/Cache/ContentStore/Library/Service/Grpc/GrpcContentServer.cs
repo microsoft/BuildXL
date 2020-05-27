@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tracing;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -34,6 +35,18 @@ using PinRequest = ContentStore.Grpc.PinRequest;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
+    /// <nodoc />
+    public enum GrpcContentServerCounters
+    {
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        NormalByteStringConstructionInStreamContent,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        OptimizedByteStringConstructionInStreamContent,
+    }
+
     /// <summary>
     /// A CAS server implementation based on GRPC.
     /// </summary>
@@ -53,6 +66,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly IAbsFileSystem _fileSystem;
         private readonly AbsolutePath _workingDirectory;
         private DisposableDirectory? _temporaryDirectory;
+
+        /// <nodoc />
+        public CounterCollection<GrpcContentServerCounters> Counters { get; } = new CounterCollection<GrpcContentServerCounters>();
 
         /// <summary>
         /// This adapter routes messages from Grpc to the current class.
@@ -85,6 +101,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         private readonly int _ongoingPushCountLimit;
 
+        private readonly bool _useUnsafeByteStringConstruction;
+
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,
@@ -100,6 +118,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             _ongoingPushCountLimit = localServerConfiguration?.ProactivePushCountLimit ?? LocalServerConfiguration.DefaultProactivePushCountLimit;
+            _useUnsafeByteStringConstruction = localServerConfiguration?.UseUnsafeByteStringConstruction ?? false;
 
             _pool = new ByteArrayPool(_bufferSize);
             ContentSessionHandler = sessionHandler;
@@ -189,7 +208,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return GetStatsResponse.Failure();
             }
 
-            return GetStatsResponse.Create(counters.Value!.ToDictionaryIntegral());
+            var result = counters.Value!;
+            result.Merge(Counters.ToCounterSet(), "GrpcContentServer");
+            return GetStatsResponse.Create(result.ToDictionaryIntegral());
         }
 
         /// <summary>
@@ -323,12 +344,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     var operationContext = shutdownTracker.Context;
 
                     using var arrayHandle = _pool.Get();
+                    using var arraySecondaryHandle = _pool.Get();
                     StreamContentDelegate streamContent = compression == CopyCompression.None ? (StreamContentDelegate)StreamContentAsync : StreamContentWithCompressionAsync;
 
                     byte[] buffer = arrayHandle.Value;
+                    byte[] secondaryBuffer = arraySecondaryHandle.Value;
                     await operationContext.PerformOperationAsync(
                             _tracer,
-                            () => streamContent(result.Stream!, buffer, responseStream, operationContext.Token),
+                            () => streamContent(result.Stream!, buffer, secondaryBuffer, responseStream, operationContext.Token),
                             traceOperationStarted: false, // Tracing only stop messages
                             extraEndMessage: r => $"Hash={hash.ToShortString()}, GZip={(compression == CopyCompression.Gzip ? "on" : "off")}.")
                         .IgnoreFailure(); // The error was already logged.
@@ -470,16 +493,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
         }
 
-        private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
+        private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
 
-        private async Task<Result<(long Chunks, long Bytes)>> StreamContentAsync(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
+        private async Task<Result<(long Chunks, long Bytes)>> StreamContentAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
-            int chunkSize = 0;
             long chunks = 0L;
             long bytes = 0L;
 
+            byte[] inputBuffer = buffer;
+
             // Pre-fill buffer with the file's first chunk
-            await readNextChunk();
+            int chunkSize = await readNextChunk(input, inputBuffer, ct);
 
             while (true)
             {
@@ -487,21 +511,57 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 if (chunkSize == 0) { break; }
 
-                ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
+                // Created ByteString can reuse the buffer.
+                // To avoid double writes we need two buffers:
+                // * One buffer is used as the output buffer
+                // * And another buffer is used as the input buffer.
+                (ByteString content, bool bufferReused) = CreateByteStringForStreamContent(inputBuffer, chunkSize);
                 CopyFileResponse response = new CopyFileResponse() { Content = content, Index = chunks };
+
+                if (bufferReused)
+                {
+                    // If the buffer is reused we need to swap the input buffer with the secondary buffer.
+                    inputBuffer = inputBuffer == buffer ? secondaryBuffer : buffer;
+                }
 
                 bytes += chunkSize;
                 chunks++;
+
                 // Read the next chunk while waiting for the response
-                await Task.WhenAll(readNextChunk(), responseStream.WriteAsync(response));
+                var readNextChunkTask = readNextChunk(input, inputBuffer, ct);
+                await Task.WhenAll(readNextChunkTask, responseStream.WriteAsync(response));
+
+                chunkSize = await readNextChunkTask;
             }
 
             return (chunks, bytes);
 
-            async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
+            static async Task<int> readNextChunk(Stream input, byte[] buffer, CancellationToken token) { return await input.ReadAsync(buffer, 0, buffer.Length, token); }
         }
 
-        private async Task<Result<(long Chunks, long Bytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
+        private (ByteString result, bool bufferReused) CreateByteStringForStreamContent(byte[] buffer, int chunkSize)
+        {
+            // In some cases ByteString construction can be very expensive both in terms CPU and memory.
+            // For instance, during the content streaming we understand and control the ownership of the buffers
+            // and in that case we can avoid extra copy done by ByteString.CopyFrom call.
+            //
+            // But we can use an unsafe version only when the chunk size is the same as the buffer size.
+            if (_useUnsafeByteStringConstruction && chunkSize == buffer.Length)
+            {
+                // The feature is configured, and we can pass the entire buffer into the unsafely created ByteString
+                using (Counters[GrpcContentServerCounters.OptimizedByteStringConstructionInStreamContent].Start())
+                {
+                    return (ByteStringExtensions.UnsafeCreateFromBytes(buffer), bufferReused: true);
+                }
+            }
+
+            using (Counters[GrpcContentServerCounters.NormalByteStringConstructionInStreamContent].Start())
+            {
+                return (ByteString.CopyFrom(buffer, 0, chunkSize), bufferReused: false);
+            }
+        }
+
+        private async Task<Result<(long Chunks, long Bytes)>> StreamContentWithCompressionAsync(Stream input, byte[] buffer, byte[] secondaryBuffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct)
         {
             long bytes = 0L;
             long chunks = 0L;

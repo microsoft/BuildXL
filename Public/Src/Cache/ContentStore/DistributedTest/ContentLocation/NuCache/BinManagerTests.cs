@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using FluentAssertions;
 using Xunit;
@@ -105,6 +107,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 var serialized = manager.Serialize().ThrowIfFailure();
                 BinManager.CreateFromSerialized(serialized, locationsPerBin: 3, _clock, TimeSpan.FromSeconds(1)).ThrowIfFailure(); // We want to make sure that deserialization does not fail.
                 await Task.WhenAll(tasks);
+            }
+        }
+
+        [Fact]
+        public void BinManagerExcludesMaster()
+        {
+            var amountMachines = 4;
+            var machineMappings = Enumerable.Range(0, amountMachines).Select(i => new MachineMapping(new MachineLocation(i.ToString()), new MachineId(i))).ToArray();
+            var masterMapping = machineMappings[0];
+
+            var clusterState = new ClusterState(machineMappings[0].Id, machineMappings)
+            {
+                EnableBinManagerUpdates = true
+            };
+
+            foreach (var mapping in machineMappings)
+            {
+                clusterState.AddMachine(mapping.Id, mapping.Location);
+            }
+
+            clusterState.SetMasterMachine(masterMapping.Location);
+            clusterState.InitializeBinManagerIfNeeded(locationsPerBin: amountMachines, _clock, expiryTime: TimeSpan.Zero);
+
+            var binMappings = clusterState.GetBinMappings().ThrowIfFailure();
+            foreach (var binMapping in binMappings)
+            {
+                // Master should not be there
+                binMapping.Length.Should().Be(amountMachines - 1);
+                binMapping.Should().NotContain(masterMapping.Id);
+            }
+
+            // Make sure this stays true after updates
+            var inactiveMachines = new BitMachineIdSet(new byte[amountMachines], 0);
+            inactiveMachines = inactiveMachines.SetExistenceBits(new[] { machineMappings[1].Id }, true);
+            clusterState.SetMachineStates(inactiveMachines).ShouldBeSuccess();
+
+            binMappings = clusterState.GetBinMappings().ThrowIfFailure();
+            foreach (var binMapping in binMappings)
+            {
+                // Master and inactive should not be there
+                binMapping.Length.Should().Be(amountMachines - 2);
+                binMapping.Should().NotContain(masterMapping.Id);
             }
         }
 

@@ -136,8 +136,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Closed machines aren't included in the bin manager's update because they are expected to be back
                 // soon, so it doesn't make much sense to reorganize the stamp because of them.
-                var activeMachines = _idByLocationMap.Values.Except(InactiveMachines).ToArray();
-                return BinManager.UpdateAll(activeMachines, InactiveMachines);
+                var activeMachines = _idByLocationMap.Values.Except(InactiveMachines);
+
+                // Try to exclude the master from proactive operations to reduce load.
+                if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
+                {
+                    activeMachines = activeMachines.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] });
+                }
+
+                return BinManager.UpdateAll(activeMachines.ToArray(), InactiveMachines);
             }
 
             return BoolResult.Success;
@@ -287,7 +294,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)
         {
-            BinManager ??= new BinManager(locationsPerBin, _idByLocationMap.Values, clock, expiryTime);
+            var startLocations = _idByLocationMap.Values;
+            if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
+            {
+                startLocations = startLocations.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] }).ToArray();
+            }
+
+            BinManager ??= new BinManager(locationsPerBin, startLocations, clock, expiryTime);
         }
 
         /// <nodoc />

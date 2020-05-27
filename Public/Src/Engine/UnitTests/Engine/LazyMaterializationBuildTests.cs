@@ -15,7 +15,7 @@ namespace Test.BuildXL.Engine
     [Trait("Category", "LazyMaterializationBuildTests")]
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // depends on csc.exe
     [Feature(Features.LazyOutputMaterialization)]
-    public sealed class LazyMaterializationBuildTests : IncrementalBuildTestBase
+    public class LazyMaterializationBuildTests : IncrementalBuildTestBase
     {
         /* The build used for tests in this class generate the following layout
          *

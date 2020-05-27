@@ -69,7 +69,11 @@ namespace Test.BuildXL.Engine
 
             // Capture scheduler
             TestHooks.Scheduler = new BoxRef<Scheduler>();
-            ConfigureInMemoryCache(m_testCache);
+            if (!HasCacheInitializer)
+            {
+                ConfigureInMemoryCache(m_testCache);
+            }
+
             var snapshot = EventListener.SnapshotEventCounts();
             XAssert.AreEqual(0, EventListener.ErrorCount, "Errors already logged before attempting Build()");
 

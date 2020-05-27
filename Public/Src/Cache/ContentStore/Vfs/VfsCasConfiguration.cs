@@ -51,6 +51,16 @@ namespace BuildXL.Cache.ContentStore.Vfs
         public RelativePath VfsMountRelativeRoot { get; }
 
         /// <summary>
+        /// The root of temp virtualized files (i.e. {VfsRootPath}\temp)
+        /// </summary>
+        public AbsolutePath VfsTempRootPath { get; }
+
+        /// <summary>
+        /// The root of temp virtualized directories (relative to vfs root)
+        /// </summary>
+        public RelativePath VfsTempRelativeRoot { get; }
+
+        /// <summary>
         /// Specifies folder names under the VFS which will be junctioned to given destination paths
         /// Maybe just names (i.e. no sub paths)
         /// </summary>
@@ -66,6 +76,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
             VfsRootPath = RootPath / "vfs";
             VfsMountRelativeRoot = new RelativePath("mounts");
             VfsCasRelativeRoot = new RelativePath("cas");
+            VfsTempRelativeRoot = new RelativePath("temp");
+            VfsTempRootPath = VfsRootPath / VfsTempRelativeRoot;
             VfsMountRootPath = VfsRootPath / VfsMountRelativeRoot;
             VfsCasRootPath = VfsRootPath / VfsCasRelativeRoot;
         }

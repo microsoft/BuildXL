@@ -97,7 +97,6 @@ namespace Test.BuildXL.Scheduler
         public SchedulerIntegrationTestBase(ITestOutputHelper output) : base(output)
         {
             m_testOutputHelper = output;
-            CaptureAllDiagnosticMessages = false;
 
             // Each event listener that we want to capture events from must be listed here
             foreach (var eventSource in BuildXLApp.GeneratedEventSources)

@@ -39,7 +39,7 @@ namespace BuildXL.FrontEnd.Core
         /// and therefore has a 'lock' on the file. Our delete logic is not robust enough in this case so when we have to download
         /// the nuget package and have to clean the folder first, we fail. By doing a copy we hope to prevent this double-use.
         /// </remarks>
-        private const FileRealizationMode PackageFileRealizationMode = FileRealizationMode.Copy;
+        private static readonly FileRealizationMode PackageFileRealizationMode = FileRealizationMode.Copy;
 
         private PathTable PathTable => FrontEndContext.PathTable;
 

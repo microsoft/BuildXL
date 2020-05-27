@@ -1189,6 +1189,12 @@ namespace BuildXL.Engine
                 mutableConfig.Interactive = false;
             }
 
+            if (mutableConfig.Cache.VfsCasRoot.IsValid)
+            {
+                // VFS CAS root should be untracked for purposes of sandboxing.
+                mutableConfig.Sandbox.GlobalUnsafeUntrackedScopes.Add(mutableConfig.Cache.VfsCasRoot);
+            }
+
             // HACK HACK HACK
             // To deal with using Dedup hash while config still uses VSO hash
             // HACK HACK HACK

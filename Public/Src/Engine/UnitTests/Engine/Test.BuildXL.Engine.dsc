@@ -62,7 +62,10 @@ namespace Engine {
         references: [
             EngineTestUtilities.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
+            importFrom("BuildXL.Cache.ContentStore").VfsTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").VfsLibrary.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Cache.dll,
@@ -75,6 +78,7 @@ namespace Engine {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
@@ -82,7 +86,6 @@ namespace Engine {
         ],
         runtimeContent: [
             ...libsUsedForTesting,
-            importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
         ],
     });
 }

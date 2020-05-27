@@ -96,6 +96,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
         /// <nodoc />
         public void AddObserver(ILogMessageObserver observer)
         {
+            // Adding an observer implies we want to inspect messages.
+            InspectMessageEnabled = true;
             m_messageObservers = m_messageObservers ?? new ConcurrentBag<ILogMessageObserver>();
 
             if (observer != null && !m_messageObservers.Contains(observer))

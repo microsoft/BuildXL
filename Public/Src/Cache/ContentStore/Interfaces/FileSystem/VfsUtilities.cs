@@ -17,9 +17,38 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public static class VfsUtilities
     {
+        /// <summary>
+        /// Suffix appended to absolute paths to indicate virtualization may be used
+        /// </summary>
+        public const string VfsPathSuffix = ":vfs";
+
+        /// <summary>
+        /// For testing purposes only. Used to allow tests to bypass current process checks which
+        /// disable VFS callbacks.
+        /// </summary>
+        public static bool AllowCurrentProcessCallbacks { get; set; }
+
         private static readonly string DirectorySeparatorCharString = Path.DirectorySeparatorChar.ToString();
         private static readonly char[] PathSplitChars = new[] { Path.DirectorySeparatorChar };
         private static readonly char[] FilePlacementInfoFileNameSplitChars = new[] { '-' };
+
+        /// <summary>
+        /// Removes vfs suffix if present and returns whether path was marked as virtual
+        /// </summary>
+        public static string RemoveVfsSuffix(string path, out bool isVirtual)
+        {
+            isVirtual = path.EndsWith(VfsPathSuffix);
+            return isVirtual ? path.Substring(0, path.Length - VfsPathSuffix.Length) : path;
+        }
+
+        /// <summary>
+        /// Adds vfs suffix if not present to indicate the path should be virtualized
+        /// </summary>
+        public static string AddVfsSuffix(string path)
+        {
+            bool isVirtual = path.EndsWith(VfsPathSuffix);
+            return isVirtual ? path : path + VfsPathSuffix;
+        }
 
         /// <summary>
         /// Gets whether a path is contained in another path

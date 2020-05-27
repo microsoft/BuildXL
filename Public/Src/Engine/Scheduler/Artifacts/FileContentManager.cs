@@ -2246,10 +2246,12 @@ namespace BuildXL.Scheduler.Artifacts
                         }
                         else
                         {
+                            bool canVirtualize = CanVirtualize(materializationFile);
                             // Try materialize content.
                             Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
                                 ArtifactContentCache,
-                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
+                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly)
+                                    .WithAllowVirtualization(allowVirtualization: canVirtualize),
                                 path: file.Path,
                                 contentHash: hash,
                                 fileName: fileName,
@@ -2260,6 +2262,24 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                 }
             }
+        }
+
+        private bool CanVirtualize(MaterializationFile materializationFile)
+        {
+            if (!m_host.Configuration.Cache.VfsCasRoot.IsValid)
+            {
+                return false;
+            }
+            
+            if (m_host.TryGetCopySourceFile(materializationFile.Artifact, out var copySource))
+            {
+                // Copies lazily store into cache from the source file, so we can't virtualize since we don't get a callback
+                // to store into the cache if the file is not already present.
+                return false;
+            }
+
+            // TODO: Use data from historical invocations
+            return true;
         }
 
         private static Possible<T> WithLineInfo<T>(Possible<T> possible, [CallerMemberName] string caller = null, [CallerLineNumber] int line = 0)

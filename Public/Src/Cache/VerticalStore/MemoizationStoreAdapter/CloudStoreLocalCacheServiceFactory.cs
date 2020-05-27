@@ -44,7 +44,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         //     "SingleInstanceTimeoutInSeconds":{11}
         //     "SynchronizationMode":{12},
         //     "LogFlushIntervalSeconds":{13},
-        //    "ReplaceExistingOnPlaceFile":{14},
+        //     "ReplaceExistingOnPlaceFile":{14},
+        //     "VfsCasRoot": "{15}",
+        //     "UseVfsSymlinks": "{16}",
         // }
         private sealed class Config
         {
@@ -165,6 +167,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             [DefaultValue(500_000)]
             public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; }
+
+            /// <summary>
+            /// Path to the root of VFS cas
+            /// </summary>
+            [DefaultValue(null)]
+            public string VfsCasRoot { get; set; }
+
+            /// <summary>
+            /// Indicates whether symlinks should be used to specify VFS files
+            /// </summary>
+            [DefaultValue(true)]
+            public bool UseVfsSymlinks { get; set; } = true;
         }
 
         /// <inheritdoc />
@@ -244,6 +258,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
+            if (!string.IsNullOrEmpty(cacheConfig.VfsCasRoot))
+            {
+                logger.Debug($"Creating virtualized cache");
+
+                localCache = new VirtualizedContentCache(localCache, new ContentStore.Vfs.VfsCasConfiguration.Builder()
+                {
+                    RootPath = new AbsolutePath(cacheConfig.VfsCasRoot),
+                    UseSymlinks = cacheConfig.UseVfsSymlinks
+                }.Build());
+            }
+
             var cache = new MemoizationStoreAdapterCache(cacheConfig.CacheId, localCache, logger, statsFilePath, cacheConfig.ReplaceExistingOnPlaceFile);
             return cache;
         }

@@ -27,19 +27,13 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
         private readonly ILogger Log;
         private readonly VfsCasConfiguration Configuration;
         private readonly VfsContentManager ContentManager;
-        private readonly VfsTree Tree;
+        private VfsTree Tree => ContentManager.Tree;
 
         private static readonly byte[] s_contentId = new byte[] { 0 };
         private static readonly byte[] s_providerId = new byte[] { 1 };
 
         // These variables hold the layer and scratch paths.
         private readonly int currentProcessId = Process.GetCurrentProcess().Id;
-
-        /// <summary>
-        /// For testing purposes only. Used to allow tests to bypass current process checks which
-        /// disable VFS callbacks.
-        /// </summary>
-        public bool AllowCurrentProcessCallbacks { get; set; }
 
         private readonly VirtualizationInstance virtualizationInstance;
 
@@ -50,11 +44,10 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
         private readonly ConcurrentDictionary<Guid, ActiveEnumeration> activeEnumerations = new ConcurrentDictionary<Guid, ActiveEnumeration>();
         private readonly ConcurrentDictionary<int, CancellationTokenSource> activeCommands = new ConcurrentDictionary<int, CancellationTokenSource>();
 
-        public VfsProvider(ILogger log, VfsCasConfiguration configuration, VfsContentManager contentManager, VfsTree tree)
+        public VfsProvider(ILogger log, VfsCasConfiguration configuration, VfsContentManager contentManager)
         {
             Log = log;
             Configuration = configuration;
-            Tree = tree;
             ContentManager = contentManager;
 
             // Enable notifications if the user requested them.
@@ -329,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
             {
                 if (isCurrentProcess)
                 {
-                    if (!AllowCurrentProcessCallbacks || _outstandingCurrentProcessHydrations.ContainsKey(relativePath))
+                    if (!VfsUtilities.AllowCurrentProcessCallbacks || _outstandingCurrentProcessHydrations.ContainsKey(relativePath))
                     {
                         // Current process cannot execute callback or there is already a pending hydration from the current process
                         return false;
@@ -393,7 +386,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
                             }
 
                             var fileNode = (VfsFileNode)node;
-                            await ContentManager.PlaceHydratedFileAsync(relativePath, new VfsFilePlacementData(fileNode.Hash, fileNode.RealizationMode, fileNode.AccessMode), token);
+                            await ContentManager.PlaceHydratedFileAsync(relativePath, fileNode, token);
                         }
                         finally
                         {

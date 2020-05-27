@@ -25,14 +25,13 @@ namespace BuildXL.Cache.ContentStore.Vfs
         private readonly IContentStore _innerStore;
         internal VfsCasConfiguration Configuration { get; }
         private readonly ILogger _logger;
-        internal VfsTree Tree { get; }
 
         /// <summary>
         /// Internal for testing purposes only.
         /// </summary>
-        internal VfsProvider Provider { get; set; }
+        internal VfsProvider Provider => _contentManager?.Provider;
         private VfsContentManager _contentManager;
-        private IContentSession _vfsContentSession;
+        private IContentSession _backingContentSession;
 
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentStore));
 
@@ -41,9 +40,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         {
             _logger = logger;
             _innerStore = innerStore;
-            Configuration = configuration;
-
-            Tree = new VfsTree(Configuration);
+            Configuration = configuration;        
         }
 
         /// <inheritdoc />
@@ -98,29 +95,20 @@ namespace BuildXL.Cache.ContentStore.Vfs
             await _innerStore.StartupAsync(context).ThrowIfFailure();
 
             // Create long-lived session to be used with overlay (ImplicitPin=None (i.e false) to avoid cache full errors)
-            _vfsContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
-            await _vfsContentSession.StartupAsync(context).ThrowIfFailure();
+            _backingContentSession = _innerStore.CreateSession(context, "VFSInner", ImplicitPin.None).ThrowIfFailure().Session;
+            await _backingContentSession.StartupAsync(context).ThrowIfFailure();
 
-            _contentManager = new VfsContentManager(_logger, Configuration, Tree, _vfsContentSession);
-            Provider = new VfsProvider(_logger, Configuration, _contentManager, Tree);
+            _contentManager = new VfsContentManager(_logger, Configuration, new ContentSessionVfsFilePlacer(_backingContentSession));
 
-            if (!Provider.StartVirtualization())
-            {
-                return new BoolResult("Unable to start virtualizing");
-            }
-
-            return await base.StartupCoreAsync(context);
+            return await _contentManager.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            Provider?.StopVirtualization();
+            var result = await _contentManager.ShutdownAsync(context);
 
-            // Close all sessions?
-            var result = await base.ShutdownCoreAsync(context);
-
-            result &= await _vfsContentSession.ShutdownAsync(context);
+            result &= await _backingContentSession.ShutdownAsync(context);
 
             result &= await _innerStore.ShutdownAsync(context);
 

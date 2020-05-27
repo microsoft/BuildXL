@@ -172,9 +172,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
                                          return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
                                      },
-                    traceErrorsOnly: TraceErrorsOnly,
+                    traceErrorsOnly: TraceErrorsOnlyForPlaceFile(path),
                     counter: BaseCounters[ContentSessionBaseCounters.PlaceFile]));
         }
+
+        /// <summary>
+        /// Gets whether only errors should be traced for place file operations to the given path.
+        /// </summary>
+        protected virtual bool TraceErrorsOnlyForPlaceFile(AbsolutePath path) => TraceErrorsOnly;
 
         /// <nodoc />
         protected abstract Task<PlaceFileResult> PlaceFileCoreAsync(

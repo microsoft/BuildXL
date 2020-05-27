@@ -10,8 +10,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
     public sealed class TestEventListener : TestEventListenerBase
     {
         /// <nodoc/>
-        public TestEventListener(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
-            : base(eventSource, fullyQualifiedTestName, captureAllDiagnosticMessages, logAction) { }
+        public TestEventListener(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null, EventMask eventMask = null)
+            : base(eventSource, fullyQualifiedTestName, captureAllDiagnosticMessages, logAction, eventMask) { }
 
         /// <inheritdoc/>
         protected override void AssertTrue(bool condition, string format, params string[] args)

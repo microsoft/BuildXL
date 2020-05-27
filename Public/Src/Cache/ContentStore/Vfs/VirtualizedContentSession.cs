@@ -22,6 +22,9 @@ namespace BuildXL.Cache.ContentStore.Vfs
     {
         protected override Tracer Tracer { get; } = new Tracer(nameof(VirtualizedContentSession));
 
+        // Should not trace since it mostly delegates to underlying content session
+        protected override bool TraceErrorsOnly => true;
+
         private readonly IContentSession _innerSession;
         private readonly VirtualizedContentStore _store;
         private readonly PassThroughFileSystem _fileSystem;
@@ -69,9 +72,27 @@ namespace BuildXL.Cache.ContentStore.Vfs
             return _innerSession.PinAsync(operationContext, contentHashes, operationContext.Token, urgencyHint);
         }
 
+        protected override bool TraceErrorsOnlyForPlaceFile(AbsolutePath path)
+        {
+            return !path.IsVirtual;
+        }
+
         /// <inheritdoc />
         protected override async Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
+            if (!path.IsVirtual)
+            {
+                return await _innerSession.PlaceFileAsync(
+                    operationContext,
+                    contentHash,
+                    path,
+                    accessMode,
+                    replacementMode,
+                    realizationMode,
+                    operationContext.Token,
+                    urgencyHint);
+            }
+
             if (replacementMode != FileReplacementMode.ReplaceExisting && _fileSystem.FileExists(path))
             {
                 if (replacementMode == FileReplacementMode.SkipIfExists)
@@ -88,29 +109,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
             var placementData = new VfsFilePlacementData(contentHash, realizationMode, accessMode);
 
-            var virtualPath = _store.Configuration.UseSymlinks
-                ? _contentManager.TryCreateSymlink(operationContext, path, placementData, replace: replacementMode == FileReplacementMode.ReplaceExisting).ThrowIfFailure()
-                : _contentManager.ToVirtualPath(path);
-
-            if (virtualPath == null)
-            {
-                return await _innerSession.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint);
-            }
-
-            _contentManager.Tree.AddFileNode(virtualPath, placementData);
-            return new PlaceFileResult(GetPlaceResultCode(realizationMode, accessMode), fileSize: -1 /* Unknown */);
-        }
-
-        private PlaceFileResult.ResultCode GetPlaceResultCode(FileRealizationMode realizationMode, FileAccessMode accessMode)
-        {
-            if (realizationMode == FileRealizationMode.Copy
-                || realizationMode == FileRealizationMode.CopyNoVerify
-                || accessMode == FileAccessMode.Write)
-            {
-                return PlaceFileResult.ResultCode.PlacedWithCopy;
-            }
-
-            return PlaceFileResult.ResultCode.PlacedWithHardLink;
+            return await _contentManager.PlaceFileAsync(operationContext, path, placementData, operationContext.Token);
         }
 
         /// <inheritdoc />

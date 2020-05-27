@@ -194,7 +194,7 @@ namespace BuildXL.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
             EventTask = (ushort)Tasks.CommonInfrastructure,
-            Message = "N/A",
+            Message = "{logKind} {message}",
             Keywords = (int)Keywords.ExternalEtwOnly)]
         public abstract void TextLogEtwOnly(LoggingContext context, string sessionId, string logKind, int sequenceNumber, int eventNumber, string eventLabel, string message);
 

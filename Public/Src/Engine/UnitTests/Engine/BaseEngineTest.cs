@@ -48,14 +48,16 @@ namespace Test.BuildXL.Engine
 
         protected string TestRoot => Path.Combine(TemporaryDirectory, "src");
 
-        private readonly ITestOutputHelper m_testOutput;
+        protected ITestOutputHelper TestOutput { get; }
 
         protected IMutableFileSystem FileSystem { get; }
+
+        protected bool HasCacheInitializer { get; set; }
 
         protected BaseEngineTest(ITestOutputHelper output)
             : base(output)
         {
-            m_testOutput = output;
+            TestOutput = output;
             m_ignoreWarnings = OperatingSystemHelper.IsUnixOS; // ignoring /bin/sh is being used as a source file 
 
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
@@ -160,11 +162,11 @@ namespace Test.BuildXL.Engine
                 Configuration.Engine.DirectoriesToTranslate.Add(
                     new TranslateDirectoryData(I($"{substSource}<{substTarget}"), substSourcePath, substTargetPath));
             }
+        }
 
-            AbsolutePath Combine(AbsolutePath parent, string name)
-            {
-                return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));
-            }
+        protected AbsolutePath Combine(AbsolutePath parent, string name)
+        {
+            return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));
         }
 
         protected string GetOsShellCmdToolDefinition()
@@ -202,9 +204,9 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
         protected void LogTestMarker(string message)
         {
-            m_testOutput.WriteLine("################################################################################");
-            m_testOutput.WriteLine("## " + message);
-            m_testOutput.WriteLine("################################################################################");
+            TestOutput.WriteLine("################################################################################");
+            TestOutput.WriteLine("## " + message);
+            TestOutput.WriteLine("################################################################################");
         }
 
         protected EngineTestHooksData TestHooks
@@ -281,6 +283,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
         protected void ConfigureCache(CacheInitializer cacheInitializer)
         {
+            HasCacheInitializer = true;
             TestHooks.CacheFactory = () => cacheInitializer.CreateCacheForContext();
         }
 
@@ -294,17 +297,21 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             AbsolutePath cacheConfigPath = WriteTestCacheConfigToDisk(cacheDirectory);
 
             var translator = new RootTranslator();
+            if (TryGetSubstSourceAndTarget(out var substSource, out var substTarget))
+            {
+                translator.AddTranslation(substTarget, substSource);
+            }
+
             translator.Seal();
+
+            Configuration.Cache.CacheConfigFile = cacheConfigPath;
+            Configuration.Cache.CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log");
 
             var maybeCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,
                 Context.PathTable,
                 cacheDirectory,
-                new CacheConfiguration
-                {
-                    CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache.log"),
-                    CacheConfigFile = cacheConfigPath
-                },
+                Configuration.Cache,
                 translator,
                 recoveryStatus: false,
                 cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
@@ -346,7 +353,8 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
     ""CacheLogPath"":  ""[BuildXLSelectedLogPath]"",
     ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory"",
     ""CacheRootPath"":  ""{cacheDirectory.Replace("\\", "\\\\")}"",
-    ""UseStreamCAS"":  true
+    ""UseStreamCAS"":  true,
+    ""VfsCasRoot"": ""[VfsCasRoot]""
 }}";
         }
 

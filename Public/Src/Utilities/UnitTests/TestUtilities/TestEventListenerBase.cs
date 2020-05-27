@@ -97,8 +97,9 @@ namespace Test.BuildXL.TestUtilities
         /// Action to perform when logging a string. This allows test frameworks to hook into their own logging.
         /// Writes to the console if unspecified
         /// </param> 
-        protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null)
-            : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true)
+        /// <param name="eventMask">event mask for controlling which events are enabled/disabled</param>
+        protected TestEventListenerBase(Events eventSource, string fullyQualifiedTestName, bool captureAllDiagnosticMessages = true, Action<string> logAction = null, EventMask eventMask = null)
+            : base(eventSource, null, EventLevel.Verbose, captureAllDiagnosticMessages: captureAllDiagnosticMessages, listenDiagnosticMessages: true, eventMask: eventMask)
         {
             Contract.Requires(eventSource != null);
             Contract.Requires(!string.IsNullOrEmpty(fullyQualifiedTestName));

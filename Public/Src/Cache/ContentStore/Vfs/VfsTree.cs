@@ -7,7 +7,10 @@ using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+
+using RealPath = BuildXL.Utilities.AbsolutePath;
 
 namespace BuildXL.Cache.ContentStore.Vfs
 {
@@ -19,9 +22,11 @@ namespace BuildXL.Cache.ContentStore.Vfs
         private readonly ConcurrentBigMap<string, VfsNode> _nodeMap = new ConcurrentBigMap<string, VfsNode>(keyComparer: StringComparer.OrdinalIgnoreCase);
         private readonly VfsDirectoryNode _root;
         private readonly VfsCasConfiguration _configuration;
+        public PathTable PathTable { get; }
 
         public VfsTree(VfsCasConfiguration configuration)
         {
+            PathTable = new PathTable();
             _configuration = configuration;
             _root = new VfsDirectoryNode(string.Empty, DateTime.UtcNow, null);
             _nodeMap[string.Empty] = _root;
@@ -38,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <summary>
         /// Adds a file node (and any needed parent directory nodes) at the VFS root relative path
         /// </summary>
-        public VfsFileNode AddFileNode(string relativePath, VfsFilePlacementData data)
+        public VfsFileNode AddFileNode(string relativePath, VfsFilePlacementData data, string realPath)
         {
             var timestamp = DateTime.UtcNow;
 
@@ -51,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
                 var parent = GetOrAddDirectoryNode(Path.GetDirectoryName(relativePath), allowAdd: true);
                 var result = _nodeMap.GetOrAdd(relativePath, (parent, timestamp, data), (l_relativePath, l_data) =>
                 {
-                    return new VfsFileNode(Path.GetFileName(l_relativePath), l_data.timestamp, l_data.parent, l_data.data.Hash, l_data.data.RealizationMode, l_data.data.AccessMode);
+                    return new VfsFileNode(Path.GetFileName(l_relativePath), l_data.timestamp, l_data.parent, l_data.data, RealPath.Create(PathTable, realPath));
                 });
 
                 node = result.Item.Value;
@@ -174,19 +179,20 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
     public class VfsFileNode : VfsNode
     {
-        public readonly ContentHash Hash;
-        public readonly FileRealizationMode RealizationMode;
-        public readonly FileAccessMode AccessMode;
+        public readonly RealPath RealPath;
+        public readonly VfsFilePlacementData Data;
+        public ContentHash Hash => Data.Hash;
+        public FileRealizationMode RealizationMode => Data.RealizationMode;
+        public FileAccessMode AccessMode => Data.AccessMode;
         public override long Size => 0;
         public override bool IsDirectory => false;
 
 
-        public VfsFileNode(string name, DateTime timestamp, VfsDirectoryNode parent, ContentHash hash, FileRealizationMode realizationMode, FileAccessMode accessMode)
+        public VfsFileNode(string name, DateTime timestamp, VfsDirectoryNode parent, VfsFilePlacementData data, RealPath realPath)
             : base(name, timestamp, parent)
         {
-            Hash = hash;
-            RealizationMode = realizationMode;
-            AccessMode = accessMode;
+            Data = data;
+            RealPath = realPath;
         }
     }
 }

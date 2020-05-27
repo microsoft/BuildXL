@@ -105,7 +105,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <summary>
         /// Whether all diagnostic level messages should be captured to the console. Defaults to true.
         /// </summary>
-        protected bool CaptureAllDiagnosticMessages = true;
+        protected virtual bool CaptureAllDiagnosticMessages => true;
+
+        /// <summary>
+        /// Event mask for filtering listener events
+        /// </summary>
+        protected virtual EventMask ListenerEventMask => null;
 
         /// <summary>
         /// Please use the overload that takes a <see cref="ITestOutputHelper"/>
@@ -127,11 +132,13 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     Events.Log,
                     fullyQualifiedTestName,
                     captureAllDiagnosticMessages: CaptureAllDiagnosticMessages,
-                    logAction: (s) => output.WriteLine(s));
+                    logAction: (s) => output.WriteLine(s),
+                    eventMask: ListenerEventMask);
             }
             else
             {
-                m_eventListener = new TestEventListener(Events.Log, fullyQualifiedTestName, captureAllDiagnosticMessages: true);
+                m_eventListener = new TestEventListener(Events.Log, fullyQualifiedTestName, captureAllDiagnosticMessages: CaptureAllDiagnosticMessages,
+                  eventMask: ListenerEventMask);
             }
 
             RegisterEventSource(global::BuildXL.Tracing.ETWLogger.Log);

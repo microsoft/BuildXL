@@ -21,6 +21,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using ContentStoreTest.Sessions;
 using BuildXL.Cache.ContentStore.Vfs;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Native.IO;
+using System.IO;
+using FluentAssertions;
 
 namespace ContentStoreTest.Vfs.Sessions
 {
@@ -61,6 +64,7 @@ namespace ContentStoreTest.Vfs.Sessions
                 using (var placeDirectory = new DisposableDirectory(FileSystem))
                 {
                     var path = placeDirectory.Path / "file.txt";
+                    path = path.WithIsVirtual();
                     var result = await session.PlaceFileAsync(
                         context,
                         putResult.ContentHash,
@@ -71,9 +75,15 @@ namespace ContentStoreTest.Vfs.Sessions
                         Token).ShouldBeSuccess();
                     Assert.True(result.IsPlaced());
 
+                    var beforeAttributes = FileUtilities.GetFileAttributes(path.Path);
+                    beforeAttributes.HasFlag(FileAttributes.Offline).Should().BeTrue();
+
                     AllowCallbacks(() =>
                     {
                         var actualText = FileSystem.ReadAllText(path);
+
+                        var afterAttributes = FileUtilities.GetFileAttributes(path.Path);
+                        afterAttributes.HasFlag(FileAttributes.Offline).Should().BeFalse();
                         Assert.Equal(content, actualText);
                     });
                 }
@@ -84,12 +94,12 @@ namespace ContentStoreTest.Vfs.Sessions
         {
             try
             {
-                _vfsStore.Provider.AllowCurrentProcessCallbacks = true;
+                VfsUtilities.AllowCurrentProcessCallbacks = true;
                 action();
             }
             finally
             {
-                _vfsStore.Provider.AllowCurrentProcessCallbacks = false;
+                VfsUtilities.AllowCurrentProcessCallbacks = false;
             }
         }
     }

@@ -50,7 +50,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new ArgumentException("does not meet minimum length", nameof(path));
             }
 
-            (Path, IsLocal, IsRoot) = Initialize(path);
+            (Path, IsLocal, IsRoot, IsVirtual) = Initialize(path);
+        }
+
+        private AbsolutePath(AbsolutePath path, bool isVirtual)
+        {
+            (Path, IsLocal, IsRoot) = (path.Path, path.IsLocal, path.IsRoot);
+            IsVirtual = isVirtual;
         }
 
         /// <inheritdoc />
@@ -82,6 +88,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         ///     Gets a value indicating whether the path is UNC.
         /// </summary>
         public bool IsUnc => !IsLocal;
+
+        /// <summary>
+        /// Gets whether the path specifies a VFS file path for placement
+        /// </summary>
+        public bool IsVirtual { get; }
 
         /// <summary>
         /// Returns a drive letter for the current path.
@@ -181,11 +192,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             return path;
         }
 
-        private static (string path, bool isLocal, bool isRoot) Initialize(string path)
+        private static (string path, bool isLocal, bool isRoot, bool isVirtual) Initialize(string path)
         {
             // The argument may be constructed from a ToString call of another AbsolutePath instance.
             // To keep the logic simple, we just remove a long path prefix.
-            path = RemoveLongPathPrefixIfNeeded(path);
+            path = VfsUtilities.RemoveVfsSuffix(RemoveLongPathPrefixIfNeeded(path), out var isVirtual);
 
             var isLocal = IsLocalAbsoluteCalculated(path);
             var isUnc = IsUncCalculated(path);
@@ -230,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 resultingPath = System.IO.Path.DirectorySeparatorChar + string.Join(System.IO.Path.DirectorySeparatorChar + "", segments);
             }
 
-            return (resultingPath, isLocal, isRoot);
+            return (resultingPath, isLocal, isRoot, isVirtual);
         }
 
         /// <summary>
@@ -320,6 +331,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             {
                 throw CreateIllegalCharactersInPathError(right);
             }
+        }
+
+        /// <summary>
+        /// Creates a new path with the given value for <see cref="IsVirtual"/>
+        /// </summary>
+        public AbsolutePath WithIsVirtual(bool isVirtual = true)
+        {
+            return new AbsolutePath(this, isVirtual);
         }
     }
 }

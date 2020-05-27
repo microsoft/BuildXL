@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -29,6 +30,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly bool _useCompression;
 
         private readonly GrpcCopyClientCache _clientCache;
+        
+        /// <summary>
+        /// Extract the host name from an AbsolutePath's segments.
+        /// </summary>
+        public static string GetHostName(bool isLocal, IReadOnlyList<string> segments)
+        {
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return isLocal ? "localhost" : segments.First();
+            }
+            else
+            {
+                // Linux always uses the first segment as the host name.
+                return segments.First();
+            }
+        }
 
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
@@ -65,7 +82,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             var segments = sourcePath.GetSegments();
             Contract.Assert(segments.Count >= 4);
 
-            var host = sourcePath.IsLocal ? "localhost" : segments.First();
+            string host = GetHostName(sourcePath.IsLocal, segments);
+
             var hashLiteral = segments.Last();
             if (hashLiteral.EndsWith(GrpcDistributedPathTransformer.BlobFileExtension, StringComparison.OrdinalIgnoreCase))
             {

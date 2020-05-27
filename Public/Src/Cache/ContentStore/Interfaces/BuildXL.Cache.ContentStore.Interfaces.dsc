@@ -32,6 +32,7 @@ namespace Interfaces {
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore",
             "BuildXL.Cache.ContentStore.Distributed",
+            "BuildXL.Cache.ContentStore.Distributed.Test",
             "BuildXL.Cache.ContentStore.Interfaces.Test",
         ]
     });

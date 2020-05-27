@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Stores;
@@ -139,13 +140,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             RedisDatabaseFactoryForRedisGlobalStore = await RedisDatabaseFactory.CreateAsync(
                 context,
-                new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString));
+                new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString),
+                logSeverity: Configuration.RedisInternalLogSeverity ?? Severity.Unknown);
 
             if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
             {
                 RedisDatabaseFactoryForRedisGlobalStoreSecondary = await RedisDatabaseFactory.CreateAsync(
                     context,
-                    new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString));
+                    new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString),
+                    logSeverity: Configuration.RedisInternalLogSeverity ?? Severity.Unknown);
             }
 
             return BoolResult.Success;

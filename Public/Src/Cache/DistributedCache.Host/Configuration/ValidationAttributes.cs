@@ -68,17 +68,27 @@ namespace BuildXL.Cache.Host.Configuration
         public class EnumAttribute : ValidationAttribute
         {
             private readonly Type _enumType;
+            private readonly bool _allowNull;
 
-            public EnumAttribute(Type enumType)
+            public EnumAttribute(Type enumType, bool allowNull = false)
             {
                 _enumType = enumType;
+                _allowNull = allowNull;
             }
 
             protected override ValidationResult IsValid(object value, ValidationContext validationContext)
             {
-                if (value is string s && Enum.IsDefined(_enumType, s))
+                if (_allowNull && value is null)
                 {
                     return ValidationResult.Success;
+                }
+
+                if (value is string s)
+                {
+                    if (Enum.IsDefined(_enumType, s))
+                    {
+                        return ValidationResult.Success;
+                    }
                 }
 
                 return new ValidationResult($"{validationContext.DisplayName} has value '{value}', which is not a valid value for enum {_enumType.FullName}");

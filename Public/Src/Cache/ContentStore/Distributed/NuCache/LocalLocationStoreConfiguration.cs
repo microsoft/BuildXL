@@ -8,6 +8,7 @@ using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Secrets;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Utilities.Collections;
@@ -97,6 +98,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Gets the connection string used by the redis global store.
         /// </summary>
         public string? RedisGlobalStoreSecondaryConnectionString { get; set; }
+
+        /// <summary>
+        /// The Redis.StackExchange library performs its own internal logging. If the flag is not null, we pipe the
+        /// library's logging out through our own logger, at the specified severity.
+        /// </summary>
+        public Severity? RedisInternalLogSeverity { get; set; }
 
         /// <summary>
         /// Configuration of reputation tracker.

@@ -34,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// </summary>
         /// <param name="count">Number of logging entries to return.</param>
         /// <returns>The N most recent logging entries.</returns>
-        private IEnumerable<string> RecentEntries(int count)
+        public IEnumerable<string> RecentEntries(int count)
         {
             Contract.Requires(count >= 0);
             return Enumerable.Range(0, count).Zip(

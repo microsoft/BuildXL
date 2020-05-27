@@ -3,8 +3,11 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using StackExchange.Redis;
 
@@ -25,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Creates a <see cref="IConnectionMultiplexer"/> using given <see cref="IConnectionStringProvider"/>
         /// </summary>
-        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider)
+        public static async Task<IConnectionMultiplexer> CreateAsync(Context context, IConnectionStringProvider connectionStringProvider, Severity logSeverity = Severity.Unknown)
         {
             if (TestConnectionMultiplexer != null)
             {
@@ -60,16 +63,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             var multiplexerTask = Multiplexers.GetOrAdd(
                 endpoints,
-                _ =>
-                {
-                    return new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(options));
-                });
+                _ => new Lazy<Task<IConnectionMultiplexer>>(() => GetConnectionMultiplexerAsync(context, options, logSeverity)));
 
             return await multiplexerTask.Value;
         }
 
-        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(ConfigurationOptions options)
+        private static async Task<IConnectionMultiplexer> GetConnectionMultiplexerAsync(Context context, ConfigurationOptions options, Severity logSeverity)
         {
+            Contract.RequiresNotNull(context);
+
+            if (logSeverity != Severity.Unknown && context.Logger != null)
+            {
+                var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
+                var logger = new TextWriterAdapter(replacementContext, logSeverity);
+                return await ConnectionMultiplexer.ConnectAsync(options, logger);
+            }
+
             return await ConnectionMultiplexer.ConnectAsync(options);
         }
 

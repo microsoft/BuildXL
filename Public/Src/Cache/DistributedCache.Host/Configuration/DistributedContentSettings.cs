@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
@@ -620,6 +621,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public string SecondaryGlobalRedisSecretName { get; set; }
+
+        [DataMember]
+        [Validation.Enum(typeof(Severity), allowNull: true)]
+        public string RedisInternalLogSeverity { get; set; }
 
         [DataMember]
         public bool? MirrorClusterState { get; set; }

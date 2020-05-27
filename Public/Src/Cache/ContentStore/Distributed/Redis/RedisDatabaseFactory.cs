@@ -6,6 +6,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -42,9 +43,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Factory method for a database factory.
         /// </summary>
-        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider)
+        public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider, Severity logSeverity = Severity.Unknown)
         {
-            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider);
+            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider, logSeverity);
 
             Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = async m =>
             {
@@ -52,9 +53,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 await RedisConnectionMultiplexer.ForgetAsync(options);
             };
 
-            var multiplexer = await RedisConnectionMultiplexer.CreateAsync(context, provider);
-            var databaseFactory = new RedisDatabaseFactory(multiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
-            return databaseFactory;
+            var connectionMultiplexer = await connectionMultiplexerFactory();
+            return new RedisDatabaseFactory(connectionMultiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
         }
 
         /// <summary>

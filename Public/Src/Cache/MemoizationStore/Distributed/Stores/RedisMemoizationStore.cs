@@ -14,28 +14,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     internal class RedisMemoizationStore : DatabaseMemoizationStore
     {
         /// <nodoc />
-        private RedisMemoizationStore(ILogger logger, IClock clock, RedisDatabaseAdapter redis, TimeSpan memoizationExpiryTime)
-            : base(new RedisMemoizationDatabase(redis, clock, memoizationExpiryTime))
-        {
-        }
-
-        /// <nodoc />
         public RedisMemoizationStore(ILogger logger, RedisMemoizationDatabase database)
             : base(database)
         {
-        }
-
-        public static RedisMemoizationStore Create(
-            ILogger logger,
-            IConnectionStringProvider connectionStringProvider,
-            string keyspace,
-            IClock clock,
-            TimeSpan memoizationExpiryTime)
-        {
-            var context = new Context(logger);
-            var redisFactory = RedisDatabaseFactory.CreateAsync(context, connectionStringProvider).GetAwaiter().GetResult();
-            var redisAdapter = new RedisDatabaseAdapter(redisFactory, keyspace);
-            return new RedisMemoizationStore(logger, clock, redisAdapter, memoizationExpiryTime);
         }
     }
 }

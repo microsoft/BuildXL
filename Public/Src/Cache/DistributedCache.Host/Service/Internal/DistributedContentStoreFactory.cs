@@ -213,14 +213,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.FullRangeCompactionVariant,
                     v =>
                     {
-                        if (Enum.TryParse<FullRangeCompactionVariant>(v, out var variant))
-                        {
-                            dbConfig.FullRangeCompactionVariant = variant;
-                        }
-                        else
+                        if (!Enum.TryParse<FullRangeCompactionVariant>(v, out var variant))
                         {
                             throw new ArgumentException($"Failed to parse `{nameof(_distributedSettings.FullRangeCompactionVariant)}` setting with value `{_distributedSettings.FullRangeCompactionVariant}` into type `{nameof(FullRangeCompactionVariant)}`");
                         }
+
+                        dbConfig.FullRangeCompactionVariant = variant;
                     });
                 ApplyIfNotNull(
                     _distributedSettings.FullRangeCompactionByteIncrementStep,
@@ -437,6 +435,16 @@ namespace BuildXL.Cache.Host.Service.Internal
                     secrets,
                     _distributedSettings.SecondaryGlobalRedisSecretName)).Secret;
             }
+
+            ApplyIfNotNull(_distributedSettings.RedisInternalLogSeverity, value =>
+            {
+                if (!Enum.TryParse<Severity>(value, out var parsedValue))
+                {
+                    throw new ArgumentException($"Failed to parse `{nameof(_distributedSettings.RedisInternalLogSeverity)}` setting with value `{value}` into type `{nameof(Severity)}`");
+                }
+
+                configuration.RedisInternalLogSeverity = parsedValue;
+            });
 
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 

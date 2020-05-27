@@ -7,8 +7,8 @@ namespace CloudBuildDropHelper {
     /** The runner that preforms the upload */
     const runner = enabled ? DropDaemonRunner.withQualifier({configuration: "release", targetFramework: "net472", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
 
-    /** The settings for this drop */
-    const settings = {
+    /** The base settings for this drop */
+    const baseSettings : DropCreateArguments = {
         dropServiceConfigFile: Environment.getFileValue("BUILDXL_DROP_CONFIG")
     };
 
@@ -17,8 +17,14 @@ namespace CloudBuildDropHelper {
      * If drop is not enabled in CloudBuild, returns undefined.
      */
     @@public
-    export function createDrop() : DropCreateResult {
-        return enabled ? runner.createDrop(settings) : undefined;
+    export function createDrop(settings?: DropCreateArguments) : DropCreateResult {
+        if (!enabled) {
+            return undefined;
+        } 
+
+        settings = Object.merge(baseSettings, settings);
+
+        return runner.createDrop(settings);
     }
 
     /**

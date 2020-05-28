@@ -75,6 +75,7 @@ namespace BuildXL.Pips
         PipViewerRequest,
         ViewerAnalyzer,
         LoggingUncacheableProcessImpact,
+        HandlePipStepOnWorker,
         LoggingPipFailedOnWorker,
         Test,
         PipQueueGetCpuQueueProcessResources,

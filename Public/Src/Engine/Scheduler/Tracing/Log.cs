@@ -3618,6 +3618,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Directory content computed: [{dirCount} directories, {originalFileCount} files] -> {finalFileCount} files in {durationMs} ms.")]
         public abstract void CompositeSharedOpaqueContentDetermined(LoggingContext loggingContext, string pipDescription, int dirCount, int originalFileCount, int finalFileCount, long durationMs);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.HandlePipStepOnWorkerFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.UserError,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to handle pip step on worker due to an exception: {errorMessage}")]
+        internal abstract void HandlePipStepOnWorkerFailed(LoggingContext loggingContext, string pipDescription, string errorMessage);
     }
 }
 #pragma warning restore CA1823 // Unused field

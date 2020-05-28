@@ -484,32 +484,45 @@ namespace BuildXL.Engine.Distribution
                 // Start the pip. Handle the case of a retry - the pip may be already started by a previous call.
                 if (m_handledBuildRequests.Add(pipBuildRequest.SequenceNumber))
                 {
-                    HandlePipStepAsync(pipBuildRequest, reportInputsResult).Forget();
+
+                    var pipId = new PipId(pipBuildRequest.PipIdValue);
+                    var pip = m_pipTable.HydratePip(pipId, PipQueryContext.HandlePipStepOnWorker);
+                    m_pendingBuildRequests[pipId] = pipBuildRequest;
+                    var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = pipBuildRequest.Step })
+                    {
+                        SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId)
+                    };
+
+                    m_pendingPipCompletions[pipId] = pipCompletionData;
+
+                    HandlePipStepAsync(pip, pipCompletionData, pipBuildRequest, reportInputsResult).Forget((ex)=>
+                    {
+                        Scheduler.Tracing.Logger.Log.HandlePipStepOnWorkerFailed(
+                            m_appLoggingContext,
+                            pip.GetDescription(m_environment.Context),
+                            ex.ToString());
+
+                        ReportResult(
+                            pip,
+                            ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
+                            (PipExecutionStep)pipBuildRequest.Step);
+                    });
                 }
             }
         }
 
-        private async Task HandlePipStepAsync(SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
+        private async Task HandlePipStepAsync(Pip pip, ExtendedPipCompletionData pipCompletionData, SinglePipBuildRequest pipBuildRequest, Possible<Unit> reportInputsResult)
         {
             // Do not block the caller.
             await Task.Yield();
 
-            var pipId = new PipId(pipBuildRequest.PipIdValue);
-            var pip = m_pipTable.HydratePip(pipId, PipQueryContext.LoggingPipFailedOnWorker);
+            var pipId = pip.PipId;
             var pipType = pip.PipType;
             var step = (PipExecutionStep)pipBuildRequest.Step;
             if (!(pipType == PipType.Process || pipType == PipType.Ipc || step == PipExecutionStep.MaterializeOutputs))
             {
                 throw Contract.AssertFailure(I($"Workers can only execute process or IPC pips for steps other than MaterializeOutputs: Step={step}, PipId={pipId}, Pip={pip.GetDescription(m_environment.Context)}"));
             }
-
-            m_pendingBuildRequests[pipId] = pipBuildRequest;
-            var pipCompletionData = new ExtendedPipCompletionData(new PipCompletionData() { PipIdValue = pipId.Value, Step = (int)step })
-            {
-                SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId)
-            };
-
-            m_pendingPipCompletions[pipId] = pipCompletionData;
 
             using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, m_appLoggingContext))
             using (operationContext.StartOperation(step))
@@ -519,13 +532,12 @@ namespace BuildXL.Engine.Distribution
                 if (!reportInputsResult.Succeeded)
                 {
                     // Could not report inputs due to input mismatch. Fail the pip
-                    BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
+                    Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFailureDueToVerifySourceFilesFailed(
                         m_appLoggingContext,
                         pipInfo.Description,
                         reportInputsResult.Failure.DescribeIncludingInnerFailures());
 
                     ReportResult(
-                        operationContext,
                         pip,
                         ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
                         step);
@@ -560,7 +572,6 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 ReportResult(
-                    operationContext,
                     pip,
                     executionResult,
                     step);
@@ -689,7 +700,6 @@ namespace BuildXL.Engine.Distribution
         }
 
         private void ReportResult(
-           OperationContext operationContext,
            Pip pip,
            ExecutionResult executionResult,
            PipExecutionStep step)

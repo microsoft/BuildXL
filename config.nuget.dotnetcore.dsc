@@ -76,7 +76,6 @@ export const pkgs = [
     { id: "Microsoft.Win32.Primitives", version: pkgVersion },
     { id: "Microsoft.Win32.Registry", version: pkgVersion },
     { id: "System.AppContext", version: pkgVersion },
-    { id: "System.Buffers", version: pkgVersion },
     { id: "System.Collections", version: pkgVersion },
     { id: "System.Collections.Concurrent", version: pkgVersion },
     { id: "System.Collections.NonGeneric", version: pkgVersion },

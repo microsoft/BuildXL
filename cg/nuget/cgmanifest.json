@@ -2796,7 +2796,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Buffers",
-          "Version": "4.3.0"
+          "Version": "4.5.1"
         }
       }
     },
@@ -3354,7 +3354,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Memory",
-          "Version": "4.5.3"
+          "Version": "4.5.4"
         }
       }
     },

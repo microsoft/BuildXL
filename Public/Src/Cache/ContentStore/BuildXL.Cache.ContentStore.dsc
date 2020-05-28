@@ -20,17 +20,17 @@ export const redisPackages = [
             importFrom("System.IO.Pipelines").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Threading.Channels").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
-            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
+            importFrom("Pipelines.Sockets.Unofficial").withQualifier({ targetFramework: "netstandard2.0" }).pkg,
           ] 
         : [
             importFrom("System.IO.Pipelines").pkg,
             importFrom("System.Threading.Channels").pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            importFrom("Pipelines.Sockets.Unofficial").pkg,
           ]),
     ...BuildXLSdk.bclAsyncPackages,
     // Needed because of snipped dependencies for System.IO.Pipelines and System.Threading.Channels
     importFrom("System.Threading.Tasks.Extensions").pkg,
-    importFrom("Pipelines.Sockets.Unofficial").pkg,
 ];
 
 @@public

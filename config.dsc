@@ -105,13 +105,13 @@ config({
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
 
                 // Roslyn Analyzers
-                { id: "Microsoft.CodeAnalysis.Analyzers", version: "2.6.3" },
+                { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.0.0" },
                 { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
 
-                { id: "AsyncFixer", version: "1.1.5" },
+                { id: "AsyncFixer", version: "1.3.0" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
                 { id: "RuntimeContracts.Analyzer", version: "0.3.0" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },

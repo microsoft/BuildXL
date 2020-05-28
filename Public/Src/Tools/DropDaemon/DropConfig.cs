@@ -119,7 +119,8 @@ namespace Tool.DropDaemon
             bool? enableTelemetry = null,
             bool? enableChunkDedup = null,
             string logDir = null,
-            string artifactLogName = null)
+            string artifactLogName = null,
+            int? batchSize = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -131,6 +132,7 @@ namespace Tool.DropDaemon
             EnableChunkDedup = enableChunkDedup ?? DefaultEnableChunkDedup;
             LogDir = logDir;
             ArtifactLogName = artifactLogName;
+            BatchSize = batchSize ?? DefaultBatchSizeForAssociate;
         }
     }
 }

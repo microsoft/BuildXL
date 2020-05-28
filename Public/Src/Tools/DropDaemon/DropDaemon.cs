@@ -674,7 +674,8 @@ namespace Tool.DropDaemon
                 enableTelemetry: conf.Get(EnableTelemetry),
                 enableChunkDedup: conf.Get(EnableChunkDedup),
                 logDir: conf.Get(LogDir),
-                artifactLogName: conf.Get(ArtifactLogName));
+                artifactLogName: conf.Get(ArtifactLogName),
+                batchSize: conf.Get(BatchSize));
         }
 
         private static T RegisterDropConfigOption<T>(T option) where T : Option => RegisterOption(DropConfigOptions, option);

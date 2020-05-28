@@ -27,10 +27,6 @@ set GvfsRepoLocation=%RepoParentDir%\%GvfsRepoName%
 REM https://github.com/microsoft/VFSForGit/releases/download/v1.0.20112.1/Git-2.26.2.vfs.1.1-64-bit.exe
 REM https://github.com/microsoft/VFSForGit/releases/download/v1.0.20112.1/SetupGVFS.1.0.20112.1.exe
 
-REM TODO: consider dynamically discovering the latest versions
-set GitVersion=2.26.2.vfs.1.1
-set GvfsVersion=1.0.20112.1
-
 set RepoUrl=https://almili@dev.azure.com/almili/Public/_git/Public.BuildXL.Test.Gvfs
 
 echo "==== Updating PATH"
@@ -55,20 +51,20 @@ if ERRORLEVEL 1 (
     echo "**** [WARNING] Could not install .NET Core; continuing hoping for the best"
 )
 
-REM call :DownloadAndInstallApp Gvfs https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/SetupGVFS.%GvfsVersion%.exe "%ProgramFiles%\gvfs\gvfs.exe"
-REM call :DownloadAndInstallApp Git https://github.com/microsoft/VFSForGit/releases/download/v%GvfsVersion%/Git-%GitVersion%-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
-
-call :InstallApp %~dp0..\GvfsInstallers\gvfs\SetupGVFS.1.0.20099.1.exe "%ProgramFiles%\gvfs\gvfs.exe"
+call :InstallApp %~dp0..\GvfsInstallers\gvfs\SetupGVFS.0.3.20147.1.exe "%ProgramFiles%\gvfs\gvfs.exe"
 if ERRORLEVEL 1 (
     echo "**** [ERROR] Failed to install GVFS"
     exit /b 1
 )
 
-call :InstallApp %~dp0..\GvfsInstallers\g4w\Git-2.26.0.vfs.1.2-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
+call :DownloadAndInstallApp Git https://github.com/microsoft/VFSForGit/releases/download/v1.0.20112.1/Git-2.26.2.vfs.1.1-64-bit.exe "%ProgramFiles%\git\cmd\git.exe"
 if ERRORLEVEL 1 (
     echo "**** [ERROR] Failed to install Git for GVFS"
     exit /b 1
 )
+
+echo === Configuring GVFS usn.updateDirectories option
+"C:\Program Files\GVFS\GVFS.exe" config usn.updateDirectories true
 
 echo === Cloning repository %RepoUrl% (both with git and gvfs) into C:\Temp\
 
@@ -85,7 +81,6 @@ if ERRORLEVEL 1 (
     echo "**** [ERROR] Could not gvfs clone repo %RepoUrl%"
     exit /b 1
 )
-
 
 echo === Configuring git user name and email for %GitRepoLocation%
 cd %GitRepoLocation%

@@ -285,7 +285,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "GVFS.Installers",
-          "Version": "1.0.20099.1"
+          "Version": "0.3.20147.1"
         }
       }
     },

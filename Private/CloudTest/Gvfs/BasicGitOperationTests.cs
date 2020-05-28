@@ -109,7 +109,7 @@ namespace BuildXL.CloudTest.Gvfs
         {
             using var helper = Clone(repoCfg);
 
-            // track a file that doesn't exist
+            // track a directory
             var dir = helper.GetPath(@"src\files\subfolder");
             var result = helper.TrackDir(dir);
             XAssert.AreEqual(PathExistence.ExistsAsDirectory, result.Existence);
@@ -124,7 +124,62 @@ namespace BuildXL.CloudTest.Gvfs
             helper.AssertAnyChange(dir, PathChanges.MembershipChanged);
         }
 
-        // [Theory] // BUG in VFSforGit: projection for `src/files` folder is not updated
+        [Theory]
+        [MemberData(nameof(RepoConfigData))]
+        public void TestFolderBecomesFile(RepoConfig repoCfg)
+        {
+            using var helper = Clone(repoCfg);
+
+            // track two directories
+            var dir = helper.GetPath(@"src\files");
+            var subdir = helper.GetPath(@"src\files\subfolder");
+            var dirResult = helper.TrackDir(dir);
+            var subdirResult = helper.TrackDir(subdir);
+            XAssert.AreEqual(PathExistence.ExistsAsDirectory, dirResult.Existence);
+            XAssert.AreEqual(PathExistence.ExistsAsDirectory, subdirResult.Existence);
+
+            // switch to a new branch where the subdirectory is now a file
+            using var reseter = helper.GitCheckout("folderBecomesFile");
+
+            // immediately snap changes
+            helper.SnapCheckPoint();
+
+            XAssert.FileExists(subdir);
+
+            // assert directory membership changes
+            helper.AssertAnyChange(dir, PathChanges.MembershipChanged);
+            helper.AssertAnyChange(subdir, PathChanges.Removed);
+        }
+
+        [Theory]
+        [MemberData(nameof(RepoConfigData))]
+        public void TestFileBecomesFolder(RepoConfig repoCfg)
+        {
+            using var helper = Clone(repoCfg);
+
+            // track a folder and a file
+            var dir = helper.GetPath(@"src\files\subfolder");
+            var file = helper.GetPath(@"src\files\subfolder\newFile.txt");
+
+            var dirResult = helper.TrackDir(dir);
+            var fileResult = helper.TrackPath(file);
+            XAssert.AreEqual(PathExistence.ExistsAsDirectory, dirResult.Existence);
+            XAssert.AreEqual(PathExistence.ExistsAsFile, fileResult.Existence);
+
+            // switch to a new branch where that file is now a folder
+            using var reseter = helper.GitCheckout("fileBecomesFolder");
+
+            // immediately snap changes
+            helper.SnapCheckPoint();
+
+            XAssert.DirectoryExists(file);
+
+            // assert directory membership changes
+            helper.AssertAnyChange(dir, PathChanges.MembershipChanged);
+            helper.AssertAnyChange(file, PathChanges.Removed);
+        }
+
+        [Theory]
         [MemberData(nameof(RepoConfigData))]
         public void TestAbsentFileAndDir(RepoConfig repoCfg)
         {

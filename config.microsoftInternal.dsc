@@ -32,7 +32,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
     { id: "Microsoft.Azure.Storage.Common", version:"11.1.0" },
 
-    { id: "GVFS.Installers", version: "1.0.20099.1" },
+    { id: "GVFS.Installers", version: "0.3.20147.1" },
 
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.

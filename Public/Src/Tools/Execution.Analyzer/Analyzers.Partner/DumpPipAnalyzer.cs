@@ -583,12 +583,22 @@ namespace BuildXL.Execution.Analyzer
 
         private XElement GetSealDirectoryDetails(SealDirectory pip)
         {
+            m_directoryContents.TryGetValue(pip.Directory, out var dynamicDirectoryContent);
+
             return m_html.CreateBlock(
                 "SealDirectory Pip Details",
                 m_html.CreateEnumRow("Kind", pip.Kind),
                 m_html.CreateRow("Scrub", pip.Scrub),
                 m_html.CreateRow("DirectoryRoot", pip.Directory),
-                m_html.CreateRow("Contents", pip.Contents));
+                m_html.CreateRow("ComposedDirectories", pip.ComposedDirectories),
+                pip.ContentFilter.HasValue ? m_html.CreateRow("ContentFilter", contentFilterToString(pip.ContentFilter.Value)) : null,
+                m_html.CreateRow("Contents", pip.Contents),
+                pip.Kind == SealDirectoryKind.SharedOpaque ? m_html.CreateRow("Dynamic contents", dynamicDirectoryContent) : null);
+
+            string contentFilterToString(SealDirectoryContentFilter filter)
+            {
+                return $"{filter.Regex} (kind: {Enum.Format(typeof(SealDirectoryContentFilter.ContentFilterKind), filter.Kind, "f")})";
+            }
         }
 
         private string GetModuleName(ModuleId value)

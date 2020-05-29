@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ipc.Common
@@ -127,12 +128,10 @@ namespace BuildXL.Ipc.Common
         /// </summary>
         public static IIpcResult Merge(IIpcResult lhs, IIpcResult rhs)
         {
-            var mergedStatus =
-                lhs.Succeeded && rhs.Succeeded ? IpcResultStatus.Success :
-                lhs.Succeeded && !rhs.Succeeded ? rhs.ExitCode :
-                !lhs.Succeeded && rhs.Succeeded ? lhs.ExitCode :
-                IpcResultStatus.GenericError;
-            return new IpcResult(mergedStatus, lhs.Payload + Environment.NewLine + rhs.Payload, lhs.ActionDuration + rhs.ActionDuration);
+            return new IpcResult(
+                MergeStatuses(lhs.ExitCode, rhs.ExitCode),
+                lhs.Payload + Environment.NewLine + rhs.Payload,
+                lhs.ActionDuration + rhs.ActionDuration);
         }
 
         /// <summary>
@@ -143,9 +142,31 @@ namespace BuildXL.Ipc.Common
             Contract.Requires(ipcResults != null);
             Contract.Requires(ipcResults.Any());
 
-            return ipcResults.Count() == 1
-                ? ipcResults.First()
-                : ipcResults.Skip(1).Aggregate(ipcResults.First(), Merge);
+            using (var sbWrapper = Pools.StringBuilderPool.GetInstance())
+            {
+                var status = IpcResultStatus.Success;
+                var payload = sbWrapper.Instance;
+                var duration = TimeSpan.FromSeconds(0);
+                foreach (var ipcResult in ipcResults)
+                {
+                    status = MergeStatuses(status, ipcResult.ExitCode);
+                    payload.AppendLine(ipcResult.Payload);
+                    duration += ipcResult.ActionDuration;
+                }
+
+                return new IpcResult(status, payload.ToString(), duration);
+            }
+        }
+
+        private static IpcResultStatus MergeStatuses(IpcResultStatus lhs, IpcResultStatus rhs)
+        {
+            return
+                success(lhs)  && success(rhs)  ? IpcResultStatus.Success :
+                success(lhs)  && !success(rhs) ? rhs :
+                !success(lhs) && success(rhs)  ? lhs :
+                IpcResultStatus.GenericError;
+
+            bool success(IpcResultStatus s) => s == IpcResultStatus.Success;
         }
     }
 }

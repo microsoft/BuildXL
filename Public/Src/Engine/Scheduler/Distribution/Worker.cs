@@ -55,6 +55,9 @@ namespace BuildXL.Scheduler.Distribution
         private int m_acquiredCacheLookupSlots;
         private int m_acquiredProcessSlots;
         private int m_acquiredIpcSlots;
+        private int m_acquiredMaterializeInputSlots;
+        private int m_acquiredPostProcessSlots;
+
         private ContentTrackingSet m_availableContent;
         private ContentTrackingSet m_availableHashes;
         private SemaphoreSet<StringId> m_workerSemaphores;
@@ -168,6 +171,11 @@ namespace BuildXL.Scheduler.Distribution
                 OnWorkerResourcesChanged(WorkerResource.TotalCacheLookupSlots, value > oldValue);
             }
         }
+
+        /// <summary>
+        /// The total amount of slots for materialize input
+        /// </summary>
+        public int TotalMaterializeInputSlots { get; protected set; }
 
         /// <summary>
         /// Name of the RAM semaphore
@@ -412,7 +420,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Gets the currently acquired slots for all operations that can be done on a worker.
         /// </summary>
-        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredIpcSlots;
+        public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredIpcSlots + Volatile.Read(ref m_acquiredPostProcessSlots);
 
         /// <summary>
         /// Gets the currently acquired slots for process pips.
@@ -423,6 +431,11 @@ namespace BuildXL.Scheduler.Distribution
         /// Gets the currently acquired process slots
         /// </summary>
         public int AcquiredProcessSlots => Volatile.Read(ref m_acquiredProcessSlots);
+
+        /// <summary>
+        /// Gets the currently acquired process slots
+        /// </summary>
+        public int AcquiredMaterializeInputSlots => Volatile.Read(ref m_acquiredMaterializeInputSlots);
 
         /// <summary>
         /// Gets the currently acquired cache lookup slots
@@ -572,12 +585,20 @@ namespace BuildXL.Scheduler.Distribution
                     return false;
                 }
 
+                if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots && EngineEnvironmentSettings.DecoupleMaterializeSlotsFromProcessSlots)
+                {
+                    limitingResource = WorkerResource.AvailableMaterializeInputSlots;
+                    return false;
+                }
+
                 StringId limitingResourceName = StringId.Invalid;
                 var expectedMemoryCounters = GetExpectedMemoryCounters(processRunnablePip);
                 if (processRunnablePip.TryAcquireResources(m_workerSemaphores, GetAdditionalResourceInfo(processRunnablePip, expectedMemoryCounters), out limitingResourceName))
                 {
                     Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
                     OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
+                    Interlocked.Add(ref m_acquiredMaterializeInputSlots, 1);
+                    Interlocked.Add(ref m_acquiredPostProcessSlots, 1);
                     runnablePip.AcquiredResourceWorker = this;
                     processRunnablePip.ExpectedMemoryCounters = expectedMemoryCounters;
                     limitingResource = null;
@@ -694,42 +715,88 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Release pip's resources after worker is done with the task
         /// </summary>
-        public void ReleaseResources(RunnablePip runnablePip)
+        public void ReleaseResources(RunnablePip runnablePip, PipExecutionStep nextStep)
         {
             Contract.Assert(runnablePip.AcquiredResourceWorker == this);
 
-            runnablePip.AcquiredResourceWorker = null;
+            var stepCompleted = runnablePip.Step;
+            bool isCancelledOrFailed = nextStep == PipExecutionStep.ChooseWorkerCpu || nextStep == PipExecutionStep.HandleResult;
 
             var processRunnablePip = runnablePip as ProcessRunnablePip;
             if (processRunnablePip != null)
             {
-                if (runnablePip.Step == PipExecutionStep.CacheLookup)
+                switch (stepCompleted)
                 {
-                    Interlocked.Decrement(ref m_acquiredCacheLookupSlots);
-                    OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: true);
-                    runnablePip.SetWorker(null);
-                }
-                else
-                {
-                    Contract.Assert(processRunnablePip.Resources.HasValue);
+                    case PipExecutionStep.CacheLookup:
+                    {
+                        Interlocked.Decrement(ref m_acquiredCacheLookupSlots);
+                        OnWorkerResourcesChanged(WorkerResource.AvailableCacheLookupSlots, increased: true);
+                        runnablePip.SetWorker(null);
+                        runnablePip.AcquiredResourceWorker = null;
+                        break;
+                    }
+                    case PipExecutionStep.MaterializeInputs:
+                    {
+                        Interlocked.Decrement(ref m_acquiredMaterializeInputSlots);
+                        OnWorkerResourcesChanged(WorkerResource.AvailableMaterializeInputSlots, increased: true);
+                        if (isCancelledOrFailed)
+                        {
+                            releaseExecuteProcessSlots();
+                            releasePostProcessSlots();
+                        }
 
-                    Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
+                        break;
+                    }
+                    case PipExecutionStep.ExecuteProcess:
+                    {
+                        releaseExecuteProcessSlots();
+                        if (isCancelledOrFailed)
+                        {
+                            releasePostProcessSlots();
+                        }
 
-                    var resources = processRunnablePip.Resources.Value;
-                    m_workerSemaphores.ReleaseResources(resources);
-
-                    OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
+                        break;
+                    }
+                    case PipExecutionStep.PostProcess:
+                    {
+                        releasePostProcessSlots();
+                        break;
+                    }
                 }
             }
 
             if (runnablePip.PipType == PipType.Ipc)
             {
-                Interlocked.Decrement(ref m_acquiredIpcSlots);
+                if (stepCompleted == PipExecutionStep.ExecuteNonProcessPip || isCancelledOrFailed)
+                {
+                    Interlocked.Decrement(ref m_acquiredIpcSlots);
+                    runnablePip.SetWorker(null);
+                    runnablePip.AcquiredResourceWorker = null;
+                }
             }
 
             if (AcquiredSlots == 0 && Status == WorkerNodeStatus.Stopping)
             {
                 DrainCompletion.TrySetResult(true);
+            }
+
+            void releaseExecuteProcessSlots()
+            {
+                Contract.Assert(processRunnablePip.Resources.HasValue);
+
+                Interlocked.Add(ref m_acquiredProcessSlots, -processRunnablePip.Weight);
+
+                var resources = processRunnablePip.Resources.Value;
+                m_workerSemaphores.ReleaseResources(resources);
+
+                OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: true);
+            }
+
+            void releasePostProcessSlots()
+            {
+                Interlocked.Decrement(ref m_acquiredPostProcessSlots);
+                runnablePip.SetWorker(null);
+                runnablePip.AcquiredResourceWorker = null;
             }
         }
 

@@ -17,6 +17,7 @@ using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -147,7 +148,7 @@ namespace BuildXL.Scheduler.Distribution
                 }
                 else
                 {
-                    pipSetupCost.SortByUsedSlots(runnablePip);
+                    pipSetupCost.InitializeWorkerSetupCost(runnablePip.Pip);
                 }
 
                 using (await m_chooseWorkerMutex.AcquireAsync())
@@ -191,7 +192,7 @@ namespace BuildXL.Scheduler.Distribution
 
             ResetStatus();
 
-            var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu);
+            var pendingWorkerSelectionPipCount = PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) + PipQueue.GetNumRunningByKind(DispatcherKind.ChooseWorkerCpu);
 
             bool loadBalanceWorkers = false;
             if (runnablePip.PipType == PipType.Process)
@@ -204,6 +205,11 @@ namespace BuildXL.Scheduler.Distribution
                     loadBalanceWorkers = true;
                 }
             }
+
+            double? disableLoadBalanceMultiplier = EngineEnvironmentSettings.DisableLoadBalanceMultiplier;
+
+            // Disable load-balance if there is a multiplier specified including 0.
+            loadBalanceWorkers &= !disableLoadBalanceMultiplier.HasValue;
 
             long setupCostForBestWorker = workerSetupCosts[0].SetupBytes;
 
@@ -223,6 +229,21 @@ namespace BuildXL.Scheduler.Distribution
                     {
                         runnablePip.Performance.SetInputMaterializationCost(ByteSizeFormatter.ToMegabytes((ulong)setupCostForBestWorker), ByteSizeFormatter.ToMegabytes((ulong)workerSetupCosts[i].SetupBytes));
                         return worker;
+                    }
+
+                    // If the worker is not chosen due to the lack of process slots,
+                    // do not try the next worker immediately if 'BuildXLDisableLoadBalanceMultiplier' is specified.
+                    // We first check whether the number of pips waiting for a worker is less than the total slots times with the multiplier.
+                    // For example, if the multiplier is 1 and totalWorkerSlots is 100, then we do not try the next worker 
+                    // if there are less than 100 pips waiting for a worker. 
+                    // For Cosine builds, executing pips on a new worker is expensive due to the input materialization.
+                    // It is usually faster to wait for the busy worker to be available compared to trying on another worker.
+                    if (limitingResource == WorkerResource.AvailableProcessSlots && 
+                        disableLoadBalanceMultiplier.HasValue &&
+                        pendingWorkerSelectionPipCount < (worker.TotalProcessSlots * disableLoadBalanceMultiplier.Value))
+                    {
+                        limitingResource = WorkerResource.DisableLoadBalance;
+                        return null;
                     }
                 }
             }
@@ -285,13 +306,6 @@ namespace BuildXL.Scheduler.Distribution
             {
                 m_context = context;
                 WorkerSetupCosts = new WorkerSetupCost[context.Workers.Count];
-            }
-
-            public void SortByUsedSlots(RunnablePip runnablePip)
-            {
-                InitializeWorkerSetupCost(runnablePip.Pip);
-
-                Array.Sort(WorkerSetupCosts);
             }
 
             /// <summary>
@@ -360,7 +374,7 @@ namespace BuildXL.Scheduler.Distribution
                 Array.Sort(WorkerSetupCosts);
             }
 
-            private void InitializeWorkerSetupCost(Pip pip)
+            public void InitializeWorkerSetupCost(Pip pip)
             {
                 for (int i = 0; i < m_context.Workers.Count; i++)
                 {

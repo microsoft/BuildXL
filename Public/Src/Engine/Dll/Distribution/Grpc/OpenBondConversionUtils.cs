@@ -21,7 +21,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 AvailableRamMb = message.AvailableRamMb ?? 0,
                 AvailableCommitMb = message.AvailableCommitMb ?? 0,
-                MaxConcurrency = message.MaxConcurrency,
+                MaxProcesses = message.MaxProcesses,
+                MaxMaterialize = message.MaxMaterialize,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.Data.ToByteString(),
             };
         }
@@ -34,7 +35,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                 
                 AvailableRamMb = message.AvailableRamMb,
                 AvailableCommitMb = message.AvailableCommitMb,
-                MaxConcurrency = message.MaxConcurrency,
+                MaxProcesses = message.MaxProcesses,
+                MaxMaterialize = message.MaxMaterialize,
                 WorkerCacheValidationContentHash = message.WorkerCacheValidationContentHash.ToBondContentHash(),
             };
         }

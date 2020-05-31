@@ -119,9 +119,8 @@ namespace BuildXL.Engine.Distribution
         private IPipExecutionEnvironment m_environment;
         private ForwardingEventListener m_forwardingEventListener;
         private WorkerServicePipStateManager m_workerPipStateManager;
-        private IDistributionConfiguration m_config;
+        private readonly IConfiguration m_config;
         private readonly ushort m_port;
-        private readonly int m_maxProcesses;
         private readonly WorkerRunnablePipObserver m_workerRunnablePipObserver;
         private readonly DistributionServices m_services;
         private NotifyMasterExecutionLogTarget m_notifyMasterExecutionLogTarget;
@@ -137,15 +136,13 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         /// <param name="appLoggingContext">Application-level logging context</param>
-        /// <param name="maxProcesses">the maximum number of concurrent pips on the worker</param>
-        /// <param name="config">Distribution config</param>\
+        /// <param name="config">Build config</param>\
         /// <param name="buildId">the build id</param>
-        public WorkerService(LoggingContext appLoggingContext, int maxProcesses, IDistributionConfiguration config, string buildId)
+        public WorkerService(LoggingContext appLoggingContext, IConfiguration config, string buildId)
         {
             m_appLoggingContext = appLoggingContext;
-            m_maxProcesses = maxProcesses;
             m_config = config;
-            m_port = config.BuildServicePort;
+            m_port = config.Distribution.BuildServicePort;
             m_services = new DistributionServices(buildId);
             m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
 
@@ -435,7 +432,8 @@ namespace BuildXL.Engine.Distribution
             var attachCompletionInfo = new AttachCompletionInfo
             {
                 WorkerId = WorkerId,
-                MaxConcurrency = m_maxProcesses,
+                MaxProcesses = m_config.Schedule.MaxProcesses,
+                MaxMaterialize = m_config.Schedule.MaxMaterialize,
                 AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb,
                 AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb,
                 WorkerCacheValidationContentHash = cacheValidationContentHash.ToBondContentHash(),
@@ -719,7 +717,7 @@ namespace BuildXL.Engine.Distribution
             // To preserve the path set casing is an option only available for process pips
             pipCompletion.PreservePathSetCasing = pip.PipType == PipType.Process ? ((Process)pip).PreservePathSetCasing : false;
 
-            if (step == PipExecutionStep.MaterializeOutputs && m_config.FireForgetMaterializeOutput)
+            if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput)
             {
                 // We do not report 'MaterializeOutput' step results back to master.
                 Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());

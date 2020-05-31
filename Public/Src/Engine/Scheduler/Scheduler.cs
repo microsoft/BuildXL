@@ -1219,7 +1219,7 @@ namespace BuildXL.Scheduler
             }
 
             m_testHooks = testHooks;
-            LocalWorker = new LocalWorker(m_scheduleConfiguration.MaxProcesses, m_scheduleConfiguration.MaxCacheLookup, m_testHooks?.DetoursListener);
+            LocalWorker = new LocalWorker(m_scheduleConfiguration, m_testHooks?.DetoursListener);
             m_workers = new List<Worker> { LocalWorker };
 
             m_statusSnapshotLastUpdated = DateTime.UtcNow;
@@ -2079,6 +2079,8 @@ namespace BuildXL.Scheduler
                     {
                         rows.Add(I($"W{worker.WorkerId} Total CacheLookup Slots"), _ => worker.TotalCacheLookupSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used CacheLookup Slots"), _ => worker.AcquiredCacheLookupSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total MaterializeInput Slots"), _ => worker.TotalMaterializeInputSlots, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used MaterializeInput Slots"), _ => worker.AcquiredMaterializeInputSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Effective Process Slots"), _ => worker.EffectiveTotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
@@ -3541,7 +3543,7 @@ namespace BuildXL.Scheduler
             }
 
             // Release the worker resources if we are done executing
-            ReleaseWorkerIfNecessary(runnablePip, nextStep);
+            runnablePip.AcquiredResourceWorker?.ReleaseResources(runnablePip, nextStep);
 
             // Pip may need to materialize inputs/outputs before the next step
             // depending on the configuration
@@ -3562,23 +3564,6 @@ namespace BuildXL.Scheduler
             if (runnablePip is ProcessRunnablePip processRunnable)
             {
                 FlagAndReturnSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
-            }
-        }
-
-        private static void ReleaseWorkerIfNecessary(RunnablePip runnablePip, PipExecutionStep nextStep)
-        {
-            if (runnablePip.AcquiredResourceWorker != null)
-            {
-                // These steps run on the chosen worker so don't release the resources until they are completed.
-                // MaterializeOutputs can be also run on the workers; but we can release resources before that.
-                if (nextStep != PipExecutionStep.CacheLookup &&
-                    nextStep != PipExecutionStep.ExecuteNonProcessPip &&
-                    nextStep != PipExecutionStep.ExecuteProcess &&
-                    nextStep != PipExecutionStep.MaterializeInputs &&
-                    nextStep != PipExecutionStep.PostProcess)
-                {
-                    runnablePip.AcquiredResourceWorker.ReleaseResources(runnablePip);
-                }
             }
         }
 
@@ -3687,6 +3672,9 @@ namespace BuildXL.Scheduler
                     return AnyRemoteWorkers && runnablePip.IsWaitingForWorker ? DispatcherKind.ChooseWorkerCacheLookup : DispatcherKind.None;
 
                 case PipExecutionStep.CacheLookup:
+                case PipExecutionStep.PostProcess:
+                    // DispatcherKind.CacheLookup is mainly for CAS and VSTS resources.
+                    // As we store cache entries in PostProcess, so it makes sense to process those in CacheLookup queue.
                     return DispatcherKind.CacheLookup;
 
                 case PipExecutionStep.ChooseWorkerCpu:
@@ -3703,7 +3691,6 @@ namespace BuildXL.Scheduler
                     return DispatcherKind.Materialize;
 
                 case PipExecutionStep.MaterializeOutputs:
-                case PipExecutionStep.PostProcess:
                     return DispatcherKind.Materialize;
 
                 case PipExecutionStep.ExecuteProcess:

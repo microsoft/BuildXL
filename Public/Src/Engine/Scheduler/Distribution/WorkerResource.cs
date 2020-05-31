@@ -32,6 +32,11 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCacheLookupSlots = new WorkerResource(nameof(AvailableCacheLookupSlots), Precedence.AvailableCacheLookupSlots);
 
         /// <summary>
+        /// See <see cref="Worker.AcquiredMaterializeInputSlots"/>
+        /// </summary>
+        public static readonly WorkerResource AvailableMaterializeInputSlots = new WorkerResource(nameof(AvailableMaterializeInputSlots), Precedence.AvailableMaterializeInputSlots);
+
+        /// <summary>
         /// See <see cref="Worker.TotalRamMb"/>
         /// </summary>
         public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.AvailableMemoryMb);
@@ -45,6 +50,9 @@ namespace BuildXL.Scheduler.Distribution
         /// See <see cref="Worker.MemoryResourceAvailable"/>
         /// </summary>
         public static readonly WorkerResource MemoryResourceAvailable = new WorkerResource(nameof(MemoryResourceAvailable), Precedence.MemoryResourceAvailable);
+
+        /// <nodoc/>
+        public static readonly WorkerResource DisableLoadBalance = new WorkerResource(nameof(DisableLoadBalance), Precedence.DisableLoadBalance);
 
         /// <summary>
         /// See <see cref="Worker.Status"/>
@@ -120,6 +128,8 @@ namespace BuildXL.Scheduler.Distribution
             AvailableMemoryMb,
             AvailableCommitMb,
             MemoryResourceAvailable,
+            AvailableMaterializeInputSlots,
+            DisableLoadBalance,
             SemaphorePrecedence,
         }
     }

@@ -316,8 +316,7 @@ namespace BuildXL.Engine
             {
                 m_workerService = new WorkerService(
                     loggingContext,
-                    Configuration.Schedule.MaxProcesses,
-                    Configuration.Distribution,
+                    Configuration,
                     distributedBuildId);
                 m_distributionService = m_workerService;
             }

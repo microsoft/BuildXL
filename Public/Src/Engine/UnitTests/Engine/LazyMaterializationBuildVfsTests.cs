@@ -21,9 +21,9 @@ using static BuildXL.Tracing.LogEventId;
 namespace Test.BuildXL.Engine
 {
     [Trait("Category", "LazyMaterializationBuildTests")]
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)] // depends on csc.exe
+    [TestClassIfSupported(TestRequirements.WindowsProjFs)]
     [Feature(Features.LazyOutputMaterialization)]
-    public abstract class LazyMaterializationBuildVfsTests : LazyMaterializationBuildTests, ILogMessageObserver
+    public class LazyMaterializationBuildVfsTests : LazyMaterializationBuildTests, ILogMessageObserver
     {
         private CacheInitializer m_cacheInitializer;
 

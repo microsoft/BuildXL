@@ -220,3 +220,6 @@ dotnet_diagnostic.CA2237.severity = none
                                         
 # CA2217: Do not mark enums with FlagsAttribute
 dotnet_diagnostic.CA2217.severity = none
+
+# RA004:  User-defined message is missing in a contract assertion.
+dotnet_diagnostic.RA004.severity = none

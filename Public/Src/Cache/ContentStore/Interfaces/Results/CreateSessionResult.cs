@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (Success)
             {
-                return new CreateSessionResult<B>(transform(Session));
+                return new CreateSessionResult<B>(transform(Session!));
             }
             else
             {

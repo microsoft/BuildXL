@@ -120,14 +120,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 TryGenerateConverter(out Convert, out ErrorMessage);
             }
 
-            public static bool TryGetConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(true)]out string? errorMessage)
+            public static bool TryGetConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(false)]out string? errorMessage)
             {
                 result = Convert;
                 errorMessage = ErrorMessage;
+
+#pragma warning disable CS8762 // Parameter must have a non-null value when exiting in some condition.
                 return result != null;
+#pragma warning restore CS8762 // Parameter must have a non-null value when exiting in some condition.
             }
 
-            private static bool TryGenerateConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(true)]out string? errorMessage)
+            private static bool TryGenerateConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(false)]out string? errorMessage)
             {
                 var errorResultParameter = Expression.Parameter(typeof(ErrorResult));
                 var type = typeof(TResult).Name;

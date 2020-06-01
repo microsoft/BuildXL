@@ -152,7 +152,9 @@ namespace BuildXL.LogGen.Generators
                         string arguments = string.Join(",", site.FlattenedPayload.Select(
                             i =>
                             {
-                                return i.Type.ToDisplayString() + (i.NullableAnnotation == NullableAnnotation.Annotated ? "?" : string.Empty) + " " + i.AddressForMethodParameter;
+                                // No need to deal with nullable annotations because starting with 3.5.0 version of Roslyn
+                                //  ToDisplayString() returns '?' for nullable types already.
+                                return i.Type.ToDisplayString() + " " + i.AddressForMethodParameter;
                             }));
                         string relatedActivityIdArg = "Guid relatedActivityId";
                         if (string.IsNullOrEmpty(arguments))

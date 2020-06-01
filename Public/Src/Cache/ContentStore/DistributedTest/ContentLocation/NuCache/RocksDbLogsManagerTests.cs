@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
     public class RocksDbLogsManagerTests : TestBase
     {
         private readonly MemoryClock _clock = new MemoryClock();
-        private readonly new IAbsFileSystem _fileSystem;
+        private new readonly IAbsFileSystem _fileSystem;
         private readonly DisposableDirectory _workingDirectory;
 
         public RocksDbLogsManagerTests(ITestOutputHelper? output = null)
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 0, numLogFiles: 1);
-                    var backupFolder = (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value;
+                    var backupFolder = await BackupAsync(manager, context, instanceFolder);
                     Assert.True(_fileSystem.DirectoryExists(backupFolder));
 
                     var files = _fileSystem.EnumerateFiles(backupFolder, EnumerateOptions.None).ToList();
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 10);
-                    var backupFolder = (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value;
+                    var backupFolder = await BackupAsync(manager, context, instanceFolder);
                     Assert.True(_fileSystem.DirectoryExists(backupFolder));
 
                     var files = _fileSystem.EnumerateFiles(backupFolder, EnumerateOptions.None).ToList();
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 0);
-                    var backupFolder = (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value;
+                    var backupFolder = await BackupAsync(manager, context, instanceFolder);
                     Assert.False(_fileSystem.DirectoryExists(backupFolder));
                 });
         }
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 0, numLogFiles: 10);
-                    var backupFolder = (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value;
+                    var backupFolder = await BackupAsync(manager, context, instanceFolder);
                     Assert.True(_fileSystem.DirectoryExists(backupFolder));
 
                     manager.GarbageCollect(context).ShouldBeSuccess();
@@ -107,13 +107,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
                 async (context, manager) =>
                 {
                     var instanceFolder = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 10);
-                    var backupFolder = (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value;
+                    var backupFolder = await BackupAsync(manager, context, instanceFolder);
                     Assert.True(_fileSystem.DirectoryExists(backupFolder));
 
                     _clock.UtcNow += TimeSpan.FromDays(8);
 
                     var instanceFolder2 = await GenerateRocksDbInstanceFolderAsync(numSstFiles: 10, numLogFiles: 10);
-                    var backupFolder2 = (await manager.BackupAsync(context, instanceFolder2)).ShouldBeSuccess().Value;
+                    var backupFolder2 = await BackupAsync(manager, context, instanceFolder2);
                     Assert.True(_fileSystem.DirectoryExists(backupFolder2));
 
                     _clock.UtcNow += TimeSpan.FromDays(2);
@@ -174,6 +174,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
             }
 
             return path;
+        }
+
+        private static async Task<AbsolutePath> BackupAsync(RocksDbLogsManager manager, OperationContext context, AbsolutePath instanceFolder)
+        {
+            return (await manager.BackupAsync(context, instanceFolder)).ShouldBeSuccess().Value!;
         }
     }
 }

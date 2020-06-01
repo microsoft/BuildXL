@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -86,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return selector(result.Value);
+                return selector(result.Value!);
             }
 
             return new ErrorResult(result).AsResult<TResult>();
@@ -99,7 +100,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             if (result.Succeeded)
             {
-                return Result.Success(selector(result.Value));
+                return Result.Success(selector(result.Value!));
             }
             else
             {
@@ -117,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value;
+            return result.Value!;
         }
 
         /// <summary>
@@ -182,6 +183,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
         /// </summary>
+        [return: MaybeNull]
         public static T GetValueOrDefault<T>(this Result<T> result, T defaultValue = default)
         {
             return result.Succeeded ? result.Value : defaultValue;
@@ -200,7 +202,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Value;
+            return result.Value!;
         }
 
         /// <summary>
@@ -216,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Data;
+            return result.Data!;
         }
 
         /// <summary>
@@ -232,14 +234,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 throw new ResultPropagationException(result);
             }
 
-            return result.Data;
+            return result.Data!;
         }
 
         /// <summary>
         /// Tries to get the value from the result.
         /// </summary>
         /// <returns>Whether the value was gotten successfully.</returns>
-        public static bool TryGetValue<T>(this Result<T> result, out T value)
+        public static bool TryGetValue<T>(this Result<T> result, [MaybeNull]out T value)
         {
             value = result.Succeeded ? result.Value : default;
             return result.Succeeded;

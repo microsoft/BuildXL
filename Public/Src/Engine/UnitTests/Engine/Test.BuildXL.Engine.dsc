@@ -24,7 +24,7 @@ namespace Engine {
     ];
 
     // Update the value of this variable if you change the version of Microsoft.Net.Compilers in config.dsc.
-    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.3.1/module.config.bm`;
+    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.5.0/module.config.bm`;
 
     @@public
     export const categoriesToRunInParallel = [

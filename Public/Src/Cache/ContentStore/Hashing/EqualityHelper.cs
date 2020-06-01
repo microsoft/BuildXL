@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             // Looking for the first 4 elements only for performance reasons.
             foreach (var e in sequence.Take(4))
             {
-                result = (result * 397) ^ comparer.GetHashCode(e);
+                result = (result * 397) ^ comparer.GetHashCode(e!);
             }
 
             return result;

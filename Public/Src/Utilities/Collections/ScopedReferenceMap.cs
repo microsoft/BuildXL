@@ -175,7 +175,7 @@ namespace BuildXL.Utilities.Collections
                 m_dereference = dereference;
             }
 
-            public int HashCode => m_map.m_keyComparer.GetHashCode(Key);
+            public int HashCode => m_map.m_keyComparer.GetHashCode(Key!);
 
             public bool Equals(ScopedReferenceEntry other)
             {

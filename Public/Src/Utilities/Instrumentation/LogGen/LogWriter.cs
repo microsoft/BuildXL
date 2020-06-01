@@ -414,10 +414,6 @@ namespace BuildXL.LogGen
                 {
                     var modifier = parameter.RefKind == RefKind.Ref ? "ref" : string.Empty;
                     var typeValue = parameter.Type.ToDisplayString();
-                    if (parameter.Type.SpecialType == SpecialType.System_String && parameter.HasExplicitDefaultValue && parameter.ExplicitDefaultValue == null)
-                    {
-                        typeValue += "?";
-                    }
                     var defaultValue = parameter.HasExplicitDefaultValue
                         ? " = " + (parameter.ExplicitDefaultValue == null ? "null" : parameter.ExplicitDefaultValue.ToString())
                         : string.Empty;

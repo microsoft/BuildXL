@@ -126,9 +126,7 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <inheritdoc />
-#pragma warning disable CS8614 // Nullability of reference types in type of parameter doesn't match implicitly implemented member.
-        public bool TryGetValue(TKey key, [NotNullWhen(false)]out IReadOnlyList<TValue>? multiValues)
-#pragma warning restore CS8614 // Nullability of reference types in type of parameter doesn't match implicitly implemented member.
+        public bool TryGetValue(TKey key, [NotNullWhen(true)][MaybeNull]out IReadOnlyList<TValue> multiValues)
         {
             if (m_backingDictionary.TryGetValue(key, out List<TValue>? mutableMultiValues))
             {

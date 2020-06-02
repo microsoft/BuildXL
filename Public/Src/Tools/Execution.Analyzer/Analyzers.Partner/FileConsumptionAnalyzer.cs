@@ -68,6 +68,8 @@ namespace BuildXL.Execution.Analyzer
         public FileConsumptionAnalyzer(AnalysisInput input)
             : base(input)
         {
+            // Create default with just local worker for single machine builds
+            m_workers = new[] { new WorkerAnalyzer(this, "Local") };
         }
 
         public override void Prepare()

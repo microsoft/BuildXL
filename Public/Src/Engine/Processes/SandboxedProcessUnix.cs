@@ -340,6 +340,8 @@ namespace BuildXL.Processes
             // Make sure this is done no more than once.
             if (incrementedValue == 1)
             {
+                // surviving child processes may only be set when the process is explicitly killed
+                m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
                 await base.KillAsync();
                 KillAllChildProcesses();
                 SandboxConnection.NotifyRootProcessExited(PipId, this);
@@ -623,8 +625,6 @@ namespace BuildXL.Processes
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
 
                         m_pendingReports.Complete();
-                        m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
-
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
                         break;
@@ -642,7 +642,6 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
-                            m_survivingChildProcesses = NullIfEmpty(CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }

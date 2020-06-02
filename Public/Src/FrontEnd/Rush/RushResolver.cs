@@ -341,7 +341,7 @@ namespace BuildXL.FrontEnd.Rush
             RushGraphResult result = m_rushWorkspaceResolver.ComputedProjectGraph.Result;
 
             IReadOnlySet<RushProject> filteredBuildFiles = result.RushGraph.Projects
-                            .Where(project => evaluationGoals.Contains(project.ProjectPath(m_context.PathTable)))
+                            .Where(project => evaluationGoals.Contains(project.PackageJsonFile(m_context.PathTable)))
                             .ToReadOnlySet();
 
             // Massage custom commands for easier access

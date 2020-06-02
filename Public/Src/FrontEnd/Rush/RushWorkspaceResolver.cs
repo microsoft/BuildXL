@@ -327,7 +327,7 @@ namespace BuildXL.FrontEnd.Rush
             var projectFiles = new HashSet<AbsolutePath>();
             foreach (RushProject project in rushGraph.Projects)
             {
-                projectFiles.Add(project.ProjectPath(m_context.PathTable));
+                projectFiles.Add(project.PackageJsonFile(m_context.PathTable));
             }
 
             // Add an 'exports' source file at the root of the repo that will contain all top-level exported values

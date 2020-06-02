@@ -14,13 +14,13 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
     /// A version of a rush project where the collection of dependencies is generic.
     /// </summary>
     [DebuggerDisplay("{Name}")]
-    public class GenericRushProject<TDepedency>
+    public class GenericRushProject<TDependency>
     {
         /// <nodoc/>
         public GenericRushProject(
             string name,
             AbsolutePath projectFolder,
-            [CanBeNull] IReadOnlyCollection<TDepedency> dependencies,
+            [CanBeNull] IReadOnlyCollection<TDependency> dependencies,
             AbsolutePath tempFolder)
         {   
             Contract.RequiresNotNullOrEmpty(name);
@@ -40,13 +40,16 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         public AbsolutePath ProjectFolder { get; }
 
         /// <nodoc/>
-        public AbsolutePath ProjectPath(PathTable pathTable) => ProjectFolder.Combine(pathTable, "package.json");
+        public AbsolutePath PackageJsonFile(PathTable pathTable) => ProjectFolder.Combine(pathTable, "package.json");
 
         /// <nodoc/>
         public AbsolutePath ShrinkwrapDepsFile(PathTable pathTable) => TempFolder.Combine(pathTable, "shrinkwrap-deps.json");
 
         /// <nodoc/>
-        public IReadOnlyCollection<TDepedency> Dependencies { get; internal set; }
+        public AbsolutePath NodeModulesFolder(PathTable pathTable) => ProjectFolder.Combine(pathTable, "node_modules");
+
+        /// <nodoc/>
+        public IReadOnlyCollection<TDependency> Dependencies { get; internal set; }
 
         /// <nodoc/>
         public AbsolutePath TempFolder { get; }

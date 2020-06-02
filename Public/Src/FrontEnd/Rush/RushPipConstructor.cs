@@ -218,7 +218,7 @@ namespace BuildXL.FrontEnd.Rush
             }
 
             // Add package.json, which should always be present at the root of the project
-            processBuilder.AddInputFile(FileArtifact.CreateSourceFile(project.ProjectPath(PathTable)));
+            processBuilder.AddInputFile(FileArtifact.CreateSourceFile(project.PackageJsonFile(PathTable)));
 
             // If dependencies should be tracked via the project-level shrinkwrap-deps file, then force an input
             // dependency on it
@@ -266,8 +266,11 @@ namespace BuildXL.FrontEnd.Rush
         private void ProcessOutputs(RushProject project, ProcessBuilder processBuilder)
         {
             // Each project is automatically allowed to write anything under its project root
-            // TODO: we should exclude node_modules when shared opaques start to support exclusions
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder), SealDirectoryKind.SharedOpaque);
+
+            // There shouldn't be any writes under node_modules. So exclude it explicitly, since that also avoids a usually expensive enumeration
+            // under node_modules when scrubbing. 
+            processBuilder.AddOutputDirectoryExclusion(project.NodeModulesFolder(m_context.PathTable));
 
             // Some projects share their temp folder across their build scripts (e.g. build and test)
             // So we cannot make them share the temp folder with the infrastructure we have today

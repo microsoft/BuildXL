@@ -257,6 +257,7 @@ namespace BuildXL.Pips.Graph
                             modules: Modules,
                             pipProducers: PipProducers,
                             opaqueDirectoryProducers: OutputDirectoryProducers,
+                            outputDirectoryExclusions: OutputDirectoryExclusions,
                             outputDirectoryRoots: OutputDirectoryRoots,
                             compositeSharedOpaqueProducers: CompositeOutputDirectoryProducers,
                             sourceSealedDirectoryRoots: SourceSealedDirectoryRoots,
@@ -2111,6 +2112,12 @@ namespace BuildXL.Pips.Graph
                             data: directory,
                             addValueFactory: (p, directory) => (directory.IsSharedOpaque, new HashSet<DirectoryArtifact> { directory }),
                             updateValueFactory: (p, directory, oldValue) => ConstructOutputDirectoryRootElement(oldValue, directory));
+                    }
+
+                    // Add the process exclusions to the all-up collection of exclusions
+                    foreach (var exclusion in process.OutputDirectoryExclusions)
+                    {
+                        OutputDirectoryExclusions.Add(exclusion);
                     }
 
                     // Link to value pip

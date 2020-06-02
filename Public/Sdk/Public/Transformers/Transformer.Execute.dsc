@@ -215,6 +215,13 @@ namespace Transformer {
          * Defaults to false. 
          */
         uncancellable?: boolean;
+
+        /**
+         * Defines a collection of directory scopes that will be excluded from being part of opaque directory outputs
+         * Any artifact produced under these directories won't be considered part of any opaque (shared or exclusive) directory
+         * produced by this process
+         */
+        outputDirectoryExclusions?: Directory[];
     }
 
     @@public

@@ -859,6 +859,11 @@ namespace BuildXL.Engine
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
             if (!sidebandExaminationResult.ShouldPostponeDeletion && sharedOpaqueDirectories.Count() > 0)
             {
+                // Add the set of exclusion to the collection of non-scrubbable paths: it is safe to not scrub under those since there are no
+                // shared opaque outputs produced under exclusions by construction
+                nonScrubbablePaths = nonScrubbablePaths.Union(
+                    scheduler.PipGraph.OutputDirectoryExclusions.UnsafeGetList().Select(exclusion => exclusion.ToString(scheduler.Context.PathTable)));
+
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
                 Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);

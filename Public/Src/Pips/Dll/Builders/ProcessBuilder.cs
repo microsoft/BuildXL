@@ -67,6 +67,7 @@ namespace BuildXL.Pips.Builders
         private readonly PooledObjectWrapper<HashSet<FileArtifactWithAttributes>> m_outputFiles;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_outputDirectories;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_projectedSharedOutputDirectories;
+        private readonly PooledObjectWrapper<HashSet<AbsolutePath>> m_outputDirectoryExclusions;
 
         // Input/Output streams
 
@@ -198,6 +199,7 @@ namespace BuildXL.Pips.Builders
             m_outputFiles = Pools.GetFileArtifactWithAttributesSet();
             m_outputDirectories = Pools.GetDirectoryArtifactSet();
             m_projectedSharedOutputDirectories = Pools.GetDirectoryArtifactSet();
+            m_outputDirectoryExclusions = Pools.GetAbsolutePathSet();
 
             m_untrackedFilesAndDirectories = Pools.GetAbsolutePathSet();
             m_untrackedDirectoryScopes = Pools.GetDirectoryArtifactSet();
@@ -314,6 +316,18 @@ namespace BuildXL.Pips.Builders
                 default:
                     throw Contract.AssertFailure("Unsupported output directory kind");
             }
+        }
+
+        /// <summary>
+        /// Adds an output directory exclusion
+        /// </summary>
+        /// <remarks>
+        /// Any output directory artifact produced under the specified root will not be considered part of any opaque directory
+        /// </remarks>
+        public void AddOutputDirectoryExclusion(AbsolutePath exclusionRoot)
+        {
+            Contract.Requires(exclusionRoot.IsValid);
+            m_outputDirectoryExclusions.Instance.Add(exclusionRoot);
         }
 
         /// <nodoc />
@@ -586,6 +600,10 @@ namespace BuildXL.Pips.Builders
                 ? ReadOnlyArray<DirectoryArtifact>.Empty
                 : ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(directoryOutputArray);
 
+            var outputDirectoryExclusions = m_outputDirectoryExclusions.Instance.Count == 0 
+                ? CollectionUtilities.EmptySet<AbsolutePath>()
+                : new ReadOnlyHashSet<AbsolutePath>(m_outputDirectoryExclusions.Instance);
+
             // Handle temp directories
             foreach (var additionalTempDirectory in AdditionalTempDirectories)
             {
@@ -688,7 +706,8 @@ namespace BuildXL.Pips.Builders
                 preserveOutputWhitelist: PreserveOutputWhitelist,
                 changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
-                childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox);
+                childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
+                outputDirectoryExclusions: outputDirectoryExclusions);
 
             return true;
         }
@@ -706,6 +725,7 @@ namespace BuildXL.Pips.Builders
             m_outputFiles.Dispose();
             m_outputDirectories.Dispose();
             m_projectedSharedOutputDirectories.Dispose();
+            m_outputDirectoryExclusions.Dispose();
 
             m_untrackedFilesAndDirectories.Dispose();
             m_untrackedDirectoryScopes.Dispose();

@@ -90,6 +90,11 @@ namespace BuildXL.Pips.Graph
         protected readonly ConcurrentBigMap<DirectoryArtifact, NodeId> OutputDirectoryProducers;
 
         /// <summary>
+        /// The set of all output directory exclusions
+        /// </summary>
+        public readonly ConcurrentBigSet<AbsolutePath> OutputDirectoryExclusions;
+
+        /// <summary>
         /// Mapping from composite output directories to the node ids of seal directory pips that produce them.
         /// </summary>
         protected readonly ConcurrentBigMap<DirectoryArtifact, NodeId> CompositeOutputDirectoryProducers;
@@ -174,6 +179,7 @@ namespace BuildXL.Pips.Graph
             Modules = new ConcurrentBigMap<ModuleId, NodeId>();
             PipProducers = new ConcurrentBigMap<FileArtifact, NodeId>();
             OutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
+            OutputDirectoryExclusions = new ConcurrentBigSet<AbsolutePath>();
             OutputDirectoryRoots = new ConcurrentBigMap<AbsolutePath, (bool anyIsSharedOpaque, HashSet<DirectoryArtifact> directoryArtifacts)>();
             CompositeOutputDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, NodeId>();
             SourceSealedDirectoryRoots = new ConcurrentBigMap<AbsolutePath, DirectoryArtifact>();
@@ -198,6 +204,7 @@ namespace BuildXL.Pips.Graph
                 ConcurrentBigMap<ModuleId, NodeId> modules,
                 ConcurrentBigMap<FileArtifact, NodeId> pipProducers,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> outputDirectoryProducers,
+                ConcurrentBigSet<AbsolutePath> outputDirectoryExclusions,
                 ConcurrentBigMap<AbsolutePath, (bool isSharedOpaque, HashSet<DirectoryArtifact> artifacts)> outputDirectoryRoots,
                 ConcurrentBigMap<DirectoryArtifact, NodeId> compositeOutputDirectoryProducers,
                 ConcurrentBigMap<AbsolutePath, DirectoryArtifact> sourceSealedDirectoryRoots,
@@ -216,6 +223,7 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(modules != null);
             Contract.Requires(pipProducers != null);
             Contract.Requires(outputDirectoryProducers != null);
+            Contract.Requires(outputDirectoryExclusions != null);
             Contract.Requires(outputDirectoryRoots != null);
             Contract.Requires(compositeOutputDirectoryProducers != null);
             Contract.Requires(sourceSealedDirectoryRoots != null);
@@ -236,6 +244,7 @@ namespace BuildXL.Pips.Graph
             Modules = modules;
             PipProducers = pipProducers;
             OutputDirectoryProducers = outputDirectoryProducers;
+            OutputDirectoryExclusions = outputDirectoryExclusions;
             OutputDirectoryRoots = outputDirectoryRoots;
             CompositeOutputDirectoryProducers = compositeOutputDirectoryProducers;
             SourceSealedDirectoryRoots = sourceSealedDirectoryRoots;

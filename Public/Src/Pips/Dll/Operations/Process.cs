@@ -428,7 +428,8 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
             FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null,
-            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null)
+            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
+            IReadOnlySet<AbsolutePath> outputDirectoryExclusions = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -542,6 +543,7 @@ namespace BuildXL.Pips.Operations
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
+            OutputDirectoryExclusions = outputDirectoryExclusions ?? CollectionUtilities.EmptySet<AbsolutePath>();
         }
 
         /// <summary>
@@ -759,6 +761,14 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
         
         /// <summary>
+        /// Directory cones that will be excluded from opaque directories
+        /// </summary>
+        /// <remarks>
+        /// Any artifact produced under any of these directories won't be considered part of any opaque directory output
+        /// </remarks>
+        public IReadOnlySet<AbsolutePath> OutputDirectoryExclusions { get; }
+
+        /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).
         /// </summary>
@@ -914,7 +924,8 @@ namespace BuildXL.Pips.Operations
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32(),
-                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom())
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
+                outputDirectoryExclusions: reader.ReadReadOnlySet(reader1 => reader1.ReadAbsolutePath())
                 );
         }
 
@@ -966,6 +977,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
             writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
+            writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
         }
         #endregion
     }

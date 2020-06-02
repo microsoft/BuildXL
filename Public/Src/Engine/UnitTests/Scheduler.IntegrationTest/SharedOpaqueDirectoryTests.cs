@@ -1944,6 +1944,58 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsFalse(File.Exists(ArtifactToString(sodFile)) || File.Exists(ArtifactToString(sodSubDir1File)));
         }
 
+        [Theory]
+        [InlineData("od/unrelated", 0, SealDirectoryKind.SharedOpaque)]
+        [InlineData("od/nested", 1, SealDirectoryKind.SharedOpaque)]
+        [InlineData(".", 2, SealDirectoryKind.SharedOpaque)]
+        [InlineData("od/unrelated", 0, SealDirectoryKind.Opaque)]
+        [InlineData("od/nested", 1, SealDirectoryKind.Opaque)]
+        [InlineData(".", 2, SealDirectoryKind.Opaque)]
+        public void OpaqueWithExclusionsIsHonored(string exclusionRelativePath, int expectedExcludedFiles, SealDirectoryKind outputDirectoryKind)
+        {
+            // Create two output files: od/o1 and od/nested/o2
+            var opaqueDir = Path.Combine(ObjectRoot, "od");
+            var nestedOpaqueDir = Path.Combine(opaqueDir, "nested");
+            var opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
+            var nestedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, nestedOpaqueDir);
+            var opaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(opaqueDirPath);
+            var outputFile1 = CreateOutputFileArtifact(opaqueDir);
+            var outputFile2 = CreateOutputFileArtifact(nestedOpaqueDir);
+
+            // Write both files under the opaque
+            var builderA = CreatePipBuilder(new Operation[]
+                            {
+                                Operation.WriteFile(outputFile1, doNotInfer: true),
+                                Operation.CreateDir(DirectoryArtifact.CreateWithZeroPartialSealId(nestedOpaqueDirPath), doNotInfer: true),
+                                Operation.WriteFile(outputFile2, doNotInfer: true)
+                            });
+            builderA.AddOutputDirectory(opaqueDirArtifact, outputDirectoryKind);
+
+            // Set up an exclusion
+            var exclusion = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, exclusionRelativePath));
+            builderA.AddOutputDirectoryExclusion(exclusion);
+            
+            SchedulePipBuilder(builderA);
+
+            var result = RunScheduler();
+
+            // Validate the expected excluded files, which should manifest in DFAs for writing undeclared outputs
+            if (expectedExcludedFiles == 0)
+            { 
+                result.AssertSuccess(); 
+            }
+            else 
+            { 
+                result.AssertFailure(); 
+            }
+
+            // On error, this event is logged once
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, expectedExcludedFiles > 0 ? 1 : 0);
+            // This event is logged once per undeclared output
+            AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput, expectedExcludedFiles);
+            IgnoreWarnings();
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

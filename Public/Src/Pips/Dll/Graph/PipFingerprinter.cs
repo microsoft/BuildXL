@@ -369,6 +369,10 @@ namespace BuildXL.Pips.Graph
                 (h, p) => h.Add(p),
                 m_pathTable.StringTable.OrdinalComparer);
 
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, IReadOnlySet<AbsolutePath>>(
+                nameof(Process.OutputDirectoryExclusions), 
+                process.OutputDirectoryExclusions, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+
             fingerprinter.Add(nameof(Process.PreserveOutputsTrustLevel), process.PreserveOutputsTrustLevel);
         }
 

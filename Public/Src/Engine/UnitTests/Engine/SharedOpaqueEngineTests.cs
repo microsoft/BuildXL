@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using BuildXL.Engine;
+using BuildXL.Native.IO;
 using BuildXL.Processes;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
@@ -17,7 +18,7 @@ namespace Test.BuildXL.Engine
 {
     public class SharedOpaqueEngineTests : BaseEngineTest, IDisposable
     {
-        private TestCache m_testCache = new TestCache();
+        private readonly TestCache m_testCache = new TestCache();
         private CacheInitializer m_cacheInitializer;
 
         public SharedOpaqueEngineTests(ITestOutputHelper output)
@@ -170,6 +171,33 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
+        public void ExclusionsUnderSharedOpaquesAreNotScrubbed()
+        {
+            var file = X("out/subdir/MyFile.txt");
+            var spec0 = ProduceFileUnderSharedOpaque(file, exclusions: "d`obj/out/subdir/exclusion`");
+            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
+
+            // Produce two empty directories, which should be removed if the scrubbing process reaches them
+            var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
+            var dir1 = Path.Combine(objDir, X("out/subdir/exclusion/dir1"));
+            var dir2 = Path.Combine(objDir, X("out/subdir/no-exclusion/dir2"));
+
+            FileUtilities.CreateDirectory(dir1);
+            FileUtilities.CreateDirectory(dir2);
+
+            RunEngine();
+            IgnoreWarnings();
+
+            // Make sure the file was produced
+            Assert.True(File.Exists(Path.Combine(objDir, file)));
+
+            // Dir1 should still be there, since it was under the exclusions
+            Assert.True(Directory.Exists(dir1));
+            // Dir2 should be scrubbed
+            Assert.False(Directory.Exists(dir2));
+        }
+
+        [Fact]
         public void OutputsUnderSharedOpaqueAreProperlyMarkedEvenOnCacheReplay()
         {
             var file = X("out/SharedOpaqueOutput.txt");
@@ -263,10 +291,12 @@ namespace Test.BuildXL.Engine
             XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on pip failure");
         }
 
-        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "") => ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies);
+        private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "", string exclusions = "") => 
+            ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies, exclusions);
+
         private string ProduceFileStatically(string file, bool failOnExit = false) => ProduceFileUnderDirectory(file, isDynamic: false, failOnExit);
 
-        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "")
+        private string ProduceFileUnderDirectory(string file, bool isDynamic, bool failOnExit, string dependencies = "", string exclusions = "")
         {
             var shellCommand = OperatingSystemHelper.IsUnixOS
                 ? "-c 'echo hi" // note we are opening single quotes in this case
@@ -318,6 +348,7 @@ const result = execute({{
         ],
     outputs: {outputs},
     dependencies: [{dependencies}],
+    outputDirectoryExclusions: [{exclusions}],
 }});";
         }
     }

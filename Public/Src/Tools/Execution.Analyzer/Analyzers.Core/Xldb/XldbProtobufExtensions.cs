@@ -730,6 +730,8 @@ namespace BuildXL.Execution.Analyzer
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
+            xldbProcessPip.OutputDirectoryExclusions.AddRange(pip.OutputDirectoryExclusions.Select(p => p.ToAbsolutePath(pathTable, nameExpander)));
+
             if (pip.ServiceInfo.IsValid)
             {
                 var serviceInfo = new ServiceInfo
@@ -813,7 +815,7 @@ namespace BuildXL.Execution.Analyzer
                 FileCount = pipGraph.FileCount,
                 ContentCount = pipGraph.ContentCount,
                 ArtifactContentCount = pipGraph.ArtifactContentCount,
-                ApiServerMoniker = pipGraph.ApiServerMoniker.ToString(pathTable)
+                ApiServerMoniker = pipGraph.ApiServerMoniker.ToString(pathTable),
             };
 
             xldbPipGraph.AllSealDirectoriesAndProducers.AddRange(pipGraph.AllSealDirectoriesAndProducers.Select(kvp => new DirectoryArtifactMap()
@@ -821,6 +823,10 @@ namespace BuildXL.Execution.Analyzer
                 Artifact = kvp.Key.ToDirectoryArtifact(pathTable, nameExpander),
                 PipId = kvp.Value.Value
             }));
+
+            xldbPipGraph.OutputDirectoryExclusions.AddRange(
+                pipGraph.OutputDirectoryExclusions.UnsafeGetList().Select(p => p.ToAbsolutePath(pathTable, nameExpander)));
+
             xldbPipGraph.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
 
             foreach (var kvp in pipGraph.Modules)

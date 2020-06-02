@@ -631,6 +631,9 @@ message ProcessPip{
 
     // Pip Provenance
     PipProvenance Provenance = 24;
+
+    // Directory cones that will be excluded from opaque directories
+    repeated AbsolutePath OutputDirectoryExclusions = 25;
 }
 
 // WriteFile pip message

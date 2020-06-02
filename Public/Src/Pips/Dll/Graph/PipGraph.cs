@@ -101,6 +101,7 @@ namespace BuildXL.Pips.Graph
                 modules: serializedState.Modules,
                 pipProducers: serializedState.PipProducers,
                 outputDirectoryProducers: serializedState.OpaqueDirectoryProducers,
+                outputDirectoryExclusions: serializedState.OutputDirectoryExclusions,
                 outputDirectoryRoots: serializedState.OutputDirectoryRoots,
                 compositeOutputDirectoryProducers: serializedState.CompositeOutputDirectoryProducers,
                 sourceSealedDirectoryRoots: serializedState.SourceSealedDirectoryRoots,

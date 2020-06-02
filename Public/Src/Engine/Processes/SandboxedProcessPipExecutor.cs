@@ -3622,6 +3622,7 @@ namespace BuildXL.Processes
                         // in the cone of a shared opaque, then it is a dynamic write access
                         bool? isAccessUnderASharedOpaque = null;
                         if (isPathCandidateToBeOwnedByASharedOpaque && IsAccessUnderASharedOpaque(
+                                entry.Key,
                                 firstAccess,
                                 dynamicWriteAccesses,
                                 out AbsolutePath sharedDynamicDirectoryRoot))
@@ -3641,7 +3642,7 @@ namespace BuildXL.Processes
                             // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
                             // reported as observed accesses. This matches the same behavior that occurs on static outputs.
                             if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) &&
-                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
+                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(entry.Key, firstAccess, dynamicWriteAccesses, out _)))
                             {
                                 continue;
                             }
@@ -3714,7 +3715,11 @@ namespace BuildXL.Processes
             }
         }
 
-        private bool IsAccessUnderASharedOpaque(ReportedFileAccess access, Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses, out AbsolutePath sharedDynamicDirectoryRoot)
+        private bool IsAccessUnderASharedOpaque(
+            AbsolutePath accessPath,
+            ReportedFileAccess access, 
+            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses, 
+            out AbsolutePath sharedDynamicDirectoryRoot)
         {
             sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
 
@@ -3733,7 +3738,10 @@ namespace BuildXL.Processes
             // Because of bottom-up search, if a pip declares nested shared opaque directories, the innermost directory
             // wins the ownership of a produced file.
 
-            var initialNode = access.ManifestPath.Value;
+            // We need to consider opaque directory exclusions here. So if there are any exclusions configured, we can't start from the manifest
+            // path, since the exclusion can be configured to be under a given opaque root
+
+            var initialNode = m_pip.OutputDirectoryExclusions.Count == 0 ? access.ManifestPath.Value : accessPath.Value;
 
             // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
             // that many writes for a given pip happens under the same cones.
@@ -3741,14 +3749,29 @@ namespace BuildXL.Processes
             foreach (var currentNode in m_context.PathTable.EnumerateHierarchyBottomUp(initialNode))
             {
                 var currentPath = new AbsolutePath(currentNode);
-                if (dynamicWriteAccesses.ContainsKey(currentPath))
+                
+                // if the path is under an exclusion, then it is not under a shared opaque
+                if (m_pip.OutputDirectoryExclusions.Contains(currentPath))
+                {
+                    sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
+                    return false;
+                }
+
+                // If we haven't found an owner yet, and the current path is a shared opaque root, then we found one
+                // Observe we may have found an owner already but we may be still searching upwards to make sure there 
+                // are no exclusions that would rule that out
+                if (!sharedDynamicDirectoryRoot.IsValid && dynamicWriteAccesses.ContainsKey(currentPath))
                 {
                     sharedDynamicDirectoryRoot = currentPath;
-                    return true;
+                    // If there are no exclusions, then we found an owning root and we can shortcut the search here
+                    if (m_pip.OutputDirectoryExclusions.Count == 0)
+                    {
+                        return true;
+                    }
                 }
             }
 
-            return false;
+            return sharedDynamicDirectoryRoot.IsValid;
         }
 
         /// <summary>

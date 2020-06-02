@@ -295,23 +295,13 @@ namespace BuildXL.Engine.Cache.Artifacts
             FileRealizationMode fileRealizationModes,
             ContentHash? knownContentHash)
         {
-             return Task.Run<Possible<ContentHash, Failure>>(
+            return Task.Run<Possible<ContentHash, Failure>>(
                 () =>
                 {
                     lock (m_lock)
                     {
                         byte[] contentBytes = ExceptionUtilities.HandleRecoverableIOException(
-                            () =>
-                            {
-                                var expandedPath = path.ExpandedPath;
-
-                                using (FileStream fileStream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                                using (BinaryReader binaryReader = new BinaryReader(fileStream))
-                                {
-                                    // This will work with files up to 2GB in length, due to the 'int' API signature
-                                    return binaryReader.ReadBytes((int) new FileInfo(expandedPath).Length);
-                                }
-                            },
+                            () => { return File.ReadAllBytes(path.ExpandedPath); },
                             ex => { throw new BuildXLException("Failed to store content (couldn't read new content from disk)", ex); });
 
                         ContentHash contentHash = ContentHashingUtilities.HashBytes(contentBytes);

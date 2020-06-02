@@ -19,7 +19,7 @@ namespace BuildXL.Scheduler.Tracing
         PipCopyFileFailed = 8,
         CacheFingerprintHitSources = 47,
         ProcessingPipOutputFileFailed = 52,
-
+        
         PipInputAssertion = 67,
         PipIpcFailedDueToInvalidInput = 77,
 
@@ -76,7 +76,7 @@ namespace BuildXL.Scheduler.Tracing
         DisallowedFileAccessInSealedDirectory = 277,
         StartSchedulingPipsWithFilter = 280,
         EndSchedulingPipsWithFilter = 281,
-
+        
         PipSemaphoreQueued = 288,
         PipSemaphoreDequeued = 289,
         CopyingPipInputToLocalStorage = 294,

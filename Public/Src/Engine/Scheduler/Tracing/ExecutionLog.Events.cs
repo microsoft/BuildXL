@@ -364,11 +364,6 @@ namespace BuildXL.Scheduler.Tracing
         public bool IgnoreReparsePoints;
 
         /// <summary>
-        /// Whether the /unsafe_IgnoreFullSymlinkResolving flag is passed to BuildXL.
-        /// </summary>
-        public bool IgnoreFullSymlinkResolving;
-
-        /// <summary>
         /// Whether the /unsafe_IgnorePreloadedDlls flag is passed to BuildXL.
         /// </summary>
         public bool IgnorePreloadedDlls;
@@ -477,7 +472,6 @@ namespace BuildXL.Scheduler.Tracing
             ZwFileCreateOpenMonitored = salts.MonitorZwCreateOpenQueryFile;
             IgnoreNonCreateFileReparsePoints = salts.IgnoreNonCreateFileReparsePoints;
             IgnoreReparsePoints = salts.IgnoreReparsePoints;
-            IgnoreFullSymlinkResolving = salts.IgnoreFullSymlinkResolving;
             IgnorePreloadedDlls = salts.IgnorePreloadedDlls;
             IgnoreGetFinalPathNameByHandle = salts.IgnoreGetFinalPathNameByHandle;
             ExistingDirectoryProbesAsEnumerations = salts.ExistingDirectoryProbesAsEnumerations;
@@ -510,7 +504,6 @@ namespace BuildXL.Scheduler.Tracing
                        ignoreZwOtherFileInformation: IgnoreZwOtherFileInformation,
                        ignoreNonCreateFileReparsePoints: IgnoreNonCreateFileReparsePoints,
                        ignoreReparsePoints: IgnoreReparsePoints,
-                       ignoreFullSymlinkResolving: IgnoreFullSymlinkResolving,
                        ignorePreloadedDlls: IgnorePreloadedDlls,
                        ignoreGetFinalPathNameByHandle: IgnoreGetFinalPathNameByHandle,
                        existingDirectoryProbesAsEnumerations: ExistingDirectoryProbesAsEnumerations,
@@ -561,7 +554,6 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(NormalizeReadTimestamps);
             writer.Write(PipWarningsPromotedToErrors);
             writer.Write(RequiredKextVersionNumber);
-            writer.Write(IgnoreFullSymlinkResolving);
         }
 
         /// <inheritdoc />
@@ -589,7 +581,6 @@ namespace BuildXL.Scheduler.Tracing
             NormalizeReadTimestamps = reader.ReadBoolean();
             PipWarningsPromotedToErrors = reader.ReadBoolean();
             RequiredKextVersionNumber = reader.ReadString();
-            IgnoreFullSymlinkResolving = reader.ReadBoolean();
         }
     }
 

@@ -67,7 +67,6 @@ namespace BuildXL.Processes
             ReportProcessArgs = false;
             ForceReadOnlyForRequestedReadWrite = false;
             IgnoreReparsePoints = false;
-            IgnoreFullSymlinkResolving = true; // TODO: Change this when customers onboard the feature.
             IgnorePreloadedDlls = true; // TODO: Change this when customers onboard the feature.
             DisableDetours = false;
             IgnoreZwRenameFileInformation = false;
@@ -281,15 +280,6 @@ namespace BuildXL.Processes
         {
             get => GetFlag(FileAccessManifestFlag.IgnoreReparsePoints);
             set => SetFlag(FileAccessManifestFlag.IgnoreReparsePoints, value);
-        }
-        
-        /// <summary>
-        /// If true, paths with symbolic links are not fully resolved nor reported.
-        /// </summary>
-        public bool IgnoreFullSymlinkResolving
-        {
-            get => GetFlag(FileAccessManifestFlag.IgnoreFullSymlinkResolving);
-            set => SetFlag(FileAccessManifestFlag.IgnoreFullSymlinkResolving, value);
         }
 
         /// <summary>
@@ -1134,8 +1124,7 @@ namespace BuildXL.Processes
             QBuildIntegrated = 0x4000000,
             IgnorePreloadedDlls = 0x8000000,
             EnforceAccessPoliciesOnDirectoryCreation = 0x10000000,
-            ProbeDirectorySymlinkAsDirectory = 0x20000000,
-            IgnoreFullSymlinkResolving = 0x40000000
+            ProbeDirectorySymlinkAsDirectory = 0x20000000
         }
 
         // CODESYNC: DataTypes.h

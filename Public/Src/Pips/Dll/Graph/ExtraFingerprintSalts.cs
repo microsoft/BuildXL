@@ -30,7 +30,6 @@ namespace BuildXL.Pips.Graph
                         ignoreZwOtherFileInformation: false,
                         ignoreNonCreateFileReparsePoints: false,
                         ignoreReparsePoints: true, // TODO: Change this value when the default value for ignoreReparsePoints changes.
-                        ignoreFullSymlinkResolving: true, // TODO: Change this value when the default value for ignoreFullSymlinkResolving changes.
                         ignorePreloadedDlls: true, // TODO: Change this value when the default value for ignorePreloadedDlls changes.
                         ignoreGetFinalPathNameByHandle: true, // TODO: Change this value when the default value for ignoreGetFinalPathNameByHandle changes.
                         existingDirectoryProbesAsEnumerations: false,
@@ -76,7 +75,6 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreZwOtherFileInformation,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreReparsePoints,
-                config.Sandbox.UnsafeSandboxConfiguration.IgnoreFullSymlinkResolving,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                 config.Sandbox.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations,
@@ -117,7 +115,6 @@ namespace BuildXL.Pips.Graph
         /// <param name="ignoreZwOtherFileInformation">Whether the /unsafe_IgnoreZwOtherFileInformation was passed to BuildXL.</param>
         /// <param name="ignoreNonCreateFileReparsePoints">Whether symlinks are followed for any other than CreateFile APIs.</param>
         /// <param name="ignoreReparsePoints">Whether the /unsafe_IgnoreReparsePoints was passed to BuildXL.</param>
-        /// <param name="ignoreFullSymlinkResolving">Whether the /unsafe_IIgnoreFullSymlinkResolving was passed to BuildXL.</param>
         /// <param name="ignorePreloadedDlls">Whether the /unsafe_IgnorePreloadedDlls was passed to BuildXL.</param>
         /// <param name="ignoreGetFinalPathNameByHandle">Whether the /unsafe_IgnoreGetFinalPathNameByHandle was passed to BuildXL.</param>
         /// <param name="existingDirectoryProbesAsEnumerations">Whether the /unsafe_ExistingDirectoryProbesAsEnumerations was passed to BuildXL.</param>
@@ -140,7 +137,6 @@ namespace BuildXL.Pips.Graph
             bool ignoreZwOtherFileInformation,
             bool ignoreNonCreateFileReparsePoints,
             bool ignoreReparsePoints,
-            bool ignoreFullSymlinkResolving,
             bool ignorePreloadedDlls,
             bool ignoreGetFinalPathNameByHandle,
             bool existingDirectoryProbesAsEnumerations,
@@ -164,7 +160,6 @@ namespace BuildXL.Pips.Graph
             IgnoreZwOtherFileInformation = ignoreZwOtherFileInformation;
             IgnoreNonCreateFileReparsePoints = ignoreNonCreateFileReparsePoints;
             IgnoreReparsePoints = ignoreReparsePoints;
-            IgnoreFullSymlinkResolving = ignoreFullSymlinkResolving;
             IgnorePreloadedDlls = ignorePreloadedDlls;
             ExistingDirectoryProbesAsEnumerations = existingDirectoryProbesAsEnumerations;
             DisableDetours = disableDetours;
@@ -214,11 +209,6 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool IgnoreReparsePoints { get; }
 
-        /// <summary>
-        /// Whether /unsafe_ignoreFullSymlinkResolving flag was passed to BuildXL.
-        /// </summary>
-        public bool IgnoreFullSymlinkResolving { get; }
-        
         /// <summary>
         /// Whether /unsafe_ignorePreloadedDlls flag was passed to BuildXL.
         /// </summary>
@@ -328,7 +318,6 @@ namespace BuildXL.Pips.Graph
                 && other.IgnoreNonCreateFileReparsePoints == IgnoreNonCreateFileReparsePoints
                 && other.IgnoreSetFileInformationByHandle == IgnoreSetFileInformationByHandle
                 && other.IgnoreReparsePoints == IgnoreReparsePoints
-                && other.IgnoreFullSymlinkResolving == IgnoreFullSymlinkResolving
                 && other.IgnorePreloadedDlls == IgnorePreloadedDlls
                 && other.DisableDetours == DisableDetours
                 && other.MonitorNtCreateFile == MonitorNtCreateFile
@@ -380,7 +369,6 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ PipWarningsPromotedToErrors.GetHashCode();
                 hashCode = (hashCode * 397) ^ ValidateDistribution.GetHashCode();
                 hashCode = (hashCode * 397) ^ (RequiredKextVersionNumber?.GetHashCode() ?? 0);
-                hashCode = (hashCode * 397) ^ IgnoreFullSymlinkResolving.GetHashCode();
 
                 return hashCode;
             }

@@ -29,11 +29,6 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace Test.BuildXL.Processes.Detours
 {
-    /* TODO: This class tests symlink / junction behavior from before /unsafe_IgnoreFullSymlinkResolving was introduced and makes
-             sure we don't break compatibility for our partners relying on this. Once directory symlink support is the default,
-             these tests need to be adjusted.
-     */
-    
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed partial class SandboxedProcessPipExecutorTest
     {
@@ -72,7 +67,7 @@ namespace Test.BuildXL.Processes.Detours
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
             bool monitorNtCreate,
-            bool ignoreReparsePoints,
+            bool ignoreRepPoints,
             BuildXLContext context,
             Process pip,
             out string errorString,
@@ -88,8 +83,7 @@ namespace Test.BuildXL.Processes.Detours
             bool isQuickBuildIntegrated = false,
             bool ignorePreloadedDlls = true,
             bool enforceAccessPoliciesOnDirectoryCreation = false,
-            bool probeDirectorySymlinkAsDirectory = false,
-            bool ignoreFullSymlinkResolving = true)
+            bool probeDirectorySymlinkAsDirectory = false)
         {
             errorString = null;
 
@@ -118,8 +112,7 @@ namespace Test.BuildXL.Processes.Detours
                 UnsafeSandboxConfigurationMutable =
                 {
                     UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors,
-                    IgnoreReparsePoints = ignoreReparsePoints,
-                    IgnoreFullSymlinkResolving = ignoreFullSymlinkResolving,
+                    IgnoreReparsePoints = ignoreRepPoints,
                     ExistingDirectoryProbesAsEnumerations = existingDirectoryProbesAsEnumerations,
                     IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = ignoreZwOtherFileInformation,
@@ -535,7 +528,7 @@ namespace Test.BuildXL.Processes.Detours
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: additionalTempDirectories == null ? ReadOnlyArray<AbsolutePath>.Empty : ReadOnlyArray<AbsolutePath>.From(additionalTempDirectories));
         }
-
+        
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
@@ -546,7 +539,7 @@ namespace Test.BuildXL.Processes.Detours
             if (useFileLinkInformationEx)
             {
                 // FileLinkInformationEx is only available starting RS5 (ver 1809, OS build 17763)
-                // skip the test if it's running on a machine that does not support it.
+                // skip the test if it's running on a machine that does not support it. 
                 var versionString = OperatingSystemHelper.GetOSVersion();
 
                 int build = 0;
@@ -576,7 +569,7 @@ namespace Test.BuildXL.Processes.Detours
                     "SetFileInformationFileLinkTest1.txt",
                     "SetFileInformationFileLinkTest2.txt",
                     useFileLinkInformationEx
-                        ? "CallDetouredSetFileInformationFileLinkEx"
+                        ? "CallDetouredSetFileInformationFileLinkEx" 
                         : "CallDetouredSetFileInformationFileLink",
                     isDirectoryTest: false,
                     createSymlink: false,
@@ -592,7 +585,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: true,
                     ignoreZwRenameFileInformation: true,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     ignoreZwOtherFileInformation: false,
                     ignorePreloadedDlls: ignorePreloadedDlls,
                     context: context,
@@ -659,7 +652,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: true,
                     ignoreZwRenameFileInformation: true,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     ignoreZwOtherFileInformation: false,
                     monitorZwCreateOpenQueryFile: true,
                     context: context,
@@ -718,7 +711,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: true,
                     ignoreZwRenameFileInformation: true,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     ignoreZwOtherFileInformation: true,
                     monitorZwCreateOpenQueryFile: false,
                     context: context,
@@ -768,7 +761,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: true,
                     ignoreZwRenameFileInformation: true,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     ignoreZwOtherFileInformation: false,
                     monitorZwCreateOpenQueryFile: true,
                     context: context,
@@ -825,7 +818,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: ignoreSetFileInformationByHandle,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -874,7 +867,7 @@ namespace Test.BuildXL.Processes.Detours
 
                 string testDirPath = tempFiles.GetDirectory("input");
                 string testTargetDirPath = tempFiles.GetDirectory("inputTarget");
-
+                
                 // Create file input\GetFinalPathNameByHandleTest.txt, which essentially is inputTarget\GetFinalPathNameByHandleTest.txt
                 string testFile = Path.Combine(testDirPath, "GetFinalPathNameByHandleTest.txt");
                 AbsolutePath firstAbsPath = AbsolutePath.Create(pathTable, testFile);
@@ -948,7 +941,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString,
@@ -957,7 +950,7 @@ namespace Test.BuildXL.Processes.Detours
                         new List<TranslateDirectoryData>
                         {
                             new TranslateDirectoryData(
-                                testTargetDirPath + @"\<" + testDirPath + @"\",
+                                testTargetDirPath + @"\<" + testDirPath + @"\", 
                                 AbsolutePath.Create(context.PathTable, testTargetDirPath),
                                 AbsolutePath.Create(context.PathTable, testDirPath))
                         });
@@ -1044,7 +1037,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1131,7 +1124,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     unexpectedFileAccessesAreErrors: false,
@@ -1218,7 +1211,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString,
@@ -1340,7 +1333,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1390,7 +1383,7 @@ namespace Test.BuildXL.Processes.Detours
                     monitorNtCreate: true,
 
                     // Ignore reparse point.
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1444,7 +1437,7 @@ namespace Test.BuildXL.Processes.Detours
                     monitorNtCreate: true,
 
                     // Ignore reparse point.
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1498,7 +1491,7 @@ namespace Test.BuildXL.Processes.Detours
                     monitorNtCreate: true,
 
                     // Don't ignore reparse point.
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1548,7 +1541,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1597,7 +1590,6 @@ namespace Test.BuildXL.Processes.Detours
                     {
                         UnexpectedFileAccessesAreErrors = true,
                         IgnoreReparsePoints = false,
-                        IgnoreFullSymlinkResolving = true,
                         IgnoreSetFileInformationByHandle = false,
                         IgnoreZwRenameFileInformation = false,
                         IgnoreZwOtherFileInformation = false,
@@ -1619,7 +1611,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1667,7 +1659,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1717,7 +1709,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1846,7 +1838,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -1947,7 +1939,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2059,7 +2051,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2158,7 +2150,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2271,7 +2263,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2386,7 +2378,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2440,7 +2432,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2494,7 +2486,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2552,7 +2544,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2612,7 +2604,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -2671,7 +2663,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     context: context,
@@ -2718,9 +2710,9 @@ namespace Test.BuildXL.Processes.Detours
 
                 // Create OldDirectory\Nested, OldDirectory\Nested\fileImplicit.txt, OldDirectory\Nested\fileExplicit.txt.
                 AbsolutePath oldDirectoryNested = tempFiles.GetDirectory(pathTable, oldDirectory, "Nested");
-
+                
                 AbsolutePath oldDirectoryNestedFileImplicit = oldDirectoryNested.Combine(pathTable, "fileImplicit.txt");
-                AbsolutePath oldDirectoryNestedFileExplicit = oldDirectoryNested.Combine(pathTable, "fileExplicit.txt");
+                AbsolutePath oldDirectoryNestedFileExplicit = oldDirectoryNested.Combine(pathTable, "fileExplicit.txt");               
                 WriteFile(pathTable, oldDirectoryNestedFileImplicit, "implicit");
                 WriteFile(pathTable, oldDirectoryNestedFileExplicit, "explicit");
 
@@ -2774,7 +2766,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     enforceAccessPoliciesOnDirectoryCreation: true,
@@ -2924,7 +2916,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     enforceAccessPoliciesOnDirectoryCreation: true,
@@ -2993,7 +2985,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     enforceAccessPoliciesOnDirectoryCreation: true,
@@ -3044,7 +3036,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: true,
                     enforceAccessPoliciesOnDirectoryCreation: true,
@@ -3058,7 +3050,7 @@ namespace Test.BuildXL.Processes.Detours
                 VerifyFileAccesses(
                     context,
                     result.AllReportedFileAccesses,
-                    new[]
+                    new[] 
                     {
                         (fileF, RequestedAccess.Read, FileAccessStatus.Allowed),
                         (fileG, RequestedAccess.Write, FileAccessStatus.Allowed)
@@ -3101,7 +3093,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3161,7 +3153,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3221,7 +3213,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3281,7 +3273,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3341,7 +3333,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3402,7 +3394,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3459,7 +3451,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3511,7 +3503,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3555,7 +3547,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -3905,7 +3897,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -3949,7 +3941,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -3983,7 +3975,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -4025,7 +4017,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -4076,7 +4068,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -4140,7 +4132,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -4186,7 +4178,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -4229,7 +4221,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: true,
                     context: context,
                     pip: process,
@@ -4272,7 +4264,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -4326,7 +4318,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -4612,7 +4604,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: true,
+                    ignoreRepPoints: true,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -4692,7 +4684,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     // Use unsafe probe by default because this test probes parent directories that can be directory symlinks or junctions.
@@ -4789,7 +4781,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     binDirectory: exePath,
@@ -4918,7 +4910,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -4969,7 +4961,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString,
@@ -5028,7 +5020,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -5087,7 +5079,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString);
@@ -5154,7 +5146,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString,
@@ -5224,7 +5216,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: pip,
                     errorString: out errorString,
@@ -5295,7 +5287,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5358,7 +5350,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     context: context,
@@ -5455,7 +5447,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreNonCreateFileReparsePoints: false,
                     monitorZwCreateOpenQueryFile: false,
                     context: context,
@@ -5544,7 +5536,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5602,7 +5594,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5659,7 +5651,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5731,7 +5723,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5831,7 +5823,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -5987,7 +5979,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     errorString: out errorString);
@@ -6029,7 +6021,7 @@ namespace Test.BuildXL.Processes.Detours
                 ignoreSetFileInformationByHandle: false,
                 ignoreZwRenameFileInformation: false,
                 monitorNtCreate: true,
-                ignoreReparsePoints: false,
+                ignoreRepPoints: false,
                 context: context,
                 pip: process,
                 errorString: out errorString,
@@ -6198,7 +6190,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     probeDirectorySymlinkAsDirectory: probeDirectorySymlinkAsDirectory,
@@ -6255,8 +6247,8 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: withReparsePointFlag
-                    ? "CallProbeDirectorySymlinkTargetWithReparsePointFlag"
+                    argumentStr: withReparsePointFlag 
+                    ? "CallProbeDirectorySymlinkTargetWithReparsePointFlag" 
                     : "CallProbeDirectorySymlinkTargetWithoutReparsePointFlag",
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -6271,7 +6263,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     context: context,
                     pip: process,
                     probeDirectorySymlinkAsDirectory: probeDirectorySymlinkAsDirectory,
@@ -6372,7 +6364,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -6446,8 +6438,8 @@ namespace Test.BuildXL.Processes.Detours
                     argumentStr: "CallDeleteWithoutSharing",
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    outputFiles: untracked
-                        ? ReadOnlyArray<FileArtifactWithAttributes>.Empty
+                    outputFiles: untracked 
+                        ? ReadOnlyArray<FileArtifactWithAttributes>.Empty 
                         : ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(untrackedFile), FileExistence.Optional)),
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     untrackedScopes: untracked ? ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedFile.GetParent(pathTable)) : ReadOnlyArray<AbsolutePath>.Empty);
@@ -6458,7 +6450,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -6506,7 +6498,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,
@@ -6523,6 +6515,7 @@ namespace Test.BuildXL.Processes.Detours
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
+
             using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
                 var createdInputPaths = new Dictionary<string, AbsolutePath>(StringComparer.OrdinalIgnoreCase);
@@ -6551,7 +6544,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: true,
                     ignoreZwRenameFileInformation: true,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     ignoreZwOtherFileInformation: true,
                     monitorZwCreateOpenQueryFile: true,
                     context: context,
@@ -6609,7 +6602,7 @@ namespace Test.BuildXL.Processes.Detours
                     ignoreSetFileInformationByHandle: false,
                     ignoreZwRenameFileInformation: false,
                     monitorNtCreate: true,
-                    ignoreReparsePoints: false,
+                    ignoreRepPoints: false,
                     disableDetours: false,
                     context: context,
                     pip: process,

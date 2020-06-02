@@ -172,7 +172,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(readOnlyTargetDir ? ReadonlyRoot : ObjectRoot));
             DirectoryArtifact symlinkDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("sym-dir-src", ObjectRoot));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkDir), ArtifactToString(targetDir), isTargetFile: false));
-
+            
             // Make a separate existing directory to point to latter
             DirectoryArtifact existingDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(ReadonlyRoot));
 
@@ -223,7 +223,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             deleteFileHit.AssertCacheHit(pipA.PipId);
             deleteFileHit.AssertCacheHit(pipB.PipId);
 
-            // Double check that cache replay worked
+            // Double check that cache replay worked  
             XAssert.IsTrue(File.Exists(ArtifactToString(outA)));
             XAssert.IsTrue(File.Exists(ArtifactToString(outB)));
 
@@ -556,7 +556,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputFile(copiedFile.Path, FileExistence.Required);
             builder.AddInputFile(symlinkFile);
             builder.AddInputFile(targetFile);
-
+            
             if (sourceSealedDirectory)
             {
                 // Seal /src directory
@@ -573,7 +573,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         /// <summary>
         /// Producing symlinks to directories is never allowed and should always cause failures.
-        /// </summary>
+        /// </summary> 
         [Fact]
         public void AlwaysFailOnProducingSymlinkDirectory()
         {
@@ -590,7 +590,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             FailOnProducingSymlink();
 
-            // Create previously absent driectory
+            // Create previously absent driectory 
             Directory.CreateDirectory(ArtifactToString(dir));
             FailOnProducingSymlink();
         }
@@ -605,7 +605,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact symlinkFile = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
 
             // Process creates file symlink
-            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            Process pip = CreateAndSchedulePipBuilder(new Operation[] 
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
                 Operation.CreateSymlink(symlinkFile, absentFile, Operation.SymbolicLinkFlag.FILE)
@@ -640,7 +640,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
 
             string checkpoint1 = File.ReadAllText(ArtifactToString(targetFile));
-
+            
             // Modify /targetSourceFile
             File.WriteAllText(ArtifactToString(targetFile), "target source file");
 
@@ -705,7 +705,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 useCreateFileAPI ? Operation.ReadFile(symlinkFile) : Operation.CopyFile(symlinkFile, copiedFile),
                 Operation.WriteFile(outFile),
             }).Process;
-
+            
             if (ignoreOnlyNonCreateFileReparsePoints && useCreateFileAPI)
             {
                 // Detours is only ignoring symlinks for APIs other than CreateFile and NtCreateFile/OpenFile
@@ -883,11 +883,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, true)]
-        [InlineData(false, false)]
-        public void AccessFileSymlinkThroughDirectorySymlinkOrJunction(bool useJunction, bool ignoreFullSymlinkResolving)
+        [InlineData(false)]
+        [InlineData(true)]
+        public void AccessFileSymlinkThroughDirectorySymlinkOrJunction(bool useJunction)
         {
             // File and directory layout:
             //    Enlist
@@ -914,9 +912,6 @@ namespace IntegrationTest.BuildXL.Scheduler
                 // Mac/Unix does not support junctions.
                 return;
             }
-            
-            // When handling junctions, use the old default behavior
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = ignoreFullSymlinkResolving;
 
             // If junction, then the prefix should be '..\' instead of '..\..\'
             string relativePrefix = useJunction ? ".." : Path.Combine("..", "..");
@@ -970,12 +965,22 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             builder.AddInputDirectory(sealedTargetDirectory.Directory);
-            
-            if (!ignoreFullSymlinkResolving || OperatingSystemHelper.IsUnixOS)    
+
+            if (OperatingSystemHelper.IsUnixOS)
             {
+                // Mac's implementation may access /Enlist/Intermediate/Current/linkFile. Windows' implementation
+                // doesn't include that path because it is a different form of /Enlist/Source/linkFile that is
+                // accessed by the pip. Note that Windows' implementation does not report or track all possible
+                // incarnations of path because it will be too expensive to do so, i.e., need to call repeatedly
+                // DeviceIoControl on path prefixes until fixed point.
+                //
+                // TODO: Reconcile this difference between Mac and Windows.
                 builder.AddInputFile(FileArtifact.CreateSourceFile(linkFile));
-                
-                // Specify /Enlist/Source/linkFile and /Enlist/Source as input files, they are both reparse points
+
+                // Mac may also access /Enlist/Source as a file, and specifying /Enlist/Source as an input directory
+                // seems to be not sufficient. However, if we additionally specify /Enlist/Source as both input directory
+                // and input file, the pip graph validation will fail.
+                // Instead we specify /Enlist/Source/linkFile and /Enlist/Source as input files for Mac.
                 builder.AddInputFile(FileArtifact.CreateSourceFile(sourceDirectory));
                 builder.AddInputFile(sourceFile);
             }
@@ -984,12 +989,12 @@ namespace IntegrationTest.BuildXL.Scheduler
                 SealDirectory sealedSourceDirectory = CreateAndScheduleSealDirectory(sourceDirectory, SealDirectoryKind.SourceAllDirectories);
                 builder.AddInputDirectory(sealedSourceDirectory.Directory);
             }
-            
+
             ProcessWithOutputs processWithOutputs = SchedulePipBuilder(builder);
 
             if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
             {
-                // Directory translation is needed because the pip to execute, on Windows,
+                // Directory translation is needed because the pip to execute, on Windows, 
                 // will call undetoured <code>GetFinalPathNameByHandle</code> which in turn will return
                 // the real path instead of the subst path.
                 DirectoryTranslator = new DirectoryTranslator();
@@ -1012,8 +1017,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(linkFile.ToString(pathTable), relativeTarget, isTargetFile: true));
 
             RunScheduler().AssertSuccess().AssertCacheMiss(processWithOutputs.Process.PipId);
-            
-            if (useJunction && ignoreFullSymlinkResolving)
+
+            if (!OperatingSystemHelper.IsUnixOS)
             {
                 // Re-route /Enlist/Source ==> Intermediate/CurrentY should result in cache miss.
                 // Create /Enlist/Target/targetFileY and /Enlist/Intermediate/CurrentY/linkFile
@@ -1075,7 +1080,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// Pips delete their outputs before running. When a symlink is declared as output,
         /// we should delete the symlink itself and not the underlying target file.
-        /// This is called post-running the pip to validate the state of the symlink and target file.
+        /// This is called post-running the pip to validate the state of the symlink and target file. 
         /// </summary>
         /// <param name="targetFile">underlying target file symlinkFile points to</param>
         /// <param name="symlinkFile">symlinkFile that is declared as output of pip</param>

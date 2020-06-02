@@ -21,12 +21,10 @@ namespace UM {
     @@public
     export const standardLibs: File[] = [
         ...addIfLazy(isWin, () => [
-            lib.getFile(r`advapi32.lib`),
             lib.getFile(r`kernel32.lib`),
-            lib.getFile(r`ntdll.lib`),
-            lib.getFile(r`pathcch.lib`),
-            lib.getFile(r`shlwapi.lib`),
-            lib.getFile(r`uuid.lib`)
+            lib.getFile(r`advapi32.lib`),
+            lib.getFile(r`uuid.lib`),
+            lib.getFile(r`ntdll.lib`)
         ])
     ];
 }

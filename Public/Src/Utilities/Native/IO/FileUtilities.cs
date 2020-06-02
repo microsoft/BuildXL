@@ -941,7 +941,7 @@ namespace BuildXL.Native.IO
         {
             return s_fileSystem.GetFinalPathNameByHandle(handle, volumeGuidPath);
         }
-        
+
         /// <see cref="IFileSystem.TryGetFinalPathNameByPath(string, out string, out int, bool)"/>
         public static bool TryGetFinalPathNameByPath(string path, out string finalPath, out int nativeErrorCode, bool volumeGuidPath = false)
         {

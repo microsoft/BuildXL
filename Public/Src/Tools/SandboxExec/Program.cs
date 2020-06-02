@@ -409,7 +409,6 @@ namespace BuildXL.SandboxExec
             sandboxProcessInfo.FileAccessManifest.ReportFileAccesses = true;
             sandboxProcessInfo.FileAccessManifest.ReportUnexpectedFileAccesses = true;
             sandboxProcessInfo.FileAccessManifest.MonitorNtCreateFile = true;
-            sandboxProcessInfo.FileAccessManifest.IgnoreFullSymlinkResolving = false;
             sandboxProcessInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
             sandboxProcessInfo.FileAccessManifest.PipId = Interlocked.Increment(ref s_pipIdCounter);
             return sandboxProcessInfo;

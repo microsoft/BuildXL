@@ -237,9 +237,6 @@ message BuildSessionConfigurationEvent{
 
     // Extra optional fingerprint salt for MacOS
     string RequiredKextVersionNumber = 22;
-    
-    // Whether the /unsafe_IgnoreFullSymlinkResolving flag is passed to BuildXL
-    bool IgnoreFullSymlinkResolving = 23;
 }
 
 // The DependencyViolationReported Event message

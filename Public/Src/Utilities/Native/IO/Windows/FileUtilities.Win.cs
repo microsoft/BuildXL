@@ -178,14 +178,12 @@ namespace BuildXL.Native.IO.Windows
                 // The enumeration operation itself is not recursive, but there is a recursive call to DeleteDirectoryAndContentsInternal
                 EnumerateDirectoryResult result = m_fileSystem.EnumerateDirectoryEntries(
                     directoryPath,
-                    (name, attr, isActionableReparsePoint) =>
+                    (name, attr) =>
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
 
                         string childPath = Path.Combine(directoryPath, name);
-
-                        // Only descend if the entry is a directory and not an actionable reparse point
-                        if ((attr & FileAttributes.Directory) != 0 && !isActionableReparsePoint)
+                        if ((attr & FileAttributes.Directory) != 0)
                         {
                             int subDirectoryEntryCount = DeleteDirectoryAndContentsInternal(
                                 childPath,
@@ -337,10 +335,10 @@ namespace BuildXL.Native.IO.Windows
             // so it is attempted last
             m_fileSystem.RemoveDirectory(directoryPath);
 
-            // Attempt 4: If directory still exists, then try run POSIX delete if enabled.
+            // Attempt 4: If directory still exists, then try run POSIX delete if enabled. 
             var possiblyPathExistence = FileUtilities.TryProbePathExistence(directoryPath, false);
 
-            if (possiblyPathExistence.Succeeded
+            if (possiblyPathExistence.Succeeded 
                 && possiblyPathExistence.Result == PathExistence.ExistsAsDirectory
                 && PosixDeleteMode == PosixDeleteMode.RunLast)
             {
@@ -1401,10 +1399,10 @@ namespace BuildXL.Native.IO.Windows
                     bool localLowExists = FileUtilities.DirectoryExistsNoFollow(expectedLocation);
 
                     throw new BuildXLException(
-                        I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}' (Known GUID for LocalLow). Path '{expectedLocation}' exists: '{localLowExists}'. HResult='{(hr == E_INVALIDARG ? "E_INVALIDARG" : (hr == E_FAIL ? "E_FAIL" : hr.ToString()))}'"),
+                        I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}' (Known GUID for LocalLow). Path '{expectedLocation}' exists: '{localLowExists}'. HResult='{(hr == E_INVALIDARG ? "E_INVALIDARG" : (hr == E_FAIL ? "E_FAIL" : hr.ToString()))}'"), 
                         new NativeWin32Exception(hr));
                 }
-
+                
                 throw new BuildXLException(I($"Failed to get a path for the known GUID '{knownFolder.ToString("D")}'"), new NativeWin32Exception(hr));
             }
 

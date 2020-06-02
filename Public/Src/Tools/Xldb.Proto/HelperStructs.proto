@@ -381,9 +381,6 @@ message UnsafeSandboxConfiguration{
 
     // If dynamic writes on absent probes was ignored
     DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes = 18;
-    
-    // If full symlink resolving was ignored
-    bool IgnoreFullSymlinkResolving = 19;
 }
 
 message PreserveOutputsInfo {

@@ -868,6 +868,10 @@ namespace BuildXL.Scheduler
             List<ReportedViolation> reportedViolations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo)
         {
+            using var outputDirectoryExclusionSetWrapper = Pools.AbsolutePathSetPool.GetInstance();
+            var outputDirectoryExclusionSet = outputDirectoryExclusionSetWrapper.Instance;
+            outputDirectoryExclusionSet.AddRange(pip.OutputDirectoryExclusions);
+
             // Static outputs under exclusive opaques are blocked by construction
             // Same for sealed source directories under exclusive opaques (not allowed at graph construction time)
             // So the only cases left are:
@@ -882,16 +886,20 @@ namespace BuildXL.Scheduler
                 {
                     var outputArtifactInfo = GetOutputMaterializationInfo(pip, outputArtifactsInfo, fileArtifact);
                     RegisterWriteInPathAndUpdateViolations(pip, fileArtifact.Path, reportedViolations, outputArtifactInfo, out _);
-                    ReportExclusiveOpaqueExclusions(pip, reportedViolations, fileArtifact);
+                    ReportExclusiveOpaqueExclusions(pip, reportedViolations, fileArtifact, outputDirectoryExclusionSet);
                 }
             }
         }
 
-        private void ReportExclusiveOpaqueExclusions(Process pip, List<ReportedViolation> reportedViolations, FileArtifact fileArtifact)
+        private void ReportExclusiveOpaqueExclusions(
+            Process pip,
+            List<ReportedViolation> reportedViolations,
+            FileArtifact fileArtifact,
+            HashSet<AbsolutePath> outputDirectoryExclusions)
         {
             // If an exclusive opaque file is under a directory exclusion, the violation is reported as an undeclared output. This matches
             // the shared opaque case.
-            if (IsFileUnderAnExclusion(fileArtifact.Path, pip.OutputDirectoryExclusions, Context.PathTable))
+            if (IsFileUnderAnExclusion(fileArtifact.Path, outputDirectoryExclusions, Context.PathTable))
             {
                 reportedViolations.Add(
                     HandleDependencyViolation(
@@ -1456,7 +1464,7 @@ namespace BuildXL.Scheduler
             return (requestedAccess & RequestedAccess.Write) != 0 ? AccessLevel.Write : AccessLevel.Read;
         }
 
-        private static bool IsFileUnderAnExclusion(AbsolutePath path, IReadOnlySet<AbsolutePath> outputDirectoryExclusions, PathTable pathTable)
+        private static bool IsFileUnderAnExclusion(AbsolutePath path, HashSet<AbsolutePath> outputDirectoryExclusions, PathTable pathTable)
         {
             // If there are no exclusions, shortcut the search
             if (outputDirectoryExclusions.Count == 0)

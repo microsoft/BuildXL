@@ -906,7 +906,8 @@ namespace Test.BuildXL.Scheduler
                 doubleWritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
                 preserveOutputWhitelist: preserveOutputWhitelist,
-                changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile);
+                changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)));
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

@@ -707,7 +707,7 @@ namespace BuildXL.Pips.Builders
                 changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
                 childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
-                outputDirectoryExclusions: outputDirectoryExclusions);
+                outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions));
 
             return true;
         }

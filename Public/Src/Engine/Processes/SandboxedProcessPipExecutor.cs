@@ -3741,7 +3741,11 @@ namespace BuildXL.Processes
             // We need to consider opaque directory exclusions here. So if there are any exclusions configured, we can't start from the manifest
             // path, since the exclusion can be configured to be under a given opaque root
 
-            var initialNode = m_pip.OutputDirectoryExclusions.Count == 0 ? access.ManifestPath.Value : accessPath.Value;
+            var initialNode = m_pip.OutputDirectoryExclusions.Length == 0 ? access.ManifestPath.Value : accessPath.Value;
+
+            using var outputDirectoryExclusionSetWrapper = Pools.AbsolutePathSetPool.GetInstance();
+            var outputDirectoryExclusionSet = outputDirectoryExclusionSetWrapper.Instance;
+            outputDirectoryExclusionSet.AddRange(m_pip.OutputDirectoryExclusions);
 
             // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
             // that many writes for a given pip happens under the same cones.
@@ -3751,7 +3755,7 @@ namespace BuildXL.Processes
                 var currentPath = new AbsolutePath(currentNode);
                 
                 // if the path is under an exclusion, then it is not under a shared opaque
-                if (m_pip.OutputDirectoryExclusions.Contains(currentPath))
+                if (outputDirectoryExclusionSet.Contains(currentPath))
                 {
                     sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
                     return false;
@@ -3764,7 +3768,7 @@ namespace BuildXL.Processes
                 {
                     sharedDynamicDirectoryRoot = currentPath;
                     // If there are no exclusions, then we found an owning root and we can shortcut the search here
-                    if (m_pip.OutputDirectoryExclusions.Count == 0)
+                    if (outputDirectoryExclusionSet.Count == 0)
                     {
                         return true;
                     }

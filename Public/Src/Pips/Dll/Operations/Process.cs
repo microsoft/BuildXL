@@ -429,7 +429,7 @@ namespace BuildXL.Pips.Operations
             FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null,
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
-            IReadOnlySet<AbsolutePath> outputDirectoryExclusions = null)
+            ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -543,7 +543,7 @@ namespace BuildXL.Pips.Operations
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
-            OutputDirectoryExclusions = outputDirectoryExclusions ?? CollectionUtilities.EmptySet<AbsolutePath>();
+            OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
         }
 
         /// <summary>
@@ -759,14 +759,15 @@ namespace BuildXL.Pips.Operations
         /// Processes that breakaway can survive the lifespan of the sandbox
         /// </remarks>
         public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
-        
+
         /// <summary>
         /// Directory cones that will be excluded from opaque directories
         /// </summary>
         /// <remarks>
         /// Any artifact produced under any of these directories won't be considered part of any opaque directory output
         /// </remarks>
-        public IReadOnlySet<AbsolutePath> OutputDirectoryExclusions { get; }
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<AbsolutePath> OutputDirectoryExclusions { get; }
 
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
@@ -925,7 +926,7 @@ namespace BuildXL.Pips.Operations
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32(),
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
-                outputDirectoryExclusions: reader.ReadReadOnlySet(reader1 => reader1.ReadAbsolutePath())
+                outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath())
                 );
         }
 

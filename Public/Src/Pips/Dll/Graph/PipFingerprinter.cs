@@ -369,7 +369,7 @@ namespace BuildXL.Pips.Graph
                 (h, p) => h.Add(p),
                 m_pathTable.StringTable.OrdinalComparer);
 
-            fingerprinter.AddOrderIndependentCollection<AbsolutePath, IReadOnlySet<AbsolutePath>>(
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(
                 nameof(Process.OutputDirectoryExclusions), 
                 process.OutputDirectoryExclusions, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 

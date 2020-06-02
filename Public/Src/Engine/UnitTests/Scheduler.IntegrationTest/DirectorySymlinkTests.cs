@@ -121,18 +121,14 @@ namespace IntegrationTest.BuildXL.Scheduler
                 ├── sym-A -> A
                 └── sym-sym-A -> sym-A
         */
-
-/*
-    TODO: Add back once new LKG with correct symlink directory deletion is deployed
-
-    Versions/A/sym-loop -> ../sym-A/
-*/
+        
         private const string GeneralDirectoryLayout = @"
 sym-Versions_A_file -> Versions/A/file
 sym-Versions_sym-A_file -> Versions/sym-A/file
 Versions/
 Versions/A/
 Versions/A/file
+Versions/A/sym-loop -> ../sym-A/
 Versions/sym-A -> A/
 Versions/sym-sym-A -> sym-A/
 ";
@@ -227,23 +223,22 @@ Versions/sym-sym-A -> sym-A/
                     "- Versions/sym-sym-A/file"
                 }
             ),
-
-            // TODO: Enable once new LKG with correct symlink directory deletion is deployed
-            // new LookupSpec(
-            //     "readViaSymLoop",
-            //     lookup: "Versions/A/sym-loop/file",
-            //     target: "Versions/A/file",
-            //     observations: new[]
-            //     {
-            //         "+ Versions/A/sym-loop",
-            //         "+ Versions/sym-A",
-            //         "+ Versions/A/file",
-            //         "- Versions/A/sym-loop/file",
-            //         "- Versions/sym-A/file",
-            //         "- Versions/sym-sym-A",
-            //         "- Versions/sym-sym-A/file"
-            //     }
-            // ),
+            
+            new LookupSpec(
+                "readViaSymLoop",
+                lookup: "Versions/A/sym-loop/file",
+                target: "Versions/A/file",
+                observations: new[]
+                {
+                    "+ Versions/A/sym-loop",
+                    "+ Versions/sym-A",
+                    "+ Versions/A/file",
+                    "- Versions/A/sym-loop/file",
+                    "- Versions/sym-A/file",
+                    "- Versions/sym-sym-A",
+                    "- Versions/sym-sym-A/file"
+                }
+            ),
         };
 
         private static LookupSpec[] AbsentProbeSpecs { get; } = new[]
@@ -635,9 +630,8 @@ Versions/sym-sym-A -> sym-A/
                     Operation.ReadFile(hardlink2) * ReadCount));
             RunScheduler().AssertSuccess();
         }
-
-        // TODO: Remove Unix only trait once the new LKG with proper reparse point deletion logic has been deployed
-        [FactIfSupported(requiresSymlinkPermission: true, requiresUnixBasedOperatingSystem: true)]
+        
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void ConcurrentAccessToHardlinksPointingToSameFileViaSymlinkDirectory()
         {
             CreateHardLinks(out var hardlink1, out var hardlink2);

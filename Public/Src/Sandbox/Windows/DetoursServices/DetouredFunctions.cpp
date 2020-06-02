@@ -2595,9 +2595,12 @@ HANDLE WINAPI Detoured_CreateFileW(
             return INVALID_HANDLE_VALUE;
         }
 
-        // We only report directory symlinks contained in the path and the final target path in this case
-        SetLastError(error);
-        return handle;
+        if (!IgnoreFullSymlinkResolving())
+        {
+            // We only report directory symlinks contained in the path and the final target path in this case
+            SetLastError(error);
+            return handle;
+        }
     }
 
     FileReadContext readContext;

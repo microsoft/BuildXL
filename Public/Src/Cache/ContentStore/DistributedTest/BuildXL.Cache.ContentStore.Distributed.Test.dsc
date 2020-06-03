@@ -31,7 +31,7 @@ namespace DistributedTest {
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "4.0.1.0",
+                newVersion: "4.0.3.0",
             },
         ],
         appConfig: f`App.config`,

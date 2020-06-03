@@ -9,7 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
@@ -25,7 +24,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -51,6 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             GetLocationsSatisfiedFromLocal,
             GetLocationsSatisfiedFromRemote,
             PinUnverifiedCountSatisfied,
+            StartCopyForPinWhenUnverifiedCountSatisfied,
             ProactiveCopy_OutsideRingFromPreferredLocations,
         }
 
@@ -381,7 +380,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     return proactiveTasks;
                 });
 
-            if (Settings.InlineProactiveCopies)
+            if (Settings.InlineOperationsForTests)
             {
                 return await proactiveCopyTask;
             }
@@ -811,7 +810,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </remarks>
         protected async Task PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] bytes)
         {
-            if (Settings.InlinePutBlobs)
+            if (Settings.InlineOperationsForTests)
             {
                 // Failures already traced. No need to trace it here one more time.
                 await ContentLocationStore.PutBlobAsync(context, contentHash, bytes).IgnoreFailure();
@@ -994,7 +993,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= Settings.PinConfiguration.PinMinUnverifiedCount)
             {
                 SessionCounters[Counters.PinUnverifiedCountSatisfied].Increment();
-                return DistributedPinResult.Success($"Replica Count={locations.Count}");
+                var result = DistributedPinResult.Success($"Replica Count={locations.Count}");
+
+                // Triggering an async copy if the number of replicas are close to a PinMinUnverifiedCount threshold.
+                int threshold = Settings.PinConfiguration.PinMinUnverifiedCount +
+                                Settings.PinConfiguration.StartCopyWhenPinMinUnverifiedCountThreshold;
+                if (locations.Count < threshold)
+                {
+                    Tracer.Warning(operationContext, $"Starting asynchronous copy of the content for hash {remote.ContentHash.ToShortString()} because the number of locations '{locations.Count}' is less then a threshold of '{threshold}'.");
+                    SessionCounters[Counters.StartCopyForPinWhenUnverifiedCountSatisfied].Increment();
+                    var task = TryCopyAndPutAndUpdateContentTrackerAsync(operationContext, remote, updateContentTracker, cancel);
+                    if (Settings.InlineOperationsForTests)
+                    {
+                        (await task).TraceIfFailure(operationContext);
+                    }
+                    else
+                    {
+                        task.FireAndForget(operationContext.TracingContext);
+                    }
+                }
+
+                return result;
             }
 
             if (isLocal)
@@ -1034,6 +1053,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
                 return PinResult.ContentNotFound;
             }
+        }
+
+        private async Task<BoolResult> TryCopyAndPutAndUpdateContentTrackerAsync(
+            OperationContext operationContext,
+            ContentHashWithSizeAndLocations remote,
+            bool updateContentTracker,
+            CancellationToken cancel)
+        {
+            PutResult copy = await TryCopyAndPutAsync(operationContext, remote, cancel, UrgencyHint.Nominal, trace: true);
+            if (copy && updateContentTracker)
+            {
+                return await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
+            }
+
+            return copy;
         }
 
         private Task UpdateContentTrackerWithLocalHitsAsync(Context context, IReadOnlyList<ContentHashWithSizeAndLastAccessTime> contentHashesWithInfo, CancellationToken cts, UrgencyHint urgencyHint)

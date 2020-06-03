@@ -166,9 +166,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
             public override void Override(DistributedContentStoreSettings settings)
             {
-                settings.InlinePutBlobs = true;
-                settings.InlineProactiveCopies = true;
-                settings.InlineProactiveReplication = true;
+                settings.InlineOperationsForTests = true;
                 settings.SetPostInitializationCompletionAfterStartup = true;
             }
         }
@@ -1172,6 +1170,105 @@ namespace ContentStoreTest.Distributed.Sessions
                     var result1 = await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
                     var counters1 = session2.GetCounters().ToDictionaryIntegral();
                     counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                });
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(0)]
+        public async Task PinWithUnverifiedCountAndStartCopy(int threshold)
+        {
+            _overrideDistributed = s =>
+            {
+                // Enable pin better to ensure pin configuration is passed to distributed store,
+                // but defaults use low risk and high risk tolerance for machine 
+                // or file loss to prevent pin better from kicking in.
+                s.IsPinBetterEnabled = true;
+                s.PinMinUnverifiedCount = 2;
+                s.StartCopyWhenPinMinUnverifiedCountThreshold = threshold;
+            };
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 3,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    var session0 = context.GetDistributedSession(0);
+
+                    var session2 = context.GetDistributedSession(2);
+
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
+
+                    // Insert random file in session 1
+                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+
+                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters = session0.GetCounters().ToDictionaryIntegral();
+                    counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
+                    var remoteFileCopies = counters["RemoteFilesCopied.Count"];
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+
+                    var counters1 = session2.GetCounters().ToDictionaryIntegral();
+                    counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                    int expectedStartCopies = threshold > 0 ? 1 : 0;
+                    counters1["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(expectedStartCopies);
+                    counters1["RemoteFilesCopied.Count"].Should().Be(remoteFileCopies + expectedStartCopies, "Second pin should have triggered another remote file copy.");
+                });
+        }
+
+        [Fact]
+        public async Task PinWithUnverifiedCountAndStartCopy()
+        {
+            _overrideDistributed = s =>
+            {
+                // Enable pin better to ensure pin configuration is passed to distributed store,
+                // but defaults use low risk and high risk tolerance for machine 
+                // or file loss to prevent pin better from kicking in.
+                s.IsPinBetterEnabled = true;
+                s.PinMinUnverifiedCount = 2;
+                s.StartCopyWhenPinMinUnverifiedCountThreshold = 1;
+            };
+
+            await RunTestAsync(
+                new Context(Logger),
+                storeCount: 3,
+                async context =>
+                {
+                    var sessions = context.Sessions;
+                    var session0 = context.GetDistributedSession(0);
+
+                    var session2 = context.GetDistributedSession(2);
+
+                    var content = ThreadSafeRandom.GetBytes((int)ContentByteCount);
+                    var path = context.Directories[0].CreateRandomFileName();
+                    FileSystem.WriteAllBytes(path, content);
+
+                    // Insert random file in session 1
+                    var putResult0 = await sessions[1].PutFileAsync(context, ContentHashType, path, FileRealizationMode.Any, Token).ShouldBeSuccess();
+
+                    // Locations that have the content are less than PinMinUnverifiedCount, therefore counter will not be incremented
+                    // Session 0 will also copy the content to itself, now enough locations have the content to satisfy PinMinUnverifiedCount
+                    var result = await sessions[0].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+                    var counters = session0.GetCounters().ToDictionaryIntegral();
+                    counters["PinUnverifiedCountSatisfied.Count"].Should().Be(0);
+                    var remoteFileCopies = counters["RemoteFilesCopied.Count"];
+
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    await sessions[2].PinAsync(context, putResult0.ContentHash, Token).ShouldBeSuccess();
+
+                    var counters1 = session2.GetCounters().ToDictionaryIntegral();
+                    counters1["PinUnverifiedCountSatisfied.Count"].Should().Be(1);
+                    counters1["StartCopyForPinWhenUnverifiedCountSatisfied.Count"].Should().Be(1);
+                    counters1["RemoteFilesCopied.Count"].Should().Be(remoteFileCopies + 1, "Second pin should have triggered another remote file copy.");
                 });
         }
 

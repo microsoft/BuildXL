@@ -159,9 +159,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool ProactiveCopyUsePreferredLocations { get; set; } = false;
 
         /// <summary>
-        /// Should only be used for testing.
+        /// Should only be used for testing to inline the operations like proactive copy.
         /// </summary>
-        public bool InlineProactiveCopies { get; set; } = false;
+        public bool InlineOperationsForTests { get; set; } = false;
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
@@ -169,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int ProactiveCopyLocationsThreshold { get; set; } = 3;
 
         /// <summary>
-        /// Whether to reject push copies based on whether we've evicted something youger recently.
+        /// Whether to reject push copies based on whether we've evicted something younger recently.
         /// </summary>
         public bool ProactiveCopyRejectOldContent { get; set; } = false;
 
@@ -202,11 +202,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Whether to enable proactive replication
         /// </summary>
         public bool EnableProactiveReplication { get; set; } = false;
-
-        /// <summary>
-        /// Whether to inline proactive replication
-        /// </summary>
-        public bool InlineProactiveReplication { get; set; } = false;
 
         /// <summary>
         /// The interval between proactive replication interations
@@ -245,11 +240,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Maximum number of PutFile and PlaceFile operations that can happen concurrently.
         /// </summary>
         public int MaximumConcurrentPutAndPlaceFileOperations { get; set; } = 512;
-
-        /// <summary>
-        /// Used in tests to inline put blob execution.
-        /// </summary>
-        public bool InlinePutBlobs { get; set; } = false;
 
         /// <summary>
         /// Indicates whether a post initialization task is set to complete after startup to force local eviction to wait

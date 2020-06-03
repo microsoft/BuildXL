@@ -458,6 +458,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? PinMinUnverifiedCount { get; set; }
 
         [DataMember]
+        public int? StartCopyWhenPinMinUnverifiedCountThreshold { get; set; }
+
+        [DataMember]
         [Validation.Range(0, 1, minInclusive: false, maxInclusive: false)]
         public double? MachineRisk { get; set; }
 

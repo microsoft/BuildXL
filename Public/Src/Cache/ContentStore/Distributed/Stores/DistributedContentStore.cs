@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                            await ProactiveReplicationIterationAsync(context, proactiveCopySession, localContentStore, contentLocationStore).ThrowIfFailure();
 
-                           if (_settings.InlineProactiveReplication)
+                           if (_settings.InlineOperationsForTests)
                            {
                                // Inlining is used only for testing purposes. In those cases,
                                // we only perform one proactive replication.
@@ -220,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                        return BoolResult.Success;
                    })
-                .FireAndForgetOrInlineAsync(context, _settings.InlineProactiveReplication);
+                .FireAndForgetOrInlineAsync(context, _settings.InlineOperationsForTests);
         }
 
         private Task<ProactiveReplicationResult> ProactiveReplicationIterationAsync(

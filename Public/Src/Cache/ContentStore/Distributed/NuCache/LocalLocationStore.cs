@@ -1459,7 +1459,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     int iteration = 0;
                     for (iteration = 0; !isFinished; iteration++)
                     {
-                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, token);
 
                         await context.PerformOperationAsync(
                             Tracer,
@@ -1483,6 +1483,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
+                    // Need to ensure we don't mark the reconcile as complete if canceled (i.e. during shutdown). Cancellation will
+                    // terminate db enumeration without throwing so we need to check explicitly here so we don't think the operation
+                    // finished enumerating the db.
+                    token.ThrowIfCancellationRequested();
                     MarkReconciled(machineId);
 
                     return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);

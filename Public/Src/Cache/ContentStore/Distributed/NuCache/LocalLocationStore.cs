@@ -1456,7 +1456,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     ShortHash? lastProcessedHash = null;
                     var isFinished = false;
 
-                    while (!isFinished)
+                    int iteration = 0;
+                    for (iteration = 0; !isFinished; iteration++)
                     {
                         var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
 
@@ -1574,7 +1575,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
 
-                                    await reconciliationEventStore.ReconcileAsync(context, machineId, addedContent, removedContent).ThrowIfFailure();
+                                    await reconciliationEventStore.ReconcileAsync(
+                                        context, 
+                                        machineId, 
+                                        addedContent, 
+                                        removedContent,
+                                        $".cycle{iteration}").ThrowIfFailure();
 
                                     if (Configuration.LogReconciliationHashes)
                                     {

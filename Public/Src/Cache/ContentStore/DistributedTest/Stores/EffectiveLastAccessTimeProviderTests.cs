@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
 using ContentStoreTest.Test;
 using FluentAssertions;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -23,7 +24,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
 {
     public class EffectiveLastAccessTimeProviderTests : TestBase
     {
-        private static LocalLocationStoreConfiguration Configuration { get; } = new LocalLocationStoreConfiguration() {UseTieredDistributedEviction = true, DesiredReplicaRetention = 3};
+        private LocalLocationStoreConfiguration Configuration { get; } = new LocalLocationStoreConfiguration()
+        {
+            UseTieredDistributedEviction = true,
+            DesiredReplicaRetention = 3
+        };
 
         [Fact]
         public void RareContentShouldBeImportant()
@@ -35,8 +40,108 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 contentSize: 42,
                 lastAccessTimeUtc: clock.UtcNow,
                 creationTimeUtc: clock.UtcNow);
-            bool isImportant = EffectiveLastAccessTimeProvider.IsImportantReplica(hash, entry, new MachineId(1), Configuration.DesiredReplicaRetention);
+            bool isImportant = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), Configuration, clock.UtcNow) == ReplicaRank.Important;
             isImportant.Should().BeTrue();
+        }
+
+        [Theory]
+        [InlineData(new ushort[] { 1 })]
+        [InlineData(new ushort[] { 1, 2 })]
+        [InlineData(new ushort[] { 1, 2, 3 })]
+        public void RareContentShouldBeImportantOrProtectedWithThrottling(ushort[] machineIds)
+        {
+            Configuration.ThrottledEvictionInterval = TimeSpan.FromMinutes(20);
+
+            var hash = ContentHash.Random();
+            var clock = new MemoryClock();
+
+            var entry = ContentLocationEntry.Create(
+                locations: new ArrayMachineIdSet(machineIds),
+                contentSize: 42,
+                lastAccessTimeUtc: clock.UtcNow,
+                creationTimeUtc: clock.UtcNow);
+
+            int protectedCount = 0;
+            int importantCount = 0;
+
+            for (int i = 0; i < Configuration.DesiredReplicaRetention; i++)
+            {
+                var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), Configuration, clock.UtcNow);
+                clock.UtcNow += Configuration.ThrottledEvictionInterval;
+
+                switch(rank)
+                {
+                    case ReplicaRank.Important:
+                        importantCount++;
+                        break;
+                    case ReplicaRank.Protected:
+                        protectedCount++;
+                        break;
+                    default:
+                        XAssert.Fail($"Rank is '{rank}' but should be Important or Protected since content is rare");
+                        break;
+                }
+            }
+
+            protectedCount.Should().Be(Configuration.DesiredReplicaRetention - 1, "(DesiredReplicaCount - 1) out of DesiredReplicaCount of the time content should be protected");
+            importantCount.Should().Be(1, "1 out of DesiredReplicaCount of the time content should just be important allowing eviction");
+        }
+
+        [Fact]
+        public void OnlyOneImportantReplicaIsUnprotected()
+        {
+            Configuration.ThrottledEvictionInterval = TimeSpan.FromMinutes(20);
+
+            var hash = ContentHash.Random();
+            var clock = new MemoryClock();
+
+            var machineIds = new ushort[] { 1, 2, 3 };
+            var entry = ContentLocationEntry.Create(
+                locations: new ArrayMachineIdSet(machineIds),
+                contentSize: 42,
+                lastAccessTimeUtc: clock.UtcNow,
+                creationTimeUtc: clock.UtcNow);
+
+            int rangesWithUnprotected = 0;
+
+            for (int i = 0; i < Configuration.DesiredReplicaRetention; i++)
+            {
+                clock.UtcNow += Configuration.ThrottledEvictionInterval;
+
+                int protectedCount = 0;
+                int importantCount = 0;
+
+                foreach (var machineId in machineIds)
+                {
+                    var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(machineId), Configuration, clock.UtcNow);
+
+                    switch (rank)
+                    {
+                        case ReplicaRank.Important:
+                            importantCount++;
+                            break;
+                        case ReplicaRank.Protected:
+                            protectedCount++;
+                            break;
+                        default:
+                            XAssert.Fail($"Rank is '{rank}' but should be Important or Protected since content is rare");
+                            break;
+                    }
+                }
+
+                var importantOrProtectedCount = protectedCount + importantCount;
+
+                importantCount.Should().BeLessOrEqualTo(1, "At most 1 out of DesiredReplicaCount of the time content should just be important allowing eviction");
+                importantOrProtectedCount.Should().Be(Configuration.DesiredReplicaRetention, "All replicas should be important or protected");
+
+                if (importantCount == 1)
+                {
+                    rangesWithUnprotected++;
+                    protectedCount.Should().Be(Configuration.DesiredReplicaRetention - 1, "(DesiredReplicaCount - 1) out of DesiredReplicaCount of the time content should be protected");
+                }
+            }
+
+            rangesWithUnprotected.Should().Be(1, "There should be one time range out of DesiredReplicaCount ranges where one of replicas is unprotected");
         }
 
         [InlineData(5)]
@@ -64,18 +169,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
 
             // Then checking all the "machines" (by creating MachineId for each id in machineIds)
             // to figure out if the replica is important.
-            var importantMachineCount = machineIds.Select(
-                machineId => EffectiveLastAccessTimeProvider.IsImportantReplica(
+            var ranks = machineIds.Select(
+                machineId => EffectiveLastAccessTimeProvider.GetReplicaRank(
                     hash,
                     entry,
                     new MachineId(machineId),
-                    Configuration.DesiredReplicaRetention)).Count(important => important);
+                    Configuration,
+                    clock.UtcNow)).ToArray();
+            var importantMachineCount = ranks.Count(rank => rank == ReplicaRank.Important);
 
             // We should get roughly 'configuration.DesiredReplicaRetention' important replicas.
             // The number is not exact, because when we're computing the importance we're computing a hash of the first bytes of the hash
             // plus the machine id. So it is possible that we can be slightly off here.
             var desiredReplicaCount = Configuration.DesiredReplicaRetention;
             importantMachineCount.Should().BeInRange(desiredReplicaCount - 2, desiredReplicaCount + 3);
+        }
+
+        [Fact]
+        public void ProtectedReplicasAreLastResort()
+        {
+            var protectedAge = EffectiveLastAccessTimeProvider.GetEffectiveLastAccessTime(
+                Configuration,
+                age: TimeSpan.FromHours(2),
+                replicaCount: 100,
+                42,
+                rank: ReplicaRank.Protected,
+                logInverseMachineRisk: 0);
+
+            protectedAge.Should().Be(TimeSpan.Zero, "Protected age should be zero so that is falls last in eviction ordering");
         }
 
         [Fact]
@@ -86,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 age: TimeSpan.FromHours(2),
                 replicaCount: 100,
                 42,
-                isImportantReplica: false,
+                rank: ReplicaRank.None,
                 logInverseMachineRisk: 0);
 
             var important = EffectiveLastAccessTimeProvider.GetEffectiveLastAccessTime(
@@ -94,7 +215,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 age: TimeSpan.FromHours(2),
                 replicaCount: 100,
                 42,
-                isImportantReplica: true,
+                rank: ReplicaRank.Important,
                 logInverseMachineRisk: 0);
 
             important.Should().BeLessThan(nonImportant, "Important replica should be consider to be younger, then non-important one.");
@@ -128,7 +249,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                     creationTimeUtc: null));
 
             var mock = new EffectiveLastAccessTimeProviderMock(localMachineId: new MachineId(1024));
-            var hashes = new [] {ContentHash.Random(), ContentHash.Random(), ContentHash.Random()};
+            var hashes = new[] { ContentHash.Random(), ContentHash.Random(), ContentHash.Random() };
             mock.Map = new Dictionary<ContentHash, ContentLocationEntry>()
             {
                 [hashes[0]] = entries[0],
@@ -193,7 +314,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 [hashes[2]] = entries[2],
             };
 
-            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock); 
+            var provider = new EffectiveLastAccessTimeProvider(Configuration, clock, mock);
 
             var context = new OperationContext(new Context(Logger));
 

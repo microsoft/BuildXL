@@ -16,12 +16,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
         {
             var inputs = new []
                          {
-                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 1, isImportantReplica: false),
-                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 2, isImportantReplica: true),
-                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 1, isImportantReplica: true),
+                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 1, rank: ReplicaRank.None),
+                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 2, rank: ReplicaRank.Important),
+                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(1), TimeSpan.FromHours(20), TimeSpan.FromHours(2), replicaCount: 1, size: 1, rank: ReplicaRank.Important),
                                                                                                                      
-                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(2), TimeSpan.FromHours(20), TimeSpan.FromHours(3), replicaCount: 1, size: 1, isImportantReplica: true),
-                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(2), TimeSpan.FromHours(20), TimeSpan.FromHours(3), replicaCount: 1, size: 1, isImportantReplica: false),
+                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(2), TimeSpan.FromHours(20), TimeSpan.FromHours(3), replicaCount: 1, size: 1, rank: ReplicaRank.Important),
+                             new ContentEvictionInfo(ContentHash.Random(), TimeSpan.FromHours(2), TimeSpan.FromHours(20), TimeSpan.FromHours(3), replicaCount: 1, size: 1, rank: ReplicaRank.None),
                          };
 
             var list = inputs.ToList();

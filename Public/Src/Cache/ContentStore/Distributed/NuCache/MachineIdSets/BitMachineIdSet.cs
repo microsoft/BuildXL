@@ -152,21 +152,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override int GetMachineIdIndex(MachineId currentMachineId)
         {
-            for (int i = Offset; i < Data.Length; i++)
+            int dataIndex = Offset + currentMachineId.Index / 8;
+            if (dataIndex >= Data.Length)
             {
-                byte redisChar = Data[i];
+                return -1;
+            }
 
-                int position = 0;
-                while (redisChar != 0)
+            var dataBitPosition = 7 - (currentMachineId.Index % 8);
+            int machineIdIndex = 0;
+            byte redisChar;
+            for (int i = Offset; i < dataIndex; i++)
+            {
+                redisChar = Data[i];
+                if (redisChar != 0)
                 {
-                    if ((redisChar & MaxCharBitMask) != 0)
+                    machineIdIndex += Bits.BitCount(redisChar);
+                }
+            }
+
+            redisChar = Data[dataIndex];
+            int position = 0;
+            while (redisChar != 0)
+            {
+                if ((redisChar & MaxCharBitMask) != 0)
+                {
+                    if (dataBitPosition == position)
                     {
-                        return i + position;
+                        return machineIdIndex;
                     }
 
-                    redisChar <<= 1;
-                    position++;
+                    machineIdIndex++;
                 }
+
+                redisChar <<= 1;
+                position++;
             }
 
             return -1;

@@ -764,6 +764,11 @@ namespace ContentStoreTest.Distributed.Sessions
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.RestoreCheckpointAgeThresholdMinutes = 0;
+                dcs.ProactiveCopyLocationsThreshold = 2;
+
+                // Due to timing, proactive copy may happen from random source if allow proactive
+                // copies 
+                dcs.EnableProactiveReplication = dcs.TestIteration == 2;
             });
 
             PutResult putResult = default;
@@ -771,7 +776,10 @@ namespace ContentStoreTest.Distributed.Sessions
             await RunTestAsync(
                 new Context(Logger),
                 storeCount,
-                iterations: 2,
+                // Iteration 0 content is put and state (checkpoint, bin manager) is uploaded
+                // Iteration 1 is just to allow state to propagate before
+                // Iteration 2 where proactive replication is enabled and we verify correct behavior
+                iterations: 3,
                 testFunc: async context =>
                 {
                     var sessions = context.Sessions;
@@ -791,7 +799,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         TestClock.UtcNow += TimeSpan.FromMinutes(5);
                     }
-                    else if (context.Iteration == 1)
+                    else if (context.Iteration == 2)
                     {
                         var proactiveStore = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(1);
                         var proactiveSession = (await proactiveStore.ProactiveCopySession.Value).ThrowIfFailure();

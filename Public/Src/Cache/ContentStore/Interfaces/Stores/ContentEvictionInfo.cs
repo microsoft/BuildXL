@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Indicates whether this replica is considered important and thus retention should be prioritized
         /// </summary>
-        public bool IsImportantReplica { get; }
+        public ReplicaRank Rank { get; }
 
         /// <summary>
         /// Age of the content based on the last access time.
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             TimeSpan effectiveAge,
             int replicaCount,
             long size,
-            bool isImportantReplica)
+            ReplicaRank rank)
         {
             ContentHash = contentHash;
             Age = age;
@@ -72,13 +72,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             EffectiveAge = effectiveAge;
             ReplicaCount = replicaCount;
             Size = size;
-            IsImportantReplica = isImportantReplica;
+            Rank = rank;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash.ToShortString()} Age={Age} EffectiveAge={EffectiveAge} LocalAge={LocalAge} Cost={ReplicaCount}*{Size} IsImportantReplica={IsImportantReplica}]";
+            return $"[ContentHash={ContentHash.ToShortString()} Age={Age} EffectiveAge={EffectiveAge} LocalAge={LocalAge} Cost={ReplicaCount}*{Size} Rank={Rank}]";
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
             public int Compare(ContentEvictionInfo x, ContentEvictionInfo y)
             {
                 if (!CollectionUtilities.IsCompareEquals(x.EffectiveAge, y.EffectiveAge, out var compareResult, greatestFirst: true)
-                    || !CollectionUtilities.IsCompareEquals(x.IsImportantReplica, y.IsImportantReplica, out compareResult)
+                    || !CollectionUtilities.IsCompareEquals((int)x.Rank, (int)y.Rank, out compareResult)
                     || !CollectionUtilities.IsCompareEquals(x.Cost, y.Cost, out compareResult, greatestFirst: true))
                 {
                     return compareResult;

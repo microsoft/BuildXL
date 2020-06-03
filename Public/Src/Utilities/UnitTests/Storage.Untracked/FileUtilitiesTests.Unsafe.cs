@@ -360,7 +360,10 @@ namespace Test.BuildXL.Storage
                 builder.AppendLine(dir);
                 builder.AppendLine(FileUtilitiesMessages.NoProcessesUsingHandle);
                 builder.AppendLine(FileUtilitiesMessages.PathMayBePendingDeletion);
-                XAssert.IsTrue(openHandles.Contains(builder.ToString()));
+                // Windows 10 Version 2004 unified the pending deletion queue behavior for files and directories.
+                // With Windows 10 Version 2004 and later, directories that are in pending deletion queue are not discoverable by FindFirstFileW WinAPI
+                // and are considered deleted by Directory.Exists(dir).
+                XAssert.IsTrue(openHandles.Contains(builder.ToString()) || /* Check for Windows 10 Version 2004 and later */ !Directory.Exists(dir));
                 XAssert.IsFalse(openHandles.Contains(FileUtilitiesMessages.ActiveHandleUsage + dir));
             }
 

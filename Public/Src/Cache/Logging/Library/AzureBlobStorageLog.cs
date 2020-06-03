@@ -233,39 +233,49 @@ namespace BuildXL.Cache.Logging
         {
             return context.PerformOperationAsync(Tracer, async () =>
                 {
-                    using var fileStream = await _fileSystem.OpenSafeAsync(
+                    long compressedSizeBytes = 0;
+                    long uncompressedSizeBytes = 0;
+
+                    using (var fileStream = await _fileSystem.OpenSafeAsync(
                         logFilePath,
                         FileAccess.Write,
                         FileMode.CreateNew,
                         FileShare.None,
-                        FileOptions.SequentialScan | FileOptions.Asynchronous);
-                    using var gzipStream = new GZipStream(fileStream, CompressionLevel.Fastest, leaveOpen: true);
-                    using var recordingStream = new CountingStream(gzipStream);
-                    using var streamWriter = new StreamWriter(recordingStream, Encoding.UTF8, bufferSize: 32 * 1024, leaveOpen: true);
-
-                    if (OnFileOpen != null)
+                        FileOptions.SequentialScan | FileOptions.Asynchronous))
                     {
-                        await OnFileOpen(streamWriter);
-                    }
+                        // We need to make sure we close the compression stream before we take the fileStream's
+                        // position, because the compression stream won't write everything until it's been closed,
+                        // which leads to bad recorded values in compressedSizeBytes.
+                        using (var gzipStream = new GZipStream(fileStream, CompressionLevel.Fastest, leaveOpen: true))
+                        {
+                            using var recordingStream = new CountingStream(gzipStream);
+                            using var streamWriter = new StreamWriter(recordingStream, Encoding.UTF8, bufferSize: 32 * 1024, leaveOpen: true);
 
-                    foreach (var log in logs)
-                    {
-                        await streamWriter.WriteLineAsync(log);
-                    }
+                            if (OnFileOpen != null)
+                            {
+                                await OnFileOpen(streamWriter);
+                            }
 
-                    if (OnFileClose != null)
-                    {
-                        await OnFileClose(streamWriter);
-                    }
+                            foreach (var log in logs)
+                            {
+                                await streamWriter.WriteLineAsync(log);
+                            }
 
-                    await streamWriter.FlushAsync();
+                            if (OnFileClose != null)
+                            {
+                                await OnFileClose(streamWriter);
+                            }
+
+                            // Needed to ensure the recording stream receives everything it needs to receive
+                            await streamWriter.FlushAsync();
+                            uncompressedSizeBytes = recordingStream.BytesWritten;
+                        }
+
+                        compressedSizeBytes = fileStream.Position;
+                    }
 
                     Tracer.TrackMetric(context, $"LogLinesWritten", logs.Length);
-
-                    var compressedSizeBytes = fileStream.Position;
                     Tracer.TrackMetric(context, $"CompressedBytesWritten", compressedSizeBytes);
-
-                    var uncompressedSizeBytes = recordingStream.BytesWritten;
                     Tracer.TrackMetric(context, $"UncompressedBytesWritten", uncompressedSizeBytes);
 
                     return new Result<LogFile>(new LogFile()

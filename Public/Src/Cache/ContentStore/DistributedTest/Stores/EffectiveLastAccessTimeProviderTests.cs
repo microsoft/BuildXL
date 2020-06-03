@@ -61,30 +61,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 lastAccessTimeUtc: clock.UtcNow,
                 creationTimeUtc: clock.UtcNow);
 
-            int protectedCount = 0;
-            int importantCount = 0;
+            int totalImportantFound = 0;
 
-            for (int i = 0; i < Configuration.DesiredReplicaRetention; i++)
+            foreach (var machineId in machineIds)
             {
-                var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), Configuration, clock.UtcNow);
-                clock.UtcNow += Configuration.ThrottledEvictionInterval;
+                int protectedCount = 0;
+                int importantCount = 0;
 
-                switch(rank)
+                for (int i = 0; i < Configuration.DesiredReplicaRetention; i++)
                 {
-                    case ReplicaRank.Important:
-                        importantCount++;
-                        break;
-                    case ReplicaRank.Protected:
-                        protectedCount++;
-                        break;
-                    default:
-                        XAssert.Fail($"Rank is '{rank}' but should be Important or Protected since content is rare");
-                        break;
+                    var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(machineId), Configuration, clock.UtcNow);
+                    clock.UtcNow += Configuration.ThrottledEvictionInterval;
+
+                    switch (rank)
+                    {
+                        case ReplicaRank.Important:
+                            importantCount++;
+                            totalImportantFound++;
+                            break;
+                        case ReplicaRank.Protected:
+                            protectedCount++;
+                            break;
+                        default:
+                            XAssert.Fail($"Rank is '{rank}' but should be Important or Protected since content is rare");
+                            break;
+                    }
                 }
+
+                protectedCount.Should().BeInRange(Configuration.DesiredReplicaRetention - 1, Configuration.DesiredReplicaRetention, "At least (DesiredReplicaCount - 1) out of DesiredReplicaCount of the time content should be protected");
+                importantCount.Should().BeInRange(0, 1, "At most 1 out of DesiredReplicaCount of the time content should just be important allowing eviction");
             }
 
-            protectedCount.Should().Be(Configuration.DesiredReplicaRetention - 1, "(DesiredReplicaCount - 1) out of DesiredReplicaCount of the time content should be protected");
-            importantCount.Should().Be(1, "1 out of DesiredReplicaCount of the time content should just be important allowing eviction");
+            totalImportantFound.Should().Be(1, "Within the time interval (DesiredReplicaCount * ThrottledEvictionInterval), " +
+                "during exactly one ThrottledEvictionInterval exactly one machine should have content unproteced");
         }
 
         [Fact]

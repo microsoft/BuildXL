@@ -243,9 +243,9 @@ namespace BuildXL.Processes
             process.StartInfo.FileName = ShellExecutable;
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
-            if (info.RootJail != null)
+            if (info.RootJailInfo?.RootJail != null)
             {
-                process.StartInfo.WorkingDirectory = Path.Combine(info.RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
+                process.StartInfo.WorkingDirectory = Path.Combine(info.RootJailInfo.Value.RootJail, info.WorkingDirectory.TrimStart(Path.DirectorySeparatorChar));
             }
 
             return process;

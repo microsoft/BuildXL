@@ -295,20 +295,6 @@ namespace BuildXL.Processes
         public string WorkingDirectory { get; set; }
 
         /// <summary>
-        /// Root jail directory (can be null)
-        /// </summary>
-        /// <remarks>
-        /// Currently implemented for Mac/Linux only using <c>chroot</c> and requires NOPASSWD sudo privileges.
-        ///
-        /// DEPRECATED; use "RootJailInfo" instead
-        /// </remarks>
-        public string RootJail
-        {
-            get { return RootJailInfo?.RootJail; }
-            set { RootJailInfo = new RootJailInfo(value); }
-        }
-
-        /// <summary>
         /// Root jail information (can be null)
         /// </summary>
         /// <remarks>

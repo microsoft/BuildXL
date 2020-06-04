@@ -105,17 +105,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 int attemptCount = 0;
                 TimeSpan waitDelay = TimeSpan.Zero;
 
-                if (_settings.PrioritizeDesignatedLocationsOnCopies)
-                {
-                    hashInfo = PrioritizeDesignatedLocations(host, hashInfo);
-                    Contract.Assert(hashInfo.Locations != null);
-                }
-
-                if (_settings.DeprioritizeMasterOnCopies)
-                {
-                    hashInfo = DeprioritizeMaster(host, hashInfo);
-                }
-
                 //DateTime defaults to 01/01/0001 when we initialize the array.
                 //This forloop initializes each element to the current time relative to the passed clock instance
                 //We use the time from a clock instance in case future tests try to simulate the progression of time.
@@ -221,78 +210,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Tracer.TrackMetric(c, "RemoteCopyFileFailed", 1);
                 _counters[DistributedContentCopierCounters.RemoteFilesFailedCopy].Increment();
             }
-        }
-
-        /// <nodoc />
-        public static ContentHashWithSizeAndLocations DeprioritizeMaster(IDistributedContentCopierHost host, ContentHashWithSizeAndLocations hashInfo)
-        {
-            if (host.GetMasterLocation().TryGetValue(out var masterLocation))
-            {
-                var locations = hashInfo.Locations;
-                Contract.AssertNotNull(locations);
-
-                int? masterIndex = null;
-
-                // Don't care if we find the master at the last position, that's where we want it.
-                var lastIndex = locations.Count - 1;
-                for (var i = 0; i < lastIndex; i++)
-                {
-                    if (locations[i].Equals(masterLocation))
-                    {
-                        masterIndex = i;
-                        break;
-                    }
-                }
-
-                // Found it, place it at the end. Need to allocate because locations is read only.
-                if (masterIndex != null)
-                {
-                    var reprioritized = new MachineLocation[locations.Count];
-                    for (int i = 0, j = 0; j < locations.Count; i++, j++)
-                    {
-                        // Skip the master, we'll do it afterwards.
-                        if (j == masterIndex)
-                        {
-                            j++;
-                        }
-
-                        reprioritized[i] = locations[j];
-                    }
-
-                    reprioritized[locations.Count - 1] = locations[masterIndex.Value];
-
-                    return new ContentHashWithSizeAndLocations(hashInfo.ContentHash, hashInfo.Size, reprioritized);
-                }
-            }
-
-            return hashInfo;
-        }
-
-
-        /// <summary>
-        /// Moves designated locations to the front of the hash info locations.
-        /// </summary>
-        private ContentHashWithSizeAndLocations PrioritizeDesignatedLocations(IDistributedContentCopierHost host, ContentHashWithSizeAndLocations hashInfo)
-        {
-            Contract.Requires(hashInfo.Locations != null);
-            if (host.GetDesignatedLocations(hashInfo.ContentHash).TryGetValue(out var designatedLocations))
-            {
-                var newLocations = new MachineLocation[hashInfo.Locations.Count];
-                var currentNonDesignated = newLocations.Length - 1;
-                var currentDesignated = 0;
-
-                // Traverse locations back to front to preserve order other than designated locations put at the beginning.
-                for (var i = newLocations.Length - 1; i >= 0; i--)
-                {
-                    var location = hashInfo.Locations[i];
-                    var index = designatedLocations.Contains(location) ? currentDesignated++ : currentNonDesignated--;
-                    newLocations[index] = location;
-                }
-
-                return new ContentHashWithSizeAndLocations(hashInfo.ContentHash, hashInfo.Size, newLocations);
-            }
-
-            return hashInfo;
         }
 
         /// <summary>

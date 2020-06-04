@@ -3,23 +3,41 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     /// <summary>
-    /// List of lazily resolved <see cref="MachineLocation"/>s from a <see cref="MachineIdSet"/>
+    /// List of lazily resolved <see cref="MachineLocation"/>s from a <see cref="MachineIdSet"/>.
     /// </summary>
     public sealed class MachineList : IReadOnlyList<MachineLocation>
     {
-        private readonly Func<MachineId, MachineLocation> _resolvePath;
-        private readonly MachineReputationTracker _reputationTracker;
-        private readonly bool _randomize;
-        private List<MachineId> _resolvedMachineIds;
+        /// <nodoc />
+        public class Settings
+        {
+            /// <nodoc />
+            public bool Randomize { get; set; } = true;
 
+            /// <nodoc />
+            public bool PrioritizeDesignatedLocations { get; set; }
+
+            /// <nodoc />
+            public bool DeprioritizeMaster { get; set; }
+        }
+
+        private readonly MachineReputationTracker _reputationTracker;
+        private readonly ClusterState _clusterState;
+        private readonly Settings _settings;
+        private readonly ContentHash _hash;
         private readonly MachineIdSet _locations;
+        private readonly ConcurrentDictionary<MachineId, MachineLocation> _cachedResolutions = new ConcurrentDictionary<MachineId, MachineLocation>();
+        private List<MachineId>? _resolvedMachineIds;
 
         /// <inheritdoc />
         public int Count { get; }
@@ -34,19 +52,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             get
             {
-                // TODO: Should we cache the resolution (bug 1365340)
                 ResolveLocations();
-                return _resolvePath(_resolvedMachineIds[index]);
+
+                return _cachedResolutions.GetOrAdd(_resolvedMachineIds![index], id =>
+                {
+                    if (_clusterState.TryResolve(id, out var result))
+                    {
+                        return result;
+                    }
+
+                    throw new InvalidOperationException($"Unable to resolve machine location for machine id '{id}'.");
+                });
             }
         }
 
         /// <nodoc />
-        public MachineList(MachineIdSet locations, Func<MachineId, MachineLocation> resolvePath, MachineReputationTracker reputationTracker, bool randomize)
+        public MachineList(MachineIdSet locations, MachineReputationTracker reputationTracker, ClusterState clusterState, ContentHash hash, Settings settings)
         {
             _locations = locations;
-            _resolvePath = resolvePath;
             _reputationTracker = reputationTracker;
-            _randomize = randomize;
+            _clusterState = clusterState;
+            _hash = hash;
+            _settings = settings;
 
             // Capture the count rather than recomputing every time
             Count = locations.Count;
@@ -55,17 +82,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public IEnumerator<MachineLocation> GetEnumerator()
         {
-            for (int i = 0; i < Count; i++)
+            for (var i = 0; i < Count; i++)
             {
                 yield return this[i];
             }
         }
 
         /// <inheritdoc />
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         private void ResolveLocations()
         {
@@ -74,13 +98,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var resolvedMachineIds = new List<MachineId>(Count);
                 resolvedMachineIds.AddRange(_locations.EnumerateMachineIds());
 
-                if (_randomize)
+                if (_settings.Randomize)
                 {
                     ThreadSafeRandom.Shuffle(resolvedMachineIds);
                 }
 
-                // Sorting resolved machine ids by reputation: machines with good reputation should be used first.
-                resolvedMachineIds = resolvedMachineIds.OrderBy(id => (int)_reputationTracker.GetReputation(id)).ToList();
+                var master = _clusterState.MasterMachineId;
+
+                resolvedMachineIds = resolvedMachineIds.OrderBy(id =>
+                {
+                    // Send master to the back.
+                    if (_settings.DeprioritizeMaster && (master?.Equals(id) == true))
+                    {
+                        return int.MaxValue;
+                    }
+
+                    // Pull designated locations to front.
+                    if (_settings.PrioritizeDesignatedLocations && _clusterState.IsDesignatedLocation(id, _hash, includeExpired: false))
+                    {
+                        return -1;
+                    }
+
+                    // Sort by reputation.
+                    return (int)_reputationTracker.GetReputation(id);
+                }).ToList();
 
                 _resolvedMachineIds = resolvedMachineIds;
             }

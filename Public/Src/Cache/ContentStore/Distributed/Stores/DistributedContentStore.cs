@@ -117,11 +117,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _contentLocationStore.MachineReputationTracker.ReportReputation(location, reputation);
         }
 
-        Result<MachineLocation[]> IDistributedContentCopierHost.GetDesignatedLocations(ContentHash hash)
-        {
-            return _contentLocationStore.GetDesignatedLocations(hash);
-        }
-
         private Task<Result<ReadOnlyDistributedContentSession<T>>> CreateCopySession(Context context)
         {
             var sessionId = Guid.NewGuid();
@@ -753,23 +748,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             rejectionReason = RejectionReason.Accepted;
             return true;
-        }
-
-        /// <inheritdoc />
-        public Result<MachineLocation> GetMasterLocation()
-        {
-            if (!TryGetLocalLocationStore(out var lls))
-            {
-                return new Result<MachineLocation>(errorMessage: "LLS is not supported");
-            }
-
-            var master = lls.ClusterState.MasterMachineLocation;
-            if (!master.HasValue)
-            {
-                return new Result<MachineLocation>(errorMessage: "Master is unknown");
-            }
-
-            return master.Value;
         }
     }
 }

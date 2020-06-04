@@ -165,7 +165,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseBinManager = _distributedSettings.UseBinManager || _distributedSettings.ProactiveCopyUsePreferredLocations,
                 PreferredLocationsExpiryTime = TimeSpan.FromMinutes(_distributedSettings.PreferredLocationsExpiryTimeMinutes),
                 PrimaryMachineLocation = OrderedResolvedCacheSettings[0].MachineLocation,
-                AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray()
+                AdditionalMachineLocations = OrderedResolvedCacheSettings.Skip(1).Select(r => r.MachineLocation).ToArray(),
+                MachineListPrioritizeDesignatedLocations = _distributedSettings.PrioritizeDesignatedLocationsOnCopies,
+                MachineListDeprioritizeMaster = _distributedSettings.DeprioritizeMasterOnCopies
             };
 
             ApplyIfNotNull(_distributedSettings.ThrottledEvictionIntervalMinutes, v => redisContentLocationStoreConfiguration.ThrottledEvictionInterval = TimeSpan.FromMinutes(v));
@@ -311,8 +313,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                                                       ReplicaCreditInMinutes = distributedSettings.IsDistributedEvictionEnabled ? distributedSettings.ReplicaCreditInMinutes : null,
                                                       EnableRepairHandling = distributedSettings.IsRepairHandlingEnabled,
                                                       LocationStoreBatchSize = distributedSettings.RedisBatchPageSize,
-                                                      PrioritizeDesignatedLocationsOnCopies = distributedSettings.PrioritizeDesignatedLocationsOnCopies,
-                                                      DeprioritizeMasterOnCopies = distributedSettings.DeprioritizeMasterOnCopies,
                                                       RestrictedCopyReplicaCount = distributedSettings.RestrictedCopyReplicaCount,
                                                       CopyAttemptsWithRestrictedReplicas = distributedSettings.CopyAttemptsWithRestrictedReplicas,
                                                       AreBlobsSupported = redisContentLocationStoreConfiguration.AreBlobsSupported,

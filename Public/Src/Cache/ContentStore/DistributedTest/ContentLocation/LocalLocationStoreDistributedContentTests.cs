@@ -754,15 +754,16 @@ namespace ContentStoreTest.Distributed.Sessions
             EnableProactiveCopy = true;
             PushProactiveCopies = true;
             ProactiveCopyOnPuts = false;
+            ProactiveCopyOnPins = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
-            // Using 3 stores to avoid the flakiness.
-            // With 2 stores its possible that the proactive copy will fail because the right target won't be found.
-            var storeCount = 3;
+            // Using 4 stores to avoid the flakiness.
+            // With 3 stores its possible that the proactive copy will fail because the right target won't be found.
+            var storeCount = 4;
 
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.RestoreCheckpointAgeThresholdMinutes = 0;
-                dcs.ProactiveCopyLocationsThreshold = 2;
+                dcs.ProactiveCopyLocationsThreshold = 3;
 
                 // Due to timing, proactive copy may happen from random source if allow proactive
                 // copies 

@@ -129,6 +129,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private MachineState _heartbeatMachineState = MachineState.Unknown;
 
+        private readonly MachineList.Settings _machineListSettings;
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
@@ -168,6 +170,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             configuration.Database.TouchFrequency = configuration.TouchFrequency;
             Database = ContentLocationDatabase.Create(clock, configuration.Database, () => ClusterState.InactiveMachines);
+
+            _machineListSettings = new MachineList.Settings
+            {
+                PrioritizeDesignatedLocations = _configuration.MachineListPrioritizeDesignatedLocations,
+                DeprioritizeMaster = _configuration.MachineListDeprioritizeMaster,
+            };
         }
 
         /// <summary>
@@ -894,12 +902,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return new MachineList(
                 entry.Locations,
-                machineId =>
-                {
-                    return ResolveMachineLocation(machineId);
-                },
                 MachineReputationTracker,
-                randomize: true);
+                ClusterState,
+                hash,
+                _machineListSettings);
         }
 
         /// <summary>

@@ -82,7 +82,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool EnableBinManagerUpdates { get; set; }
 
         /// <nodoc />
-        public MachineLocation? MasterMachineLocation { get; set; } = null;
+        public MachineLocation? MasterMachineLocation { get; private set; } = null;
+
+        /// <nodoc />
+        public MachineId? MasterMachineId { get; private set; } = null;
 
         /// <nodoc />
         public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> allLocalMachineIds)
@@ -307,6 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal void SetMasterMachine(MachineLocation producer)
         {
             MasterMachineLocation = producer;
+            MasterMachineId = TryResolveMachineId(producer, out var id) ? id : (MachineId?) null;
         }
     }
 }

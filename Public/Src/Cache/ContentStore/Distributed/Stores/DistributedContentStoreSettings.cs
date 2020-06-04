@@ -174,16 +174,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool ProactiveCopyRejectOldContent { get; set; } = false;
 
         /// <summary>
-        /// Whether to prioritize designated locations when copying.
-        /// </summary>
-        public bool PrioritizeDesignatedLocationsOnCopies { get; set; } = false;
-
-        /// <summary>
-        /// Whether to put the master at the end of the list in P2P copies.
-        /// </summary>
-        public bool DeprioritizeMasterOnCopies { get; set; } = false;
-
-        /// <summary>
         /// Number of copy attempts which should be restricted in its number or replicas.
         /// </summary>
         public int CopyAttemptsWithRestrictedReplicas { get; set; } = 0;

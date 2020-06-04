@@ -104,14 +104,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // by the machine reputation tracker
         }
 
-        private readonly Result<MachineLocation[]> _notSupportedDesignatedLocationsResult = new Result<MachineLocation[]>("Not supported for distributed central storage");
-
-        Result<MachineLocation[]> IDistributedContentCopierHost.GetDesignatedLocations(ContentHash hash)
-        {
-            // Designated locations are not supported for distributed central storage
-            return _notSupportedDesignatedLocationsResult;
-        }
-
         #endregion IDistributedContentCopierHost Members
 
         /// <inheritdoc />
@@ -432,18 +424,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool HasContent(ContentHash contentHash)
         {
             return _privateCas.Contains(contentHash);
-        }
-
-        /// <inheritdoc />
-        public Result<MachineLocation> GetMasterLocation()
-        {
-            var master = _locationStore.ClusterState.MasterMachineLocation;
-            if (!master.HasValue)
-            {
-                return new Result<MachineLocation>(errorMessage: "Master is unknown");
-            }
-
-            return master.Value;
         }
 
         /// <summary>

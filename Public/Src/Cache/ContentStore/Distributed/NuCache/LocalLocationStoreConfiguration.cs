@@ -315,6 +315,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>
         internal string? GetCheckpointPrefix() => CentralStore?.CentralStateKeyBase + EventStore?.Epoch;
+
+        /// <summary>
+        /// Whether to randomize elements in machine list, while still respecting reputation and other priorizations.
+        /// </summary>
+        public bool RandomizeMachineList { get; set; }
+
+        /// <summary>
+        /// Whether to prioritize designated locations in machine lists, so that they are the first elements.
+        /// </summary>
+        public bool MachineListPrioritizeDesignatedLocations { get; set; }
+
+        /// <summary>
+        /// Whether to deprioritize the master in machine lists, so that it is the last element.
+        /// </summary>
+        public bool MachineListDeprioritizeMaster { get; set; }
     }
 
     /// <summary>

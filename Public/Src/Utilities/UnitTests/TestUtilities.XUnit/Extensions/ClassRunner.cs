@@ -62,6 +62,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
                 {
                     MessageBus.QueueMessage(new TestSkipped(new XunitTest(testCase, testCase.DisplayName), m_skipTestClassSkipReason));
                     runSummary.Skipped++;
+                    runSummary.Total++;
                 }
                 
                 return Task.FromResult(runSummary);

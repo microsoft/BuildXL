@@ -79,6 +79,9 @@ namespace BuildXL.Cache.Logging.External
         public void Log(Severity severity, string correlationId, string message) => _logger.Log(severity, correlationId, message);
 
         /// <inheritdoc />
+        public void Log(in LogMessage logMessage) => _logger.Log(logMessage);
+
+        /// <inheritdoc />
         public void LogOperationStarted(in OperationStarted operation) => _logger.LogOperationStarted(operation);
 
         /// <inheritdoc />

@@ -151,6 +151,21 @@ namespace BuildXL.Cache.Logging.External
         }
 
         /// <inheritdoc />
+        public void Log(in LogMessage logMessage)
+        {
+            var severity = logMessage.Severity;
+
+            var logLine = CreateLogEventInfo(logMessage);
+
+            _nlog.Log(logLine);
+
+            if (severity == Severity.Error)
+            {
+                Interlocked.Increment(ref _errorCount);
+            }
+        }
+
+        /// <inheritdoc />
         public void LogOperationStarted(in OperationStarted operation)
         {
             var severity = operation.Severity;
@@ -177,6 +192,16 @@ namespace BuildXL.Cache.Logging.External
             {
                 Interlocked.Increment(ref _errorCount);
             }
+        }
+
+        /// <summary>
+        /// Helper method that creates <see cref="LogEventInfo"/> from <see cref="OperationStarted"/>
+        /// </summary>
+        internal static LogEventInfo CreateLogEventInfo(in LogMessage operation)
+        {
+            var logLine = new LogEventInfo(level: Translate(operation.Severity), loggerName: null, message: operation.Message);
+            SetCoreProperties(logLine, operation);
+            return logLine;
         }
 
         /// <summary>

@@ -13,13 +13,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     {
         private readonly Context _context;
         private readonly Severity _severity;
+        private readonly string _component;
+        private readonly string _operation;
 
-        public TextWriterAdapter(Context context, Severity severity, IFormatProvider? formatProvider = null) : base(formatProvider)
+        public TextWriterAdapter(Context context, Severity severity, string? component = null, string? operation = null, IFormatProvider? formatProvider = null) : base(formatProvider)
         {
             Contract.Assert(severity != Severity.Always);
 
             _context = context;
             _severity = severity;
+            _component = component ?? string.Empty;
+            _operation = operation ?? string.Empty;
         }
 
         public override Encoding Encoding => Encoding.Default;
@@ -51,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 return;
             }
 
-            _context.TraceMessage(_severity, value);
+            _context.TraceMessage(_severity, value, _component, _operation);
         }
     }
 }

@@ -167,6 +167,44 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <summary>
+        ///     Trace a message if current severity is set to at least the given severity.
+        /// </summary>
+        public void TraceMessage(Severity severity, string message, string? component = null, [CallerMemberName] string? operation = null)
+        {
+            if (Logger == null)
+            {
+                return;
+            }
+
+            component ??= string.Empty;
+            operation ??= string.Empty;
+
+            if (Logger is IStructuredLogger structuredLogger)
+            {
+                structuredLogger.Log(new LogMessage(message, operation, component, OperationKind.None, _idAsString, severity));
+            }
+            else
+            {
+                string? provenance;
+                if (string.IsNullOrEmpty(component) || string.IsNullOrEmpty(operation))
+                {
+                    provenance = $"{component}{operation}: ";
+
+                    if (provenance.Equals(": "))
+                    {
+                        provenance = string.Empty;
+                    }
+                }
+                else
+                {
+                    provenance = $"{component}.{operation}: ";
+                }
+
+                Logger.Log(severity, $"{_idAsString} {provenance}{message}");
+            }
+        }
+
+        /// <summary>
         /// Trace operation start.
         /// </summary>
         public void OperationStarted(

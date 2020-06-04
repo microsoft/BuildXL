@@ -277,6 +277,10 @@ namespace BuildXL.Cache.ContentStore.Test.Tracing
             {
             }
 
+            public void Log(in LogMessage logMessage)
+            {
+            }
+
             public OperationStarted LogOperationStartedArgument;
 
             public void LogOperationStarted(in OperationStarted operation)

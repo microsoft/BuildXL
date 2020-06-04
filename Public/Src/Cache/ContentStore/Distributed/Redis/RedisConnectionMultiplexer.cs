@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (logSeverity != Severity.Unknown && context.Logger != null)
             {
                 var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
-                var logger = new TextWriterAdapter(replacementContext, logSeverity);
+                var logger = new TextWriterAdapter(replacementContext, logSeverity, component: "Redis.StackExchange");
                 return await ConnectionMultiplexer.ConnectAsync(options, logger);
             }
 

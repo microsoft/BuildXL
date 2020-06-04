@@ -17,6 +17,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         void Log(Severity severity, string correlationId, string message);
 
         /// <summary>
+        /// Log a message with the given severity if it is at least as high as the current severity.
+        /// </summary>
+        /// <param name="logMessage">Log message</param>
+        void Log(in LogMessage logMessage);
+
+        /// <summary>
         /// Traces that an operation has started.
         /// </summary>
         void LogOperationStarted(in OperationStarted operation);

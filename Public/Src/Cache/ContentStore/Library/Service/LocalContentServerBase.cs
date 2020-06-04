@@ -357,8 +357,8 @@ namespace BuildXL.Cache.ContentStore.Service
                             incrementalValue -= oldValue;
                         }
 
-                        Tracer.Info(context, $"IncrementalStatistic: {key}=[{incrementalValue}]");
-                        Tracer.Info(context, $"PeriodicStatistic: {key}=[{value}]");
+                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{incrementalValue}]", component: Name, operation: "IncrementalStatistics");
+                        context.TracingContext.TraceMessage(Severity.Info, $"{key}=[{value}]", component: Name, operation: "PeriodicStatistics");
                     }
                 }
 

@@ -39,5 +39,8 @@ namespace BuildXL.Interop.Unix
 
         [DllImport(LibC, SetLastError = true)]
         internal static extern uint geteuid();
+
+        [DllImport(LibC, SetLastError = true)]
+        internal static extern int kill(int pid, int signal);
     }
 }

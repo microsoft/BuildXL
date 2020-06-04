@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
+using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Tracing;
@@ -77,9 +78,22 @@ namespace BuildXL.Processes
 
             private readonly Sandbox.ManagedFailureCallback m_failureCallback;
             private readonly Dictionary<string, PathCacheRecord> m_pathCache; // TODO: use AbsolutePath instead of string
-            private readonly HashSet<int> m_activeProcesses;
+
+            /// <remarks>
+            /// This dictionary is accessed both from the <see cref="m_workerThread"/> thread as well as the thread
+            /// backing <see cref="m_activeProcessesChecker"/>, hence it must be thread-safe.
+            ///
+            /// Implementation detail: ConcurrentDictionary is used to implement a thread-safe set (because no
+            /// ConcurrentSet class exists).  Therefore, the values in this dictionary are completely ignored;
+            /// the keys represent the set of currently active process IDs.
+            /// </remarks>
+            private readonly ConcurrentDictionary<int, byte> m_activeProcesses;
+
+            private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
             private readonly Thread m_workerThread;
+
+            private static readonly TimeSpan ActiveProcessesCheckerInterval = TimeSpan.FromSeconds(1);
 
             internal Info(Sandbox.ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, string debugLogPath)
             {
@@ -90,10 +104,13 @@ namespace BuildXL.Processes
                 DebugLogJailPath = debugLogPath;
 
                 m_pathCache = new Dictionary<string, PathCacheRecord>();
-                m_activeProcesses = new HashSet<int>
+                m_activeProcesses = new ConcurrentDictionary<int, byte>
                 {
-                    process.ProcessId
+                    [process.ProcessId] = 1
                 };
+                m_activeProcessesChecker = new CancellableTimedAction(
+                    CheckActiveProcesses, 
+                    intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)ActiveProcessesCheckerInterval.TotalMilliseconds));
 
                 // create a write handle (used to keep the fifo open, i.e., 
                 // the 'read' syscall won't receive EOF until we close this writer
@@ -117,6 +134,17 @@ namespace BuildXL.Processes
                 m_workerThread.Start();
             }
 
+            private void CheckActiveProcesses()
+            {
+                foreach (var pid in m_activeProcesses.Keys)
+                {
+                    if (!Dispatch.IsProcessAlive(pid))
+                    {
+                        RemovePid(pid);
+                    }
+                }
+            }
+
             /// <summary>
             /// Request to stop receiving access reports.  This method returns immediately;
             /// any currently pending reports will be processed asynchronously. 
@@ -126,12 +154,13 @@ namespace BuildXL.Processes
                 LogDebug($"Closing the write handle for FIFO '{ReportsFifoPath}'");
                 // this will cause read() on the other end of the FIFO to return EOF once all native writers are done writing
                 m_lazyWriteHandle.Value.Dispose();
+                m_activeProcessesChecker.Cancel();
             }
 
             /// <summary>Adds <paramref name="pid" /> to the set of active processes</summary>
             internal void AddPid(int pid)
             {
-                bool added = m_activeProcesses.Add(pid);
+                bool added = m_activeProcesses.TryAdd(pid, 1);
                 LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count()}");
             }
 
@@ -141,11 +170,23 @@ namespace BuildXL.Processes
             /// </summary>
             internal void RemovePid(int pid)
             {
-                bool removed = m_activeProcesses.Remove(pid);
+                bool removed = m_activeProcesses.TryRemove(pid, out var _);
                 LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count()}");
                 if (m_activeProcesses.Count == 0)
                 {
                     RequestStop();
+                }
+                else if (removed && pid == Process.ProcessId)
+                {
+                    // We just removed the root process and there are still active processes left
+                    //   => start periodically checking if they are still alive, because we don't 
+                    //      have a reliable mechanism for receiving those events straight from the
+                    //      child processes (e.g., if they crash, we might not hear about it)
+                    //
+                    // Observe also that we do have a reliable mechanism for detecting when the
+                    // root process exits (even if it crashes): see NotifyRootProcessExited below,
+                    // which is guaranteed to be called by SandboxedProcessUnix.
+                    m_activeProcessesChecker.Start();
                 }
             }
 
@@ -179,7 +220,8 @@ namespace BuildXL.Processes
             public void Dispose()
             {
                 RequestStop();
-                m_workerThread?.Join();
+                m_workerThread.Join();
+                m_activeProcessesChecker.Join();
                 m_pathCache.Clear();
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, waitUntilDeletionFinished: false));

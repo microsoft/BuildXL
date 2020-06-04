@@ -212,6 +212,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// A write file access informed to detours without doing any real IO
             /// </summary>
             AugmentedWriteFile,
+
+            /// <summary>
+            /// Invokes some native code that crashes hard (by segfaulting or something)
+            /// </summary>
+            CrashHardNative,
         }
 
         /// <summary>
@@ -450,6 +455,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Fail:
                         DoFail();
+                        return;
+                    case Type.CrashHardNative:
+                        DoCrashHardNative();
                         return;
                     case Type.WriteFileIfInputEqual:
                         DoWriteFileIfInputEqual();
@@ -802,6 +810,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Fail(int exitCode = -1)
         {
             return new Operation(Type.Fail, content: exitCode.ToString());
+        }
+
+        /// <summary>
+        /// Invokes some native code that crashes hard (by segfaulting or something)
+        /// </summary>
+        public static Operation CrashHardNative()
+        {
+            return new Operation(Type.CrashHardNative);
         }
 
         /// <summary>
@@ -1269,6 +1285,11 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
             Environment.Exit(exitCode);
+        }
+
+        private void DoCrashHardNative()
+        {
+            global::BuildXL.Interop.Dispatch.ForceQuit();
         }
 
         private void DoSucceedOnRetry()

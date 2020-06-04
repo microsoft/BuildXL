@@ -25,8 +25,13 @@ namespace Test.BuildXL.Processes
 {
     public sealed class SandboxedProcessTest : SandboxedProcessTestBase
     {
+        private ITestOutputHelper TestOutput { get; }
+
         public SandboxedProcessTest(ITestOutputHelper output)
-            : base(output) { }
+            : base(output)
+        { 
+            TestOutput = output;
+        }
 
         private sealed class MyListener : IDetoursEventListener
         {
@@ -1211,6 +1216,37 @@ namespace Test.BuildXL.Processes
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);
                 XAssert.AreEqual(0, result.AllUnexpectedFileAccesses.Count); // In our tests we use the shared conhost, so for this test nothing extra was loaded in the reused test.
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(TruthTable.GetTable), 3, MemberType = typeof(TruthTable))]
+        public async Task HandleHardNativeCrash(bool shouldParentCrash, bool shouldChildCrash, bool waitForChildToFinish)
+        {
+            var outFile = CreateOutputFileArtifact();
+            var info = ToProcessInfo(ToProcess(
+                Operation.WriteFile(outFile),
+                Operation.Spawn(Context.PathTable, waitToFinish: waitForChildToFinish, 
+                    shouldChildCrash ? Operation.CrashHardNative() : Operation.Echo("Child :: not crashing")),
+                shouldParentCrash
+                    ? Operation.CrashHardNative()
+                    : Operation.Echo("Parent :: not crashing")));
+
+            var result = await RunProcess(info);
+            var msg = 
+                $"Code: {result.ExitCode}, Killed: {result.Killed}, Num Survivors: {result.SurvivingChildProcesses?.Count()}, Stdout:{Environment.NewLine}" +
+                await result.StandardOutput.ReadValueAsync();
+            TestOutput.WriteLine(msg);
+
+            XAssert.IsFalse(result.Killed);
+            XAssert.IsNull(result.SurvivingChildProcesses);
+            if (shouldParentCrash)
+            {
+                XAssert.AreNotEqual(0, result.ExitCode);
+            }
+            else
+            {
+                XAssert.AreEqual(0, result.ExitCode);
             }
         }
 

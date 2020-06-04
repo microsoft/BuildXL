@@ -263,5 +263,40 @@ namespace BuildXL.Interop.Windows
 
             return true;
         }
+
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+
+        /// <remarks>
+        /// Implemented using Process.GetProcessById()
+        /// </remarks>
+        internal static bool IsAlive(int pid)
+        {
+            try
+            {
+                return System.Diagnostics.Process.GetProcessById(pid) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <remarks>
+        /// Implemented using Process.GetProcessById().Kill()
+        /// </remarks>
+        internal static bool ForceQuit(int pid)
+        {
+            try
+            {
+                System.Diagnostics.Process.GetProcessById(pid).Kill();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
     }
 }

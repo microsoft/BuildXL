@@ -45,6 +45,18 @@ namespace BuildXL.Interop.Unix
             public ulong DiskBytesWritten;
         }
 
+        /// <remarks>
+        /// Implemented by calling "kill -0".
+        /// This should be much cheaper than calling Process.GetProcessById().
+        /// </remarks>
+        public static bool IsAlive(int pid) => Impl_Common.kill(pid, 0) == 0;
+
+        /// <remarks>
+        /// Implemented by sending SIGKILL to a process with id <paramref name="pid"/>.
+        /// The return value indicates whether the KILL signal was sent successfully.
+        /// </remarks>
+        public static bool ForceQuit(int pid) => Impl_Common.kill(pid, 9) == 0;
+
         /// <summary>
         /// Returns process resource usage information to the caller
         /// </summary>

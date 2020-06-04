@@ -57,6 +57,28 @@ namespace BuildXL.Interop
             : Unix.Process.IsElevated();
 
         /// <summary>
+        /// Checks if a process with id <paramref name="pid"/> exists.
+        /// </summary>
+        /// <param name="pid">ID of the process to check</param>
+        public static bool IsProcessAlive(int pid) => IsWinOS
+            ? Windows.Process.IsAlive(pid)
+            : Unix.Process.IsAlive(pid);
+
+        /// <summary>
+        /// Forcefully terminates a process with id <paramref name="pid"/>.
+        /// The return value indicates success.
+        /// </summary>
+        /// <param name="pid">ID of the process to kill</param>
+        public static bool ForceQuit(int pid) => IsWinOS
+            ? Windows.Process.ForceQuit(pid)
+            : Unix.Process.ForceQuit(pid);
+
+        /// <summary>
+        /// Forcefully terminates this process.
+        /// </summary>
+        public static void ForceQuit() => ForceQuit(System.Diagnostics.Process.GetCurrentProcess().Id);
+
+        /// <summary>
         /// Returns total processor time for a given process.  The process must be running or else an exception is thrown.
         /// </summary>
         public static TimeSpan TotalProcessorTime(System.Diagnostics.Process proc)

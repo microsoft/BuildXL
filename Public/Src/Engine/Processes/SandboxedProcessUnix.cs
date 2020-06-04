@@ -73,7 +73,7 @@ namespace BuildXL.Processes
 
         private ISandboxConnection SandboxConnection { get; }
 
-        private TimeSpan ChildProcessTimeout { get; }
+        internal TimeSpan ChildProcessTimeout { get; }
 
         private TimeSpan? ReportQueueProcessTimeoutForTests { get; }
 

@@ -1611,8 +1611,7 @@ namespace BuildXL.Processes
             }
 
             int numSurvivingChildErrors = 0;
-            if (result.SurvivingChildProcesses != null &&
-                result.SurvivingChildProcesses.Any())
+            if (!canceled && result.SurvivingChildProcesses?.Any() == true)
             {
                 numSurvivingChildErrors = ReportSurvivingChildProcesses(result);
             }

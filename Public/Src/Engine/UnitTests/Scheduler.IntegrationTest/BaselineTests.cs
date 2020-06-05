@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -1405,16 +1406,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
             Configuration.Schedule.NumRetryFailedPipsDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
 
-            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.Block(),
-                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
-            var processB = CreateAndSchedulePipBuilder(new Operation[]
+            CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.Block(),
-                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
             bool triggeredCancellation = false;
@@ -1480,16 +1481,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.Suspend;
 
-            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.Block(),
-                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
-            var processB = CreateAndSchedulePipBuilder(new Operation[]
+            CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.Block(),
-                Operation.WriteFile(CreateOutputFileArtifact(CreateOutputFileArtifact())),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             });
 
             bool triggeredResume = false;
@@ -1554,6 +1555,34 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
             AssertVerboseEventLogged(LogEventId.EmptyWorkingSet);
             AssertVerboseEventLogged(LogEventId.ResumeProcess);
+        }
+
+        [Fact]
+        public void SurvivingChildProcessesNotReportedOnCancelation()
+        {
+            var processA = CreateAndSchedulePipBuilder(new Operation[]
+            {
+                Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.Block()),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            var testHook = new SchedulerTestHooks()
+            {
+                GenerateSyntheticMachinePerfInfo = (loggingContext, scheduler) =>
+                {
+                    if (scheduler.RetrieveExecutingProcessPips().Count() > 0)
+                    {
+                        global::BuildXL.App.Tracing.Logger.Log.CancellationRequested(loggingContext);
+                        tokenSource.Cancel();
+                    }
+
+                    return new PerformanceCollector.MachinePerfInfo();
+                },
+            };
+
+            RunScheduler(testHooks: testHook, updateStatusTimerEnabled: true, cancellationToken: tokenSource.Token).AssertFailure();
+            AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
         }
 
         private Operation ProbeOp(string root, string relativePath = "")

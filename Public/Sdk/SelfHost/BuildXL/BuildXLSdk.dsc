@@ -631,7 +631,11 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                     unsafe: {
                         // allowing process dumps to be written to /cores on macOS
                         untrackedScopes: isHostOsOsx ?  [ d`/cores` ] : []
-                    }
+                    },
+                    // Need to let BuildXL know all the paths where the sources are located, because some assertions 
+                    // libraries (like FluentAssertion) may decide to read the source file while the test runs in order
+                    // to make error messages more descriptive.
+                    dependencies: args.sources,
                 }
             }
         },

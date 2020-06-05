@@ -103,7 +103,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void CombineRules()
         {
-            System.Diagnostics.Debugger.Launch();
             var amountMachines = 10;
             var designatedLocations = 3;
             var settings = new MachineList.Settings()
@@ -149,7 +148,6 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         [Fact]
         public void CombineRulesWithRandomization()
         {
-            System.Diagnostics.Debugger.Launch();
             var amountMachines = 10;
             var designatedLocations = 3;
             var settings = new MachineList.Settings()

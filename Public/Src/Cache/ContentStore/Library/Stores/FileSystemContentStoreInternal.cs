@@ -435,7 +435,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (statsResult)
             {
-                _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet);
+                _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "FileSystemContentStoreStats");
             }
 
             return result;

@@ -204,7 +204,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        private void Trace(Severity severity, Context context, string message)
+        private void Trace(Severity severity, Context context, string message, string operationName = null)
         {
             if (!context.IsSeverityEnabled(severity))
             {
@@ -218,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 message = string.Concat(Name, ": ", message);
             }
 
-            context.TraceMessage(severity, message);
+            context.TraceMessage(severity, message, component: Name, operation: operationName);
         }
 
         public void OperationStarted(Context context, string operationName, bool enabled = true, string additionalInfo = null)
@@ -333,22 +333,18 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         /// Trace stats during component's shutdown.
         /// </summary>
-        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string extraMessage = null, string prefix = null)
+        public void TraceStatisticsAtShutdown(Context context, CounterSet counterSet, string prefix = null)
         {
             if (EnableTraceStatisticsAtShutdown)
             {
-                if (!string.IsNullOrEmpty(extraMessage))
-                {
-                    context.Debug(extraMessage);
-                }
-
                 if (string.IsNullOrEmpty(prefix))
                 {
-                    counterSet.LogOrderedNameValuePairs(s => Debug(context, s));
+                    // Trace(Severity.Debug, context, message);
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, s, operationName: nameof(TraceStatisticsAtShutdown)));
                 }
                 else
                 {
-                    counterSet.LogOrderedNameValuePairs(s => Debug(context, $"{prefix}.{s}"));
+                    counterSet.LogOrderedNameValuePairs(s => Trace(Severity.Debug, context, $"{prefix}.{s}", operationName: nameof(TraceStatisticsAtShutdown)));
                 }
             }
         }

@@ -185,7 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();
 
-            Tracer.TraceStatisticsAtShutdown(context, counterSet);
+            Tracer.TraceStatisticsAtShutdown(context, counterSet, prefix: "DistributedContentSessionStats");
 
             return BoolResult.Success;
         }

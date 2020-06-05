@@ -81,7 +81,7 @@ namespace BuildXL.Cache.MemoizationStore.App
                 }
 
                 var statsResult = await store.GetStatsAsync(context).ConfigureAwait(false);
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));
+                _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "GetContentHashList");
 
                 // Useful for debugging LRU behavior.
                 if (preShutdownDelaySeconds > 0)

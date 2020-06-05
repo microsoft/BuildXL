@@ -183,7 +183,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 var statsResult = await GetStatsInternalAsync(context).ConfigureAwait(false);
                 if (statsResult.Succeeded)
                 {
-                    _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, "BuildCacheCache Stats:");
+                    _tracer.TraceStatisticsAtShutdown(context, statsResult.CounterSet, prefix: "BuildCacheCacheStats");
                 }
                 else
                 {

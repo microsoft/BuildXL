@@ -56,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             var statsResult = await Store.GetStatsAsync(operationContext);
             if (statsResult.Succeeded)
             {
-                Tracer.TraceStatisticsAtShutdown(operationContext, statsResult.CounterSet);
+                Tracer.TraceStatisticsAtShutdown(operationContext, statsResult.CounterSet, prefix: "FileSystemContentSessionStats");
             }
 
             return BoolResult.Success;

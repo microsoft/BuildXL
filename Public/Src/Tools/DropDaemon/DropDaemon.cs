@@ -824,8 +824,11 @@ namespace Tool.DropDaemon
 
             return (directoryContent.Select(file =>
             {
-                // we need to convert '\' into '/' because this path would be a part of a drop url
-                var remoteFileName = I($"{dropPath}/{GetRelativePath(directoryPath, file.FileName).Replace('\\', '/')}");
+                // We need to convert '\' into '/' because this path would be a part of a drop url
+                // The dropPath can be an empty relative path (i.e. '.') which we need to remove since even though it is not a valid
+                // directory name for a Windows file system, it is a valid name for a drop and it doesn't get resolved properly
+                var resolvedDropPath = dropPath == "." ? string.Empty : I($"{dropPath}/");
+                var remoteFileName = I($"{resolvedDropPath}{GetRelativePath(directoryPath, file.FileName).Replace('\\', '/')}");
 
                 return new DropItemForBuildXLFile(
                     daemon.ApiClient,

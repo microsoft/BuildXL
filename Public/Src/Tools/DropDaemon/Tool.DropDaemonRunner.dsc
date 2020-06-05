@@ -417,7 +417,18 @@ export namespace DropDaemonRunner {
         return overrideIpcArgs !== undefined ? overrideIpcArgs(ipcArgs) : ipcArgs;
     }
     function toString(relPath: RelativePath): string {
-        return relPath && relPath.toPathAtoms().map(
+        if (!relPath) {
+            return undefined;
+        }
+
+        // If the relative path is r`.`, the list of atoms is the empty array
+        // but we want to make sure we don't pass an empty string but '.'
+        let atoms = relPath.toPathAtoms();
+        if (atoms.length === 0){
+            atoms = [a`.`];
+        }
+
+        return atoms.map(
             a => a.toString()
         ).join("\\");
     }

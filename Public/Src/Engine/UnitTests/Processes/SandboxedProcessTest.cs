@@ -64,7 +64,7 @@ namespace Test.BuildXL.Processes
                 ProcessDataMessageCount++;
             }
 
-            public override void HandleProcessDetouringStatus(ulong processId, uint reportStatus, string processName, string startApplicationName, string startCommandLine, bool needsInjection, ulong hJob, bool disableDetours, uint creationFlags, bool detoured, uint error, uint createProcessStatusReturn)
+            public override void HandleProcessDetouringStatus(ProcessDetouringStatusData data)
             {
                 ProcessDetouringStatusMessageCount++;
             }

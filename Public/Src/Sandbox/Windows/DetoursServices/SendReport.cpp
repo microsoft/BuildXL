@@ -197,7 +197,11 @@ void ReportProcessDetouringStatus(
     ProcessDetouringStatus status,
     const LPCWSTR lpApplicationName,
     const LPWSTR lpCommandLine,
-    const BOOL needsInjectioin,
+    const BOOL needsInjection,
+    const BOOL isCurrent64BitProcess,
+    const BOOL isCurrentWow64Process,
+    const BOOL isProcessWow64,
+    const BOOL needsRemoteInjection,
     const HANDLE hJob,
     const BOOL disableDetours,
     const DWORD dwCreationFlags,
@@ -247,8 +251,8 @@ void ReportProcessDetouringStatus(
     size_t const reportBufferSize =
         30 /*Report ID type*/ +
         30 /*Process ID*/ +
-        (30 * 10) /*4-byte int values*/ +
-        12 /*Separators*/ +
+        (30 * 14) /*4-byte int values*/ +
+        16 /*Separators*/ +
         (processName != nullptr ? wcslen(processName.get()) : 10) /*processName*/ +
         (lpApplicationName != nullptr ? wcslen(lpApplicationName) : 10) /*lpApplicationName*/ +
         (lpCommandLine != nullptr ? wcslen(lpCommandLine) : 10) /*lpCommandLine*/ +
@@ -259,13 +263,17 @@ void ReportProcessDetouringStatus(
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
 
 #pragma warning(suppress: 4826)
-    int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%u|%s|%s|%u|%llu|%u|%u|%u|%u|%u|%s\r\n",
+    int const constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%u,%lu|%u|%s|%s|%u|%u|%u|%u|%u|%llu|%u|%u|%u|%u|%u|%s\r\n",
         ReportType_ProcessDetouringStatus,
         GetCurrentProcessId(),
         status,
         processName.get() != nullptr ? processName.get() : nullStringPtr,
         lpApplicationName != nullptr ? lpApplicationName : nullStringPtr,
-        needsInjectioin ? 1 : 0,
+        needsInjection ? 1 : 0,
+        isCurrent64BitProcess ? 1 : 0,
+        isCurrentWow64Process ? 1 : 0,
+        isProcessWow64 ? 1 : 0,
+        needsRemoteInjection ? 1 : 0,
         reinterpret_cast<unsigned long long>(hJob),
         disableDetours ? 1 : 0,
         (unsigned)dwCreationFlags,

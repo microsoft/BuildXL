@@ -482,12 +482,17 @@ InternalCreateDetouredProcess(
     unsigned nRetryCount = 0;
 
     bool disabledDetours = DisableDetours();
-    bool needInjection = pInjector != nullptr && pInjector->IsValid() && !disabledDetours;
+    bool needsInjection = pInjector != nullptr && pInjector->IsValid() && !disabledDetours;
 
-    if ((needInjection || hJob != 0) && !disabledDetours)
+    if ((needsInjection || hJob != 0) && !disabledDetours)
     {
         creationFlags |= CREATE_SUSPENDED;
     }
+
+    bool isCurrent64BitProcess = false;
+    bool isCurrentWow64Process = false;
+    bool isProcessWow64 = false;
+    bool needsRemoteInjection = false;
 
     // If there are configured processes that need to break away from
     // the current job object, that means the job object was configured with
@@ -505,7 +510,11 @@ InternalCreateDetouredProcess(
             ProcessDetouringStatus_Starting,
             lpApplicationName,
             lpCommandLine,
-            needInjection,
+            needsInjection,
+            isCurrent64BitProcess,
+            isCurrentWow64Process,
+            isProcessWow64,
+            needsRemoteInjection,
             INVALID_HANDLE_VALUE,
             disabledDetours,
             creationFlags,
@@ -551,19 +560,29 @@ InternalCreateDetouredProcess(
     {
         error = GetLastError();
     }
-    else if (needInjection)
+    else if (needsInjection)
     {
         // Check if all handles are inherited. While extended attributes are not necessarily about
         // handle inheritance, the structure is undocumented, so we assume that if the extended
         // attributes are preset, we are inheriting specific handles. The flag, when not set
         // will cause the injection function to duplicate required handles. When set, we assume
         // all handles are inherited and there is no need for duplication.
+        if (LogProcessDetouringStatus())
+        {
+            pInjector->GetInjectionData(
+                lpProcessInformation->hProcess,
+                isCurrent64BitProcess,
+                isCurrentWow64Process,
+                isProcessWow64,
+                needsRemoteInjection);
+        }
+
         bool fullInheritHandles = bInheritHandles == TRUE && !(dwCreationFlags & EXTENDED_STARTUPINFO_PRESENT);
         error = pInjector->InjectProcess(lpProcessInformation->hProcess, fullInheritHandles);
         fProcDetoured = error == ERROR_SUCCESS;
     }
 
-    if ((fProcDetoured || !needInjection) && fProcCreated) {
+    if ((fProcDetoured || !needsInjection) && fProcCreated) {
         status = CreateDetouredProcessStatus::Succeeded;
 
         if (hJob != 0 && !AssignProcessToJobObject(hJob, lpProcessInformation->hProcess)) {
@@ -616,7 +635,11 @@ InternalCreateDetouredProcess(
             ProcessDetouringStatus_Done,
             lpApplicationName,
             lpCommandLine,
-            needInjection,
+            needsInjection,
+            isCurrent64BitProcess,
+            isCurrentWow64Process,
+            isProcessWow64,
+            needsRemoteInjection,
             INVALID_HANDLE_VALUE,
             disabledDetours,
             creationFlags,
@@ -781,6 +804,10 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
                 L"",
                 (LPWSTR)lpcwCommandLine,
                 0,
+                0,
+                0,
+                0,
+                0,
                 INVALID_HANDLE_VALUE,
                 0,
                 dwCreationFlags,
@@ -808,6 +835,10 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
                 L"",
                 (LPWSTR)lpcwCommandLine,
                 0,
+                0,
+                0,
+                0,
+                0,
                 INVALID_HANDLE_VALUE,
                 0,
                 dwCreationFlags,
@@ -833,6 +864,10 @@ static CreateDetouredProcessStatus CreateProcessAttributes(
                     ProcessDetouringStatus_Done,
                     L"",
                     (LPWSTR)lpcwCommandLine,
+                    0,
+                    0,
+                    0,
+                    0,
                     0,
                     INVALID_HANDLE_VALUE,
                     0,

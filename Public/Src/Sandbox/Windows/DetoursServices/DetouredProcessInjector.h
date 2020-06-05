@@ -201,5 +201,18 @@ public:
         }
     }
 #pragma warning( pop )
+
+    inline void GetInjectionData(
+        HANDLE processHandle,
+        bool& isCurrent64BitProcess,
+        bool& isCurrentWow64Process,
+        bool& isProcessWow64,
+        bool& needsRemoteInjection)
+    {
+        isCurrent64BitProcess = s_is64BitProcess;
+        isCurrentWow64Process = s_isWow64Process;
+        isProcessWow64 = isWow64Process(processHandle);
+        needsRemoteInjection = NeedRemoteInjection(processHandle);
+    }
 };
 

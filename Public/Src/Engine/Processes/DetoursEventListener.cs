@@ -143,31 +143,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Called to handle detouring status message.
         /// </summary>
-        /// <param name="processId">The process id</param>
-        /// <param name="reportStatus">The report status</param>
-        /// <param name="processName">The process name</param>
-        /// <param name="startApplicationName">The application name</param>
-        /// <param name="startCommandLine">The app command line</param>
-        /// <param name="needsInjection">Whether the process needed injection</param>
-        /// <param name="hJob">The process job handle</param>
-        /// <param name="disableDetours">Whether detours was disabled</param>
-        /// <param name="creationFlags">The creation flags</param>
-        /// <param name="detoured">Whether the process was detoured</param>
-        /// <param name="error">The error of the creation of a process.</param>
-        /// <param name="createProcessStatusReturn">The returned status for the detoured process creation</param>
-        public abstract void HandleProcessDetouringStatus(
-            ulong processId,
-            uint reportStatus,
-            string processName,
-            string startApplicationName,
-            string startCommandLine,
-            bool needsInjection,
-            ulong hJob,
-            bool disableDetours,
-            uint creationFlags,
-            bool detoured,
-            uint error,
-            uint createProcessStatusReturn);
+        public abstract void HandleProcessDetouringStatus(ProcessDetouringStatusData data);
 
         /// <summary>
         /// Gets the flags that are used to handle different message types

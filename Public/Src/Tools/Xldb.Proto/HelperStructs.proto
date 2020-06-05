@@ -284,6 +284,18 @@ message ProcessDetouringStatusData{
 
     // Status returned from the the detoured CreateProcess function.
     uint32 CreateProcessStatusReturn = 12;
+
+    // Whether current process is 64 bit.
+    bool IsCurrent64BitProcess = 13;
+
+    // Whether current process is Wow64
+    bool IsCurrentWow64Process = 14;
+
+    // Whether injected process is Wow64.
+    bool isProcessWow64 = 15;
+
+    // Needs remote injections.
+    bool NeedsRemoteInjection = 16;
 }
 
 // WeakContentFingerprint message

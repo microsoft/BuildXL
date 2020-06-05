@@ -307,6 +307,10 @@ namespace BuildXL.Processes
                 out var startApplicationName,
                 out var startCommandLine,
                 out var needsInjection,
+                out var isCurrent64BitProcess,
+                out var isCurrentWow64Process,
+                out var isProcessWow64,
+                out var needsRemoteInjection,
                 out var hJob,
                 out var disableDetours,
                 out var creationFlags,
@@ -318,22 +322,28 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            // If there is a listener registered and not a process message and notifications allowed, notify over the interface.
-            if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.ProcessDetoursStatusNotify) != 0)
-            {
-                m_detoursEventListener.HandleProcessDetouringStatus(
+            var detouringStatusData = new ProcessDetouringStatusData(
                 processId,
                 reportStatus,
                 processName,
                 startApplicationName,
                 startCommandLine,
                 needsInjection,
+                isCurrent64BitProcess,
+                isCurrentWow64Process,
+                isProcessWow64,
+                needsRemoteInjection,
                 hJob,
                 disableDetours,
                 creationFlags,
                 detoured,
                 error,
                 createProcessStatusReturn);
+
+            // If there is a listener registered and not a process message and notifications allowed, notify over the interface.
+            if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.ProcessDetoursStatusNotify) != 0)
+            {
+                m_detoursEventListener.HandleProcessDetouringStatus(detouringStatusData);
             }
 
             // If there is a listener registered that disables the collection of data in the collections, just exit.
@@ -342,19 +352,7 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            ProcessDetoursStatuses.Add(new ProcessDetouringStatusData(
-                processId,
-                reportStatus,
-                processName,
-                startApplicationName,
-                startCommandLine,
-                needsInjection,
-                hJob,
-                disableDetours,
-                creationFlags,
-                detoured,
-                error,
-                createProcessStatusReturn));
+            ProcessDetoursStatuses.Add(detouringStatusData);
 
             return true;
         }
@@ -369,6 +367,10 @@ namespace BuildXL.Processes
                 out string startApplicationName,
                 out string startCommandLine,
                 out bool needsInjection,
+                out bool isCurrent64BitProcess,
+                out bool isCurrentWow64Process,
+                out bool isProcessWow64,
+                out bool needsRemoteInjection,
                 out ulong hJob,
                 out bool disableDetours,
                 out uint creationFlags,
@@ -379,6 +381,10 @@ namespace BuildXL.Processes
             {
                 reportStatus = 0;
                 needsInjection = false;
+                isCurrent64BitProcess = false;
+                isCurrentWow64Process = false;
+                isProcessWow64 = false;
+                needsRemoteInjection = false;
                 disableDetours = false;
                 detoured = false;
                 createProcessStatusReturn = 0;
@@ -399,22 +405,22 @@ namespace BuildXL.Processes
                 // If this assert fires, it indicates that we could not successfully parse (split) the data being
                 // sent from the detour (SendReport.cpp).
                 // Make sure the strings are formatted only when the condition is false.
-                if (items.Length < 12)
+                if (items.Length < 16)
                 {
                     errorMessage = I($"Unexpected message items (potentially due to pipe corruption). Message '{line}'. Expected >= 12 items, Received {items.Length} items");
                     return false;
                 }
 
-                if (items.Length == 12)
+                if (items.Length == 16)
                 {
-                    startCommandLine = items[11];
+                    startCommandLine = items[15];
                 }
                 else
                 {
                     System.Text.StringBuilder builder = Pools.GetStringBuilder().Instance;
-                    for (int i = 11; i < items.Length; i++)
+                    for (int i = 15; i < items.Length; i++)
                     {
-                        if (i > 11)
+                        if (i > 15)
                         {
                             builder.Append("|");
                         }
@@ -429,22 +435,34 @@ namespace BuildXL.Processes
                 startApplicationName = items[3];
 
                 uint uintNeedsInjection;
+                uint uintIsCurrent64BitProcess;
+                uint uintIsCurrentWow64Process;
+                uint uintIsProcessWow64;
+                uint uintNeedsRemoteInjection;
                 uint uintDisableDetours;
                 uint uintDetoured;
 
                 if (ulong.TryParse(items[0], NumberStyles.None, CultureInfo.InvariantCulture, out processId) &&
                     uint.TryParse(items[1], NumberStyles.None, CultureInfo.InvariantCulture, out reportStatus) &&
                     uint.TryParse(items[4], NumberStyles.None, CultureInfo.InvariantCulture, out uintNeedsInjection) &&
-                    ulong.TryParse(items[5], NumberStyles.None, CultureInfo.InvariantCulture, out hJob) &&
-                    uint.TryParse(items[6], NumberStyles.None, CultureInfo.InvariantCulture, out uintDisableDetours) &&
-                    uint.TryParse(items[7], NumberStyles.None, CultureInfo.InvariantCulture, out creationFlags) &&
-                    uint.TryParse(items[8], NumberStyles.None, CultureInfo.InvariantCulture, out uintDetoured) &&
-                    uint.TryParse(items[9], NumberStyles.None, CultureInfo.InvariantCulture, out error) &&
-                    uint.TryParse(items[10], NumberStyles.None, CultureInfo.InvariantCulture, out createProcessStatusReturn))
+                    uint.TryParse(items[5], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsCurrent64BitProcess) &&
+                    uint.TryParse(items[6], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsCurrentWow64Process) &&
+                    uint.TryParse(items[7], NumberStyles.None, CultureInfo.InvariantCulture, out uintIsProcessWow64) &&
+                    uint.TryParse(items[8], NumberStyles.None, CultureInfo.InvariantCulture, out uintNeedsRemoteInjection) &&
+                    ulong.TryParse(items[9], NumberStyles.None, CultureInfo.InvariantCulture, out hJob) &&
+                    uint.TryParse(items[10], NumberStyles.None, CultureInfo.InvariantCulture, out uintDisableDetours) &&
+                    uint.TryParse(items[11], NumberStyles.None, CultureInfo.InvariantCulture, out creationFlags) &&
+                    uint.TryParse(items[12], NumberStyles.None, CultureInfo.InvariantCulture, out uintDetoured) &&
+                    uint.TryParse(items[13], NumberStyles.None, CultureInfo.InvariantCulture, out error) &&
+                    uint.TryParse(items[14], NumberStyles.None, CultureInfo.InvariantCulture, out createProcessStatusReturn))
                 {
-                    needsInjection = uintNeedsInjection == 0 ? false : true;
-                    disableDetours = uintDisableDetours == 0 ? false : true;
-                    detoured = uintDetoured == 0 ? false : true;
+                    needsInjection = uintNeedsInjection != 0;
+                    isCurrent64BitProcess = uintIsCurrent64BitProcess != 0;
+                    isCurrentWow64Process = uintIsCurrentWow64Process != 0;
+                    isProcessWow64 = uintIsProcessWow64 != 0;
+                    needsRemoteInjection = uintNeedsRemoteInjection != 0;
+                    disableDetours = uintDisableDetours != 0;
+                    detoured = uintDetoured != 0;
                     return true;
                 }
 

@@ -3612,7 +3612,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.CompositeSharedOpaqueContentDetermined,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,

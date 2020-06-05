@@ -8,7 +8,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -17,7 +16,6 @@ namespace BuildXL.Cache.Host.Configuration
     {
         public const string DefaultScenario = "ContentAddressableStore";
 
-        [JsonConstructor]
         public LocalCasSettings()
         {    
         }

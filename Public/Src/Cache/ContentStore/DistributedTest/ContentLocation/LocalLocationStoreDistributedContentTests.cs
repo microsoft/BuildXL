@@ -756,14 +756,14 @@ namespace ContentStoreTest.Distributed.Sessions
             ProactiveCopyOnPuts = false;
             ProactiveCopyOnPins = false;
             ProactiveCopyUsePreferredLocations = usePreferredLocations;
-            // Using 4 stores to avoid the flakiness.
-            // With 3 stores its possible that the proactive copy will fail because the right target won't be found.
-            var storeCount = 4;
+
+            // Master does not participate in proactive copies when using preferred locations.
+            var storeCount = usePreferredLocations ? 3 : 2;
 
             ConfigureWithOneMaster(dcs =>
             {
                 dcs.RestoreCheckpointAgeThresholdMinutes = 0;
-                dcs.ProactiveCopyLocationsThreshold = 3;
+                dcs.ProactiveCopyLocationsThreshold = 2;
 
                 // Due to timing, proactive copy may happen from random source if allow proactive
                 // copies 
@@ -772,6 +772,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
             PutResult putResult = default;
 
+            var proactiveReplicator = 1;
+
             await RunTestAsync(
                 new Context(Logger),
                 storeCount,
@@ -779,6 +781,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 // Iteration 1 is just to allow state to propagate before
                 // Iteration 2 where proactive replication is enabled and we verify correct behavior
                 iterations: 3,
+                storeToStartupLast: proactiveReplicator, // Make sure that the machine doing the proactive copy is the last, since otherwise it might not find machines to copy to.
                 testFunc: async context =>
                 {
                     var sessions = context.Sessions;
@@ -789,7 +792,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     if (context.Iteration == 0)
                     {
-                        putResult = await sessions[1].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                        putResult = await sessions[proactiveReplicator].PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
 
                         // Content should be available in only one session, with proactive put set to false.
                         var masterResult = await ls[master].GetBulkAsync(context, new[] { putResult.ContentHash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Local).ShouldBeSuccess();
@@ -800,7 +803,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     }
                     else if (context.Iteration == 2)
                     {
-                        var proactiveStore = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(1);
+                        var proactiveStore = (DistributedContentStore<AbsolutePath>)context.GetDistributedStore(proactiveReplicator);
                         var proactiveSession = (await proactiveStore.ProactiveCopySession.Value).ThrowIfFailure();
                         var counters = proactiveSession.GetCounters().ToDictionaryIntegral();
                         counters["ProactiveCopy_OutsideRingFromPreferredLocations.Count"].Should().Be(usePreferredLocations ? 1 : 0);

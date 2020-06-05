@@ -13,12 +13,13 @@ namespace Test {
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
             ]),
+            ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
             Configuration.dll,
             Service.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Distributed.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             ...BuildXLSdk.fluentAssertionsWorkaround,
-        ]
+        ],
     });
 }

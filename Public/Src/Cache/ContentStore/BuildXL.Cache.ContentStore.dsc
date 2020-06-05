@@ -50,6 +50,21 @@ export const kustoPackages = [
     importFrom("WindowsAzure.Storage").pkg
 ];
 
+// Need to exclude netstandard.dll reference when calling this function for creating a nuget package.
+@@public
+export function getSerializationPackages(includeNetStandard: boolean) {
+    return [
+        ...(includeNetStandard && BuildXLSdk.isFullFramework ? [
+            BuildXLSdk.withQualifier({targetFramework: "net472"}).NetFx.Netstandard.dll,
+        ] : [
+        ]),
+        importFrom("System.Text.Json").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Text.Encodings.Web").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+        importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    ];
+}
+
 namespace Default {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 

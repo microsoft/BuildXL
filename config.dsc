@@ -211,7 +211,7 @@ config({
                 { id: "DeduplicationSigned", version: "1.0.14" },
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "1.1.0" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "1.1.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "StackExchange.Redis", version: "2.1.30",
                     dependentPackageIdsToSkip: ["System.IO.Pipelines", "System.Threading.Channels", "Microsoft.Bcl.AsyncInterfaces", "Pipelines.Sockets.Unofficial"] },
@@ -242,7 +242,7 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
                 { id: "System.Security.Cryptography.Xml", version: "4.5.0" },
-                { id: "System.Text.Encodings.Web", version: "4.5.0" },
+                { id: "System.Text.Encodings.Web", version: "4.7.0" },
                 { id: "System.Security.Permissions", version: "4.5.0" },
                 { id: "System.Security.Cryptography.Pkcs", version: "4.5.0" },
 
@@ -281,10 +281,9 @@ config({
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.5.1" }, // A different version, because StackExchange.Redis uses it.
-                { id: "System.Memory", version: "4.5.1" },
+                { id: "System.Memory", version: "4.5.3", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"]},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" },
                 { id: "System.IO.Pipelines", version: "4.7.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
-
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
@@ -293,7 +292,6 @@ config({
                     dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.3", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild", dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Memory", version: "4.5.4", alias: "SystemMemoryForMSBuild", dependentPackageIdsToSkip: ["*"]},
-                
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
 
                 // Used for MSBuild input/output prediction

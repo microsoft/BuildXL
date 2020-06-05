@@ -239,6 +239,7 @@ namespace NugetPackages {
             importFrom("Grpc.Core").withQualifier(net472PackageQualifer).pkg,
             importFrom("Google.Protobuf").withQualifier(net472PackageQualifer).pkg,
             ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).redisPackages,
+            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472PackageQualifer).getSerializationPackages(false),
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472PackageQualifer).pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472PackageQualifer).pkg,
             importFrom("RocksDbNative").withQualifier(net472PackageQualifer).pkg,

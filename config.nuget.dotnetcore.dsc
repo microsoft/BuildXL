@@ -4,7 +4,7 @@
 const coreVersion = "3.1.0";
 const coreVersionPreviousVersion = "2.2.0";
 const pkgVersion = "4.3.0";
-const pkgVersionNext = "4.6.0";
+const pkgVersionNext = "4.7.0";
 
 export const pkgs = [
 
@@ -13,8 +13,7 @@ export const pkgs = [
 
     { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
     { id: "Microsoft.NETCore.Platforms", version: coreVersion },
-    { id: "System.Security.Claims", version: pkgVersion },
-
+    
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
     { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersionPreviousVersion, alias: "Microsoft.NETCore.DotNetHostResolver.220" },
@@ -130,7 +129,7 @@ export const pkgs = [
     { id: "System.Net.WebHeaderCollection", version: pkgVersion },
     { id: "System.Net.WebSockets", version: pkgVersion },
     { id: "System.Net.WebSockets.Client", version: "4.3.1" },
-    { id: "System.Numerics.Vectors", version: pkgVersion },
+    { id: "System.Numerics.Vectors", version: "4.5.0" },
     { id: "System.ObjectModel", version: pkgVersion },
     { id: "System.Private.DataContractSerialization", version: pkgVersion },
     { id: "System.Reflection", version: pkgVersion },
@@ -166,6 +165,7 @@ export const pkgs = [
     { id: "System.Security.Cryptography.X509Certificates", version: pkgVersion },
     { id: "System.Security.Principal", version: pkgVersion },
     { id: "System.Security.SecureString", version: pkgVersion },
+    { id: "System.Security.Claims", version: pkgVersion },
     { id: "System.Text.Encoding", version: pkgVersion },
     { id: "System.Text.Encoding.Extensions", version: pkgVersion },
     { id: "System.Text.RegularExpressions", version: pkgVersion },
@@ -193,9 +193,9 @@ export const pkgs = [
         dependentPackageIdsToSkip: ["System.Security.Principal.Windows"] },
     { id: "System.Security.Principal.Windows", version: pkgVersionNext },
     { id: "System.Text.Json", version: pkgVersionNext,
-        dependentPackageIdsToSkip: ["System.Memory", "System.Runtime.CompilerServices.Unsafe"] },
+        dependentPackageIdsToSkip: ["System.Memory", "System.ValueTuple", "System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors", "System.Threading.Tasks.Extensions", "Microsoft.Bcl.AsyncInterfaces"],
+    },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
-
 
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },

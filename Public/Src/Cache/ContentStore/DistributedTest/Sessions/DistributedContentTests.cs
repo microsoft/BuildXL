@@ -108,11 +108,24 @@ namespace ContentStoreTest.Distributed.Sessions
                 return new Context(Context, new Guid(idBytes));
             }
 
-            public virtual async Task StartupAsync(ImplicitPin implicitPin)
+            public virtual async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast)
             {
-                var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) => await server.StartupAsync(StoreContexts[index])));
+                var startupResults = await TaskSafetyHelpers.WhenAll(Servers.Select(async (server, index) =>
+                {
+                    if (index == storeToStartupLast)
+                    {
+                        return BoolResult.Success;
+                    }
+
+                    return await server.StartupAsync(StoreContexts[index]);
+                }));
 
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");
+
+                if (storeToStartupLast.HasValue)
+                {
+                    var finalStartup = await Servers[storeToStartupLast.Value].StartupAsync(StoreContexts[storeToStartupLast.Value]).ShouldBeSuccessAsync();
+                }
 
                 Sessions = Stores.Select((store, id) => store.CreateSession(Context, "store" + id, implicitPin).Session).ToList();
                 await TaskSafetyHelpers.WhenAll(Sessions.Select(async (session, index) => await session.StartupAsync(StoreContexts[index])));
@@ -728,7 +741,8 @@ namespace ContentStoreTest.Distributed.Sessions
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
             int iterations = 1,
             TestContext outerContext = null,
-            bool ensureLiveness = true)
+            bool ensureLiveness = true,
+            int? storeToStartupLast = null)
         {
             var startIndex = outerContext?.Stores.Count ?? 0;
             var indexedDirectories = Enumerable.Range(0, storeCount)
@@ -770,7 +784,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var testContext = ConfigureTestContext(new TestContext(context, testFileCopier, indexedDirectories.Select(p => p.Directory).ToList(), stores, iteration));
 
-                    await testContext.StartupAsync(implicitPin);
+                    await testContext.StartupAsync(implicitPin, storeToStartupLast);
 
                     // This mode is meant to make sure that all machines are alive and ready to go
                     if (ensureLiveness)

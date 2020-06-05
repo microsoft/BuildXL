@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 #nullable enable
 
@@ -20,7 +19,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public AzureBlobStorageLogPublicConfiguration? Configuration { get; set; } = null;
 
-        [JsonConstructor]
         public LoggingSettings()
         {
         }

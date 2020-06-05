@@ -14,7 +14,6 @@ namespace Configuration {
             ),
 
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
-            importFrom("Newtonsoft.Json").pkg,
         ],
         skipDocumentationGeneration: true,
 

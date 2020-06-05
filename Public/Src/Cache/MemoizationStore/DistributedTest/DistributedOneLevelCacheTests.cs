@@ -213,7 +213,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Test
                 return (DistributedContentSession<AbsolutePath>)((OneLevelCacheSession)CacheSessions[idx]).ContentSession;
             }
 
-            public override async Task StartupAsync(ImplicitPin implicitPin)
+            public override async Task StartupAsync(ImplicitPin implicitPin, int? storeToStartupLast)
             {
                 var startupResults = await TaskSafetyHelpers.WhenAll(Caches.Select(async store => await store.StartupAsync(Context)));
                 Assert.True(startupResults.All(x => x.Succeeded), $"Failed to startup: {string.Join(Environment.NewLine, startupResults.Where(s => !s))}");

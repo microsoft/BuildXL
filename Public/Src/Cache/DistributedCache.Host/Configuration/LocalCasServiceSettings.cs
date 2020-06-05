@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -18,7 +17,6 @@ namespace BuildXL.Cache.Host.Configuration
         public const uint DefaultGracefulShutdownSeconds = 15;
         public const uint DefaultMaxPipeListeners = 128;
 
-        [JsonConstructor]
         public LocalCasServiceSettings()
         {
         }

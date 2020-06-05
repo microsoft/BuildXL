@@ -8,7 +8,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -38,7 +37,6 @@ namespace BuildXL.Cache.Host.Configuration
                 120000,
             };
 
-        [JsonConstructor]
         public DistributedContentSettings()
         {
         }

@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Host.Configuration
 {
@@ -28,7 +27,6 @@ namespace BuildXL.Cache.Host.Configuration
             RequiredCapabilities = requiredCapabilites?.ToList();
         }
 
-        [JsonConstructor]
         public NamedCacheSettings()
         {
         }

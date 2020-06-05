@@ -2,13 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
-using System.Reflection;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace BuildXL.Cache.Host.Service
 {
@@ -19,109 +17,56 @@ namespace BuildXL.Cache.Host.Service
     public static class ConfigurationPrinter
     {
         /// <summary>
-        /// We check all property names to contain any element from this list of strings.
-        /// If a string is contained in the property name, we deem the property are sensitive information, and mask the property value.
-        /// Note: If property name gets changed, this list needs to be updated accordingly.
+        /// We check the serialized json string to contain any element from this list of strings.
+        /// If a string is contained in the serialized string, we match the regex expression,s and mask the property value.
+        /// Note: If property names get changed, this list needs to be updated accordingly.
         /// </summary>
-        public static string[] CheckSensitiveProperties = new string[] { "ConnectionString", "Credentials" };
+        public static string[] CheckSensitiveProperties = new string[] {"ConnectionString", "Credentials"};
 
         /// <nodoc />
         public static string ConfigToString<T>(T config, bool withSecrets = false)
         {
-            if (withSecrets)
+            var jsonOptions = new JsonSerializerOptions();
+            jsonOptions.WriteIndented = true;
+            jsonOptions.Converters.Add(new TimeSpanConverter());
+            jsonOptions.Converters.Add(new AbsolutePathConverter());
+            jsonOptions.Converters.Add(new JsonStringEnumConverter());
+            var jsonString = JsonSerializer.Serialize(config, jsonOptions);
+
+            foreach (var sensitiveProperty in CheckSensitiveProperties)
             {
-                return JsonConvert.SerializeObject(config, Formatting.Indented);
+                // Currently System.Text.Json does not support implementing a contract resolver like in Newtonsoft, so we are using regex replace here
+                jsonString = Regex.Replace(jsonString, $"(\"\\w*?{sensitiveProperty}\\w*?\"):.+?\"(.+?)\"", "$1: \"xxxx\"");
             }
 
-            var jsonSettings = new JsonSerializerSettings()
-                               {
-                                   ContractResolver = new MaskPropertiesResolver(CheckSensitiveProperties),
-                                   Converters = new[] {new AbsolutePathConverter()}
-                               };
-            return JsonConvert.SerializeObject(config, Formatting.Indented, jsonSettings);
+            return jsonString;
         }
 
         /// <nodoc />
         public static void TraceConfiguration<T>(T config, ILogger logger)
         {
-            logger.Debug($"JSON serialized of {typeof(T)}: {ConfigToString(config) }");
+            logger.Debug($"JSON serialized of {typeof(T)}: {ConfigToString(config)}");
+        }
+
+    }
+
+    internal class TimeSpanConverter : JsonConverter<TimeSpan>
+    {
+        public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => default;
+
+        public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
         }
     }
 
-    internal class MaskPropertiesResolver : DefaultContractResolver
+    internal class AbsolutePathConverter : JsonConverter<AbsolutePath>
     {
-        private readonly IEnumerable<string> _propsToMask;
+        public override AbsolutePath Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => default;
 
-        /// <nodoc />
-        public MaskPropertiesResolver(IEnumerable<string> propNamesToMask)
+        public override void Write(Utf8JsonWriter writer, AbsolutePath value, JsonSerializerOptions options)
         {
-            _propsToMask = propNamesToMask;
-        }
-
-        /// <summary>
-        /// If a property name contains strings we mark as secretive, we mask the property value.
-        /// </summary>
-        protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
-        {
-            JsonProperty property = base.CreateProperty(member, memberSerialization);
-            PropertyInfo propValue = member as PropertyInfo;
-            foreach (string sensitiveProperty in _propsToMask)
-            {
-                if (property.PropertyName.Contains(sensitiveProperty))
-                {
-                    property.ValueProvider = new MaskValueProvider(propValue, maskValue: "XXX");
-                }
-            }
-            return property;
-        }
-    }
-
-    internal class MaskValueProvider : IValueProvider
-    {
-        private readonly PropertyInfo _targetProperty;
-        private readonly string _maskValue;
-
-        /// <nodoc />
-        public MaskValueProvider(PropertyInfo targetProperty, string maskValue)
-        {
-            _targetProperty = targetProperty;
-            _maskValue = maskValue;
-        }
-
-        /// <nodoc />
-        public void SetValue(object target, object value)
-        {
-            _targetProperty.SetValue(target, value);
-        }
-
-        /// <nodoc />
-        public object GetValue(object target)
-        {
-            return _maskValue;
-        }
-    }
-
-    internal class AbsolutePathConverter : JsonConverter
-    {
-        /// <summary>
-        /// For AbsolutePath type objects we only want to print the path value and no other properties
-        /// </summary>
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        {
-            var path = (AbsolutePath) value ;
-            serializer.Serialize(writer, path.ToString());
-        }
-
-        /// <nodoc />
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <nodoc />
-        public override bool CanConvert(Type objectType)
-        {
-            return objectType == typeof(AbsolutePath);
+            writer.WriteStringValue(value.Path);
         }
     }
 }

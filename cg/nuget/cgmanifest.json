@@ -3192,7 +3192,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.FileSystem.AccessControl",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3336,7 +3336,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Management",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3345,7 +3345,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Memory",
-          "Version": "4.5.1"
+          "Version": "4.5.3"
         }
       }
     },
@@ -3462,7 +3462,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Numerics.Vectors",
-          "Version": "4.3.0"
+          "Version": "4.4.0"
         }
       }
     },
@@ -3471,7 +3471,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Numerics.Vectors",
-          "Version": "4.4.0"
+          "Version": "4.5.0"
         }
       }
     },
@@ -3786,7 +3786,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.AccessControl",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3921,7 +3921,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Principal.Windows",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3975,7 +3975,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "4.5.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -3984,7 +3984,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },
@@ -4011,7 +4011,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.AccessControl",
-          "Version": "4.6.0"
+          "Version": "4.7.0"
         }
       }
     },

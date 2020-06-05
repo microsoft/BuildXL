@@ -14,9 +14,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         /// <summary>
         ///     Get a disposable token for guaranteed release via a using() statement.
         /// </summary>
-        public static Task<SemaphoreSlimToken> WaitToken(this SemaphoreSlim semaphore)
+        public static Task<SemaphoreSlimToken> WaitTokenAsync(this SemaphoreSlim semaphore)
         {
             return SemaphoreSlimToken.WaitAsync(semaphore);
+        }
+
+        /// <summary>
+        ///     Get a disposable token for guaranteed release via a using() statement.
+        /// </summary>
+        public static SemaphoreSlimToken WaitToken(this SemaphoreSlim semaphore)
+        {
+            return SemaphoreSlimToken.Wait(semaphore);
         }
     }
 }

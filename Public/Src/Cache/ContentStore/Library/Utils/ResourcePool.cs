@@ -60,11 +60,18 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// Use an existing resource if possible, else create a new one.
         /// </summary>
         /// <param name="key">Key to lookup an existing resource, if one exists.</param>
+        /// <exception cref="ObjectDisposedException">If the pool has already been disposed</exception>
         public async Task<ResourceWrapper<TObject>> CreateAsync(TKey key)
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(objectName: _tracer.Name, message: "Attempt to obtain resource after dispose");
+            }
+
             using (Counter[ResourcePoolCounters.CreationTime].Start())
             {
-                using (await _semaphore.WaitToken())
+                // NOTE: if dispose has happened at this point, we will fail to take the semaphore
+                using (await _semaphore.WaitTokenAsync())
                 {
                     // Remove anything that has expired.
                     await CleanupAsync(force: false, numberToRelease: int.MaxValue);
@@ -175,17 +182,15 @@ namespace BuildXL.Cache.ContentStore.Utils
                 return;
             }
 
-            _disposed = true;
-
-            _tracer.Debug(_context, string.Join(Environment.NewLine, Counter.AsStatistics(nameof(ResourcePool<TKey, TObject>)).Select(kvp => $"{kvp.Key} : {kvp.Value}")));
-
-            if (_semaphore.CurrentCount == 0)
+            using (_semaphore.WaitToken())
             {
-                throw new InvalidOperationException("No one should be holding the lock on Dispose");
+                _disposed = true;
+
+                var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).ToArray();
+                ShutdownGrpcClientsAsync(shutdownTasks).GetAwaiter().GetResult();
             }
 
-            var shutdownTasks = _resourceDict.Select(resourceKvp => resourceKvp.Value.Value.ShutdownAsync(_context)).ToArray();
-            ShutdownGrpcClientsAsync(shutdownTasks).GetAwaiter().GetResult();
+            _tracer.Debug(_context, string.Join(Environment.NewLine, Counter.AsStatistics(nameof(ResourcePool<TKey, TObject>)).Select(kvp => $"{kvp.Key} : {kvp.Value}")));
 
             _semaphore.Dispose();
         }

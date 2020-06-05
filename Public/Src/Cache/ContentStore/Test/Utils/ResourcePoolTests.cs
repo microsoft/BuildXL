@@ -174,5 +174,20 @@ namespace BuildXL.Cache.ContentStore.Test.Utils
             // Zero resources were reused
             Assert.Equal(0, pool.Counter.GetCounterValue(ResourcePoolCounters.Reused));
         }
+
+        [Fact]
+        public async Task CreateFailsAfterDispose()
+        {
+            var capacity = 2;
+            var context = new Context(TestGlobal.Logger);
+            var pool = new ResourcePool<Key, Resource>(context, maxResourceCount: capacity, maxAgeMinutes: 1, resourceFactory: _ => new Resource());
+
+            pool.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            {
+                using var obj1 = await pool.CreateAsync(new Key(0));
+            });
+        }
     }
 }

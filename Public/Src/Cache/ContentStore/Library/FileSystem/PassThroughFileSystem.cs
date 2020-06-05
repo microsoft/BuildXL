@@ -358,7 +358,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 throw new NotImplementedException($"The mode '{fileMode}' is not supported by the {nameof(PassThroughFileSystem)}.");
             }
 
-            using (await ConcurrentAccess.WaitToken())
+            using (await ConcurrentAccess.WaitTokenAsync())
             {
                 return TryOpenFile(path, fileAccess, fileMode, share, options, bufferSize);
             }
@@ -588,7 +588,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             sourcePath.ThrowIfPathTooLong();
             destinationPath.ThrowIfPathTooLong();
 
-            using (await ConcurrentAccess.WaitToken())
+            using (await ConcurrentAccess.WaitTokenAsync())
             {
                 if (FileUtilities.IsCopyOnWriteSupportedByEnlistmentVolume)
                 {

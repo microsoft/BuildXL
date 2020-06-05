@@ -106,7 +106,11 @@ namespace BuildXL.Cache.ContentStore.Vfs
         /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            var result = await _contentManager.ShutdownAsync(context);
+            BoolResult result = BoolResult.Success;
+            if (_contentManager != null)
+            {
+                result = await _contentManager.ShutdownAsync(context);
+            }
 
             result &= await _backingContentSession.ShutdownAsync(context);
 
@@ -114,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
 
             return result;
         }
-
+        
         /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash, DeleteContentOptions deleteOptions = null) => _innerStore.DeleteAsync(context, contentHash, deleteOptions);
 

@@ -312,5 +312,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MasterMachineLocation = producer;
             MasterMachineId = TryResolveMachineId(producer, out var id) ? id : (MachineId?) null;
         }
+
+        /// <nodoc />
+        public int ApproximateNumberOfMachines()
+        {
+            return _idByLocationMap.Count - _inactiveMachinesSet.Count;
+        }
     }
 }

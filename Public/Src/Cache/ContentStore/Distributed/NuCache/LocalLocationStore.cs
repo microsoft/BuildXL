@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -110,6 +111,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
+
+        private DateTime _lastClusterStateUpdate;
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
 
@@ -441,10 +444,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Always restore when switching roles
                     bool shouldRestore = switchedRoles;
 
-                    // Restore if this is a worker and the last restore time is past the restore interval
-                    shouldRestore |= (newRole == Role.Worker && ShouldSchedule(
-                                          _configuration.Checkpoint.RestoreCheckpointInterval,
-                                          _lastRestoreTime));
+                    // Restore if this is a worker and we should restore
+                    shouldRestore |= newRole == Role.Worker && ShouldRestoreCheckpoint(context, checkpointState.CheckpointTime).ThrowIfFailure();
                     BoolResult result;
 
                     if (CurrentRole == Role.Master)
@@ -470,11 +471,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         _lastCheckpointTime = _lastRestoreTime;
                     }
 
-                    var updateResult = await UpdateClusterStateAsync(context, machineState: _heartbeatMachineState);
-
-                    if (!updateResult)
+                    if (_configuration.Checkpoint.UpdateClusterStateInterval is null || ShouldSchedule(_configuration.Checkpoint.UpdateClusterStateInterval.Value, _lastClusterStateUpdate))
                     {
-                        return updateResult;
+                        var updateResult = await UpdateClusterStateAsync(context, machineState: _heartbeatMachineState);
+                        if (!updateResult)
+                        {
+                            return updateResult;
+                        }
                     }
 
                     if (newRole == Role.Master)
@@ -518,6 +521,52 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return operationResult;
+        }
+
+        private Result<bool> ShouldRestoreCheckpoint(OperationContext context, DateTime checkpointCreationTime)
+        {
+            var now = _clock.UtcNow;
+
+            // If we haven't restored for too long, force a restore.
+            if (ShouldSchedule(_configuration.Checkpoint.RestoreCheckpointInterval, _lastRestoreTime, now))
+            {
+                return true;
+            }
+
+            if (!_configuration.Checkpoint.PacemakerEnabled)
+            {
+                return false;
+            }
+
+            // At this point, we know we don't need to restore a checkpoint in this heartbeat, however, we can do so
+            // anyways if the bucketing allows.
+            var result = context.PerformOperation(Tracer, () =>
+            {
+                var activeMachines = ClusterState.ApproximateNumberOfMachines();
+                Contract.Assert(activeMachines >= 1);
+
+                return Result.Success(RestoreCheckpointPacemaker.ShouldRestoreCheckpoint(
+                    _configuration.PrimaryMachineLocation.Data,
+                    _configuration.Checkpoint.PacemakerNumberOfBuckets ?? 0,
+                    activeMachines,
+                    checkpointCreationTime,
+                    _configuration.Checkpoint.CreateCheckpointInterval));
+            }, messageFactory: r =>
+            {
+                if (!r.Succeeded)
+                {
+                    return string.Empty;
+                }
+
+                return $"CheckpointCreationTime=[{checkpointCreationTime}] Now=[{now}] Buckets=[{r.Value.Buckets}] Bucket=[{r.Value.Bucket}] RestoreTime=[{r.Value.RestoreTime}]";
+            }, traceOperationStarted: false);
+
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+
+            return ShouldSchedule(result.Value.RestoreTime, checkpointCreationTime, now);
         }
 
         internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
@@ -611,14 +660,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         ClusterState.InitializeBinManagerIfNeeded(locationsPerBin: _configuration.ProactiveCopyLocationsThreshold, _clock, expiryTime: _configuration.PreferredLocationsExpiryTime);
                     }
 
+                    _lastClusterStateUpdate = _clock.UtcNow;
+
                     return updateResult;
                 },
                 extraEndMessage: result => $"[MaxMachineId=({startMaxMachineId} -> (Db={postDbMaxMachineId}, Global={postGlobalMaxMachineId}))]");
         }
 
-        private bool ShouldSchedule(TimeSpan interval, DateTime lastTime)
+        private bool ShouldSchedule(TimeSpan interval, DateTime lastTime, DateTime? now = null)
         {
-            return (_clock.UtcNow - lastTime) >= interval;
+            now ??= _clock.UtcNow;
+            return (now - lastTime) >= interval;
         }
 
         /// <summary>
@@ -1586,9 +1638,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
 
                                     await reconciliationEventStore.ReconcileAsync(
-                                        context, 
-                                        machineId, 
-                                        addedContent, 
+                                        context,
+                                        machineId,
+                                        addedContent,
                                         removedContent,
                                         $".cycle{iteration}").ThrowIfFailure();
 

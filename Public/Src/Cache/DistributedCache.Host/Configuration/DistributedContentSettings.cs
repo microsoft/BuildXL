@@ -650,6 +650,10 @@ namespace BuildXL.Cache.Host.Configuration
         public double? RestoreCheckpointIntervalMinutes { get; set; }
 
         [DataMember]
+        [Validation.Range(0, double.MaxValue, minInclusive: false)]
+        public double? UpdateClusterStateIntervalSeconds { get; set; }
+
+        [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? SafeToLazilyUpdateMachineCountThreshold { get; set; }
 
@@ -664,6 +668,15 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
         public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
+
+        [DataMember]
+        public bool? PacemakerEnabled { get; set; }
+
+        [DataMember]
+        public uint? PacemakerNumberOfBuckets { get; set; }
+
+        [DataMember]
+        public bool? PacemakerUseRandomIdentifier { get; set; }
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]

@@ -418,6 +418,14 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => checkpointConfiguration.RestoreCheckpointInterval = TimeSpan.FromMinutes(value));
 
             ApplyIfNotNull(
+                _distributedSettings.UpdateClusterStateIntervalSeconds,
+                value => checkpointConfiguration.UpdateClusterStateInterval = TimeSpan.FromSeconds(value));
+
+            ApplyIfNotNull(_distributedSettings.PacemakerEnabled, v => checkpointConfiguration.PacemakerEnabled = v);
+            ApplyIfNotNull(_distributedSettings.PacemakerNumberOfBuckets, v => checkpointConfiguration.PacemakerNumberOfBuckets = v);
+            ApplyIfNotNull(_distributedSettings.PacemakerUseRandomIdentifier, v => checkpointConfiguration.PacemakerUseRandomIdentifier = v);
+
+            ApplyIfNotNull(
                 _distributedSettings.SafeToLazilyUpdateMachineCountThreshold,
                 value => configuration.SafeToLazilyUpdateMachineCountThreshold = value);
 

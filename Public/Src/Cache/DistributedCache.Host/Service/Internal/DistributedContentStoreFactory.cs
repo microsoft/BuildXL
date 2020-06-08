@@ -195,7 +195,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase,
                     LogsKeepLongTerm = true,
-                    UseContextualEntryOperationLogging = _distributedSettings.UseContextualEntryDatabaseOperationLogging
+                    UseContextualEntryOperationLogging = _distributedSettings.UseContextualEntryDatabaseOperationLogging,
+                    TraceTouches = _distributedSettings.TraceTouches,
                 };
 
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)

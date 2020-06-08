@@ -625,14 +625,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return initialEntry;
                     }
 
+                    EntryOperation entryOperation;
                     if (existsOnMachine)
                     {
-                        _nagleOperationTracer?.Enqueue((context, hash, initialEntry.Locations.Count == entry.Locations.Count ? EntryOperation.Touch : EntryOperation.AddMachine, reason));
+                        entryOperation = initialEntry.Locations.Count == entry.Locations.Count ? EntryOperation.Touch : EntryOperation.AddMachine;
                     }
                     else
                     {
-                        _nagleOperationTracer?.Enqueue((context, hash, machine == null ? EntryOperation.Touch : EntryOperation.RemoveMachine, reason));
+                        entryOperation = machine == null ? EntryOperation.Touch : EntryOperation.RemoveMachine;
                     }
+
+                    // Not tracing touches if configured.
+                    if (_configuration.TraceTouches || entryOperation != EntryOperation.Touch)
+                    {
+                        _nagleOperationTracer?.Enqueue((context, hash, entryOperation, reason));
+                    }
+
                 }
                 else
                 {

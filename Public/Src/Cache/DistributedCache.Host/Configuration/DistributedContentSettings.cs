@@ -221,6 +221,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseContextualEntryDatabaseOperationLogging { get; set; } = false;
 
         [DataMember]
+        public bool TraceTouches { get; set; } = true;
+
+        [DataMember]
         public bool LogReconciliationHashes { get; set; } = false;
 
         /// <summary>

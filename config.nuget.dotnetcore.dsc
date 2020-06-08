@@ -129,7 +129,6 @@ export const pkgs = [
     { id: "System.Net.WebHeaderCollection", version: pkgVersion },
     { id: "System.Net.WebSockets", version: pkgVersion },
     { id: "System.Net.WebSockets.Client", version: "4.3.1" },
-    { id: "System.Numerics.Vectors", version: "4.5.0" },
     { id: "System.ObjectModel", version: pkgVersion },
     { id: "System.Private.DataContractSerialization", version: pkgVersion },
     { id: "System.Reflection", version: pkgVersion },

@@ -18,8 +18,8 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 @@public
 export const msbuildRuntimeContent = [
     importFrom("Microsoft.Build.Runtime").pkg,
-    importFrom("SystemMemoryForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
-    importFrom("SystemNumericsVectorsForMSBuild").pkg,
+    importFrom("System.Memory").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("System.Numerics.Vectors").withQualifier({targetFramework: "netstandard2.0"}).pkg,
     importFrom("SystemRuntimeCompilerServicesUnsafeForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     

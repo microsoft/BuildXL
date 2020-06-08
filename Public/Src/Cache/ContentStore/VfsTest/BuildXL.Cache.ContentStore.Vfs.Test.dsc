@@ -16,22 +16,24 @@ namespace VfsTest {
             },
         skipTestRun: !BuildXLSdk.isHostOsWin || BuildXLSdk.restrictTestRunToSomeQualifiers,
         assemblyBindingRedirects: [
-            {
-                // Currently System.IO.Pipeline package references are inconsistent
-                // and this causes issues running tests from the IDE.
-                // Please, change or remove this once System.IO.Pipeline package version is changed.
-                name: "System.IO.Pipelines",
-                publicKeyToken: "cc7b13ffcd2ddd51",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-4.0.0.1",
-                newVersion: "4.0.0.1",
-            },
+            // System.Memory 4.5.4 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
+            // but System.Memory.dll from netstandard2.0 references Ssstem.Buffer.dll v.4.0.2.0!
+            // And the rest of the world references System.Buffer.dll v.4.0.3.0
+            // So we need to have a redirect to solve this problem.
             {
                 name: "System.Buffers",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "4.0.1.0",
+                newVersion: "4.0.3.0",
+            },
+            // Different packages reference different version of this assembly.
+            {
+                name: "System.Runtime.CompilerServices.Unsafe",
+                publicKeyToken: "b03f5f7f11d50a3a",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-5.0.0.0",
+                newVersion: "4.0.6.0",
             },
         ],
         appConfig: f`App.config`,
@@ -43,7 +45,9 @@ namespace VfsTest {
                 NetFx.System.IO.dll,
                 NetFx.System.Net.Primitives.dll,
                 NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll
+                NetFx.System.Xml.Linq.dll,
+                NetFx.System.dll,
+                NetFx.System.Data.dll
             ),
             UtilitiesCore.dll,
             Hashing.dll,

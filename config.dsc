@@ -281,9 +281,10 @@ config({
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.5.1" }, // A different version, because StackExchange.Redis uses it.
-                { id: "System.Memory", version: "4.5.3", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"]},
+                { id: "System.Memory", version: "4.5.4", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe", "System.Numerics.Vectors"] },
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.7.0" },
                 { id: "System.IO.Pipelines", version: "4.7.0", dependentPackageIdsToSkip: ["System.Threading.Tasks.Extensions"] },
+                { id: "System.Numerics.Vectors", version: "4.4.0" },
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
@@ -291,9 +292,6 @@ config({
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1",
                     dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.3", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild", dependentPackageIdsToSkip: ["*"]},
-                { id: "System.Memory", version: "4.5.4", alias: "SystemMemoryForMSBuild", dependentPackageIdsToSkip: ["*"]},
-                { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
-
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },
 

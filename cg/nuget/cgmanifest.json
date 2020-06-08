@@ -3345,15 +3345,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Memory",
-          "Version": "4.5.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Memory",
           "Version": "4.5.4"
         }
       }
@@ -3463,15 +3454,6 @@
         "NuGet": {
           "Name": "System.Numerics.Vectors",
           "Version": "4.4.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Numerics.Vectors",
-          "Version": "4.5.0"
         }
       }
     },

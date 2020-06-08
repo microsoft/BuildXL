@@ -183,7 +183,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private static readonly Stopwatch Timer = Stopwatch.StartNew();
 
-            private readonly ActionBlock<Pool<Buffer>.PoolHandle> _hashingBufferBlock;
+            private readonly ActionBlock<Pool<Buffer>.PoolHandle>? _hashingBufferBlock;
 
             private readonly Stream _baseStream;
             private readonly ContentHasher<T> _hasher;
@@ -280,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (_useParallelHashing)
                 {
-                    _hashingBufferBlock.Complete();
+                    _hashingBufferBlock!.Complete();
                     _hashingBufferBlock.Completion.GetAwaiter().GetResult();
                 }
 
@@ -337,7 +337,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+            public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             {
                 throw new NotImplementedException();
             }
@@ -405,7 +405,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc />
-            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+            public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             {
                 throw new NotImplementedException();
             }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -14,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     public sealed class DedupNodeHashAlgorithm : HashAlgorithm
     {
         /// <nodoc />
-        public static Lazy<Exception> ComChunkerLoadError = new Lazy<Exception>(() =>
+        public static Lazy<Exception?> ComChunkerLoadError = new Lazy<Exception?>(() =>
         {
             try
             {
@@ -95,20 +96,30 @@ namespace BuildXL.Cache.ContentStore.Hashing
         {
             _treeAlgorithm = treeAlgorithm;
             _chunker = chunker;
-            Initialize();
+            _session = InitializeSession();
         }
 
         /// <summary>
         /// Creates a copy of the chunk list.
         /// </summary>
         // ReSharper disable once PossibleInvalidOperationException
-        public DedupNode GetNode() => _lastNode.Value;
+        public DedupNode GetNode()
+        {
+            Contract.Assert(_lastNode != null, "Can't get a DedupNode because _lastNode is null.");
+            return _lastNode.Value;
+        }
 
         /// <inheritdoc />
         public override void Initialize()
         {
             _chunks.Clear();
             _session = _chunker.BeginChunking(SaveChunks);
+        }
+
+        private IChunkerSession InitializeSession()
+        {
+            Initialize();
+            return _session;
         }
 
         /// <inheritdoc />

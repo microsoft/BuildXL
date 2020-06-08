@@ -174,7 +174,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 
             unsafe
             {
-                fixed (byte* p = &buffer.Array[buffer.Offset]) // byte * p = buffer.GetContinuousBuffer(iSizeDone, size);
+                fixed (byte* p = &buffer.Array![buffer.Offset]) // byte * p = buffer.GetContinuousBuffer(iSizeDone, size);
                 {
                     FindRabinChunkBoundariesInternal(
                         p,

@@ -76,13 +76,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 if (_pushBuffer != null)
                 {
                     _pushBufferHandle.Dispose();
-                    _pushBuffer = null;
+                    _pushBuffer = null!;
                 }
 
                 if (_chunksSeen != null)
                 {
                     _chunksSeenHandle.Dispose();
-                    _chunksSeen = null;
+                    _chunksSeen = null!;
                 }
             }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -52,6 +53,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static void PushBuffer<T>(this T session, ArraySegment<byte> bytes)
             where T : IChunkerSession
         {
+            Contract.Requires(bytes.Array != null);
             session.PushBuffer(bytes.Array, bytes.Offset, bytes.Count);
         }
     }

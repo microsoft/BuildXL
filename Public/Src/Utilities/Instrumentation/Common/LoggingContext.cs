@@ -62,8 +62,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
             [Pure]
             public static bool StringIsGuid(string s)
             {
-                Guid result;
-                return Guid.TryParse(s, out result);
+                return Guid.TryParse(s, out _);
             }
         }
 

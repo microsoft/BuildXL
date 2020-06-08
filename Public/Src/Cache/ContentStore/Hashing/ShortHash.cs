@@ -51,7 +51,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public bool Equals(ShortHash other) => Value == other.Value;
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ShortHash hash && Equals(hash);
         }

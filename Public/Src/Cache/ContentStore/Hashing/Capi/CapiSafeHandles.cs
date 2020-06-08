@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #endif
     internal sealed class SafeCapiKeyHandle : SafeCapiHandleBase
     {
-        private static volatile SafeCapiKeyHandle s_invalidHandle;
+        private static volatile SafeCapiKeyHandle? s_invalidHandle;
 
 #if FEATURE_CORESYSTEM
         [System.Security.SecurityCritical]

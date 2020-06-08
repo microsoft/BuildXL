@@ -111,7 +111,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
             if (_chunkLibrary != null)
             {
                 _chunkLibrary.Uninitialize();
-                _chunkLibrary = null;
+                // This may look wrong, but the invariant for the fully functioning instance is more important:
+                // and for a fully initialized and not destroyed instance _chunkLibrary is not null.
+                _chunkLibrary = null!;
             }
         }
 
@@ -274,7 +276,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 /// </summary>
                 [return: MarshalAs(UnmanagedType.IUnknown, IidParameterIndex = 1)]
                 object CreateInstance(
-                    [MarshalAs(UnmanagedType.IUnknown)] object pUnkOuter,
+                    [MarshalAs(UnmanagedType.IUnknown)] object? pUnkOuter,
                     [In] ref Guid riid);
 
                 /// <summary>

@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return StructUtilities.Equals(this, obj);
         }

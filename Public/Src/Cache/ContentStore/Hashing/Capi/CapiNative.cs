@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             [SecurityCritical]
 #endif
             public static extern bool CryptAcquireContext([Out] out SafeCspHandle phProv,
-                                                          string pszContainer,
+                                                          string? pszContainer,
                                                           string pszProvider,
                                                           ProviderType dwProvType,
                                                           CryptAcquireContextFlags dwFlags);
@@ -171,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #endif
             public static extern bool CryptGetHashParam(SafeCapiHashHandle hHash,
                                                         HashParameter dwParam,
-                                                        [Out, MarshalAs(UnmanagedType.LPArray)] byte[] pbData,
+                                                        [Out, MarshalAs(UnmanagedType.LPArray)] byte[]? pbData,
                                                         [In, Out] ref int pdwDataLen,
                                                         int dwFlags);
 
@@ -207,7 +207,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         ///     Acquire a crypto service provider
         /// </summary>
         [System.Security.SecurityCritical]
-        internal static SafeCspHandle AcquireCsp(string keyContainer,
+        internal static SafeCspHandle AcquireCsp(string? keyContainer,
                                                  string providerName,
                                                  ProviderType providerType,
                                                  CryptAcquireContextFlags flags,
@@ -217,8 +217,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                              !Contract.Result<SafeCspHandle>().IsInvalid &&
                              !Contract.Result<SafeCspHandle>().IsClosed);
 
-            SafeCspHandle cspHandle = null;
-            if (!UnsafeNativeMethods.CryptAcquireContext(out cspHandle,
+            if (!UnsafeNativeMethods.CryptAcquireContext(out SafeCspHandle? cspHandle,
                                                          keyContainer,
                                                          providerName,
                                                          providerType,

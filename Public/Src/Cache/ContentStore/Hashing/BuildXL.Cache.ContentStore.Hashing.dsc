@@ -33,6 +33,7 @@ namespace Hashing {
                 ]
             },
         ],
+        nullable: true,
         allowUnsafeBlocks: true,
     });
 }

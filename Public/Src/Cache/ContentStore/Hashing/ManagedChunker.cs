@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Security.Cryptography;
 using BuildXL.Cache.ContentStore.Hashing.Chunking;
@@ -78,6 +79,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     return;
                 }
 
+                Contract.Assert(_currentBuffer != null);
+
                 byte[] hash = _parent._shaHasher.ComputeHash(
                     _currentBuffer.Value.Array,
                     _currentBuffer.Value.Offset + (int)chunk.m_nStartChunk,
@@ -102,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             }
 
             /// <inheritdoc/>
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 throw new InvalidOperationException();
             }

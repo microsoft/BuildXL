@@ -548,8 +548,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     // Since this is the only place where we hash the file during trusted copies, we attempt to get access to the bytes here,
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
-                    using (Stream? fileStream = await FileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
-                    using (Stream? possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
+                    using (Stream fileStream = await FileSystem.OpenSafeAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
+                    using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
                     using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
                         var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);

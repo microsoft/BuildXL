@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Hashing.Chunking
             return (int)m_nStartChunk ^ (int)m_nChunkLength ^ (int)m_eCutType;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is DedupBasicChunkInfo)
             {

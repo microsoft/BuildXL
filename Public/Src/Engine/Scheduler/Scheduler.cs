@@ -1637,7 +1637,8 @@ namespace BuildXL.Scheduler
                         // Make sure not to show 100% due to rounding when there are any misses
                         cacheRate: cacheRate == 1 ? cacheRate : Math.Min(cacheRate, .9999),
                         totalProcesses: totalProcessesNotIgnoredOrService,
-                        ignoredProcesses: snapshot.IgnoredCount);
+                        ignoredProcesses: snapshot.IgnoredCount,
+                        extraMessage: IncrementalSchedulingState == null ? string.Empty : " and incremental scheduling");
 
                     long processPipsSatisfiedFromRemoteCache =
                         PipExecutionCounters.GetCounterValue(PipExecutorCounter.RemoteCacheHitsForProcessPipDescriptorAndContent);

@@ -73,6 +73,16 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     // Check if we need to update or create the App.Config file for assembly binding redirects.
     let appConfig = processAppConfigAndBindingRedirects(args, framework);
 
+    // Adding helper tags that allow building only a subset of the codebase.
+    // For instance, bxl CompileDebugNet472 will only compile all the sources and target net472
+    // and bxl CompileWin will compile sources for two key qualifiers for Windows - for net472 and for .net core app.
+    let helperTags = [
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileDebugNetCoreWin", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "netcoreapp3.1" && qualifier.configuration === "debug", "CompileLinux"),
+        ];
+
     // csc
     let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);
     let cscArgs : Csc.Arguments = {
@@ -106,6 +116,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         ],
         nullable: args.nullable,
         nullabilityContext: args.nullabilityContext,
+        tags: helperTags
     };
 
     const references = [

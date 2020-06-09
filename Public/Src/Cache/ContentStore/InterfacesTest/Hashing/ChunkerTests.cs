@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
 
@@ -31,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             ChunksEnumeratedAsFileIsRead(() => new ManagedChunker());
         }
 
-        [Fact]
+        [MtaFact]
         [Trait("Category", "WindowsOSOnly")]
         public void ChunksEnumeratedAsFileIsReadCOM()
         {

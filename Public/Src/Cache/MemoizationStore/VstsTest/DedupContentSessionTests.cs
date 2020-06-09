@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Vsts;
 using FluentAssertions;
 using Microsoft.VisualStudio.Services.Content.Common;
@@ -24,22 +25,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Test
             node.HashString.Should().NotBeNullOrEmpty();
         }
 
-        [Fact]
+        [MtaFact]
         public void ComChunkerWorksOnThreading()
         {
-            // For some reason current thread is STAThread, so we need to start a new one.
-            var thread = new Thread(() =>
+            Thread.CurrentThread.GetApartmentState().Should().Be(ApartmentState.MTA);
+            var chunker = new ComChunker();
+            Task.Run(() =>
             {
-                Thread.CurrentThread.GetApartmentState().Should().Be(ApartmentState.MTA);
-                var chunker = new ComChunker();
-                Task.Run(() =>
-                {
-                    using var session = chunker.BeginChunking(chunk => { });
-                    session.PushBuffer(new ArraySegment<byte>(new byte[1]));
-                }).GetAwaiter().GetResult();
-            });
-            thread.Start();
-            thread.Join();
+                using var session = chunker.BeginChunking(chunk => { });
+                session.PushBuffer(new ArraySegment<byte>(new byte[1]));
+            }).GetAwaiter().GetResult();
         }
 
         private class TestFileSystem : IFileSystem

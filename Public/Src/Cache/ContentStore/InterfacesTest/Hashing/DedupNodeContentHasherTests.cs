@@ -9,6 +9,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using Xunit;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Test;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [Fact]
+        [MtaFact]
         public void HashOfChunksInNodeMatchesChunkHashAlgorithm()
         {
             if (DedupNodeHashAlgorithm.IsComChunkerSupported)
@@ -122,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [Theory]
+        [MtaTheory]
         [InlineData(0, "A7B5F4F67CDA9A678DE6DCBFDE1BE2902407CA2E6E899F843D4EFD1E62778D63")]
         [InlineData(1, "266CCDBB8509CCADDDD739F1F0751141D154667E9C4754604EB66B1DEE133961")]
         [InlineData(32 * 1024 - 1, "E697ED9F1250A079DC60AF3FD53793064E020231E96D69554028DD7C2E69D476")]
@@ -143,7 +144,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             HashIsStable(byteCount, expectedHash);
         }
 
-        [Fact]
+        [MtaFact]
         public void TestMismatch()
         {
             // ManagedChunker = 3C46AECFB2872004ADA998A1DAB7D03FB13E9B1A2D316B230EB673B8D8839CAB
@@ -271,7 +272,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         private const int AverageChunkSize = 64 * 1024;
 
-        [Fact]
+        [MtaFact]
         public void CanChunkLargeFiles()
         {
             var node = CanChunkLargeFilesHelper(
@@ -282,7 +283,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             Assert.True(chunks.Count > DedupNode.MaxDirectChildrenPerNode, $"{chunks.Count} should be > DedupNode.MaxDirectChildrenPerNode");
         }
 
-        [Fact]
+        [MtaFact]
         [Trait("Category", "Integration")]
         public void CanChunkReallyLargeFiles()
         {

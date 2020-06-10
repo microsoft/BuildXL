@@ -3461,6 +3461,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Numerics.Vectors",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.ObjectModel",
           "Version": "4.3.0"
         }

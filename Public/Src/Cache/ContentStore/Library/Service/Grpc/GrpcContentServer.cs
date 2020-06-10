@@ -465,17 +465,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     // plans to do with the file, it is more robust to just use the DisposableFile construct.
                     using (var tempFile = await _fileSystem.OpenSafeAsync(disposableFile.Path, FileAccess.Write, FileMode.CreateNew, FileShare.None))
                     {
-                        while (await requestStream.MoveNext())
+                        // From the docs: On the server side, MoveNext() does not throw exceptions.
+                        // In case of a failure, the request stream will appear to be finished (MoveNext will return false)
+                        // and the CancellationToken associated with the call will be cancelled to signal the failure.
+                        while (await requestStream.MoveNext(token))
                         {
-                            if (token.IsCancellationRequested)
-                            {
-                                return;
-                            }
-
                             var request = requestStream.Current;
                             var bytes = request.Content.ToByteArray();
                             await tempFile.WriteAsync(bytes, 0, bytes.Length, token);
                         }
+                    }
+
+                    if (token.IsCancellationRequested)
+                    {
+                        if (!callContext.CancellationToken.IsCancellationRequested)
+                        {
+                            await responseStream.WriteAsync(new PushFileResponse()
+                            {
+                                Header = ResponseHeader.Failure(startTime, "Operation cancelled by handler.")
+                            });
+                        }
+
+                        var cancellationSource = callContext.CancellationToken.IsCancellationRequested ? "caller" : "handler";
+                        cacheContext.Debug($"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} cancelled by {cancellationSource}.");
+                        return;
                     }
 
                     result = await store.HandlePushFileAsync(cacheContext, hash, disposableFile.Path, token);

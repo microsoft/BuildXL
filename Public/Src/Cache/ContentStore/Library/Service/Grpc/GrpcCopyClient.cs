@@ -284,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var pushRequest = new PushRequest(hash, context.TracingContext.Id);
                 var headers = pushRequest.GetMetadata();
 
-                var call = _client.PushFile(headers, cancellationToken: context.Token);
+                using var call = _client.PushFile(headers, cancellationToken: context.Token);
                 var requestStream = call.RequestStream;
 
                 var responseHeaders = await call.ResponseHeadersAsync;
@@ -310,16 +310,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     await requestStream.CompleteAsync();
                     return new PushFileResult(streamResult, "Failed to retrieve source stream.");
                 }
-                
+
+                // If we get a response before we finish streaming, it must be that the server cancelled the operation.
+                using var serverIsDoneSource = new CancellationTokenSource();
+                var pushCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(serverIsDoneSource.Token, context.Token).Token;
+
+                var responseStream = call.ResponseStream;
+                var responseCompletedTask = responseStream.MoveNext(context.Token).ContinueWith(t => serverIsDoneSource.Cancel());
+
                 using (var stream = streamResult.Value)
                 {
-                    await StreamContentAsync(stream, new byte[_bufferSize], requestStream, context.Token);
+                    await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
                 }
+
+                context.Token.ThrowIfCancellationRequested();
 
                 await requestStream.CompleteAsync();
 
-                var responseStream = call.ResponseStream;
-                await responseStream.MoveNext(context.Token);
+                await responseCompletedTask;
                 var response = responseStream.Current;
 
                 return response.Header.Succeeded
@@ -344,7 +352,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             while (true)
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 if (chunkSize == 0) { break; }
 

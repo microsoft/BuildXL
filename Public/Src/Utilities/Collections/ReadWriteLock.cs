@@ -31,6 +31,7 @@ namespace BuildXL.Utilities.Threading
 
         private ReadWriteLock(Locker locker)
         {
+            Contract.RequiresNotNull(locker);
             m_locker = locker;
         }
 

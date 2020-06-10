@@ -30,6 +30,7 @@ namespace Distributed {
             ...eventHubPackagages,
             // Intentionally using different Azure storage package
             importFrom("WindowsAzure.Storage").pkg,
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
 
             ...redisPackages,
 

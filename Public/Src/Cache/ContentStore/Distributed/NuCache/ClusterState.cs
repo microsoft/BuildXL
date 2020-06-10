@@ -2,19 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
+
     /// <summary>
     /// State of all known machines in the stamp
     /// </summary>
@@ -32,66 +30,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public const int InvalidMachineId = 0;
 
+        private ClusterStateInternal ClusterStateInternal { get; set; }
+
         private readonly ReadWriteLock _lock = ReadWriteLock.Create();
 
-        // Index is machine Id.
-        private MachineLocation[] _locationByIdMap = new MachineLocation[4];
-
-        private readonly ConcurrentDictionary<MachineLocation, MachineId> _idByLocationMap = new ConcurrentDictionary<MachineLocation, MachineId>();
-
-        private BitMachineIdSet _inactiveMachinesSet = BitMachineIdSet.EmptyInstance;
-
-        private BitMachineIdSet _closedMachinesSet = BitMachineIdSet.EmptyInstance;
-
-        /// <summary>
-        /// The time at which the machine was last in an inactive state
-        /// </summary>
-        public DateTime LastInactiveTime { get; set; } = DateTime.MinValue;
-
-        /// <summary>
-        /// Max known machine id.
-        /// </summary>
-        public int MaxMachineId { get; private set; } = InvalidMachineId;
-
-        /// <summary>
-        /// Returns a list of inactive machines.
-        /// </summary>
-        public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
-
-        /// <summary>
-        /// Returns a list of closed machines.
-        /// </summary>
-        public IReadOnlyList<MachineId> ClosedMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
-
-        /// <summary>
-        /// Gets a list of machine ids representing unique CAS instances on the current machine
-        /// </summary>
-        public IReadOnlyList<MachineMapping> LocalMachineMappings { get; }
-
-        /// <summary>
-        /// The machine id representing the primary CAS instance on the machine. 
-        /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
-        /// this should correspond to the SSD CAS instance.
-        /// </summary>
-        public MachineId PrimaryMachineId { get; }
-
         /// <nodoc />
-        public BinManager BinManager { get; set; }
-
-        /// <nodoc />
-        public bool EnableBinManagerUpdates { get; set; }
-
-        /// <nodoc />
-        public MachineLocation? MasterMachineLocation { get; private set; } = null;
-
-        /// <nodoc />
-        public MachineId? MasterMachineId { get; private set; } = null;
-
-        /// <nodoc />
-        public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> allLocalMachineIds)
+        private ClusterState(ClusterStateInternal clusterStateInternal)
         {
-            PrimaryMachineId = primaryMachineId;
-            LocalMachineMappings = allLocalMachineIds;
+            ClusterStateInternal = clusterStateInternal;
+        }
+
+        /// <nodoc />
+        public ClusterState(MachineId primaryMachineId, IReadOnlyList<MachineMapping> localMachineMappings)
+            : this(new ClusterStateInternal(primaryMachineId, localMachineMappings))
+        {
         }
 
         /// <summary>
@@ -102,119 +54,104 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new ClusterState(default(MachineId), Array.Empty<MachineMapping>());
         }
 
+        /// <nodoc />
+        private Result<ClusterStateInternal> Mutate(Func<ClusterStateInternal, Result<ClusterStateInternal>> mutation)
+        {
+            using var token = _lock.AcquireWriteLock();
+
+            var newClusterState = mutation(ClusterStateInternal);
+            if (!newClusterState.Succeeded)
+            {
+                return newClusterState;
+            }
+
+            ClusterStateInternal = newClusterState.Value!;
+            return ClusterStateInternal;
+        }
+
+        /// <nodoc />
+        private T Read<T>(Func<ClusterStateInternal, T> action)
+        {
+            return action(ClusterStateInternal);
+        }
+
+        /// <summary>
+        /// The time at which the machine was last in an inactive state
+        /// </summary>
+        public DateTime LastInactiveTime { get => Read(c => c.LastInactiveTime); set => Mutate(c => c.With(lastInactiveTime: value)).ThrowIfFailure(); }
+
+        /// <summary>
+        /// Max known machine id.
+        /// </summary>
+        public int MaxMachineId { get => Read(c => c.MaxMachineId); set => Mutate(c => c.With(maxMachineId: value)).ThrowIfFailure(); }
+
+        /// <summary>
+        /// The machine id representing the primary CAS instance on the machine. 
+        /// In multi-drive scenarios where one CAS instance is on SSD and others are on HDD
+        /// this should correspond to the SSD CAS instance.
+        /// </summary>
+        public MachineId PrimaryMachineId { get => Read(c => c.PrimaryMachineId); set => Mutate(c => c.With(primaryMachineId: value)).ThrowIfFailure(); }
+
+        /// <summary>
+        /// Gets a list of machine ids representing unique CAS instances on the current machine
+        /// </summary>
+        public IReadOnlyList<MachineMapping> LocalMachineMappings => Read(c => c.LocalMachineMappings);
+
+        /// <nodoc />
+        public BinManager? BinManager { get => Read(c => c.BinManager); set => Mutate(c => c.With(binManager: value)).ThrowIfFailure(); }
+
+        /// <nodoc />
+        public bool EnableBinManagerUpdates { get => Read(c => c.EnableBinManagerUpdates); set => Mutate(c => c.With(enableBinManagerUpdates: value)).ThrowIfFailure(); }
+
+        /// <nodoc />
+        public MachineId? MasterMachineId => Read(c => c.MasterMachineId);
+
+        /// <summary>
+        /// Returns a list of inactive machines.
+        /// </summary>
+        public IReadOnlyList<MachineId> InactiveMachines => Read(c => c.InactiveMachines);
+
+        /// <summary>
+        /// Returns a list of closed machines.
+        /// </summary>
+        public IReadOnlyList<MachineId> ClosedMachines => Read(c => c.ClosedMachines);
+
         /// <summary>
         /// Gets whether a machine is marked inactive
         /// </summary>
-        public bool IsMachineMarkedInactive(MachineId machineId)
-        {
-            return _inactiveMachinesSet[machineId];
-        }
+        public bool IsMachineMarkedInactive(MachineId machineId) => Read((clusterState) => clusterState.IsMachineMarkedInactive(machineId));
 
         /// <summary>
         /// Gets whether a machine is marked closed
         /// </summary>
-        public bool IsMachineMarkedClosed(MachineId machineId)
-        {
-            return _closedMachinesSet[machineId];
-        }
+        public bool IsMachineMarkedClosed(MachineId machineId) => Read((clusterState) => clusterState.IsMachineMarkedClosed(machineId));
 
         /// <nodoc />
-        public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet closedMachines = null)
-        {
-            bool updateBinManager = false;
-            if (inactiveMachines != null)
-            {
-                _inactiveMachinesSet = inactiveMachines;
-                InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
-                updateBinManager = true;
-            }
-
-            if (closedMachines != null)
-            {
-                _closedMachinesSet = closedMachines;
-                ClosedMachines = closedMachines.EnumerateMachineIds().ToArray();
-            }
-
-            if (EnableBinManagerUpdates && BinManager != null && updateBinManager)
-            {
-                // Closed machines aren't included in the bin manager's update because they are expected to be back
-                // soon, so it doesn't make much sense to reorganize the stamp because of them.
-                var activeMachines = _idByLocationMap.Values.Except(InactiveMachines);
-
-                // Try to exclude the master from proactive operations to reduce load.
-                if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
-                {
-                    activeMachines = activeMachines.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] });
-                }
-
-                return BinManager.UpdateAll(activeMachines.ToArray(), InactiveMachines);
-            }
-
-            return BoolResult.Success;
-        }
+        public BoolResult SetMachineStates(BitMachineIdSet inactiveMachines, BitMachineIdSet? closedMachines = null) => Mutate((clusterState) => clusterState.SetMachineStates(inactiveMachines, closedMachines));
 
         /// <summary>
         /// Marks that a machine with <paramref name="machineId"/> is Active.
         /// </summary>
-        public BoolResult MarkMachineActive(MachineId machineId)
-        {
-            if (_inactiveMachinesSet[machineId.Index] || _closedMachinesSet[machineId.Index])
-            {
-                return SetMachineStates((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId), (BitMachineIdSet)_closedMachinesSet.Remove(machineId));
-            }
-
-            return BoolResult.Success;
-        }
+        public BoolResult MarkMachineActive(MachineId machineId) => Mutate((clusterState) => clusterState.MarkMachineActive(machineId));
 
         /// <summary>
         /// Sets max known machine id and unknown machines.
         /// </summary>
-        public void AddUnknownMachines(int maxMachineId, Dictionary<MachineId, MachineLocation> unknownMachines)
-        {
-            Contract.Requires(unknownMachines != null);
-
-            foreach (var entry in unknownMachines)
-            {
-                AddMachine(entry.Key, entry.Value);
-            }
-
-            MaxMachineId = maxMachineId;
-        }
+        public void AddUnknownMachines(int maxMachineId, Dictionary<MachineId, MachineLocation> unknownMachines) => Mutate((clusterState) => clusterState.AddUnknownMachines(maxMachineId, unknownMachines)).ThrowIfFailure();
 
         /// <summary>
         /// Add a mapping from <paramref name="machineId"/> to <paramref name="machineLocation"/>.
         /// </summary>
-        public void AddMachine(MachineId machineId, MachineLocation machineLocation)
-        {
-            using (_lock.AcquireWriteLock())
-            {
-                while (machineId.Index >= _locationByIdMap.Length)
-                {
-                    Array.Resize(ref _locationByIdMap, _locationByIdMap.Length * 2);
-                }
-
-                _locationByIdMap[machineId.Index] = machineLocation;
-            }
-
-            _idByLocationMap[machineLocation] = machineId;
-        }
+        internal void AddMachine(MachineId machineId, MachineLocation machineLocation) => Mutate((clusterState) => clusterState.AddMachine(machineId, machineLocation)).ThrowIfFailure();
 
         /// <summary>
         /// Tries to resolve <see cref="MachineLocation"/> by a machine id (<paramref name="machine"/>).
         /// </summary>
         public bool TryResolve(MachineId machine, out MachineLocation machineLocation)
         {
-            using (_lock.AcquireReadLock())
-            {
-                if (machine.Index < _locationByIdMap.Length)
-                {
-                    machineLocation = _locationByIdMap[machine.Index];
-                    return machineLocation.Data != null;
-                }
-
-                machineLocation = default;
-                return false;
-            }
+            var result = Read((clusterState) => clusterState.TryResolve(machine));
+            machineLocation = result.MachineLocation;
+            return result.Succeeded;
         }
 
         /// <summary>
@@ -222,101 +159,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public bool TryResolveMachineId(MachineLocation machineLocation, out MachineId machineId)
         {
-            return _idByLocationMap.TryGetValue(machineLocation, out machineId);
+            var result = Read((clusterState) => clusterState.TryResolveMachineId(machineLocation));
+            machineId = result.MachineId;
+            return result.Succeeded;
         }
 
         /// <summary>
         /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
-        {
-            using (_lock.AcquireReadLock())
-            {
-                var candidates = _locationByIdMap
-                    .Where((location, index) => location.Data != null && !_inactiveMachinesSet[index] && !_closedMachinesSet[index])
-                    .Except(except)
-                    .ToList();
-                if (candidates.Any())
-                {
-                    var index = ThreadSafeRandom.Generator.Next(candidates.Count);
-                    return candidates[index];
-                }
-
-                return new Result<MachineLocation>("Could not select a machine location.");
-            }
-        }
+        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => Read((clusterState) => clusterState.GetRandomMachineLocation(except));
 
         /// <summary>
         /// This should only be used from the master.
         /// </summary>
-        internal Result<MachineId[][]> GetBinMappings() => BinManager?.GetBins() ?? new Result<MachineId[][]>("Failed to get mappings since BinManager is null");
+        internal Result<MachineId[][]> GetBinMappings() => Read((clusterState) => clusterState.GetBinMappings());
 
         /// <summary>
         /// Gets the set of locations designated for a hash. This is relevant for proactive copies and eviction.
         /// </summary>
-        internal Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash, bool includeExpired)
-        {
-            if (BinManager == null)
-            {
-                return new Result<MachineLocation[]>("Could not get designated locations because BinManager is null");
-            }
-
-            var locationsResult = BinManager.GetDesignatedLocations(hash, includeExpired);
-            if (!locationsResult)
-            {
-                return new Result<MachineLocation[]>(locationsResult);
-            }
-
-            return locationsResult.Value
-                .Where(machineId => !_inactiveMachinesSet[machineId] && !_closedMachinesSet[machineId])
-                .Select(id =>_locationByIdMap[id.Index])
-                .ToArray();
-        }
+        internal Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash, bool includeExpired) => Read((clusterState) => clusterState.GetDesignatedLocations(hash, includeExpired));
 
         /// <summary>
         /// Gets whether the given machine is a designated location for the hash
         /// </summary>
-        internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired)
-        {
-            if (BinManager == null)
-            {
-                return false;
-            }
-
-            var locations = BinManager.GetDesignatedLocations(hash, includeExpired);
-            if (!locations)
-            {
-                return false;
-            }
-
-            return locations.Value!.Contains(machineId);
-        }
+        internal bool IsDesignatedLocation(MachineId machineId, ContentHash hash, bool includeExpired) => Read((clusterState) => clusterState.IsDesignatedLocation(machineId, hash, includeExpired));
 
         /// <summary>
         /// Initializes the BinManager if it is required.
         /// </summary>
-        internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime)
-        {
-            var startLocations = _idByLocationMap.Values;
-            if (MasterMachineLocation.HasValue && _idByLocationMap.ContainsKey(MasterMachineLocation.Value))
-            {
-                startLocations = startLocations.Except(new[] { _idByLocationMap[MasterMachineLocation.Value] }).ToArray();
-            }
-
-            BinManager ??= new BinManager(locationsPerBin, startLocations, clock, expiryTime);
-        }
+        internal void InitializeBinManagerIfNeeded(int locationsPerBin, IClock clock, TimeSpan expiryTime) => Mutate((clusterState) => clusterState.InitializeBinManagerIfNeeded(locationsPerBin, clock, expiryTime)).ThrowIfFailure();
 
         /// <nodoc />
-        internal void SetMasterMachine(MachineLocation producer)
-        {
-            MasterMachineLocation = producer;
-            MasterMachineId = TryResolveMachineId(producer, out var id) ? id : (MachineId?) null;
-        }
+        internal void SetMasterMachine(MachineLocation producer) => Mutate((clusterState) => clusterState.SetMasterMachine(producer)).ThrowIfFailure();
 
         /// <nodoc />
-        public int ApproximateNumberOfMachines()
-        {
-            return _idByLocationMap.Count - _inactiveMachinesSet.Count;
-        }
+        public int ApproximateNumberOfMachines() => Read((clusterState) => clusterState.ApproximateNumberOfMachines());
     }
 }

@@ -224,7 +224,7 @@ namespace BuildXL.Scheduler.Tracing
 
         internal static void ProcessResults(JProperty[] results, IConfiguration configuration, LoggingContext loggingContext)
         {
-            int maxLogSize = configuration.Logging.AriaIndividualMessageSizeLimitBytes;
+            int maxLogSize = configuration.Logging.AriaIndividualMessageSizeLimitBytes / sizeof(char);
             using (var sbPool = Pools.GetStringBuilder())
             {
                 var sb = sbPool.Instance;

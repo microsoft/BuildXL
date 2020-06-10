@@ -56,7 +56,8 @@
     m(QBuildIntegrated,                   0x4000000)      \
     m(IgnorePreloadedDlls,                0x8000000)      \
     m(DirectoryCreationAccessEnforcement, 0x10000000)     \
-    m(ProbeDirectorySymlinkAsDirectory, 0x20000000)
+    m(ProbeDirectorySymlinkAsDirectory,   0x20000000)     \
+    m(IgnoreFullSymlinkResolving,         0x40000000)
 
 //
 // FileAccessManifestFlag enum definition

@@ -102,7 +102,6 @@ namespace BuildXL.Engine.Tracing
         ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
         ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
         ConfigUnsafeOptimizedAstConversion = 931,
-
         ConfigIncompatibleIncrementalSchedulingDisabled = 933,
         ConfigIncompatibleOptionWithDistributedBuildError = 934,
         ConfigIgnorePreloadedDlls = 935,
@@ -113,8 +112,8 @@ namespace BuildXL.Engine.Tracing
 
         ConfigIgnoreCreateProcessReport = 939,
         ConfigProbeDirectorySymlinkAsDirectory = 940,
-
         ConfigUnsafeAllowDuplicateTemporaryDirectory = 941,
+        ConfigIgnoreFullSymlinkResolving = 942,
 
 
         StartInitializingCache = 1502,

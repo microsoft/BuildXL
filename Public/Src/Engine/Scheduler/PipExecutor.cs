@@ -1425,7 +1425,7 @@ namespace BuildXL.Scheduler
                                     changeAffectedInputs: changeAffectedInputs,
                                     detoursListener: detoursEventListener,
                                     symlinkedAccessResolver: environment.SymlinkedAccessResolver);
-                                
+
                                 resourceScope.RegisterQueryRamUsageMb(
                                     () =>
                                     {
@@ -1954,10 +1954,10 @@ namespace BuildXL.Scheduler
         /// </summary>
         private static bool PipNeedsSidebandFile(IPipExecutionEnvironment env, Process pip)
         {
-            return 
+            return
                 env.Configuration.Layout.SharedOpaqueSidebandDirectory.IsValid
                 && env.Configuration.Schedule.UnsafeLazySODeletion
-                && pip.SemiStableHash != 0 
+                && pip.SemiStableHash != 0
                 && pip.HasSharedOpaqueDirectoryOutputs;
         }
 
@@ -2126,7 +2126,7 @@ namespace BuildXL.Scheduler
             var result = await innerCheckRunnableFromCacheAsync();
 
             // Update the strong fingerprint computations list
-            
+
             processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
 
             Logger.Log.PipCacheLookupStats(
@@ -2582,7 +2582,7 @@ namespace BuildXL.Scheduler
 
                             // Optional (not currently implemented): If augmenting path set already exists (race condition), we
                             // could compute augmented weak fingerprint and perform the cache lookup as above
-                            (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint) = 
+                            (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint) =
                                 await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
                                     operationContext,
                                     environment,
@@ -4104,7 +4104,7 @@ namespace BuildXL.Scheduler
                 map[path] = fileData;
             }
         }
-
+        
         private static bool CheckForAllowedDirectorySymlinkOrJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
         {
             if (OperatingSystemHelper.IsUnixOS)
@@ -4221,13 +4221,13 @@ namespace BuildXL.Scheduler
                 foreach (var output in process.FileOutputs)
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
-
+                    
                     if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
                     {
                         enableCaching = false;
                         continue;
                     }
-
+                    
                     // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
                     if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
                     {
@@ -4261,7 +4261,7 @@ namespace BuildXL.Scheduler
                                     enableCaching = false;
                                     return;
                                 }
-
+                                
                                 fileList.Add(fileArtifact);
                                 FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
                                 var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
@@ -4317,13 +4317,13 @@ namespace BuildXL.Scheduler
                             {
                                 continue;
                             }
-
+                            
                             if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access, operationContext, description, pathTable, processExecutionResult))
                             {
                                 enableCaching = false;
                                 continue;
                             }
-
+                            
                             var fileArtifact = FileArtifact.CreateOutputFile(access);
                             fileList.Add(fileArtifact);
                             FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);

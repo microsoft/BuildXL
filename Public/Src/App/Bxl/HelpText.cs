@@ -919,6 +919,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/unsafe_IgnoreFullSymlinkResolving[+|-]",
+                Strings.HelpText_DisplayHelp_IgnoreFullSymlinkResolving,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/unsafe_IgnorePreloadedDlls[+|-]",
                 Strings.HelpText_DisplayHelp_IgnorePreloadedDlls,
                 HelpLevel.Verbose);

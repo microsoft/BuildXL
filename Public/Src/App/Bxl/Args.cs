@@ -1111,6 +1111,17 @@ namespace BuildXL
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreFullSymlinkResolving",
+                            sign =>
+                            {
+                                if (sign && OperatingSystemHelper.IsUnixOS)
+                                {
+                                    throw CommandLineUtilities.Error("/unsafe_IgnoreFullSymlinkResolving not allowed on non-Windows OS");
+                                }
+                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = sign;
+                            },
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnorePreloadedDlls",
                             sign =>
                             {

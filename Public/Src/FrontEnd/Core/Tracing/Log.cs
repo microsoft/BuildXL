@@ -1051,6 +1051,9 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         /// <nodoc />
         public long ResolverCount { get; set; }
+
+        /// <nodoc />
+        public string ResolverKinds { get; set; }
     }
 
     /// <summary>

@@ -379,6 +379,14 @@ namespace BuildXL.FrontEnd.Core
                     var success = TryInitializeFrontEndsAndResolvers(configuration).GetAwaiter().GetResult();
 
                     statistics.ResolverCount = success ? m_resolvers.Length : 0;
+                    
+                    // Get a stable list of the different kind of resolvers used in this build
+                    IEnumerable<string> kinds = (configuration.Resolvers ?? CollectionUtilities.EmptyArray<IResolverSettings>())
+                        .Select(resolver => resolver.Kind)
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(kind => kind, StringComparer.Ordinal);
+                    
+                    statistics.ResolverKinds = string.Join(";", kinds);
 
                     return success;
                 }))

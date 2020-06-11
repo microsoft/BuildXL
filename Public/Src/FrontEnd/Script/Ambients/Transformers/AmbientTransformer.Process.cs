@@ -564,17 +564,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // Tags.
-            var tags = Converter.ExtractArrayLiteral(obj, m_executeTags, allowUndefined: true);
-            if (tags != null && tags.Count > 0)
-            {
-                var tagIds = new StringId[tags.Count];
-                for (var i = 0; i < tags.Count; i++)
-                {
-                    var tag = Converter.ExpectString(tags[i], context: new ConversionContext(pos: i, objectCtx: tags));
-                    tagIds[i] = StringId.Create(context.StringTable, tag);
-                }
-                processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(tagIds);
-            }
+            ProcessTags(context, obj, processBuilder);
 
             // service pip dependencies (only if this pip is not a service)
             processBuilder.ServiceKind = serviceKind;
@@ -637,14 +627,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Container isolation level
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var containerIsolationLevel = Converter.ExtractEnumValue<ContainerIsolationLevel>(obj, m_executeContainerIsolationLevel, allowUndefined: true);
-            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue?
+            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue ?
                     containerIsolationLevel.Value :
                     context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
             // Container double write policy
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var doubleWritePolicy = Converter.ExtractStringLiteral(obj, m_executeDoubleWritePolicy, s_doubleWritePolicyMap.Keys, allowUndefined: true);
-            processBuilder.DoubleWritePolicy = doubleWritePolicy != null?
+            processBuilder.DoubleWritePolicy = doubleWritePolicy != null ?
                     s_doubleWritePolicyMap[doubleWritePolicy] :
                     context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.DoubleWritePolicy();
 
@@ -699,6 +689,41 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.AddCurrentHostOSDirectories();
             }
+        }
+
+        private void ProcessTags(Context context, ObjectLiteral obj, ProcessBuilder processBuilder)
+        {
+            QualifierValue currentQualifierValue = context.LastActiveModuleQualifier;
+            ObjectLiteral currentQualifier = currentQualifierValue.Qualifier;
+
+            var userDefinedTags = Converter.ExtractArrayLiteral(obj, m_executeTags, allowUndefined: true);
+
+            // Shortcut processing if there are no tags to set
+            int userTagCount = userDefinedTags == null ? 0 : userDefinedTags.Count;
+            if (userTagCount == 0 && currentQualifierValue.IsEmpty())
+            {
+                return;
+            }
+
+            var tagIds = new StringId[userTagCount + currentQualifier.Count];
+
+            // Add tags for each qualifier entry with shape 'key=value'. This is just to facilitate pip filtering for some scenarios.
+            int i = 0;
+            foreach(StringId key in currentQualifier.Keys)
+            {
+                tagIds[i] = StringId.Create(context.StringTable, $"{key.ToString(context.StringTable)}={currentQualifier[key].Value}");
+                i++;
+            }
+
+            // Add now the user defined tags
+            for (int j = 0; j < userTagCount; j++)
+            {
+                var tag = Converter.ExpectString(userDefinedTags[j], context: new ConversionContext(pos: j, objectCtx: userDefinedTags));
+                tagIds[i] = StringId.Create(context.StringTable, tag);
+                i++;
+            }
+
+            processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(tagIds);
         }
 
         private void ProcessOutputDirectoryExclusions(Context context, ProcessBuilder processBuilder, ArrayLiteral outputDirectoryExclusions)

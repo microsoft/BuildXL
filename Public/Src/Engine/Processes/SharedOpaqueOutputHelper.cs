@@ -127,7 +127,7 @@ namespace BuildXL.Processes
                 }
 
                 // throw if neither SetXattr succeeded nor the path is properly marked
-                if (xattrErrorCode != 0 && !IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: false))
+                if (xattrErrorCode != 0 && !IsSharedOpaqueOutput(expandedPath))
                 {
                     throw new BuildXLException(I($"Failed to set '{BXL_SHARED_OPAQUE_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}."));
                 }
@@ -137,24 +137,11 @@ namespace BuildXL.Processes
             /// Checks if the given path is an output under a shared opaque by checking if
             /// it contains extended attribute by <see cref="BXL_SHARED_OPAQUE_XATTR_NAME"/> name.
             /// </summary>
-            public static bool IsSharedOpaqueOutput(string expandedPath) => IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: true);
-
-            // TODO: delete the fallback logic after a successful transition from old to new logic
-            private static bool IsSharedOpaqueOutputWithFallback(string expandedPath, bool checkFallback)
+            public static bool IsSharedOpaqueOutput(string expandedPath)
             {
                 long value = 0;
                 var resultSize = Interop.Unix.IO.GetXattrNoFollow(expandedPath, BXL_SHARED_OPAQUE_XATTR_NAME, ref value);
-                if (value == BXL_SHARED_OPAQUE_XATTR_VALUE)
-                {
-                    return true;
-                }
-
-                if (checkFallback && FileUtilities.GetFileTimestamps(expandedPath).CreationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp)
-                {
-                    return true;
-                }
-
-                return false;
+                return value == BXL_SHARED_OPAQUE_XATTR_VALUE;
             }
         }
 
@@ -269,12 +256,6 @@ namespace BuildXL.Processes
             }
 
             SetPathAsSharedOpaqueOutput(expandedPath);
-            if (!IsSharedOpaqueOutput(expandedPath))
-            {
-                SetPathAsSharedOpaqueOutput(expandedPath);
-                var x = IsSharedOpaqueOutput(expandedPath);
-                throw new BuildXLException($"Could not make '{expandedPath}' sod output");
-            }
         }
     }
 }

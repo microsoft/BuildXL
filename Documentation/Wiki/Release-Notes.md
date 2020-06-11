@@ -1,6 +1,20 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200608.2 (Release [67013](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=67013)).  Released 6/10/2020
+- Add more data to the detouring status: Is64BitProcess
+- Don't report surviving child processes when execution is canceled
+- Upgrading CB.QTest that includes old version of vstest to avoid new DFAs
+- Handle the case when a surviving child process crashes for linux-sandboxing
+
+# 0.1.0-20200602.10.2 (Release [66472](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=66472)).  Released 6/4/2020
+- New JavaScript dependency fixer analyzer
+- Composite shared opaque directories perf improvements
+- More configuration options for Drop
+- Report dynamic content of seal directory pips
+- New feature: output directory exclusions
+- Various Rush front end improvements 
+
 # 0.1.0-20200517.1 (Release [64507](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=64507)).  Released 5/20/2020
 - Allow client to recreate directories
 - Process Execution: implement chroot jail for *nix

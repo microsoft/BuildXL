@@ -1388,6 +1388,7 @@ namespace BuildXL.Scheduler
                             bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
                             var aggregatePipProperties = new Dictionary<string, int>();
+                            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> staleDynamicOutputs = null;
 
                             // Retry pip count up to limit if we produce result without detecting file access.
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
@@ -1424,7 +1425,8 @@ namespace BuildXL.Scheduler
                                     incrementalTools: configuration.IncrementalTools,
                                     changeAffectedInputs: changeAffectedInputs,
                                     detoursListener: detoursEventListener,
-                                    symlinkedAccessResolver: environment.SymlinkedAccessResolver);
+                                    symlinkedAccessResolver: environment.SymlinkedAccessResolver,
+                                    staleOutputsUnderSharedOpaqueDirectories: staleDynamicOutputs);
 
                                 resourceScope.RegisterQueryRamUsageMb(
                                     () =>
@@ -1474,6 +1476,7 @@ namespace BuildXL.Scheduler
 
                                 using (var sidebandWriter = CreateSidebandWriterIfNeeded(environment, pip))
                                 {
+                                    staleDynamicOutputs = null;
                                     start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
                                     LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
@@ -1617,6 +1620,8 @@ namespace BuildXL.Scheduler
                                     userRetry = true;
                                     counters.AddToCounter(PipExecutorCounter.RetriedUserExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
+
+                                    staleDynamicOutputs = result.SharedDynamicDirectoryWriteAccesses;
 
                                     continue;
                                 }
@@ -4104,7 +4109,7 @@ namespace BuildXL.Scheduler
                 map[path] = fileData;
             }
         }
-        
+
         private static bool CheckForAllowedDirectorySymlinkOrJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
         {
             if (OperatingSystemHelper.IsUnixOS)
@@ -4221,13 +4226,13 @@ namespace BuildXL.Scheduler
                 foreach (var output in process.FileOutputs)
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
-                    
+
                     if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
                     {
                         enableCaching = false;
                         continue;
                     }
-                    
+
                     // If the directory containing the output file was redirected, then we want to cache the content of the redirected output instead.
                     if (outputFilesAreRedirected && environment.ProcessInContainerManager.TryGetRedirectedDeclaredOutputFile(output.Path, containerConfiguration, out AbsolutePath redirectedOutputPath))
                     {
@@ -4261,7 +4266,7 @@ namespace BuildXL.Scheduler
                                     enableCaching = false;
                                     return;
                                 }
-                                
+
                                 fileList.Add(fileArtifact);
                                 FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
                                 var fileArtifactWithAttributes = fileArtifact.WithAttributes(FileExistence.Required);
@@ -4317,13 +4322,13 @@ namespace BuildXL.Scheduler
                             {
                                 continue;
                             }
-                            
+
                             if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access, operationContext, description, pathTable, processExecutionResult))
                             {
                                 enableCaching = false;
                                 continue;
                             }
-                            
+
                             var fileArtifact = FileArtifact.CreateOutputFile(access);
                             fileList.Add(fileArtifact);
                             FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);

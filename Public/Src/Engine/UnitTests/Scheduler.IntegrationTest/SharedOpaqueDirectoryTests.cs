@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
@@ -12,6 +13,7 @@ using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -1994,6 +1996,65 @@ namespace IntegrationTest.BuildXL.Scheduler
             // This event is logged once per undeclared output
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput, expectedExcludedFiles);
             IgnoreWarnings();
+        }
+
+        [Fact]
+        public void OpaqueOutputsAreCleanedOnRetryExitCode()
+        {
+            Configuration.Schedule.ProcessRetries = 1;
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            FileArtifact untrackedFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "untracked.txt"));
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            FileArtifact sodOutput1 = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+            FileArtifact sodOutput2 = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                // a dummy output so the engine does not complain about a pip with no outputs
+                Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt"))),                
+                // if untracked.txt contains "0", create sodOutput1
+                Operation.WriteFileIfInputEqual(sodOutput1, ToString(untrackedFile.Path), "0"),
+                // if untracked.txt contains "01", create sodOutput2 ("01" because WriteFile appends to the file)
+                Operation.WriteFileIfInputEqual(sodOutput2, ToString(untrackedFile.Path), "01"),
+                // Change the content of untracked.txt. This makes the pip non-deterministic.
+                Operation.WriteFile(untrackedFile, content: "1", doNotInfer: true),
+                Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42)
+            });
+            builder.RetryExitCodes = global::BuildXL.Utilities.Collections.ReadOnlyArray<int>.From(new int[] { 42 });
+            builder.AddUntrackedFile(stateFile.Path);
+            builder.AddUntrackedFile(untrackedFile.Path);
+            builder.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            SchedulePipBuilder(builder);
+
+            // set the initial value
+            File.WriteAllText(ToString(untrackedFile.Path), "0");
+            // sanity check - sod outputs should not exist at this point
+            XAssert.IsFalse(File.Exists(ToString(sodOutput1.Path)));
+            XAssert.IsFalse(File.Exists(ToString(sodOutput2.Path)));
+
+            var result = RunScheduler();
+
+            result.AssertSuccess();
+            AssertVerboseEventLogged(LogEventId.PipWillBeRetriedDueToExitCode, 1);
+
+            /* 
+             * sodOutput1 should not exist:
+             *  pip starts
+             *  untrackedFile.txt contains "0" -> sodOutput1 is created
+             *  untrackedFile.txt contains "0" -> sodOutput2 is NOT created
+             *  "1" is written to untrackedFile.txt
+             *  pip exits with a retrieable exit code
+             *  
+             *  pip is retried (previous outputs must be cleaned)
+             *  untrackedFile.txt contains "01" -> sodOutput1 is NOT created
+             *  untrackedFile.txt contains "01" -> sodOutput2 is created
+             */
+            XAssert.IsFalse(File.Exists(ToString(sodOutput1.Path)));
+            XAssert.IsTrue(File.Exists(ToString(sodOutput2.Path)));
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);

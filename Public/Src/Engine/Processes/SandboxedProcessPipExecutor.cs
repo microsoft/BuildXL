@@ -204,6 +204,8 @@ namespace BuildXL.Processes
 
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
+        private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> m_staleOutputsUnderSharedOpaqueDirectories;
+
         /// <summary>
         /// Name of the diretory in Log directory for std output files
         /// </summary>
@@ -243,7 +245,8 @@ namespace BuildXL.Processes
             IReadOnlyList<RelativePath> incrementalTools = null,
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
-            SymlinkedAccessResolver symlinkedAccessResolver = null)
+            SymlinkedAccessResolver symlinkedAccessResolver = null,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> staleOutputsUnderSharedOpaqueDirectories = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -382,6 +385,7 @@ namespace BuildXL.Processes
             m_changeAffectedInputs = changeAffectedInputs;
             m_detoursListener = detoursListener;
             m_symlinkedAccessResolver = symlinkedAccessResolver;
+            m_staleOutputsUnderSharedOpaqueDirectories = staleOutputsUnderSharedOpaqueDirectories;
         }
 
         /// <inheritdoc />
@@ -1500,6 +1504,15 @@ namespace BuildXL.Processes
             ProcessTimes primaryProcessTimes = result.PrimaryProcessTimes;
             JobObject.AccountingInformation? jobAccounting = result.JobAccountingInformation;
 
+            var start = DateTime.UtcNow;
+            SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
+                GetObservedFileAccesses(
+                    result,
+                    allInputPathsUnderSharedOpaques,
+                    out var unobservedOutputs,
+                    out var sharedDynamicDirectoryWriteAccesses);
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
+
             TimeSpan time = primaryProcessTimes.TotalWallClockTime;
             if (result.TimedOut)
             {
@@ -1580,7 +1593,8 @@ namespace BuildXL.Processes
                                     m_containerConfiguration,
                                     encodedStandardError,
                                     encodedStandardOutput,
-                                    pipProperties);
+                                    pipProperties,
+                                    sharedDynamicDirectoryWriteAccesses);
                             }
                             else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                             {
@@ -1617,7 +1631,7 @@ namespace BuildXL.Processes
                 numSurvivingChildErrors = ReportSurvivingChildProcesses(result);
             }
 
-            var start = DateTime.UtcNow;
+            start = DateTime.UtcNow;
 
             var fileAccessReportingContext = new FileAccessReportingContext(
                 loggingContext,
@@ -1693,15 +1707,6 @@ namespace BuildXL.Processes
             }
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingStandardOutputs, DateTime.UtcNow.Subtract(start));
-
-            start = DateTime.UtcNow;
-            SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
-                GetObservedFileAccesses(
-                    result,
-                    allInputPathsUnderSharedOpaques,
-                    out var unobservedOutputs,
-                    out var sharedDynamicDirectoryWriteAccesses);
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
 
             start = DateTime.UtcNow;
 
@@ -2983,6 +2988,15 @@ namespace BuildXL.Processes
                         if (!dirExist)
                         {
                             FileUtilities.CreateDirectory(directoryPathStr);
+                        }
+                        // if the directory is present, check whether there are any known stale outputs
+                        else if (m_staleOutputsUnderSharedOpaqueDirectories != null
+                            && m_staleOutputsUnderSharedOpaqueDirectories.TryGetValue(directoryOutput.Path, out var staleOutputs))
+                        {
+                            foreach (var output in staleOutputs)
+                            {
+                                PreparePathForOutputFile(output);
+                            }
                         }
                     }
                     else

@@ -146,12 +146,13 @@ namespace BuildXL.Processes
             ContainerConfiguration containerConfiguration,
             Tuple<AbsolutePath, Encoding> encodedStandardError,
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
-            Dictionary<string, int> pipProperties)
+            Dictionary<string, int> pipProperties,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicDirectoryWriteAccesses)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
-                sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
+                sharedDynamicDirectoryWriteAccesses: sharedDynamicDirectoryWriteAccesses,
                 encodedStandardError: encodedStandardError,
                 encodedStandardOutput: encodedStandardOutput,
                 numberOfWarnings: 0,

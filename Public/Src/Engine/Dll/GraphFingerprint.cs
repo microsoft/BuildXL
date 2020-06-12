@@ -51,6 +51,7 @@ namespace BuildXL.Engine
             BuildEngineHash = FingerprintUtilities.ZeroFingerprint,
             ConfigFileHash = FingerprintUtilities.ZeroFingerprint,
             QualifierHash = FingerprintUtilities.ZeroFingerprint,
+            TopLevelHash = FingerprintUtilities.ZeroFingerprint,
             FilterHash = FingerprintUtilities.ZeroFingerprint,
         };
 
@@ -81,9 +82,15 @@ namespace BuildXL.Engine
         public Fingerprint FilterHash { get; set; }
 
         /// <summary>
+        /// Hash of Directory paths, subst value, version, host os, etc.
+        /// </summary>
+        public Fingerprint TopLevelHash { get; set; }
+
+        /// <summary>
         /// Evaluation filter
         /// </summary>
         public IEvaluationFilter EvaluationFilter { get; set; }
+
 
         /// <summary>
         /// Returns a new instance of <see cref="CompositeGraphFingerprint"/> with the same content as the current instance plus with the given <paramref name="filter"/>.
@@ -97,6 +104,7 @@ namespace BuildXL.Engine
                 ConfigFileHash = ConfigFileHash,
                 QualifierHash = QualifierHash,
                 FilterHash = FilterHash,
+                TopLevelHash = TopLevelHash,
                 EvaluationFilter = filter,
             };
         }
@@ -111,6 +119,7 @@ namespace BuildXL.Engine
             ConfigFileHash.WriteTo(writer);
             QualifierHash.WriteTo(writer);
             FilterHash.WriteTo(writer);
+            TopLevelHash.WriteTo(writer);
 
             writer.Write(EvaluationFilter != null);
             EvaluationFilter?.Serialize(writer);
@@ -126,7 +135,8 @@ namespace BuildXL.Engine
             writer.WriteLine(I($"Config file hash: {ConfigFileHash.ToString()}"));
             writer.WriteLine(I($"Qualifier hash: {QualifierHash.ToString()}"));
             writer.WriteLine(I($"Filter hash: {FilterHash.ToString()}"));
-            
+            writer.WriteLine(I($"Directory hash: {TopLevelHash.ToString()}"));
+
 
             if (EvaluationFilter != null)
             {
@@ -147,6 +157,7 @@ namespace BuildXL.Engine
             fingerprint.ConfigFileHash = FingerprintUtilities.CreateFrom(reader);
             fingerprint.QualifierHash = FingerprintUtilities.CreateFrom(reader);
             fingerprint.FilterHash = FingerprintUtilities.CreateFrom(reader);
+            fingerprint.TopLevelHash = FingerprintUtilities.CreateFrom(reader);
 
             bool filterExists = reader.ReadBoolean();
             if (filterExists)
@@ -180,6 +191,11 @@ namespace BuildXL.Engine
             if (QualifierHash != FingerprintUtilities.ZeroFingerprint && QualifierHash != newFingerprint.QualifierHash)
             {
                 return GraphCacheMissReason.QualifierChanged;
+            }
+
+            if (TopLevelHash != FingerprintUtilities.ZeroFingerprint && TopLevelHash != newFingerprint.TopLevelHash)
+            {
+                return GraphCacheMissReason.FingerprintChanged;
             }
 
             if (FilterHash != FingerprintUtilities.ZeroFingerprint && FilterHash != newFingerprint.FilterHash)

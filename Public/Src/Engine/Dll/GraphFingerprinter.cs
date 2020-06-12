@@ -119,8 +119,6 @@ namespace BuildXL.Engine
             {
                 CompositeGraphFingerprint fingerprint = CompositeGraphFingerprint.Zero;
 
-                AddInt(hasher, "version", GraphFingerprintVersion);
-
                 using (var qualifierHasher = new CoreHashingHelper(recordFingerprintString: false))
                 {
                     foreach (string qualifier in startUpConfig.QualifierIdentifiers.OrderBy(q => q))
@@ -145,35 +143,60 @@ namespace BuildXL.Engine
                     }
                 }
 
-                // These paths get embedded in the result of evaluation. So if any change we must re-evaluate
-                AddText(hasher, "ObjectDirectoryPath", layout.ObjectDirectory.IsValid ? layout.ObjectDirectory.ToString(pathTable) : "::null::");
-                AddText(hasher, "TempDirectoryPath", layout.TempDirectory.IsValid ? layout.TempDirectory.ToString(pathTable) : "::null::");
-                AddText(hasher, "SourceDirectoryPath", layout.SourceDirectory.IsValid ? layout.SourceDirectory.ToString(pathTable) : "::null::");
-
-                // All paths in the graph are relative to 'substTarget' (hence, 'substTarget' must be a part of the fingerprint, but 'substSource' need not be).
-                AddText(hasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
-                AddText(hasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");
-                AddText(hasher, "IsSkipHashSourceFile", config.Schedule.SkipHashSourceFile ? "true" : "false");
-
-                // Pip static fingerprints are not always computed because computing them slows down the graph construction by 10%-13%. 
-                // Thus, the pip graph may and may not contain pip static fingerprints. To avoid unexpected result due to graph cache hit, 
-                // we temporarily add the option for computing pip static fingerprints as part of our graph fingerprint until the fingerprints 
-                // are always computed; see Task 1291638.
-                AddText(hasher, "ComputePipStaticFingerprints", config.Schedule.ComputePipStaticFingerprints.ToString());
-
-                if (config.Schedule.ComputePipStaticFingerprints)
+                using (var topLevelHasher = new CoreHashingHelper(recordFingerprintString: false))
                 {
-                    // Pip static fingerprints are part of the graph and include the extra fingerprint salts. 
-                    // Thus, when pip static fingerprints are computed, any change to the salt will invalidate the graph because
-                    // the pip static fingerprints will no longer be valid. Reusing the graph when the salt changes can result in
-                    // underbuild.
-                    var extraFingerprintSalts = new ExtraFingerprintSalts(
-                        config,
-                        PipFingerprintingVersion.TwoPhaseV2,
-                        config.Cache.CacheSalt ?? string.Empty,
-                        new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
+                    AddInt(topLevelHasher, "version", GraphFingerprintVersion);
+                    // These paths get embedded in the result of evaluation. So if any change we must re-evaluate
+                    AddText(topLevelHasher, "ObjectDirectoryPath", layout.ObjectDirectory.IsValid ? layout.ObjectDirectory.ToString(pathTable) : "::null::");
+                    AddText(topLevelHasher, "TempDirectoryPath", layout.TempDirectory.IsValid ? layout.TempDirectory.ToString(pathTable) : "::null::");
+                    AddText(topLevelHasher, "SourceDirectoryPath", layout.SourceDirectory.IsValid ? layout.SourceDirectory.ToString(pathTable) : "::null::");
 
-                    AddFingerprint(hasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
+                    // All paths in the graph are relative to 'substTarget' (hence, 'substTarget' must be a part of the fingerprint, but 'substSource' need not be).
+                    AddText(topLevelHasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
+                    AddText(topLevelHasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");
+                    AddText(topLevelHasher, "IsSkipHashSourceFile", config.Schedule.SkipHashSourceFile ? "true" : "false");
+
+                    // Pip static fingerprints are not always computed because computing them slows down the graph construction by 10%-13%. 
+                    // Thus, the pip graph may and may not contain pip static fingerprints. To avoid unexpected result due to graph cache hit, 
+                    // we temporarily add the option for computing pip static fingerprints as part of our graph fingerprint until the fingerprints 
+                    // are always computed; see Task 1291638.
+                    AddText(topLevelHasher, "ComputePipStaticFingerprints", config.Schedule.ComputePipStaticFingerprints.ToString());
+
+                    AddText(topLevelHasher, "HostOS", startUpConfig.CurrentHost.CurrentOS.ToString());
+                    AddText(topLevelHasher, "HostCpuArchitecture", startUpConfig.CurrentHost.CpuArchitecture.ToString());
+                    AddText(topLevelHasher, "HostIsElevated", CurrentProcess.IsElevated.ToString());
+
+                    var salt = string.Empty;
+
+                    if (testHooks?.GraphFingerprintSalt != null)
+                    {
+                        salt += testHooks.GraphFingerprintSalt.Value.ToString();
+                    }
+
+                    salt += EngineEnvironmentSettings.DebugGraphFingerprintSalt;
+
+                    if (!string.IsNullOrEmpty(salt))
+                    {
+                        AddText(topLevelHasher, "GraphFingerprintSalt", salt);
+                    }
+
+                    if (config.Schedule.ComputePipStaticFingerprints)
+                    {
+                        // Pip static fingerprints are part of the graph and include the extra fingerprint salts. 
+                        // Thus, when pip static fingerprints are computed, any change to the salt will invalidate the graph because
+                        // the pip static fingerprints will no longer be valid. Reusing the graph when the salt changes can result in
+                        // underbuild.
+                        var extraFingerprintSalts = new ExtraFingerprintSalts(
+                            config,
+                            PipFingerprintingVersion.TwoPhaseV2,
+                            config.Cache.CacheSalt ?? string.Empty,
+                            new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
+
+                        AddFingerprint(topLevelHasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
+                    }
+
+                    fingerprint.TopLevelHash = topLevelHasher.GenerateHash();
+                    AddFingerprint(hasher, "TopLevelHash", fingerprint.TopLevelHash);
                 }
 
                 // Config files
@@ -244,24 +267,6 @@ namespace BuildXL.Engine
                         Tracing.Logger.Log.FailedToComputeHashFromDeploymentManifestReason(loggingContext, ex.Message);
                         return default(Optional<CompositeGraphFingerprint>);
                     }
-                }
-
-                AddText(hasher, "HostOS", startUpConfig.CurrentHost.CurrentOS.ToString());
-                AddText(hasher, "HostCpuArchitecture", startUpConfig.CurrentHost.CpuArchitecture.ToString());
-                AddText(hasher, "HostIsElevated", CurrentProcess.IsElevated.ToString());
-
-                var salt = string.Empty;
-
-                if (testHooks?.GraphFingerprintSalt != null)
-                {
-                    salt += testHooks.GraphFingerprintSalt.Value.ToString();
-                }
-
-                salt += EngineEnvironmentSettings.DebugGraphFingerprintSalt;
-
-                if (!string.IsNullOrEmpty(salt))
-                {
-                    hasher.Add("GraphFingerprintSalt", salt);
                 }
 
                 fingerprint.OverallFingerprint = new ContentFingerprint(hasher.GenerateHash());

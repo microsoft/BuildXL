@@ -36,6 +36,5 @@ namespace BuildXL.Cache.Host.Test
             json.Should().Contain("CasClientSettings");
             json.Should().Contain("CacheSettings");
         }
-
     }
 }

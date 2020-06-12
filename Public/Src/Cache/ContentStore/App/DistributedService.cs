@@ -154,6 +154,10 @@ namespace BuildXL.Cache.ContentStore.App
 
         private class EnvironmentVariableHost : IDistributedCacheServiceHost
         {
+            public void RequestTeardown(string reason)
+            {
+            }
+
             public string GetSecretStoreValue(string key)
             {
                 return Environment.GetEnvironmentVariable(key);

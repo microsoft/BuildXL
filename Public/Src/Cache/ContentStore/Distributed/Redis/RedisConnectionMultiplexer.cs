@@ -72,7 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             Contract.RequiresNotNull(context);
 
-            if (logSeverity != Severity.Unknown && context.Logger != null)
+            if (logSeverity != Severity.Unknown)
             {
                 var replacementContext = context.CreateNested(componentName: nameof(RedisConnectionMultiplexer));
                 var logger = new TextWriterAdapter(replacementContext, logSeverity, component: "Redis.StackExchange");
@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private static string AllowAdminIfNeeded(string connectionString)
         {
-            // alloAdmin=true option is needed in order to call InfoAsync.
+            // allowAdmin=true option is needed in order to call InfoAsync.
             string allowAdmin = "allowAdmin=true";
             if (connectionString.IndexOf(allowAdmin, StringComparison.OrdinalIgnoreCase) >= 0)
             {

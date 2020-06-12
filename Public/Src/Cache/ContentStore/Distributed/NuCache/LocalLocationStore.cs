@@ -343,6 +343,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await _postInitializationTask.FireAndForgetOrInlineAsync(context, _configuration.InlinePostInitialization);
 
+            Analysis.IgnoreResult(
+                _postInitializationTask.ContinueWith(
+                    t =>
+                    {
+                        // It is very important to explicitly trace when the post initialization is done,
+                        // because only after that the service can process the requests.
+                        LifetimeTrackerTracer.ServiceReadyToProcessRequests(context);
+                    }));
+
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
             return BoolResult.Success;

@@ -15,9 +15,9 @@ using BuildXL.Cache.Host.Configuration;
 namespace BuildXL.Cache.Host.Service
 {
     /// <summary>
-    /// Once CaSaaS is started up, we determine the previous CaSaaS offline time and log it.
+    /// Tracks CaSaaS offline time.
     /// </summary>
-    public class DistributedCacheServiceRunningTracker : IDisposable
+    public class ServiceOfflineDurationTracker : IDisposable
     {
         private readonly IClock _clock;
         private readonly IAbsFileSystem _fileSystem;
@@ -29,9 +29,9 @@ namespace BuildXL.Cache.Host.Service
 
         private const string FileName = "CaSaaSRunning.txt";
 
-        private static Tracer Tracer { get; } = new Tracer(nameof(DistributedCacheServiceRunningTracker));
+        private static Tracer Tracer { get; } = new Tracer(nameof(ServiceOfflineDurationTracker));
 
-        public DistributedCacheServiceRunningTracker(
+        public ServiceOfflineDurationTracker(
             OperationContext context,
             IClock clock,
             IAbsFileSystem fileSystem,
@@ -45,18 +45,17 @@ namespace BuildXL.Cache.Host.Service
 
             // Timer does not start until we call Start(), because in testing we do not want to start this timer, we use a simulated test clock instead.
             _timer = new Timer(
-                callback: _ => { PeriodicLogToFile(context, clock.UtcNow.ToString()); },
+                callback: _ => { LogTimeStampToFile(context, clock.UtcNow.ToString()); },
                 state: null,
                 dueTime: Timeout.InfiniteTimeSpan,
                 period: Timeout.InfiniteTimeSpan);
         }
 
-        public static Result<DistributedCacheServiceRunningTracker> Create(
+        public static Result<ServiceOfflineDurationTracker> Create(
             OperationContext context,
             IClock clock,
             IAbsFileSystem fileSystem,
-            DistributedCacheServiceConfiguration configuration,
-            TimeSpan startUpTime)
+            DistributedCacheServiceConfiguration configuration)
         {
             return context.PerformOperation(Tracer,
                 () =>
@@ -64,38 +63,36 @@ namespace BuildXL.Cache.Host.Service
                     var logIntervalSeconds = configuration.DistributedContentSettings.ServiceRunningLogInSeconds;
                     if (logIntervalSeconds == null)
                     {
-                        context.TraceInfo(ServiceStartedTrace(startUpTime));
-                        return new Result<DistributedCacheServiceRunningTracker>($"{nameof(DistributedCacheServiceRunningTracker)} is disabled");
+                        return new Result<ServiceOfflineDurationTracker>($"{nameof(ServiceOfflineDurationTracker)} is disabled");
                     }
 
                     var logFilePath = configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName) / FileName;
 
-                    var serviceTracker = new DistributedCacheServiceRunningTracker(context, clock, fileSystem, logIntervalSeconds.Value, logFilePath);
+                    var serviceTracker = new ServiceOfflineDurationTracker(context, clock, fileSystem, logIntervalSeconds.Value, logFilePath);
 
-                    serviceTracker.Start(context, startUpTime).ThrowIfFailure();
+                    serviceTracker.Start(context).ThrowIfFailure();
 
-                    return new Result<DistributedCacheServiceRunningTracker>(serviceTracker);
+                    return new Result<ServiceOfflineDurationTracker>(serviceTracker);
                 });
         }
 
-        public string GetStatus()
+        internal Result<TimeSpan> GetOfflineDuration()
         {
+            const string ErrorPrefix = "Could not determine offline time";
             if (_fileSystem.FileExists(_logFilePath))
             {
                 var lastTime = System.Text.Encoding.Default.GetString(_fileSystem.ReadAllBytes(_logFilePath));
                 return string.IsNullOrEmpty(lastTime)
-                    ? "CaSaaS running log file was empty, could not determine offline time"
-                    : $"offlineTime: {_clock.UtcNow - Convert.ToDateTime(lastTime)}";
+                    ? new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was empty")
+                    : new Result<TimeSpan>(_clock.UtcNow - Convert.ToDateTime(lastTime));
             }
-            else
-            {
-                return "creating CaSaaS running log file, could not determine offline time";
-            }
+
+            return new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was missing");
         }
 
-        public void PeriodicLogToFile(OperationContext context, string timeStampUtc)
+        internal void LogTimeStampToFile(OperationContext context, string timeStampUtc)
         {
-            var result = context.PerformOperation(
+            context.PerformOperation(
                 Tracer,
                 traceErrorsOnly: true,
                 operation: () =>
@@ -104,29 +101,20 @@ namespace BuildXL.Cache.Host.Service
 
                     if (!_disposed)
                     {
-                        _timer.Change(TimeSpan.FromSeconds(Convert.ToDouble(_logIntervalSeconds)), Timeout.InfiniteTimeSpan);
+                        _timer.Change(TimeSpan.FromSeconds(_logIntervalSeconds), Timeout.InfiniteTimeSpan);
                     }
 
                     return BoolResult.Success;
-                });
-
-            // note: very improbable race condition if timer decides to dispose because of failure to log, and CaSaaS shuts down at the same time
-            // Both calling Dispose() at the same time, will result in both seeing the timer not being disposed before, but unlikely.
-            if (!result)
-            {
-                Dispose();
-            }
+                }).IgnoreFailure();
         }
 
-        public BoolResult Start(OperationContext context, TimeSpan startUpTime)
+        private BoolResult Start(OperationContext context)
         {
             return context.PerformOperation(
                 Tracer,
                 traceErrorsOnly: true,
                 operation: () =>
                 {
-                    context.TraceInfo($"{ServiceStartedTrace(startUpTime)}, {GetStatus()}");
-
                     _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
 
                     return BoolResult.Success;
@@ -145,11 +133,6 @@ namespace BuildXL.Cache.Host.Service
 #pragma warning restore AsyncFixer02
 
             _disposed = true;
-        }
-
-        private static string ServiceStartedTrace(TimeSpan startupTime)
-        {
-            return $"CaSaaS started, startup duration took: {startupTime.ToString()}";
         }
     }
 }

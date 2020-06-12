@@ -188,6 +188,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 return key;
             }
 
+            public void RequestTeardown(string reason)
+            {
+            }
+
             public string GetSecretStoreValue(string key)
             {
                 return _secrets[key];
@@ -605,39 +609,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     masterResult.ContentHashesInfo[0].Locations.Count.Should().Be(0);
                 });
         }
-
-        [Fact]
-        public async Task TestDistributedCacheServiceTracker()
-        {
-            int machineCount = 1;
-            var loggingContext = new Context(Logger);
-            ConfigureWithOneMaster();
-
-            await RunTestAsync(
-                loggingContext,
-                machineCount,
-                async context =>
-                {
-                    var logFilePath = context.Directories[0].CreateRandomFileName();
-                    var logIntervalSeconds = 10;
-
-                    // Create a new service tracker, in the constructor we will try to get previous online time
-                    // Because the file was never created previously, we can not determine offlineTime
-                    var testServiceTracker = new DistributedCacheServiceRunningTracker(context, TestClock, FileSystem, logIntervalSeconds, logFilePath);
-                    testServiceTracker.Dispose();
-                    testServiceTracker.GetStatus().Should().NotContain("offlineTime");
-                    testServiceTracker.PeriodicLogToFile(context, TestClock.UtcNow.ToString());
-
-                    TestClock.UtcNow += TimeSpan.FromSeconds(logIntervalSeconds);
-
-                    // From the previous simulated interval, we created a new file and wrote a timestamp to it.
-                    // Now we should be able to determine previous offlineTIme
-                    testServiceTracker.GetStatus().Should().Contain("offlineTime");
-
-                    await Task.Yield();
-                });
-        }
-
+        
         [Fact]
         public async Task ProactiveCopyDistributedTest()
         {

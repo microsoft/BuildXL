@@ -53,13 +53,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Traces the <paramref name="result"/> if the result is not successful.
         /// </summary>
-        public static void TraceIfFailure<TResult>(this TResult result, Context context, [CallerMemberName] string? operationName = null)
+        public static TResult TraceIfFailure<TResult>(this TResult result, Context context, [CallerMemberName] string? operationName = null)
             where TResult : ResultBase
         {
             if (!result.Succeeded)
             {
                 context.Warning($"Operation '{operationName}' failed with an error={result}");
             }
+
+            return result;
         }
 
         /// <summary>

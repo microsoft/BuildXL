@@ -34,6 +34,9 @@ namespace Service {
                 NetFx.System.Xml.dll
             ),
         ],
-        allowUnsafeBlocks: false
+        allowUnsafeBlocks: false,
+        internalsVisibleTo: [
+            "BuildXL.Cache.Host.Test",
+        ]
     });
 }

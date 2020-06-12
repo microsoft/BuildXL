@@ -120,6 +120,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 var adapterConfiguration = new RedisDatabaseAdapterConfiguration(
                     KeySpace,
                     Configuration.RedisConnectionErrorLimit,
+                    Configuration.RedisReconnectionLimitBeforeServiceRestart,
                     traceOperationFailures: Configuration.TraceRedisFailures,
                     traceTransientFailures: Configuration.TraceRedisTransientFailures,
                     databaseName: databaseName);

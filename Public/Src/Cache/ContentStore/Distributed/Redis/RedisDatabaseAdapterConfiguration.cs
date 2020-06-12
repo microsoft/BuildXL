@@ -19,6 +19,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         public int RedisConnectionErrorLimit { get; }
 
+        public int RedisReconnectionLimitBeforeServiceRestart { get; }
+
         public bool TraceOperationFailures { get; }
 
         public bool TraceTransientFailures { get; }
@@ -40,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public RedisDatabaseAdapterConfiguration(
             string keySpace,
             int redisConnectionErrorLimit = int.MaxValue,
+            int redisReconnectionLimitBeforeServiceRestart = int.MaxValue,
             bool traceOperationFailures = false,
             bool traceTransientFailures = false,
             int? retryCount = null,
@@ -48,6 +51,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             _retryCount = retryCount;
             KeySpace = keySpace;
             RedisConnectionErrorLimit = redisConnectionErrorLimit;
+            RedisReconnectionLimitBeforeServiceRestart = redisReconnectionLimitBeforeServiceRestart;
             TraceOperationFailures = traceOperationFailures;
             TraceTransientFailures = traceTransientFailures;
             DatabaseName = databaseName ?? "Default";

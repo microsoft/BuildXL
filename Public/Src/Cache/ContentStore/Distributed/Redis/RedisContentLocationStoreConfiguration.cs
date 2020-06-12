@@ -88,6 +88,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int RedisConnectionErrorLimit { get; set; } = int.MaxValue;
 
         /// <summary>
+        /// The number of consecutive reconnection events that will trigger a service shutdown.
+        /// </summary>
+        public int RedisReconnectionLimitBeforeServiceRestart { get; set; } = int.MaxValue;
+
+        /// <summary>
         /// Whether to trace failures in redis access layer.
         /// </summary>
         public bool TraceRedisFailures { get; set; } = false;

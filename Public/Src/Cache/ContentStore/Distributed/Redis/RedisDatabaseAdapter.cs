@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Practices.TransientFaultHandling;
 using StackExchange.Redis;
@@ -189,6 +190,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
         private int _connectionErrorCount;
         private readonly object _resetConnectionsLock = new object();
+        private int _reconnectionCount;
 
         /// <nodoc />
         public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, RedisDatabaseAdapterConfiguration configuration)
@@ -332,7 +334,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (result)
             {
-                RedisOperationSucceeded();
+                RedisOperationSucceeded(context);
             }
             else if (result.Exception != null)
             {
@@ -340,10 +342,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
         }
 
-        private void RedisOperationSucceeded()
+        private void RedisOperationSucceeded(Context context)
         {
-            // If the operation is successful, then reset the error count to 0.
-            Interlocked.Exchange(ref _connectionErrorCount, 0);
+            // If the operation is successful, then reset the error and reconnection count to 0.
+            var previousConnectionErrorCount = Interlocked.Exchange(ref _connectionErrorCount, 0);
+            var previousReconnectionCount = Interlocked.Exchange(ref _reconnectionCount, 0);
+            if (previousConnectionErrorCount != 0)
+            {
+                // It means that the service just reconnected to a redis instance.
+                context.Info($"Successfully reconnected to {DatabaseName}. Previous ConnectionErrorCount={previousConnectionErrorCount}, previous ReconnectionCount={previousReconnectionCount}");
+            }
+
+            
         }
 
         /// <summary>
@@ -364,9 +374,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                         {
                             // This means that there is no successful operations happening, and all the errors that we're seeing are redis connectivity issues.
                             // This is, effectively, a work-around for the issue in StackExchange.Redis library (https://github.com/StackExchange/StackExchange.Redis/issues/559).
-                            context.Warning($"Reset redis connection due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}.");
+                            context.Warning($"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}.");
                             Interlocked.Exchange(ref _connectionErrorCount, 0);
                             _databaseFactory.ResetConnectionMultiplexer();
+
+                            Interlocked.Increment(ref _reconnectionCount);
+
+                            // In some cases the service can't connect to redis and the only option is to shut down the service.
+                            if (_reconnectionCount >= _configuration.RedisReconnectionLimitBeforeServiceRestart)
+                            {
+                                LifetimeManager.RequestTeardown(context, $"Requesting teardown because redis reconnection limit of {_configuration.RedisReconnectionLimitBeforeServiceRestart} is reached for {DatabaseName}.");
+                            }
                         }
                     }
                 }

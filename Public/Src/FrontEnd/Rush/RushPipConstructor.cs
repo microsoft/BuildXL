@@ -51,8 +51,7 @@ namespace BuildXL.FrontEnd.Rush
         /// <summary>
         /// Base directory where all rush logs are located
         /// </summary>
-        internal static AbsolutePath LogDirectoryBase(IConfiguration configuration, PathTable pathTable) => configuration.Layout.OutputDirectory
-                .Combine(pathTable, "Logs")
+        internal static AbsolutePath LogDirectoryBase(IConfiguration configuration, PathTable pathTable) => configuration.Logging.RedirectedLogsDirectory
                 .Combine(pathTable, "Rush");
 
         /// <summary>
@@ -438,8 +437,6 @@ namespace BuildXL.FrontEnd.Rush
             Contract.Assert(success, $"Configuration root '{Root.ToString(PathTable)}' should be a parent of '{projectFile.ProjectFolder.ToString(PathTable)}'");
 
             // We hardcode the log to go under the output directory Logs/Rush (and follow the project structure underneath)
-            // The 'official' log directory (defined by Configuration.Logging) is not stable in CloudBuild across machines, and therefore it would
-            // introduce cache misses
             var result = LogDirectoryBase(m_frontEndHost.Configuration, m_context.PathTable)
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot)
                 .Combine(PathTable, PipConstructionUtilities.SanitizeStringForSymbol(projectFile.Name))

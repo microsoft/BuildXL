@@ -180,7 +180,8 @@ namespace Test.DScript.Ast.Scheduling
                     },
                 Logging =
                     {
-                        LogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs")
+                        LogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs"),
+                        RedirectedLogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs")
                     }
             };
         }

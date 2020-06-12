@@ -79,7 +79,7 @@ namespace BuildXL.Scheduler
             string firstValidElement;
             do
             {
-                firstValidElement = JsonConvert.SerializeObject(sortedTopPipPerformanceInfo[firstValidElementIndex]);
+                firstValidElement = SerializePipPerfInfo(sortedTopPipPerformanceInfo[firstValidElementIndex]);
                 firstValidElementIndex++;
             }
             while (firstValidElement.Length >= m_ariaCharLimit &&
@@ -99,7 +99,7 @@ namespace BuildXL.Scheduler
 
             for (var i = firstValidElementIndex; i < sortedTopPipPerformanceInfo.Length && jsonResp.Count < m_maxNumberOfBatches; i++)
             {
-                var pipPerfJson = JsonConvert.SerializeObject(sortedTopPipPerformanceInfo[i]);
+                var pipPerfJson = SerializePipPerfInfo(sortedTopPipPerformanceInfo[i]);
                 if(pipPerfJson.Length >= m_ariaCharLimit)
                 {
                     // Skip pips with large description
@@ -130,6 +130,23 @@ namespace BuildXL.Scheduler
             return jsonResp.ToArray();
         }
 
+
+        /// <summary>
+        /// Serialize Pip's Performance Information into Json Format
+        /// </summary>
+        public static string SerializePipPerfInfo(PerProcessPipPerformanceInformation perPipInfo)
+        {
+            return JsonConvert.SerializeObject(new Dictionary<string, object>
+            {
+                ["PipDescription"] = perPipInfo.PipDescription,
+                ["TelemetryTags"] = perPipInfo.TelemetryTags,
+                ["PipExecutionMs"] = perPipInfo.PipExecutionMs,
+                ["PeakWorkingMemoryMb"] = perPipInfo.PeakWorkingMemoryMb,
+                ["IOReadMb"] = perPipInfo.IOReadMb,
+                ["IOWriteMb"] = perPipInfo.IOWriteMb
+            });
+        }
+
         /// <summary>
         /// Add a Pip into the builds top N pips. 
         /// Will be ignored if it's execution time was lower than the minumum execution time of existing N pips.
@@ -146,9 +163,23 @@ namespace BuildXL.Scheduler
     public class PerProcessPipPerformanceInformation
     {
         /// <summary>
+        /// Process Pip object
+        /// </summary>
+        public ProcessRunnablePip RunnablePip { get; }
+
+        /// <summary>
         /// Process Pip's Description
         /// </summary>
-        public string PipDescription { get; }
+        public string PipDescription => RunnablePip.Description;
+
+        /// <summary>
+        /// Pip level filtering tags
+        /// </summary>
+        public string[] TelemetryTags => RunnablePip.Pip.Tags
+                                    .Select(a => a.ToString(RunnablePip.Environment.Context.StringTable))
+                                    .Where(a => a.StartsWith(PipCountersByTelemetryTag.DefaultTelemetryTagPrefix))
+                                    .ToArray() 
+                                ?? CollectionUtilities.EmptyArray<string>();
 
         /// <summary>
         /// Difference between Pip's start time and end time in ms 
@@ -172,13 +203,13 @@ namespace BuildXL.Scheduler
 
         /// <nodoc/>
         public PerProcessPipPerformanceInformation(
-            string pipDescription,
+            ref ProcessRunnablePip runnablePip,
             int pipExecutionMs,
             int peakWorkingMemoryMb,
             int ioReadMb,
             int ioWriteMb)
         {
-            PipDescription = pipDescription;
+            RunnablePip = runnablePip;
             PipExecutionMs = pipExecutionMs;
             PeakWorkingMemoryMb = peakWorkingMemoryMb;
             IOReadMb = ioReadMb;
@@ -195,6 +226,7 @@ namespace BuildXL.Scheduler
 
             var pipInfo = ((PerProcessPipPerformanceInformation)obj);
             return  (PipDescription == pipInfo.PipDescription) &&
+                    TelemetryTags.SequenceEqual(pipInfo.TelemetryTags) &&
                     (PipExecutionMs == pipInfo.PipExecutionMs) &&
                     (PeakWorkingMemoryMb == pipInfo.PeakWorkingMemoryMb) &&
                     (IOReadMb == pipInfo.IOReadMb) &&
@@ -205,6 +237,7 @@ namespace BuildXL.Scheduler
         public override int GetHashCode()
         {
             return  PipDescription.GetHashCode() ^
+                    TelemetryTags.GetHashCode() ^
                     PipExecutionMs.GetHashCode() ^
                     PeakWorkingMemoryMb.GetHashCode() ^
                     IOReadMb.GetHashCode() ^

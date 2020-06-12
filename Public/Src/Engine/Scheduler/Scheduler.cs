@@ -4219,7 +4219,7 @@ namespace BuildXL.Scheduler
                     {
                         var perfInfo = executionResult.PerformanceInformation;
                         m_perPipPerformanceInfoStore.AddPip(new PerProcessPipPerformanceInformation(
-                            processRunnable.Description,
+                            ref processRunnable,
                             (int)perfInfo.ProcessExecutionTime.TotalMilliseconds,
                             perfInfo.MemoryCounters.PeakWorkingSetMb,
                             (int)Math.Ceiling(perfInfo.IO.ReadCounters.TransferCount / BytesInMb),

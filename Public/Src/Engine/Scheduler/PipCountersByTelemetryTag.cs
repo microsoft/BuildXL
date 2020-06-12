@@ -16,7 +16,10 @@ namespace BuildXL.Scheduler
     /// </summary>
     public sealed class PipCountersByTelemetryTag : PipCountersByGroupCategoryBase<StringId>
     {
-        private const string DefaultTelemetryTagPrefix = "telemetry:";
+        /// <summary>
+        /// Default prefix for Telemetry Tags.
+        /// </summary>
+        public const string DefaultTelemetryTagPrefix = "telemetry:";
 
         private readonly string m_telemetryTagPrefix;
 

@@ -16,6 +16,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Code of Conduct](../CODE_OF_CONDUCT.md)
 * [Installation Instructions](Wiki/Installation.md)
 * [Developer Guide](Wiki/DeveloperGuide.md)
+* [Development Productivity Tips and Tricks](Wiki/ProductivityTipsAndTricks.md)
 * [Security](../SECURITY.md)
 * [Release Notes](Wiki/Release-Notes.md)
 

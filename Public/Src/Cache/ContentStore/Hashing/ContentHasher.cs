@@ -26,7 +26,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     Cap the number of idle reserve instances in the pool so as to not unnecessarily hold large amounts of memory
         /// </remarks>
-        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
+        private readonly Pool<T> _algorithmsPool = new Pool<T>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
 
         private readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
 
@@ -67,24 +67,50 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public HasherToken CreateToken() => new HasherToken(_algorithmsPool.Get());
 
         /// <inheritdoc />
-        public async Task<ContentHash> GetContentHashAsync(Stream content)
+        public async Task<ContentHash> GetContentHashAsync(StreamWithLength content)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                using (var bufferHandle = _bufferPool.Get())
+                using (var hasherHandle = CreateToken()) 
                 {
-                    var buffer = bufferHandle.Value;
+                    var hasher = hasherHandle.Hasher;
 
-                    using (var hasherHandle = CreateToken())
+                    IPoolHandle<byte[]> bufferHandle;
+                    if (hasher is IHashAlgorithmBufferPool bufferPool)
                     {
-                        var hasher = hasherHandle.Hasher;
-                        int bytesRead;
-                        while ((bytesRead = await content.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0)
+                        bufferHandle = bufferPool.GetBufferFromPool();
+                    }
+                    else
+                    {
+                        bufferHandle = _bufferPool.Get();
+                    }
+
+                    using (bufferHandle)
+                    {
+                        var buffer = bufferHandle.Value;
+
+                        if (hasher is IHashAlgorithmInputLength sizeHint)
                         {
-                            hasher.TransformBlock(buffer, 0, bytesRead, null, 0);
+                            sizeHint.SetInputLength(content.Length - content.Stream.Position);
                         }
+
+                        int bytesJustRead;
+
+                        do
+                        {
+                            int totalBytesRead = 0;
+                            int bytesNeeded = buffer.Length - totalBytesRead;
+                            do
+                            {
+                                bytesJustRead = await content.Stream.ReadAsync(buffer, totalBytesRead, buffer.Length - totalBytesRead).ConfigureAwait(false);
+                                totalBytesRead += bytesJustRead;
+                                bytesNeeded -= bytesJustRead;
+                            } while (bytesNeeded > 0 && bytesJustRead != 0);
+
+                            hasher.TransformBlock(buffer, 0, totalBytesRead, null, 0);
+                        } while (bytesJustRead > 0);
 
                         hasher.TransformFinalBlock(buffer, 0, 0);
                         var hashBytes = hasher.Hash;
@@ -109,7 +135,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 using (var hasherToken = CreateToken())
                 {
-                    var hashBytes = hasherToken.Hasher.ComputeHash(content);
+                    var hasher = hasherToken.Hasher;
+                    if (hasher is IHashAlgorithmInputLength sizeHint)
+                    {
+                        sizeHint.SetInputLength(content.Length);
+                    }
+
+                    var hashBytes = hasher.ComputeHash(content);
                     return new ContentHash(Info.HashType, hashBytes);
                 }
             }
@@ -130,7 +162,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 using (var hasherToken = CreateToken())
                 {
-                    var hashBytes = hasherToken.Hasher.ComputeHash(content, offset, count);
+                    var hasher = hasherToken.Hasher;
+                    if (hasher is IHashAlgorithmInputLength sizeHint)
+                    {
+                        sizeHint.SetInputLength(count);
+                    }
+
+                    var hashBytes = hasher.ComputeHash(content, offset, count);
                     return new ContentHash(Info.HashType, hashBytes);
                 }
             }
@@ -157,20 +195,28 @@ namespace BuildXL.Cache.ContentStore.Hashing
             return counters;
         }
 
-        /// <summary>
-        ///     Create a wrapping stream that calculates the content hash.
-        /// </summary>
-        public HashingStream CreateReadHashingStream(Stream stream, long parallelHashingFileSizeBoundary = -1)
+        /// <inheritdoc />
+        public HashingStream CreateReadHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1)
         {
-            return new HashingStreamImpl(stream, this, CryptoStreamMode.Read, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary);
+            return new HashingStreamImpl(stream, this, CryptoStreamMode.Read, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary, streamLength);
         }
 
-        /// <summary>
-        ///     Create a wrapping stream that calculates the content hash.
-        /// </summary>
-        public HashingStream CreateWriteHashingStream(Stream stream, long parallelHashingFileSizeBoundary = -1)
+        /// <inheritdoc />
+        public HashingStream CreateReadHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1)
         {
-            return new HashingStreamImpl(stream, this, CryptoStreamMode.Write, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary);
+            return CreateReadHashingStream(stream.Length, stream, parallelHashingFileSizeBoundary);
+        }
+
+        /// <inheritdoc />
+        public HashingStream CreateWriteHashingStream(long streamLength, Stream stream, long parallelHashingFileSizeBoundary = -1)
+        {
+            return new HashingStreamImpl(stream, this, CryptoStreamMode.Write, useParallelHashing: parallelHashingFileSizeBoundary >= 0, parallelHashingFileSizeBoundary, streamLength);
+        }
+
+        /// <inheritdoc />
+        public HashingStream CreateWriteHashingStream(StreamWithLength stream, long parallelHashingFileSizeBoundary = -1)
+        {
+            return CreateWriteHashingStream(stream.Length, stream, parallelHashingFileSizeBoundary);
         }
 
         /// <summary>
@@ -198,7 +244,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private long _ticksSpentHashing;
 
-            public HashingStreamImpl(Stream stream, ContentHasher<T> hasher, CryptoStreamMode mode, bool useParallelHashing, long parallelHashingFileSizeBoundary)
+            public HashingStreamImpl(
+                Stream stream,
+                ContentHasher<T> hasher,
+                CryptoStreamMode mode,
+                bool useParallelHashing,
+                long parallelHashingFileSizeBoundary,
+                long streamLength)
             {
                 Contract.Requires(stream != null);
                 Contract.Requires(hasher != null);
@@ -217,7 +269,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
                         new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
                 }
 
-                _hashAlgorithm = new GuardedHashAlgorithm(this, hasher);
+                _hashAlgorithm = new GuardedHashAlgorithm(this, streamLength, hasher);
             }
 
             private void HashSegmentAsync(Pool<Buffer>.PoolHandle handle)
@@ -452,12 +504,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 private readonly HashingStreamImpl _ownerStream;
                 public bool Finalized { get; private set; }
 
-                public GuardedHashAlgorithm(HashingStreamImpl ownerStream, ContentHasher<T> hasher)
+                public GuardedHashAlgorithm(HashingStreamImpl ownerStream, long streamLength, ContentHasher<T> hasher)
                 {
                     _ownerStream = ownerStream;
                     _hasherToken = hasher.CreateToken();
 
                     var hashAlgorithm = _hasherToken.Hasher;
+
+                    if (streamLength >= 0 && hashAlgorithm is IHashAlgorithmInputLength sizeHint)
+                    {
+                        sizeHint.SetInputLength(streamLength);
+                    }
+
                     if (!hashAlgorithm.CanTransformMultipleBlocks)
                     {
                         throw new NotImplementedException();

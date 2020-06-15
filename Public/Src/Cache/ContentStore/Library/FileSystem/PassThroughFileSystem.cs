@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -349,7 +350,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public async Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        public async Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
             path.ThrowIfPathTooLong();
 
@@ -365,7 +366,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
+        public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {
             return this.OpenAsync(path, FileAccess.Read, FileMode.Open, share);
         }
@@ -428,7 +429,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         {
             // It is very important to call OpenInternal and not to call OpenAsync method that will re-acquire the semaphore once again.
             // Violating this rule may cause a deadlock.
-            using (var readStream = TryOpenFile(
+            using (Stream readStream = TryOpenFile(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
             {
                 if (readStream == null)
@@ -443,7 +444,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 // if the target file larger than the source.
                 var mode = replaceExisting ? FileMode.Create : FileMode.CreateNew;
 
-                using (var writeStream = TryOpenFile(
+                using (Stream writeStream = TryOpenFile(
                     destinationPath, FileAccess.Write, mode, FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     if (writeStream == null)
@@ -457,7 +458,8 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-        private Stream TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+#nullable enable annotations
+        private StreamWithLength? TryOpenFile(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             try
             {
@@ -477,7 +479,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             }
         }
 
-        private Stream TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private FileStream? TryOpenFileUnix(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             if (DirectoryExists(path))
             {
@@ -501,7 +503,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         /// <remarks>
         /// The method throws similar exception that <see cref="FileStream"/> constructor.
         /// </remarks>
-        private Stream TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
+        private FileStream? TryOpenFileWin(AbsolutePath path, FileAccess accessMode, FileMode mode, FileShare share, FileOptions options, int bufferSize)
         {
             options = GetOptions(path, options);
 
@@ -529,7 +531,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 {
                     case ERROR_FILE_NOT_FOUND:
                     case ERROR_PATH_NOT_FOUND:
-                        return (Stream)null;
+                        return (FileStream)null;
                     default:
                         throw ThrowLastWin32Error(
                             path.Path,
@@ -557,6 +559,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 }
             }
         }
+#nullable restore annotations
 
         private FileOptions GetOptions(AbsolutePath path, FileOptions options)
         {

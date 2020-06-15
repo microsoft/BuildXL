@@ -472,7 +472,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         {
                             var request = requestStream.Current;
                             var bytes = request.Content.ToByteArray();
-                            await tempFile.WriteAsync(bytes, 0, bytes.Length, token);
+                            await tempFile.Stream.WriteAsync(bytes, 0, bytes.Length, token);
                         }
                     }
 

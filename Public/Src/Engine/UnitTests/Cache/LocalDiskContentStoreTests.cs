@@ -984,7 +984,7 @@ namespace Test.BuildXL.Engine.Cache
                 return ContentCache.TryLoadAvailableContentAsync(hashes);
             }
 
-            public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+            public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
             {
                 return ContentCache.TryOpenContentStreamAsync(contentHash);
             }

@@ -131,11 +131,11 @@ namespace BuildXL.Storage
 
             if (hashType == HashType.DedupNodeOrChunk || hashType == HashType.DedupNode)
             {
-                if (DedupNodeHashAlgorithm.IsComChunkerSupported)
+                if (Chunker.IsComChunkerSupported)
                 { 
-                    if (DedupNodeHashAlgorithm.ComChunkerLoadError.Value != null)
+                    if (Chunker.ComChunkerLoadError.Value != null)
                     {
-                        Logger.Log.ComChunkerFailulre(Events.StaticContext, DedupNodeHashAlgorithm.ComChunkerLoadError.Value.ToString());
+                        Logger.Log.ComChunkerFailulre(Events.StaticContext, Chunker.ComChunkerLoadError.Value.ToString());
                     }
                     else
                     {
@@ -259,7 +259,7 @@ namespace BuildXL.Storage
         /// <remarks>
         /// The stream is read from its current location until the end. The stream is not closed or disposed upon completion.
         /// </remarks>
-        public static ContentHash HashContentStream(Stream content)
+        public static ContentHash HashContentStream(StreamWithLength content)
         {
             return HashContentStreamAsync(content).GetAwaiter().GetResult();
         }
@@ -270,7 +270,7 @@ namespace BuildXL.Storage
         /// <remarks>
         /// The stream is read from its current location until the end. The stream is not closed or disposed upon completion.
         /// </remarks>
-        public static async Task<ContentHash> HashContentStreamAsync(Stream content, HashType hashType = HashType.Unknown)
+        public static async Task<ContentHash> HashContentStreamAsync(StreamWithLength content, HashType hashType = HashType.Unknown)
         {
             var result = await ExceptionUtilities.HandleRecoverableIOException(
                 () => GetContentHasher(hashType).GetContentHashAsync(content),
@@ -279,7 +279,7 @@ namespace BuildXL.Storage
             return result;
         }
 
-                /// <summary>
+        /// <summary>
         /// Returns a <see cref="ContentHash" /> of the file at the given absolute path.
         /// </summary>
         public static async Task<ContentHash> HashFileAsync(string absoluteFilePath)
@@ -287,7 +287,7 @@ namespace BuildXL.Storage
             Contract.Requires(Path.IsPathRooted(absoluteFilePath), "File path must be absolute");
 
             // TODO: Specify a small buffer size here (see HashFileAsync(SafeFileHandle))
-            using (FileStream fileStream = FileUtilities.CreateAsyncFileStream(absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+            using (var fileStream = FileUtilities.CreateAsyncFileStream(absoluteFilePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             {
                 return await HashContentStreamAsync(fileStream).ConfigureAwait(false);
             }

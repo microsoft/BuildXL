@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Test
         public void ComChunkerWorksOnThreading()
         {
             Thread.CurrentThread.GetApartmentState().Should().Be(ApartmentState.MTA);
-            var chunker = new ComChunker();
+            var chunker = new ComChunker(ChunkerConfiguration.Default);
             Task.Run(() =>
             {
                 using var session = chunker.BeginChunking(chunk => { });

@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -35,10 +36,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="OpenStreamResult" /> class with resulting stream.
         /// </summary>
-        public OpenStreamResult(Stream? stream)
+        public OpenStreamResult(StreamWithLength? stream)
         {
             Code = stream != null ? ResultCode.Success : ResultCode.ContentNotFound;
-            Stream = stream;
+            StreamWithLength = stream;
         }
 
         /// <summary>
@@ -96,7 +97,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Gets opened stream.
         /// </summary>
-        public readonly Stream? Stream;
+        public Stream? Stream => StreamWithLength?.Stream;
+
+        /// <summary>
+        ///     Gets opened stream.
+        /// </summary>
+        public readonly StreamWithLength? StreamWithLength;
 
         /// <inheritdoc />
         public bool Equals(OpenStreamResult other)

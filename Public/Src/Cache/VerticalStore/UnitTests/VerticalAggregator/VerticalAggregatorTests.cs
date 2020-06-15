@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Cache.Tests;
@@ -461,7 +462,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                 targetSession.GetStreamAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
-                    return Task.FromResult(new Possible<Stream, Failure>(new TestInducedFailure("(GetStreamAsync)")));
+                    return Task.FromResult(new Possible<StreamWithLength, Failure>(new TestInducedFailure("(GetStreamAsync)")));
                 };
                 return 0;
             });
@@ -521,7 +522,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                 targetSession.GetStreamAsyncCallback = (CasHash hash, UrgencyHint urgencyHint, Guid activityId, ICacheReadOnlySession wrappedSession) =>
                 {
                     // Any error should work.
-                    return Task.FromResult(new Possible<Stream, Failure>(new TestInducedFailure("(GetStreamAsync)")));
+                    return Task.FromResult(new Possible<StreamWithLength, Failure>(new TestInducedFailure("(GetStreamAsync)")));
                 };
                 return 0;
             });
@@ -922,7 +923,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                 XAssert.AreEqual(TestName, stream.AsString(), "Failed to read back matching content from cache");
             }
@@ -937,7 +938,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             await TestInMemory.CorruptEntry(cache.LocalCache, item);
 
             // Read it back and validate that it is corrupted
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                 XAssert.AreNotEqual(TestName, stream.AsString(), "Failed to corrupt CAS entry!");
             }
@@ -963,7 +964,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                 if (hash == item)
                 {
                     // This is a stream of a different hash
-                    return Task.FromResult<Possible<Stream, Failure>>("Corrupted!".AsStream());
+                    return Task.FromResult<Possible<StreamWithLength, Failure>>("Corrupted!".AsStream());
                 }
 
                 return realSession.GetStreamAsync(hash, hint, guid);
@@ -1023,7 +1024,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
                             {
                                 if (hash1 == item)
                                 {
-                                    return Task.FromResult<Possible<Stream, Failure>>(new ProduceStreamFailure(realSession1.CacheId, hash1));
+                                    return Task.FromResult<Possible<StreamWithLength, Failure>>(new ProduceStreamFailure(realSession1.CacheId, hash1));
                                 }
 
                                 return realSession1.GetStreamAsync(hash1, hint1, guid1);
@@ -1142,7 +1143,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             SetCorruptionBehavior(remoteSession, item, ValidateContentStatus.Ok, countValidate);
             if (useGetStream)
             {
-                (await session.GetStreamAsync(item).SuccessAsync()).Close();
+                (await session.GetStreamAsync(item).SuccessAsync()).Stream.Close();
             }
             else
             {
@@ -1213,7 +1214,7 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             // L2, at which point the L2 will provide the correct content to the L1
             if (useGetStream)
             {
-                using (var stream = (await session.GetStreamAsync(item)).Success())
+                using (Stream stream = (await session.GetStreamAsync(item)).Success())
                 {
                     XAssert.AreEqual(testName, stream.AsString(), "Failed to read back matching content from cache");
                 }
@@ -1283,7 +1284,8 @@ namespace BuildXL.Cache.VerticalAggregator.Test
 
                 BadStreamWrapper badStream = new BadStreamWrapper(realStream);
 
-                return badStream;
+                // HMMM
+                return badStream.WithLength(long.MaxValue);
             };
 
             // Has to be a non-empty stream or the empty file short circuit blocks it.
@@ -1303,6 +1305,8 @@ namespace BuildXL.Cache.VerticalAggregator.Test
             {
                 s.CopyTo(this);
             }
+
+            public override bool CanSeek => false;
 
             public override long Length
             {

@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </summary>
     public readonly struct HasherToken : IEquatable<HasherToken>, IDisposable
     {
-        private readonly Pool<HashAlgorithm>.PoolHandle _poolHandle;
+        private readonly IPoolHandle<HashAlgorithm> _poolHandle;
 
         /// <summary>
         ///     Gets hash algorithm this token uses.
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     When the token is disposed, the hasher will be added back to the object pool.
         /// </remarks>
-        public HasherToken(Pool<HashAlgorithm>.PoolHandle pooledHasher)
+        public HasherToken(IPoolHandle<HashAlgorithm> pooledHasher)
         {
             Contract.Requires(pooledHasher.Value != null);
 

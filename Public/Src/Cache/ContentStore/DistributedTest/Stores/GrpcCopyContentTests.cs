@@ -97,7 +97,7 @@ namespace ContentStoreTest.Distributed.Stores
                 {
                     (await client.CopyToAsync(_context, putResult.ContentHash, destinationStream, CancellationToken.None)).ShouldBeSuccess();
                     // If the stream is not disposed, the following operation should not fail.
-                    destinationStream.Position.Should().BeGreaterThan(0);
+                    destinationStream.Stream.Position.Should().BeGreaterThan(0);
                 }
                 
                 var copied = FileSystem.ReadAllBytes(destinationPath);

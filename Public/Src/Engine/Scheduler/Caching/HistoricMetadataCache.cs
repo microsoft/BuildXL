@@ -396,27 +396,27 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <inheritdoc/>
-        protected override async Task<Possible<Stream>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
+        protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
         {
             await EnsureLoadedAsync();
 
             if (TryGetContent(pathSetHash, out var content))
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetHits);
-                return new MemoryStream(content.Array, content.Offset, content.Count, writable: false);
+                return (new MemoryStream(content.Array, content.Offset, content.Count, writable: false)).HasLength();
             }
 
             var possiblyOpened = await base.TryLoadAndOpenPathSetStreamAsync(pathSetHash);
             if (possiblyOpened.Succeeded)
             {
                 Counters.IncrementCounter(PipCachingCounter.HistoricPathSetMisses);
-                using (var stream = possiblyOpened.Result)
+                using (Stream stream = possiblyOpened.Result)
                 {
                     content = new ArraySegment<byte>(new byte[(int)stream.Length]);
                     var readCount = await stream.ReadAsync(content.Array, 0, content.Count);
                     Contract.Assert(readCount == content.Count);
                     TryAddContent(pathSetHash, content);
-                    return new MemoryStream(content.Array, writable: false);
+                    return (new MemoryStream(content.Array, writable: false)).HasLength();
                 }
             }
 

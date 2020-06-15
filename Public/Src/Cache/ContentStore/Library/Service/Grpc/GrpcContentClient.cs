@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 try
                 {
-                    Stream stream = await FileSystem.OpenReadOnlyAsync(tempPath, FileShare.Delete | FileShare.Read);
+                    StreamWithLength? stream = await FileSystem.OpenReadOnlyAsync(tempPath, FileShare.Delete | FileShare.Read);
                     if (stream == null)
                     {
                         throw new ClientCanRetryException(context, $"Failed to open temp file {tempPath}. The service may have restarted");

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -106,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// Unlike <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<Stream> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = DefaultFileStreamBufferSize)
+        public static async Task<StreamWithLength> OpenSafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options = FileOptions.None, int bufferSize = DefaultFileStreamBufferSize)
         {
             var stream = await fileSystem.OpenAsync(path, fileAccess, fileMode, share, options, bufferSize);
             if (stream == null)
@@ -114,7 +115,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new FileNotFoundException($"The file '{path}' does not exist.");
             }
 
-            return stream;
+            return stream.Value;
         }
 
         /// <summary>
@@ -124,7 +125,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <remarks>
         /// Unlike <see cref="IReadableFileSystem{T}.OpenReadOnlyAsync(T, FileShare)"/> this function throws an exception if the file is missing.
         /// </remarks>
-        public static async Task<Stream> OpenReadOnlySafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
+        public static async Task<StreamWithLength> OpenReadOnlySafeAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileShare share)
         {
             var stream = await fileSystem.OpenReadOnlyAsync(path, share);
             if (stream == null)
@@ -132,13 +133,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 throw new FileNotFoundException($"The file '{path}' does not exist.");
             }
 
-            return stream;
+            return stream.Value;
         }
 
         /// <summary>
         /// Calls <see cref="IAbsFileSystem.OpenAsync(AbsolutePath, FileAccess, FileMode, FileShare, FileOptions, int)" /> with the default buffer stream size.
         /// </summary>
-        public static Task<Stream?> OpenAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
+        public static Task<StreamWithLength?> OpenAsync(this IAbsFileSystem fileSystem, AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share)
         {
             return fileSystem.OpenAsync(path, fileAccess, fileMode, share, FileOptions.None, DefaultFileStreamBufferSize);
         }

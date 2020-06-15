@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
@@ -155,7 +156,7 @@ namespace BuildXL.Cache.Analyzer
             }
 
             // Get the stream for the input assertion list file
-            Possible<Stream, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(sfp.CasElement).ConfigureAwait(false);
+            Possible<StreamWithLength, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(sfp.CasElement).ConfigureAwait(false);
             if (!possibleStream.Succeeded)
             {
                 cacheErrors.TryAdd(
@@ -230,10 +231,10 @@ namespace BuildXL.Cache.Analyzer
                     Possible<string, Failure> possibleString = await m_readOnlySession.PinToCasAsync(strongFingerprint.CasElement).ConfigureAwait(false);
                     if (possibleString.Succeeded)
                     {
-                        Possible<Stream, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(strongFingerprint.CasElement).ConfigureAwait(false);
+                        Possible<StreamWithLength, Failure> possibleStream = await m_readOnlySession.GetStreamAsync(strongFingerprint.CasElement).ConfigureAwait(false);
                         if (possibleStream.Succeeded)
                         {
-                            using (Stream stream = possibleStream.Result)
+                            using (StreamWithLength stream = possibleStream.Result)
                             {
                                 // Get the file length
                                 long fileLength = (await new StreamReader(stream).ReadToEndAsync()).Length;

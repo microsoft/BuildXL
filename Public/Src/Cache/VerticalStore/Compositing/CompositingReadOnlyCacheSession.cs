@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities;
@@ -122,7 +123,7 @@ namespace BuildXL.Cache.Compositing
             return Task.FromResult(new Possible<ValidateContentStatus, Failure>(ValidateContentStatus.NotSupported));
         }
 
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var eventing = new GetStreamActivity(CompositingCache.EventSource, activityId, this))
             {

@@ -441,9 +441,9 @@ namespace Test.BuildXL.EngineTestUtilities
         }
 
         /// <inheritdoc />
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return Task.Run<Possible<Stream, Failure>>(
+            return Task.Run<Possible<StreamWithLength, Failure>>(
                 () =>
                 {
                     lock (m_lock)
@@ -459,7 +459,7 @@ namespace Test.BuildXL.EngineTestUtilities
                             string localPath = GetLocalPath(contentHash);
                             Contract.Assert(File.Exists(localPath));
 
-                            return new FileStream(localPath, FileMode.Open, FileAccess.Read);
+                            return (new FileStream(localPath, FileMode.Open, FileAccess.Read)).HasLength();
                         }
                         else
                         {

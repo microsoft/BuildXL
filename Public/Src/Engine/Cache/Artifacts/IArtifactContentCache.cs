@@ -51,7 +51,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// Attempts to open a read-only stream for content. The content should have previously been stored or loaded.
         /// The caller is responsible for closing the returned stream, if any.
         /// </summary>
-        Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash);
+        Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash);
 
         /// <summary>
         /// Attempts to place content at the specified path. The content should have previously been stored or loaded.

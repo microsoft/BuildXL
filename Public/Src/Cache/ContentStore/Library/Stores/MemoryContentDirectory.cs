@@ -255,10 +255,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                             headerContext.Serialize(entries.Length);
                             headerContext.Serialize(contentSize);
                             headerContext.Serialize(replicaCount);
-                            stream.Write(headerBuffer, 0, headerBuffer.Length);
+                            stream.Stream.Write(headerBuffer, 0, headerBuffer.Length);
                         }
 
-                        stream.Write(partitionBuffer, 0, partitionContext.Offset);
+                        stream.Stream.Write(partitionBuffer, 0, partitionContext.Offset);
                     }
                 };
 
@@ -285,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (var stream = await _fileSystem.OpenSafeAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read))
                 {
                     var header = new byte[BinaryHeaderSizeV2];
-                    stream.Read(header, 0, header.Length);
+                    stream.Stream.Read(header, 0, header.Length);
                     var headerContext = new BufferSerializeContext(header);
                     directoryHeader.MagicFlag = headerContext.DeserializeByte();
                     if (directoryHeader.MagicFlag != BinaryFormatMagicFlag)
@@ -298,7 +298,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (directoryHeader.Version == BinaryFormatVersion)
                     {
                         header = new byte[BinaryHeaderExtraSizeV3];
-                        stream.Read(header, 0, header.Length);
+                        stream.Stream.Read(header, 0, header.Length);
                         headerContext = new BufferSerializeContext(header);
                         directoryHeader.ContentSize = headerContext.DeserializeInt64();
                         directoryHeader.ReplicaCount = headerContext.DeserializeInt64();
@@ -377,7 +377,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 using (var stream = await _fileSystem.OpenSafeAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read))
                 {
                     byte[] headerBuffer = new byte[header.HeaderSize];
-                    stream.Read(headerBuffer, 0, header.HeaderSize);
+                    stream.Stream.Read(headerBuffer, 0, header.HeaderSize);
 
                     var streamSync = new object();
                     var entriesSync = new object();
@@ -400,7 +400,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         lock (streamSync)
                         {
-                            bytesRead = stream.Read(buffer, 0, bufferLength);
+                            bytesRead = stream.Stream.Read(buffer, 0, bufferLength);
                         }
 
                         if (bytesRead != buffer.Length)

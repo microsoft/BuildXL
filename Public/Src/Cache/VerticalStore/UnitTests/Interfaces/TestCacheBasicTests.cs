@@ -203,7 +203,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                stream.AsString();
             }
@@ -249,7 +249,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(inputList)).Success())
+            using (Stream stream = (await session.GetStreamAsync(inputList)).Success())
             {
                 stream.AsString();
             }
@@ -261,7 +261,7 @@ namespace BuildXL.Cache.Tests
 
                 // Verify that we can read the content after it was added in
                 // this session since it was pinned
-                using (var stream = (await session.GetStreamAsync(items[i])).Success())
+                using (Stream stream = (await session.GetStreamAsync(items[i])).Success())
                 {
                     stream.AsString();
                 }
@@ -715,7 +715,7 @@ namespace BuildXL.Cache.Tests
 
             // Verify that we can read the content after it was added in
             // this session since it was pinned
-            using (var stream = (await session.GetStreamAsync(item)).Success())
+            using (Stream stream = (await session.GetStreamAsync(item)).Success())
             {
                 XAssert.AreEqual(TestName, stream.AsString(), "Failed to read back matching content from cache");
             }
@@ -738,7 +738,7 @@ namespace BuildXL.Cache.Tests
                 {
                     await CorruptCasEntry(cache, item);
 
-                    using (var stream = (await session.GetStreamAsync(item)).Success())
+                    using (Stream stream = (await session.GetStreamAsync(item)).Success())
                     {
                         XAssert.AreNotEqual(TestName, stream.AsString(), "Failed to corrupt CAS entry!");
                     }

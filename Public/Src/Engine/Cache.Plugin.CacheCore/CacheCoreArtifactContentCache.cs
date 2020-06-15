@@ -445,7 +445,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         }
 
         /// <inheritdoc />
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
             return m_cache.Get(nameof(TryOpenContentStreamAsync))
                 .ThenAsync(cache => cache.GetStreamAsync(new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash))));

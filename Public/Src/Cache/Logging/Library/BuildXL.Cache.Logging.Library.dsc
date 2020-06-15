@@ -11,6 +11,7 @@ namespace Library {
         references: [
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Library.dll,
             importFrom("BuildXL.Utilities").dll,

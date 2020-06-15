@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
 
 namespace BuildXL.Cache.Interfaces.Test
@@ -155,9 +155,9 @@ namespace BuildXL.Cache.Interfaces.Test
             }
         }
 
-        public Func<CasHash, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<Stream, Failure>>> GetStreamAsyncCallback;
+        public Func<CasHash, UrgencyHint, Guid, ICacheReadOnlySession, Task<Possible<StreamWithLength, Failure>>> GetStreamAsyncCallback;
 
-        public Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             var callback = GetStreamAsyncCallback;
             if (callback != null)

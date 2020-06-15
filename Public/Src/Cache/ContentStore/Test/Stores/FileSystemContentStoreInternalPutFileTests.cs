@@ -307,10 +307,10 @@ namespace ContentStoreTest.Stores
 
                     var result = await store.PutFileAsync(context, sourcePath2, FileRealizationMode.HardLink, contentHash, null);
                     result.ContentHash.Should().Be(contentHash);
-                    using (Stream stream = await FileSystem.OpenAsync(
+                    using (StreamWithLength? stream = await FileSystem.OpenAsync(
                         sourcePath2, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
-                        (await stream.CalculateHashAsync(ContentHashType)).Should().Be(contentHash);
+                        (await stream.Value.CalculateHashAsync(ContentHashType)).Should().Be(contentHash);
                     }
                 }
             });

@@ -160,10 +160,10 @@ namespace ContentStoreTest.Stores
 
                     // First place should error
                     result.Code.Should().Be(PlaceFileResult.ResultCode.Error);
-                    using (Stream stream = await FileSystem.OpenAsync(
+                    using (StreamWithLength? stream = await FileSystem.OpenAsync(
                         placePath, FileAccess.Read, FileMode.Open, FileShare.Read))
                     {
-                        (await stream.CalculateHashAsync(ContentHashType)).Should().Be(
+                        (await stream.Value.CalculateHashAsync(ContentHashType)).Should().Be(
                             new byte[] {0}.CalculateHash(ContentHashType));
                     }
 

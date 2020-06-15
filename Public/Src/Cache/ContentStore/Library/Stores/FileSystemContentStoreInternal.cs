@@ -123,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Stream containing the empty file.
         /// </summary>
-        private readonly Stream _emptyFileStream = new NonClosingEmptyMemoryStream();
+        private readonly StreamWithLength _emptyFileStream = new NonClosingEmptyMemoryStream();
 
         /// <summary>
         ///     Cumulative count of instances of the content directory being discovered as out of sync with the disk.
@@ -241,9 +241,14 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return null;
             }
 
+            long length = stream.Value.Length;
+
             using var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream);
+            Contract.Assert(wrappedStream.CanSeek);
+            Contract.Assert(wrappedStream.Length == length);
+
             // Hash the file in  place
-            return await HashContentAsync(context, wrappedStream, hashType, path);
+            return await HashContentAsync(context, wrappedStream.AssertHasLength(), hashType, path);
         }
 
         private void DeleteTempFolder()
@@ -1013,7 +1018,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 long contentSize;
 
                 var hasher = ContentHashers.Get(hashType);
-                using (var hashingStream = hasher.CreateReadHashingStream(stream))
+                long length = stream.CanSeek ? stream.Length : -1;
+                using (var hashingStream = hasher.CreateReadHashingStream(length, stream))
                 {
                     pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream);
                     contentSize = FileSystem.GetFileSize(pathToTempContent);
@@ -1162,10 +1168,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             return pathToTempContent;
         }
 
-        private async Task<ContentHashWithSize> HashContentAsync(Context context, Stream stream, HashType hashType, AbsolutePath path)
+        private async Task<ContentHashWithSize> HashContentAsync(Context context, StreamWithLength stream, HashType hashType, AbsolutePath path)
         {
-            Contract.Requires(stream != null);
-
             try
             {
                 ContentHash contentHash = await ContentHashers.Get(hashType).GetContentHashAsync(stream);
@@ -1921,7 +1925,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentHash computedHash = new ContentHash(contentHash.HashType);
             var hasher = ContentHashers.Get(contentHash.HashType);
 
-            using (Stream? contentStream =
+            using (StreamWithLength? contentStream =
                 await OpenStreamInternalWithLockAsync(context, contentHash, pinRequest: null, FileShare.Read | FileShare.Delete))
             {
                 if (contentStream == null)
@@ -1930,7 +1934,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
                 else
                 {
-                    using (var hashingStream = hasher.CreateReadHashingStream(contentStream))
+                    using (var hashingStream = hasher.CreateReadHashingStream(contentStream.Value))
                     {
                         try
                         {
@@ -2556,7 +2560,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             });
         }
 
-        private async Task<Stream?> OpenStreamInternalWithLockAsync(Context context, ContentHash contentHash, PinRequest? pinRequest, FileShare share)
+        private async Task<StreamWithLength?> OpenStreamInternalWithLockAsync(Context context, ContentHash contentHash, PinRequest? pinRequest, FileShare share)
         {
             AbsolutePath? contentPath = await PinContentAndGetFullPathAsync(contentHash, pinRequest);
 

@@ -235,15 +235,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             var result = await ReadOnlyCacheSession.OpenStreamAsync(new Context(Logger), hash.ToMemoization(), CancellationToken.None);
             switch (result.Code)
             {
                 case OpenStreamResult.ResultCode.Success:
-                    if (result.Stream != null)
+                    if (result.StreamWithLength != null)
                     {
-                        return result.Stream;
+                        return result.StreamWithLength.Value;
                     }
 
                     return new NoCasEntryFailure(CacheId, hash);

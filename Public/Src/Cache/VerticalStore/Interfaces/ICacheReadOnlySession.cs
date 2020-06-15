@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
@@ -177,7 +177,7 @@ namespace BuildXL.Cache.Interfaces
         /// <returns>
         /// A read-only stream of the contents in the CAS Hash entry
         /// </returns>
-        Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
 
         /// <summary>
         /// Get a dictionary of name/value pairs of cache session activity statistics

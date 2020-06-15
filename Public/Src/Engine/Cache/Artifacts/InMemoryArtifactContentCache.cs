@@ -182,9 +182,9 @@ namespace BuildXL.Engine.Cache.Artifacts
 
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
-            return Task.Run<Possible<Stream, Failure>>(
+            return Task.Run<Possible<StreamWithLength, Failure>>(
                 () =>
                 {
                     lock (m_lock)
@@ -197,7 +197,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                 return new Failure<string>("Content is available in 'remote' cache but is not local. Load it locally first with TryLoadAvailableContentAsync.");
                             }
 
-                            return new MemoryStream(entry.Content, writable: false);
+                            return (new MemoryStream(entry.Content, writable: false)).HasLength();
                         }
                         else
                         {

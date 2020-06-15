@@ -575,7 +575,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                     using (var stream = file.CreateReadableStream())
                                     using (var innerCounter = Counters.StartStopwatch(LocalDiskContentStoreCounter.TryDiscoverTime_HashFileContent))
                                     {
-                                        hash = await ContentHashingUtilities.HashContentStreamAsync((Stream)stream);
+                                        hash = await ContentHashingUtilities.HashContentStreamAsync(stream.AssertHasLength());
                                         contentPath = stream.File.Path ?? "<unknown-path>";
                                         contentLength = stream.Length;
                                         hashingDuration = innerCounter.Elapsed;

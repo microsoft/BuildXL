@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ImplementationSupport;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
@@ -738,7 +739,7 @@ namespace BuildXL.Cache.VerticalAggregator
         }
 
         /// <inheritdoc/>
-        public async Task<Possible<Stream, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
+        public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, UrgencyHint urgencyHint, Guid activityId)
         {
             using (var counters = m_sessionCounters.GetStreamCounter())
             {
@@ -751,7 +752,7 @@ namespace BuildXL.Cache.VerticalAggregator
                         if (localStream.Succeeded)
                         {
                             counters.HitLocal();
-                            return eventing.Returns(localStream);
+                            return eventing.Returns<StreamWithLength>(localStream);
                         }
 
                         // NOTE: Avoid checking for existence in local session since GetStream already failed.

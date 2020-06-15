@@ -257,7 +257,7 @@ namespace BuildXL.Scheduler.Cache
         {
             using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDuration))
             {
-                Possible<Stream> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash);
+                Possible<StreamWithLength> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash);
                 if (!maybePathSetStream.Succeeded)
                 {
                     return maybePathSetStream.Failure;
@@ -280,9 +280,9 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Loads the path set stream
         /// </summary>
-        protected virtual async Task<Possible<Stream>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
+        protected virtual async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash)
         {
-            Possible<Stream> maybePathSetStream = await TryLoadContentAndOpenStreamAsync(pathSetHash);
+            Possible<StreamWithLength> maybePathSetStream = await TryLoadContentAndOpenStreamAsync(pathSetHash);
             if (!maybePathSetStream.Succeeded)
             {
                 return maybePathSetStream.Failure;
@@ -306,7 +306,7 @@ namespace BuildXL.Scheduler.Cache
         /// Combined load+open. This assumes that the named content is probably available (e.g. named in a cache entry)
         /// and so soft misses are promoted to failures.
         /// </summary>
-        protected virtual async Task<Possible<Stream>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash)
+        protected virtual async Task<Possible<StreamWithLength>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash)
         {
             if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {

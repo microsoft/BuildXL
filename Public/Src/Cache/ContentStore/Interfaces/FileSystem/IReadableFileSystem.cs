@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -50,6 +51,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <param name="path">The path to open a stream to.</param>
         /// <param name="share">the file sharing permissions for the given path</param>
         /// <returns>A stream to the file that is requested</returns>
-        Task<Stream?> OpenReadOnlyAsync(T path, FileShare share);
+        Task<StreamWithLength?> OpenReadOnlyAsync(T path, FileShare share);
     }
 }

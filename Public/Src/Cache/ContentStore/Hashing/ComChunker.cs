@@ -18,12 +18,34 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// </remarks>
     public sealed class ComChunker : IChunker
     {
-        private readonly DeterministicChunker _inner = new DeterministicChunker(new ComChunkerNonDeterministic());
+        internal const int SupportedAvgChunkSize = 64 * 1024;
+
+        private readonly DeterministicChunker _inner;
+
+        /// <summary>
+        /// Creates a chunker that uses the Windows native COM library
+        /// </summary>
+        /// <param name="configuration"></param>
+        public ComChunker(ChunkerConfiguration configuration)
+        {
+            _inner = new DeterministicChunker(
+                configuration,
+                new ComChunkerNonDeterministic(configuration));
+        }
+
+        /// <inheritdoc/>
+        public ChunkerConfiguration Configuration => _inner.Configuration;
 
         /// <inheritdoc/>
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
             return _inner.BeginChunking(chunkCallback);
+        }
+
+        /// <inheritdoc/>
+        public Pool<byte[]>.PoolHandle GetBufferFromPool()
+        {
+            return _inner.GetBufferFromPool();
         }
 
         /// <inheritdoc/>
@@ -33,7 +55,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
     }
 
-    internal class ComChunkerNonDeterministic : IChunker, IDisposable
+    internal class ComChunkerNonDeterministic : INonDeterministicChunker
     {
         private static readonly Guid IteratorComGuid = new Guid("90B584D3-72AA-400F-9767-CAD866A5A2D8");
         private readonly IDedupIterateChunksHash32 _chunkHashIterator;
@@ -42,14 +64,51 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Initializes a new instance of the <see cref="Chunker"/> class.
         /// </summary>
-        public ComChunkerNonDeterministic()
+        public ComChunkerNonDeterministic(ChunkerConfiguration config)
         {
-            _chunkLibrary = NativeMethods.CreateChunkLibrary();
-            _chunkLibrary.InitializeForPushBuffers();
-
             Contract.Assert(
                 Thread.CurrentThread.GetApartmentState() == ApartmentState.MTA,
                 "Thread must be in MTA ApartmentState");
+
+            Contract.Assert(
+                config.AvgChunkSize == ComChunker.SupportedAvgChunkSize,
+                "ComChunker only supports average chunk size of 64KB"
+            );
+                
+            _chunkLibrary = NativeMethods.CreateChunkLibrary();
+            _chunkLibrary.InitializeForPushBuffers();
+
+            Action[] configures = new Action[]
+            {
+                () =>
+                {
+                    var max = (object)(config.MaxChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_MaxChunkSizeBytes, ref max);
+                },
+                () =>
+                {
+                    // THIS IS NOT HONORED 
+                    var avg = (object)(config.AvgChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_AvgChunkSizeBytes, ref avg);
+                },
+                () =>
+                {
+                    var min = (object)(config.MinChunkSize);
+                    _chunkLibrary.SetParameter(NativeMethods.DEDUP_PT_MinChunkSizeBytes, ref min);
+                },
+            };
+
+            // The order in which these need to be set depends on whether we are going bigger or smaller
+            // than the default.
+            if (config.MaxChunkSize < ChunkerConfiguration.Default.MaxChunkSize)
+            {
+                Array.Reverse(configures);
+            }
+
+            foreach (Action configure in configures)
+            {
+                configure();
+            }
 
             object chunksEnum;
             _chunkLibrary.StartChunking(IteratorComGuid, out chunksEnum);
@@ -180,6 +239,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
 #pragma warning disable SA1310 // Field names must not contain underscore
             // ReSharper disable once InconsistentNaming
             public const int DDP_E_MORE_BUFFERS = unchecked((int)0x8056531b);
+
+            public const int DEDUP_PT_MinChunkSizeBytes = 1;
+            public const int DEDUP_PT_MaxChunkSizeBytes = 2;
+            public const int DEDUP_PT_AvgChunkSizeBytes = 3;
+            public const int DEDUP_PT_InvariantChunking = 4;
+            public const int DEDUP_PT_DisableStrongHashComputation = 5;
 #pragma warning restore SA1310 // Field names must not contain underscore
 
             private static IntPtr LoadNativeLibrary(string libraryName)

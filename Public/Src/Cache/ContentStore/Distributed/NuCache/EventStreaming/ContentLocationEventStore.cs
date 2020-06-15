@@ -405,7 +405,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     try
                     {
                         long size = 0;
-                        using (var stream = await _fileSystem.OpenSafeAsync(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
+                        using (Stream stream = await _fileSystem.OpenSafeAsync(blobFilePath, FileAccess.ReadWrite, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.None, AbsFileSystemExtension.DefaultFileStreamBufferSize))
                         using (var writer = BuildXLWriter.Create(stream, leaveOpen: true))
                         {
                             EventDataSerializer.SerializeEvents(writer, eventDatas);

@@ -151,7 +151,7 @@ namespace BuildXL.Engine.Cache.Artifacts
         }
 
         /// <inheritdoc />
-        public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+        public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
         {
             return this.m_innerCache.TryOpenContentStreamAsync(contentHash);
         }

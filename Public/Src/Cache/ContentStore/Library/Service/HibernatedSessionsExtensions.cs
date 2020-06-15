@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             var jsonPath = rootPath / FileName;
 
-            using (var stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
             {
                 return stream.DeserializeFromJSON<HibernatedSessions>();
             }

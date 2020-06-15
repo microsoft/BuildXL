@@ -12,10 +12,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Utilities;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -600,13 +600,13 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
+        public Task<StreamWithLength?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize)
         {
-            return Task.FromResult((Stream)OpenStreamInternal(path, fileAccess, fileMode, share));
+            return Task.FromResult(OpenStreamInternal(path, fileAccess, fileMode, share)?.AssertHasLength());
         }
 
         /// <inheritdoc />
-        public Task<Stream> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
+        public Task<StreamWithLength?> OpenReadOnlyAsync(AbsolutePath path, FileShare share)
         {
             return this.OpenAsync(path, FileAccess.Read, FileMode.Open, share);
         }
@@ -620,7 +620,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         /// <inheritdoc />
         public async Task CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, bool replaceExisting)
         {
-            using (var readStream = await this.OpenAsync(
+            using (Stream readStream = await this.OpenAsync(
                 sourcePath, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
             {
                 if (readStream == null)

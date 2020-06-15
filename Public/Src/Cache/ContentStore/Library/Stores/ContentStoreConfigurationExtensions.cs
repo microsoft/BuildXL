@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return new ObjectResult<ContentStoreConfiguration>($"ContentStoreConfiguration not present at path=[{jsonPath}]");
             }
 
-            using (var stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
+            using (Stream stream = await fileSystem.OpenReadOnlySafeAsync(jsonPath, FileShare.None))
             {
                 configuration = stream.DeserializeFromJSON<ContentStoreConfiguration>();
             }

@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
 
@@ -10,7 +11,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {
     public class OpenStreamResultTests : ResultTests<OpenStreamResult>
     {
-        private static readonly Stream NullStream = null;
+        private static readonly StreamWithLength? NullStream = null;
 
         protected override OpenStreamResult CreateFrom(Exception exception)
         {

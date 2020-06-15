@@ -4,12 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using Xunit;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
+using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
@@ -28,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         public void IsComChunkerSupported()
         {
             Assert.Equal(
-                DedupNodeHashAlgorithm.IsComChunkerSupported,
+                Chunker.IsComChunkerSupported,
 #if PLATFORM_WIN
                 true
 #else
@@ -37,12 +38,14 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             );    
         }
 
-        private void HashOfChunksInNodeMatchesChunkHashAlgorithmInner(IChunker chunker)
+        private void HashOfChunksInNodeMatchesChunkHashAlgorithmInner(int expectedChunkCount, ChunkerConfiguration config, IChunker chunker)
         {
             using (var nodeHasher = new DedupNodeHashAlgorithm(chunker))
             using (var chunkHasher = new DedupChunkHashAlgorithm())
             {
-                byte[] bytes = new byte[2 * DedupNode.MaxDirectChildrenPerNode * (64 * 1024 /* avg chunk size */)];
+                byte[] bytes = new byte[expectedChunkCount * config.AvgChunkSize];
+
+                nodeHasher.SetInputLength(bytes.Length);
 
                 var r = new Random(Seed: 0);
                 r.NextBytes(bytes);
@@ -50,43 +53,75 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
                 nodeHasher.ComputeHash(bytes, 0, bytes.Length);
                 var node = nodeHasher.GetNode();
                 Assert.NotNull(node.Height);
-                Assert.Equal((uint)2, node.Height.Value);
+                if (expectedChunkCount >= 2 * DedupNode.MaxDirectChildrenPerNode)
+                {
+                    Assert.Equal((uint)2, node.Height.Value);
+                }
+
                 ulong offset = 0;
+                int chunkCount = 0;
                 foreach (var chunkInNode in node.EnumerateChunkLeafsInOrder())
                 {
                     byte[] chunkHash = chunkHasher.ComputeHash(bytes, (int)offset, (int)chunkInNode.TransitiveContentBytes);
                     Assert.Equal(chunkHash.ToHex(), chunkInNode.Hash.ToHex());
                     offset += chunkInNode.TransitiveContentBytes;
+                    chunkCount += 1;
                 }
+
                 Assert.Equal(offset, node.TransitiveContentBytes);
+
+                double ratio = (1.0 * expectedChunkCount) / chunkCount;
+                Assert.True(Math.Abs(ratio - 1.0) < 0.3); // within 30% of expected
             }
         }
 
-        [MtaFact]
-        public void HashOfChunksInNodeMatchesChunkHashAlgorithm()
+        [MtaTheory]
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 1, 2)] // 32K
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 1, 1)] // 64K
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 2, 1)] // 128K
+        [InlineData(2 * DedupNode.MaxDirectChildrenPerNode, 4, 1)] // 256K
+        [InlineData(DedupNode.MaxDirectChildrenPerNode, 8, 1)] // 512K
+        [InlineData(DedupNode.MaxDirectChildrenPerNode / 2, 16, 1)] // 1MB
+        [InlineData(DedupNode.MaxDirectChildrenPerNode / 4, 32, 1)] // 2MB
+        [InlineData(DedupNode.MaxDirectChildrenPerNode / 8, 64, 1)] // 4MB
+        public void HashOfChunksInNodeMatchesChunkHashAlgorithm(int expectedChunkCount, int multiplier, int divider)
         {
-            if (DedupNodeHashAlgorithm.IsComChunkerSupported)
-            {
-                HashOfChunksInNodeMatchesChunkHashAlgorithmInner(new ComChunker());
-            }
+            var config = new ChunkerConfiguration((multiplier * ChunkerConfiguration.Default.AvgChunkSize) / divider);
 
-            HashOfChunksInNodeMatchesChunkHashAlgorithmInner(new ManagedChunker());
+            HashOfChunksInNodeMatchesChunkHashAlgorithmInner(expectedChunkCount, config, new ManagedChunker(config));
+
+            if (Chunker.IsComChunkerSupported &&
+                config.AvgChunkSize == ChunkerConfiguration.Default.AvgChunkSize)
+            {
+                HashOfChunksInNodeMatchesChunkHashAlgorithmInner(expectedChunkCount, config, new ComChunker(config));
+            }
         }
 
         private DedupNode HashIsStable(uint byteCount, string expectedHash, int seed = 0)
         {
-            if (DedupNodeHashAlgorithm.IsComChunkerSupported)
+            DedupNode node;
+            if (Chunker.IsComChunkerSupported)
             {
-                using (var chunker = new ComChunker())
+                using (var chunker = new ComChunker(ChunkerConfiguration.Default))
+                using (var hasher = new DedupNodeHashAlgorithm(chunker))
                 {
-                    HashIsStableForChunker(chunker, byteCount, expectedHash, seed);
+                    node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, false);
+                    node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, true);
+                    node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, false);
+                    node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, true);
                 }
             }
 
-            using (var chunker = new ManagedChunker())
+            using (var chunker = new ManagedChunker(ChunkerConfiguration.Default))
+            using (var hasher = new DedupNodeHashAlgorithm(chunker))
             {
-                return HashIsStableForChunker(chunker, byteCount, expectedHash, seed);
+                node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, false);
+                node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, true);
+                node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, false);
+                node = HashIsStableForChunker(hasher, byteCount, expectedHash, seed, true);
             }
+
+            return node;
         }
 
         private static void FillBufferWithTestContent(int seed, byte[] bytes)
@@ -101,26 +136,27 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        private DedupNode HashIsStableForChunker(IChunker chunker, uint byteCount, string expectedHash, int seed)
+        private DedupNode HashIsStableForChunker(DedupNodeHashAlgorithm hasher, uint byteCount, string expectedHash, int seed, bool sizeHint)
         {
-            using (var hasher = new DedupNodeHashAlgorithm(chunker))
+            if (sizeHint)
             {
-                byte[] bytes = new byte[byteCount];
-
-                if (byteCount > 0)
-                {
-                    FillBufferWithTestContent(seed, bytes);
-                }
-
-                hasher.Initialize();
-                hasher.ComputeHash(bytes, 0, bytes.Length);
-                var node = hasher.GetNode();
-                Assert.Equal<long>((long)byteCount, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
-
-                string header = $"Chunker:{chunker.GetType().Name} Seed:{seed} Length:{byteCount} Hash:";
-                Assert.Equal<string>($"{header}{expectedHash}", $"{header}{node.Hash.ToHex()}");
-                return node;
+                hasher.SetInputLength(byteCount);
             }
+
+            byte[] bytes = new byte[byteCount];
+
+            if (byteCount > 0)
+            {
+                FillBufferWithTestContent(seed, bytes);
+            }
+
+            hasher.ComputeHash(bytes, 0, bytes.Length);
+            var node = hasher.GetNode();
+            Assert.Equal<long>((long)byteCount, node.EnumerateChunkLeafsInOrder().Sum(c => (long)c.TransitiveContentBytes));
+
+            string header = $"Seed:{seed} Length:{byteCount} Hash:";
+            Assert.Equal<string>($"{header}{expectedHash}", $"{header}{node.Hash.ToHex()}");
+            return node;
         }
 
         [MtaTheory]
@@ -133,12 +169,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         [InlineData(2 * 64 * 1024 - 1, "540770B3F5DF9DD459319164D2AFCAD1B942CB24B41985AA1E0F081D6AC16639")]
         [InlineData(2 * 64 * 1024 + 0, "3175B5C2595B419DBE5BDA9554208A4E39EFDBCE1FC6F7C7CB959E5B39DF2DF0")]
         [InlineData(2 * 64 * 1024 + 1, "B39D401B85748FDFC41980A0ABE838BA05805BFFAE16344CE74EA638EE42DEA5")]
-        [InlineData(Chunker.MinPushBufferSize - 1, "82CB11C6FBF387D4EF798C419C7F5660CAF6729742F0A5ECC37F9B5AE4AC0A11")]
-        [InlineData(Chunker.MinPushBufferSize + 0, "3C7D506720601D668D8AD9DE23112591876F3021D411D51F377BF6CF7B2A453C")]
-        [InlineData(Chunker.MinPushBufferSize + 1, "39FB7E365F622543D01DE46F1BE4F51E870E9CDF4C93A633BD29EE4A24BEDBB0")]
-        [InlineData(2 * Chunker.MinPushBufferSize - 1, "63B06CEB8ECAA6747F974450446E5072A48E3F26B4AE0192FEC41DDF61B83364")]
-        [InlineData(2 * Chunker.MinPushBufferSize + 0, "27032B90442309EE9C4098F64AECC9BACD9B481C7A969EECFE2C56D2BDD7CA2B")]
-        [InlineData(2 * Chunker.MinPushBufferSize + 1, "F1AB48587008EC813EC4B69F7A938EA448CA362497D9EE4A24DEA88D8E92812B")]
+        [InlineData(1024 * 1024 - 1, "82CB11C6FBF387D4EF798C419C7F5660CAF6729742F0A5ECC37F9B5AE4AC0A11")]
+        [InlineData(1024 * 1024 + 0, "3C7D506720601D668D8AD9DE23112591876F3021D411D51F377BF6CF7B2A453C")]
+        [InlineData(1024 * 1024 + 1, "39FB7E365F622543D01DE46F1BE4F51E870E9CDF4C93A633BD29EE4A24BEDBB0")]
+        [InlineData(2 * 1024 * 1024 - 1, "63B06CEB8ECAA6747F974450446E5072A48E3F26B4AE0192FEC41DDF61B83364")]
+        [InlineData(2 * 1024 * 1024 + 0, "27032B90442309EE9C4098F64AECC9BACD9B481C7A969EECFE2C56D2BDD7CA2B")]
+        [InlineData(2 * 1024 * 1024 + 1, "F1AB48587008EC813EC4B69F7A938EA448CA362497D9EE4A24DEA88D8E92812B")]
         public void BasicSizes(uint byteCount, string expectedHash)
         {
             HashIsStable(byteCount, expectedHash);
@@ -236,11 +272,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             var r = new Random(Seed: 0);
             byte[] bytes = new byte[blockSize];
 
-            using (var mgdHasher = new DedupNodeHashAlgorithm(new ManagedChunker()))
-            using (var comHasher = DedupNodeHashAlgorithm.IsComChunkerSupported ? new DedupNodeHashAlgorithm(new ComChunker()) : null)
+            using (var mgdHasher = new DedupNodeHashAlgorithm(new ManagedChunker(ChunkerConfiguration.Default)))
+            using (var comHasher = Chunker.IsComChunkerSupported ? new DedupNodeHashAlgorithm(new ComChunker(ChunkerConfiguration.Default)) : null)
             {
-                mgdHasher.Initialize();
-                comHasher?.Initialize();
+                long totalLength = (long)blockSize * blockCount;
+                mgdHasher.SetInputLength(totalLength);
+                comHasher?.SetInputLength(totalLength);
 
                 for (int i = 0; i < blockCount; i++)
                 {
@@ -270,13 +307,16 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        private const int AverageChunkSize = 64 * 1024;
+        static DedupNodeContentHasherTests()
+        {
+            Assert.Equal(8, Marshal.SizeOf<IntPtr>());
+        }
 
         [MtaFact]
         public void CanChunkLargeFiles()
         {
             var node = CanChunkLargeFilesHelper(
-                AverageChunkSize,
+                ChunkerConfiguration.Default.AvgChunkSize,
                 2 * DedupNode.MaxDirectChildrenPerNode,
                 "E0DFD15C22AB95F46A26B3ECCCE42008058FCAA06AE0CB2B56B13411A32A4592");
             var chunks = new HashSet<string>(node.EnumerateChunkLeafsInOrder().Select(n => n.Hash.ToHex()));
@@ -289,7 +329,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         {
             // We want to make sure this goes past uint.MaxValue == 4GB
 
-            int blockSize = 2 * DedupNode.MaxDirectChildrenPerNode * AverageChunkSize; // ~64MB
+            int blockSize = 2 * DedupNode.MaxDirectChildrenPerNode * ChunkerConfiguration.Default.AvgChunkSize; // ~64MB
             int blockCount = (int)((uint.MaxValue / (uint)blockSize) + 1);
             Assert.True(((long)blockSize * (long)blockCount) > (long)uint.MaxValue);
 
@@ -324,21 +364,22 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
         private void ChunksAndNodesInCommonInSimilarFiles(DedupNodeTree.Algorithm algorithm)
         {
-            using (var hasher = new DedupNodeHashAlgorithm(algorithm))
+            using (var hasher = new DedupNodeHashAlgorithm(ChunkerConfiguration.Default, algorithm))
             {
                 byte[] bytes = new byte[50 * 1024 * 1024];
+
                 int offsetForSecondFile = 200 * 1024;
 
                 var r = new Random(Seed: 0);
                 r.NextBytes(bytes);
 
-                hasher.Initialize();
+                hasher.SetInputLength(bytes.Length);
                 byte[] hash1 = hasher.ComputeHash(bytes, 0, bytes.Length);
                 var node1 = hasher.GetNode();
                 HashSet<string> chunks1 = node1.EnumerateChunkLeafsInOrder().Select(c => c.Hash.ToHex()).ToHashSet();
                 HashSet<string> nodes1 = node1.EnumerateInnerNodesDepthFirst().Select(c => c.Hash.ToHex()).ToHashSet();
 
-                hasher.Initialize();
+                hasher.SetInputLength(bytes.Length);
                 byte[] hash2 = hasher.ComputeHash(bytes, offsetForSecondFile, bytes.Length - offsetForSecondFile);
                 var node2 = hasher.GetNode();
                 HashSet<string> chunks2 = node2.EnumerateChunkLeafsInOrder().Select(c => c.Hash.ToHex()).ToHashSet();

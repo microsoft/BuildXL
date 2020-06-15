@@ -135,7 +135,7 @@ namespace Test.BuildXL.Engine.Cache
                 return this.m_cache.TryMaterializeAsync(fileRealizationModes, path, contentHash);
             }
 
-            public Task<Possible<Stream, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
+            public Task<Possible<StreamWithLength, Failure>> TryOpenContentStreamAsync(ContentHash contentHash)
             {
                 return this.m_cache.TryOpenContentStreamAsync(contentHash);
             }

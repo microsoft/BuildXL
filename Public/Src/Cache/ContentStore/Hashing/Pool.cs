@@ -34,7 +34,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             b[0] = 0xcc;
             b[b.Length - 1] = 0xcc;
 #endif
-
         };
 
         private static byte[] CreateNew(int bufferSize)

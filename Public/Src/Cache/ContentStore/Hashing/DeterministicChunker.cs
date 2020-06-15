@@ -11,18 +11,23 @@ using System.Runtime.CompilerServices;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
-    internal class DeterministicChunker : IChunker
+    internal class DeterministicChunker : IChunker, IHashAlgorithmBufferPool, IDisposable
     {
-        private readonly IChunker _chunker;
+        private readonly ByteArrayPool _pushBufferPool;
+        private readonly INonDeterministicChunker _chunker;
 
-        public DeterministicChunker(IChunker chunker)
+        public ChunkerConfiguration Configuration { get; }
+
+        public DeterministicChunker(ChunkerConfiguration configuration, INonDeterministicChunker chunker)
         {
+            Configuration = configuration;
             _chunker = chunker;
+            _pushBufferPool = new ByteArrayPool(configuration.MinPushBufferSize);
         }
 
         public IChunkerSession BeginChunking(Action<ChunkInfo> chunkCallback)
         {
-            return new Session(_chunker, chunkCallback);
+            return new Session(this, chunkCallback);
         }
 
         public void Dispose()
@@ -30,12 +35,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _chunker.Dispose();
         }
 
+        public Pool<byte[]>.PoolHandle GetBufferFromPool()
+        {
+            return _pushBufferPool.Get();
+        }
+
         private sealed class Session : IChunkerSession
         {
-            private static readonly ByteArrayPool PushBufferPool = new ByteArrayPool((int)Chunker.MinPushBufferSize);
             private static readonly Pool<List<ChunkInfo>> ChunksSeenPool = new Pool<List<ChunkInfo>>(() => new List<ChunkInfo>(), list => list.Clear());
 
-            private readonly IChunker _chunker;
+            private readonly DeterministicChunker _parent;
             private readonly Action<ChunkInfo> _callback;
             private readonly IPoolHandle<byte[]> _pushBufferHandle;
             private byte[] _pushBuffer;
@@ -44,15 +53,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private int _bytesInPushBuffer = 0;
             private ulong _lastPushBaseline = 0;
 
-            public Session(IChunker chunker, Action<ChunkInfo> callback)
+            public Session(DeterministicChunker parent, Action<ChunkInfo> callback)
             {
-                _pushBufferHandle = PushBufferPool.Get();
+                _parent = parent;
+
+                _pushBufferHandle = _parent._pushBufferPool.Get();
                 _pushBuffer = _pushBufferHandle.Value;
 
                 _chunksSeenHandle = ChunksSeenPool.Get();
                 _chunksSeen = _chunksSeenHandle.Value;
 
-                _chunker = chunker;
                 _callback = callback;
             }
 
@@ -65,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (_bytesInPushBuffer != 0)
                 {
-                    using (var inner = _chunker.BeginChunking(FoundChunk))
+                    using (var inner = _parent._chunker.BeginChunking(FoundChunk))
                     {
                         inner.PushBuffer(_pushBuffer, 0, _bytesInPushBuffer);
                     }
@@ -102,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 checked
                 {
-                    using (IChunkerSession inner = _chunker.BeginChunking(FoundChunk))
+                    using (IChunkerSession inner = _parent._chunker.BeginChunking(FoundChunk))
                     {
                         inner.PushBuffer(buffer, startOffset, count);
                     }

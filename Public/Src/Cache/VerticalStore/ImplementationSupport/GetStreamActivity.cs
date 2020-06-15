@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ImplementationSupport
         /// If we had a formal way to do tail-calls in C# we would
         /// have done that.  This is as close as it gets.
         /// </notes>
-        public Possible<Stream, Failure> Returns(Possible<Stream, Failure> result)
+        public Possible<T, Failure> Returns<T>(Possible<T, Failure> result)
         {
             if (result.Succeeded)
             {

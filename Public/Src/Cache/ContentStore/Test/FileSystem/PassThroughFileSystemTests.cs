@@ -512,7 +512,7 @@ namespace ContentStoreTest.FileSystem
             using var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir");
             var filePath = testDirectory.Path / "Foo.txt";
 
-            using (var file = await FileSystem.OpenSafeAsync(
+            using (Stream file = await FileSystem.OpenSafeAsync(
                 filePath,
                 FileAccess.Write,
                 FileMode.CreateNew,
@@ -533,7 +533,7 @@ namespace ContentStoreTest.FileSystem
             var filePath = testDirectory.Path / "Foo.txt";
             var replacementFilePath = testDirectory.Path / "Bar.txt";
 
-            using (var file = await FileSystem.OpenSafeAsync(
+            using (Stream file = await FileSystem.OpenSafeAsync(
                 filePath,
                 FileAccess.Write,
                 FileMode.CreateNew,

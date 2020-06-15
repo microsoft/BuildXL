@@ -38,11 +38,21 @@ namespace BuildXL.Cache.ContentStore.Hashing
             _hasher.TransformBlock(inputBuffer, inputOffset, inputCount, null, 0);
         }
 
+        internal void HashCoreInternal(byte[] inputBuffer, int inputOffset, int inputCount)
+        {
+            HashCore(inputBuffer, inputOffset, inputCount);
+        }
+
         /// <inheritdoc />
         protected override byte[] HashFinal()
         {
             _hasher.TransformFinalBlock(EmptyArray, 0, 0);
             return TruncateTo256Bits(_hasher.Hash);
+        }
+
+        internal byte[] HashFinalInternal()
+        {
+            return HashFinal();
         }
 
         private static byte[] TruncateTo256Bits(byte[] bytes)

@@ -316,7 +316,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var pushCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(serverIsDoneSource.Token, context.Token).Token;
 
                 var responseStream = call.ResponseStream;
-                var responseCompletedTask = responseStream.MoveNext(context.Token).ContinueWith(t => serverIsDoneSource.Cancel());
+                var responseMoveNext = responseStream.MoveNext(context.Token);
+                var responseCompletedTask = responseMoveNext.ContinueWith(t => serverIsDoneSource.Cancel());
 
                 using (var stream = streamResult.Value)
                 {
@@ -328,6 +329,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 await requestStream.CompleteAsync();
 
                 await responseCompletedTask;
+
+                // Make sure that we only attempt to read response when it is available.
+                var responseIsAvailable = await responseMoveNext;
+                if (!responseIsAvailable)
+                {
+                    return new PushFileResult($"Failed to get final response.");
+                }
+
                 var response = responseStream.Current;
 
                 return response.Header.Succeeded

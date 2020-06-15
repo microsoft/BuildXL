@@ -3,7 +3,6 @@
 
 module({
     name: "Sdk.Managed.Frameworks.NetCoreApp3.1",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
         f`netcoreapp3.1.dsc`,
     ]

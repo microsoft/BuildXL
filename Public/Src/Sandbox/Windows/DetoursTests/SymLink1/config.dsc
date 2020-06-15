@@ -6,10 +6,17 @@ config({
         {
             kind: "DScript",
             modules: [
-                f`package.config.dsc`,
+                f`module.config.dsc`,
                 f`../../../../../Sdk/Public/Prelude/Package.config.dsc`,
                 f`../../../../../Sdk/Public/Transformers/package.config.dsc`,
             ]
         }
-    ]
+    ],
+    qualifiers: {
+        defaultQualifier: {
+            targetRuntime: 
+                Context.getCurrentHost().os === "win" ? "win-x64" :
+                Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
+        },
+    }
 }); 

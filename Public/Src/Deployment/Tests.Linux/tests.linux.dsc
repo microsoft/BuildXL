@@ -249,7 +249,6 @@ namespace Tests.Linux {
         return [
             'module({',
             '    name: "BuildXLXUnitTests",',
-            '    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,',
             ...generateArrayProperty("projects", (projectFiles || []).map(renderFileLiteral), "    "),
             '});'
         ].join("\n");

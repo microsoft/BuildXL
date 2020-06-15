@@ -3,12 +3,10 @@
 
 module({
     name: "Aria.Cpp.SDK.win-x64",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Aria.Cpp.SDK.win-x64.dsc`]
+	projects: [f`Aria.Cpp.SDK.win-x64.dsc`]
 });
 
 module({
     name: "Aria.Cpp.SDK.osx-x64",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Aria.Cpp.SDK.osx-x64.dsc`]
+	projects: [f`Aria.Cpp.SDK.osx-x64.dsc`]
 });

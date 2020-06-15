@@ -2,6 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "BuildXL.CloudTest.Gvfs", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences
+    name: "BuildXL.CloudTest.Gvfs"
 });

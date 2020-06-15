@@ -1,4 +1,3 @@
 module({
-    name: "CloudBuild.VmCommandProxy",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    name: "CloudBuild.VmCommandProxy"
 });

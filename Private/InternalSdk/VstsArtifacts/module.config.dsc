@@ -3,18 +3,15 @@
 
 module({
     name: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`Microsoft.VisualStudio.Services.ArtifactServices.Shared.dsc`]
 });
 
 module({
     name: "Microsoft.VisualStudio.Services.BlobStore.Client", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`Microsoft.VisualStudio.Services.BlobStore.Client.dsc`]
 });
 
 module({
     name: "Microsoft.VisualStudio.Services.InteractiveClient", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`Microsoft.VisualStudio.Services.InteractiveClient.dsc`]
 });

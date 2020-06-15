@@ -7,24 +7,20 @@
 
 module({
     name: "DotNet-Runtime.win-x64",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`DotNet-Runtime.win-x64.dsc`]
 });
 
 module({
     name: "DotNet-Runtime.osx-x64",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`DotNet-Runtime.osx-x64.dsc`]
 });
 
 module({
     name: "DotNet-Runtime.linux-x64",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`DotNet-Runtime.linux-x64.dsc`]
 });
 
 module({
     name: "DotNet-Runtime.Common",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`common.dsc`]
 });

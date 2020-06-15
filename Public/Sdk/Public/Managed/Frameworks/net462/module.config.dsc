@@ -3,7 +3,6 @@
 
 module({
     name: "Sdk.Managed.Frameworks.Net462",
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [
         f`net462.dsc`,
         f`netfx.dsc`,

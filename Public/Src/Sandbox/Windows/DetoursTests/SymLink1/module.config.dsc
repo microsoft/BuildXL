@@ -3,7 +3,6 @@
 
 module({
 	name: "BuildXL.Sandbox.Windows.SymLinkTest", 
-	nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
 	projects: [
 		f`test.dsc`,
 	],

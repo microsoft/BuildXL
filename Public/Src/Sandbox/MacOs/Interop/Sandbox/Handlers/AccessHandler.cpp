@@ -94,7 +94,6 @@ bool AccessHandler::ReportProcessExited(pid_t childPid)
     };
 
     SetProcessPath(&report);
-    assert(strlen(report.path) > 0);
     sandbox_->SendAccessReport(report, GetPip());
     
     return kReported;

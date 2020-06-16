@@ -8,9 +8,14 @@
 
 #include <ostream>
 #include <sstream>
+#include <mutex>
+#include <unordered_set>
+#include <unordered_map>
 
 #include "Sandbox.hpp"
 #include "SandboxedPip.hpp"
+
+using namespace std;
 
 extern const char *__progname;
 
@@ -118,6 +123,9 @@ private:
     char progFullPath_[PATH_MAX];
     char logFile_[PATH_MAX];
 
+    std::mutex cacheMtx_;
+    std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
+
     std::shared_ptr<SandboxedPip> pip_;
     std::shared_ptr<SandboxedProcess> process_;
     Sandbox *sandbox_;
@@ -125,6 +133,7 @@ private:
     void InitFam();
     void InitLogFile();
     bool Send(const char *buf, size_t bufsiz);
+    bool IsCacheHit(es_event_type_t event, const string &path, const string &secondPath);
 
     inline bool IsValid()   { return sandbox_ != NULL; }
     inline bool IsEnabled()
@@ -176,7 +185,7 @@ public:
 
     void report_exec(const char *syscallName, const char *procName, const char *file);
 
-    AccessCheckResult report_access(const char *syscallName, IOEvent &event);
+    AccessCheckResult report_access(const char *syscallName, IOEvent &event, bool checkCache = true);
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, const char *pathname, int oflags = 0);
     AccessCheckResult report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath);
 

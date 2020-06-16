@@ -116,6 +116,9 @@ public:
     inline const audit_token_t* GetProcessAuditToken() const { return &auditToken_; }
     inline const es_event_type_t GetEventType() const { return eventType_; }
 
+    inline const std::string& GetSrcPath() const { return src_path_; }
+    inline const std::string& GetDstPath() const { return dst_path_; }
+
     inline const char* GetEventPath(int index = SRC_PATH) const { return (index == SRC_PATH ? src_path_ : dst_path_).c_str(); }
     inline void SetEventPath(char *value, int index = SRC_PATH)
     {

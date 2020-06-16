@@ -95,6 +95,61 @@ void BxlObserver::InitLogFile()
     }
 }
 
+bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const string &secondPath)
+{
+    // never cache FORK, EXEC, EXIT and events that take 2 paths
+    if (secondPath.length() > 0 ||
+        event == ES_EVENT_TYPE_NOTIFY_FORK ||
+        event == ES_EVENT_TYPE_NOTIFY_EXEC ||
+        event == ES_EVENT_TYPE_NOTIFY_EXIT)
+    {
+        return false;
+    }
+
+    // coalesce some similar events
+    es_event_type_t key;
+    switch (event)
+    {
+        case ES_EVENT_TYPE_NOTIFY_TRUNCATE:
+        case ES_EVENT_TYPE_NOTIFY_SETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_SETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_DELETEEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_SETFLAGS:
+        case ES_EVENT_TYPE_NOTIFY_SETOWNER:
+        case ES_EVENT_TYPE_NOTIFY_SETMODE:
+        case ES_EVENT_TYPE_NOTIFY_WRITE:
+        case ES_EVENT_TYPE_NOTIFY_UTIMES:
+        case ES_EVENT_TYPE_NOTIFY_SETTIME:
+        case ES_EVENT_TYPE_NOTIFY_SETACL:
+            key = ES_EVENT_TYPE_NOTIFY_WRITE;
+            break;
+
+        case ES_EVENT_TYPE_NOTIFY_GETATTRLIST:
+        case ES_EVENT_TYPE_NOTIFY_GETEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_LISTEXTATTR:
+        case ES_EVENT_TYPE_NOTIFY_ACCESS:
+        case ES_EVENT_TYPE_NOTIFY_STAT:
+            key = ES_EVENT_TYPE_NOTIFY_STAT;
+
+        default:
+            key = event;
+            break;
+    }
+
+    // check the cache_ dictionary
+    lock_guard<std::mutex> lck(cacheMtx_);
+    unordered_map<es_event_type_t, unordered_set<string>>::iterator it = cache_.find(key);
+    if (it == cache_.end())
+    {
+        unordered_set<string> set;
+        set.insert(path);
+        cache_.insert(make_pair(key, set));
+        return false;
+    }
+
+    return !it->second.insert(path).second;
+}
+
 bool BxlObserver::Send(const char *buf, size_t bufsiz)
 {
     if (!real_open)
@@ -160,6 +215,11 @@ void BxlObserver::report_exec(const char *syscallName, const char *procName, con
 
 AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_type_t eventType, std::string reportPath, std::string secondPath)
 {
+    if (IsCacheHit(eventType, reportPath, secondPath))
+    {
+        return sNotChecked;
+    }
+
     // TODO: don't stat all the time
     mode_t mode = get_mode(reportPath.c_str());
 
@@ -168,12 +228,17 @@ AccessCheckResult BxlObserver::report_access(const char *syscallName, es_event_t
         : std::string(progFullPath_);
 
     IOEvent event(getpid(), 0, getppid(), eventType, reportPath, secondPath, execPath, mode, false);
-    return report_access(syscallName, event);
+    return report_access(syscallName, event, /* checkCache */ false /* because already checked cache above */);
 }
 
-AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &event)
+AccessCheckResult BxlObserver::report_access(const char *syscallName, IOEvent &event, bool checkCache)
 {
     es_event_type_t eventType = event.GetEventType();
+
+    if (checkCache && IsCacheHit(eventType, event.GetSrcPath(), event.GetDstPath()))
+    {
+        return sNotChecked;
+    }
 
     AccessCheckResult result = sNotChecked;
 
@@ -213,7 +278,10 @@ AccessCheckResult BxlObserver::report_access_at(const char *syscallName, es_even
 
     if (dirfd == AT_FDCWD)
     {
-        getcwd(fullpath, PATH_MAX);
+        if (!getcwd(fullpath, PATH_MAX))
+        {
+            return sNotChecked;
+        }
         len = strlen(fullpath);
     }
     else
@@ -255,7 +323,10 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     {
         if (dirfd == AT_FDCWD)
         {
-            getcwd(fullpath, PATH_MAX);
+            if (!getcwd(fullpath, PATH_MAX))
+            {
+                _fatal("Could not get CWD; errno: %d", errno);
+            }
             len = strlen(fullpath);
         }
         else

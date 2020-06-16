@@ -51,7 +51,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Temporarily disable it by default due to crash.
             // TODO: Enable it by default once crash is fixed.
             CacheMissBatch = false;
-
+            
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 

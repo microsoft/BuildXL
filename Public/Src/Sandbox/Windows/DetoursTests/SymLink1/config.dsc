@@ -6,7 +6,7 @@ config({
         {
             kind: "DScript",
             modules: [
-                f`module.config.dsc`,
+                f`package.config.dsc`,
                 f`../../../../../Sdk/Public/Prelude/Package.config.dsc`,
                 f`../../../../../Sdk/Public/Transformers/package.config.dsc`,
             ]

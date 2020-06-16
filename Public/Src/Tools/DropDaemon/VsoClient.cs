@@ -167,7 +167,7 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        ///     Invokes <see cref="IDropServiceClient.CreateAsync"/>.
+        ///     Invokes <see cref="IDropServiceClient.CreateAsync(string, bool, DateTime?, bool, CancellationToken)"/>.
         /// </summary>
         public async Task<DropItem> CreateAsync(CancellationToken token)
         {

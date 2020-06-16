@@ -16,6 +16,10 @@ export const fluentAssertionsWorkaround = [
  * contains AAD and the mac not...
  */
 @@public
-export const visualStudioServicesArtifactServicesWorkaround = qualifier.targetRuntime === "win-x64" 
-    ? importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({targetFramework: "net472"}).pkg
-    : importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg;
+export const visualStudioServicesArtifactServicesWorkaround = [
+    qualifier.targetRuntime === "win-x64" 
+        ? importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier({targetFramework: "net472"}).pkg
+        : importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
+        
+        importFrom("Microsoft.Azure.Storage.Common").pkg, // Missing dependency since nuspec only declares dependencies specifically for net462. Make sure to include it here.
+];

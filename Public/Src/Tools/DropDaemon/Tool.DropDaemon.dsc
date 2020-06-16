@@ -39,7 +39,7 @@ export namespace DropDaemon {
             importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
-            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,

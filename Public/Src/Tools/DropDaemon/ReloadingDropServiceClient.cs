@@ -180,43 +180,44 @@ namespace Tool.ServicePipDaemon
         public Task<IEnumerable<DropItem>> ListAsync(string dropNamePrefix, PathOptions pathOptions, bool includeNonFinalizedDrops, CancellationToken cancellationToken, RetrievalOptions retrievalOptions, SizeOptions sizeOptions, ExpirationDateOptions expirationDateOptions)
         {
             return RetryAsync(
-                    nameof(IDropServiceClient.ListAsync),
-                    (client, ct) => client.ListAsync(dropNamePrefix, pathOptions, includeNonFinalizedDrops, ct, retrievalOptions, sizeOptions, expirationDateOptions),
-                    cancellationToken);
+                nameof(IDropServiceClient.ListAsync),
+                (client, ct) => client.ListAsync(dropNamePrefix, pathOptions, includeNonFinalizedDrops, ct, retrievalOptions, sizeOptions, expirationDateOptions),
+                cancellationToken);
         }
 
         /// <inheritdoc />
-        public string GetVersionString()
+        public string GetVersionString() => GetCurrentVersionedValue().Value.GetVersionString();
+
+        /// <inheritdoc />
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, CancellationToken cancellationToken)
         {
-            return GetCurrentVersionedValue().Value.GetVersionString();
+            return RetryAsync(
+                nameof(IDropServiceClient.CreateAsync),
+                (client, ct) => client.CreateAsync(domainId, dropName, isAppendOnly, expirationDate, chunkDedup, cancellationToken),
+                cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<IEnumerable<MultiDomainInfo>> GetDomainsAsync(CancellationToken cancellationToken)
+        {
+            return RetryAsync(
+                nameof(IDropServiceClient.GetDomainsAsync),
+                (client, ct) => client.GetDomainsAsync(cancellationToken),
+                cancellationToken);
         }
 
         /// <inheritdoc />
         public uint AttemptNumber
         {
-            get
-            {
-                return GetCurrentVersionedValue().Value.AttemptNumber;
-            }
-
-            set
-            {
-                GetCurrentVersionedValue().Value.AttemptNumber = value;
-            }
+            get => GetCurrentVersionedValue().Value.AttemptNumber;
+            set => GetCurrentVersionedValue().Value.AttemptNumber = value;
         }
 
         /// <inheritdoc />
         public bool DisposeTelemetry
         {
-            get
-            {
-                return GetCurrentVersionedValue().Value.DisposeTelemetry;
-            }
-
-            set
-            {
-                GetCurrentVersionedValue().Value.DisposeTelemetry = value;
-            }
+            get => GetCurrentVersionedValue().Value.DisposeTelemetry;
+            set => GetCurrentVersionedValue().Value.DisposeTelemetry = value;
         }
     }
 }

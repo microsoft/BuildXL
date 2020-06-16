@@ -38,7 +38,7 @@ namespace Tool.DropDaemon
         public TimeSpan NagleTime = DefaultNagleTimeForAssociate;
 
         /// <summary>
-        ///     Used to compute drop expiration date (<see cref="Microsoft.VisualStudio.Services.Drop.App.Core.IDropServiceClient.CreateAsync"/>).
+        ///     Used to compute drop expiration date (<see cref="Microsoft.VisualStudio.Services.Drop.App.Core.IDropServiceClient.CreateAsync(string, bool, DateTime?, bool, System.Threading.CancellationToken)"/>).
         /// </summary>
         public TimeSpan Retention { get; }
 

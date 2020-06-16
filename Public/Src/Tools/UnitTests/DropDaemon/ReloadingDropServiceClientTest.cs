@@ -262,6 +262,16 @@ namespace Test.Tool.DropDaemon
         {
             throw new NotImplementedException();
         }
+
+        public Task<DropItem> CreateAsync(IDomainId domainId, string dropName, bool isAppendOnly, DateTime? expirationDate, bool chunkDedup, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<MultiDomainInfo>> GetDomainsAsync(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
     }
 }

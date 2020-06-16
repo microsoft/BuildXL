@@ -360,7 +360,7 @@ function Get-CacheConfig {
         Assembly = "BuildXL.Cache.BuildCacheAdapter";
         Type = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
         CacheId = "L3Cache";
-        CacheLogPath = "[BuildXLSelectedLogPath].new";
+        CacheLogPath = "[BuildXLSelectedLogPath].Remote.log";
         CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com/DefaultCollection";
         CacheServiceContentEndpoint = "https://$VsoAccount.vsblob.visualstudio.com/DefaultCollection";
         UseBlobContentHashLists = $true;

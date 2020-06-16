@@ -32,7 +32,7 @@ namespace VstsTest {
             importFrom("Newtonsoft.Json").pkg,
             ...importFrom("BuildXL.Cache.ContentStore").redisPackages,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
-            BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+            ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [

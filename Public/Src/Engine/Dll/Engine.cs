@@ -1111,6 +1111,10 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.ForceUseEngineInfoFromCache = true;
                 mutableConfig.Distribution.DistributeCacheLookups = true;
                 mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
+                // The default outside CB is false, so make sure we flip that when in CB
+                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = initialCommandLineConfiguration.Schedule.UseHistoricalCpuUsageInfo ?? true;
+                // In CB we don't actually want this to become a parameter that is actively used, so make it large enough
+                mutableConfig.Schedule.MinimumTotalAvailableRamMb = initialCommandLineConfiguration.Schedule.MinimumTotalAvailableRamMb ?? 100000000;
                 mutableConfig.Schedule.ScheduleMetaPips = false;
 
                 // In CloudBuild always place EngineCache under object directory

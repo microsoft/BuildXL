@@ -22,7 +22,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatDirectoryAsAbsentFileOnHashingInputContent = true;
             MaximumRamUtilizationPercentage = 90;
             MaximumCommitUtilizationPercentage = 95;
-            MinimumTotalAvailableRamMb = 500;
             MaximumAllowedMemoryPressureLevel = Memory.PressureLevel.Normal;
 
             AllowCopySymlink = true;
@@ -253,7 +252,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int MaximumRamUtilizationPercentage { get; set; }
 
         /// <inheritdoc />
-        public int MinimumTotalAvailableRamMb { get; set; }
+        public int? MinimumTotalAvailableRamMb { get; set; }
 
         /// <inheritdoc />
         public Memory.PressureLevel MaximumAllowedMemoryPressureLevel { get; set; }
@@ -340,7 +339,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing { get; set; }
 
         /// <inheritdoc />
-        public bool UseHistoricalCpuUsageInfo { get; set; }
+        public bool? UseHistoricalCpuUsageInfo { get; set; }
 
         /// <inheritdoc />
         public bool UseFixedApiServerMoniker { get; set; }

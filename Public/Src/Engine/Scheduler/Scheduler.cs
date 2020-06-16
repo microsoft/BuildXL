@@ -2542,7 +2542,7 @@ namespace BuildXL.Scheduler
                 }
 
                 bool exceededMaxRamUtilizationPercentage = perfInfo.EffectiveRamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
-                bool underMinimumAvailableRam = perfInfo.EffectiveAvailableRamMb.Value < m_configuration.Schedule.MinimumTotalAvailableRamMb;
+                bool underMinimumAvailableRam = perfInfo.EffectiveAvailableRamMb.Value < m_configuration.Schedule.MinimumTotalAvailableRamMb();
 
                 if (exceededMaxRamUtilizationPercentage && underMinimumAvailableRam)
                 {
@@ -2639,7 +2639,7 @@ namespace BuildXL.Scheduler
                     Logger.Log.UnableToGetMemoryPressureLevel(
                             m_executePhaseLoggingContext,
                             availableRam: perfInfo.AvailableRamMb.Value,
-                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                             ramUtilization: perfInfo.RamUsagePercentage.Value,
                             maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
                 }
@@ -2733,7 +2733,7 @@ namespace BuildXL.Scheduler
                     m_executePhaseLoggingContext,
                     reason: memoryResource.ToString(),
                     availableRam: perfInfo.AvailableRamMb ?? 0,
-                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                    minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb(),
                     ramUtilization: perfInfo.RamUsagePercentage ?? 0,
                     maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage,
                     commitUtilization: perfInfo.CommitUsagePercentage ?? 0,
@@ -3375,7 +3375,7 @@ namespace BuildXL.Scheduler
             // If it is a meta or SealDirectory pip and the PipQueue has started draining, then the execution will be inlined here!
             // Because it is not worth to enqueue the fast operations such as the execution of meta and SealDirectory pips.
 
-            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
+            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo() ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,

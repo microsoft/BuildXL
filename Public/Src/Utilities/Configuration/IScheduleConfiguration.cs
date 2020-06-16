@@ -21,7 +21,7 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the minimum amount of available RAM before scheduling is paused to allow freeing resources.
         /// NOTE: In order for scheduling to be paused, both this limit and <see cref="MaximumRamUtilizationPercentage"/> must be met.
         /// </summary>
-        int MinimumTotalAvailableRamMb { get; }
+        int? MinimumTotalAvailableRamMb { get; }
 
         /// <summary>
         /// Indicates that processes should not be cancelled and retried when machine RAM is low as specified by
@@ -313,7 +313,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Indicates whether historic cpu information should be used to decide the weight of process pips.
         /// </summary>
-        bool UseHistoricalCpuUsageInfo { get; }
+        bool? UseHistoricalCpuUsageInfo { get; }
 
         /// <summary>
         /// Instead of creating a random moniker for API server, use a fixed predetermined moniker.

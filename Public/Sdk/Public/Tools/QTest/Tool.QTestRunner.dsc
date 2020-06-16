@@ -298,9 +298,7 @@ export function runQTest(args: QTestArguments): Result {
         hasUntrackedChildProcesses: args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies,
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
-            ...addIf(flakyFile !== undefined, flakyFile),
-            // TODO: remove this once we get a updated QTest to fix the DFA.
-            f`Q:/cmd/t/out/binaries/x86ret/bin/i386/CodeCoverage.pdb`,
+            ...addIf(flakyFile !== undefined, flakyFile)
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that

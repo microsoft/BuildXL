@@ -142,13 +142,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             LocalLocationStoreConfiguration configuration,
             DateTime now)
         {
+            var locationsCount = entry.Locations.Count;
+
             var desiredReplicaCount = configuration.DesiredReplicaRetention;
-            if (desiredReplicaCount == 0)
+            if (desiredReplicaCount == 0 ||
+                locationsCount == 0) // It is possible for the entry to have 0 locations. 
+                                     // For instance, the database has 1 location but the machine is in the bad state
             {
                 return ReplicaRank.None;
             }
 
-            var locationsCount = entry.Locations.Count;
             if (locationsCount <= desiredReplicaCount
                 // If using throttled eviction, we might need to upgrade the rank to Protected
                 // so don't return here
@@ -186,16 +189,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return ReplicaRank.None;
             }
-            else if (configuration.ThrottledEvictionInterval == TimeSpan.Zero)
+
+            if (offset != lastImportantReplicaOffset)
+            {
+                // All but last important replica are always Protected
+                return ReplicaRank.Protected;
+            }
+
+            if (configuration.ThrottledEvictionInterval == TimeSpan.Zero)
             {
                 // Throttled eviction is disabled. Just mark the replica as important
                 // since its in the important range
                 return ReplicaRank.Important;
-            }
-            else if (offset != lastImportantReplicaOffset)
-            {
-                // All but last important replica are always Protected
-                return ReplicaRank.Protected;
             }
 
             // How throttled eviction works:

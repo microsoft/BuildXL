@@ -260,6 +260,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                    exception is OutOfMemoryException ||
                    exception.GetType().Name == "ContractException" ||
                    exception is InvalidOperationException ||
+                   exception is DivideByZeroException ||
                    (exception is AggregateException ae && ae.Flatten().InnerExceptions.Any(e => IsCritical(e)));
         }
 

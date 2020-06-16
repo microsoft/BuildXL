@@ -31,6 +31,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
         };
 
         [Fact]
+        public void ZeroLocationsShouldNotCauseRuntimeError()
+        {
+            var hash = ContentHash.Random();
+            var clock = new MemoryClock();
+            var entry = ContentLocationEntry.Create(
+                locations: new ArrayMachineIdSet(new ushort[0]),
+                contentSize: 42,
+                lastAccessTimeUtc: clock.UtcNow,
+                creationTimeUtc: clock.UtcNow);
+            var configuration = new LocalLocationStoreConfiguration() { ThrottledEvictionInterval = TimeSpan.FromSeconds(1)};
+
+            var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), configuration, clock.UtcNow);
+            rank.Should().Be(ReplicaRank.None);
+        }
+
+        [Fact]
         public void RareContentShouldBeImportant()
         {
             var hash = ContentHash.Random();
@@ -40,8 +56,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 contentSize: 42,
                 lastAccessTimeUtc: clock.UtcNow,
                 creationTimeUtc: clock.UtcNow);
-            bool isImportant = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), Configuration, clock.UtcNow) == ReplicaRank.Important;
-            isImportant.Should().BeTrue();
+            var rank = EffectiveLastAccessTimeProvider.GetReplicaRank(hash, entry, new MachineId(1), Configuration, clock.UtcNow);
+            rank.Should().Be(ReplicaRank.Important);
         }
 
         [Theory]

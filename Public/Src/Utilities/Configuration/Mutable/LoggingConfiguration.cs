@@ -45,7 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseCustomPipDescriptionOnConsole = true;
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
-            AriaIndividualMessageSizeLimitBytes = (int)(1.5 * 1024 * 1024); // 1.5Mb out of Aria's current 2.5Mb max limit
+            AriaIndividualMessageSizeLimitBytes = (int)(0.8 * 1024 * 1024); // 0.8Mb out of Aria's current 1Mb max limit
             MaxNumPipTelemetryBatches = 10;
 
             // Temporarily disable it by default due to crash.

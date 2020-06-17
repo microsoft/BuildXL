@@ -354,11 +354,13 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Specifies the internal max message size to be allowed for each individual messages sent to Aria.
-        /// Current default set at 1.5Mb to have enough space for other fields specified in the same message.
+        /// Current default set at 0.8Mb to have enough space for other fields specified in the same message.
         /// </summary>
         /// <remarks>
         /// According to https://www.aria.ms/developers/deep-dives/input-constraints/, 
         /// The maximum length of an event can be upto 2.5Mb.
+        /// However, it was found that the maximum length of a column in an event is 1MB.
+        /// There is no documentation found about this limit.
         /// </remarks>
         public int AriaIndividualMessageSizeLimitBytes { get; }
 

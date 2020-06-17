@@ -277,7 +277,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source)
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream)
         {
             try
             {
@@ -303,14 +303,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     return PushFileResult.Rejected();
                 }
 
-                var streamResult = await source();
-
-                if (!streamResult)
-                {
-                    await requestStream.CompleteAsync();
-                    return new PushFileResult(streamResult, "Failed to retrieve source stream.");
-                }
-
                 // If we get a response before we finish streaming, it must be that the server cancelled the operation.
                 using var serverIsDoneSource = new CancellationTokenSource();
                 var pushCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(serverIsDoneSource.Token, context.Token).Token;
@@ -319,10 +311,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var responseMoveNext = responseStream.MoveNext(context.Token);
                 var responseCompletedTask = responseMoveNext.ContinueWith(t => serverIsDoneSource.Cancel());
 
-                using (var stream = streamResult.Value)
-                {
-                    await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
-                }
+                await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
 
                 context.Token.ThrowIfCancellationRequested();
 
@@ -334,7 +323,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var responseIsAvailable = await responseMoveNext;
                 if (!responseIsAvailable)
                 {
-                    return new PushFileResult($"Failed to get final response.");
+                    return new PushFileResult("Failed to get final response.");
                 }
 
                 var response = responseStream.Current;

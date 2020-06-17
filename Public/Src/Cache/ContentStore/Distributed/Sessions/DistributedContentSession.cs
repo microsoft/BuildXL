@@ -63,8 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                    session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint),
-                    path: path.Path);
+                    session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
             });
         }
 
@@ -84,8 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                    session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint),
-                    path: path.Path);
+                    session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
             });
         }
 
@@ -137,8 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<PutResult> PutCoreAsync(
             OperationContext context,
             Func<IDecoratedStreamContentSession, Func<Stream, Stream>, Task<PutResult>> putRecordedAsync,
-            Func<IContentSession, Task<PutResult>> putAsync,
-            string path = null)
+            Func<IContentSession, Task<PutResult>> putAsync)
         {
             PutResult result;
             if (ContentLocationStore.AreBlobsSupported && Inner is IDecoratedStreamContentSession decoratedStreamSession)
@@ -180,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var proactiveCopyTask = WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, tryBuildRing: true, ProactiveCopyReason.Put, path)
+                    operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, tryBuildRing: true, ProactiveCopyReason.Put)
                 );
 
                 if (Settings.InlineOperationsForTests)

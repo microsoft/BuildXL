@@ -58,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.App
                 using Stream stream = File.OpenRead(path.Path);
 
                 // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, () => Task.FromResult(new Result<Stream>(stream)))).Result;
+                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, stream)).Result;
                 if (!copyFileResult.Succeeded)
                 {
                     context.Error($"{copyFileResult}");

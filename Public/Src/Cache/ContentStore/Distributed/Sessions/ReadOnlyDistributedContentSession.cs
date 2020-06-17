@@ -1137,19 +1137,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             OperationContext context,
             ContentHash hash,
             bool tryBuildRing,
-            ProactiveCopyReason reason,
-            string? path = null)
+            ProactiveCopyReason reason)
         {
             ContentHashWithSizeAndLocations result = await _proactiveCopyGetBulkNagleQueue.EnqueueAsync(hash);
-            return await ProactiveCopyIfNeededAsync(context, result, tryBuildRing, reason, path);
+            return await ProactiveCopyIfNeededAsync(context, result, tryBuildRing, reason);
         }
 
         internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(
             OperationContext context, 
             ContentHashWithSizeAndLocations info, 
             bool tryBuildRing, 
-            ProactiveCopyReason reason, 
-            string? path = null)
+            ProactiveCopyReason reason)
         {
             var hash = info.ContentHash;
             if (!_pendingProactivePuts.Add(hash)
@@ -1173,7 +1171,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         var insideRingCopyTask = ProactiveCopyInsideBuildRingAsync(context, hash, tryBuildRing, reason);
 
-                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason, path);
+                        var outsideRingCopyTask = ProactiveCopyOutsideBuildRingAsync(context, hash, replicatedLocations, reason);
 
                         await Task.WhenAll(insideRingCopyTask, outsideRingCopyTask);
 
@@ -1191,8 +1189,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             OperationContext context,
             ContentHash hash,
             IReadOnlyList<MachineLocation> replicatedLocations,
-            ProactiveCopyReason reason,
-            string? path)
+            ProactiveCopyReason reason)
         {
             if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
             {
@@ -1229,7 +1226,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (getLocationResult.Succeeded)
                 {
                     var candidate = getLocationResult.Value;
-                    return RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false, reason, source);
+                    return PushContentAsync(context, hash, candidate, isInsideRing: false, reason, source);
                 }
                 else
                 {
@@ -1260,7 +1257,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     if (candidates.Length > 0)
                     {
                         var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                        return RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
+                        return PushContentAsync(context, hash, candidate, isInsideRing: true, reason, ProactiveCopyLocationSource.Random);
                     }
                     else
                     {
@@ -1278,28 +1275,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
         }
 
-        private async Task<PushFileResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
+        private async Task<PushFileResult> PushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
         {
             if (Settings.PushProactiveCopies)
             {
+                // It is possible that this method is used during proactive replication
+                // and the hash was already evicted at the time this method is called.
+                var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
+                if (!streamResult.Succeeded)
+                {
+                    return PushFileResult.SkipContentUnavailable();
+                }
+
+                using var stream = streamResult.Stream!;
+
                 return await DistributedCopier.PushFileAsync(
                     context,
                     hash,
                     target,
-                    async () =>
-                    {
-                        var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
-                        if (streamResult.Succeeded)
-                        {
-                            return streamResult.Stream!;
-                        }
-
-                        return new Result<Stream>(streamResult);
-                    },
+                    stream,
                     isInsideRing,
                     reason,
                     source);
-            }
+                }
             else
             {
                 var requestResult = await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing);

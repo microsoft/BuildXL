@@ -68,12 +68,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Requests another machine to copy a file.
         /// </summary>
+        /// <remarks>
+        /// This version is not used in Test/Prod environment but please, don't remove it, because we may use it in the future
+        /// for other scenarios, for instance, during pin operaiton.
+        /// </remarks>
         Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
 
         /// <summary>
         /// Pushes content to a target machine.
         /// </summary>
-        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source, MachineLocation targetMachine);
+        Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine);
 
         /// <summary>
         /// Deletes content from a target machine

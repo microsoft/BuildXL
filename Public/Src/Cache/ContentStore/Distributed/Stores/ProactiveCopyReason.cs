@@ -7,6 +7,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public enum ProactiveCopyReason
     {
         /// <nodoc />
+        None,
+
+        /// <nodoc />
         Pin,
 
         /// <nodoc />

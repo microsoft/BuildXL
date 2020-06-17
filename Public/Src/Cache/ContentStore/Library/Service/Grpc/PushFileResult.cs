@@ -38,6 +38,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// Error occurred during a push file.
         /// </summary>
         Error,
+
+        /// <summary>
+        /// Push copy is skipped because the content already disappeared from the source machine.
+        /// </summary>
+        SkipContentUnavailable,
     }
 
     /// <summary>
@@ -53,6 +58,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Status = status;
         }
+
+        /// <nodoc />
+        public static PushFileResult SkipContentUnavailable()
+            => CreateUnsuccessful(PushFileResultStatus.SkipContentUnavailable);
 
         /// <nodoc />
         public static PushFileResult ServerUnavailable()

@@ -122,11 +122,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash, CancellationToken.None);
         }
 
-        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Result<Stream>>> source, MachineLocation targetMachine)
+        public async Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, Stream stream, MachineLocation targetMachine)
         {
             var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
-            var streamResult = await source();
-            using var stream = streamResult.Value;
             using (var file = File.OpenWrite(tempFile.Path))
             {
                 await stream.CopyToAsync(file);

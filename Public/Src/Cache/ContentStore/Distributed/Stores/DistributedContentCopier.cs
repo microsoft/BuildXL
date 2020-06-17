@@ -217,6 +217,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing)
         {
+            return PerformProactiveCopyAsync(
+                context,
+                innerContext => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
+                hash,
+                targetLocation,
+                isInsideRing,
+                ProactiveCopyReason.None,
+                ProactiveCopyLocationSource.None);
+        }
+
+        private Task<TResult> PerformProactiveCopyAsync<TResult>(
+            OperationContext context,
+            Func<OperationContext, Task<TResult>> func,
+            ContentHash hash,
+            MachineLocation targetLocation,
+            bool isInsideRing,
+            ProactiveCopyReason reason,
+            ProactiveCopyLocationSource source) where TResult : ResultBase
+        {
             return _proactiveCopyIoGate.GatedOperationAsync(async ts =>
                 {
                     using var cts = new CancellationTokenSource();
@@ -226,17 +245,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var innerContext = context.WithCancellationToken(cts.Token);
                     return await context.PerformOperationAsync(
                         Tracer,
-                        operation: () => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
+                        operation: () => func(innerContext),
                         traceOperationStarted: false,
                         extraEndMessage: result =>
-                            $"ContentHash={hash.ToShortString()} " +
-                            $"TargetLocation=[{targetLocation}] " +
-                            $"InsideRing={isInsideRing} " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                            $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
-                            $"Timeout={_timeoutForProactiveCopies} " +
-                            $"TimedOut={cts.Token.IsCancellationRequested}"
-                        );
+                             $"ContentHash={hash.ToShortString()} " +
+                             $"TargetLocation=[{targetLocation}] " +
+                             $"InsideRing={isInsideRing} " +
+                             $"CopyReason={reason} " +
+                             $"LocationSource={source} " +
+                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
+                             $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                             $"Timeout={_timeoutForProactiveCopies} " +
+                             $"TimedOut={cts.Token.IsCancellationRequested}"
+                    );
                 },
                 context.Token);
         }
@@ -244,32 +265,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Pushes content to another machine.
         /// </summary>
-        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Result<Stream>>> streamFactory, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
+        public Task<PushFileResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Stream stream, bool isInsideRing, ProactiveCopyReason reason, ProactiveCopyLocationSource source)
         {
-            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
-            {
-                var cts = new CancellationTokenSource();
-                cts.CancelAfter(_timeoutForProactiveCopies);
-                // Creating new operation context with a new token, but the newly created context 
-                // still would have the same tracing context to simplify proactive copy trace analysis.
-                var innerContext = context.WithCancellationToken(cts.Token);
-                return context.PerformOperationAsync(
-                    Tracer,
-                    operation: () => _copyRequester.PushFileAsync(innerContext, hash, streamFactory, targetLocation),
-                    traceOperationStarted: false,
-                    extraEndMessage: result =>
-                        $"ContentHash={hash.ToShortString()} " +
-                        $"TargetLocation=[{targetLocation}] " +
-                        $"InsideRing={isInsideRing} " +
-                        $"CopyReason={reason} " +
-                        $"LocationSource={source} " +
-                        $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                        $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
-                        $"Timeout={_timeoutForProactiveCopies} " +
-                        $"TimedOut={cts.Token.IsCancellationRequested}"
-                    );
-            },
-                context.Token);
+            return PerformProactiveCopyAsync(
+                context,
+                innerContext => _copyRequester.PushFileAsync(innerContext, hash, stream, targetLocation),
+                hash,
+                targetLocation,
+                isInsideRing,
+                reason,
+                source);
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

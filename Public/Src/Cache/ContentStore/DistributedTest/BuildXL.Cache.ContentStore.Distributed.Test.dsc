@@ -35,6 +35,13 @@ namespace DistributedTest {
                 oldVersion: "0.0.0.0-5.0.0.0",
                 newVersion: "4.0.6.0",
             },
+            {
+                name: "System.Numerics.Vectors",
+                publicKeyToken: "b03f5f7f11d50a3a",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.1.4.0",
+                newVersion: "4.1.4.0",
+            },
         ],
         appConfig: f`App.config`,
         references: [

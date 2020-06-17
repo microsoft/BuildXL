@@ -314,6 +314,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 break;
                             }
                         }
+
+                        if ((succeeded + failed) >= _settings.ProactiveReplicationCopyLimit)
+                        {
+                            break;
+                        }
                     }
 
                     return new ProactiveReplicationResult(succeeded, failed, skipped, rejected, localContent.Length, scanned, lastVisited);

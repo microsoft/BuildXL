@@ -500,10 +500,15 @@ namespace BuildXL.Engine.Distribution
                             pip.GetDescription(m_environment.Context),
                             ex.ToString());
 
-                        ReportResult(
-                            pip,
-                            ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
-                            (PipExecutionStep)pipBuildRequest.Step);
+                        // HandlePipStep might throw an exception after we remove pipCompletionData from m_pendingPipCompletions.
+                        // That's why, we check whether the pipCompletionData still exists there.
+                        if (m_pendingPipCompletions.ContainsKey(pip.PipId))
+                        {
+                            ReportResult(
+                                pip,
+                                ExecutionResult.GetFailureNotRunResult(m_appLoggingContext),
+                                (PipExecutionStep)pipBuildRequest.Step);
+                        }
                     });
                 }
             }
@@ -721,12 +726,18 @@ namespace BuildXL.Engine.Distribution
             {
                 // We do not report 'MaterializeOutput' step results back to master.
                 Logger.Log.DistributionWorkerFinishedPipRequest(m_appLoggingContext, pipCompletion.SemiStableHash, step.ToString());
+                return;
             }
-            else
+
+            try
             {
                 m_buildResults.Add(pipCompletion);
             }
-
+            catch (InvalidOperationException)
+            {
+                // m_buildResults is already marked as completed due to previously infrastructure errors reported (e.g., materialization errors).
+                // No need to report the other failed results as the build already failed
+            }
         }
 
         private Possible<Unit> TryReportInputs(List<FileArtifactKeyedHash> hashes)

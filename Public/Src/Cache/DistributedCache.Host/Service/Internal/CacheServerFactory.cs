@@ -197,13 +197,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
                     {
-                        MetadataGarbageCollectionEnabled = true,
+                        CleanOnInitialize = false,
                         OnFailureDeleteExistingStoreAndRetry = true,
                         LogsKeepLongTerm = true,
+                        MetadataGarbageCollectionEnabled = true,
+                        MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore,
                     },
                 };
-
-                config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore;
 
                 return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
             }

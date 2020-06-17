@@ -1571,30 +1571,31 @@ namespace BuildXL.Processes
                             {
                                 Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                                 Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
-                                if (await TrySaveAndLogStandardOutputAsync(result))
+
+                                if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
                                 {
                                     encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
+                                    encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
+                                    return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                        result.NumberOfProcessLaunchRetries,
+                                        result.ExitCode,
+                                        primaryProcessTimes,
+                                        jobAccounting,
+                                        result.DetouringStatuses,
+                                        sandboxPrepMs,
+                                        sw.ElapsedMilliseconds,
+                                        result.ProcessStartTime,
+                                        maxDetoursHeapSize,
+                                        m_containerConfiguration,
+                                        encodedStandardError,
+                                        encodedStandardOutput,
+                                        pipProperties,
+                                        sharedDynamicDirectoryWriteAccesses);
                                 }
 
-                                if (await TrySaveAndLogStandardErrorAsync(result))
-                                {
-                                    encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
-                                }
-                                return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
-                                    result.NumberOfProcessLaunchRetries,
-                                    result.ExitCode,
-                                    primaryProcessTimes,
-                                    jobAccounting,
-                                    result.DetouringStatuses,
-                                    sandboxPrepMs,
-                                    sw.ElapsedMilliseconds,
-                                    result.ProcessStartTime,
-                                    maxDetoursHeapSize,
-                                    m_containerConfiguration,
-                                    encodedStandardError,
-                                    encodedStandardOutput,
-                                    pipProperties,
-                                    sharedDynamicDirectoryWriteAccesses);
+                                Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
+                                // There was an error logged when saving stdout or stderror.
+                                loggingSuccess = false;
                             }
                             else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                             {

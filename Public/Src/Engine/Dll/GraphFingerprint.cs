@@ -135,7 +135,7 @@ namespace BuildXL.Engine
             writer.WriteLine(I($"Config file hash: {ConfigFileHash.ToString()}"));
             writer.WriteLine(I($"Qualifier hash: {QualifierHash.ToString()}"));
             writer.WriteLine(I($"Filter hash: {FilterHash.ToString()}"));
-            writer.WriteLine(I($"Directory hash: {TopLevelHash.ToString()}"));
+            writer.WriteLine(I($"Top-level hash: {TopLevelHash.ToString()}"));
 
 
             if (EvaluationFilter != null)

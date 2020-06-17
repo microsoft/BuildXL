@@ -8,16 +8,13 @@ using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Engine.Cache;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine
 {
@@ -39,7 +36,13 @@ namespace BuildXL.Engine
     /// </remarks>
     public static class GraphFingerprinter
     {
-        internal const int GraphFingerprintVersion = 9;
+        /// <summary>
+        /// Graph fingerprint version.
+        /// </summary>
+        /// <remarks>
+        /// 10: Adding top-level hash in graph fingerprint.
+        /// </remarks>
+        internal const int GraphFingerprintVersion = 10;
 
         /// <summary>
         /// Computes a fingerprint for looking up a reloadable build graph. Null indicates failure

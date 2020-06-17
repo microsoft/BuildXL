@@ -34,6 +34,7 @@ namespace Core {
             TypeScript.Net.dll,
 
             ...BuildXLSdk.tplPackages,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",

@@ -30,8 +30,8 @@ namespace Distributed {
             ...eventHubPackagages,
             // Intentionally using different Azure storage package
             importFrom("WindowsAzure.Storage").pkg,
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
-
+            ...addIf(BuildXLSdk.isFullFramework || qualifier.targetFramework === "netstandard2.0", importFrom("System.Collections.Immutable").pkg),
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...redisPackages,
 
             ManagedSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),

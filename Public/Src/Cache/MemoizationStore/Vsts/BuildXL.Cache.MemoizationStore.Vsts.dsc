@@ -25,6 +25,7 @@ namespace Vsts {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`/lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

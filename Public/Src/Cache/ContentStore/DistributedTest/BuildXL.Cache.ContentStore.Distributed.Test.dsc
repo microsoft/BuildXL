@@ -82,6 +82,7 @@ namespace DistributedTest {
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
 
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             importFrom("WindowsAzure.Storage").pkg,
         ],
         runtimeContent: [

@@ -21,6 +21,7 @@ namespace VstsApp {
 
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesWorkaround,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         appConfig: f`App.config`,
         tools: {

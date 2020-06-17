@@ -3,7 +3,7 @@
 
 namespace Library {
 
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithOldFullFrameworks;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -14,6 +14,8 @@ namespace Library {
                 NetFx.System.Data.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
+
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             UtilitiesCore.dll,

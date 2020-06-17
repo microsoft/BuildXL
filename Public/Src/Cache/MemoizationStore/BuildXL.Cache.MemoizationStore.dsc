@@ -5,7 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as ContentStore from "BuildXL.Cache.ContentStore";
 
-export declare const qualifier : BuildXLSdk.DefaultQualifierWithOldFullFrameworks;
+export declare const qualifier : BuildXLSdk.DefaultQualifierWithNetStandard20;
 
 export {BuildXLSdk, ContentStore};
 

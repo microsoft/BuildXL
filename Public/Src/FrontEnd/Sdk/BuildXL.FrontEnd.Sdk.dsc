@@ -26,6 +26,7 @@ namespace Sdk {
             importFrom("BuildXL.Utilities").Storage.dll,
 
             ...BuildXLSdk.tplPackages,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Workspaces",

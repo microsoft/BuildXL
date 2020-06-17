@@ -10,7 +10,8 @@ namespace Ipc {
         sources: globR(d`.`, "*.cs"),
         references: [
             $.dll,
-            $.Storage.dll
+            $.Storage.dll,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Ipc",

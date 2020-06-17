@@ -35,6 +35,7 @@ namespace Test {
             importFrom("System.Data.SQLite.Core").pkg,
             ...BuildXLSdk.bclAsyncPackages,
             ...BuildXLSdk.fluentAssertionsWorkaround,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
     });
 }

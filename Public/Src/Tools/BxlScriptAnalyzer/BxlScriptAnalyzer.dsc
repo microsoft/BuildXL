@@ -36,6 +36,7 @@ namespace BxlScriptAnalyzer {
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Collections.Immutable").pkg
             ),
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.Tool.BxlScriptAnalyzer",

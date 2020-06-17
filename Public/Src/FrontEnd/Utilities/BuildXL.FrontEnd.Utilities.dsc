@@ -19,6 +19,7 @@ namespace Utilities {
             Sdk.dll,
             SdkProjectGraph.dll,
             TypeScript.Net.dll,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
     });
 }

@@ -247,6 +247,12 @@ export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
     ];
 
 @@public
+export const systemThreadingTasksDataflowPackageReference : Managed.ManagedNugetPackage[] = 
+    qualifier.targetFramework === "netcoreapp3.1" ? [] : [
+            importFrom("System.Threading.Tasks.Dataflow").pkg,
+        ];
+
+@@public
 export function nativeExecutable(args: Arguments): CoreRT.NativeExecutableResult {
     if (!isHostOsOsx) {
         const asm = executable(args);
@@ -469,7 +475,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                 ...(args.skipDefaultReferences ? [] : [
                     ...(isDotNetCoreBuild ? [] : [
                         NetFx.System.Threading.Tasks.dll,
-                        importFrom("System.Threading.Tasks.Dataflow").pkg,
                     ]),
                     importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
                     ...(args.generateLogs ? [

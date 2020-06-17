@@ -50,6 +50,7 @@ export namespace DropDaemon {
             // We need to reference this even though the codepath which uses the path is never activated 
             // because of the way that runtime assemblies are loaded into memory.
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client.Cache").pkg, 
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         internalsVisibleTo: [
             "Test.Tool.DropDaemon",

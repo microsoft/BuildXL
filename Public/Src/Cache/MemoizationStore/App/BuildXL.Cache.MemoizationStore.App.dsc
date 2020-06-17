@@ -17,6 +17,7 @@ namespace App {
                 ? importFrom("CLAP").pkg
                 : importFrom("CLAP-DotNetCore").pkg,
             ...BuildXLSdk.bclAsyncPackages,
+            ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
         ],
         tools: {
             csc: {

@@ -233,7 +233,6 @@ namespace BuildXL.Processes
                 // Format:
                 //   "%s|%d|%d|%d|%d|%d|%d|%s\n", __progname, getpid(), access, status, explicitLogging, err, opcode, reportPath
                 string message = Encoding.GetString(bytes).TrimEnd('\n');
-                LogDebug($"Processing message: {message}");
 
                 // parse message and create AccessReport
                 string[] parts = message.Split(new[] { '|' });
@@ -358,8 +357,6 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    LogDebug($"Received a {numRead}-byte message");
-
                     // Add message to processing queue
                     actionBlock.Post(messageBytes);
                 }
@@ -453,7 +450,11 @@ namespace BuildXL.Processes
             {
                 yield return ("__BUILDXL_LOG_PATH", info.DebugLogJailPath);
             }
-            yield return ("LD_PRELOAD", CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile) + ":$LD_PRELOAD");
+
+            if (info.Process.RootJailInfo?.DisableSandboxing != true)
+            {
+                yield return ("LD_PRELOAD", CopyToRootJailIfNeeded(info.Process.RootJail, DetoursLibFile) + ":$LD_PRELOAD");
+            }
         }
 
         private static string CopyToRootJailIfNeeded(string rootJailDir, string file)

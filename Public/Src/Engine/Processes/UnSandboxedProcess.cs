@@ -110,6 +110,8 @@ namespace BuildXL.Processes
 
         private string TimeoutDumpDirectory { get; }
 
+        private IDetoursEventListener DetoursListener { get; }
+
         /// <remarks>
         /// IMPORTANT: For memory efficiency reasons don't keep a reference to <paramref name="info"/>
         ///            or its  <see cref="SandboxedProcessInfo.FileAccessManifest"/> property
@@ -126,6 +128,7 @@ namespace BuildXL.Processes
             PipSemiStableHash = info.PipSemiStableHash;
             TimeoutDumpDirectory = info.TimeoutDumpDirectory;
             ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
+            DetoursListener = info.DetoursEventListener;
 
             info.Timeout ??= s_defaultProcessTimeout;
 
@@ -397,9 +400,15 @@ namespace BuildXL.Processes
         /// <nodoc />
         protected void LogProcessState(string message)
         {
+            string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
+
+            if (DetoursListener != null)
+            {
+                DetoursListener.HandleDebugMessage(PipSemiStableHash, PipDescription, fullMessage);
+            }
+
             if (LoggingContext != null)
             {
-                string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
                 Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, fullMessage);
             }
         }

@@ -123,9 +123,14 @@ namespace BuildXL.Processes
         internal const string ShellExecutable = "/bin/sh";
 
         /// <summary>
+        /// Optional configuration for running this process in a root jail.
+        /// </summary>
+        internal RootJailInfo? RootJailInfo { get; }
+
+        /// <summary>
         /// Optional directory where root jail should be established.
         /// </summary>
-        internal string RootJail { get; }
+        internal string RootJail => RootJailInfo?.RootJail;
 
         /// <summary>
         /// If <see cref="RootJail"/> is set:
@@ -167,7 +172,7 @@ namespace BuildXL.Processes
             AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
-            RootJail = info.RootJailInfo?.RootJail;
+            RootJailInfo = info.RootJailInfo;
 
             MeasureCpuTime = overrideMeasureTime.HasValue
                 ? overrideMeasureTime.Value

@@ -34,6 +34,7 @@ BxlObserver::BxlObserver()
 
     const char *rootPidStr = getenv(BxlEnvRootPid);
     rootPid_ = (rootPidStr && *rootPidStr) ? atoi(rootPidStr) : -1;
+    disposed_ = false;
 
     InitFam();
     InitLogFile();
@@ -97,8 +98,13 @@ void BxlObserver::InitLogFile()
 
 bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const string &secondPath)
 {
-    // never cache FORK, EXEC, EXIT and events that take 2 paths
-    if (secondPath.length() > 0 ||
+    // (1) IMPORTANT           : never do any of this stuff after this object has been disposed!
+    //     WHY                 : because the cache date structure is invalid at that point.
+    //     HOW CAN THIS HAPPEN : we may get called from "on_exit" handlers, at which point the
+    //                           global BxlObserver singleton instance can already be disposed.
+    // (2) never cache FORK, EXEC, EXIT and events that take 2 paths
+    if (disposed_ ||
+        secondPath.length() > 0 ||
         event == ES_EVENT_TYPE_NOTIFY_FORK ||
         event == ES_EVENT_TYPE_NOTIFY_EXEC ||
         event == ES_EVENT_TYPE_NOTIFY_EXIT)
@@ -136,8 +142,18 @@ bool BxlObserver::IsCacheHit(es_event_type_t event, const string &path, const st
             break;
     }
 
-    // check the cache_ dictionary
-    lock_guard<std::mutex> lck(cacheMtx_);
+    // This code could possibly be executing from an interrupt routine or from who knows where,
+    // so to avoid deadlocks it's essential to never block here indefinitely.
+    if (!cacheMtx_.try_lock_for(chrono::milliseconds(1)))
+    {
+        return false; // failed to acquire mutex -> forget about it
+    }
+
+    // ============================== in the critical section ================================
+
+    // make sure the mutex is released by the end
+    shared_ptr<timed_mutex> sp(&cacheMtx_, [](timed_mutex *mtx) { mtx->unlock(); });
+
     unordered_map<es_event_type_t, unordered_set<string>>::iterator it = cache_.find(key);
     if (it == cache_.end())
     {

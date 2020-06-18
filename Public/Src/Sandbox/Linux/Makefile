@@ -35,7 +35,7 @@ src = \
 dbgobj = $(src:.cpp=.d.o)
 relobj = $(src:.cpp=.r.o)
 dbgdep = $(dbgobj:.o=.deps)
-reldep = $(dbgobj:.o=.deps)
+reldep = $(relobj:.o=.deps)
 dep = $(dbgdep) $(reldep)
 
 %.d.deps: %.cpp

@@ -8,6 +8,7 @@
 
 #include <ostream>
 #include <sstream>
+#include <chrono>
 #include <mutex>
 #include <unordered_set>
 #include <unordered_map>
@@ -115,15 +116,16 @@ class BxlObserver final
 {
 private:
     BxlObserver();
-    ~BxlObserver() {}
+    ~BxlObserver() { disposed_ = true; }
     BxlObserver(const BxlObserver&) = delete;
     BxlObserver& operator = (const BxlObserver&) = delete;
 
+    volatile int disposed_;
     int rootPid_;
     char progFullPath_[PATH_MAX];
     char logFile_[PATH_MAX];
 
-    std::mutex cacheMtx_;
+    std::timed_mutex cacheMtx_;
     std::unordered_map<es_event_type_t, std::unordered_set<std::string>> cache_;
 
     std::shared_ptr<SandboxedPip> pip_;
@@ -172,8 +174,13 @@ private:
     static BxlObserver *sInstance;
     static AccessCheckResult sNotChecked;
 
+#if _DEBUG
     #define BXL_LOG_DEBUG(bxl, fmt, ...) if (bxl->LogDebugEnabled()) bxl->LogDebug("[%s:%d] " fmt "\n", __progname, getpid(), __VA_ARGS__);
-    #define LOG_DEBUG(fmt, ...) BXL_LOG_DEBUG(this, fmt, __VA_ARGS__)
+#else
+    #define BXL_LOG_DEBUG(bxl, fmt, ...)
+#endif
+
+#define LOG_DEBUG(fmt, ...) BXL_LOG_DEBUG(this, fmt, __VA_ARGS__)
 
 public:
     static BxlObserver* GetInstance(); 

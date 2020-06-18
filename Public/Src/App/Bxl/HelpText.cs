@@ -1163,32 +1163,12 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/symlinkDefinitionFile:<file>",
-                Strings.HelpText_DisplayHelp_SymlinkDefinitionFile);
-
-            hw.WriteOption(
                 "/inputChanges:<file>",
                 Strings.HelpText_DisplayHelp_InputChanges);
 
             hw.WriteOption(
                 "/telemetryTagPrefix:<string>",
                 Strings.HelpText_DisplayHelp_TelemetryTagPrefix);
-
-            hw.WriteOption(
-                "/populateSymlinkDirectory:<file>",
-                Strings.HelpText_DisplayHelp_PopulateSymlinkDirectory);
-
-            hw.WriteOption(
-                "/unsafe_LazySymlinkCreation[+|-]",
-                Strings.HelpText_DisplayHelp_LazySymlinkCreation);
-
-            hw.WriteOption(
-                "/unsafe_LazySymlinkCreation[+|-]",
-                Strings.HelpText_DisplayHelp_LazySymlinkCreation);
-
-            hw.WriteOption(
-                "/unexpectedSymlinkAccessReportingMode:<mode>",
-                Strings.HelpText_DisplayHelp_UnexpectedSymlinkAccessReportingMode);
 
             hw.WriteOption(
                 "/unsafe_DisableGraphPostValidation[+|-]",

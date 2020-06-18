@@ -1666,7 +1666,6 @@ namespace BuildXL.Scheduler.Fingerprints
             Possible<PathExistence> existence;
 
             // Check if path will be eventually produced as a file/directory by querying 'output file system'
-            // TODO: Should the file content manager be queried about eventual production (i.e. lazy symlink creation)?
             existence = FileSystemView.GetExistence(path, FileSystemViewMode.Output);
 
             // NOTE: We don't check success of existence from produced file system as it should never return failure

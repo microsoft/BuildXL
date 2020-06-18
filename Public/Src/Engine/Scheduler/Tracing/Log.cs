@@ -3056,56 +3056,6 @@ namespace BuildXL.Scheduler.Tracing
             Message = "{0}")]
         public abstract void CriticalPathChain(LoggingContext context, string criticalPathMessage);
 
-        #region Symlink file
-
-        [GeneratedEvent(
-            (int)LogEventId.FailedLoadSymlinkFile,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "Failed to load symlink file: {message}.")]
-        public abstract void FailedLoadSymlinkFile(LoggingContext context, string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.FailedToCreateSymlinkFromSymlinkMap,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "Failed to create symlink from '{source}' to '{target}': {message}")]
-        public abstract void FailedToCreateSymlinkFromSymlinkMap(LoggingContext loggingContext, string source, string target, string message);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.CreateSymlinkFromSymlinkMap,
-            EventGenerators = EventGenerators.LocalOnly | Generators.Statistics,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Storage,
-            Message = "Symlink creations: Created symlinks: {createdSymlinkCount} | Reuse symlinks: {reuseSymlinkCount} | Failed creations: {failedSymlinkCount} | Elapsed time: {createSymlinkDurationMs}ms")]
-        public abstract void CreateSymlinkFromSymlinkMap(LoggingContext loggingContext, int createdSymlinkCount, int reuseSymlinkCount, int failedSymlinkCount, int createSymlinkDurationMs);
-
-        [GeneratedEvent(
-            (int)LogEventId.SymlinkFileTraceMessage,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "{message}")]
-        public abstract void SymlinkFileTraceMessage(LoggingContext context, string message);
-
-        [GeneratedEvent(
-            (int)LogEventId.UnexpectedAccessOnSymlinkPath,
-            EventGenerators = EventGenerators.LocalOnly,
-            // TODO: Should this be informational?
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "[{pipDescription}] Unexpected access on symlink {pathKind} path '{path}': {inputType} (Tools: {tools}).")]
-        public abstract void UnexpectedAccessOnSymlinkPath(LoggingContext context, string pipDescription, string path, string pathKind, string inputType, string tools);
-
-        #endregion
-
         #region Preserved output tracker
 
         [GeneratedEvent(

@@ -28,7 +28,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             BuildLockWaitTimeoutMins = 0;
             DirectoriesToTranslate = new List<TranslateDirectoryData>();
             ScrubDirectories = new List<AbsolutePath>();
-            PopulateSymlinkDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
             LogStatistics = true;
@@ -68,7 +67,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 template.DirectoriesToTranslate.Select(
                     d => new TranslateDirectoryData(d.RawUserOption, pathRemapper.Remap(d.FromPath), pathRemapper.Remap(d.ToPath))).ToList();
             ScrubDirectories = pathRemapper.Remap(template.ScrubDirectories);
-            PopulateSymlinkDirectories = pathRemapper.Remap(template.PopulateSymlinkDirectories);
             CompressGraphFiles = template.CompressGraphFiles;
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
             LogStatistics = template.LogStatistics;
@@ -143,13 +141,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<TranslateDirectoryData> IEngineConfiguration.DirectoriesToTranslate => DirectoriesToTranslate;
-
-        /// <nodoc />
-        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<AbsolutePath> PopulateSymlinkDirectories { get; set; }
-
-        /// <inheritdoc />
-        IReadOnlyList<AbsolutePath> IEngineConfiguration.PopulateSymlinkDirectories => PopulateSymlinkDirectories;
 
         /// <inheritdoc />
         public bool CompressGraphFiles { get; set; }

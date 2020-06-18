@@ -357,22 +357,6 @@ namespace BuildXL.Engine
                             return cacheGraphStats;
                         }
 
-                        AsyncOut<AbsolutePath> symlinkFileLocation = new AsyncOut<AbsolutePath>();
-                        if (!SymlinkDefinitionFileProvider.TryFetchWorkerSymlinkFileAsync(
-                            outerLoggingContext,
-                            Context.PathTable,
-                            cacheForWorker,
-                            Configuration.Layout,
-                            m_workerService,
-                            symlinkFileLocation).Result)
-                        {
-                            cacheGraphStats.CacheMissReason = GraphCacheMissReason.NoFingerprintFromMaster;
-                            cacheGraphStats.MissReason = cacheGraphStats.CacheMissReason;
-                            return cacheGraphStats;
-                        }
-
-                        m_workerSymlinkDefinitionFile = symlinkFileLocation.Value;
-
                         // Success. Populate the stats
                         cacheGraphStats.WasHit = true;
                         cacheGraphStats.WorkerHit = true;
@@ -594,9 +578,6 @@ namespace BuildXL.Engine
                     m_collector,
                     m_directoryTranslator,
                     engineState,
-                    symlinkDefinitionFile: IsDistributedWorker ?
-                        m_workerSymlinkDefinitionFile.Value :
-                        Configuration.Layout.SymlinkDefinitionFile,
                     tempCleaner: m_tempCleaner,
                     buildEngineFingerprint).GetAwaiter().GetResult();
             }

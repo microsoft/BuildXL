@@ -246,8 +246,6 @@ namespace BuildXL.Engine
         [CanBeNull]
         private readonly string m_buildVersion;
 
-        private AbsolutePath? m_workerSymlinkDefinitionFile = null;
-
         private bool IsDistributedMaster => Configuration.Distribution.BuildRole == DistributedBuildRoles.Master;
 
         private bool IsDistributedWorker => Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker;
@@ -2344,7 +2342,6 @@ namespace BuildXL.Engine
                 { "unsafe_IgnoreZwCreateOpenQueryFamily", Logger.Log.ConfigUnsafeMonitorZwCreateOpenQueryFileOff },
                 { "unsafe_IgnoreZwOtherFileInformation", Logger.Log.ConfigIgnoreZwOtherFileInformation },
                 { "unsafe_IgnoreZwRenameFileInformation", Logger.Log.ConfigIgnoreZwRenameFileInformation },
-                { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
                 { "unsafe_PreserveOutputsTrustLevel", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
@@ -2768,16 +2765,6 @@ namespace BuildXL.Engine
                 m_enginePerformanceInfo.CacheInitializationDurationMs = (long)cacheInitializationTask.InitializationTime.TotalMilliseconds;
             }
 
-            Task<Possible<SymlinkDefinitions>> symlinkDefinitionsTask =
-                SymlinkDefinitionFileProvider.TryPrepareSymlinkDefinitionsAsync(
-                    loggingContext,
-                    reuseResult,
-                    Configuration,
-                    m_masterService,
-                    cacheInitializationTask,
-                    Context,
-                    m_tempCleaner);
-
             m_buildViewModel.SetContext(Context);
 
             var phase = Configuration.Engine.Phase;
@@ -2918,15 +2905,6 @@ namespace BuildXL.Engine
                             return ConstructScheduleResult.Failure;
                         }
 
-                        var maybeSymlinkDefinitions = symlinkDefinitionsTask.GetAwaiter().GetResult();
-                        if (!maybeSymlinkDefinitions.Succeeded)
-                        {
-                            Contract.Assert(
-                                loggingContext.ErrorWasLogged,
-                                "Failed to load symlink definitions file, but no error was logged.");
-                            return ConstructScheduleResult.Failure;
-                        }
-
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
 
                         engineSchedule = EngineSchedule.Create(
@@ -2942,7 +2920,6 @@ namespace BuildXL.Engine
                             performanceCollector: m_collector,
                             directoryTranslator: m_directoryTranslator,
                             maxDegreeOfParallelism: Configuration.FrontEnd.MaxFrontEndConcurrency(),
-                            symlinkDefinitions: maybeSymlinkDefinitions.Result,
                             tempCleaner: m_tempCleaner,
                             buildEngineFingerprint: graphFingerprint?.ExactFingerprint.BuildEngineHash.ToString(),
                             detoursListener: TestHooks?.DetoursListener);

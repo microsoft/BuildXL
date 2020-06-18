@@ -492,61 +492,6 @@ namespace Test.BuildXL.EngineTests
             AssertInformationalEventLogged(LogEventId.FetchedSerializedGraphFromCache, count: 0);
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission: true)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void MiniBuildCopySymlink(bool lazySymlinkCreation)
-        {
-            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
-            {
-                const string SymlinkSource1 = "symlink1.lnk";
-                const string SymlinkSource2 = "symlink2.lnk";
-
-                const string CopiedSymlink1 = "copied-" + SymlinkSource1;
-                const string CopiedSymlink2 = "copied-" + SymlinkSource2;
-
-                const string SymlinkTarget1 = "target1.txt";
-                const string SymlinkTarget2 = "target2.txt";
-
-                SetupCopySymlink(SymlinkSource1, CopiedSymlink1, SymlinkSource2, CopiedSymlink2);
-
-                Configuration.Schedule.UnsafeLazySymlinkCreation = lazySymlinkCreation;
-                Configuration.Cache.CacheGraph = true;
-
-                var sourceDirectory = Configuration.Layout.SourceDirectory.ToString(Context.PathTable);
-
-                // Write symlink targets.
-                File.WriteAllText(Path.Combine(sourceDirectory, SymlinkTarget1), "1");
-                File.WriteAllText(Path.Combine(sourceDirectory, SymlinkTarget2), "2");
-
-                // Write symlink definition file.
-                var symlinkDefinitionFile = Path.Combine(sourceDirectory, "SymlinkDefinition");
-                var pathMapSerializer = new PathMapSerializer(symlinkDefinitionFile);
-                pathMapSerializer.OnNext(
-                    new KeyValuePair<string, string>(Path.Combine(sourceDirectory, SymlinkSource1), Path.Combine(sourceDirectory, SymlinkTarget1)));
-                pathMapSerializer.OnNext(
-                    new KeyValuePair<string, string>(Path.Combine(sourceDirectory, SymlinkSource2), Path.Combine(sourceDirectory, SymlinkTarget2)));
-                ((IObserver<KeyValuePair<string, string>>)pathMapSerializer).OnCompleted();
-
-                // Allow copying symlink for testing, and set the symlink definition file.
-                Configuration.Schedule.AllowCopySymlink = true;
-                Configuration.Layout.SymlinkDefinitionFile = AbsolutePath.Create(Context.PathTable, symlinkDefinitionFile);
-                IgnoreWarnings();
-                RunEngine();
-
-                var objectDirectoryPath = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
-
-                XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, CopiedSymlink1)));
-                XAssert.IsTrue(File.Exists(Path.Combine(objectDirectoryPath, CopiedSymlink2)));
-
-                string content1 = File.ReadAllText(Path.Combine(objectDirectoryPath, CopiedSymlink1));
-                string content2 = File.ReadAllText(Path.Combine(objectDirectoryPath, CopiedSymlink2));
-
-                XAssert.AreEqual("1", content1);
-                XAssert.AreEqual("2", content2);
-            }
-        }
-
         [Fact]
         public void MiniBuildCachedGraphWithAndWithoutEnvironmentAccess()
         {

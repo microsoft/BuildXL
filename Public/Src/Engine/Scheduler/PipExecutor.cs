@@ -159,28 +159,21 @@ namespace BuildXL.Scheduler
                     FileMaterializationInfo sourceMaterializationInfo = environment.State.FileContentManager.GetInputContent(pip.Source);
                     FileContentInfo sourceContentInfo = sourceMaterializationInfo.FileContentInfo;
 
-                    var symlinkTarget = environment.State.FileContentManager.TryGetRegisteredSymlinkFinalTarget(pip.Source.Path);
                     ReadOnlyArray<AbsolutePath> symlinkChain;
-                    bool isSymLink = symlinkTarget.IsValid;
-                    if (isSymLink)
+                    var symlinkTarget = AbsolutePath.Invalid;
+                    bool isSymLink = false;
+               
+                    var possibleSymlinkChain = CheckValidSymlinkChainAsync(pip.Source, environment);
+                    if (!possibleSymlinkChain.Succeeded)
                     {
-                        symlinkChain = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(new[] { symlinkTarget });
+                        possibleSymlinkChain.Failure.Throw();
                     }
-                    else
-                    {
-                        // pip.Source is not a registered symlink - check if this file forms a proper symlink chain
-                        var possibleSymlinkChain = CheckValidSymlinkChainAsync(pip.Source, environment);
-                        if (!possibleSymlinkChain.Succeeded)
-                        {
-                            possibleSymlinkChain.Failure.Throw();
-                        }
 
-                        symlinkChain = possibleSymlinkChain.Result;
-                        if (symlinkChain.Length > 0)
-                        {
-                            symlinkTarget = symlinkChain[symlinkChain.Length - 1];
-                            isSymLink = true;
-                        }
+                    symlinkChain = possibleSymlinkChain.Result;
+                    if (symlinkChain.Length > 0)
+                    {
+                        symlinkTarget = symlinkChain[symlinkChain.Length - 1];
+                        isSymLink = true;
                     }
 
                     if (isSymLink && !environment.Configuration.Schedule.AllowCopySymlink)
@@ -3629,16 +3622,12 @@ namespace BuildXL.Scheduler
 
             public void ReportUnexpectedAccess(ObservedPathEntry assertion, ObservedInputType observedInputType)
             {
-                if (m_environment.Configuration.Schedule.UnexpectedSymlinkAccessReportingMode == UnexpectedSymlinkAccessReportingMode.All)
-                {
-                    m_environment.State.FileContentManager.ReportUnexpectedSymlinkAccess(m_operationContext, m_pipDescription, assertion.Path, observedInputType, reportedAccesses: default(CompactSet<ReportedFileAccess>));
-                }
+                // noop
             }
 
             public bool IsReportableUnexpectedAccess(AbsolutePath path)
             {
-                return m_environment.Configuration.Schedule.UnexpectedSymlinkAccessReportingMode == UnexpectedSymlinkAccessReportingMode.All &&
-                    m_environment.State.FileContentManager.TryGetSymlinkPathKind(path, out var kind);
+                return false;
             }
         }
 
@@ -3683,21 +3672,12 @@ namespace BuildXL.Scheduler
 
             public void ReportUnexpectedAccess(ObservedFileAccess observation, ObservedInputType observedInputType)
             {
-                if (m_environment.Configuration.Schedule.UnexpectedSymlinkAccessReportingMode != UnexpectedSymlinkAccessReportingMode.None)
-                {
-                    m_environment.State.FileContentManager.ReportUnexpectedSymlinkAccess(
-                        m_operationContext,
-                        m_processDescription,
-                        observation.Path,
-                        observedInputType,
-                        observation.Accesses);
-                }
+                // noop
             }
 
             public bool IsReportableUnexpectedAccess(AbsolutePath path)
             {
-                return m_environment.Configuration.Schedule.UnexpectedSymlinkAccessReportingMode != UnexpectedSymlinkAccessReportingMode.None &&
-                    m_environment.State.FileContentManager.TryGetSymlinkPathKind(path, out var kind);
+                return false;
             }
 
             public ObservedInputAccessCheckFailureAction OnAccessCheckFailure(ObservedFileAccess observation, bool fromTopLevelDirectory)

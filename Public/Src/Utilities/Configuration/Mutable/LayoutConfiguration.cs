@@ -30,7 +30,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TempDirectory = pathRemapper.Remap(template.TempDirectory);
             BuildEngineDirectory = pathRemapper.Remap(template.BuildEngineDirectory);
             FileContentTableFile = pathRemapper.Remap(template.FileContentTableFile);
-            SymlinkDefinitionFile = pathRemapper.Remap(template.SymlinkDefinitionFile);
             SchedulerFileChangeTrackerFile = pathRemapper.Remap(template.SchedulerFileChangeTrackerFile);
             IncrementalSchedulingStateFile = pathRemapper.Remap(template.IncrementalSchedulingStateFile);
             FingerprintStoreDirectory = pathRemapper.Remap(template.FingerprintStoreDirectory);
@@ -72,9 +71,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath FileContentTableFile { get; set; }
-
-        /// <inheritdoc />
-        public AbsolutePath SymlinkDefinitionFile { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath SchedulerFileChangeTrackerFile { get; set; }

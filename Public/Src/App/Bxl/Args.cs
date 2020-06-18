@@ -811,9 +811,6 @@ namespace BuildXL
                             opt =>
                             sandboxConfiguration.WarningTimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
                         OptionHandlerFactory.CreateOption(
-                            "populateSymlinkDirectory",
-                            opt => engineConfiguration.PopulateSymlinkDirectories.Add(CommandLineUtilities.ParsePathOption(opt, pathTable))),
-                        OptionHandlerFactory.CreateOption(
                             "posixDeleteMode",
                             opt => FileUtilities.PosixDeleteMode = CommandLineUtilities.ParseEnumOption<PosixDeleteMode>(opt)),
                         OptionHandlerFactory.CreateOption(
@@ -976,9 +973,6 @@ namespace BuildXL
                             "substTarget",
                             opt => loggingConfiguration.SubstTarget = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
-                            "symlinkDefinitionFile",
-                            opt => layoutConfiguration.SymlinkDefinitionFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
                             "telemetryTagPrefix",
                             opt => schedulingConfiguration.TelemetryTagPrefix = CommandLineUtilities.ParseStringOption(opt)),
                         OptionHandlerFactory.CreateOption(
@@ -1009,10 +1003,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "typeCheck",
                             sign => { /* Do nothing Office still passes this flag even though it is deprecated. */ }),
-
-                        OptionHandlerFactory.CreateOption(
-                            "unexpectedSymlinkAccessReportingMode",
-                            opt => schedulingConfiguration.UnexpectedSymlinkAccessReportingMode = CommandLineUtilities.ParseEnumOption<UnexpectedSymlinkAccessReportingMode>(opt)),
 
                         // <Begin unsafe arguments>
                         // Unsafe options should follow the pattern that enabling them (i.e. "/unsafe_option" or "/unsafe_option+") should lead to an unsafe configuration
@@ -1162,10 +1152,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreZwRenameFileInformation",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreZwRenameFileInformation = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_LazySymlinkCreation",
-                            sign => schedulingConfiguration.UnsafeLazySymlinkCreation = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_MonitorFileAccesses",

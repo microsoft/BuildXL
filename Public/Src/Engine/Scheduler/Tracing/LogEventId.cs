@@ -233,11 +233,11 @@ namespace BuildXL.Scheduler.Tracing
         PipIsIncrementallySkippedDueToCleanMaterialized = 3631,
 
         // Symlink file.
-        FailedToCreateSymlinkFromSymlinkMap = 3632,
-        FailedLoadSymlinkFile = 3633,
-        CreateSymlinkFromSymlinkMap = 3634,
-        SymlinkFileTraceMessage = 3635,
-        UnexpectedAccessOnSymlinkPath = 3636,
+        // was FailedToCreateSymlinkFromSymlinkMap = 3632,
+        // was FailedLoadSymlinkFile = 3633,
+        // was CreateSymlinkFromSymlinkMap = 3634,
+        // was SymlinkFileTraceMessage = 3635,
+        // was UnexpectedAccessOnSymlinkPath = 3636,
 
         // Preserved outputs tracker.
         // Reserved = 3640,

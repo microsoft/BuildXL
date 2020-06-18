@@ -195,11 +195,6 @@ namespace BuildXL.Utilities.Configuration
         int ProcessRetries { get; }
 
         /// <summary>
-        /// Create symlink lazily from the symlink definition manifest.
-        /// </summary>
-        bool UnsafeLazySymlinkCreation { get; }
-
-        /// <summary>
         /// Enables lazy materialization of write file outputs. Defaults to off (on for CloudBuild)
         /// </summary>
         /// <remarks>
@@ -211,11 +206,6 @@ namespace BuildXL.Utilities.Configuration
         /// Gets whether IPC pip output should be written to disk. Defaults to on (off for CloudBuild)
         /// </summary>
         bool WriteIpcOutput { get; }
-
-        /// <summary>
-        /// Gets the mode for reporting unexpected symlink accesses which defines when unexpected accesses are reported
-        /// </summary>
-        UnexpectedSymlinkAccessReportingMode UnexpectedSymlinkAccessReportingMode { get; }
 
         /// <summary>
         /// Stores pip outputs to cache.

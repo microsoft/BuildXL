@@ -92,11 +92,6 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<AbsolutePath> ScrubDirectories { get; }
 
         /// <summary>
-        /// Directories to eagerly populate with symlinks
-        /// </summary>
-        IReadOnlyList<AbsolutePath> PopulateSymlinkDirectories { get; }
-
-        /// <summary>
         /// Directories under the object directory root will get shortened to avoid too long path names. Defaults to 64 characters for relative output directories.
         /// </summary>
         /// <remarks>

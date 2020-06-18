@@ -70,7 +70,6 @@ namespace BuildXL.Scheduler.Artifacts
     [SuppressMessage("Microsoft.Design", "CA1001:TypesThatOwnDisposableFieldsShouldBeDisposable")]
     public sealed class FileContentManager : IQueryableFileContentManager
     {
-        private const int MAX_SYMLINK_TRAVERSALS = 100;
         private readonly ITempCleaner m_tempDirectoryCleaner;
 
         #region Internal State
@@ -186,15 +185,6 @@ namespace BuildXL.Scheduler.Artifacts
         private readonly ConcurrentBigMap<FileArtifact, DirectoryArtifact> m_dynamicOutputFileDirectories =
             new ConcurrentBigMap<FileArtifact, DirectoryArtifact>();
 
-        /// <summary>
-        /// Symlink definitions.
-        /// </summary>
-        private readonly SymlinkDefinitions m_symlinkDefinitions;
-
-        /// <summary>
-        /// Flag indicating if symlink should be created lazily.
-        /// </summary>
-        private bool LazySymlinkCreation => m_host.Configuration.Schedule.UnsafeLazySymlinkCreation && m_symlinkDefinitions != null;
         #endregion
 
         #region External State (i.e. passed into constructor)
@@ -254,13 +244,11 @@ namespace BuildXL.Scheduler.Artifacts
         public FileContentManager(
             IFileContentManagerHost host,
             IOperationTracker operationTracker,
-            SymlinkDefinitions symlinkDefinitions = null,
             ITempCleaner tempDirectoryCleaner = null)
         {
             m_host = host;
             ArtifactContentCache = new ElidingArtifactContentCacheWrapper(host.ArtifactContentCache);
             OperationTracker = operationTracker;
-            m_symlinkDefinitions = symlinkDefinitions;
             m_tempDirectoryCleaner = tempDirectoryCleaner;
 
             m_outputMaterializationExclusionMap = new FlaggedHierarchicalNameDictionary<Unit>(host.Context.PathTable, HierarchicalNameTable.NameFlags.Root);
@@ -831,113 +819,10 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Attempts to the symlink target if registered
-        /// </summary>
-        public AbsolutePath TryGetRegisteredSymlinkFinalTarget(AbsolutePath symlink)
-        {
-            if (m_symlinkDefinitions == null)
-            {
-                return AbsolutePath.Invalid;
-            }
-
-            AbsolutePath symlinkTarget = symlink;
-            for (int i = 0; i < MAX_SYMLINK_TRAVERSALS; i++)
-            {
-                var next = m_symlinkDefinitions.TryGetSymlinkTarget(symlinkTarget);
-                if (next.IsValid)
-                {
-                    symlinkTarget = next;
-                }
-                else
-                {
-                    return symlinkTarget == symlink ? AbsolutePath.Invalid : symlinkTarget;
-                }
-            }
-
-            // Symlink chain is too long
-            List<AbsolutePath> symlinkChain = new List<AbsolutePath>();
-            symlinkTarget = symlink;
-            for (int i = 0; i < MAX_SYMLINK_TRAVERSALS; i++)
-            {
-                symlinkChain.Add(symlinkTarget);
-                symlinkTarget = m_symlinkDefinitions.TryGetSymlinkTarget(symlinkTarget);
-            }
-
-            throw new BuildXLException(I(
-                $"Registered symlink chain exceeds max length of {MAX_SYMLINK_TRAVERSALS}: {string.Join("->" + Environment.NewLine, symlinkChain)}"));
-        }
-
-        /// <summary>
-        /// Reports an unexpected access which the file content manager can check to verify that access is safe with respect to lazy
-        /// symlink creation
-        /// </summary>
-        internal void ReportUnexpectedSymlinkAccess(LoggingContext loggingContext, string pipDescription, AbsolutePath path, ObservedInputType observedInputType, CompactSet<ReportedFileAccess> reportedAccesses)
-        {
-            if (TryGetSymlinkPathKind(path, out var symlinkPathKind))
-            {
-                using (var toolPathSetWrapper = Pools.StringSetPool.GetInstance())
-                using (var toolFileNameSetWrapper = Pools.StringSetPool.GetInstance())
-                {
-                    var toolPathSet = toolPathSetWrapper.Instance;
-                    var toolFileNameSet = toolFileNameSetWrapper.Instance;
-
-                    foreach (var reportedAccess in reportedAccesses)
-                    {
-                        if (!string.IsNullOrEmpty(reportedAccess.Process.Path))
-                        {
-                            if (toolPathSet.Add(reportedAccess.Process.Path))
-                            {
-                                AbsolutePath toolPath;
-                                if (AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Process.Path, out toolPath))
-                                {
-                                    toolFileNameSet.Add(toolPath.GetName(Context.PathTable).ToString(Context.StringTable));
-                                }
-                            }
-                        }
-                    }
-
-                    Logger.Log.UnexpectedAccessOnSymlinkPath(
-                        pipDescription: pipDescription,
-                        context: loggingContext,
-                        path: path.ToString(Context.PathTable),
-                        pathKind: symlinkPathKind,
-                        inputType: observedInputType.ToString(),
-                        tools: string.Join(", ", toolFileNameSet));
-                }
-            }
-        }
-
-        internal bool TryGetSymlinkPathKind(AbsolutePath path, out string kind)
-        {
-            kind = null;
-            if (m_symlinkDefinitions == null)
-            {
-                return false;
-            }
-
-            if (m_symlinkDefinitions.IsSymlink(path))
-            {
-                kind = "file";
-            }
-            else if (m_symlinkDefinitions.HasNestedSymlinks(path))
-            {
-                kind = "directory";
-            }
-
-            return kind != null;
-        }
-
-        /// <summary>
         /// Gets the updated semantic path information for the given path with data from the file content manager
         /// </summary>
         internal SemanticPathInfo GetUpdatedSemanticPathInfo(in SemanticPathInfo mountInfo)
         {
-            if (mountInfo.IsValid && LazySymlinkCreation && m_symlinkDefinitions.HasNestedSymlinks(mountInfo.Root))
-            {
-                // Rewrite the semantic path info to indicate that the mount has potential build outputs
-                return new SemanticPathInfo(mountInfo.RootName, mountInfo.Root, mountInfo.Flags | SemanticPathFlags.HasPotentialBuildOutputs);
-            }
-
             return mountInfo;
         }
 
@@ -946,9 +831,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public bool HasPotentialBuildOutputs(AbsolutePath directoryPath, in SemanticPathInfo mountInfo, bool isReadOnlyDirectory)
         {
-            // If (1) the directory is writeable, or (2) the directory contains symlinks, that may have not been created, then use the graph enumeration.
-            return (mountInfo.IsWritable && !isReadOnlyDirectory) ||
-                (LazySymlinkCreation && m_symlinkDefinitions.DirectoryContainsSymlink(directoryPath));
+            return (mountInfo.IsWritable && !isReadOnlyDirectory);
         }
 
         /// <summary>
@@ -1495,98 +1378,6 @@ namespace BuildXL.Scheduler.Artifacts
             return fileContentInfo;
         }
 
-        /// <summary>
-        /// Creates all symlink files in the symlink definitions
-        /// </summary>
-        public static bool CreateSymlinkEagerly(LoggingContext loggingContext, IConfiguration configuration, PathTable pathTable, SymlinkDefinitions symlinkDefinitions, CancellationToken cancellationToken)
-        {
-            Contract.Requires(loggingContext != null);
-            Contract.Requires(symlinkDefinitions != null);
-            Contract.Requires(!configuration.Schedule.UnsafeLazySymlinkCreation || configuration.Engine.PopulateSymlinkDirectories.Count != 0);
-
-            Logger.Log.SymlinkFileTraceMessage(loggingContext, I($"Eagerly creating symlinks found in symlink file."));
-
-            int createdSymlinkCount = 0;
-            int reuseExistingSymlinkCount = 0;
-            int failedSymlinkCount = 0;
-
-            var startTime = TimestampUtilities.Timestamp;
-
-            var symlinkDirectories = symlinkDefinitions.DirectorySymlinkContents.Keys.ToList();
-            var populateSymlinkDirectories = new HashSet<HierarchicalNameId>(configuration.Engine.PopulateSymlinkDirectories.Select(p => p.Value));
-
-            Parallel.ForEach(
-                symlinkDirectories,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = configuration.Schedule.MaxProcesses,
-                },
-                symlinkDirectory =>
-                {
-                    bool populateSymlinks = !configuration.Schedule.UnsafeLazySymlinkCreation;
-                    if (!populateSymlinks)
-                    {
-                        // If populating symlinks lazily, check if the directory is under the explicitly specified symlink directories
-                        // to populate
-                        foreach (var parent in pathTable.EnumerateHierarchyBottomUp(symlinkDirectory.Value))
-                        {
-                            if (populateSymlinkDirectories.Contains(parent))
-                            {
-                                populateSymlinks = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!populateSymlinks)
-                    {
-                        return;
-                    }
-
-                    var directorySymlinks = symlinkDefinitions.DirectorySymlinkContents[symlinkDirectory];
-                    foreach (var symlinkPath in directorySymlinks)
-                    {
-                        var symlink = symlinkPath.ToString(pathTable);
-                        var symlinkTarget = symlinkDefinitions[symlinkPath].ToString(pathTable);
-
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            Interlocked.Increment(ref failedSymlinkCount);
-                            break;
-                        }
-
-                        bool created;
-
-                        var maybeSymlink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(symlink, symlinkTarget, true, out created);
-                        if (maybeSymlink.Succeeded)
-                        {
-                            if (created)
-                            {
-                                Interlocked.Increment(ref createdSymlinkCount);
-                            }
-                            else
-                            {
-                                Interlocked.Increment(ref reuseExistingSymlinkCount);
-                            }
-                        }
-                        else
-                        {
-                            Interlocked.Increment(ref failedSymlinkCount);
-                            Logger.Log.FailedToCreateSymlinkFromSymlinkMap(loggingContext, symlink, symlinkTarget, maybeSymlink.Failure.DescribeIncludingInnerFailures());
-                        }
-                    }
-                });
-
-            Logger.Log.CreateSymlinkFromSymlinkMap(
-                loggingContext,
-                createdSymlinkCount,
-                reuseExistingSymlinkCount,
-                failedSymlinkCount,
-                (int)(TimestampUtilities.Timestamp - startTime).TotalMilliseconds);
-
-            return failedSymlinkCount == 0;
-        }
-
         private async Task<ArtifactMaterializationResult> TryMaterializeArtifactsCore(
             PipInfo pipInfo,
             OperationContext operationContext,
@@ -1690,36 +1481,10 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                     else if (sealDirectoryKind == SealDirectoryKind.SourceTopDirectoryOnly)
                     {
-                        IReadOnlyList<AbsolutePath> paths;
-                        if (LazySymlinkCreation && m_symlinkDefinitions.TryGetSymlinksInDirectory(directory.Path, out paths))
-                        {
-                            foreach (var path in paths)
-                            {
-                                AddFileMaterialization(
-                                    state,
-                                    FileArtifact.CreateSourceFile(path),
-                                    directoryAllowReadOnlyOverride,
-                                    m_symlinkDefinitions[path]);
-                            }
-                        }
-
                         continue;
                     }
                     else if (sealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
                     {
-                        if (LazySymlinkCreation && m_symlinkDefinitions.HasNestedSymlinks(directory))
-                        {
-                            foreach (var node in Context.PathTable.EnumerateHierarchyTopDown(directory.Path.Value))
-                            {
-                                var path = new AbsolutePath(node);
-                                AddFileMaterialization(
-                                    state,
-                                    FileArtifact.CreateSourceFile(path),
-                                    directoryAllowReadOnlyOverride,
-                                    m_symlinkDefinitions.TryGetSymlinkTarget(path));
-                            }
-                        }
-
                         continue;
                     }
 
@@ -1747,13 +1512,13 @@ namespace BuildXL.Scheduler.Artifacts
 
         private AbsolutePath TryGetSymlinkTarget(FileArtifact file)
         {
-            if (file.IsOutputFile || !LazySymlinkCreation)
+            if (file.IsOutputFile)
             {
                 // Only source files can be declared as symlinks
                 return AbsolutePath.Invalid;
             }
 
-            return m_symlinkDefinitions.TryGetSymlinkTarget(file);
+            return AbsolutePath.Invalid;
         }
 
         private void MarkDirectoryMaterializations(PipArtifactsState state)
@@ -2787,7 +2552,7 @@ namespace BuildXL.Scheduler.Artifacts
                 }
                 else
                 {
-                    // Just store placeholder task for output files/lazy symlinks since they are not verified
+                    // Just store placeholder task for output files/symlinks since they are not verified
                     state.HashTasks.Add(s_placeHolderFileHashTask);
                 }
             }

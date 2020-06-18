@@ -1133,15 +1133,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeOptimizedAstConversion(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigUnsafeLazySymlinkCreation,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_LazySymlinkCreation enabled: {ShortProductName} is configured to create symlinks from symlink definition manifest lazily. This might lead to incorrect builds because symlinks may have not been created when a pip consumes (read or probe) it or enumerates its parent.")]
-        public abstract void ConfigUnsafeLazySymlinkCreation(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

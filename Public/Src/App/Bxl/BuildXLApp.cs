@@ -312,8 +312,6 @@ namespace BuildXL
                         (int)EngineLogEventId.HistoricMetadataCacheSaved,
                         (int)EngineLogEventId.HistoricPerfDataLoaded,
                         (int)EngineLogEventId.HistoricPerfDataSaved,
-                        (int)SchedulerLogEventId.CreateSymlinkFromSymlinkMap,
-                        (int)SchedulerLogEventId.SymlinkFileTraceMessage,
                         (int)SharedLogEventId.StartEngineRun,
                         (int)EngineLogEventId.StartCheckingForPipGraphReuse,
                         (int)EngineLogEventId.EndCheckingForPipGraphReuse,

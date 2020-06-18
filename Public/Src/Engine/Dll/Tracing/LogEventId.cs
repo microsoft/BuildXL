@@ -89,7 +89,7 @@ namespace BuildXL.Engine.Tracing
         ConfigIgnoreDynamicWritesOnAbsentProbes = 916,
         ConfigIgnoreSetFileInformationByHandle = 917,
         ConfigPreserveOutputs = 918,
-        ConfigUnsafeLazySymlinkCreation = 919,
+        // was ConfigUnsafeLazySymlinkCreation = 919,
         ConfigDisableDetours = 920,
         ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously = 921,
         ConfigIgnoreGetFinalPathNameByHandle = 922,

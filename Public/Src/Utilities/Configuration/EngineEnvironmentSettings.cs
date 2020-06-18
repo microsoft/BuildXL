@@ -77,11 +77,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");
 
         /// <summary>
-        /// Emit file with all symlink definitions
-        /// </summary>
-        public static readonly Setting<bool> DebugSymlinkDefinitions = CreateSetting("DebugSymlinkDefinitions", value => value == "1");
-
-        /// <summary>
         /// Allows optionally specifying an alternative timeout fo connect between IDE service and BuildXL task
         /// </summary>
         public static readonly Setting<TimeSpan> IdeConnectTimeout = CreateSetting("BuildXLIdeConnectTimeoutSec", value => ParseTimeSpan(value, ts => TimeSpan.FromSeconds(ts)) ??

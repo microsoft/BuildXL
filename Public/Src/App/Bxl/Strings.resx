@@ -886,12 +886,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_AllowFetchingCachedGraphFromContentCache" xml:space="preserve">
     <value>Allow fetching cached graph from content cache. Defaults to on.</value>
   </data>
-  <data name="HelpText_DisplayHelp_SymlinkDefinitionFile" xml:space="preserve">
-    <value>Specifies the file containing mappings from symlinks to their targets, and those symlinks will be created, if necessary, before pip executions</value>
-  </data>
-  <data name="HelpText_DisplayHelp_LazySymlinkCreation" xml:space="preserve">
-    <value>Creates symlink from the symlink definition file lazily. Defaults to off.</value>
-  </data>
   <data name="HelpText_DisplayHelp_CompressGraphFiles" xml:space="preserve">
     <value>When enabled, graph files are compressed.</value>
   </data>
@@ -906,12 +900,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_UseFileContentTablePathMappings" xml:space="preserve">
     <value>Use file content table path mappings to avoid opening handles for hashing files already in the table. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_PopulateSymlinkDirectory" xml:space="preserve">
-    <value>Specifies a directory to eagerly populate with symlinks when symlink definition file and lazy symlink creation are enabled.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_UnexpectedSymlinkAccessReportingMode" xml:space="preserve">
-    <value>Specifies the when unexpected symlink file/directory accesses are reported as warnings: None, ExecutionOnly (only for executed processes), All (executed and cached process observations report unexpected accesses). Default: All. NOTE: This is only enabled when a symlink definition file is provided.</value>
   </data>
   <data name="HelpText_DisplayHelp_DisableGraphPostValidation" xml:space="preserve">
     <value>Disables post validation of graph construction. Defaults to on.</value>

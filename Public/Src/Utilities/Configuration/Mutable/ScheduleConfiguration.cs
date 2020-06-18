@@ -49,8 +49,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             ProcessRetries = 0;
 
-            UnsafeLazySymlinkCreation = false;
-            UnexpectedSymlinkAccessReportingMode = UnexpectedSymlinkAccessReportingMode.All;
             StoreOutputsToCache = true;
 
             // TODO: Fix me.
@@ -121,8 +119,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeDisableGraphPostValidation = template.UnsafeDisableGraphPostValidation;
 
             ProcessRetries = template.ProcessRetries;
-            UnsafeLazySymlinkCreation = template.UnsafeLazySymlinkCreation;
-            UnexpectedSymlinkAccessReportingMode = template.UnexpectedSymlinkAccessReportingMode;
             StoreOutputsToCache = template.StoreOutputsToCache;
 
             EnableLazyWriteFileMaterialization = template.EnableLazyWriteFileMaterialization;
@@ -287,16 +283,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int ProcessRetries { get; set; }
 
         /// <inheritdoc />
-        public bool UnsafeLazySymlinkCreation { get; set; }
-
-        /// <inheritdoc />
         public bool EnableLazyWriteFileMaterialization { get; set; }
 
         /// <inheritdoc />
         public bool WriteIpcOutput { get; set; }
-
-        /// <inheritdoc />
-        public UnexpectedSymlinkAccessReportingMode UnexpectedSymlinkAccessReportingMode { get; set; }
 
         /// <inheritdoc />
         public bool StoreOutputsToCache { get; set; }

@@ -187,7 +187,6 @@ namespace BuildXL.Engine
             PerformanceCollector performanceCollector,
             DirectoryTranslator directoryTranslator,
             int maxDegreeOfParallelism,
-            SymlinkDefinitions symlinkDefinitions,
             TempCleaner tempCleaner,
             string buildEngineFingerprint,
             IDetoursEventListener detoursListener = null)
@@ -288,7 +287,6 @@ namespace BuildXL.Engine
                     previousInputsSalt: previousOutputsSalt.Value,
                     directoryTranslator: directoryTranslator,
                     pipTwoPhaseCache: twoPhaseCache,
-                    symlinkDefinitions: symlinkDefinitions,
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
@@ -1532,7 +1530,6 @@ namespace BuildXL.Engine
             PerformanceCollector performanceCollector,
             DirectoryTranslator directoryTranslator,
             EngineState engineState,
-            AbsolutePath symlinkDefinitionFile,
             TempCleaner tempCleaner,
             string buildEngineFingerprint)
         {
@@ -1560,31 +1557,6 @@ namespace BuildXL.Engine
             var configFileStateTask = serializer.DeserializeFromFileAsync<ConfigFileState>(
                 GraphCacheFile.ConfigState,
                 reader => ConfigFileState.DeserializeAsync(reader, loggingContext, pipExecutionContextTask));
-
-            Task<SymlinkDefinitions> symlinkDefinitionsTask = Task.Run(
-                async () =>
-                      {
-                          if (symlinkDefinitionFile.IsValid)
-                          {
-                              var pathTable = await pathTableTask;
-                              var symlinkFilePath = symlinkDefinitionFile.ToString(oldContext.PathTable);
-
-                              SchedulerLogger.Log.SymlinkFileTraceMessage(loggingContext, I($"Loading symlink file from location '{symlinkFilePath}' with reused pip graph."));
-
-                              // Scheduler needs symlink map to create symlinks lazily.
-                              var symlinkDefinitionsResult = await SymlinkDefinitions.TryLoadAsync(loggingContext, pathTable, symlinkFilePath,
-                                  symlinksDebugPath: configuration.Logging.LogsDirectory.Combine(oldContext.PathTable, "DebugSymlinksDefinitions.log").ToString(oldContext.PathTable),
-                                  tempDirectoryCleaner: tempCleaner);
-                              if (!symlinkDefinitionsResult.Succeeded)
-                              {
-                                  symlinkDefinitionsResult.Failure.Throw();
-                              }
-
-                              return symlinkDefinitionsResult.Result;
-                          }
-
-                          return null;
-                      });
 
             EngineContext newContext;
 
@@ -1707,7 +1679,6 @@ namespace BuildXL.Engine
                         fingerprintSalt: configFileState.CacheSalt,
                         directoryTranslator: directoryTranslator,
                         pipTwoPhaseCache: pipTwoPhaseCache,
-                        symlinkDefinitions: await symlinkDefinitionsTask,
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),

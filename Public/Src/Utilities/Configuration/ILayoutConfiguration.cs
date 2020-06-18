@@ -68,11 +68,6 @@ namespace BuildXL.Utilities.Configuration
         AbsolutePath FileContentTableFile { get; }
 
         /// <summary>
-        /// Path to file defining symlinks
-        /// </summary>
-        AbsolutePath SymlinkDefinitionFile { get; }
-
-        /// <summary>
         /// File change tracker file.
         /// </summary>
         AbsolutePath SchedulerFileChangeTrackerFile { get; }

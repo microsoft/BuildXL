@@ -187,11 +187,6 @@ namespace BuildXL.Scheduler
         private readonly FileContentManager m_fileContentManager;
 
         /// <summary>
-        /// Symlink definitions
-        /// </summary>
-        public readonly SymlinkDefinitions SymlinkDefinitions;
-
-        /// <summary>
         /// Tracker of output materializations.
         /// </summary>
         private PipOutputMaterializationTracker m_pipOutputMaterializationTracker;
@@ -826,7 +821,6 @@ namespace BuildXL.Scheduler
         private bool InputsLazilyMaterialized =>
             m_scheduleConfiguration.EnableLazyOutputMaterialization
             || IsDistributedBuild
-            || m_scheduleConfiguration.UnsafeLazySymlinkCreation
             || m_scheduleConfiguration.OutputMaterializationExclusionRoots.Count != 0;
 
         /// <summary>
@@ -1080,7 +1074,6 @@ namespace BuildXL.Scheduler
             DirectoryTranslator directoryTranslator = null,
             IIpcProvider ipcProvider = null,
             PipTwoPhaseCache pipTwoPhaseCache = null,
-            SymlinkDefinitions symlinkDefinitions = null,
             JournalState journalState = null,
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null)
@@ -1190,8 +1183,7 @@ namespace BuildXL.Scheduler
             m_dropPipTracker = new DropPipTracker(Context);
 
             OperationTracker = new OperationTracker(loggingContext, this);
-            SymlinkDefinitions = symlinkDefinitions;
-            m_fileContentManager = new FileContentManager(this, OperationTracker, symlinkDefinitions);
+            m_fileContentManager = new FileContentManager(this, OperationTracker);
             m_apiServer = null;
 
             m_writableDrives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

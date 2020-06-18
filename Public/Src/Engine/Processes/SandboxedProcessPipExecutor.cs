@@ -814,6 +814,7 @@ namespace BuildXL.Processes
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
+                        DetoursFailureFile = m_detoursFailuresFile
                     };
 
                     var result = ShouldSandboxedProcessExecuteExternal
@@ -2057,24 +2058,21 @@ namespace BuildXL.Processes
                     Analysis.IgnoreResult(FileUtilities.TryDeleteFile(m_detoursFailuresFile, tempDirectoryCleaner: m_tempDirectoryCleaner));
                 }
 
-                if (!string.IsNullOrEmpty(m_detoursFailuresFile))
+                if (allowInternalErrorsLogging)
                 {
-                    if (allowInternalErrorsLogging)
-                    {
-                        m_fileAccessManifest.InternalDetoursErrorNotificationFile = m_detoursFailuresFile;
-                    }
+                    m_fileAccessManifest.InternalDetoursErrorNotificationFile = m_detoursFailuresFile;
+                }
 
-                    // TODO: named semaphores are not supported in NetStandard2.0
-                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
-                        && checkMessageCount
-                        && !OperatingSystemHelper.IsUnixOS)
+                // TODO: named semaphores are not supported in NetStandard2.0
+                if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
+                    && checkMessageCount
+                    && !OperatingSystemHelper.IsUnixOS)
+                {
+                    // Semaphore names don't allow '\\' chars.
+                    if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
                     {
-                        // Semaphore names don't allow '\\' chars.
-                        if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
-                        {
-                            Tracing.Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                            return false;
-                        }
+                        Tracing.Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pipDescription);
+                        return false;
                     }
                 }
             }

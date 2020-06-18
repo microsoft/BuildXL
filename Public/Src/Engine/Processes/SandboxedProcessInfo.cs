@@ -18,60 +18,6 @@ using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes
 {
-    /// <nodoc />
-    public readonly struct RootJailInfo
-    {
-        /// <summary>Root directory</summary>
-        public string RootJail { get; }
-
-        /// <summary>User id to set for the <c>--userspec</c> switch to <c>chroot</c></summary>
-        public int? UserId { get; }
-
-        /// <summary>Group id to set for the <c>--userspec</c> switch to <c>chroot</c></summary>
-        public int? GroupId { get; }
-
-        /// <summary>
-        /// This option provides a way to override <see cref="SandboxKind"/> and turn off sandboxing even
-        /// when <see cref="SandboxKind"/> says otherwise.
-        /// </summary>
-        /// <remarks>
-        /// The reason for this weird setup is the fact that the root jail options are only honored by 
-        /// (select) sandboxed process wrappers.  Setting <see cref="SandboxKind"/> to None would indeed
-        /// turn off sandboxing but it would also force execution with <see cref="UnsandboxedProcess"/>
-        /// which does not support running processes inside a root jail.
-        /// </remarks>
-        public bool DisableSandboxing { get; }
-
-        /// <nodoc />
-        public RootJailInfo(string rootJail, int? userId = null, int? groupId = null, bool disableSandboxing = false)
-        {
-            Contract.RequiresNotNull(rootJail);
-            RootJail = rootJail;
-            UserId = userId;
-            GroupId = groupId;
-            DisableSandboxing = disableSandboxing;
-        }
-
-        /// <nodoc />
-        public void Serialize(BuildXLWriter writer)
-        {
-            writer.Write(RootJail);
-            writer.Write(UserId, (w, v) => w.WriteCompact(v));
-            writer.Write(GroupId, (w, v) => w.WriteCompact(v));
-            writer.Write(DisableSandboxing);
-        }
-
-        /// <nodoc />
-        public static RootJailInfo Deserialize(BuildXLReader reader)
-        {
-            return new RootJailInfo(
-                rootJail: reader.ReadString(),
-                userId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
-                groupId: reader.ReadNullableStruct(r => r.ReadInt32Compact()),
-                disableSandboxing: reader.ReadBoolean());
-        }
-    }
-
     /// <summary>
     /// Data-structure that holds all information needed to launch a sandboxed process.
     /// </summary>
@@ -376,6 +322,11 @@ namespace BuildXL.Processes
         public static int BufferSize => BufSize;
 
         /// <summary>
+        /// File where Detours log failure message, e.g., communication failure, injection failure, etc.
+        /// </summary>
+        public string DetoursFailureFile { get; set; }
+
+        /// <summary>
         /// Gets the command line, comprised of the executable file name and the arguments.
         /// </summary>
         [Pure]
@@ -557,6 +508,7 @@ namespace BuildXL.Processes
 
                 writer.Write(SidebandWriter, (w, v) => v.Serialize(w));
                 writer.Write(CreateJobObjectForCurrentProcess);
+                writer.WriteNullableString(DetoursFailureFile);
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -599,6 +551,7 @@ namespace BuildXL.Processes
 
                 var sidebandWritter = reader.ReadNullable(r => SidebandWriter.Deserialize(r));
                 var createJobObjectForCurrentProcess = reader.ReadBoolean();
+                var detoursFailureFile = reader.ReadNullableString();
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
@@ -633,7 +586,8 @@ namespace BuildXL.Processes
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,
                     StandardInputSourceInfo = standardInputSourceInfo,
                     StandardObserverDescriptor = standardObserverDescriptor,
-                    RedirectedTempFolders = redirectedTempFolder
+                    RedirectedTempFolders = redirectedTempFolder,
+                    DetoursFailureFile = detoursFailureFile
                 };
             }
         }

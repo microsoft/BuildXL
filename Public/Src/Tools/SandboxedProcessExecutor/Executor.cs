@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Native.IO;
@@ -197,24 +198,17 @@ namespace BuildXL.SandboxedProcessExecutor
         {
             Contract.Requires(info != null);
 
-            FileAccessManifest fam = info.FileAccessManifest;
-
-            if (!string.IsNullOrEmpty(fam.InternalDetoursErrorNotificationFile))
+            if (!string.IsNullOrEmpty(info.DetoursFailureFile) && FileUtilities.FileExistsNoFollow(info.DetoursFailureFile))
             {
-                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fam.InternalDetoursErrorNotificationFile));
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(info.DetoursFailureFile));
             }
 
-            if (fam.CheckDetoursMessageCount && !OperatingSystemHelper.IsUnixOS)
+            if (!string.IsNullOrEmpty(info.FileAccessManifest.InternalDetoursErrorNotificationFile)
+                && FileUtilities.FileExistsNoFollow(info.FileAccessManifest.InternalDetoursErrorNotificationFile))
             {
-                string semaphoreName = fam.InternalDetoursErrorNotificationFile.Replace('\\', '_');
-
-                if (!fam.SetMessageCountSemaphore(semaphoreName))
-                {
-                    m_logger.LogError($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
-                    return false;
-                }
+                Analysis.IgnoreResult(FileUtilities.TryDeleteFile(info.FileAccessManifest.InternalDetoursErrorNotificationFile));
             }
-
+            
             if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
             {
                 m_logger.LogError($"Process command line is longer than {SandboxedProcessInfo.MaxCommandLineLength} characters: {info.GetCommandLine().Length}");
@@ -328,8 +322,37 @@ namespace BuildXL.SandboxedProcessExecutor
 
         private async Task<(ExitCode, SandboxedProcessResult)> ExecuteAsync(SandboxedProcessInfo info)
         {
+            FileAccessManifest fam = info.FileAccessManifest;
+
             try
             {
+                if (fam.CheckDetoursMessageCount && !OperatingSystemHelper.IsUnixOS)
+                {
+                    string semaphoreName = !string.IsNullOrEmpty(info.DetoursFailureFile)
+                        ? info.DetoursFailureFile.Replace('\\', '_')
+                        : "Detours_" + info.PipSemiStableHash.ToString("X16", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString();
+
+                    int maxRetry = 3;
+                    while (!fam.SetMessageCountSemaphore(semaphoreName))
+                    {
+                        m_logger.LogInfo($"Semaphore '{semaphoreName}' for counting Detours messages is already opened");
+                        fam.UnsetMessageCountSemaphore();
+                        --maxRetry;
+                        if (maxRetry == 0)
+                        {
+                            break;
+                        }
+
+                        semaphoreName += $"_{maxRetry}";
+                    }
+
+                    if (maxRetry == 0)
+                    {
+                        m_logger.LogError($"Semaphore for counting Detours messages cannot be newly created");
+                        return (ExitCode.FailedSandboxPreparation, null);
+                    }
+                }
+
                 using (Stream standardInputStream = TryOpenStandardInputStream(info, out bool succeedInOpeningStdIn))
                 {
                     if (!succeedInOpeningStdIn)
@@ -362,7 +385,7 @@ namespace BuildXL.SandboxedProcessExecutor
             }
             finally
             {
-                info.FileAccessManifest.UnsetMessageCountSemaphore();
+                fam.UnsetMessageCountSemaphore();
             }
         }
 

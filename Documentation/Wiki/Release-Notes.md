@@ -1,6 +1,16 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200612.5.1 (Release [68123](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=68123)).  Released 6/18/2020
+- Refine the default value of disableDefaultSourceResolver to false.
+- Clarify the cache saving message.
+- Add the resolver kinds used by the build as part of the statistics we send to Kusto 
+- Automatically add tags qualifierKey=qualifierValue for each process pip 
+- Clean SOD outputs before retrying due to a retriable exit code 
+- [Rush] Use redirected log directory for tool logs 
+- Added telemetry tags to toppipsperformanceinfo
+- Fixed Fields in graph fingerprints being ignored during fingerprint matching causing false matched
+
 # 0.1.0-20200608.2 (Release [67013](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=67013)).  Released 6/10/2020
 - Add more data to the detouring status: Is64BitProcess
 - Don't report surviving child processes when execution is canceled

@@ -363,6 +363,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (IsRedisConnectionException(exception))
             {
+                // We treat the "unable to connect" RedisConnectionExceptions differently, as the average connectivity error is caused by misconfiguration
+                if (IsRedisUnableToConnectException(exception))
+                {
+                    context.Error($"Unable to connect to Redis database {DatabaseName} with exception: {exception}");
+                    return;
+                }
+
                 // Using double-checked locking approach to reset the connection multiplexer only once.
                 // Checking for greater then or equals because another thread can increment _connectionErrorCount.
                 if (Interlocked.Increment(ref _connectionErrorCount) >= _configuration.RedisConnectionErrorLimit)
@@ -404,7 +411,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             // Lets be very pessimistic here: reset the connectivity errors every time when the operation succeed or any other exception
             // but redis connection exception occurs.
-            if (IsRedisConnectionException(exception))
+            if (IsRedisConnectionException(exception) && !IsRedisUnableToConnectException(exception))
             {
                 Interlocked.Increment(ref _connectionErrorCount);
             }
@@ -416,6 +423,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         private bool IsRedisConnectionException(Exception exception)
         {
             return exception is RedisConnectionException;
+        }
+
+        /// <summary>
+        /// There are different reasons for redis connectivity issues such as configuration errors.
+        /// This function addresses specifically for connecting to nonexistent instances.
+        /// </summary>
+        public static bool IsRedisUnableToConnectException(Exception exception)
+        {
+            return exception is RedisConnectionException && exception.ToString().Contains("UnableToConnect");
         }
 
         /// <summary>
@@ -542,7 +558,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 // naively retry all redis server exceptions.
 
                 if (ex is RedisException redisException)
-                {
+                { 
+                    if (RedisDatabaseAdapter.IsRedisUnableToConnectException(redisException))
+                    {
+                        return false;
+                    }
+
                     // If the error contains the following text, then the error is not transient.
                     return !(redisException.ToString().Contains("Error compiling script") || redisException.ToString().Contains("Error running script"));
                 }

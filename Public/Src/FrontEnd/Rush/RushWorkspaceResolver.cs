@@ -164,13 +164,13 @@ namespace BuildXL.FrontEnd.Rush
                     // does not exist at all (regardless of any build filter)
                     if (nameToDeserializedProjects.TryGetValue(projectOutputs.PackageName, out var deserializedRushProject))
                     {
-                        // If no commands were specified, add all available scripts
+                        // If no commands were specified, add all available scripts that can be scheduled
                         if (projectOutputs.Commands == null)
                         {
                             foreach (string command in deserializedRushProject.AvailableScriptCommands.Keys)
                             {
-                                // If the project/command is there, add it to the export symbol
-                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, command), out RushProject rushProject))
+                                // If the project/command is there, add it to the export symbol if it can be scheduled
+                                if (nameAndCommandToProjects.TryGetValue((projectOutputs.PackageName, command), out RushProject rushProject) && rushProject.CanBeScheduled())
                                 {
                                     projectsForSymbol.Add(rushProject);
                                 }

@@ -1059,7 +1059,7 @@ namespace BuildXL.Scheduler
                 {
                     using var sidebandWriter = CreateSidebandWriter(environment, pip);
                     sidebandWriter.EnsureHeaderWritten();
-                    var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
+                    var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value).Select(fa => fa.Path) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
                     foreach (var dynamicWrite in dynamicWrites)
                     {
                         sidebandWriter.RecordFileWrite(environment.Context.PathTable, dynamicWrite, flushImmediately: false);
@@ -1381,7 +1381,7 @@ namespace BuildXL.Scheduler
                             bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
                             var aggregatePipProperties = new Dictionary<string, int>();
-                            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> staleDynamicOutputs = null;
+                            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleDynamicOutputs = null;
 
                             // Retry pip count up to limit if we produce result without detecting file access.
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
@@ -4278,50 +4278,25 @@ namespace BuildXL.Scheduler
                         var writeAccessesByPath = processExecutionResult.SharedDynamicDirectoryWriteAccesses;
                         if (!writeAccessesByPath.TryGetValue(directoryArtifactPath, out var accesses))
                         {
-                            accesses = CollectionUtilities.EmptyArray<AbsolutePath>();
+                            accesses = CollectionUtilities.EmptyArray<FileArtifactWithAttributes>();
                         }
 
-                        // So we know that all accesses here were write accesses, but we don't actually know if in the end the corresponding file
-                        // still exists (the tool could have created it and removed it right after). So we only add existing files.
                         foreach (var access in accesses)
                         {
-                            var maybeResult = FileUtilities.TryProbePathExistence(access.ToString(pathTable), followSymlink: false);
-                            if (!maybeResult.Succeeded)
-                            {
-                                Logger.Log.ProcessingPipOutputDirectoryFailed(
-                                    operationContext,
-                                    description,
-                                    directoryArtifactPath.ToString(pathTable),
-                                    maybeResult.Failure.DescribeIncludingInnerFailures());
-                                return false;
-                            }
-
-                            // TODO: directories are not reported as explicit content, since we don't have the functionality today to persist them in the cache.
-                            // But we could do this here in the future
-                            if (maybeResult.Result == PathExistence.ExistsAsDirectory)
-                            {
-                                continue;
-                            }
-
-                            if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access, operationContext, description, pathTable, processExecutionResult))
+                            if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access.Path, operationContext, description, pathTable, processExecutionResult))
                             {
                                 enableCaching = false;
                                 continue;
                             }
 
-                            var fileArtifact = FileArtifact.CreateOutputFile(access);
-                            fileList.Add(fileArtifact);
-                            FileOutputData.UpdateFileData(allOutputData, fileArtifact.Path, OutputFlags.DynamicFile, index);
+                            fileList.Add(access.ToFileArtifact());
+                            FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
 
-                            var fileArtifactWithAttributes = fileArtifact.WithAttributes(
-                                maybeResult.Result == PathExistence.Nonexistent
-                                ? FileExistence.Temporary
-                                : FileExistence.Required);
-                            allOutputs.Add(fileArtifactWithAttributes);
+                            allOutputs.Add(access);
 
                             if (sharedOutputDirectoriesAreRedirected)
                             {
-                                PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, fileArtifactWithAttributes, allRedirectedOutputs);
+                                PopulateRedirectedOutputsForFileInOpaque(pathTable, environment, containerConfiguration, directoryArtifactPath, access, allRedirectedOutputs);
                             }
                         }
                     }

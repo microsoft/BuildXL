@@ -4398,11 +4398,11 @@ namespace BuildXL.Scheduler
             {
                 // Directory outputs are reported only when the pip is successful. So we need to rely on the raw shared dynamic write accesses,
                 // since flagging also happens on failed pips
-                foreach (IReadOnlyCollection<AbsolutePath> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
+                foreach (IReadOnlyCollection<FileArtifactWithAttributes> writesPerSharedOpaque in process.ExecutionResult.SharedDynamicDirectoryWriteAccesses.Values)
                 {
-                    foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
+                    foreach (FileArtifactWithAttributes writeInPath in writesPerSharedOpaque)
                     {
-                        var path = writeInPath.ToString(environment.Context.PathTable);
+                        var path = writeInPath.Path.ToString(environment.Context.PathTable);
                         SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
                         outputPaths.Add(path);
                     }

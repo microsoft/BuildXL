@@ -115,7 +115,7 @@ namespace BuildXL.Processes
             SandboxedPipExecutorPhaseProcessingStandardOutputs,
 
             /// <summary>
-            /// Duration of <see cref="SandboxedProcessPipExecutor.GetObservedFileAccesses"/>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.TryGetObservedFileAccesses"/>
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorPhaseGettingObservedFileAccesses,

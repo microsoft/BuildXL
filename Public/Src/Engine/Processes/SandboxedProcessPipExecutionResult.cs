@@ -60,6 +60,11 @@ namespace BuildXL.Processes
         /// The sandboxed process should be retried due to Azure Watson's 0xDEAD exit code.
         /// </summary>
         ShouldBeRetriedDueToAzureWatsonExitCode,
+
+        /// <summary>
+        /// The sandboxed process was able to run, but BuildXL failed during post-processing the result of shared opaque directories
+        /// </summary>
+        SharedOpaquePostProcessingFailed,
     }
 
     /// <summary>
@@ -147,7 +152,7 @@ namespace BuildXL.Processes
             Tuple<AbsolutePath, Encoding> encodedStandardError,
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
             Dictionary<string, int> pipProperties,
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicDirectoryWriteAccesses)
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
@@ -188,7 +193,7 @@ namespace BuildXL.Processes
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
-                sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
+                sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>),
                 encodedStandardError: null,
                 encodedStandardOutput: null,
                 numberOfWarnings: 0,
@@ -243,7 +248,7 @@ namespace BuildXL.Processes
         /// Keys are the paths to each shared dynamic directory. Values are paths where
         /// write attempts occurred.
         /// </remarks>
-        public readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> SharedDynamicDirectoryWriteAccesses;
+        public readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> SharedDynamicDirectoryWriteAccesses;
 
         /// <summary>
         /// Observed accesses that were reported explicitly (e.g. as part of a directory dependency).
@@ -331,7 +336,7 @@ namespace BuildXL.Processes
         public SandboxedProcessPipExecutionResult(
             SandboxedProcessPipExecutionStatus status,
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedFileAccesses,
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicDirectoryWriteAccesses,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             Tuple<AbsolutePath, Encoding> encodedStandardOutput,
             Tuple<AbsolutePath, Encoding> encodedStandardError,
             int numberOfWarnings,

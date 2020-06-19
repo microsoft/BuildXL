@@ -805,14 +805,16 @@ namespace Test.BuildXL.Scheduler
 
             // Create the path where the double write will occur, and a random file content that will be used for both producers
             AbsolutePath doubleWriteOutput = CreateAbsolutePath(context, JunkPath);
+            var doubleWriteOutputArtifact = FileArtifact.CreateOutputFile(doubleWriteOutput);
             ContentHash contentHash = ContentHashingUtilities.CreateRandom();
             var fileContentInfo = new FileContentInfo(contentHash, contentHash.Length);
             var outputsContent = new (FileArtifact, FileMaterializationInfo, PipOutputOrigin)[]
                 {
-                    (FileArtifact.CreateOutputFile(doubleWriteOutput), new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
+                    (doubleWriteOutputArtifact, new FileMaterializationInfo(fileContentInfo, doubleWriteOutput.GetName(context.PathTable)), PipOutputOrigin.NotMaterialized)
                 }.ToReadOnlyArray();
             var sharedOpaqueRoot = doubleWriteOutput.GetParent(context.PathTable);
-            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> { [sharedOpaqueRoot] = new AbsolutePath[] { doubleWriteOutput } };
+            var sharedOpaqueDirectoryWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> { [sharedOpaqueRoot] = 
+                new FileArtifactWithAttributes[] { FileArtifactWithAttributes.Create(doubleWriteOutputArtifact, FileExistence.Required) } };
 
             // Create two processes that claim to produce some arbitrary static output files. We are not really use those outputs but tell
             // the analyzer that these processes wrote into shared opaques
@@ -926,9 +928,9 @@ namespace Test.BuildXL.Scheduler
                 out _);
 
             var producer = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/producer-out.txt")));
-            var sodWrites = new Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>
+            var sodWrites = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>
             {
-                [sodPath] = new[] { writePath }
+                [sodPath] = new[] { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writePath), FileExistence.Required) }
             };
 
             analyzer.AnalyzePipViolations(

@@ -1071,5 +1071,14 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "[{pipSemiStableHash}] occurred an error for {failedOperation}: {errorCode}")]
         public abstract void ResumeOrSuspendProcessError(LoggingContext context, string pipSemiStableHash, string failedOperation, int errorCode);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotProbeOutputUnderSharedOpaque,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "[{pipDescription}] Failed to probe '{path}' under a shared opaque directory : {details}")]
+        public abstract void CannotProbeOutputUnderSharedOpaque(LoggingContext context, string pipDescription, string path, string details);
     }
 }

@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets observed ownership for shared dynamic directories
         /// </summary>
-        public IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> SharedDynamicDirectoryWriteAccesses { get; private set; }
+        public IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> SharedDynamicDirectoryWriteAccesses { get; private set; }
 
         /// <summary>
         /// Observed allowed undeclared source reads
@@ -768,13 +768,13 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs)
+        private static ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> ComputeSharedDynamicAccessesFrom(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs)
         {
             var sharedDynamicAccesses = directoryOutputs
                 .Where(kvp => kvp.Item1.IsSharedOpaque)
-                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<AbsolutePath>) kvp.Item2.SelectArray(fileArtifact => fileArtifact.Path));
+                .ToDictionary(kvp => kvp.Item1.Path, kvp => (IReadOnlyCollection<FileArtifactWithAttributes>) kvp.Item2.SelectArray(fileArtifact => FileArtifactWithAttributes.Create(fileArtifact, FileExistence.Required)));
 
-            return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>(sharedDynamicAccesses);
+            return new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(sharedDynamicAccesses);
         }
 
         private static FileMonitoringViolationCounters ConvertFileMonitoringViolationCounters(UnexpectedFileAccessCounters counters)

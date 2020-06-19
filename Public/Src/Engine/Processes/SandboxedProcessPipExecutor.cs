@@ -204,7 +204,7 @@ namespace BuildXL.Processes
 
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
-        private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> m_staleOutputsUnderSharedOpaqueDirectories;
+        private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
 
         /// <summary>
         /// Name of the diretory in Log directory for std output files
@@ -246,7 +246,7 @@ namespace BuildXL.Processes
             IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
             IDetoursEventListener detoursListener = null,
             SymlinkedAccessResolver symlinkedAccessResolver = null,
-            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> staleOutputsUnderSharedOpaqueDirectories = null)
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> staleOutputsUnderSharedOpaqueDirectories = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -1506,12 +1506,14 @@ namespace BuildXL.Processes
             JobObject.AccountingInformation? jobAccounting = result.JobAccountingInformation;
 
             var start = DateTime.UtcNow;
-            SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
-                GetObservedFileAccesses(
+            // If this operation fails, error was logged already
+            bool sharedOpaqueProcessingSuccess = TryGetObservedFileAccesses(
                     result,
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
-                    out var sharedDynamicDirectoryWriteAccesses);
+                    out var sharedDynamicDirectoryWriteAccesses,
+                    out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed);
+
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
 
             TimeSpan time = primaryProcessTimes.TotalWallClockTime;
@@ -1821,6 +1823,10 @@ namespace BuildXL.Processes
             else if (canceled)
             {
                 status = SandboxedProcessPipExecutionStatus.Canceled;
+            }
+            else if (!sharedOpaqueProcessingSuccess)
+            {
+                status = SandboxedProcessPipExecutionStatus.SharedOpaquePostProcessingFailed;
             }
             else if (mainProcessSuccess && loggingSuccess && !hasMessageParsingError)
             {
@@ -2994,7 +3000,7 @@ namespace BuildXL.Processes
                         {
                             foreach (var output in staleOutputs)
                             {
-                                PreparePathForOutputFile(output);
+                                PreparePathForOutputFile(output.Path);
                             }
                         }
                     }
@@ -3428,21 +3434,26 @@ namespace BuildXL.Processes
         /// Additionally, it returns the write accesses that were observed in shared dynamic
         /// directories, which are used later to determine pip ownership.
         /// </remarks>
-        private SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> GetObservedFileAccesses(
+        /// <returns>Whether the operation succeeded. This operation may fail only in regards to shared dynamic write access processing.</returns>
+        private bool TryGetObservedFileAccesses(
             SandboxedProcessResult result,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             out List<AbsolutePath> unobservedOutputs,
-            out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>> sharedDynamicDirectoryWriteAccesses)
+            out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
+            out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedAccesses)
         {
             unobservedOutputs = null;
             if (result.ExplicitlyReportedFileAccesses == null || result.ExplicitlyReportedFileAccesses.Count == 0)
             {
                 unobservedOutputs = m_pip.FileOutputs.Where(f => RequireOutputObservation(f)).Select(f => f.Path).ToList();
-                sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>();
-                return SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(
+                sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
+                observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(
                         ReadOnlyArray<ObservedFileAccess>.Empty,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+                return true;
             }
+            
+            bool sharedOutputDirectoriesAreRedirected = m_pip.NeedsToRunInContainer && m_pip.ContainerIsolationLevel.IsolateSharedOpaqueOutputDirectories();
 
             // Note that we are enumerating an unordered set to produce the array of observed paths.
             // As noted in SandboxedProcessPipExecutionResult, the caller must assume no particular order.
@@ -3700,13 +3711,69 @@ namespace BuildXL.Processes
 
                     var filteredAccessesUnsorted = accessesUnsorted.Where(shouldIncludeAccess).ToList();
 
-                    sharedDynamicDirectoryWriteAccesses = dynamicWriteAccesses.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => (IReadOnlyCollection<AbsolutePath>)kvp.Value.ToReadOnlyArray());
-
-                    return SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
+                    observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
                         filteredAccessesUnsorted,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+
+                    var mutableWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(dynamicWriteAccesses.Count);
+
+                    // We know that all accesses here were write accesses, but we don't actually know if in the end the corresponding file
+                    // still exists or whether the file was replaced with a directory afterwards. E.g.:
+                    // * the tool could have created a file but removed it right after
+                    // * the tool could have created a file but then removed it and created a directory
+                    // We only care about the access if its final shape is not a directory
+                    foreach (var kvp in dynamicWriteAccesses)
+                    {
+                        var fileWrites = new List<FileArtifactWithAttributes>(kvp.Value.Count);
+                        mutableWriteAccesses[kvp.Key] = fileWrites;
+                        foreach (AbsolutePath writeAccess in kvp.Value)
+                        {
+                            string outputPath;
+                            if (sharedOutputDirectoriesAreRedirected)
+                            {
+                                outputPath = m_processInContainerManager.GetRedirectedOpaqueFile(writeAccess, kvp.Key, m_containerConfiguration).ToString(m_pathTable);
+                            }
+                            else
+                            {
+                                outputPath = writeAccess.ToString(m_pathTable);
+                            }
+                            
+                            var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false);
+                            if (!maybeResult.Succeeded)
+                            {
+                                Tracing.Logger.Log.CannotProbeOutputUnderSharedOpaque(
+                                    m_loggingContext,
+                                    m_pip.GetDescription(m_context),
+                                    writeAccess.ToString(m_pathTable),
+                                    maybeResult.Failure.DescribeIncludingInnerFailures());
+                                
+                                sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
+
+                                return false;
+                            }
+
+                            switch (maybeResult.Result)
+                            {
+                                case PathExistence.ExistsAsDirectory:
+                                    // Directories are not reported as explicit content, since we don't have the functionality today to persist them in the cache.
+                                    continue;
+                                case PathExistence.ExistsAsFile:
+                                    // If outputs are redirected, we don't want to store a tombstone file
+                                    if (!sharedOutputDirectoriesAreRedirected || !FileUtilities.IsWciTombstoneFile(outputPath))
+                                    {
+                                        fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Required));
+                                    }
+                                    break;
+                                case PathExistence.Nonexistent:
+                                    fileWrites.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(writeAccess), FileExistence.Temporary));
+                                    break;
+                            }
+                        }
+                    }
+
+                    sharedDynamicDirectoryWriteAccesses = mutableWriteAccesses;
+
+                    return true;
 
                     bool shouldIncludeAccess(ObservedFileAccess access)
                     {

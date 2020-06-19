@@ -2057,6 +2057,40 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(File.Exists(ToString(sodOutput2.Path)));
         }
 
+        [Fact]
+        public void TreatAPathAsBothFileAndDirectoryIsHandled()
+        {
+            // Creates a pip that writes and deletes a file and later creates a directory using the same path 
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.DeleteFile(outputInSharedOpaque, doNotInfer:true),
+                Operation.CreateDir(outputInSharedOpaque, doNotInfer:true)
+            });
+
+            builderA.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            // Just probe the directory and create a dummy file
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(outputInSharedOpaque, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(sharedOpaqueDirPath));
+            var pipB = SchedulePipBuilder(builderB);
+
+            // Even though there is a write in a path that is a shared opaque candidate, the fact that the final artifact on that
+            // path ends up being a directory should be enough to discard all writes.
+            RunScheduler().AssertSuccess();
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

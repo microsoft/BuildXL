@@ -378,5 +378,11 @@ namespace BuildXL.Utilities.Configuration
         /// Mode for managing memory during builds
         /// </summary>
         ManageMemoryMode ManageMemoryMode { get; }
+
+        /// <summary>
+        /// Ignores any filters that might have been specified for composite shared opaques.
+        /// Temporary option. For A/B testing purposes only.
+        /// </summary>
+        bool? DisableCompositeOpaqueFilters { get; }
     }
 }

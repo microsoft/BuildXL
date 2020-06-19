@@ -6191,7 +6191,7 @@ namespace BuildXL.Scheduler
                     }
 
                     // if the filter is specified, restrict the final content
-                    if (pip.ContentFilter != null)
+                    if (pip.ContentFilter != null && environment.Configuration.Schedule.DisableCompositeOpaqueFilters != true)
                     {
                         var regex = new Regex(pip.ContentFilter.Value.Regex,
                             RegexOptions.IgnoreCase,

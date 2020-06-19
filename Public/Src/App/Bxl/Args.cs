@@ -360,6 +360,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "disableProcessRetryOnResourceExhaustion",
                             sign => schedulingConfiguration.DisableProcessRetryOnResourceExhaustion = sign),
+                        // TODO: This is a temporary flag. Remove it once we no longer need it.
+                        OptionHandlerFactory.CreateBoolOption(
+                            "disableCompositeOpaqueFilters",
+                            sign => schedulingConfiguration.DisableCompositeOpaqueFilters = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "distributeCacheLookups",
                             sign => distributionConfiguration.DistributeCacheLookups = sign),

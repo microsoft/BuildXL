@@ -372,5 +372,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public ManageMemoryMode ManageMemoryMode { get; set; }
+
+        /// <inheritdoc />
+        public bool? DisableCompositeOpaqueFilters { get; set; }
     }
 }

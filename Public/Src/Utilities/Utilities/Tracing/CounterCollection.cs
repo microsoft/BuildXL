@@ -119,18 +119,7 @@ namespace BuildXL.Utilities.Tracing
                 return;
             }
 
-            int processorId = 0;
-
-#if NET_COREAPP
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                processorId = Thread.GetCurrentProcessorId() % AssumedLogicalProcessorCount;
-            }
-            else
-#endif
-            {
-                processorId = GetCurrentProcessorNumber();
-            }
+            int processorId = GetProcessorId();
 
             // GetCurrentProcessorNumber returns the relative ID within the 64-processor 'processor group'.
             Contract.Assume(processorId < AssumedLogicalProcessorCount);
@@ -143,6 +132,29 @@ namespace BuildXL.Utilities.Tracing
             {
                 throw new OverflowException("Overflow while incrementing a counter");
             }
+        }
+
+        private static int GetProcessorId()
+        {
+#if NET_STANDARD_20 || NET_COREAPP
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+            // Net standard version is very weird, because Thread.GetCurrentProcessorId() is not exposed there
+            // and netstandard version can be used on non-Windows platforms, so using PInvoke is not an option.
+            // So we do a bad thing here and just will use a thread Id as the baseline for processor Id.
+            // This is not great and a better solution should be used like:
+            // * move from .netstandard2.0 to netstandard2.1
+            // * use something like https://github.com/Spreads/Spreads.Native/blob/af46e0137e0fbfb5860e7e0996280adb2ae9173e/dotnet/src/Spreads.Native/Cpu.cs
+            //   (but the license there won't allow us to use that version as is).
+            // * move away from using current processor Id and just use a simpler implementation.
+#if NET_STANDARD_20
+                return Thread.CurrentThread.ManagedThreadId % AssumedLogicalProcessorCount;
+#else
+                return Thread.GetCurrentProcessorId() % AssumedLogicalProcessorCount;
+#endif
+            }
+#endif
+            return GetCurrentProcessorNumber();
         }
 
         /// <summary>

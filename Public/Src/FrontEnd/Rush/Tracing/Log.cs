@@ -189,7 +189,7 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.RequestedExportIsNotPresent,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Message = EventConstants.LabeledProvenancePrefix + "Export symbol '{symbol}' specifies project '{projectName}' with command '{scriptCommandName}' as part of its content, " +
             "but the project has not been scheduled.",
             EventTask = (ushort)Tasks.Engine,

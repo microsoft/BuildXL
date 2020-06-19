@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using StackExchange.Redis;
 
 namespace ContentStoreTest.Distributed.Redis
 {
     public static class MockRedisDatabaseFactory
     {
-        public static TestConnectionMultiplexer CreateConnection<T>(T testDb, T testBatch = null, bool throwConnectionExceptionOnGet = false)
+        public static TestConnectionMultiplexer CreateConnection<T>(T testDb, T testBatch = null, Func<bool> throwConnectionExceptionOnGet = null)
             where T : class, ITestRedisDatabase
         {
             var mockDb = CreateRedisDatabase(testDb, testBatch);

@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -189,20 +190,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         // In some cases, Redis.StackExchange library may fail to reset the connection to Azure Redis Cache.
         // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
         private int _connectionErrorCount;
+        private readonly IClock _clock;
+        private DateTime _lastRedisReconnectDateTime = DateTime.MinValue;
         private readonly object _resetConnectionsLock = new object();
         private int _reconnectionCount;
 
         /// <nodoc />
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, RedisDatabaseAdapterConfiguration configuration)
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, RedisDatabaseAdapterConfiguration configuration, IClock? clock = null)
         {
             _configuration = configuration;
             _redisRetryStrategy = configuration.CreateRetryPolicy(OnRedisException);
             _databaseFactory = databaseFactory;
+            _clock = clock ?? SystemClock.Instance;
         }
 
         /// <nodoc />
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace)
-            : this(databaseFactory, new RedisDatabaseAdapterConfiguration(keySpace))
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, IClock? clock = null)
+            : this(databaseFactory, new RedisDatabaseAdapterConfiguration(keySpace), clock)
         {
         }
 
@@ -377,14 +381,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     lock (_resetConnectionsLock)
                     {
                         // The second read of _connectionErrorCount is a non-interlocked read, but it should be fine because it is happening under the lock.
-                        if (_connectionErrorCount >= _configuration.RedisConnectionErrorLimit)
+                        var timeSinceLastReconnect = _clock.UtcNow.Subtract(_lastRedisReconnectDateTime);
+
+                        if (_connectionErrorCount >= _configuration.RedisConnectionErrorLimit && timeSinceLastReconnect >= _configuration.MinReconnectInterval)
                         {
                             // This means that there is no successful operations happening, and all the errors that we're seeing are redis connectivity issues.
                             // This is, effectively, a work-around for the issue in StackExchange.Redis library (https://github.com/StackExchange/StackExchange.Redis/issues/559).
-                            context.Warning($"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}.");
-                            Interlocked.Exchange(ref _connectionErrorCount, 0);
+                            context.Warning($"Reset redis connection to {DatabaseName} due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_configuration.RedisConnectionErrorLimit}, ReconnectCount={_reconnectionCount}, LastReconnectDateTimeUtc={_lastRedisReconnectDateTime}.");
+
                             _databaseFactory.ResetConnectionMultiplexer();
 
+                            Interlocked.Exchange(ref _connectionErrorCount, 0);
+                            _lastRedisReconnectDateTime = _clock.UtcNow;
                             Interlocked.Increment(ref _reconnectionCount);
 
                             // In some cases the service can't connect to redis and the only option is to shut down the service.

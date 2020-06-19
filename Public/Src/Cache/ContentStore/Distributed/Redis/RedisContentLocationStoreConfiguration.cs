@@ -103,6 +103,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool TraceRedisTransientFailures { get; set; } = false;
 
         /// <summary>
+        /// Gets a minimal time between reconnecting to a redis instance.
+        /// </summary>
+        public TimeSpan MinRedisReconnectInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
         /// Timeout for GetBlob operations.
         /// </summary>
         public TimeSpan GetBlobTimeout { get; set; } = Timeout.InfiniteTimeSpan;

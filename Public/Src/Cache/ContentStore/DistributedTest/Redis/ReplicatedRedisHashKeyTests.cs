@@ -47,7 +47,7 @@ namespace ContentStoreTest.Distributed.Redis
             // It is important to throw non-redis error to not trigger retry strategy.
             var primaryDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData) {FailingQuery = 1, ThrowRedisException = false};
 
-            var primaryConnection = MockRedisDatabaseFactory.CreateConnection(primaryDb, throwConnectionExceptionOnGet: true);
+            var primaryConnection = MockRedisDatabaseFactory.CreateConnection(primaryDb, throwConnectionExceptionOnGet: () => true);
             var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace, retryCount: 1);
             var primaryAdapter = new RedisDatabaseAdapter(
                 await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), primaryConnection),

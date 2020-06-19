@@ -164,6 +164,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? TraceRedisTransientFailures { get; set; }
 
         [DataMember]
+        public TimeSpan? MinRedisReconnectInterval { get; set; }
+
+        [DataMember]
         [Validation.Range(-1, int.MaxValue)]
         public int? RedisGetBlobTimeoutMilliseconds { get; set; }
 

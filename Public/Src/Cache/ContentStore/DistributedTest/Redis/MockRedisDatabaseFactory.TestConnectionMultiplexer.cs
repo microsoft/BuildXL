@@ -16,9 +16,9 @@ namespace ContentStoreTest.Distributed.Redis
     public class TestConnectionMultiplexer : IConnectionMultiplexer
     {
         private readonly IDatabase _testDatabaseAsync;
-        private readonly bool _throwConnectionExceptionOnGet;
+        private readonly Func<bool> _throwConnectionExceptionOnGet;
 
-        public TestConnectionMultiplexer(IDatabase testDatabaseAsync, bool throwConnectionExceptionOnGet = false)
+        public TestConnectionMultiplexer(IDatabase testDatabaseAsync, Func<bool> throwConnectionExceptionOnGet = null)
         {
             _testDatabaseAsync = testDatabaseAsync;
             _throwConnectionExceptionOnGet = throwConnectionExceptionOnGet;
@@ -96,7 +96,7 @@ namespace ContentStoreTest.Distributed.Redis
 
         public IDatabase GetDatabase(int db = -1, object asyncState = null)
         {
-            if (_throwConnectionExceptionOnGet)
+            if (_throwConnectionExceptionOnGet != null && _throwConnectionExceptionOnGet())
             {
                 // The required constructors are internal, using reflection to mock the connectivity issue.
                 Type exceptionType = typeof(RedisConnectionException);

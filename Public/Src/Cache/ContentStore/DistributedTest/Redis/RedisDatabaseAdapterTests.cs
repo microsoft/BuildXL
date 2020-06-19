@@ -12,6 +12,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using StackExchange.Redis;
@@ -54,7 +56,7 @@ namespace ContentStoreTest.Distributed.Redis
             var second = redisBatch.StringGetAsync("second");
 
             // Execute the batch
-            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default(CancellationToken)).ShouldBeSuccess();
+            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default).ShouldBeSuccess();
 
             // Adapter is expected to retry the entire batch if single call fails
             Assert.True(testDb.BatchCalled);
@@ -85,7 +87,7 @@ namespace ContentStoreTest.Distributed.Redis
             var second = redisBatch.StringGetAsync("second");
 
             // Execute the batch
-            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default(CancellationToken)).IgnoreFailure();
+            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default).IgnoreFailure();
 
             // Adapter does not retry in case random exception is thrown
             Assert.True(testDb.BatchCalled);
@@ -99,21 +101,20 @@ namespace ContentStoreTest.Distributed.Redis
         {
             // This test checks that if the client fails to connect to redis, it'll successfully reconnect to it.
 
-            // Setup test DB configured to fail 2nd query with normal Exception
-            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData)
-            {
-                // No queries will fail, instead GetDatabase will throw with RedisConnectionException.
-                FailingQuery = -1,
-            };
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData);
 
-            int numberOfFactoryCalls = 0;
+            int connectionCount = 0;
 
+            bool failWithRedisConnectionError = false;
             // Setup Redis DB adapter
             Func<IConnectionMultiplexer> connectionMultiplexerFactory = () =>
             {
-                numberOfFactoryCalls++;
-                // Failing connection error only from the first instance.
-                return MockRedisDatabaseFactory.CreateConnection(testDb, testBatch: null, throwConnectionExceptionOnGet: numberOfFactoryCalls == 1);
+                connectionCount++;
+                // Failing connection only when the local is true;
+                return MockRedisDatabaseFactory.CreateConnection(
+                    testDb,
+                    testBatch: null,
+                    throwConnectionExceptionOnGet: () => failWithRedisConnectionError);
             };
 
             var redisDatabaseFactory = await RedisDatabaseFactory.CreateAsync(connectionMultiplexerFactory, connectionMultiplexer => BoolResult.SuccessTask);
@@ -123,21 +124,96 @@ namespace ContentStoreTest.Distributed.Redis
                 retryCount: 1);
             var dbAdapter = new RedisDatabaseAdapter(redisDatabaseFactory, adapterConfiguration);
 
-            // Create a batch query
-            var redisBatch = dbAdapter.CreateBatchOperation(RedisOperation.All);
+            connectionCount.Should().Be(1);
 
-            // Execute the batch
-            var result = await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default(CancellationToken));
-            // The first execute batch should fail with the connectivity issue.
-            result.ShouldBeError();
-            numberOfFactoryCalls.Should().Be(1);
+            // The first execution should fail with the connectivity issue.
+            failWithRedisConnectionError = true;
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            failWithRedisConnectionError = false;
 
-            var redisBatch2 = dbAdapter.CreateBatchOperation(RedisOperation.All);
-            // Then we should recreate the connection and the second one should be successful.
-            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch2, default(CancellationToken)).ShouldBeSuccess();
+            // The second execution should recreate the connection.
+            await ExecuteBatchAsync(dbAdapter).ShouldBeSuccess();
+            connectionCount.Should().Be(2);
 
-            numberOfFactoryCalls.Should().Be(2);
+            // The connection was recently recreated.
+            // Introducing the connectivity issue again.
+            failWithRedisConnectionError = true;
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            // The previous call set the flag to reconnect, but the actual reconnect happening on the next call.
+            connectionCount.Should().Be(2);
+
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            connectionCount.Should().Be(3);
+
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            connectionCount.Should().Be(4);
         }
+
+        [Fact]
+        public async Task DoNotReconnectTooFrequently()
+        {
+            var memoryClock = new MemoryClock();
+            memoryClock.UtcNow = DateTime.UtcNow;
+
+            // This test checks that if the client fails to connect to redis, it'll successfully reconnect to it.
+
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData);
+
+            int connectionCount = 0;
+            TimeSpan reconnectInterval = TimeSpan.FromSeconds(10);
+            bool failWithRedisConnectionError = false;
+            // Setup Redis DB adapter
+            Func<IConnectionMultiplexer> connectionMultiplexerFactory = () =>
+            {
+                connectionCount++;
+                // Failing connection only when the local is true;
+                return MockRedisDatabaseFactory.CreateConnection(
+                    testDb,
+                    testBatch: null,
+                    throwConnectionExceptionOnGet: () => failWithRedisConnectionError);
+            };
+
+            var redisDatabaseFactory = await RedisDatabaseFactory.CreateAsync(connectionMultiplexerFactory, connectionMultiplexer => BoolResult.SuccessTask);
+            var adapterConfiguration = new RedisDatabaseAdapterConfiguration(DefaultKeySpace,
+                // If the operation fails we'll retry once and after that we should reset the connection multiplexer so the next operation should create a new one.
+                redisConnectionErrorLimit: 2,
+                retryCount: 1,
+                minReconnectInterval: reconnectInterval);
+            var dbAdapter = new RedisDatabaseAdapter(redisDatabaseFactory, adapterConfiguration, memoryClock);
+
+            connectionCount.Should().Be(1);
+
+            // The first execution should fail with the connectivity issue.
+            failWithRedisConnectionError = true;
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            failWithRedisConnectionError = false;
+
+            // The second execution should recreate the connection.
+            await ExecuteBatchAsync(dbAdapter).ShouldBeSuccess();
+            connectionCount.Should().Be(2);
+
+            // The connection was recently recreated.
+            // Introducing the connectivity issue first.
+            failWithRedisConnectionError = true;
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            // The next call should not trigger the reconnect
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            connectionCount.Should().Be(2);
+
+            // Moving the clock forward and the next call should cause a reconnect.
+            memoryClock.UtcNow += reconnectInterval.Multiply(2);
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            // The previous execution should set the flag to reconnect,
+            // but the reconnect count is still the same.
+            connectionCount.Should().Be(2);
+
+            // And only during the next call the multiplexer is actually recreated
+            await ExecuteBatchAsync(dbAdapter).ShouldBeError();
+            connectionCount.Should().Be(3);
+        }
+
+        private static Task<BoolResult> ExecuteBatchAsync(RedisDatabaseAdapter dbAdapter) =>
+            dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), dbAdapter.CreateBatchOperation(RedisOperation.All), default);
 
         private static RedisKey GetKey(RedisKey key)
         {

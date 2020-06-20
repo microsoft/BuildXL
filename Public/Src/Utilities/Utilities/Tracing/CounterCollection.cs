@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -336,26 +337,37 @@ namespace BuildXL.Utilities.Tracing
     }
 
     /// <summary>
-    /// <see cref="CounterCollection"/> with counters named according to an enum.
+    /// Info for <see cref="CounterCollection{TEnum}"/>.
     /// </summary>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
-    [DebuggerDisplay("{ToDebuggerDisplay(),nq}")]
-    public sealed class CounterCollection<TEnum> : CounterCollection
-        where TEnum : struct
+    public sealed class CounterCollectionInfo<TEnum> where TEnum : struct
     {
-        private static readonly ulong s_counterIdOffset = EnumTraits<TEnum>.MinValue;
-        private static readonly CounterType[] s_counterTypes;
-        private static readonly string[] s_counterNames;
+        /// <summary>
+        /// Offset to get counter index from <code>TEnum</code>.
+        /// </summary>
+        public readonly ulong CounterIdOffset = EnumTraits<TEnum>.MinValue;
 
-        static CounterCollection()
+        /// <summary>
+        /// Counter types.
+        /// </summary>
+        public readonly ReadOnlyArray<CounterType> CounterTypes;
+
+        /// <summary>
+        /// Counter names.
+        /// </summary>
+        public readonly ReadOnlyArray<string> CounterNames;
+
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        public CounterCollectionInfo()
         {
             ulong min = EnumTraits<TEnum>.MinValue;
             ulong max = EnumTraits<TEnum>.MaxValue;
             Contract.Assume(max >= min);
 
             ushort numValues = checked((ushort)(max - min + 1));
-            s_counterTypes = new CounterType[numValues];
-            s_counterNames = new string[numValues];
+            var counterTypes = new CounterType[numValues];
+            var counterNames = new string[numValues];
 
             foreach (FieldInfo field in typeof(TEnum).GetFields())
             {
@@ -367,17 +379,42 @@ namespace BuildXL.Utilities.Tracing
                 Contract.Assume(field.FieldType == typeof(TEnum));
 
                 var attribute = field.GetCustomAttribute(typeof(CounterTypeAttribute)) as CounterTypeAttribute;
-                s_counterTypes[GetCounterIndex((TEnum)field.GetValue(null))] = attribute?.CounterType ?? CounterType.Numeric;
-                s_counterNames[GetCounterIndex((TEnum)field.GetValue(null))] = attribute?.CounterName;
+                counterTypes[GetCounterIndex((TEnum)field.GetValue(null))] = attribute?.CounterType ?? CounterType.Numeric;
+                counterNames[GetCounterIndex((TEnum)field.GetValue(null))] = attribute?.CounterName;
             }
+
+            CounterTypes = ReadOnlyArray<CounterType>.FromWithoutCopy(counterTypes);
+            CounterNames = ReadOnlyArray<string>.FromWithoutCopy(counterNames);
         }
+
+        /// <summary>
+        /// Gets a counter index given an enum name.
+        /// </summary>
+        public ushort GetCounterIndex(TEnum counterId)
+        {
+            ulong counterIdValue = EnumTraits<TEnum>.ToInteger(counterId);
+            Contract.Assume(counterIdValue >= CounterIdOffset);
+            ulong relativeCounterIdValue = counterIdValue - CounterIdOffset;
+            return checked((ushort)relativeCounterIdValue);
+        }
+    }
+
+    /// <summary>
+    /// <see cref="CounterCollection"/> with counters named according to an enum.
+    /// </summary>
+    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
+    [DebuggerDisplay("{ToDebuggerDisplay(),nq}")]
+    public sealed class CounterCollection<TEnum> : CounterCollection
+        where TEnum : struct
+    {
+        private static readonly CounterCollectionInfo<TEnum> s_info = new CounterCollectionInfo<TEnum>();
 
         /// <summary>
         /// Creates a collection with a counter for every value of <typeparamref name="TEnum"/>.
         /// Note that the enum should be dense, since this creates <c>MaxEnumValue - MinEnumValue + 1</c> counters.
         /// </summary>
         public CounterCollection(CounterCollection<TEnum> parent = null)
-            : base((ushort)s_counterTypes.Length, parent)
+            : base((ushort)s_info.CounterTypes.Length, parent)
         {
         }
 
@@ -388,8 +425,8 @@ namespace BuildXL.Utilities.Tracing
         {
             get
             {
-                ushort counterIndex = GetCounterIndex(counterId);
-                return new Counter(this, counterIndex, s_counterTypes[counterIndex], s_counterNames[counterIndex]);
+                ushort counterIndex = s_info.GetCounterIndex(counterId);
+                return new Counter(this, counterIndex, s_info.CounterTypes[counterIndex], s_info.CounterNames[counterIndex]);
             }
         }
 
@@ -406,19 +443,13 @@ namespace BuildXL.Utilities.Tracing
         /// Increments a counter with a given enum name.
         /// This call is valid only for counters that are not of type Stopwatch
         /// </summary>
-        public void IncrementCounter(TEnum counterId)
-        {
-            AddToCounter(counterId, 1);
-        }
+        public void IncrementCounter(TEnum counterId) => AddToCounter(counterId, 1);
 
         /// <summary>
         /// Decrements a counter with a given enum name.
         /// This call is valid only for counters that are not of type Stopwatch
         /// </summary>
-        public void DecrementCounter(TEnum counterId)
-        {
-            AddToCounter(counterId, -1);
-        }
+        public void DecrementCounter(TEnum counterId) => AddToCounter(counterId, -1);
 
         /// <summary>
         /// Adds to a counter with a given enum name.
@@ -426,7 +457,7 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public void AddToCounter(TEnum counterId, long add)
         {
-            ushort counterIndex = GetCounterIndex(counterId);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
             AddToCounterInternal(counterIndex, add);
         }
 
@@ -437,7 +468,7 @@ namespace BuildXL.Utilities.Tracing
         public void AddToCounter(TEnum counterId, TimeSpan add)
         {
             Contract.Requires(IsStopwatch(counterId));
-            ushort counterIndex = GetCounterIndex(counterId);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
             AddToStopwatchInternal(counterIndex, TimeSpanToStopwatchTicks(add));
         }
 
@@ -447,7 +478,7 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public long GetCounterValue(TEnum counterId)
         {
-            ushort counterIndex = GetCounterIndex(counterId);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
             return GetCounterValueInternal(counterIndex);
         }
 
@@ -458,7 +489,7 @@ namespace BuildXL.Utilities.Tracing
         public Stopwatch StartStopwatch(TEnum counterId)
         {
             Contract.Requires(IsStopwatch(counterId));
-            ushort counterIndex = GetCounterIndex(counterId);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
             return new Stopwatch(this, counterIndex);
         }
 
@@ -470,7 +501,7 @@ namespace BuildXL.Utilities.Tracing
         {
             Contract.Requires(IsStopwatch(counterId));
 
-            ushort counterIndex = GetCounterIndex(counterId);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
 
             return StopwatchTicksToTimeSpan(GetStopwatchValueInternal(counterIndex));
         }
@@ -505,19 +536,8 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         public static bool IsStopwatch(TEnum counterId)
         {
-            ushort counterIndex = GetCounterIndex(counterId);
-            return s_counterTypes[counterIndex] == CounterType.Stopwatch;
-        }
-
-        /// <summary>
-        /// Gets a counter index given an enum name.
-        /// </summary>
-        private static ushort GetCounterIndex(TEnum counterId)
-        {
-            ulong counterIdValue = EnumTraits<TEnum>.ToInteger(counterId);
-            Contract.Assume(counterIdValue >= s_counterIdOffset);
-            ulong relativeCounterIdValue = counterIdValue - s_counterIdOffset;
-            return checked((ushort)relativeCounterIdValue);
+            ushort counterIndex = s_info.GetCounterIndex(counterId);
+            return s_info.CounterTypes[counterIndex] == CounterType.Stopwatch;
         }
 
         /// <summary>
@@ -574,7 +594,7 @@ namespace BuildXL.Utilities.Tracing
             foreach (var enumValue in EnumTraits<TEnum>.EnumerateValues())
             {
                 var counter = this[enumValue];
-                sb.AppendLine($"[{enumValue.ToString().PadLeft(50, ' ')}]: {counter.ToString()}");
+                sb.AppendLine($"[{enumValue,-50}]: {counter}");
 
             }
 

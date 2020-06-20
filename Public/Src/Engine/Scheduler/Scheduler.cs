@@ -4156,9 +4156,12 @@ namespace BuildXL.Scheduler
                         }
                     }
 
-                    // The pip was canceled
+                    // The pip was canceled due to memory or retryable failure
                     if (executionResult.Result == PipResultStatus.Canceled && !IsTerminating)
                     {
+                        var cancellationReason = executionResult.CancellationReason;
+                        Contract.Assert(cancellationReason != CancellationReason.None, "If the result is Cancelled, we must have the cancellationReason");
+                        
                         if (worker.IsLocal)
                         {
                             // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
@@ -4166,23 +4169,41 @@ namespace BuildXL.Scheduler
                             ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
                         }
 
-                        if (m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory.HasValue &&
-                            processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.NumRetryFailedPipsDueToLowMemory)
+                        // If it is a single machine or distributed build master 
+                        if (!IsDistributedBuild || IsDistributedMaster)
                         {
-                            Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
+                            if (cancellationReason == CancellationReason.ResourceExhaustion)
+                            {
+                                // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
+                                var expectedCounters = processRunnable.ExpectedMemoryCounters.Value;
+                                var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
+                                processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
+                                    peakWorkingSetMb: Math.Max((int)(expectedCounters.PeakWorkingSetMb * 1.25), actualCounters?.PeakWorkingSetMb ?? 0),
+                                    averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
+                                    peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
+                                    averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
+
+                                Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
+
+                                if (m_scheduleConfiguration.MaxRetriesDueToLowMemory.HasValue &&
+                                    processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
+                                {
+                                    Logger.Log.ExcessivePipRetriesDueToLowMemory(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToLowMemory);
+                                    return runnablePip.SetPipResult(PipResultStatus.Failed);
+                                }
+                            }
+                            else if (cancellationReason == CancellationReason.ProcessStartFailure || cancellationReason == CancellationReason.TempDirectoryCleanupFailure)
+                            {
+                                Logger.Log.PipRetryDueToRetryableFailures(operationContext, processRunnable.Description, cancellationReason.ToString());
+
+                                if (processRunnable.Performance.RetryCountDueToRetryableFailures == m_scheduleConfiguration.MaxRetriesDueToRetryableFailures)
+                                {
+                                    Logger.Log.ExcessivePipRetriesDueToRetryableFailures(operationContext, processRunnable.Description, processRunnable.Performance.RetryCountDueToRetryableFailures);
+                                    return runnablePip.SetPipResult(PipResultStatus.Failed);
+                                }
+                            }
                         }
-
-                        // Use the max of the observed memory and the worker's expected memory (multiplied with 1.25 to increase the expectations) for the pip
-                        var expectedCounters = processRunnable.ExpectedMemoryCounters.Value;
-                        var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
-                        processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
-                            peakWorkingSetMb: Math.Max((int)(expectedCounters.PeakWorkingSetMb * 1.25), actualCounters?.PeakWorkingSetMb ?? 0),
-                            averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
-                            peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
-                            averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
-
-                        Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
-
+                        
                         return processRunnable.SetPipResult(executionResult.Result);
                     }
 

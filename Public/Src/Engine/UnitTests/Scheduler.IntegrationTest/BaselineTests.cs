@@ -1404,7 +1404,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
             Configuration.Distribution.NumRetryFailedPipsOnAnotherWorker = 5;
             Configuration.Schedule.ManageMemoryMode = ManageMemoryMode.CancellationRam;
-            Configuration.Schedule.NumRetryFailedPipsDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
+            Configuration.Schedule.MaxRetriesDueToLowMemory = allowLowMemoryRetry ? 2 : 0;
 
             CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -1470,7 +1470,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             if (!allowLowMemoryRetry)
             {
-                AssertWarningEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
+                AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToLowMemory);
             }
         }
 

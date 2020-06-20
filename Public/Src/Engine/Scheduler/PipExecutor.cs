@@ -1377,7 +1377,7 @@ namespace BuildXL.Scheduler
                             int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? configuration.Schedule.ProcessRetries : 0;
                             int remainingInternalSandboxedProcessExecutionFailureRetries = InternalSandboxedProcessExecutionFailureRetryCountMax;
 
-                            int retryCount = 0;
+                            bool firstAttempt = true;
                             bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
                             var aggregatePipProperties = new Dictionary<string, int>();
@@ -1461,10 +1461,11 @@ namespace BuildXL.Scheduler
                                     });
 
                                 // Increment the counters only on the first try.
-                                if (retryCount == 0)
+                                if (firstAttempt)
                                 {
                                     counters.IncrementCounter(PipExecutorCounter.ExternalProcessCount);
                                     environment.SetMaxExternalProcessRan();
+                                    firstAttempt = false;
                                 }
 
                                 using (var sidebandWriter = CreateSidebandWriterIfNeeded(environment, pip))
@@ -1474,8 +1475,6 @@ namespace BuildXL.Scheduler
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
                                     LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseRunningPip, DateTime.UtcNow.Subtract(start));
                                 }
-
-                                ++retryCount;
 
                                 if (result.PipProperties != null)
                                 {
@@ -1630,7 +1629,7 @@ namespace BuildXL.Scheduler
                             {
                                 if (resourceScope.CancellationReason.HasValue)
                                 {
-                                    result.IsCancelledDueToResourceExhaustion = true;
+                                    result.CancellationReason = CancellationReason.ResourceExhaustion;
 
                                     counters.IncrementCounter(resourceScope.CancellationReason == ProcessResourceManager.ResourceScopeCancellationReason.ResourceLimits ?
                                         PipExecutorCounter.ProcessRetriesDueToResourceLimits :
@@ -1703,13 +1702,19 @@ namespace BuildXL.Scheduler
             if (executionResult.Status == SandboxedProcessPipExecutionStatus.Canceled)
             {
                 // Don't do post processing if canceled
-                processExecutionResult.SetResult(operationContext, PipResultStatus.Canceled);
+                processExecutionResult.SetResult(operationContext, PipResultStatus.Canceled, executionResult.CancellationReason);
 
-                ReportFileAccesses(processExecutionResult, fileAccessReportingContext);
+                if (fileAccessReportingContext != null)
+                {
+                    ReportFileAccesses(processExecutionResult, fileAccessReportingContext);
+                }
 
-                counters.AddToCounter(
-                    PipExecutorCounter.CanceledProcessExecuteDuration,
-                    executionResult.PrimaryProcessTimes.TotalWallClockTime);
+                if (executionResult?.PrimaryProcessTimes != null)
+                {
+                    counters.AddToCounter(
+                        PipExecutorCounter.CanceledProcessExecuteDuration,
+                        executionResult.PrimaryProcessTimes.TotalWallClockTime);
+                }
 
                 return processExecutionResult;
             }

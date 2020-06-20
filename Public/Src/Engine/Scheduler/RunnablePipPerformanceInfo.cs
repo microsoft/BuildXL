@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using BuildXL.Processes;
 using BuildXL.Scheduler.WorkDispatcher;
 
 namespace BuildXL.Scheduler
@@ -55,16 +57,21 @@ namespace BuildXL.Scheduler
         internal long InputMaterializationCostMbForChosenWorker { get; private set; }
 
         /// <summary>
-        /// Number of retries attempted for this pip
+        /// Number of retries attempted due to stopped worker 
         /// </summary>
         internal int RetryCountDueToStoppedWorker { get; private set; }
 
         /// <summary>
-        /// Number of retries attempted for this pip
+        /// Number of retries attempted due to low memory
         /// </summary>
         internal int RetryCountDueToLowMemory { get; private set; }
 
-        internal int RetryCount => RetryCountDueToStoppedWorker + RetryCountDueToLowMemory;
+        /// <summary>
+        /// Number of retries attempted due to retryable failures in SanboxedProcessPipExecutor errors
+        /// </summary>
+        internal int RetryCountDueToRetryableFailures { get; private set; }
+
+        internal int RetryCount => RetryCountDueToStoppedWorker + RetryCountDueToLowMemory + RetryCountDueToRetryableFailures;
 
         /// <summary>
         /// Suspended duration of the process due to memory management
@@ -90,15 +97,22 @@ namespace BuildXL.Scheduler
             Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
         }
 
-        internal void Retried(bool isRetriedDueToResourceExhaustion)
+        internal void Retried(CancellationReason pipCancellationReason)
         {
-            if (isRetriedDueToResourceExhaustion)
+            Contract.Requires(pipCancellationReason != CancellationReason.None, "If retry occurs, we need to have cancellation");
+
+            switch (pipCancellationReason)
             {
-                RetryCountDueToLowMemory++;
-            }
-            else
-            {
-                RetryCountDueToStoppedWorker++;
+                case CancellationReason.ResourceExhaustion:
+                    RetryCountDueToLowMemory++;
+                    break;
+                case CancellationReason.ProcessStartFailure:
+                case CancellationReason.TempDirectoryCleanupFailure:
+                    RetryCountDueToRetryableFailures++;
+                    break;
+                case CancellationReason.StoppedWorker:
+                    RetryCountDueToStoppedWorker++;
+                    break;
             }
         }
 

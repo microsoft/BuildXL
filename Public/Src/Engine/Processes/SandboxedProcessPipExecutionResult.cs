@@ -113,6 +113,35 @@ namespace BuildXL.Processes
                 timedOut: false);
         }
 
+        internal static SandboxedProcessPipExecutionResult RetryableFailure(
+            CancellationReason cancellationReason,
+            int numberOfProcessLaunchRetries = 0,
+            long maxDetoursHeapSize = 0)
+        {
+            return new SandboxedProcessPipExecutionResult(
+                SandboxedProcessPipExecutionStatus.Canceled,
+                observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
+                sharedDynamicDirectoryWriteAccesses: null,
+                encodedStandardError: null,
+                encodedStandardOutput: null,
+                numberOfWarnings: 0,
+                unexpectedFileAccesses: null,
+                primaryProcessTimes: null,
+                jobAccountingInformation: null,
+                numberOfProcessLaunchRetries: numberOfProcessLaunchRetries,
+                exitCode: 0,
+                sandboxPrepMs: 0,
+                processSandboxedProcessResultMs: 0,
+                processStartTime: 0L,
+                allReportedFileAccesses: null,
+                detouringStatuses: null,
+                maxDetoursHeapSize: maxDetoursHeapSize,
+                containerConfiguration: ContainerConfiguration.DisabledIsolation,
+                pipProperties: null,
+                timedOut: false,
+                cancellationReason: cancellationReason);
+        }
+
         internal static SandboxedProcessPipExecutionResult DetouringFailure(SandboxedProcessPipExecutionResult result)
         {
             return new SandboxedProcessPipExecutionResult(
@@ -325,7 +354,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Whether it is cancelled due to resource exhaustion
         /// </summary>
-        public bool IsCancelledDueToResourceExhaustion { get; set; }
+        public CancellationReason CancellationReason { get; set; }
 
         /// <summary>
         /// How long the process has been suspended
@@ -353,15 +382,19 @@ namespace BuildXL.Processes
             long maxDetoursHeapSize,
             ContainerConfiguration containerConfiguration,
             Dictionary<string, int> pipProperties,
-            bool timedOut)
+            bool timedOut,
+            CancellationReason cancellationReason = CancellationReason.None)
         {
             Contract.Requires(
-                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
+                (status == SandboxedProcessPipExecutionStatus.PreparationFailed ||
+                status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode ||
+                status == SandboxedProcessPipExecutionStatus.Canceled) ||
                 observedFileAccesses.IsValid);
             Contract.Requires(
-                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
+                (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode ||
+                status == SandboxedProcessPipExecutionStatus.Canceled) ||
                 unexpectedFileAccesses != null);
-            Contract.Requires((status == SandboxedProcessPipExecutionStatus.PreparationFailed) || primaryProcessTimes != null);
+            Contract.Requires((status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.Canceled) || primaryProcessTimes != null);
             Contract.Requires(encodedStandardOutput == null || (encodedStandardOutput.Item1.IsValid && encodedStandardOutput.Item2 != null));
             Contract.Requires(encodedStandardError == null || (encodedStandardError.Item1.IsValid && encodedStandardError.Item2 != null));
             Contract.Requires(numberOfWarnings >= 0);
@@ -387,6 +420,7 @@ namespace BuildXL.Processes
             ContainerConfiguration = containerConfiguration;
             PipProperties = pipProperties;
             TimedOut = timedOut;
+            CancellationReason = cancellationReason;
         }
 
         /// <summary>

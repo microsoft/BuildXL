@@ -720,6 +720,12 @@ namespace BuildXL
                             "maxRelativeOutputDirectoryLength",
                             opt => engineConfiguration.MaxRelativeOutputDirectoryLength = CommandLineUtilities.ParseInt32Option(opt, 49, 260)),
                         OptionHandlerFactory.CreateOption(
+                            "maxRetriesDueToLowMemory",
+                            opt => schedulingConfiguration.MaxRetriesDueToLowMemory = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxRetriesDueToRetryableFailures",
+                            opt => schedulingConfiguration.MaxRetriesDueToRetryableFailures = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "maxSealDirs",
                             opt => schedulingConfiguration.MaxSealDirs = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -734,9 +740,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "minimumDiskSpaceForPipsGb",
                             opt => schedulingConfiguration.MinimumDiskSpaceForPipsGb = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
-                        OptionHandlerFactory.CreateOption(
-                            "numRetryFailedPipsDueToLowMemory",
-                            opt => schedulingConfiguration.NumRetryFailedPipsDueToLowMemory = CommandLineUtilities.ParseInt32Option(opt, 0, Int32.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "minWorkers",
                             opt => distributionConfiguration.MinimumWorkers = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),

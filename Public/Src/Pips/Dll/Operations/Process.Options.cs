@@ -24,6 +24,11 @@ namespace BuildXL.Pips.Operations
         public static int DefaultAugmentWeakFingerprintPathSetThreshold = 5;
 
         /// <summary>
+        /// Indicate whether the pip is used for integration test purposes.
+        /// </summary>
+        public const int IntegrationTestPriority = 99;
+
+        /// <summary>
         /// Flag options controlling process pip behavior.
         /// </summary>
         [Flags]

@@ -25,6 +25,11 @@ namespace BuildXL.Pips.Filter
         public const string TriggerWorkerConnectionTimeout = "buildxl.internal:triggerWorkerConnectionTimeout";
 
         /// <summary>
+        /// Ensures pip triggers on a worker for testing purposes.
+        /// </summary>
+        public const string TriggerWorkerProcessStartFailed = "buildxl.internal:triggerProcessStartFailed";
+
+        /// <summary>
         /// Creates a new instance of <see cref="TagFilter"/>
         /// </summary>
         public TagFilter(StringId tag)

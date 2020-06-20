@@ -58,7 +58,7 @@ namespace BuildXL.Scheduler
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
-        private bool m_isCancelledDueToResourceExhaustion;
+        private CancellationReason m_cancellationReason;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -150,7 +150,9 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Sets the pip result for the process execution. An error must be logged before calling this method
         /// </summary>
-        public void SetResult(LoggingContext context, PipResultStatus status)
+        public void SetResult(LoggingContext context, 
+            PipResultStatus status, 
+            CancellationReason cancellationReason = CancellationReason.None)
         {
             if (status == PipResultStatus.Failed)
             {
@@ -159,6 +161,7 @@ namespace BuildXL.Scheduler
 
             EnsureUnsealed();
             InnerUnsealedState.Result = status;
+            m_cancellationReason = cancellationReason;
         }
 
         /// <summary>
@@ -400,13 +403,13 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Whether it is cancelled due to resource exhaustion
+        /// Whether the pip was cancelled. Returns the reason for cancellation.
         /// </summary>
-        public bool IsCancelledDueToResourceExhaustion
+        public CancellationReason CancellationReason
         {
             get
             {
-                return m_isCancelledDueToResourceExhaustion;
+                return m_cancellationReason;
             }
         }
 
@@ -449,7 +452,7 @@ namespace BuildXL.Scheduler
             CacheLookupPerfInfo cacheLookupStepDurations,
             IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries,
-            bool isCancelledDueToResourceExhaustion)
+            CancellationReason pipCancellationReason)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -477,7 +480,7 @@ namespace BuildXL.Scheduler
                     m_cacheLookupPerfInfo = cacheLookupStepDurations,
                     m_pipProperties = pipProperties,
                     m_hasUserRetries = hasUserRetries,
-                    m_isCancelledDueToResourceExhaustion = isCancelledDueToResourceExhaustion,
+                    m_cancellationReason = pipCancellationReason,
                 };
             return processExecutionResult;
         }
@@ -520,7 +523,7 @@ namespace BuildXL.Scheduler
                 cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
-                IsCancelledDueToResourceExhaustion);
+                CancellationReason);
         }
 
         /// <summary>
@@ -553,7 +556,7 @@ namespace BuildXL.Scheduler
                 CacheLookupPerfInfo,
                 PipProperties,
                 HasUserRetries,
-                IsCancelledDueToResourceExhaustion);
+                CancellationReason);
         }
 
         /// <summary>
@@ -599,7 +602,7 @@ namespace BuildXL.Scheduler
             m_numberOfWarnings = executionResult.NumberOfWarnings;
             m_pipProperties = executionResult.PipProperties;
             m_hasUserRetries = executionResult.HadUserRetries;
-            m_isCancelledDueToResourceExhaustion = executionResult.IsCancelledDueToResourceExhaustion;
+            m_cancellationReason = executionResult.CancellationReason;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
         }
@@ -657,10 +660,10 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Gets a canceled result without run information.
         /// </summary>
-        public static ExecutionResult GetCanceledNotRunResult(LoggingContext loggingContext)
+        public static ExecutionResult GetCanceledNotRunResult(LoggingContext loggingContext, CancellationReason cancellationReason)
         {
             var result = new ExecutionResult();
-            result.SetResult(loggingContext, PipResultStatus.Canceled);
+            result.SetResult(loggingContext, PipResultStatus.Canceled, cancellationReason);
             result.Seal();
 
             return result;
@@ -708,7 +711,9 @@ namespace BuildXL.Scheduler
                     m_absentPathProbesUnderOutputDirectories = m_unsealedState.AbsentPathProbesUnderOutputDirectories;
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
-                    if (processResult != null && processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed)
+                    if (processResult != null && 
+                        processResult.Status != SandboxedProcessPipExecutionStatus.PreparationFailed && 
+                        !processResult.CancellationReason.IsPrepRetryableFailure())
                     {
                         if (!(processResult.Status == SandboxedProcessPipExecutionStatus.Succeeded ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||

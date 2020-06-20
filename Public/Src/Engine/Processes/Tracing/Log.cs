@@ -70,10 +70,10 @@ namespace BuildXL.Processes.Tracing
         [GeneratedEvent(
             (int)LogEventId.PipProcessStartFailed,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process start failed with error code {2:X8}: {3}")]
+            Message = EventConstants.PipPrefix + "Process start failed with error code {2:X8}: {3}. Pip may be retried or failed.")]
         public abstract void PipProcessStartFailed(LoggingContext context, long pipSemiStableHash, string pipDescription, int errorCode, string message);
 
         [GeneratedEvent(
@@ -735,12 +735,12 @@ namespace BuildXL.Processes.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.PipTempDirectoryCleanupError,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             EventGenerators = EventGenerators.LocalOnly,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip will not be executed. {exceptionMessage}")]
-        public abstract void PipTempDirectoryCleanupError(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
+            Message = EventConstants.PipPrefix + "Failed to clean temp directory at '{directory}'. Pip may be retried or failed. {exceptionMessage}")]
+        public abstract void PipTempDirectoryCleanupFailure(LoggingContext context, long pipSemiStableHash, string pipDescription, string directory, string exceptionMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipTempDirectorySetupError,

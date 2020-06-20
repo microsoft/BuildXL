@@ -13,6 +13,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -1852,12 +1853,12 @@ namespace Test.BuildXL.Processes.Detours
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default);
 
-                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.PreparationFailed, result.Status);
+                XAssert.AreEqual(SandboxedProcessPipExecutionStatus.Canceled, result.Status);
+                XAssert.AreEqual(CancellationReason.ProcessStartFailure, result.CancellationReason);
                 XAssert.AreEqual(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, result.NumberOfProcessLaunchRetries);
                 AssertVerboseEventLogged(ProcessesLogEventId.RetryStartPipDueToErrorPartialCopyDuringDetours, SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
+                AssertWarningEventLogged(LogEventId.PipProcessStartFailed, 1);
             }
-
-            SetExpectedFailures(1, 0, "DX0011");
         }
 
         [Fact]

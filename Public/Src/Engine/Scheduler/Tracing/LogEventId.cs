@@ -465,6 +465,8 @@ namespace BuildXL.Scheduler.Tracing
         EmptyWorkingSet = 14511,
         ResumeProcess = 14512,
         HandlePipStepOnWorkerFailed = 14513,
+        ExcessivePipRetriesDueToRetryableFailures = 14514,
+        PipRetryDueToRetryableFailures = 14515,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

@@ -18,6 +18,7 @@ using BuildXL.Interop;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Pips;
+using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
@@ -86,6 +87,11 @@ namespace BuildXL.Processes
 
         private static readonly ConcurrentDictionary<ExpandedRegexDescriptor, Lazy<Task<Regex>>> s_regexTasks =
             new ConcurrentDictionary<ExpandedRegexDescriptor, Lazy<Task<Regex>>>();
+
+        /// <summary>
+        /// Indicate whether a intentional retry attempt is initiated for the sake of integration testing.
+        /// </summary>
+        private static bool s_testRetryOccurred;
 
         private readonly PipExecutionContext m_context;
         private readonly PathTable m_pathTable;
@@ -733,6 +739,17 @@ namespace BuildXL.Processes
             ISandboxConnection sandboxConnection = null,
             SidebandWriter sidebandWriter = null)
         {
+            if (!s_testRetryOccurred)
+            {
+                // For the integration test, we simulate a retryable failure here via ProcessStartFailure.
+                if (m_pip.Priority == Process.IntegrationTestPriority &&
+                    m_pip.Tags.Any(a => a.ToString(m_context.StringTable) == TagFilter.TriggerWorkerProcessStartFailed))
+                {
+                    s_testRetryOccurred = true;
+                    return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure);
+                }
+            }
+
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
@@ -748,7 +765,7 @@ namespace BuildXL.Processes
 
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
-                    return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.TempDirectoryCleanupFailure);
                 }
 
                 if (!await PrepareResponseFileAsync())
@@ -997,7 +1014,7 @@ namespace BuildXL.Processes
                                     ex.LogEventMessage);
                             }
 
-                            return SandboxedProcessPipExecutionResult.PreparationFailure(processLaunchRetryCount, ex.LogEventErrorCode, maxDetoursHeapSize: maxDetoursHeapSize);
+                            return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure, processLaunchRetryCount, maxDetoursHeapSize);
                         }
                     }
 
@@ -1086,7 +1103,7 @@ namespace BuildXL.Processes
                     ex.LogEventErrorCode,
                     ex.LogEventMessage);
 
-                return SandboxedProcessPipExecutionResult.PreparationFailure(0, ex.LogEventErrorCode);
+                return SandboxedProcessPipExecutionResult.RetryableFailure(CancellationReason.ProcessStartFailure);
             }
 
             return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
@@ -2690,7 +2707,7 @@ namespace BuildXL.Processes
             }
             catch (BuildXLException ex)
             {
-                Tracing.Logger.Log.PipTempDirectoryCleanupError(
+                Tracing.Logger.Log.PipTempDirectoryCleanupFailure(
                     m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pipDescription,

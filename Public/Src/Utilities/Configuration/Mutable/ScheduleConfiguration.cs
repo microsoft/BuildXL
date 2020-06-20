@@ -78,6 +78,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableSetupCostWhenChoosingWorker = true;
             EnableLessAggresiveMemoryProjection = false;
             ManageMemoryMode = ManageMemoryMode.CancellationRam;
+            MaxRetriesDueToRetryableFailures = 5;
         }
 
         /// <nodoc />
@@ -150,7 +151,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
             DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
-            NumRetryFailedPipsDueToLowMemory = template.NumRetryFailedPipsDueToLowMemory;
+            MaxRetriesDueToLowMemory = template.MaxRetriesDueToLowMemory;
+            MaxRetriesDueToRetryableFailures = template.MaxRetriesDueToRetryableFailures;
             EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
             ManageMemoryMode = template.ManageMemoryMode;
         }
@@ -341,8 +343,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public int? MinimumDiskSpaceForPipsGb { get; set; }
 
         /// <inheritdoc />
-        public int? NumRetryFailedPipsDueToLowMemory { get; set; }
-        
+        public int? MaxRetriesDueToLowMemory { get; set; }
+
+        /// <inheritdoc />
+        public int MaxRetriesDueToRetryableFailures { get; set; }
+
         /// <inheritdoc />
         public bool CacheOnly { get; set; }
 

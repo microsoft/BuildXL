@@ -669,7 +669,9 @@ namespace BuildXL.Engine.Distribution
             m_pipCompletionTasks.Add(pipId, pipCompletionTask);
 
             var pip = runnable.Pip;
-            if (pip.Tags.Any(a => a.ToString(runnable.Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
+            if (pip.PipType == PipType.Process && 
+                ((Process)pip).Priority == Process.IntegrationTestPriority &&
+                pip.Tags.Any(a => a.ToString(runnable.Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
                 runnable.Performance.RetryCountDueToStoppedWorker == 0)
             {
                 // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
@@ -867,7 +869,7 @@ namespace BuildXL.Engine.Distribution
                     step: runnablePip.Step.AsString(),
                     callerName: callerName);
 
-                result = ExecutionResult.GetCanceledNotRunResult(operationContext);
+                result = ExecutionResult.GetCanceledNotRunResult(operationContext, Processes.CancellationReason.StoppedWorker);
 
                 pipCompletionTask.TrySet(result);
                 return;

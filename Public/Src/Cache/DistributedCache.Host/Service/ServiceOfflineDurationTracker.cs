@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -45,7 +46,7 @@ namespace BuildXL.Cache.Host.Service
 
             // Timer does not start until we call Start(), because in testing we do not want to start this timer, we use a simulated test clock instead.
             _timer = new Timer(
-                callback: _ => { LogTimeStampToFile(context, clock.UtcNow.ToString()); },
+                callback: _ => { LogCurrentTimeStampToFile(context); },
                 state: null,
                 dueTime: Timeout.InfiniteTimeSpan,
                 period: Timeout.InfiniteTimeSpan);
@@ -69,25 +70,35 @@ namespace BuildXL.Cache.Host.Service
                     var logFilePath = configuration.LocalCasSettings.GetCacheRootPathWithScenario(LocalCasServiceSettings.DefaultCacheName) / FileName;
 
                     var serviceTracker = new ServiceOfflineDurationTracker(context, clock, fileSystem, logIntervalSeconds.Value, logFilePath);
-
-                    serviceTracker.Start(context).ThrowIfFailure();
+                    serviceTracker.LogCurrentTimeStampToFile(context);
 
                     return new Result<ServiceOfflineDurationTracker>(serviceTracker);
                 });
         }
 
-        internal Result<TimeSpan> GetOfflineDuration()
+        internal Result<TimeSpan> GetOfflineDuration(OperationContext context)
         {
             const string ErrorPrefix = "Could not determine offline time";
-            if (_fileSystem.FileExists(_logFilePath))
-            {
-                var lastTime = System.Text.Encoding.Default.GetString(_fileSystem.ReadAllBytes(_logFilePath));
-                return string.IsNullOrEmpty(lastTime)
-                    ? new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was empty")
-                    : new Result<TimeSpan>(_clock.UtcNow - Convert.ToDateTime(lastTime));
-            }
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    if (_fileSystem.FileExists(_logFilePath))
+                    {
+                        var lastTime = System.Text.Encoding.Default.GetString(_fileSystem.ReadAllBytes(_logFilePath));
+                        return string.IsNullOrEmpty(lastTime)
+                            ? new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was empty")
+                            : new Result<TimeSpan>(_clock.UtcNow - Convert.ToDateTime(lastTime));
+                    }
 
-            return new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was missing");
+                    return new Result<TimeSpan>($"{ErrorPrefix}: CaSaaS running log file was missing");
+                },
+                traceErrorsOnly: true);
+        }
+
+        private void LogCurrentTimeStampToFile(OperationContext context)
+        {
+            LogTimeStampToFile(context, _clock.UtcNow.ToString());
         }
 
         internal void LogTimeStampToFile(OperationContext context, string timeStampUtc)
@@ -106,19 +117,6 @@ namespace BuildXL.Cache.Host.Service
 
                     return BoolResult.Success;
                 }).IgnoreFailure();
-        }
-
-        private BoolResult Start(OperationContext context)
-        {
-            return context.PerformOperation(
-                Tracer,
-                traceErrorsOnly: true,
-                operation: () =>
-                {
-                    _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-
-                    return BoolResult.Success;
-                });
         }
 
         public void Dispose()

@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Tracing
 {
@@ -16,7 +17,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
     public class LifetimeTrackerTracer
     {
         private const string ComponentName = "LifetimeTracker";
-
+        private static readonly Tracer Tracer = new Tracer(nameof(LifetimeTrackerTracer));
         /// <nodoc />
         public static void StartingService(Context context)
         {
@@ -27,13 +28,23 @@ namespace BuildXL.Cache.ContentStore.Tracing
         public static void ServiceStarted(Context context, Result<TimeSpan> offlineTimeResult, TimeSpan startupDuration)
         {
             var offlineTimeResultString = offlineTimeResult.Succeeded ? offlineTimeResult.Value.ToString() : offlineTimeResult.ToString();
-            var timeFromProcessStart = GetTimeFromProcessStart();
+            var timeFromProcessStart = GetTimeFromProcessStart(context);
             Trace(context, $"CaSaaS started. StartupDuration=[{startupDuration}], FullStartupDuration=[{timeFromProcessStart}], OfflineTime=[{offlineTimeResultString}]");
         }
 
-        private static TimeSpan GetTimeFromProcessStart()
+        /// <nodoc />
+        public static Result<TimeSpan> GetTimeFromProcessStart(Context context)
         {
-            return DateTime.UtcNow - Process.GetCurrentProcess().StartTime;
+            return new OperationContext(context)
+                .PerformOperation(Tracer,
+                    () =>
+                    {
+                        // Process.StartTime returns time in local time.
+                        // So we use local time to compute the time since the the process start.
+                        return Result.Success(DateTime.Now - Process.GetCurrentProcess().StartTime);
+                    },
+                    traceErrorsOnly: true);
+
         }
 
         /// <nodoc />
@@ -45,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <nodoc />
         public static void ServiceReadyToProcessRequests(Context context)
         {
-            var timeFromProcessStart = GetTimeFromProcessStart();
+            var timeFromProcessStart = GetTimeFromProcessStart(context);
             Trace(context, $"CaSaaS instance is fully initialized and ready to process requests. FullInitializationDuration=[{timeFromProcessStart}]");
         }
 

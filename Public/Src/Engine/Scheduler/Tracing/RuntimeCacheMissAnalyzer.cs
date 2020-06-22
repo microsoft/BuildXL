@@ -218,6 +218,7 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.CacheMissBatchLoggingTime))                
             {
                 ProcessResults(results, m_configuration, m_loggingContext);
+                Counters.AddToCounter(FingerprintStoreCounters.CacheMissBatchingDequeueCount, results.Length);
                 return Unit.VoidTask;
             }
         }
@@ -389,6 +390,7 @@ namespace BuildXL.Scheduler.Tracing
 
                     if (m_batchLoggingQueue != null)
                     {
+                        Counters.IncrementCounter(FingerprintStoreCounters.CacheMissBatchingEnqueueCount);
                         m_batchLoggingQueue.Enqueue(resultAndDetail.Detail.ToJObjectWithPipInfo(pip.FormattedSemiStableHash, pipDescription, fromCacheLookup));
                     }
                     else

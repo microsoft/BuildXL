@@ -40,7 +40,8 @@ namespace Test.Tool.Analyzers
         {
             Configuration.Logging.CacheMissAnalysisOption = BuildXLConfiguration.CacheMissAnalysisOption.LocalMode();
             Configuration.Logging.StoreFingerprints = true;
-            
+            RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
+
             AnalysisMode = AnalysisMode.CacheMiss;
 
             string outputDirectory = Path.Combine(TemporaryDirectory, "cachemiss");

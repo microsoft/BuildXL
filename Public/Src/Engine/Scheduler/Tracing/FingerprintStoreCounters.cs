@@ -307,6 +307,16 @@ namespace BuildXL.Scheduler.Tracing
         CacheMissAnalysisExceedMaxNumAndCannotPerformCount,
 
         /// <summary>
+        /// How many pips cache miss analysis results are enqueued for batching.
+        /// </summary>
+        CacheMissBatchingEnqueueCount,
+
+        /// <summary>
+        /// How many pips cache miss analysis results are dequeued for batching.
+        /// </summary>
+        CacheMissBatchingDequeueCount,
+
+        /// <summary>
         /// The number of ms spent for analyzing (e.g., diff-ing fingerprints) cache misses.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

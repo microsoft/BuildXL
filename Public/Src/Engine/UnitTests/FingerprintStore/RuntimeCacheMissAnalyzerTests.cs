@@ -64,6 +64,39 @@ namespace Test.BuildXL.FingerprintStore
         };
 
         [Fact]
+        public void BatchingCacheMissAnalysisResultEnqueueAndDequeueCounters()
+        {
+            var sourceFile1 = CreateSourceFile();
+            var outputFile1 = CreateOutputFileArtifact();
+            var process1 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile1),
+                Operation.WriteFile(outputFile1)
+            }).Process;
+
+            var sourceFile2 = CreateSourceFile();
+            var outputFile2 = CreateOutputFileArtifact();
+            var process2 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile2),
+                Operation.WriteFile(outputFile2),
+            }).Process;
+
+            var sourceFile3 = CreateSourceFile();
+            var outputFile3 = CreateOutputFileArtifact();
+            var process3 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile3),
+                Operation.WriteFile(outputFile3),
+            }).Process;
+
+            RunScheduler(m_testHooks).AssertCacheMiss(process1.PipId, process2.PipId, process3.PipId);
+
+            XAssert.AreEqual(m_testHooks.FingerprintStoreCounters.GetCounterValue(FingerprintStoreCounters.CacheMissBatchingEnqueueCount), 3);
+            XAssert.AreEqual(m_testHooks.FingerprintStoreCounters.GetCounterValue(FingerprintStoreCounters.CacheMissBatchingDequeueCount), 3);
+        }
+
+        [Fact]
         public void WeakFingerprintMissIsPerformedPostExecution()
         {
             var sourceFile = CreateSourceFile();
@@ -682,8 +715,10 @@ namespace Test.BuildXL.FingerprintStore
         /// This test is created for making sure the format of the cachemiss analysis result is stable.
         /// If you do need to update the format, update this test as well
         /// </summary>
-        [Fact]
-        public void FormatContractTesting()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void FormatContractTesting(bool cacheMissBatch)
         {
             EventListener.NestedLoggerHandler += eventData =>
             {
@@ -691,7 +726,16 @@ namespace Test.BuildXL.FingerprintStore
                 {
                     m_cacheMissAnalysisDetail = eventData.Payload.ToArray()[1].ToString();
                 }
+                if (eventData.EventId == (int)SharedLogEventId.CacheMissAnalysisBatchResults)
+                {
+                    m_cacheMissAnalysisDetail = eventData.Payload.ToArray()[0].ToString();
+                }
             };
+
+            if (!cacheMissBatch)
+            {
+                Configuration.Logging.CacheMissBatch = false;
+            }
 
             var dir = Path.Combine(ObjectRoot, "Dir");
             var dirPath = AbsolutePath.Create(Context.PathTable, dir);
@@ -701,15 +745,23 @@ namespace Test.BuildXL.FingerprintStore
             var pipBuilder = CreatePipBuilder(new[] { Operation.ReadFile(input), Operation.WriteFile(output) });
             var pip = SchedulePipBuilder(pipBuilder);
 
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler(m_testHooks).AssertCacheMiss(pip.Process.PipId);
 
-            var detail = new JObject(
+            if (cacheMissBatch)
+            {
+                XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.TryGetCacheMiss(pip.Process.PipId, out var cacheMiss));
+                XAssert.Contains(m_cacheMissAnalysisDetail, cacheMiss.DetailAndResult.Detail.ToJObjectWithPipInfo(pip.Process.FormattedSemiStableHash, pip.Process.GetDescription(Context), false).Value.ToString(), "CacheMissAnalysisResults");
+            }
+            else
+            {
+                var detail = new JObject(
                     new JProperty(nameof(CacheMissAnalysisDetail.ActualMissType), PipCacheMissType.MissForDescriptorsDueToWeakFingerprints.ToString()),
                     new JProperty(nameof(CacheMissAnalysisDetail.ReasonFromAnalysis), $"No fingerprint computation data found from old build. This may be the first execution where pip outputs were stored to the cache. {RepeatedStrings.DisallowedFileAccessesOrPipFailuresPreventCaching}"),
                     new JProperty(nameof(CacheMissAnalysisDetail.Info), null));
-
-            XAssert.AreEqual(detail.ToString(), m_cacheMissAnalysisDetail);
+                XAssert.AreEqual(detail.ToString(), m_cacheMissAnalysisDetail);
+            }
         }
+
 
         [Fact]
         public void DirectoryMembershipExistenceTest()

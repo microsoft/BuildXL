@@ -117,9 +117,9 @@ namespace BuildXL.Pips.Operations
             RequiresAdmin = 1 << 11,
 
             /// <summary>
-            /// Whether this process using non-empty <see cref="Process.PreserveOutputWhitelist"/>
+            /// Whether this process using non-empty <see cref="Process.PreserveOutputAllowlist"/>
             /// </summary>
-            HasPreserveOutputWhitelist = 1 << 12,
+            HasPreserveOutputAllowlist = 1 << 12,
 
             /// <summary>
             /// Incremental tool is superset of <see cref="AllowPreserveOutputs"/> and is only active when preserve output is active.

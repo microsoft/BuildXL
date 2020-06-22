@@ -283,7 +283,7 @@ namespace BuildXL.FrontEnd.Download
                 downloadData.ModuleConfigFile,
                 new[] { downloadData.ModuleSpecFile },
                 allowedModuleDependencies: null,
-                cyclicalFriendModules: null); // A Download package does not have any module dependency restrictions nor whitelists cycles
+                cyclicalFriendModules: null); // A Download package does not have any module dependency restrictions nor allowlist cycles
 
             m_descriptors.Add(descriptor);
             m_descriptorsByName.Add(name, descriptor);

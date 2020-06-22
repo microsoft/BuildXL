@@ -130,7 +130,7 @@ namespace Test.BuildXL.TestUtilities
 
             var fileContentTable = FileContentTable.CreateNew(loggingContext);
 
-            var fileAccessWhiteList = new FileAccessWhitelist(context);
+            var fileAccessAllowList = new FileAccessAllowlist(context);
 
             var testHooks = new SchedulerTestHooks();
 
@@ -142,7 +142,7 @@ namespace Test.BuildXL.TestUtilities
                 cache: cache,
                 loggingContext: loggingContext,
                 configuration: configuration,
-                fileAccessWhitelist: fileAccessWhiteList,
+                fileAccessAllowlist: fileAccessAllowList,
                 testHooks: testHooks,
                 buildEngineFingerprint: null,
                 tempCleaner: new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "MoveDeletionTemp")));

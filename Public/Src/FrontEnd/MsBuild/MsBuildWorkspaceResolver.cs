@@ -243,7 +243,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 m_resolverSettings.File,
                 projectFiles,
                 allowedModuleDependencies: null, // no module policies
-                cyclicalFriendModules: null); // no whitelist of cycles
+                cyclicalFriendModules: null); // no allowlist of cycles
 
             return new ProjectGraphResult(projectGraph, moduleDefinition, projectGraphResult.PathToMsBuild, projectGraphResult.PathToDotNetExe);
         }

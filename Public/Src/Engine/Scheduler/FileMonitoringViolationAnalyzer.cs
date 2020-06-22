@@ -252,7 +252,7 @@ namespace BuildXL.Scheduler
         public AnalyzePipViolationsResult AnalyzePipViolations(
             Process pip,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> whitelistedAccesses,
+            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
@@ -266,7 +266,7 @@ namespace BuildXL.Scheduler
             {
                 // Early return to avoid wasted allocations.
                 if ((violations == null || violations.Count == 0) &&
-                    (!m_validateDistribution || (whitelistedAccesses == null || whitelistedAccesses.Count == 0)) &&
+                    (!m_validateDistribution || (allowlistedAccesses == null || allowlistedAccesses.Count == 0)) &&
                     (sharedOpaqueDirectoryWriteAccesses == null || sharedOpaqueDirectoryWriteAccesses.Count == 0) &&
                     (allowedUndeclaredReads == null || allowedUndeclaredReads.Count == 0) &&
                     (absentPathProbesUnderOutputDirectories == null || absentPathProbesUnderOutputDirectories.Count == 0) &&
@@ -284,16 +284,16 @@ namespace BuildXL.Scheduler
                     reportedDependencyViolations = ClassifyAndReportAggregateViolations(
                         pip,
                         violations,
-                        isWhitelistedViolation: false);
+                        isAllowlistedViolation: false);
                 }
 
-                ReportedViolation[] reportedDependencyViolationsForWhitelisted = null;
-                if (m_validateDistribution && whitelistedAccesses?.Count > 0)
+                ReportedViolation[] reportedDependencyViolationsForAllowlisted = null;
+                if (m_validateDistribution && allowlistedAccesses?.Count > 0)
                 {
-                    reportedDependencyViolationsForWhitelisted = ClassifyAndReportAggregateViolations(
+                    reportedDependencyViolationsForAllowlisted = ClassifyAndReportAggregateViolations(
                         pip,
-                        whitelistedAccesses,
-                        isWhitelistedViolation: true);
+                        allowlistedAccesses,
+                        isAllowlistedViolation: true);
                 }
 
                 var errorPaths = new HashSet<ReportedViolation>();
@@ -342,11 +342,11 @@ namespace BuildXL.Scheduler
                     PopulateErrorsAndWarnings(reportedDependencyViolations, errorPaths, warningPaths);
                 }
 
-                // For whitelisted analysis results
-                if (reportedDependencyViolationsForWhitelisted != null && reportedDependencyViolationsForWhitelisted.Length > 0)
+                // For allowlisted analysis results
+                if (reportedDependencyViolationsForAllowlisted != null && reportedDependencyViolationsForAllowlisted.Length > 0)
                 {
-                    // If /validateDistribution is enabled, we need to log errors from reportedDependencyViolationsForWhitelisted.
-                    var errors = reportedDependencyViolationsForWhitelisted.Where(a => a.IsError);
+                    // If /validateDistribution is enabled, we need to log errors from reportedDependencyViolationsForallowlisted.
+                    var errors = reportedDependencyViolationsForAllowlisted.Where(a => a.IsError);
                     errorPaths.UnionWith(errors);
                 }
 
@@ -399,7 +399,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Write,
                             violation.Path,
                             (Process)m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
-                            isWhitelistedViolation: false,
+                            isAllowlistedViolation: false,
                             (Process)m_graph.HydratePip(violation.RelatedPipId.Value, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                             violation.ProcessPath));
                 }
@@ -749,7 +749,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         dirAccess,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         relatedPip,
                         pip.Executable.Path));
                 }
@@ -774,7 +774,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         access,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         related: relatedPip,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
@@ -790,7 +790,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         access,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         related: ownerPip,
                         tempPath));
             }
@@ -834,7 +834,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         access,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         related: maybeProducer,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
@@ -907,7 +907,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         fileArtifact.Path,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         related: null,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
@@ -986,7 +986,7 @@ namespace BuildXL.Scheduler
                         AccessLevel.Write,
                         path,
                         pip,
-                        isWhitelistedViolation: false,
+                        isAllowlistedViolation: false,
                         related: related,
                         // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                         pip.Executable.Path));
@@ -1017,7 +1017,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Write,
                             undeclaredRead,
                             pip,
-                            isWhitelistedViolation: false,
+                            isAllowlistedViolation: false,
                             related: maybeProducer,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
@@ -1048,7 +1048,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Write,
                             undeclaredRead,
                             pip,
-                            isWhitelistedViolation: false,
+                            isAllowlistedViolation: false,
                             related: related,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
@@ -1091,7 +1091,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Write,
                             absentPathProbe,
                             writer,
-                            isWhitelistedViolation: false,
+                            isAllowlistedViolation: false,
                             related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             writer.Executable.Path));
@@ -1113,7 +1113,7 @@ namespace BuildXL.Scheduler
                     }
 
                     // If the pip is running in Unsafe/Relaxed mode, do not treat this probe as an error.
-                    // Reporting a violation will trigger a DFA error. Reporting a whitelisted violation makes pip uncacheable, and we don't want to do this.
+                    // Reporting a violation will trigger a DFA error. Reporting a allowlisted violation makes pip uncacheable, and we don't want to do this.
                     if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Strict)
                     {
                         var violation = HandleDependencyViolation(
@@ -1121,7 +1121,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Read,
                             absentPathProbe,
                             pip,
-                            isWhitelistedViolation: false,
+                            isAllowlistedViolation: false,
                             related: pip,
                             pip.Executable.Path);
 
@@ -1146,7 +1146,7 @@ namespace BuildXL.Scheduler
         private ReportedViolation[] ClassifyAndReportAggregateViolations(
             Process pip,
             IReadOnlyCollection<ReportedFileAccess> violations,
-            bool isWhitelistedViolation)
+            bool isAllowlistedViolation)
         {
             var aggregateViolationsByPath = new Dictionary<(AbsolutePath, AbsolutePath), AggregateViolation>();
             foreach (ReportedFileAccess violation in violations)
@@ -1225,7 +1225,7 @@ namespace BuildXL.Scheduler
                                     AccessLevel.Write,
                                     violation.Path,
                                     pip,
-                                    isWhitelistedViolation,
+                                    isAllowlistedViolation,
                                     related: maybeProducer,
                                     violation.ProcessPath));
                             continue;
@@ -1244,7 +1244,7 @@ namespace BuildXL.Scheduler
                                         AccessLevel.Write,
                                         violation.Path,
                                         pip,
-                                        isWhitelistedViolation,
+                                        isAllowlistedViolation,
                                         related: null,
                                         violation.ProcessPath));
                             }
@@ -1256,7 +1256,7 @@ namespace BuildXL.Scheduler
                                         AccessLevel.Write,
                                         violation.Path,
                                         pip,
-                                        isWhitelistedViolation,
+                                        isAllowlistedViolation,
                                         related: null,
                                         violation.ProcessPath));
                             }
@@ -1282,7 +1282,7 @@ namespace BuildXL.Scheduler
                                                 undeclaredReader,
                                                 PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                                             producer: pip,
-                                            isWhitelistedViolation: isWhitelistedViolation,
+                                            isAllowlistedViolation: isAllowlistedViolation,
                                             violation.ProcessPath));
                                 }
                             }
@@ -1310,7 +1310,7 @@ namespace BuildXL.Scheduler
                                     AccessLevel.Read,
                                     violation.Path,
                                     pip,
-                                    isWhitelistedViolation,
+                                    isAllowlistedViolation,
                                     related: maybeConcurrentProducer,
                                     violation.ProcessPath));
 
@@ -1337,7 +1337,7 @@ namespace BuildXL.Scheduler
                                     AccessLevel.Read,
                                     violation.Path,
                                     pip,
-                                    isWhitelistedViolation,
+                                    isAllowlistedViolation,
                                     related: maybePrecedingProducer,
                                     violation.ProcessPath));
 
@@ -1362,7 +1362,7 @@ namespace BuildXL.Scheduler
                                     AccessLevel.Read,
                                     violation.Path,
                                     pip,
-                                    isWhitelistedViolation,
+                                    isAllowlistedViolation,
                                     related: maybeSubsequentProducer,
                                     violation.ProcessPath));
 
@@ -1380,7 +1380,7 @@ namespace BuildXL.Scheduler
                                     AccessLevel.Read,
                                     violation.Path,
                                     pip,
-                                    isWhitelistedViolation,
+                                    isAllowlistedViolation,
                                     related: maybeProducer,
                                     violation.ProcessPath));
 
@@ -1395,7 +1395,7 @@ namespace BuildXL.Scheduler
                             AccessLevel.Read,
                             violation.Path,
                             pip,
-                            isWhitelistedViolation,
+                            isAllowlistedViolation,
                             related: null,
                             violation.ProcessPath));
 
@@ -1423,7 +1423,7 @@ namespace BuildXL.Scheduler
                             reportedViolations.Add(
                                 ReportReadUndeclaredOutput(
                                     violation.Path,
-                                    isWhitelistedViolation: isWhitelistedViolation,
+                                    isAllowlistedViolation: isAllowlistedViolation,
                                     consumer: pip,
                                     producer: (Process)m_graph.HydratePip(
                                         undeclaredAccessors.Writer,
@@ -1444,7 +1444,7 @@ namespace BuildXL.Scheduler
             AbsolutePath violationPath,
             Process consumer,
             Process producer,
-            bool isWhitelistedViolation,
+            bool isAllowlistedViolation,
             AbsolutePath processPath)
         {
             return HandleDependencyViolation(
@@ -1452,7 +1452,7 @@ namespace BuildXL.Scheduler
                 AccessLevel.Read,
                 violationPath,
                 consumer,
-                isWhitelistedViolation,
+                isAllowlistedViolation,
                 related: producer,
                 processPath);
         }
@@ -1495,7 +1495,7 @@ namespace BuildXL.Scheduler
             AccessLevel accessLevel,
             AbsolutePath path,
             Process violator,
-            bool isWhitelistedViolation,
+            bool isAllowlistedViolation,
             Pip related,
             AbsolutePath processPath)
         {
@@ -1503,7 +1503,7 @@ namespace BuildXL.Scheduler
             Contract.Assume(violator != null);
             Contract.Assume(processPath.IsValid);
 
-            bool isError = !isWhitelistedViolation;
+            bool isError = !isAllowlistedViolation;
             bool hasRelatedPip = related != null;
 
             switch (violationType)

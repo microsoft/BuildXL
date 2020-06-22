@@ -19,17 +19,17 @@ using BuildXL.Utilities.Tracing;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Whitelist containing file operations that have been vetted to be safe(ish) but cannot be easily predicted.
+    /// Allowlist containing file operations that have been vetted to be safe(ish) but cannot be easily predicted.
     /// </summary>
-    public sealed class FileAccessWhitelist
+    public sealed class FileAccessAllowlist
     {
         /// <summary>
-        /// Strength of whitelist match.
+        /// Strength of allowlist match.
         /// </summary>
         public enum MatchType
         {
             /// <summary>
-            /// File access not matched by any whitelist entry.
+            /// File access not matched by any allowlist entry.
             /// </summary>
             NoMatch,
 
@@ -44,97 +44,97 @@ namespace BuildXL.Processes
             MatchesAndCacheable,
         }
 
-        private readonly MultiValueDictionary<FullSymbol, ValuePathFileAccessWhitelistEntry> m_valuePathEntries;
-        private readonly MultiValueDictionary<AbsolutePath, ExecutablePathWhitelistEntry> m_executablePathEntries;
+        private readonly MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry> m_valuePathEntries;
+        private readonly MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry> m_executablePathEntries;
 
         /// <summary>
-        /// The parent whitelist
-        /// If this is a module specific whitelist, parent is the root whitelist
-        /// Otherwise, if this is the root whitelist, this is null
-        /// This field is mutually exclusive with the <see cref="m_moduleWhitelists"/> field.
+        /// The parent allowlist
+        /// If this is a module specific allowlist, parent is the root allowlist
+        /// Otherwise, if this is the root allowlist, this is null
+        /// This field is mutually exclusive with the <see cref="m_moduleAllowlists"/> field.
         /// </summary>
-        private readonly FileAccessWhitelist m_parent;
+        private readonly FileAccessAllowlist m_parent;
 
         /// <summary>
-        /// The module specific whitelists (null if this is a module whitelist)
+        /// The module specific allowlists (null if this is a module allowlist)
         /// This field is mutually exclusive with the <see cref="m_parent"/> field.
         /// </summary>
-        private readonly Dictionary<ModuleId, FileAccessWhitelist> m_moduleWhitelists;
+        private readonly Dictionary<ModuleId, FileAccessAllowlist> m_moduleAllowlists;
 
         private readonly PipExecutionContext m_context;
         private readonly ConcurrentDictionary<string, int> m_counts;
 
         /// <summary>
-        /// Construct an empty whitelist.
+        /// Construct an empty allowlist.
         /// </summary>
-        public FileAccessWhitelist(PipExecutionContext context)
+        public FileAccessAllowlist(PipExecutionContext context)
         {
             Contract.Requires(context != null);
 
             m_context = context;
 
-            m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessWhitelistEntry>();
-            m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathWhitelistEntry>();
+            m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry>();
+            m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry>();
             m_counts = new ConcurrentDictionary<string, int>();
-            m_moduleWhitelists = new Dictionary<ModuleId, FileAccessWhitelist>();
+            m_moduleAllowlists = new Dictionary<ModuleId, FileAccessAllowlist>();
         }
 
         /// <summary>
-        /// Construct a nested whitelist.
+        /// Construct a nested allowlist.
         /// </summary>
-        private FileAccessWhitelist(FileAccessWhitelist parent)
+        private FileAccessAllowlist(FileAccessAllowlist parent)
         {
             Contract.Requires(parent != null);
 
             m_context = parent.m_context;
 
-            m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessWhitelistEntry>();
-            m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathWhitelistEntry>();
+            m_valuePathEntries = new MultiValueDictionary<FullSymbol, ValuePathFileAccessAllowlistEntry>();
+            m_executablePathEntries = new MultiValueDictionary<AbsolutePath, ExecutablePathAllowlistEntry>();
             m_counts = new ConcurrentDictionary<string, int>();
-            m_moduleWhitelists = null;
+            m_moduleAllowlists = null;
             m_parent = parent;
         }
 
         /// <summary>
-        /// Indicates whether the whitelist has any entries.
+        /// Indicates whether the allowlist has any entries.
         /// </summary>
         public bool HasEntries { get; private set; }
 
         /// <summary>
-        /// Constructs a new FileAccessWhiteList from the root configuration.
+        /// Constructs a new FileAccessallowlist from the root configuration.
         /// </summary>
         /// <remarks>Throws a BuildXLException on error.</remarks>
         public void Initialize(IRootModuleConfiguration rootConfiguration)
         {
-            Contract.Assert(m_parent == null, "Only root whitelist can be initialized");
+            Contract.Assert(m_parent == null, "Only root allowlist can be initialized");
 
             Initialize((IModuleConfiguration)rootConfiguration);
 
             foreach (var module in rootConfiguration.ModulePolicies.Values)
             {
-                if ((module.FileAccessWhiteList.Count == 0) &&
-                    (module.CacheableFileAccessWhitelist.Count == 0))
+                if ((module.FileAccessAllowList.Count == 0) &&
+                    (module.CacheableFileAccessAllowList.Count == 0))
                 {
                     continue;
                 }
 
-                var moduleWhitelist = new FileAccessWhitelist(this);
-                moduleWhitelist.Initialize(module);
-                m_moduleWhitelists.Add(module.ModuleId, moduleWhitelist);
+                var moduleAllowlist = new FileAccessAllowlist(this);
+                moduleAllowlist.Initialize(module);
+                m_moduleAllowlists.Add(module.ModuleId, moduleAllowlist);
             }
         }
 
         /// <summary>
-        /// Gets the whitelist for the given module
+        /// Gets the allowlist for the given module
         /// </summary>
-        public FileAccessWhitelist GetModuleWhitelist(ModuleId moduleId)
+        public FileAccessAllowlist GetModuleAllowlist(ModuleId moduleId)
         {
-            Contract.Assert(m_parent == null, "Only root whitelist can be queried for module whitelists");
+            Contract.Assert(m_parent == null, "Only root allowlist can be queried for module allowlists");
 
-            FileAccessWhitelist moduleWhitelist;
-            if (m_moduleWhitelists.TryGetValue(moduleId, out moduleWhitelist))
+            FileAccessAllowlist moduleAllowlist;
+            if (m_moduleAllowlists.TryGetValue(moduleId, out moduleAllowlist))
             {
-                return moduleWhitelist;
+                return moduleAllowlist;
             }
 
             return this;
@@ -142,66 +142,66 @@ namespace BuildXL.Processes
 
         private void Initialize(IModuleConfiguration configuration)
         {
-            if (configuration.FileAccessWhiteList != null)
+            if (configuration.FileAccessAllowList != null)
             {
-                foreach (var whitelistEntry in configuration.FileAccessWhiteList)
+                foreach (var allowlistEntry in configuration.FileAccessAllowList)
                 {
-                    AddWhiteListEntry(whitelistEntry, false);
+                    AddAllowListEntry(allowlistEntry, false);
                 }
             }
 
-            if (configuration.CacheableFileAccessWhitelist != null)
+            if (configuration.CacheableFileAccessAllowList != null)
             {
-                foreach (var whitelistEntry in configuration.CacheableFileAccessWhitelist)
+                foreach (var allowlistEntry in configuration.CacheableFileAccessAllowList)
                 {
-                    AddWhiteListEntry(whitelistEntry, true);
+                    AddAllowListEntry(allowlistEntry, true);
                 }
             }
         }
 
-        private void AddWhiteListEntry(IFileAccessWhitelistEntry whitelistEntry, bool allowsCaching)
+        private void AddAllowListEntry(IFileAccessAllowlistEntry allowlistEntry, bool allowsCaching)
         {
             SerializableRegex pathRegex;
             string regexError;
-            if (string.IsNullOrEmpty(whitelistEntry.PathRegex))
+            if (string.IsNullOrEmpty(allowlistEntry.PathRegex))
             {
-                if (!TryCreateWhitelistRegex(Regex.Escape(whitelistEntry.PathFragment), out pathRegex, out regexError))
+                if (!TryCreateAllowlistRegex(Regex.Escape(allowlistEntry.PathFragment), out pathRegex, out regexError))
                 {
-                    throw new BuildXLException("A whitelist regex should never fail to construct from an escaped pattern: " + regexError);
+                    throw new BuildXLException("An allowlist regex should never fail to construct from an escaped pattern: " + regexError);
                 }
             }
             else
             {
-                if (!TryCreateWhitelistRegex(whitelistEntry.PathRegex, out pathRegex, out regexError))
+                if (!TryCreateAllowlistRegex(allowlistEntry.PathRegex, out pathRegex, out regexError))
                 {
                     throw new BuildXLException("A regex should have already been validated when parsed: " + regexError);
                 }
             }
 
-            if (!string.IsNullOrEmpty(whitelistEntry.Value))
+            if (!string.IsNullOrEmpty(allowlistEntry.Value))
             {
                 Add(
-                    new ValuePathFileAccessWhitelistEntry(
-                        outputValue: FullSymbol.Create(m_context.SymbolTable, whitelistEntry.Value),
+                    new ValuePathFileAccessAllowlistEntry(
+                        outputValue: FullSymbol.Create(m_context.SymbolTable, allowlistEntry.Value),
                         pathRegex: pathRegex,
                         allowsCaching: allowsCaching,
-                        name: whitelistEntry.Name));
+                        name: allowlistEntry.Name));
             }
             else
             {
                 Add(
-                    new ExecutablePathWhitelistEntry(
-                        executablePath: whitelistEntry.ToolPath,
+                    new ExecutablePathAllowlistEntry(
+                        executablePath: allowlistEntry.ToolPath,
                         pathRegex: pathRegex,
                         allowsCaching: allowsCaching,
-                        name: whitelistEntry.Name));
+                        name: allowlistEntry.Name));
             }
         }
 
         /// <summary>
-        /// Add a single whitelist entry to the list.
+        /// Add a single allowlist entry to the list.
         /// </summary>
-        public void Add(ValuePathFileAccessWhitelistEntry entry)
+        public void Add(ValuePathFileAccessAllowlistEntry entry)
         {
             Contract.Requires(entry != null);
 
@@ -211,9 +211,9 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Add a single whitelist entry to the list.
+        /// Add a single allowlist entry to the list.
         /// </summary>
-        public void Add(ExecutablePathWhitelistEntry entry)
+        public void Add(ExecutablePathAllowlistEntry entry)
         {
             Contract.Requires(entry != null);
 
@@ -223,17 +223,17 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Returns the strength of the strongest match in the whitelist for a given file access.
+        /// Returns the strength of the strongest match in the allowlist for a given file access.
         /// </summary>
         /// <remarks>
-        /// A whitelist entry must match in value name, allowing this path to return false quickly after a failed Dictionary lookup
+        /// A allowlist entry must match in value name, allowing this path to return false quickly after a failed Dictionary lookup
         /// in most cases.
         /// </remarks>
         public MatchType Matches(LoggingContext loggingContext, ReportedFileAccess reportedFileAccess, Process pip)
         {
             Contract.Requires(pip != null);
 
-            IEnumerable<FileAccessWhitelistEntry> possibleEntries = new List<FileAccessWhitelistEntry>();
+            IEnumerable<FileAccessAllowlistEntry> possibleEntries = new List<FileAccessAllowlistEntry>();
 
             ConcatPossibleEntries(loggingContext, reportedFileAccess, pip, ref possibleEntries);
 
@@ -244,17 +244,17 @@ namespace BuildXL.Processes
 
             var strongestMatch = MatchType.NoMatch;
 
-            foreach (FileAccessWhitelistEntry whitelistEntry in possibleEntries)
+            foreach (FileAccessAllowlistEntry allowlistEntry in possibleEntries)
             {
-                MatchType entryMatchType = whitelistEntry.Matches(reportedFileAccess, pip, m_context.PathTable);
+                MatchType entryMatchType = allowlistEntry.Matches(reportedFileAccess, pip, m_context.PathTable);
                 switch (entryMatchType)
                 {
                     case MatchType.MatchesAndCacheable:
-                        m_counts.AddOrUpdate(whitelistEntry.Name, 1, (k, v) => v + 1);
+                        m_counts.AddOrUpdate(allowlistEntry.Name, 1, (k, v) => v + 1);
                         strongestMatch = MatchType.MatchesAndCacheable;
                         break;
                     case MatchType.MatchesButNotCacheable:
-                        m_counts.AddOrUpdate(whitelistEntry.Name, 1, (k, v) => v + 1);
+                        m_counts.AddOrUpdate(allowlistEntry.Name, 1, (k, v) => v + 1);
                         strongestMatch = strongestMatch == MatchType.MatchesAndCacheable ? strongestMatch : MatchType.MatchesButNotCacheable;
                         break;
                     default:
@@ -268,19 +268,19 @@ namespace BuildXL.Processes
             return strongestMatch;
         }
 
-        private void ConcatPossibleEntries(LoggingContext loggingContext, ReportedFileAccess reportedFileAccess, Process pip, ref IEnumerable<FileAccessWhitelistEntry> possibleEntries)
+        private void ConcatPossibleEntries(LoggingContext loggingContext, ReportedFileAccess reportedFileAccess, Process pip, ref IEnumerable<FileAccessAllowlistEntry> possibleEntries)
         {
-            IReadOnlyList<ValuePathFileAccessWhitelistEntry> valuePathWhitelistList;
-            if (m_valuePathEntries.TryGetValue(pip.Provenance.OutputValueSymbol, out valuePathWhitelistList))
+            IReadOnlyList<ValuePathFileAccessAllowlistEntry> valuePathAllowlistList;
+            if (m_valuePathEntries.TryGetValue(pip.Provenance.OutputValueSymbol, out valuePathAllowlistList))
             {
-                possibleEntries = possibleEntries.Concat(valuePathWhitelistList);
+                possibleEntries = possibleEntries.Concat(valuePathAllowlistList);
             }
 
             AbsolutePath toolPath;
             int characterWithError;
             if (AbsolutePath.TryCreate(m_context.PathTable, reportedFileAccess.Process.Path, out toolPath, out characterWithError) != AbsolutePath.ParseResult.Success)
             {
-                BuildXL.Processes.Tracing.Logger.Log.FileAccessWhitelistFailedToParsePath(
+                BuildXL.Processes.Tracing.Logger.Log.FileAccessAllowlistFailedToParsePath(
                     loggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(m_context),
@@ -290,10 +290,10 @@ namespace BuildXL.Processes
             }
             else
             {
-                IReadOnlyList<ExecutablePathWhitelistEntry> executablePathWhitelistList;
-                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathWhitelistList))
+                IReadOnlyList<ExecutablePathAllowlistEntry> executablePathAllowlistList;
+                if (m_executablePathEntries.TryGetValue(toolPath, out executablePathAllowlistList))
                 {
-                    possibleEntries = possibleEntries.Concat(executablePathWhitelistList);
+                    possibleEntries = possibleEntries.Concat(executablePathAllowlistList);
                 }
             }
         }
@@ -307,26 +307,26 @@ namespace BuildXL.Processes
 
             SerializeCore(writer);
 
-            writer.WriteCompact(m_moduleWhitelists.Count);
-            foreach (var moduleWhitelistEntry in m_moduleWhitelists)
+            writer.WriteCompact(m_moduleAllowlists.Count);
+            foreach (var moduleAllowistEntry in m_moduleAllowlists)
             {
-                writer.Write(moduleWhitelistEntry.Key);
-                moduleWhitelistEntry.Value.SerializeCore(writer);
+                writer.Write(moduleAllowistEntry.Key);
+                moduleAllowistEntry.Value.SerializeCore(writer);
             }
         }
 
         private void SerializeCore(BuildXLWriter writer)
         {
-            ValuePathFileAccessWhitelistEntry[] valuePathEntries = m_valuePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
+            ValuePathFileAccessAllowlistEntry[] valuePathEntries = m_valuePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
             writer.WriteCompact(valuePathEntries.Length);
-            foreach (ValuePathFileAccessWhitelistEntry entry in valuePathEntries)
+            foreach (ValuePathFileAccessAllowlistEntry entry in valuePathEntries)
             {
                 entry.Serialize(writer);
             }
 
-            ExecutablePathWhitelistEntry[] executablePathEntries = m_executablePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
+            ExecutablePathAllowlistEntry[] executablePathEntries = m_executablePathEntries.Values.SelectMany((e) => { return e; }).ToArray();
             writer.WriteCompact(executablePathEntries.Length);
-            foreach (ExecutablePathWhitelistEntry entry in executablePathEntries)
+            foreach (ExecutablePathAllowlistEntry entry in executablePathEntries)
             {
                 entry.Serialize(writer);
             }
@@ -335,7 +335,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserializes
         /// </summary>
-        public static async Task<FileAccessWhitelist> DeserializeAsync(
+        public static async Task<FileAccessAllowlist> DeserializeAsync(
             BuildXLReader reader,
             Task<PipExecutionContext> contextTask)
         {
@@ -348,34 +348,34 @@ namespace BuildXL.Processes
                 return null;
             }
 
-            var result = new FileAccessWhitelist(context);
+            var result = new FileAccessAllowlist(context);
             DeserializeCore(reader, result);
 
-            var moduleWhitelistCount = reader.ReadInt32Compact();
-            for (int j = 0; j < moduleWhitelistCount; j++)
+            var moduleAllowlistCount = reader.ReadInt32Compact();
+            for (int j = 0; j < moduleAllowlistCount; j++)
             {
                 var moduleId = reader.ReadModuleId();
-                FileAccessWhitelist moduleWhitelist = new FileAccessWhitelist(result);
-                DeserializeCore(reader, moduleWhitelist);
+                FileAccessAllowlist moduleAllowlist = new FileAccessAllowlist(result);
+                DeserializeCore(reader, moduleAllowlist);
 
-                result.m_moduleWhitelists.Add(moduleId, moduleWhitelist);
+                result.m_moduleAllowlists.Add(moduleId, moduleAllowlist);
             }
 
             return result;
         }
 
-        private static void DeserializeCore(BuildXLReader reader, FileAccessWhitelist whitelist)
+        private static void DeserializeCore(BuildXLReader reader, FileAccessAllowlist allowlist)
         {
             var valuePathEntryCount = reader.ReadInt32Compact();
             for (int i = 0; i < valuePathEntryCount; i++)
             {
-                whitelist.Add(ValuePathFileAccessWhitelistEntry.Deserialize(reader));
+                allowlist.Add(ValuePathFileAccessAllowlistEntry.Deserialize(reader));
             }
 
             var executablePathEntryCount = reader.ReadInt32Compact();
             for (int i = 0; i < executablePathEntryCount; i++)
             {
-                whitelist.Add(ExecutablePathWhitelistEntry.Deserialize(reader));
+                allowlist.Add(ExecutablePathAllowlistEntry.Deserialize(reader));
             }
         }
 
@@ -448,16 +448,16 @@ namespace BuildXL.Processes
         /// <summary>
         /// Make a regex to match the given string path fragment.
         /// </summary>
-        public static bool TryCreateWhitelistRegex(string pattern, out SerializableRegex whitelistRegex, out string error)
+        public static bool TryCreateAllowlistRegex(string pattern, out SerializableRegex allowlistRegex, out string error)
         {
             Contract.Requires(!string.IsNullOrEmpty(pattern), "Regex pattern must not be null or empty.");
 
-            whitelistRegex = null;
+            allowlistRegex = null;
             error = null;
 
             try
             {
-                whitelistRegex = RegexWithProperties(pattern);
+                allowlistRegex = RegexWithProperties(pattern);
             }
             catch (ArgumentException e)
             {
@@ -493,23 +493,23 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Dictionary of whitelist entries that matched to file accesses and their counts.
+        /// Dictionary of allowlist entries that matched to file accesses and their counts.
         /// </summary>
         public IDictionary<string, int> MatchedEntryCounts => m_counts;
 
         /// <summary>
         /// ValuePathEntries collection. For testing only
         /// </summary>
-        internal IReadOnlyDictionary<FullSymbol, IReadOnlyList<ValuePathFileAccessWhitelistEntry>> ValuePathEntries => m_valuePathEntries;
+        internal IReadOnlyDictionary<FullSymbol, IReadOnlyList<ValuePathFileAccessAllowlistEntry>> ValuePathEntries => m_valuePathEntries;
 
         /// <summary>
         /// ExecutablePathEntries collection. For testing only
         /// </summary>
-        internal IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExecutablePathWhitelistEntry>> ExecutablePathEntries => m_executablePathEntries;
+        internal IReadOnlyDictionary<AbsolutePath, IReadOnlyList<ExecutablePathAllowlistEntry>> ExecutablePathEntries => m_executablePathEntries;
 
         /// <summary>
-        /// The per-module whitelists (may be null)
+        /// The per-module allowlists (may be null)
         /// </summary>
-        public IReadOnlyDictionary<ModuleId, FileAccessWhitelist> ModuleWhitelists => m_moduleWhitelists;
+        public IReadOnlyDictionary<ModuleId, FileAccessAllowlist> ModuleAllowlists => m_moduleAllowlists;
     }
 }

@@ -29,9 +29,9 @@ namespace BuildXL.Engine
         public readonly string DefaultPipFilter;
 
         /// <summary>
-        /// FileAccessWhitelist from config.
+        /// FileAccessAllowlist from config.
         /// </summary>
-        public readonly FileAccessWhitelist FileAccessWhitelist;
+        public readonly FileAccessAllowlist FileAccessAllowlist;
 
         /// <summary>
         /// An optional string to add to pip fingerprints; thus creating a separate cache universe.
@@ -52,13 +52,13 @@ namespace BuildXL.Engine
         /// Constructor
         /// </summary>
         public ConfigFileState(
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             string defaultPipFilter,
             string cacheSalt,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules,
             IList<IModuleConfiguration> moduleConfigurations)
         {
-            FileAccessWhitelist = fileAccessWhitelist;
+            FileAccessAllowlist = fileAccessAllowlist;
             DefaultPipFilter = defaultPipFilter ?? string.Empty;
             CacheSalt = cacheSalt ?? string.Empty;
             DirectoryMembershipFingerprinterRules = directoryMembershipFingerprinterRules;
@@ -72,7 +72,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(writer != null);
 
-            FileAccessWhitelist.Serialize(writer);
+            FileAccessAllowlist.Serialize(writer);
             writer.Write(DefaultPipFilter);
             writer.Write(CacheSalt);
             DirectoryMembershipFingerprinterRules.Serialize(writer);
@@ -98,7 +98,7 @@ namespace BuildXL.Engine
             Contract.Requires(reader != null);
             Contract.Requires(contextTask != null);
 
-            FileAccessWhitelist whitelist = await FileAccessWhitelist.DeserializeAsync(reader, contextTask);
+            FileAccessAllowlist allowlist = await FileAccessAllowlist.DeserializeAsync(reader, contextTask);
             string defaultFilter = reader.ReadString();
             string cacheSalt = reader.ReadString();
             DirectoryMembershipFingerprinterRuleSet ruleSet = DirectoryMembershipFingerprinterRuleSet.Deserialize(reader);
@@ -117,7 +117,7 @@ namespace BuildXL.Engine
             }
 
             // TODO: Read everything else instead of doing it in many different places?
-            return new ConfigFileState(whitelist, defaultFilter, cacheSalt, ruleSet, moduleConfigurations);
+            return new ConfigFileState(allowlist, defaultFilter, cacheSalt, ruleSet, moduleConfigurations);
         }
 
         /// <summary>
@@ -135,28 +135,28 @@ namespace BuildXL.Engine
                 mutableConfig.Cache.CacheSalt = CacheSalt;
             }
 
-            // This codepath is for a cached build, so we are not setting the whitelists on the configuration object.
-            // Because the FileAccessWhiteList on this is the serialized version will be used to construct the schedule, and it
+            // This codepath is for a cached build, so we are not setting the allowlists on the configuration object.
+            // Because the FileAccessAllowList on this is the serialized version will be used to construct the schedule, and it
             // is not constructed from the config. So it okay to leave it off here.
 
-            // Engine settings for whitelists.
+            // Engine settings for allowlists.
             // This update of the configuration is currently duplicated here, in Engine.PopulateConfiguration.
             // The reason is that the codepaths for a) New config, b) Parsing BuildXL xml config and c) loading cached graph
             // don't come together soon enough to hold the only modify the configuration once.
             // This should be short-term until all the frontends are properly unified.
 
-            // Set the global settings for failing unexpected file accesses to false if any of the whitelists (global and per-module) are non-empty.
-            if (FileAccessWhitelist != null)
+            // Set the global settings for failing unexpected file accesses to false if any of the allowlists (global and per-module) are non-empty.
+            if (FileAccessAllowlist != null)
             {
-                IEnumerable<FileAccessWhitelist> fileAccessWhitelists = new[] { FileAccessWhitelist };
-                if (FileAccessWhitelist.ModuleWhitelists != null && FileAccessWhitelist.ModuleWhitelists.Count != 0)
+                IEnumerable<FileAccessAllowlist> fileAccessAllowlists = new[] { FileAccessAllowlist };
+                if (FileAccessAllowlist.ModuleAllowlists != null && FileAccessAllowlist.ModuleAllowlists.Count != 0)
                 {
-                    fileAccessWhitelists = fileAccessWhitelists.Concat(FileAccessWhitelist.ModuleWhitelists.Values);
+                    fileAccessAllowlists = fileAccessAllowlists.Concat(FileAccessAllowlist.ModuleAllowlists.Values);
                 }
 
-                foreach (var fileAccessWhitelist in fileAccessWhitelists)
+                foreach (var fileAccessAllowlist in fileAccessAllowlists)
                 {
-                    if ((fileAccessWhitelist.CacheableEntryCount + fileAccessWhitelist.UncacheableEntryCount) > 0)
+                    if ((fileAccessAllowlist.CacheableEntryCount + fileAccessAllowlist.UncacheableEntryCount) > 0)
                     {
                         mutableConfig.Sandbox.FailUnexpectedFileAccesses = false;
                     }

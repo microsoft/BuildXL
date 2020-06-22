@@ -24,7 +24,8 @@ namespace BuildXL.Execution.Analyzer
         PipExecutionPerformance,
         ProcessDetouringStatus,
         ToolEnumeration,
-        Whitelist,
+        Whitelist, // compatibility
+        Allowlist,
         LogCompare,
         IdeGenerator,
         BuildStatus,

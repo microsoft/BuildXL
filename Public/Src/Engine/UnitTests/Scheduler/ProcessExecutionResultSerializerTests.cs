@@ -56,7 +56,7 @@ namespace Test.BuildXL.Scheduler
                     7,
                     0),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
-                fileAccessViolationsNotWhitelisted: new[]
+                fileAccessViolationsNotAllowlisted: new[]
                 {
                     reportedAccess,
                     CreateRandomReportedFileAccess(),
@@ -64,7 +64,7 @@ namespace Test.BuildXL.Scheduler
                     // Create reported file access that uses the same process to test deduplication during deserialization
                     CreateRandomReportedFileAccess(reportedAccess.Process),
                 },
-                whitelistedFileAccessViolations: new ReportedFileAccess[0],
+                allowlistedFileAccessViolations: new ReportedFileAccess[0],
                 mustBeConsideredPerpetuallyDirty: true,
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
                     CreateSourceFile().Path,
@@ -129,9 +129,9 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.ExecutionStop,
                 r => r.PerformanceInformation.ExecutionStart,
                 r => r.PerformanceInformation.ProcessExecutionTime,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessViolationsNotWhitelisted,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
-                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedAndCacheable,
+                r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
                 r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
@@ -141,7 +141,7 @@ namespace Test.BuildXL.Scheduler
 
                 r => r.PerformanceInformation.NumberOfProcesses,
 
-                r => r.FileAccessViolationsNotWhitelisted.Count,
+                r => r.FileAccessViolationsNotAllowlisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicallyObservedFiles.Length,
                 r => r.DynamicallyProbedFiles.Length,
@@ -185,16 +185,16 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            for (int i = 0; i < processExecutionResult.FileAccessViolationsNotWhitelisted.Count; i++)
+            for (int i = 0; i < processExecutionResult.FileAccessViolationsNotAllowlisted.Count; i++)
             {
                 // Compare individual fields for ReportedFileAccess since it uses reference
                 // equality for reported process which would not work for serialization/deserialization
-                AssertEqual(processExecutionResult.FileAccessViolationsNotWhitelisted[i], deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[i]);
+                AssertEqual(processExecutionResult.FileAccessViolationsNotAllowlisted[i], deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[i]);
             }
 
             // Ensure that reported process instances are deduplicated.
-            XAssert.AreSame(deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[0].Process,
-                deserializedProcessExecutionResult.FileAccessViolationsNotWhitelisted[2].Process);
+            XAssert.AreSame(deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[0].Process,
+                deserializedProcessExecutionResult.FileAccessViolationsNotAllowlisted[2].Process);
 
             for (int i = 0; i < processExecutionResult.DynamicallyObservedFiles.Length; i++)
             {

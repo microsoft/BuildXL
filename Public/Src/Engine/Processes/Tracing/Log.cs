@@ -292,15 +292,15 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
                 EventConstants.PipPrefix +
-                "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message will become an error if the whitelist entry (in a top-level configuration file) allowing this access is removed.")]
-        public abstract void PipProcessDisallowedFileAccessWhitelistedNonCacheable(
+                "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message will become an error if the allowlist entry (in a top-level configuration file) allowing this access is removed.")]
+        public abstract void PipProcessDisallowedFileAccessAllowlistedNonCacheable(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
@@ -308,15 +308,15 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable,
+            (int)LogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
                 EventConstants.PipPrefix +
-                "Disallowed file access (cacheable) was detected on '{3}' with {2}. This message will become an error if the whitelist entry (in a top-level configuration file) allowing this access is removed.")]
-        public abstract void PipProcessDisallowedFileAccessWhitelistedCacheable(
+                "Disallowed file access (cacheable) was detected on '{3}' with {2}. This message will become an error if the allowlist entry (in a top-level configuration file) allowing this access is removed.")]
+        public abstract void PipProcessDisallowedFileAccessAllowlistedCacheable(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
@@ -324,15 +324,15 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)LogEventId.FileAccessWhitelistFailedToParsePath,
+            (int)LogEventId.FileAccessAllowlistFailedToParsePath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
                 EventConstants.PipPrefix +
-                "Tool path '{3}' failed to parse at character '{4}' could not be parsed. File access whitelist entries matching on tool paths will not be checked for this access. (Accessed via {2})")]
-        public abstract void FileAccessWhitelistFailedToParsePath(
+                "Tool path '{3}' failed to parse at character '{4}' could not be parsed. File access allowlist entries matching on tool paths will not be checked for this access. (Accessed via {2})")]
+        public abstract void FileAccessAllowlistFailedToParsePath(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
@@ -341,15 +341,15 @@ namespace BuildXL.Processes.Tracing
             int characterWithError);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds,
+            (int)LogEventId.PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message =
                 EventConstants.PipPrefix +
-                "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message is an error because non-cacheable whitelist matches are not allowed in distributed builds.")]
-        public abstract void PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds(
+                "Disallowed file access (non-cacheable) was detected on '{3}' with {2}. This message is an error because non-cacheable allowlist matches are not allowed in distributed builds.")]
+        public abstract void PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,

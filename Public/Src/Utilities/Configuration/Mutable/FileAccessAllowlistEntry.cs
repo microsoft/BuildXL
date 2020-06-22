@@ -6,15 +6,15 @@ using System.Diagnostics.ContractsLight;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <nodoc />
-    public sealed class FileAccessWhitelistEntry : TrackedValue, IFileAccessWhitelistEntry
+    public sealed class FileAccessAllowlistEntry : TrackedValue, IFileAccessAllowlistEntry
     {
         /// <nodoc />
-        public FileAccessWhitelistEntry()
+        public FileAccessAllowlistEntry()
         {
         }
 
         /// <nodoc />
-        public FileAccessWhitelistEntry(IFileAccessWhitelistEntry template, PathRemapper pathRemapper)
+        public FileAccessAllowlistEntry(IFileAccessAllowlistEntry template, PathRemapper pathRemapper)
             : base(template, pathRemapper)
         {
             Contract.Assume(template != null);

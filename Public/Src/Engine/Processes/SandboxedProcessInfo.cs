@@ -199,7 +199,7 @@ namespace BuildXL.Processes
         public PathTable PathTable { get; }
 
         /// <summary>
-        /// White-list of allowed file accesses, and general file access reporting flags
+        /// Allow-list of allowed file accesses, and general file access reporting flags
         /// </summary>
         public FileAccessManifest FileAccessManifest { get; }
 

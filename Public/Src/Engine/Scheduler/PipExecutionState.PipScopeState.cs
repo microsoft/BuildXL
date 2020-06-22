@@ -32,7 +32,7 @@ namespace BuildXL.Scheduler
             /// <summary>
             /// File-access operations that should be allowed (without even a warning) but will not be predicted.
             /// </summary>
-            public FileAccessWhitelist FileAccessWhitelist { get; private set; }
+            public FileAccessAllowlist FileAccessAllowlist { get; private set; }
 
             /// <summary>
             /// Rules for computing directory fingerprints
@@ -64,14 +64,14 @@ namespace BuildXL.Scheduler
             {
                 if (moduleId.IsValid)
                 {
-                    FileAccessWhitelist = parent.m_fileAccessWhitelist?.GetModuleWhitelist(moduleId);
+                    FileAccessAllowlist = parent.m_fileAccessAllowlist?.GetModuleAllowlist(moduleId);
                     Contract.Assume(parent.m_pathExpander != null, "m_pathExpander cannot be null. This is envorced by PipExecutionState's constructor");
                     PathExpander = parent.m_pathExpander.GetModuleExpander(moduleId);
                     DirectoryMembershipFingerprinterRuleSet = parent.m_directoryMembershipFingerprinterRuleSet?.GetModuleRule(moduleId);
                 }
                 else
                 {
-                    FileAccessWhitelist = parent.m_fileAccessWhitelist;
+                    FileAccessAllowlist = parent.m_fileAccessAllowlist;
                     PathExpander = parent.m_pathExpander;
                     DirectoryMembershipFingerprinterRuleSet = parent.m_directoryMembershipFingerprinterRuleSet;
                 }

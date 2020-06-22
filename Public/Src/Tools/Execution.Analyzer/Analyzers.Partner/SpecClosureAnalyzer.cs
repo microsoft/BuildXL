@@ -34,7 +34,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else
                 {
-                    throw Error("Unknown option for whitelist analysis: {0}", opt.Name);
+                    throw Error("Unknown option for allowlist analysis: {0}", opt.Name);
                 }
             }
 
@@ -69,7 +69,7 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class SpecClosureAnalyzer
     {
         /// <summary>
-        /// The path to the whitelist directory
+        /// The path to the allowlist directory
         /// </summary>
         public string OutputPath;
         public string DependenciesFilePath;

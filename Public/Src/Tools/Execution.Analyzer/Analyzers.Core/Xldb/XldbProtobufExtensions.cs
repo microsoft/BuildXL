@@ -120,9 +120,9 @@ namespace BuildXL.Execution.Analyzer
 
                 processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()
                 {
-                    NumFileAccessesWhitelistedAndCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
-                    NumFileAccessesWhitelistedButNotCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
-                    NumFileAccessViolationsNotWhitelisted = performance.FileMonitoringViolations.NumFileAccessViolationsNotWhitelisted
+                    NumFileAccessesAllowlistedAndCacheable = performance.FileMonitoringViolations.NumFileAccessesAllowlistedAndCacheable,
+                    NumFileAccessesAllowlistedButNotCacheable = performance.FileMonitoringViolations.NumFileAccessesAllowlistedButNotCacheable,
+                    NumFileAccessViolationsNotAllowlisted = performance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted
                 };
 
                 processPipExecPerformance.Fingerprint = performance.Fingerprint.ToFingerprint();
@@ -175,9 +175,9 @@ namespace BuildXL.Execution.Analyzer
                 data.ReportedProcesses.Select(rp => rp.ToReportedProcess()));
             processExecutionMonitoringReportedEvent.ReportedFileAccesses.AddRange(
                 data.ReportedFileAccesses.Select(reportedFileAccess => reportedFileAccess.ToReportedFileAccess(pathTable, nameExpander)));
-            processExecutionMonitoringReportedEvent.WhitelistedReportedFileAccesses.AddRange(
-                data.WhitelistedReportedFileAccesses.Select(
-                    whiteListReportedFileAccess => whiteListReportedFileAccess.ToReportedFileAccess(pathTable, nameExpander)));
+            processExecutionMonitoringReportedEvent.AllowlistedReportedFileAccesses.AddRange(
+                data.AllowlistedReportedFileAccesses.Select(
+                    allowListReportedFileAccess => allowListReportedFileAccess.ToReportedFileAccess(pathTable, nameExpander)));
 
             foreach (var processDetouringStatus in data.ProcessDetouringStatuses)
             {
@@ -769,7 +769,7 @@ namespace BuildXL.Execution.Analyzer
             }));
             xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable, nameExpander)));
             xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable, nameExpander)));
-            xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbProcessPip.PreserveOutputAllowlist.AddRange(pip.PreserveOutputAllowlist.Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
 
             if (pip.Tags.IsValid)
             {

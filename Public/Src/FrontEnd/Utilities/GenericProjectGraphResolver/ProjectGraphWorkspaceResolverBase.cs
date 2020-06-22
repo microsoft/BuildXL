@@ -59,7 +59,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// <summary>
         /// Collection of environment variables that are allowed to the graph construction process to see (in addition to the ones specified by the user)
         /// </summary>
-        private static readonly string[] s_environmentVariableWhitelist = new[]
+        private static readonly string[] s_environmentVariableAllowlist = new[]
             {
                 "ComSpec",
                 "PATH",
@@ -275,7 +275,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             var buildParameters = BuildParameters
                 .GetFactory()
                 .PopulateFromEnvironment()
-                .Select(s_environmentVariableWhitelist)
+                .Select(s_environmentVariableAllowlist)
                 .Override(configuredEnvironment.ToDictionary());
 
             return buildParameters;

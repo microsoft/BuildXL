@@ -944,13 +944,13 @@ namespace BuildXL.Engine.Tracing
         public abstract void PerformanceSample(LoggingContext context, int machineProcessorTime, int machineAvailableMemoryMegabytes, long ready, long running, int maxRunning, string limitingResource);
 
         [GeneratedEvent(
-            (ushort)LogEventId.WhitelistFileAccess,
+            (ushort)LogEventId.AllowlistFileAccess,
 
             // This is no longer sent to telemetry because it is a relatively large amount of data and was never used.
             // Add | EventGenerators.TelemetryOnly to resume sending it to telemetry
             EventGenerators = Generators.Statistics,
-            Message = "Whitelist usage")]
-        public abstract void WhitelistFileAccess(LoggingContext context, IDictionary<string, int> entryMatches);
+            Message = "Allowlist usage")]
+        public abstract void AllowlistFileAccess(LoggingContext context, IDictionary<string, int> entryMatches);
 
         [GeneratedEvent(
             (ushort)LogEventId.ConfigExportGraphRequiresScheduling,
@@ -1405,7 +1405,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             Keywords = (int)Keywords.Diagnostics,
             EventTask = (int)Tasks.Scheduler,
             Message =
-                "File access whitelist provided to scheduler for module {moduleName} has {cacheableEntryCount} cacheable and {unchacheableEntryCount} uncacheable entries.")]
+                "File access allowlist provided to scheduler for module {moduleName} has {cacheableEntryCount} cacheable and {unchacheableEntryCount} uncacheable entries.")]
         public abstract void FileAccessManifestSummary(
             LoggingContext context,
             string moduleName,
@@ -2402,15 +2402,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             string environmentVariableName);
 
         [GeneratedEvent(
-            (int)LogEventId.FileAccessWhitelistEntryHasInvalidRegex,
+            (int)LogEventId.FileAccessAllowlistEntryHasInvalidRegex,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
             Message =
                 EventConstants.ProvenancePrefix +
-                "Unable to create file access whitelist entry.  Failed to construct an ECMAScript regex object with error '{3}'.")]
-        public abstract void FileAccessWhitelistEntryHasInvalidRegex(
+                "Unable to create file access allowlist entry.  Failed to construct an ECMAScript regex object with error '{3}'.")]
+        public abstract void FileAccessAllowlistEntryHasInvalidRegex(
             LoggingContext context,
             string file,
             int line,
@@ -2447,15 +2447,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EndEngineRun(LoggingContext context);
 
         [GeneratedEvent(
-            (int)LogEventId.FileAccessWhitelistCouldNotCreateIdentifier,
+            (int)LogEventId.FileAccessAllowlistCouldNotCreateIdentifier,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
             Message =
                 EventConstants.ProvenancePrefix +
-                "Unable to create file access whitelist entry for requested value '{3}'. Value names only allow a-z, 0-9, and '.' separating pars.")]
-        public abstract void FileAccessWhitelistCouldNotCreateIdentifier(
+                "Unable to create file access allowlist entry for requested value '{3}'. Value names only allow a-z, 0-9, and '.' separating pars.")]
+        public abstract void FileAccessAllowlistCouldNotCreateIdentifier(
             LoggingContext context,
             string file,
             int line,
@@ -2595,13 +2595,13 @@ If you can't update and need this feature after July 2018 please reach out to th
 
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailedToInitalizeFileAccessWhitelist,
+            (ushort)LogEventId.FailedToInitalizeFileAccessAllowlist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to initialize the FileAccess whitelist: {error}")]
-        internal abstract void FailedToInitializeFileAccessWhitelist(LoggingContext loggingContext, string error);
+            Message = "Failed to initialize the FileAccess allowlist: {error}")]
+        internal abstract void FailedToInitializeFileAccessAllowlist(LoggingContext loggingContext, string error);
 
         [GeneratedEvent(
             (ushort)LogEventId.ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling,

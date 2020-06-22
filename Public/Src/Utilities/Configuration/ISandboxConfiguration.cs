@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Sandbox Configuration
     /// </summary>
     public interface ISandboxConfiguration
     {

@@ -440,8 +440,8 @@ namespace Test.BuildXL.Scheduler
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(config, Context.PathTable, bxlExeLocation: null, inTestMode: true);
             BuildXLEngine.PopulateAndValidateConfiguration(config, config, Context.PathTable, LoggingContext);
 
-            FileAccessWhitelist whitelist = new FileAccessWhitelist(Context);
-            whitelist.Initialize(config);
+            FileAccessAllowlist allowlist = new FileAccessAllowlist(Context);
+            allowlist.Initialize(config);
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
@@ -496,7 +496,7 @@ namespace Test.BuildXL.Scheduler
                 cache: Cache,
                 configuration: config,
                 journalState: m_journalState,
-                fileAccessWhitelist: whitelist,
+                fileAccessAllowlist: allowlist,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
                 directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable),
                 tempCleaner: tempCleaner,

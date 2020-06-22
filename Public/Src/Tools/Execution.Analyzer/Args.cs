@@ -243,7 +243,8 @@ namespace BuildXL.Execution.Analyzer
                     }
                     break;
                 case AnalysisMode.Whitelist:
-                    m_analyzer = InitializeWhitelistAnalyzer();
+                case AnalysisMode.Allowlist:
+                    m_analyzer = InitializeAllowlistAnalyzer();
                     break;
                 case AnalysisMode.IdeGenerator:
                     m_analyzer = InitializeIdeGenerator();
@@ -578,7 +579,7 @@ namespace BuildXL.Execution.Analyzer
             WriteProcessRunScriptAnalyzerHelp(writer);
 
             writer.WriteLine("");
-            WriteWhitelistAnalyzerHelp(writer);
+            WriteAllowlistAnalyzerHelp(writer);
 
             writer.WriteLine("");
             WriteSummaryAnalyzerHelp(writer);

@@ -68,9 +68,9 @@ namespace BuildXL.Processes.Tracing
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
         LogPhaseDuration = 93,
 
-        PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
-        PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,
-        FileAccessWhitelistFailedToParsePath = 274,
+        PipProcessDisallowedFileAccessAllowlistedCacheable = 264,
+        PipProcessDisallowedFileAccessAllowlistedNonCacheable = 269,
+        FileAccessAllowlistFailedToParsePath = 274,
         CannotProbeOutputUnderSharedOpaque = 275,
 
         //// Reserved = 306,
@@ -123,7 +123,7 @@ namespace BuildXL.Processes.Tracing
         MoreBytesWrittenThanBufferSize = 2930,
 
         //DominoProcessesStart = 4400,
-        PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds = 4401,
+        PipProcessUncacheableAllowlistNotAllowedInDistributedBuilds = 4401,
         //DominoProcessesEnd = 4499,
 
         //// Detours

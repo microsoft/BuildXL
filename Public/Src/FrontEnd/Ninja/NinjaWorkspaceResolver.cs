@@ -274,7 +274,7 @@ namespace BuildXL.FrontEnd.Ninja
                 m_resolverSettings.File,
                 new List<AbsolutePath>() { specFileConfig } ,
                 allowedModuleDependencies: null, // no module policies
-                cyclicalFriendModules: null); // no whitelist of cycles
+                cyclicalFriendModules: null); // no allowlist of cycles
 
             return new NinjaGraphWithModuleDefinition(result.Graph, moduleDefinition);            
         }

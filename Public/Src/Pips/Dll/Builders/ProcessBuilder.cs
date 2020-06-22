@@ -131,7 +131,7 @@ namespace BuildXL.Pips.Builders
         public int PreserveOutputsTrustLevel { get; set; } = (int)PreserveOutputsTrustValue.Lowest;
 
         /// <nodoc />
-        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+        public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
         // Container related
 
@@ -703,7 +703,7 @@ namespace BuildXL.Pips.Builders
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
                 priority: Priority,
-                preserveOutputWhitelist: PreserveOutputWhitelist,
+                preserveOutputAllowlist: PreserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
                 childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,

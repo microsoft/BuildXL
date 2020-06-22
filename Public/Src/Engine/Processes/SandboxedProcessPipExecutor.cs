@@ -108,7 +108,7 @@ namespace BuildXL.Processes
 
         private readonly PipFragmentRenderer m_pipDataRenderer;
 
-        private readonly FileAccessWhitelist m_fileAccessWhitelist;
+        private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         private readonly Process m_pip;
 
@@ -229,7 +229,7 @@ namespace BuildXL.Processes
             ILoggingConfiguration loggingConfig,
             IReadOnlyDictionary<string, string> rootMappings,
             ProcessInContainerManager processInContainerManager,
-            FileAccessWhitelist whitelist,
+            FileAccessAllowlist allowlist,
             Func<FileArtifact, Task<bool>> makeInputPrivate,
             Func<string, Task<bool>> makeOutputPrivate,
             SemanticPathExpander semanticPathExpander,
@@ -314,7 +314,7 @@ namespace BuildXL.Processes
                 m_fileAccessManifest.DisableDetours = true;
             }
 
-            m_fileAccessWhitelist = whitelist;
+            m_fileAccessAllowlist = allowlist;
             m_makeInputPrivate = makeInputPrivate;
             m_makeOutputPrivate = makeOutputPrivate;
             m_semanticPathExpander = semanticPathExpander;
@@ -1660,7 +1660,7 @@ namespace BuildXL.Processes
                 m_sandboxConfig,
                 m_pip,
                 m_validateDistribution,
-                m_fileAccessWhitelist);
+                m_fileAccessAllowlist);
 
             // Note that when MonitorFileAccesses == false, we should not assume the various reported-access sets are non-null.
             if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses)
@@ -2823,17 +2823,17 @@ namespace BuildXL.Processes
         /// </summary>
         private async Task<bool> PrepareOutputsAsync()
         {
-            using (var preserveOutputWhitelistWrapper = Pools.GetAbsolutePathSet())
+            using (var preserveOutputAllowlistWrapper = Pools.GetAbsolutePathSet())
             using (var dependenciesWrapper = Pools.GetAbsolutePathSet())
             using (var outputDirectoriesWrapper = Pools.GetAbsolutePathSet())
             {
-                var preserveOutputWhitelist = preserveOutputWhitelistWrapper.Instance;
-                foreach (AbsolutePath path in m_pip.PreserveOutputWhitelist)
+                var preserveOutputAllowlist = preserveOutputAllowlistWrapper.Instance;
+                foreach (AbsolutePath path in m_pip.PreserveOutputAllowlist)
                 {
-                    preserveOutputWhitelist.Add(path);
+                    preserveOutputAllowlist.Add(path);
                 }
 
-                if (!await PrepareDirectoryOutputsAsync(preserveOutputWhitelist))
+                if (!await PrepareDirectoryOutputsAsync(preserveOutputAllowlist))
                 {
                     return false;
                 }
@@ -2864,7 +2864,7 @@ namespace BuildXL.Processes
                     {
                         if (!dependencies.Contains(output.Path))
                         {
-                            if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputWhitelist))
+                            if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputAllowlist))
                             {
                                 Contract.Assume(m_makeOutputPrivate != null);
                                 // A process may be configured to allow its prior outputs to be seen by future
@@ -2995,7 +2995,7 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputWhitelist)
+        private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputAllowlist)
         {
             foreach (var directoryOutput in m_pip.DirectoryOutputs)
             {
@@ -3023,7 +3023,7 @@ namespace BuildXL.Processes
                     }
                     else
                     {
-                        if (dirExist && ShouldPreserveDeclaredOutput(directoryOutput.Path, preserveOutputWhitelist))
+                        if (dirExist && ShouldPreserveDeclaredOutput(directoryOutput.Path, preserveOutputAllowlist))
                         {
                             using (var wrapper = Pools.GetStringList())
                             {
@@ -3333,8 +3333,8 @@ namespace BuildXL.Processes
         /// <returns>True is the file should be excluded, otherwise false.</returns>
         /// <remarks>
         /// Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-        /// These special tools/cases should be whitelisted, but we already have customers deployed specs without
-        /// using white lists.
+        /// These special tools/cases should be allowlisted, but we already have customers deployed specs without
+        /// using allowlists.
         /// </remarks>
         private bool GetSpecialCaseRulesForSpecialTools(AbsolutePath processPath, AbsolutePath fileAccessPath)
         {
@@ -3540,8 +3540,8 @@ namespace BuildXL.Processes
 
                     // Remove special accesses see Bug: #121875.
                     // Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-                    // These special tools/cases should be whitelisted, but we already have customers deployed specs without
-                    // using white lists.
+                    // These special tools/cases should be allowlisted, but we already have customers deployed specs without
+                    // using allowlists.
                     if (GetSpecialCaseRulesForCoverageAndSpecialDevices(parsedPath))
                     {
                         shouldExclude = true;
@@ -4951,7 +4951,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Whether we should preserve the given declared static file or directory output.
         /// </summary>
-        private bool ShouldPreserveDeclaredOutput(AbsolutePath path, HashSet<AbsolutePath> whitelist)
+        private bool ShouldPreserveDeclaredOutput(AbsolutePath path, HashSet<AbsolutePath> allowlist)
         {
             if (!m_shouldPreserveOutputs)
             {
@@ -4959,15 +4959,15 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            if (whitelist.Count == 0)
+            if (allowlist.Count == 0)
             {
-                // If the whitelist is empty, every output is preserved
+                // If the allowlist is empty, every output is preserved
                 return true;
             }
 
-            if (whitelist.Contains(path))
+            if (allowlist.Contains(path))
             {
-                // Only preserve the file or directories that are given in the whitelist.
+                // Only preserve the file or directories that are given in the allowlist.
                 return true;
             }
 

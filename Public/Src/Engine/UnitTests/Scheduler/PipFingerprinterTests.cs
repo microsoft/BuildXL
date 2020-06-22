@@ -819,7 +819,7 @@ namespace Test.BuildXL.Scheduler
             DoubleWritePolicy doubleWritePolicy = source.Vary(p => p.DoubleWritePolicy);
             ContainerIsolationLevel containerIsolationLevel = source.Vary(p => p.ContainerIsolationLevel);
             var uniqueRedirectedDirectoryRoot = source.Vary(p => p.UniqueRedirectedDirectoryRoot);
-            var preserveOutputWhitelist = source.Vary(p => p.PreserveOutputWhitelist);
+            var preserveOutputAllowlist = source.Vary(p => p.PreserveOutputAllowlist);
             bool trustStaticallyDeclaredAccesses = source.Vary(p => p.TrustStaticallyDeclaredAccesses);
             bool preservePathSetCasing = source.Vary(p => p.PreservePathSetCasing);
 
@@ -905,7 +905,7 @@ namespace Test.BuildXL.Scheduler
                 options: options,
                 doubleWritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
-                preserveOutputWhitelist: preserveOutputWhitelist,
+                preserveOutputAllowlist: preserveOutputAllowlist,
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)));
         }

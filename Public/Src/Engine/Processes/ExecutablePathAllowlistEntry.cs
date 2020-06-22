@@ -8,23 +8,23 @@ using BuildXL.Utilities;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// A file-access whitelist rule that will match on tool and path.
+    /// A file-access allowlist rule that will match on tool and path.
     /// </summary>
-    public sealed class ExecutablePathWhitelistEntry : FileAccessWhitelistEntry
+    public sealed class ExecutablePathAllowlistEntry : FileAccessAllowlistEntry
     {
         private readonly AbsolutePath m_executablePath;
 
         /// <summary>
-        /// Construct a new whitelist entry that will match based on tool and path.
+        /// Construct a new allowlist entry that will match based on tool and path.
         /// </summary>
         /// <param name="executablePath">The exact full path to the tool that does the bad access.</param>
         /// <param name="pathRegex">The ECMAScript regex pattern that will be used as the basis for the match.</param>
         /// <param name="allowsCaching">
-        /// Whether this whitelist rule should be interpreted to allow caching of a pip that matches
+        /// Whether this allowlist rule should be interpreted to allow caching of a pip that matches
         /// it.
         /// </param>
-        /// <param name="name">Name of the whitelist entry. Defaults to 'Unnamed' if null/empty.</param>
-        public ExecutablePathWhitelistEntry(AbsolutePath executablePath, SerializableRegex pathRegex, bool allowsCaching, string name)
+        /// <param name="name">Name of the allowlist entry. Defaults to 'Unnamed' if null/empty.</param>
+        public ExecutablePathAllowlistEntry(AbsolutePath executablePath, SerializableRegex pathRegex, bool allowsCaching, string name)
             : base(pathRegex, allowsCaching, name)
         {
             Contract.Requires(executablePath.IsValid);
@@ -42,15 +42,15 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public override FileAccessWhitelist.MatchType Matches(ReportedFileAccess reportedFileAccess, Process pip, PathTable pathTable)
+        public override FileAccessAllowlist.MatchType Matches(ReportedFileAccess reportedFileAccess, Process pip, PathTable pathTable)
         {
             Contract.Requires(pip != null);
             Contract.Requires(pathTable != null);
 
-            // An access is whitelisted if:
-            // * The tool was in the whitelist (implicit here by lookup from FileAccessWhitelist.Matches) AND
+            // An access is allowlisted if:
+            // * The tool was in the allowlist (implicit here by lookup from FileAccessAllowlist.Matches) AND
             // * the path filter matches (or is empty)
-            return FileAccessWhitelist.Match(FileAccessWhitelist.PathFilterMatches(PathRegex.Regex, reportedFileAccess, pathTable), AllowsCaching);
+            return FileAccessAllowlist.Match(FileAccessAllowlist.PathFilterMatches(PathRegex.Regex, reportedFileAccess, pathTable), AllowsCaching);
         }
 
         /// <nodoc />
@@ -65,14 +65,14 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserializes
         /// </summary>
-        public static ExecutablePathWhitelistEntry Deserialize(BuildXLReader reader)
+        public static ExecutablePathAllowlistEntry Deserialize(BuildXLReader reader)
         {
             Contract.Requires(reader != null);
 
             var state = ReadState(reader);
             AbsolutePath path = reader.ReadAbsolutePath();
 
-            return new ExecutablePathWhitelistEntry(
+            return new ExecutablePathAllowlistEntry(
                 path,
                 state.PathRegex,
                 state.AllowsCaching,

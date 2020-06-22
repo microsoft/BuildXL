@@ -15,8 +15,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public ModuleConfiguration()
         {
             ModuleId = ModuleId.Invalid;
-            FileAccessWhiteList = new List<IFileAccessWhitelistEntry>();
-            CacheableFileAccessWhitelist = new List<IFileAccessWhitelistEntry>();
+            FileAccessAllowList = new List<IFileAccessAllowlistEntry>();
+            CacheableFileAccessAllowlist = new List<IFileAccessAllowlistEntry>();
             DirectoryMembershipFingerprinterRules = new List<IDirectoryMembershipFingerprinterRule>();
             Mounts = new List<IMount>();
         }
@@ -30,8 +30,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             ModuleId = template.ModuleId;
             Name = template.Name;
-            FileAccessWhiteList = new List<IFileAccessWhitelistEntry>(template.FileAccessWhiteList.Select(entry => new FileAccessWhitelistEntry(entry, pathRemapper)));
-            CacheableFileAccessWhitelist = new List<IFileAccessWhitelistEntry>(template.CacheableFileAccessWhitelist.Select(entry => new FileAccessWhitelistEntry(entry, pathRemapper)));
+            FileAccessAllowList = new List<IFileAccessAllowlistEntry>(template.FileAccessAllowList.Select(entry => new FileAccessAllowlistEntry(entry, pathRemapper)));
+            CacheableFileAccessAllowlist = new List<IFileAccessAllowlistEntry>(template.CacheableFileAccessAllowList.Select(entry => new FileAccessAllowlistEntry(entry, pathRemapper)));
             DirectoryMembershipFingerprinterRules = new List<IDirectoryMembershipFingerprinterRule>(template.DirectoryMembershipFingerprinterRules.Select(rule => new DirectoryMembershipFingerprinterRule(rule, pathRemapper)));
             Mounts = new List<IMount>(template.Mounts.Select(mount => new Mount(mount, pathRemapper)));
         }
@@ -44,17 +44,18 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<IFileAccessWhitelistEntry> FileAccessWhiteList { get; set; }
+        public List<IFileAccessAllowlistEntry> FileAccessAllowList { get; set; }
 
         /// <inheritdoc />
-        IReadOnlyList<IFileAccessWhitelistEntry> IModuleConfiguration.FileAccessWhiteList => FileAccessWhiteList;
+        IReadOnlyList<IFileAccessAllowlistEntry> IModuleConfiguration.FileAccessAllowList => FileAccessAllowList;
+
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public List<IFileAccessWhitelistEntry> CacheableFileAccessWhitelist { get; set; }
+        public List<IFileAccessAllowlistEntry> CacheableFileAccessAllowlist { get; set; }
 
         /// <inheritdoc />
-        IReadOnlyList<IFileAccessWhitelistEntry> IModuleConfiguration.CacheableFileAccessWhitelist => CacheableFileAccessWhitelist;
+        IReadOnlyList<IFileAccessAllowlistEntry> IModuleConfiguration.CacheableFileAccessAllowList => CacheableFileAccessAllowlist;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
@@ -69,5 +70,36 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<IMount> IModuleConfiguration.Mounts => Mounts;
+
+
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<IFileAccessAllowlistEntry> FileAccessWhiteList
+        {
+            get => FileAccessAllowList;
+            set => FileAccessAllowList = value;
+        }
+
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        IReadOnlyList<IFileAccessAllowlistEntry> IModuleConfiguration.FileAccessWhiteList => FileAccessAllowList;
+
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<IFileAccessAllowlistEntry> CacheableFileAccessWhitelist
+        {
+            get => CacheableFileAccessAllowlist;
+            set => CacheableFileAccessAllowlist = value;
+        }
+
+        /// <summary>
+        /// Compatibility
+        /// </summary>
+        IReadOnlyList<IFileAccessAllowlistEntry> IModuleConfiguration.CacheableFileAccessWhitelist => CacheableFileAccessAllowlist;
     }
 }

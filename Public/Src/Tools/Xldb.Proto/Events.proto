@@ -165,7 +165,7 @@ message ProcessExecutionMonitoringReportedEvent{
     repeated ReportedFileAccess ReportedFileAccesses = 4;
     
     // The reported file accesses
-    repeated ReportedFileAccess WhitelistedReportedFileAccesses = 5;
+    repeated ReportedFileAccess AllowlistedReportedFileAccesses = 5;
 
     // The reported Process Detouring Status messages
     repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;

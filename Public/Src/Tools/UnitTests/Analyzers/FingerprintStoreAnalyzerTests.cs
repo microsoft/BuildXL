@@ -169,19 +169,19 @@ namespace Test.Tool.Analyzers
         }
 
         [Fact]
-        public void NonCacheableWhitelistPipMiss()
+        public void NonCacheableAllowlistPipMiss()
         {
-            FileArtifact whitelistFile = CreateSourceFile();
-            var entry = new BuildXLConfiguration.Mutable.FileAccessWhitelistEntry()
+            FileArtifact allowlistFile = CreateSourceFile();
+            var entry = new BuildXLConfiguration.Mutable.FileAccessAllowlistEntry()
             {
                 Value = "testValue",
-                PathFragment = ArtifactToString(whitelistFile),
+                PathFragment = ArtifactToString(allowlistFile),
             };
-            Configuration.FileAccessWhiteList.Add(entry);
+            Configuration.FileAccessAllowList.Add(entry);
 
             Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
-                Operation.ReadFile(whitelistFile, doNotInfer: true),
+                Operation.ReadFile(allowlistFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 

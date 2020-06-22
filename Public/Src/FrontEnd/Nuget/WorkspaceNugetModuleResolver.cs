@@ -138,7 +138,7 @@ namespace BuildXL.FrontEnd.Nuget
                     pathToModuleConfig,
                     new[] { pathToSpec },
                     allowedModuleDependencies: null,
-                    cyclicalFriendModules: null); // A NuGet package does not have any module dependency restrictions nor whitelists cycles
+                    cyclicalFriendModules: null); // A NuGet package does not have any module dependency restrictions nor allowlists cycles
             });
         }
 
@@ -1507,7 +1507,7 @@ namespace BuildXL.FrontEnd.Nuget
                 // TODO: If this is set to true, then NuGet will fail if TMG Forefront client is running.
                 //                 Filtering out in SandboxedProcessReport won't work because Detours already blocks the access to FwcWsp.dll.
                 //                 Almost all machines in Office run TMG Forefront client.
-                //                 So far for WDG, FailUnexpectedFileAccesses is false due to whitelists.
+                //                 So far for WDG, FailUnexpectedFileAccesses is false due to allowlists.
                 //                 As a consequence, the file access manifest below gets nullified.
                 FailUnexpectedFileAccesses = false,
                 ReportFileAccesses = true,

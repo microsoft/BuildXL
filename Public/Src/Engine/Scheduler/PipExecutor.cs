@@ -967,8 +967,8 @@ namespace BuildXL.Scheduler
                 var exclusiveOpaqueDirectories = processExecutionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
                 // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
-                if (processExecutionResult.FileAccessViolationsNotWhitelisted != null
-                    || processExecutionResult.WhitelistedFileAccessViolations != null
+                if (processExecutionResult.FileAccessViolationsNotAllowlisted != null
+                    || processExecutionResult.AllowlistedFileAccessViolations != null
                     || processExecutionResult.SharedDynamicDirectoryWriteAccesses != null
                     || exclusiveOpaqueDirectories.Length != 0
                     || processExecutionResult.AllowedUndeclaredReads != null
@@ -976,8 +976,8 @@ namespace BuildXL.Scheduler
                 {
                     analyzePipViolationsResult = environment.FileMonitoringViolationAnalyzer.AnalyzePipViolations(
                         process,
-                        processExecutionResult.FileAccessViolationsNotWhitelisted,
-                        processExecutionResult.WhitelistedFileAccessViolations,
+                        processExecutionResult.FileAccessViolationsNotAllowlisted,
+                        processExecutionResult.AllowlistedFileAccessViolations,
                         exclusiveOpaqueDirectories,
                         processExecutionResult.SharedDynamicDirectoryWriteAccesses,
                         processExecutionResult.AllowedUndeclaredReads,
@@ -1398,7 +1398,7 @@ namespace BuildXL.Scheduler
                                     configuration.Logging,
                                     environment.RootMappings,
                                     environment.ProcessInContainerManager,
-                                    state.FileAccessWhitelist,
+                                    state.FileAccessAllowlist,
                                     makeInputPrivate,
                                     makeOutputPrivate,
                                     semanticPathExpander,
@@ -1806,8 +1806,8 @@ namespace BuildXL.Scheduler
                 processExecutionResult.ReportUnexpectedFileAccesses(unexpectedFilesAccesses);
 
                 // Set file access violations which were not whitelisted for use by file access violation analyzer
-                processExecutionResult.FileAccessViolationsNotWhitelisted = fileAccessReportingContext.FileAccessViolationsNotWhitelisted;
-                processExecutionResult.WhitelistedFileAccessViolations = fileAccessReportingContext.WhitelistedFileAccessViolations;
+                processExecutionResult.FileAccessViolationsNotAllowlisted = fileAccessReportingContext.FileAccessViolationsNotAllowlisted;
+                processExecutionResult.AllowlistedFileAccessViolations = fileAccessReportingContext.AllowlistedFileAccessViolations;
 
                 // We need to update this instance so used a boxed representation
                 BoxRef<ProcessFingerprintComputationEventData> fingerprintComputation =
@@ -1829,7 +1829,7 @@ namespace BuildXL.Scheduler
                     // But if the pip completed with (warning level) file monitoring violations (suppressed or not), there's good reason
                     // to believe that there are missing inputs or outputs for the pip. This allows a nice compromise in which a build
                     // author can iterate quickly on fixing monitoring errors in a large build - mostly cached except for those parts with warnings.
-                    // Of course, if the whitelist was configured to explicitly allow caching for those violations, we allow it.
+                    // Of course, if the allowlist was configured to explicitly allow caching for those violations, we allow it.
                     //
                     // N.B. fileAccessReportingContext / unexpectedFilesAccesses accounts for violations from the execution itself as well as violations added by ValidateObservedAccesses
                     bool skipCaching = true;
@@ -1853,7 +1853,7 @@ namespace BuildXL.Scheduler
                     {
                         Contract.Assume(
                             observedInputValidationResult.Status == ObservedInputProcessingStatus.Success,
-                            "Should never cache a process that failed observed file input validation (cacheable-whitelisted violations leave the validation successful).");
+                            "Should never cache a process that failed observed file input validation (cacheable-allowlisted violations leave the validation successful).");
 
                         // Note that we discard observed inputs if cache-ineligible (required by StoreDescriptorAndContentForProcess)
                         observedInputProcessingResultForCaching = observedInputValidationResult;
@@ -2000,9 +2000,9 @@ namespace BuildXL.Scheduler
             UnexpectedFileAccessCounters unexpectedFilesAccesses = fileAccessReportingContext.Counters;
             processExecutionResult.ReportUnexpectedFileAccesses(unexpectedFilesAccesses);
 
-            // Set file access violations which were not whitelisted for use by file access violation analyzer
-            processExecutionResult.FileAccessViolationsNotWhitelisted = fileAccessReportingContext.FileAccessViolationsNotWhitelisted;
-            processExecutionResult.WhitelistedFileAccessViolations = fileAccessReportingContext.WhitelistedFileAccessViolations;
+            // Set file access violations which were not allowlisted for use by file access violation analyzer
+            processExecutionResult.FileAccessViolationsNotAllowlisted = fileAccessReportingContext.FileAccessViolationsNotAllowlisted;
+            processExecutionResult.AllowlistedFileAccessViolations = fileAccessReportingContext.AllowlistedFileAccessViolations;
         }
 
         /// <summary>
@@ -3310,7 +3310,7 @@ namespace BuildXL.Scheduler
                 pipEnvironment: environment.State.PipEnvironment,
                 validateDistribution: configuration.Distribution.ValidateDistribution,
                 directoryArtifactContext: new DirectoryArtifactContext(environment),
-                whitelist: null,
+                allowlist: null,
                 makeInputPrivate: null,
                 makeOutputPrivate: null,
                 semanticPathExpander: semanticPathExpander,
@@ -3600,7 +3600,7 @@ namespace BuildXL.Scheduler
 
             public ObservedInputAccessCheckFailureAction OnAccessCheckFailure(ObservedPathEntry assertion, bool fromTopLevelDirectory)
             {
-                // The path can't be accessed. Note that we don't apply a whitelist here (that only applies to process execution).
+                // The path can't be accessed. Note that we don't apply a allowlist here (that only applies to process execution).
                 // We let this cause overall failure (i.e., a failed ObservedInputProcessingResult, and an undefined StrongContentFingerprint).
                 if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                 {
@@ -3689,12 +3689,12 @@ namespace BuildXL.Scheduler
             {
                 // TODO: Should be able to log provenance of the sealed directory here (we don't even know which directory artifact corresponds).
                 //       This is a fine argument to move this function into the execution environment.
-                if (m_fileAccessReportingContext.MatchAndReportUnexpectedObservedFileAccess(observation) != FileAccessWhitelist.MatchType.NoMatch)
+                if (m_fileAccessReportingContext.MatchAndReportUnexpectedObservedFileAccess(observation) != FileAccessAllowlist.MatchType.NoMatch)
                 {
                     return ObservedInputAccessCheckFailureAction.SuppressAndIgnorePath;
                 }
 
-                // If the access was whitelisted, some whitelist-related events will have been reported.
+                // If the access was allowlisted, some allowlist-related events will have been reported.
                 // Otherwise, error or warning level events for the unexpected accesses will have been reported; in
                 // that case we will additionally log a final message specific to this being a sealed directory
                 // related issue (see/* TODO:above about logging provenance of a containing seal).

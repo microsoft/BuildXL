@@ -25,9 +25,9 @@ namespace BuildXL.Execution.Analyzer
 {
     internal partial class Args
     {
-        public Analyzer InitializeWhitelistAnalyzer()
+        public Analyzer InitializeAllowlistAnalyzer()
         {
-            string whitelistDirectoryPath = null;
+            string allowlistDirectoryPath = null;
             List<string> logPaths = new List<string>();
 
             foreach (var opt in AnalyzerOptions)
@@ -35,54 +35,57 @@ namespace BuildXL.Execution.Analyzer
                 if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase) ||
                    opt.Name.Equals("o", StringComparison.OrdinalIgnoreCase))
                 {
-                    whitelistDirectoryPath = ParseSingletonPathOption(opt, whitelistDirectoryPath);
+                    allowlistDirectoryPath = ParseSingletonPathOption(opt, allowlistDirectoryPath);
                 }
-                else if (opt.Name.Equals("wl", StringComparison.OrdinalIgnoreCase) ||
+                else if (opt.Name.Equals("al", StringComparison.OrdinalIgnoreCase) ||
+                   opt.Name.Equals("allowlistLog", StringComparison.OrdinalIgnoreCase)||
+                   // compatibility
+                   opt.Name.Equals("wl", StringComparison.OrdinalIgnoreCase) ||
                    opt.Name.Equals("whitelistLog", StringComparison.OrdinalIgnoreCase))
                 {
                     logPaths.Add(ParsePathOption(opt));
                 }
                 else
                 {
-                    throw Error("Unknown option for whitelist analysis: {0}", opt.Name);
+                    throw Error("Unknown option for allowlist analysis: {0}", opt.Name);
                 }
             }
 
-            if (string.IsNullOrEmpty(whitelistDirectoryPath))
+            if (string.IsNullOrEmpty(allowlistDirectoryPath))
             {
                 throw Error("outputDirectory is a required parameter.");
             }
 
             if (logPaths.Count == 0)
             {
-                throw Error("At least one whitelist log path required for whitelist analysis");
+                throw Error("At least one allowlist log path required for allowlist analysis");
             }
 
-            return new WhitelistAnalyzer(GetAnalysisInput())
+            return new AllowlistAnalyzer(GetAnalysisInput())
             {
                 LogPaths = logPaths,
-                WhitelistDirectoryPath = whitelistDirectoryPath,
+                AllowlistDirectoryPath = allowlistDirectoryPath,
             };
         }
 
-        private static void WriteWhitelistAnalyzerHelp(HelpWriter writer)
+        private static void WriteAllowlistAnalyzerHelp(HelpWriter writer)
         {
-            writer.WriteBanner("Whitelist Violation Analysis Generator");
-            writer.WriteModeOption(nameof(AnalysisMode.Whitelist), "Generates a file containing file access violation analysis of whitelist entries from a set of log files");
-            writer.WriteOption("whitelistLog", "OneOrMany. The path(s) to BuildXL log for build containing whitelisted access log messages. More than one log may be analyzed for cross build analysis.", shortName: "wl");
-            writer.WriteOption("outputDirectory", "Required. The directory to place whitelist analysis files.", shortName: "o");
+            writer.WriteBanner("Allowlist Violation Analysis Generator");
+            writer.WriteModeOption(nameof(AnalysisMode.Allowlist), "Generates a file containing file access violation analysis of allowlist entries from a set of log files");
+            writer.WriteOption("allowlistLog", "OneOrMany. The path(s) to BuildXL log for build containing allowlisted access log messages. More than one log may be analyzed for cross build analysis.", shortName: "al");
+            writer.WriteOption("outputDirectory", "Required. The directory to place allowlist analysis files.", shortName: "o");
         }
     }
 
     /// <summary>
     /// Analyzer used to generate fingerprint text file
     /// </summary>
-    internal sealed class WhitelistAnalyzer : Analyzer
+    internal sealed class AllowlistAnalyzer : Analyzer
     {
         /// <summary>
-        /// The path to the whitelist directory
+        /// The path to the allowlist directory
         /// </summary>
-        public string WhitelistDirectoryPath;
+        public string AllowlistDirectoryPath;
 
         public List<string> LogPaths = new List<string>();
 
@@ -107,7 +110,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         private ILookup<AbsolutePath, (string log, string logLine)> m_pathAccessLookup;
 
-        public WhitelistAnalyzer(AnalysisInput input)
+        public AllowlistAnalyzer(AnalysisInput input)
             : base(input)
         {
         }
@@ -119,15 +122,15 @@ namespace BuildXL.Execution.Analyzer
                 m_pipsBySemistableHash[pipReference.SemiStableHash] = pipReference.PipId;
             }
 
-            WhitelistDirectoryPath = Path.GetFullPath(WhitelistDirectoryPath);
-            if (File.Exists(WhitelistDirectoryPath))
+            AllowlistDirectoryPath = Path.GetFullPath(AllowlistDirectoryPath);
+            if (File.Exists(AllowlistDirectoryPath))
             {
                 // Can not create a directory if there is an existing file with the same name
-                WhitelistDirectoryPath += ".wl";
+                AllowlistDirectoryPath += ".wl";
             }
 
-            Directory.CreateDirectory(WhitelistDirectoryPath);
-            Console.WriteLine("Log directory {0}", WhitelistDirectoryPath);
+            Directory.CreateDirectory(AllowlistDirectoryPath);
+            Console.WriteLine("Log directory {0}", AllowlistDirectoryPath);
 
             base.Prepare();
         }
@@ -138,7 +141,7 @@ namespace BuildXL.Execution.Analyzer
             List<(AbsolutePath absolutePath, string logPath, string line)> pathAccesses = new List<(AbsolutePath absolutePath, string logPath, string line)>();
 
             // TODO: Generally execution log analyzers shouldn't rely on textual log
-            // This is here until execution log event for whitelist entries can be added.
+            // This is here until execution log event for allowlist entries can be added.
             Regex regex = new Regex("DX0269.*\\[Pip(?<pip>\\w*),.*was detected on '(?<fileName>[^']+)' with \\[[^\\]]+\\]\\((?<accessType>[^\\)]+)\\)");
 
             foreach (var logPath in LogPaths)
@@ -192,9 +195,9 @@ namespace BuildXL.Execution.Analyzer
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
-            using (var logFileWriter = new StreamWriter(Path.Combine(WhitelistDirectoryPath, "log.txt")))
-            using (var allViolationsWriter = new StreamWriter(Path.Combine(WhitelistDirectoryPath, "AllViolations.txt")))
-            using (var importantViolationsWriter = new StreamWriter(Path.Combine(WhitelistDirectoryPath, "ImportantViolations.txt")))
+            using (var logFileWriter = new StreamWriter(Path.Combine(AllowlistDirectoryPath, "log.txt")))
+            using (var allViolationsWriter = new StreamWriter(Path.Combine(AllowlistDirectoryPath, "AllViolations.txt")))
+            using (var importantViolationsWriter = new StreamWriter(Path.Combine(AllowlistDirectoryPath, "ImportantViolations.txt")))
             {
                 m_logWriter = new MultiWriter(TextWriter.Synchronized(logFileWriter), Console.Out);
                 m_allViolationsWriter = new MultiWriter(allViolationsWriter);
@@ -202,7 +205,7 @@ namespace BuildXL.Execution.Analyzer
 
                 var accessLookup = ComputeAccesses(m_logWriter);
 
-                FileMonitoringViolationAnalyzer analyzer = new WhitelistFileMonitoringViolationAnalyzer(LoggingContext, CachedGraph.Context, CachedGraph.PipGraph, this);
+                FileMonitoringViolationAnalyzer analyzer = new AllowlistFileMonitoringViolationAnalyzer(LoggingContext, CachedGraph.Context, CachedGraph.PipGraph, this);
 
                 foreach (var pipReference in CachedGraph.PipGraph.RetrievePipReferencesOfType(PipType.Process))
                 {
@@ -212,7 +215,7 @@ namespace BuildXL.Execution.Analyzer
                         analyzer.AnalyzePipViolations(
                             process,
                             violations: ConvertAccesses(accessLookup[process.PipId]),
-                            whitelistedAccesses: null,
+                            allowlistedAccesses: null,
                             exclusiveOpaqueDirectoryContent: ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.Empty,
                             sharedOpaqueDirectoryWriteAccesses: null,
                             allowedUndeclaredReads: null,
@@ -364,14 +367,14 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
-        private sealed class WhitelistFileMonitoringViolationAnalyzer : FileMonitoringViolationAnalyzer
+        private sealed class AllowlistFileMonitoringViolationAnalyzer : FileMonitoringViolationAnalyzer
         {
-            private readonly WhitelistAnalyzer m_whitelistAnalyzer;
+            private readonly AllowlistAnalyzer m_allowlistAnalyzer;
 
-            public WhitelistFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, PipGraph pipGraph, WhitelistAnalyzer whitelistAnalyzer)
-                : base(loggingContext, context, pipGraph, new QueryableFileContentManager(whitelistAnalyzer.OutputDirectoryContent), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: Utilities.Configuration.DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true)
+            public AllowlistFileMonitoringViolationAnalyzer(LoggingContext loggingContext, PipExecutionContext context, PipGraph pipGraph, AllowlistAnalyzer allowlistAnalyzer)
+                : base(loggingContext, context, pipGraph, new QueryableFileContentManager(allowlistAnalyzer.OutputDirectoryContent), validateDistribution: false, ignoreDynamicWritesOnAbsentProbes: Utilities.Configuration.DynamicWriteOnAbsentProbePolicy.IgnoreNothing, unexpectedFileAccessesAsErrors: true)
             {
-                m_whitelistAnalyzer = whitelistAnalyzer;
+                m_allowlistAnalyzer = allowlistAnalyzer;
             }
 
             protected override ReportedViolation HandleDependencyViolation(
@@ -379,11 +382,11 @@ namespace BuildXL.Execution.Analyzer
                 AccessLevel accessLevel, 
                 AbsolutePath path, 
                 Process violator,
-                bool isWhitelistedViolation,
+                bool isAllowlistedViolation,
                 Pip related,
                 AbsolutePath processPath)
             {
-                m_whitelistAnalyzer.HandleDependencyViolation(violationType, accessLevel, path, violator, related);
+                m_allowlistAnalyzer.HandleDependencyViolation(violationType, accessLevel, path, violator, related);
 
                 // Dummy return value
                 return new ReportedViolation(false, violationType, path, violator.PipId, related?.PipId, processPath);

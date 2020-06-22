@@ -343,7 +343,7 @@ namespace Test.BuildXL.Scheduler
                 analyzer.AnalyzePipViolations(
                     violator,
                     new[] { CreateViolation(RequestedAccess.Read, producerOutput) },
-                    null, // whitelisted accesses
+                    null, // allowlisted accesses
                     exclusiveOpaqueDirectoryContent: null,
                     sharedOpaqueDirectoryWriteAccesses: null,
                     allowedUndeclaredReads: null,
@@ -919,7 +919,7 @@ namespace Test.BuildXL.Scheduler
             analyzer.AnalyzePipViolations(
                 prober,
                 violations: null,
-                whitelistedAccesses: null,
+                allowlistedAccesses: null,
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: null,
                 allowedUndeclaredReads: null,
@@ -936,7 +936,7 @@ namespace Test.BuildXL.Scheduler
             analyzer.AnalyzePipViolations(
                 producer,
                 violations: null,
-                whitelistedAccesses: null,
+                allowlistedAccesses: null,
                 exclusiveOpaqueDirectoryContent: null,
                 sharedOpaqueDirectoryWriteAccesses: sodWrites,
                 allowedUndeclaredReads: null,
@@ -1024,14 +1024,14 @@ namespace Test.BuildXL.Scheduler
             AccessLevel accessLevel,
             AbsolutePath path,
             Process violator,
-            bool isWhitelistedViolation,
+            bool isAllowlistedViolation,
             Pip related,
             AbsolutePath processPath)
         {
             ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId, processPath);
             if (m_doLogging)
             {
-                reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isWhitelistedViolation, related, processPath);
+                reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isAllowlistedViolation, related, processPath);
             }
 
             // Always collect error violations, and also collect other non-errors if asked to.

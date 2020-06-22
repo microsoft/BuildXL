@@ -740,7 +740,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                     if (valid != observedInputs.Length)
                     {
-                        // We may have valid < observedInputs.Length due to SuppressAndIgnorePath, e.g. due to monitoring whitelists.
+                        // We may have valid < observedInputs.Length due to SuppressAndIgnorePath, e.g. due to monitoring allowlists.
                         Array.Resize(ref observedInputs, valid);
                     }
 

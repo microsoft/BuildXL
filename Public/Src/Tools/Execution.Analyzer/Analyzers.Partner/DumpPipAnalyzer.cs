@@ -260,7 +260,7 @@ namespace BuildXL.Execution.Analyzer
                         "Process Execution Monitoring",
                         m_html.CreateRow("ReportedProcesses", new XElement("div", data.ReportedProcesses.Select(RenderReportedProcess))),
                         m_html.CreateRow("ReportedFileAcceses", new XElement("div", data.ReportedFileAccesses.Select(RenderReportedFileAccess))),
-                        m_html.CreateRow("WhitelistedReportedFileAccesses", new XElement("div", data.WhitelistedReportedFileAccesses.Select(RenderReportedFileAccess))),
+                        m_html.CreateRow("AllowlistedReportedFileAccesses", new XElement("div", data.AllowlistedReportedFileAccesses.Select(RenderReportedFileAccess))),
                         m_html.CreateRow("ProcessDetouringStatuses", new XElement("div", data.ProcessDetouringStatuses.Select(RenderProcessDetouringStatusData)))));
             }
         }

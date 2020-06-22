@@ -174,7 +174,7 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
 }
 
 // Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-// These files now can be whitelisted, but there are already users deployed without the whitelisting feature
+// These files now can be allowlisted, but there are already users deployed without the allowlisting feature
 // that rely on these file accesses not blocked.
 // These are some tools that use internal files or do some implicit directory creation, etc.
 // In this list the tools are the CCI based set of products, csc compiler, resource compiler, build.exe trace log, etc.
@@ -270,7 +270,7 @@ bool GetSpecialCaseRulesForSpecialTools(
 //     1. Code coverage runs
 //     2. Te drive devices
 //     3. Dos devices and special system devices/names (pipes, null dev etc).
-// These accesses now should be white listed, but many users have deployed products that have specs not declaring such accesses.
+// These accesses now should be allowlisted, but many users have deployed products that have specs not declaring such accesses.
 bool GetSpecialCaseRulesForCoverageAndSpecialDevices(
     __in  PCWSTR absolutePath,
     __in  size_t absolutePathLength,

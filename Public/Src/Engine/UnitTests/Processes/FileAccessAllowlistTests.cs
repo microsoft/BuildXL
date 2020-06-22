@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Test.BuildXL.Processes
 {
-    public class FileAccessWhitelistTests
+    public class FileAccessAllowlistTests
     {
         [Fact]
         public async Task TestSerialization()
@@ -21,40 +21,40 @@ namespace Test.BuildXL.Processes
 
             var pathTable = context.PathTable;
             var symbolTable = new SymbolTable(pathTable.StringTable);
-            var whitelist = new FileAccessWhitelist(context);
+            var allowlist = new FileAccessAllowlist(context);
 
             var path1 = AbsolutePath.Create(pathTable, @"\\fakePath\foo.txt");
             var path2 = AbsolutePath.Create(pathTable, @"\\fakePath\bar.txt");
             var regex1 = new SerializableRegex(@"dir\foo.txt");
-            var executableEntry1 = new ExecutablePathWhitelistEntry(
+            var executableEntry1 = new ExecutablePathAllowlistEntry(
                 path1, regex1, true, "entry1");
-            var executableEntry2 = new ExecutablePathWhitelistEntry(
+            var executableEntry2 = new ExecutablePathAllowlistEntry(
                 path2, new SerializableRegex("bar"), false, "entry2");
-            whitelist.Add(executableEntry1);
-            whitelist.Add(executableEntry2);
+            allowlist.Add(executableEntry1);
+            allowlist.Add(executableEntry2);
 
             var symbol1 = FullSymbol.Create(symbolTable, "symbol1");
-            var valueEntry = new ValuePathFileAccessWhitelistEntry(
+            var valueEntry = new ValuePathFileAccessAllowlistEntry(
                 symbol1, new SerializableRegex("symbol1"), false, null);
 
             var symbol2 = FullSymbol.Create(symbolTable, "symbol2");
-            var valueEntry2 = new ValuePathFileAccessWhitelistEntry(
+            var valueEntry2 = new ValuePathFileAccessAllowlistEntry(
                 symbol2, new SerializableRegex("symbol2"), false, "entry4");
-            whitelist.Add(valueEntry);
-            whitelist.Add(valueEntry2);
+            allowlist.Add(valueEntry);
+            allowlist.Add(valueEntry2);
 
-            XAssert.AreEqual(3, whitelist.UncacheableEntryCount);
-            XAssert.AreEqual(1, whitelist.CacheableEntryCount);
+            XAssert.AreEqual(3, allowlist.UncacheableEntryCount);
+            XAssert.AreEqual(1, allowlist.CacheableEntryCount);
             XAssert.AreEqual("Unnamed", valueEntry.Name);
 
             using (var ms = new MemoryStream())
             {
                 BuildXLWriter writer = new BuildXLWriter(true, ms, true, true);
-                whitelist.Serialize(writer);
+                allowlist.Serialize(writer);
 
                 ms.Position = 0;
                 BuildXLReader reader = new BuildXLReader(true, ms, true);
-                var deserialized = await FileAccessWhitelist.DeserializeAsync(reader, Task.FromResult<PipExecutionContext>(context));
+                var deserialized = await FileAccessAllowlist.DeserializeAsync(reader, Task.FromResult<PipExecutionContext>(context));
 
                 XAssert.AreEqual(2, deserialized.ExecutablePathEntries.Count);
                 XAssert.AreEqual(1, deserialized.ExecutablePathEntries[path1].Count);

@@ -893,9 +893,9 @@ namespace BuildXL.Engine
                 mutableConfig.Cache.CacheConfigFile = defaultCacheConfigFile;
             }
 
-            // There is funny handling in the configuration for these two settings in conjuction with whitelist settings:
+            // There is funny handling in the configuration for these two settings in conjuction with allowlist settings:
             //  * Turning off UnexpectedFileAccessesAreErrors (this code), or
-            //  * Declaring a whitelist in config.
+            //  * Declaring a allowlist in config.
             // (story 169157) Tracks cleaning this up.
             mutableConfig.Sandbox.FailUnexpectedFileAccesses = mutableConfig.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors;
 
@@ -1447,16 +1447,16 @@ namespace BuildXL.Engine
         {
             bool success = true;
 
-            // Engine settings for whitelists.
+            // Engine settings for allowlists.
             // NOTE: This is temporarily duplicated in the ConfigFileState.MergeIntoConfiguration for when the config is loaded from Cached Graph. This is scheduled for a later cleanup
-            if (moduleConfig.FileAccessWhiteList.Count > 0 || moduleConfig.CacheableFileAccessWhitelist.Count > 0)
+            if (moduleConfig.FileAccessAllowList.Count > 0 || moduleConfig.CacheableFileAccessAllowList.Count > 0)
             {
                 sandboxConfig.FailUnexpectedFileAccesses = false;
                 Logger.Log.FileAccessManifestSummary(
                     loggingContext,
                     moduleConfig.Name,
-                    moduleConfig.CacheableFileAccessWhitelist.Count,
-                    moduleConfig.FileAccessWhiteList.Count);
+                    moduleConfig.CacheableFileAccessAllowList.Count,
+                    moduleConfig.FileAccessAllowList.Count);
             }
 
             var allRules = new Dictionary<AbsolutePath, IDirectoryMembershipFingerprinterRule>();
@@ -1493,24 +1493,24 @@ namespace BuildXL.Engine
             }
 
             var symbolTableForValidation = new SymbolTable(pathTable.StringTable);
-            foreach (var whiteListEntry in moduleConfig.FileAccessWhiteList.Union(moduleConfig.CacheableFileAccessWhitelist))
+            foreach (var allowListEntry in moduleConfig.FileAccessAllowList.Union(moduleConfig.CacheableFileAccessAllowList))
             {
-                var location = whiteListEntry.Location.IsValid ? whiteListEntry.Location : moduleConfig.Location;
+                var location = allowListEntry.Location.IsValid ? allowListEntry.Location : moduleConfig.Location;
                 SerializableRegex pathRegex;
                 string error;
 
-                if (string.IsNullOrEmpty(whiteListEntry.PathRegex))
+                if (string.IsNullOrEmpty(allowListEntry.PathRegex))
                 {
-                    if (!FileAccessWhitelist.TryCreateWhitelistRegex(Regex.Escape(whiteListEntry.PathFragment), out pathRegex, out error))
+                    if (!FileAccessAllowlist.TryCreateAllowlistRegex(Regex.Escape(allowListEntry.PathFragment), out pathRegex, out error))
                     {
-                        throw Contract.AssertFailure("A whitelist regex should never fail to construct from an escaped pattern.");
+                        throw Contract.AssertFailure("An allowlist regex should never fail to construct from an escaped pattern.");
                     }
                 }
                 else
                 {
-                    if (!FileAccessWhitelist.TryCreateWhitelistRegex(whiteListEntry.PathRegex, out pathRegex, out error))
+                    if (!FileAccessAllowlist.TryCreateAllowlistRegex(allowListEntry.PathRegex, out pathRegex, out error))
                     {
-                        Logger.Log.FileAccessWhitelistEntryHasInvalidRegex(
+                        Logger.Log.FileAccessAllowlistEntryHasInvalidRegex(
                             loggingContext,
                             location.Path.ToString(pathTable),
                             location.Line,
@@ -1520,19 +1520,19 @@ namespace BuildXL.Engine
                     }
                 }
 
-                if (!string.IsNullOrEmpty(whiteListEntry.Value))
+                if (!string.IsNullOrEmpty(allowListEntry.Value))
                 {
                     FullSymbol symbol;
                     int characterWithError;
-                    if (FullSymbol.TryCreate(symbolTableForValidation, whiteListEntry.Value, out symbol, out characterWithError) !=
+                    if (FullSymbol.TryCreate(symbolTableForValidation, allowListEntry.Value, out symbol, out characterWithError) !=
                         FullSymbol.ParseResult.Success)
                     {
-                        Logger.Log.FileAccessWhitelistCouldNotCreateIdentifier(
+                        Logger.Log.FileAccessAllowlistCouldNotCreateIdentifier(
                             loggingContext,
                             location.Path.ToString(pathTable),
                             location.Line,
                             location.Position,
-                            whiteListEntry.Value);
+                            allowListEntry.Value);
                         success = false;
                     }
                 }

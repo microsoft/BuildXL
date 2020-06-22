@@ -342,7 +342,7 @@ namespace BuildXL.FrontEnd.Rush
                 m_resolverSettings.File,
                 projectFiles,
                 allowedModuleDependencies: null, // no module policies
-                cyclicalFriendModules: null); // no whitelist of cycles
+                cyclicalFriendModules: null); // no allowlist of cycles
 
             return new RushGraphResult(rushGraph, moduleDefinition, exports);
         }

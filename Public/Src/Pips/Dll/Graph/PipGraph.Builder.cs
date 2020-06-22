@@ -1394,7 +1394,7 @@ namespace BuildXL.Pips.Graph
                     return false;
                 }
 
-                if (process.PreserveOutputWhitelist.IsValid && process.PreserveOutputWhitelist.Length > 0)
+                if (process.PreserveOutputAllowlist.IsValid && process.PreserveOutputAllowlist.Length > 0)
                 {
                     if (!process.AllowPreserveOutputs)
                     {
@@ -1402,11 +1402,11 @@ namespace BuildXL.Pips.Graph
                         return false;
                     }
 
-                    foreach (var whitelistPath in process.PreserveOutputWhitelist)
+                    foreach (var allowlistpath in process.PreserveOutputAllowlist)
                     {
-                        if (!outputsByPath.ContainsKey(whitelistPath) && !outputDirectorySet.Contains(whitelistPath))
+                        if (!outputsByPath.ContainsKey(allowlistpath) && !outputDirectorySet.Contains(allowlistpath))
                         {
-                            LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist, process);
+                            LogEventWithPipProvenance(Logger.ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist, process);
                             return false;
                         }
                     }

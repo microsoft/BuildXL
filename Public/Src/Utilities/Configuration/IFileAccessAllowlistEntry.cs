@@ -4,12 +4,12 @@
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Allow List entry
     /// </summary>
-    public partial interface IFileAccessWhitelistEntry : ITrackedValue
+    public partial interface IFileAccessAllowlistEntry : ITrackedValue
     {
         /// <summary>
-        /// Name of the whitelist exception rule.
+        /// Name of the allow exception rule.
         /// </summary>
         string Name { get; }
 

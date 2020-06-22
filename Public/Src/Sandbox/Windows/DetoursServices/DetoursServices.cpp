@@ -721,8 +721,8 @@ static bool InitializeAttributeList(ProcessCreationAttributes& attr, bool addPro
     return true;
 }
 
-/** Populates an LPPROC_THREAD_ATTRIBUTE_LIST that specifies whitelisted inheritance of the given handles.
-- At least one handle must be provided (an empty whitelist is not represented; just leave off the attribute list).
+/** Populates an LPPROC_THREAD_ATTRIBUTE_LIST that specifies allowlisted inheritance of the given handles.
+- At least one handle must be provided (an empty allowlist is not represented; just leave off the attribute list).
 - Upon successful return (true), `attr` is populated with an LPPROC_THREAD_ATTRIBUTE_LIST and the underlying handle array.
 - On failure (false), the contents of `attr` are undefined (though some members may need to destruct).
 */

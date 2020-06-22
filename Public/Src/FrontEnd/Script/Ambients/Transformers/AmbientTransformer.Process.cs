@@ -167,7 +167,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeHasUntrackedChildProcesses;
         private SymbolAtom m_unsafeAllowPreservedOutputs;
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
-        private SymbolAtom m_unsafePreserveOutputWhitelist;
+        private SymbolAtom m_unsafePreserveOutputAllowlist;
         private SymbolAtom m_unsafeIncrementalTool;
         private SymbolAtom m_unsafeRequireGlobalDependencies;
         private SymbolAtom m_unsafeChildProcessesToBreakawayFromSandbox;
@@ -320,7 +320,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeHasUntrackedChildProcesses = Symbol("hasUntrackedChildProcesses");
             m_unsafeAllowPreservedOutputs = Symbol("allowPreservedOutputs");
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
-            m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
+            m_unsafePreserveOutputAllowlist = Symbol("preserveOutputWhitelist"); // compatibility
+            m_unsafePreserveOutputAllowlist = Symbol("preserveOutputAllowlist");
             m_unsafeIncrementalTool = Symbol("incrementalTool");
             m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
             m_unsafeChildProcessesToBreakawayFromSandbox = Symbol("childProcessesToBreakawayFromSandbox");
@@ -1330,7 +1331,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 }
             }
 
-            processBuilder.PreserveOutputWhitelist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputWhitelist, strict: false, skipUndefined: true);
+            processBuilder.PreserveOutputAllowlist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputAllowlist, strict: false, skipUndefined: true);
 
             // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
             processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);

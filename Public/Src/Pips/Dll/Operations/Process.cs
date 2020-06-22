@@ -377,7 +377,7 @@ namespace BuildXL.Pips.Operations
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
-        public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
+        public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; }
 
         /// <summary>
         /// Class constructor
@@ -425,7 +425,7 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null,
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
@@ -532,12 +532,12 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel = containerIsolationLevel;
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
-            PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            PreserveOutputAllowlist = preserveOutputAllowlist ?? ReadOnlyArray<AbsolutePath>.Empty;
             ChangeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
 
-            if (PreserveOutputWhitelist.Length != 0)
+            if (PreserveOutputAllowlist.Length != 0)
             {
-                options |= Options.HasPreserveOutputWhitelist;
+                options |= Options.HasPreserveOutputAllowlist;
             }
 
             ProcessOptions = options;
@@ -592,7 +592,7 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact? changeAffectedInputListWrittenFilePath = default,
             int? preserveOutputsTrustLevel = null)
         {
@@ -639,7 +639,7 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel,
                 weight,
                 priority,
-                preserveOutputWhitelist ?? PreserveOutputWhitelist,
+                preserveOutputAllowlist ?? PreserveOutputAllowlist,
                 changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
 
@@ -922,7 +922,7 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
-                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
+                preserveOutputAllowlist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32(),
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
@@ -974,7 +974,7 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)ContainerIsolationLevel);
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
-            writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
+            writer.Write(PreserveOutputAllowlist, (w, v) => w.Write(v));
             writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
             writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));

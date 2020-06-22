@@ -258,7 +258,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void PreserveOutputsTestWithWhitelist()
+        public void PreserveOutputsTestWithAllowlist()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             var input = CreateSourceFile();
@@ -273,7 +273,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             });
 
             builder.Options |= Process.Options.AllowPreserveOutputs;
-            builder.PreserveOutputWhitelist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(outputPreserved);
+            builder.PreserveOutputAllowlist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(outputPreserved);
             var processAndOutputs = SchedulePipBuilder(builder);
 
             var outputContent = RunSchedulerAndGetOutputContents(outputPreserved, false, processAndOutputs.Process.PipId);
@@ -483,11 +483,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Testing preserve outputs in an opaque dir with preserveoutputwhitelist
+        /// Testing preserve outputs in an opaque dir with preserveoutputallowlist
         /// </summary>
         [Fact]
         [Feature(Features.OpaqueDirectory)]
-        public void PreserveOutputsOpaqueTestWithWhitelist()
+        public void PreserveOutputsOpaqueTestWithAllowlist()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
 
@@ -512,7 +512,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputDirectory(opaquePreservedPath);
             builder.AddOutputDirectory(opaqueUnpreservedPath);
             builder.Options |= Process.Options.AllowPreserveOutputs;
-            builder.PreserveOutputWhitelist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(opaquePreservedPath);
+            builder.PreserveOutputAllowlist = ReadOnlyArray<AbsolutePath>.FromWithoutCopy(opaquePreservedPath);
             var processAndOutputs = SchedulePipBuilder(builder);
 
             // No cache hit

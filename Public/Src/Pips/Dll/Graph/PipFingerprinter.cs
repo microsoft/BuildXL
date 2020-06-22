@@ -287,7 +287,7 @@ namespace BuildXL.Pips.Graph
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.UntrackedPaths), process.UntrackedPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.UntrackedScopes), process.UntrackedScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
-            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.PreserveOutputWhitelist), process.PreserveOutputWhitelist, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+            fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.PreserveOutputAllowlist), process.PreserveOutputAllowlist, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
             fingerprinter.Add(nameof(Process.HasUntrackedChildProcesses), process.HasUntrackedChildProcesses ? 1 : 0);
             fingerprinter.Add(nameof(Process.AllowUndeclaredSourceReads), process.AllowUndeclaredSourceReads ? 1 : 0);

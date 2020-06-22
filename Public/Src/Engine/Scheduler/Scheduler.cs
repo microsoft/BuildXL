@@ -745,9 +745,9 @@ namespace BuildXL.Scheduler
         private readonly JournalState m_journalState;
 
         /// <summary>
-        /// File access whitelist.
+        /// File access allowlist.
         /// </summary>
-        private readonly FileAccessWhitelist m_fileAccessWhitelist;
+        private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         /// <summary>
         /// Directory membership fingerprinter rule set.
@@ -1062,7 +1062,7 @@ namespace BuildXL.Scheduler
             FileContentTable fileContentTable,
             EngineCache cache,
             IConfiguration configuration,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             LoggingContext loggingContext,
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
@@ -1083,7 +1083,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(cache != null);
             Contract.Requires(fileContentTable != null);
             Contract.Requires(configuration != null);
-            Contract.Requires(fileAccessWhitelist != null);
+            Contract.Requires(fileAccessAllowlist != null);
             // Only allow this to be null in testing
             if (tempCleaner == null)
             {
@@ -1155,7 +1155,7 @@ namespace BuildXL.Scheduler
             DirectoryTranslator = directoryTranslator;
             m_directoryMembershipFingerprinterRules = directoryMembershipFingerprinterRules;
             m_previousInputsSalt = previousInputsSalt ?? UnsafeOptions.PreserveOutputsNotUsed;
-            m_fileAccessWhitelist = fileAccessWhitelist;
+            m_fileAccessAllowlist = fileAccessAllowlist;
 
             // Done setting up tracking of local disk state.
 
@@ -5758,7 +5758,7 @@ namespace BuildXL.Scheduler
                     loggingContext,
                     cache: m_pipTwoPhaseCache,
                     directoryMembershipFingerprinter: m_directoryMembershipFingerprinter,
-                    fileAccessWhitelist: m_fileAccessWhitelist,
+                    fileAccessAllowlist: m_fileAccessAllowlist,
                     pathExpander: m_semanticPathExpander,
                     executionLog: ExecutionLog,
                     fileSystemView: fileSystemView,

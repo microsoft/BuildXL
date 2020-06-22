@@ -230,14 +230,14 @@ namespace BuildXL.Engine
                 performanceDataFingerprint: performanceDataFingerprint,
                 pathExpander: mountPathExpander);
 
-            var whiteList = new FileAccessWhitelist(context);
+            var allowList = new FileAccessAllowlist(context);
             try
             {
-                whiteList.Initialize(configuration);
+                allowList.Initialize(configuration);
             }
             catch (BuildXLException ex)
             {
-                Logger.Log.FailedToInitializeFileAccessWhitelist(loggingContext, ex.Message);
+                Logger.Log.FailedToInitializeFileAccessAllowlist(loggingContext, ex.Message);
                 return null;
             }
 
@@ -245,7 +245,7 @@ namespace BuildXL.Engine
             moduleConfigurations.AddRange(configuration.ModulePolicies.Values);
 
             ConfigFileState configFileState = new ConfigFileState(
-                                                    whiteList,
+                                                    allowList,
                                                     configuration.Engine.DefaultFilter,
                                                     configuration.Cache.CacheSalt,
                                                     directoryMembershipFingerprinterRules,
@@ -279,7 +279,7 @@ namespace BuildXL.Engine
                     tempCleaner: tempCleaner,
                     loggingContext: loggingContext,
                     runningTimeTable: runtimeTable,
-                    fileAccessWhitelist: whiteList,
+                    fileAccessAllowlist: allowList,
                     directoryMembershipFingerprinterRules: directoryMembershipFingerprinterRules,
                     journalState: journalState,
                     performanceCollector: performanceCollector,
@@ -352,16 +352,16 @@ namespace BuildXL.Engine
 
             foreach (var moduleEntry in configFileState.ModuleConfigurations)
             {
-                var fileAccessWhitelist = configFileState.FileAccessWhitelist.GetModuleWhitelist(moduleEntry.ModuleId);
+                var fileAccessAllowlist = configFileState.FileAccessAllowlist.GetModuleAllowlist(moduleEntry.ModuleId);
 
-                // Only log the global module and module's which actually have whitelist entries
-                if (!moduleEntry.ModuleId.IsValid || fileAccessWhitelist != configFileState.FileAccessWhitelist)
+                // Only log the global module and module's which actually have allowlist entries
+                if (!moduleEntry.ModuleId.IsValid || fileAccessAllowlist != configFileState.FileAccessAllowlist)
                 {
                     Logger.Log.FileAccessManifestSummary(
                         loggingContext,
                         moduleEntry.Name,
-                        fileAccessWhitelist.CacheableEntryCount - configFileState.FileAccessWhitelist.CacheableEntryCount,
-                        fileAccessWhitelist.UncacheableEntryCount - configFileState.FileAccessWhitelist.UncacheableEntryCount);
+                        fileAccessAllowlist.CacheableEntryCount - configFileState.FileAccessAllowlist.CacheableEntryCount,
+                        fileAccessAllowlist.UncacheableEntryCount - configFileState.FileAccessAllowlist.UncacheableEntryCount);
                 }
             }
 
@@ -1498,10 +1498,10 @@ namespace BuildXL.Engine
 
             var schedulerPerformance = Scheduler.LogStats(loggingContext, buildSummary);
 
-            // Log whitelist file statistics
-            if (m_configFileState.FileAccessWhitelist != null && m_configFileState.FileAccessWhitelist.MatchedEntryCounts.Count > 0)
+            // Log allowlist file statistics
+            if (m_configFileState.FileAccessAllowlist != null && m_configFileState.FileAccessAllowlist.MatchedEntryCounts.Count > 0)
             {
-                Logger.Log.WhitelistFileAccess(loggingContext, m_configFileState.FileAccessWhitelist.MatchedEntryCounts);
+                Logger.Log.AllowlistFileAccess(loggingContext, m_configFileState.FileAccessAllowlist.MatchedEntryCounts);
             }
 
             return schedulerPerformance;
@@ -1670,7 +1670,7 @@ namespace BuildXL.Engine
                         configuration: newConfiguration,
                         journalState: journalState,
                         loggingContext: loggingContext,
-                        fileAccessWhitelist: configFileState.FileAccessWhitelist,
+                        fileAccessAllowlist: configFileState.FileAccessAllowlist,
                         directoryMembershipFingerprinterRules: configFileState.DirectoryMembershipFingerprinterRules,
                         runningTimeTable: runningTimeTable,
                         tempCleaner: tempCleaner,

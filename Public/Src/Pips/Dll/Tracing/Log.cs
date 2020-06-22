@@ -424,7 +424,7 @@ namespace BuildXL.Pips.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "The pip '{pipDescription}' could not be added because PreserveOutputWhitelist is set even though AllowPreserveOutputs is false for the pip).")]
+            Message = "The pip '{pipDescription}' could not be added because PreserveOutputAllowlist is set even though AllowPreserveOutputs is false for the pip).")]
         public abstract void ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag(
             LoggingContext context,
             string file,
@@ -435,13 +435,13 @@ namespace BuildXL.Pips.Tracing
             string pipValueId);
 
         [GeneratedEvent(
-            (int)LogEventId.ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist,
+            (int)LogEventId.ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputWhitelist is neither static file output nor directory output).")]
-        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist(
+            Message = "The pip '{pipDescription}' could not be added because one of PreserveOutputAllowlist is neither static file output nor directory output).")]
+        public abstract void ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist(
             LoggingContext context,
             string file,
             int line,

@@ -71,7 +71,7 @@ namespace Test.DScript.Ast.ModuleDependencies
         }
 
         [Fact]
-        public void CyclicalFriendsWhitelistCycles()
+        public void CyclicalFriendsAllowlistCycles()
         {
             // A -> B -> C -> A, but A allows C in a cycle
             BuildWithModulePolicies()
@@ -85,7 +85,7 @@ namespace Test.DScript.Ast.ModuleDependencies
         }
 
         [Fact]
-        public void CyclicalFriendsWhitelistCycles2()
+        public void CyclicalFriendsAllowlistCycles2()
         {
             // A -> B -> C -> A, but C allows B in a cycle
             BuildWithModulePolicies()

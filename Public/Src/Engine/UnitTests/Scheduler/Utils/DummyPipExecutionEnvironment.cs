@@ -100,7 +100,7 @@ namespace Test.BuildXL.Scheduler.Utils
             EngineCache pipCache = null,
             SemanticPathExpander semanticPathExpander = null,
             PipContentFingerprinter.PipDataLookup pipDataLookup = null,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             bool allowUnspecifiedSealedDirectories = false,
             PipTable pipTable = null,
             IIpcProvider ipcProvider = null,
@@ -129,7 +129,7 @@ namespace Test.BuildXL.Scheduler.Utils
 
             FileContentTable = fileContentTable ?? FileContentTable.CreateNew(LoggingContext);
             Cache = pipCache;
-            FileAccessWhitelist = fileAccessWhitelist;
+            FileAccessAllowlist = fileAccessAllowlist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
             m_sandboxConnectionKext = sandboxConnection;
 
@@ -156,7 +156,7 @@ namespace Test.BuildXL.Scheduler.Utils
                 config,
                 loggingContext,
                 cache: new PipTwoPhaseCache(loggingContext, Cache, context, PathExpander),
-                fileAccessWhitelist: FileAccessWhitelist,
+                fileAccessAllowlist: FileAccessAllowlist,
                 directoryMembershipFingerprinter: this,
                 pathExpander: PathExpander,
                 executionLog: ExecutionLogRecorder,
@@ -339,7 +339,7 @@ namespace Test.BuildXL.Scheduler.Utils
         public FileContentTable FileContentTable { get; }
 
         /// <inheritdoc />
-        public FileAccessWhitelist FileAccessWhitelist { get; }
+        public FileAccessAllowlist FileAccessAllowlist { get; }
 
         /// <summary>
         /// Gets the in memory content cache if applicable

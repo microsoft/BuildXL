@@ -687,7 +687,7 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByValue()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByValue()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var loggingContext = CreateLoggingContextForTest();
@@ -741,27 +741,27 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                FullSymbol whitelistedValue;
+                FullSymbol allowlistedValue;
                 int characterWithError;
-                if (FullSymbol.TryCreate(symbolTable, "WhitelistedValue", out whitelistedValue, out characterWithError) !=
+                if (FullSymbol.TryCreate(symbolTable, "AllowlistedValue", out allowlistedValue, out characterWithError) !=
                     FullSymbol.ParseResult.Success)
                 {
                     XAssert.Fail("Could not construct a FullSymbol from a string.");
                 }
 
-                fileAccessWhitelist.Add(
-                    new ValuePathFileAccessWhitelistEntry(
-                        whitelistedValue,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                fileAccessAllowlist.Add(
+                    new ValuePathFileAccessAllowlistEntry(
+                        allowlistedValue,
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
                         allowsCaching: false,
                         name: "name"));
 
@@ -769,14 +769,14 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByValueWithRegex()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByValueWithRegex()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var loggingContext = CreateLoggingContextForTest();
@@ -831,27 +831,27 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                FullSymbol whitelistedValue;
+                FullSymbol allowlistedValue;
                 int characterWithError;
-                if (FullSymbol.TryCreate(symbolTable, "WhitelistedValue", out whitelistedValue, out characterWithError) !=
+                if (FullSymbol.TryCreate(symbolTable, "AllowlistedValue", out allowlistedValue, out characterWithError) !=
                     FullSymbol.ParseResult.Success)
                 {
                     XAssert.Fail("Could not construct a FullSymbol from a string.");
                 }
 
-                fileAccessWhitelist.Add(
-                    new ValuePathFileAccessWhitelistEntry(
-                        whitelistedValue,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(PathSuffix) + '$'),
+                fileAccessAllowlist.Add(
+                    new ValuePathFileAccessAllowlistEntry(
+                        allowlistedValue,
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(PathSuffix) + '$'),
                         allowsCaching: false,
                         name: "name"));
 
@@ -859,14 +859,14 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
-        public async Task ProcessUnexpectedFileAccessWhitelistedByExecutable()
+        public async Task ProcessUnexpectedFileAccessAllowlistedByExecutable()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var loggingContext = CreateLoggingContextForTest();
@@ -920,19 +920,19 @@ namespace Test.BuildXL.Processes.Detours
                         0,
                         ModuleId.Invalid,
                         StringId.Invalid,
-                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "WhitelistedValue")),
+                        FullSymbol.Invalid.Combine(context.SymbolTable, SymbolAtom.CreateUnchecked(context.StringTable, "AllowlistedValue")),
                         LocationData.Invalid,
                         QualifierId.Unqualified,
                         PipData.Invalid),
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
-                var fileAccessWhitelist = new FileAccessWhitelist(context);
+                var fileAccessAllowlist = new FileAccessAllowlist(context);
 
-                fileAccessWhitelist.Add(
-                    new ExecutablePathWhitelistEntry(
+                fileAccessAllowlist.Add(
+                    new ExecutablePathAllowlistEntry(
                         executableFileArtifact.Path,
-                        FileAccessWhitelist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
+                        FileAccessAllowlist.RegexWithProperties(Regex.Escape(Path.GetFileName(undeclaredFileName))),
                         allowsCaching: false,
                         name: "name"));
 
@@ -940,10 +940,10 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist);
+                    fileAccessAllowlist);
             }
 
-            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable);
         }
 
         [Fact]
@@ -1029,7 +1029,7 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true, FailUnexpectedFileAccesses = false },
                     pip,
-                    fileAccessWhitelist: null,
+                    fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
@@ -1140,7 +1140,7 @@ namespace Test.BuildXL.Processes.Detours
                         UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { IgnoreUndeclaredAccessesUnderSharedOpaques = false },
                         LogObservedFileAccesses = true},
                     pip,
-                    fileAccessWhitelist: null,
+                    fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
@@ -1158,7 +1158,7 @@ namespace Test.BuildXL.Processes.Detours
                 else
                 {
                     // No violations when the pip is the one creating the file
-                    XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted);
+                    XAssert.AreEqual(null, result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);
                 }
             }
         }
@@ -2176,7 +2176,7 @@ namespace Test.BuildXL.Processes.Detours
                         UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { ProcessSymlinkedAccesses = true } 
                     },
                     pip,
-                    fileAccessWhitelist: null,
+                    fileAccessAllowlist: null,
                     new Dictionary<string, string>(),
                     SemanticPathExpander.Default,
                     new TestDirectoryArtifactContext(
@@ -2241,31 +2241,31 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessAllowlist, resultWrapper);
         }
 
         private Task AssertProcessFailsPreparation(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null)
+            FileAccessAllowlist fileAccessAllowlist = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessAllowlist);
         }
 
         private Task AssertProcessSucceedsAsync(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist = null,
+            FileAccessAllowlist fileAccessAllowlist = null,
             IDirectoryArtifactContext directoryArtifactContext = null,
             Action<int> processIdListener = null)
         {
             return AssertProcessCompletesWithStatusAsync(
-                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist,
+                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessAllowlist,
                 directoryArtifactContext: directoryArtifactContext,
                 processIdListener: processIdListener);
         }
@@ -2275,12 +2275,12 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null,
             IDirectoryArtifactContext directoryArtifactContext = null,
             Action<int> processIdListener = null)
         {
-            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext, processIdListener: processIdListener);
+            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessAllowlist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext, processIdListener: processIdListener);
 
             if (resultWrapper != null)
             {
@@ -2313,7 +2313,7 @@ namespace Test.BuildXL.Processes.Detours
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             IReadOnlyDictionary<string, string> rootMap,
             SemanticPathExpander expander,
             IDirectoryArtifactContext directoryArtifactContext = null,
@@ -2332,7 +2332,7 @@ namespace Test.BuildXL.Processes.Detours
                 null, // Not full instantiation of the engine. For such cases this is null.
                 rootMap,
                 new ProcessInContainerManager(loggingContext, context.PathTable),
-                fileAccessWhitelist,
+                fileAccessAllowlist,
                 null,
                 process.AllowPreserveOutputs ? dummyMakeOutputPrivate : null,
                 expander,

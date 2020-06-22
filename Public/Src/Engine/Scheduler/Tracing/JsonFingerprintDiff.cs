@@ -308,7 +308,7 @@ namespace BuildXL.Scheduler.Tracing
                 case nameof(Process.DirectoryOutputs):
                 case nameof(Process.UntrackedPaths):
                 case nameof(Process.UntrackedScopes):
-                case nameof(Process.PreserveOutputWhitelist):
+                case nameof(Process.PreserveOutputAllowlist):
                 case nameof(Process.SuccessExitCodes):
                 case PipFingerprintField.Process.SourceChangeAffectedInputList:
                 case nameof(Process.ChildProcessesToBreakawayFromSandbox):

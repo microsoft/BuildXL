@@ -35,7 +35,7 @@ namespace BuildXL.Processes
 {
     /// <summary>
     /// A process abstraction for BuildXL that can monitor environment interactions, in particular file accesses, that ensures
-    /// that all file accesses are on a white-list.
+    /// that all file accesses are on an allowlist.
     /// Under the hood, the sandboxed process uses Detours.
     /// </summary>
     /// <remarks>

@@ -127,9 +127,9 @@ namespace BuildXL.Execution.Analyzer
                     UncacheablePips.Add(data.PipId);
                 }
 
-                if (performance.FileMonitoringViolations.NumFileAccessViolationsNotWhitelisted > 0)
+                if (performance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted > 0)
                 {
-                    // Non-whitelisted pips that have file access violations are not cached.
+                    // Non-allowlisted pips that have file access violations are not cached.
                     // This can occur in a passing build if UnexpectedFileAccessesAreErrors is disabled.
                     UncacheablePips.Add(data.PipId);
                 }

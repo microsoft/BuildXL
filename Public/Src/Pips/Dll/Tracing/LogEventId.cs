@@ -41,7 +41,7 @@ namespace BuildXL.Pips.Tracing
 
         NoPipsMatchedFilter = 295,
         InvalidPipDueToInvalidServicePipDependency = 296,
-        ScheduleFailAddPipDueToInvalidPreserveOutputWhitelist = 302,
+        ScheduleFailAddPipDueToInvalidPreserveOutputAllowlist = 302,
         ScheduleFailAddPipDueToInvalidAllowPreserveOutputsFlag = 303,
         InvalidInputSinceCorrespondingOutputIsTemporary = 310,
 

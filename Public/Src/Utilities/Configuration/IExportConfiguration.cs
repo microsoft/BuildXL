@@ -4,7 +4,7 @@
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// White List entry
+    /// Export configuration
     /// </summary>
     public partial interface IExportConfiguration
     {

@@ -128,7 +128,7 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract TryGetMountResult TryGetMount(string name, string frontEnd, ModuleId moduleId, out IMount mount);
 
         /// <summary>
-        /// After config parsing we'll have a list of build parameters that are white-listed.
+        /// After config parsing we'll have a list of build parameters that are allowlisted.
         /// This method informs the engine of this.
         /// </summary>
         public abstract void RestrictBuildParameters(IEnumerable<string> buildParameterNames);

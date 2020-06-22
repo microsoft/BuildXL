@@ -12,12 +12,12 @@ using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// A rule that can determine whether a given file access is whitelisted.
+    /// A rule that can determine whether a given file access is allowlisted.
     /// </summary>
-    public abstract class FileAccessWhitelistEntry
+    public abstract class FileAccessAllowlistEntry
     {
         /// <summary>
-        /// Determines whether a pip execution with *only* this violation (and other similarly-whitelisted violations) should be cached.
+        /// Determines whether a pip execution with *only* this violation (and other similarly-allowlisted violations) should be cached.
         /// </summary>
         public bool AllowsCaching { get; }
 
@@ -27,14 +27,14 @@ namespace BuildXL.Processes
         internal SerializableRegex PathRegex { get; }
 
         /// <summary>
-        /// The name of the whitelist rule
+        /// The name of the allowlist rule
         /// </summary>
         public string Name { get; }
 
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected FileAccessWhitelistEntry([NotNull]SerializableRegex pathRegex, bool allowsCaching, string name)
+        protected FileAccessAllowlistEntry([NotNull]SerializableRegex pathRegex, bool allowsCaching, string name)
         {
             Contract.Requires(pathRegex != null);
 
@@ -44,10 +44,10 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Determine whether a ReportedFileAccess matches the whitelist rules.
+        /// Determine whether a ReportedFileAccess matches the allowlist rules.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011", Justification = "Only a Process can have unknown file accesses.")]
-        public abstract FileAccessWhitelist.MatchType Matches(ReportedFileAccess reportedFileAccess, [NotNull]Process pip, [NotNull]PathTable pathTable);
+        public abstract FileAccessAllowlist.MatchType Matches(ReportedFileAccess reportedFileAccess, [NotNull]Process pip, [NotNull]PathTable pathTable);
 
         #region Serialization
 
@@ -87,7 +87,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// State that is serialized for the FileAccessWhitelistEntry
+        /// State that is serialized for the FileAccessAllowlistEntry
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1815:ShouldOverrideEquals")]
         protected struct SerializationState
@@ -103,7 +103,7 @@ namespace BuildXL.Processes
             public bool AllowsCaching;
 
             /// <summary>
-            /// Name of the whitelist entry
+            /// Name of the allowlist entry
             /// </summary>
             public string Name;
         }

@@ -930,7 +930,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The reported file accesses
         /// </summary>
-        public IReadOnlyCollection<ReportedFileAccess> WhitelistedReportedFileAccesses;
+        public IReadOnlyCollection<ReportedFileAccess> AllowlistedReportedFileAccesses;
 
         /// <summary>
         /// The reported Process Detouring Status messages
@@ -948,7 +948,7 @@ namespace BuildXL.Scheduler.Tracing
             ExecutionResultSerializer.WriteReportedProcessesAndFileAccesses(
                 writer,
                 ReportedFileAccesses,
-                WhitelistedReportedFileAccesses,
+                AllowlistedReportedFileAccesses,
                 ReportedProcesses);
             writer.Write(
                 ProcessDetouringStatuses, 
@@ -960,17 +960,17 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId = PipId.Deserialize(reader);
             ReportedFileAccess[] reportedFileAccesses;
-            ReportedFileAccess[] whitelistedReportedFileAccesses;
+            ReportedFileAccess[] allowlistedReportedFileAccesses;
             ReportedProcess[] reportedProcesses;
             ExecutionResultSerializer.ReadReportedProcessesAndFileAccesses(
                 reader,
                 out reportedFileAccesses,
-                out whitelistedReportedFileAccesses,
+                out allowlistedReportedFileAccesses,
                 out reportedProcesses);
             ProcessDetouringStatuses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ProcessDetouringStatusData.Deserialize(r2)));
             ReportedProcesses = reportedProcesses;
             ReportedFileAccesses = reportedFileAccesses;
-            WhitelistedReportedFileAccesses = whitelistedReportedFileAccesses;
+            AllowlistedReportedFileAccesses = allowlistedReportedFileAccesses;
         }
     }
 

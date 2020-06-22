@@ -6831,9 +6831,9 @@ namespace Test.BuildXL.Processes.Detours
         {
             XAssert.AreEqual(
                 expectedCount,
-                result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted == null
+                result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted == null
                 ? 0
-                : result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+                : result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted.Count);
         }
 
         private static void VerifyNoFileAccessViolation(SandboxedProcessPipExecutionResult result) => VerifyFileAccessViolations(result, expectedCount: 0);
@@ -6847,12 +6847,12 @@ namespace Test.BuildXL.Processes.Detours
         private static void VerifyNoObservedFileAccessesAndUnexpectedFileAccesses(SandboxedProcessPipExecutionResult result, string[] unexpectedFileAccesses, PathTable pathTable)
         {
             XAssert.AreEqual(0, result.ObservedFileAccesses.Length);
-            VerifyFileAccessViolations(result, result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted.Count);
+            VerifyFileAccessViolations(result, result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted.Count);
 
             foreach (string unexpectedFileAccessExpected in unexpectedFileAccesses)
             {
                 bool exitInner = false;
-                foreach (ReportedFileAccess unexpectedFileAccess in result.UnexpectedFileAccesses.FileAccessViolationsNotWhitelisted)
+                foreach (ReportedFileAccess unexpectedFileAccess in result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted)
                 {
                     if (exitInner)
                     {

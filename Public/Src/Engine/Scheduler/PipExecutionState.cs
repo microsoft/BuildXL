@@ -37,9 +37,9 @@ namespace BuildXL.Scheduler
         private readonly DirectoryMembershipFingerprinterRuleSet m_directoryMembershipFingerprinterRuleSet;
 
         /// <summary>
-        /// Whitelist for allowed-without-warning-but-unpredicted file operations.
+        /// Allowlist for allowed-without-warning-but-unpredicted file operations.
         /// </summary>
-        private readonly FileAccessWhitelist m_fileAccessWhitelist;
+        private readonly FileAccessAllowlist m_fileAccessAllowlist;
 
         /// <summary>
         /// Used to retrieve semantic path information
@@ -118,7 +118,7 @@ namespace BuildXL.Scheduler
             IConfiguration configuration,
             LoggingContext loggingContext,
             PipTwoPhaseCache cache,
-            FileAccessWhitelist fileAccessWhitelist,
+            FileAccessAllowlist fileAccessAllowlist,
             IDirectoryMembershipFingerprinter directoryMembershipFingerprinter,
             SemanticPathExpander pathExpander,
             IExecutionLogTarget executionLog,
@@ -135,7 +135,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(pathExpander != null);
 
             Cache = cache;
-            m_fileAccessWhitelist = fileAccessWhitelist;
+            m_fileAccessAllowlist = fileAccessAllowlist;
             DirectoryMembershipFingerprinter = directoryMembershipFingerprinter;
             ResourceManager = new ProcessResourceManager(loggingContext);
             m_pathExpander = new FileContentManagerSemanticPathExpander(fileContentManager, pathExpander);

@@ -200,7 +200,7 @@ namespace Test.BuildXL.Processes
                 loggingConfig: null,
                 rootMappings: new Dictionary<string, string>(),
                 processInContainerManager: new ProcessInContainerManager(loggingContext, context.PathTable),
-                whitelist: null,
+                allowlist: null,
                 makeInputPrivate: null,
                 makeOutputPrivate: null,
                 semanticPathExpander: SemanticPathExpander.Default,

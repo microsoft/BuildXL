@@ -39,8 +39,8 @@ namespace BuildXL.Scheduler
         }
 
         private PipResultStatus m_result;
-        private IReadOnlyList<ReportedFileAccess> m_fileAccessViolationsNotWhitelisted;
-        private IReadOnlyList<ReportedFileAccess> m_whitelistedFileAccessViolations;
+        private IReadOnlyList<ReportedFileAccess> m_fileAccessViolationsNotAllowlisted;
+        private IReadOnlyList<ReportedFileAccess> m_allowlistedFileAccessViolations;
         private int m_numberOfWarnings;
         private ProcessPipExecutionPerformance m_performanceInformation;
         private WeakContentFingerprint? m_weakFingerprint;
@@ -165,38 +165,38 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were not whitelisted. These are 'violations'.
+        /// Gets the collection of unexpected file accesses reported so far that were not allowlisted. These are 'violations'.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotWhitelisted
+        public IReadOnlyList<ReportedFileAccess> FileAccessViolationsNotAllowlisted
         {
             get
             {
                 EnsureSealed();
-                return m_fileAccessViolationsNotWhitelisted;
+                return m_fileAccessViolationsNotAllowlisted;
             }
 
             set
             {
                 EnsureUnsealed();
-                InnerUnsealedState.FileAccessViolationsNotWhitelisted = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
+                InnerUnsealedState.FileAccessViolationsNotAllowlisted = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
             }
         }
 
         /// <summary>
-        /// Gets the collection of unexpected file accesses reported so far that were whitelisted.
+        /// Gets the collection of unexpected file accesses reported so far that were allowlisted.
         /// </summary>
-        public IReadOnlyList<ReportedFileAccess> WhitelistedFileAccessViolations
+        public IReadOnlyList<ReportedFileAccess> AllowlistedFileAccessViolations
         {
             get
             {
                 EnsureSealed();
-                return m_whitelistedFileAccessViolations;
+                return m_allowlistedFileAccessViolations;
             }
 
             set
             {
                 EnsureUnsealed();
-                InnerUnsealedState.WhitelistedFileAccessViolations = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
+                InnerUnsealedState.AllowlistedFileAccessViolations = new Optional<IReadOnlyList<ReportedFileAccess>>(value);
             }
         }
 
@@ -437,8 +437,8 @@ namespace BuildXL.Scheduler
             ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> directoryOutputs,
             ProcessPipExecutionPerformance performanceInformation,
             WeakContentFingerprint? fingerprint,
-            IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotWhitelisted,
-            IReadOnlyList<ReportedFileAccess> whitelistedFileAccessViolations,
+            IReadOnlyList<ReportedFileAccess> fileAccessViolationsNotAllowlisted,
+            IReadOnlyList<ReportedFileAccess> allowlistedFileAccessViolations,
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
@@ -464,8 +464,8 @@ namespace BuildXL.Scheduler
                     SharedDynamicDirectoryWriteAccesses = ComputeSharedDynamicAccessesFrom(directoryOutputs),
                     m_performanceInformation = performanceInformation,
                     m_weakFingerprint = fingerprint,
-                    m_fileAccessViolationsNotWhitelisted = fileAccessViolationsNotWhitelisted,
-                    m_whitelistedFileAccessViolations = whitelistedFileAccessViolations,
+                    m_fileAccessViolationsNotAllowlisted = fileAccessViolationsNotAllowlisted,
+                    m_allowlistedFileAccessViolations = allowlistedFileAccessViolations,
                     m_mustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty,
                     m_dynamicallyObservedFiles = dynamicallyObservedFiles,
                     m_dynamicallyProbedFiles = dynamicallyProbedFiles,
@@ -507,8 +507,8 @@ namespace BuildXL.Scheduler
                 convergedCacheResult.DirectoryOutputs,
                 PerformanceInformation,
                 WeakFingerprint,
-                FileAccessViolationsNotWhitelisted,
-                WhitelistedFileAccessViolations,
+                FileAccessViolationsNotAllowlisted,
+                AllowlistedFileAccessViolations,
                 convergedCacheResult.MustBeConsideredPerpetuallyDirty,
                 // Converged result does not have values for the following dynamic observations. Use the observations from this result.
                 DynamicallyObservedFiles,
@@ -541,8 +541,8 @@ namespace BuildXL.Scheduler
                 DirectoryOutputs,
                 PerformanceInformation,
                 WeakFingerprint,
-                FileAccessViolationsNotWhitelisted,
-                WhitelistedFileAccessViolations,
+                FileAccessViolationsNotAllowlisted,
+                AllowlistedFileAccessViolations,
                 MustBeConsideredPerpetuallyDirty,
                 DynamicallyObservedFiles,
                 DynamicallyProbedFiles,
@@ -732,14 +732,14 @@ namespace BuildXL.Scheduler
                             m_unsealedState.UnexpectedFileAccessCounters.HasValue,
                             "File access counters are available when the status is not PreparationFailed");
                         Contract.Assert(
-                            m_unsealedState.FileAccessViolationsNotWhitelisted.IsValid,
+                            m_unsealedState.FileAccessViolationsNotAllowlisted.IsValid,
                             "File access violations not set when the status is not PreparationFailed");
 
                         TimeSpan wallClockTime = (TimeSpan)processResult.PrimaryProcessTimes?.TotalWallClockTime;
                         JobObject.AccountingInformation jobAccounting = processResult.JobAccountingInformation ??
                                                                         default(JobObject.AccountingInformation);
-                        m_fileAccessViolationsNotWhitelisted = m_unsealedState.FileAccessViolationsNotWhitelisted.Value;
-                        m_whitelistedFileAccessViolations = m_unsealedState.WhitelistedFileAccessViolations.Value;
+                        m_fileAccessViolationsNotAllowlisted = m_unsealedState.FileAccessViolationsNotAllowlisted.Value;
+                        m_allowlistedFileAccessViolations = m_unsealedState.AllowlistedFileAccessViolations.Value;
 
                         m_performanceInformation = new ProcessPipExecutionPerformance(
                             m_result.ToExecutionLevel(),
@@ -785,9 +785,9 @@ namespace BuildXL.Scheduler
         private static FileMonitoringViolationCounters ConvertFileMonitoringViolationCounters(UnexpectedFileAccessCounters counters)
         {
             return new FileMonitoringViolationCounters(
-                numFileAccessViolationsNotWhitelisted: counters.NumFileAccessViolationsNotWhitelisted,
-                numFileAccessesWhitelistedAndCacheable: counters.NumFileAccessesWhitelistedAndCacheable,
-                numFileAccessesWhitelistedButNotCacheable: counters.NumFileAccessesWhitelistedButNotCacheable);
+                numFileAccessViolationsNotAllowlisted: counters.NumFileAccessViolationsNotAllowlisted,
+                numFileAccessesAllowlistedAndCacheable: counters.NumFileAccessesAllowlistedAndCacheable,
+                numFileAccessesAllowlistedButNotCacheable: counters.NumFileAccessesAllowlistedButNotCacheable);
         }
 
         private sealed class UnsealedState
@@ -795,8 +795,8 @@ namespace BuildXL.Scheduler
             private SandboxedProcessPipExecutionResult m_executionResult;
 
             public bool SandboxedResultReported { get; private set; }
-            public Optional<IReadOnlyList<ReportedFileAccess>> FileAccessViolationsNotWhitelisted;
-            public Optional<IReadOnlyList<ReportedFileAccess>> WhitelistedFileAccessViolations;
+            public Optional<IReadOnlyList<ReportedFileAccess>> FileAccessViolationsNotAllowlisted;
+            public Optional<IReadOnlyList<ReportedFileAccess>> AllowlistedFileAccessViolations;
             public PipResultStatus? Result;
             public SandboxedProcessPipExecutionResult ExecutionResult
             {

@@ -134,7 +134,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
         }
 
         /// <summary>
-        /// DScript prints a whitelist before each list with five or more elements
+        /// DScript prints an allowlist before each list with five or more elements
         /// </summary>
         public override void VisitPropertyAssignment(PropertyAssignment node)
         {

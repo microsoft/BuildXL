@@ -160,10 +160,10 @@ namespace BuildXL.Pips
         public virtual bool IsIncrementalTool() => false;
 
         /// <summary>
-        /// Checks if pip using a non-empty preserveOutputWhitelist
+        /// Checks if pip using a non-empty preserveOutputAllowlist
         /// </summary>
         /// <returns></returns>
-        public virtual bool HasPreserveOutputWhitelist() => false;
+        public virtual bool HasPreserveOutputAllowlist() => false;
 
         /// <summary>
         /// Get pip preserve outputs trust level
@@ -266,7 +266,7 @@ namespace BuildXL.Pips
 
         public override bool IsIncrementalTool() => (ProcessOptions & Process.Options.IncrementalTool) == Process.Options.IncrementalTool;
 
-        public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
+        public override bool HasPreserveOutputAllowlist() => (ProcessOptions & Process.Options.HasPreserveOutputAllowlist) != 0;
 
         public override bool MustOutputsRemainWritable() => (ProcessOptions & Process.Options.OutputsMustRemainWritable) != 0;
 

@@ -1248,7 +1248,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         // Since setting ACLs seems to flip on the Archive bit,
         // we have to be content with allowing the archive bit to be set for cache blobs
-        // We're whitelisting even more here because other values (that we don't care about)
+        // We're allowlisting even more here because other values (that we don't care about)
         // sometimes survive being set to "Normal," and we don't want to throw in those cases.
         private bool IsNormalEnough(AbsolutePath path)
         {

@@ -37,8 +37,26 @@ interface Mount {
 //=============================================================================
 //  Configuration
 //=============================================================================
+interface FileAccessAllowlistEntry {
+    /** Name of the allowlist exception rule. */
+    name?: string;
+
+    /** Path to misbehaving tool allowed to have an exception.  Cannot be combined with Value. */
+    toolPath?: Path | File;
+
+    /** Value allowed to have an exception.  Cannot be combined with ToolPath. */
+    value?: string;
+
+    /** Pattern to match against accessed paths. */
+    pathRegex?: string;
+
+    /** Fragment of a path to match. */
+    pathFragment?: string;
+}
+
+// Compatibility
 interface FileAccessWhitelistEntry {
-    /** Name of the whitelist exception rule. */
+    /** Name of the allowlist exception rule. */
     name?: string;
 
     /** Path to misbehaving tool allowed to have an exception.  Cannot be combined with Value. */
@@ -399,13 +417,15 @@ interface Configuration {
      *
      * This is a separate list from the above, rather than a bool field on the exceptions, because
      * that makes it easier for a central build team to control the contents of the (relatively dangerous)
-     * cacheable whitelist.  It can be placed in a separate file in a locked-down area in source control,
-     * even while exposing the (safer) do-not-cache-but-also-do-not-error whitelist to users.
+     * cacheable allowlistlist.  It can be placed in a separate file in a locked-down area in source control,
+     * even while exposing the (safer) do-not-cache-but-also-do-not-error allowlist to users.
      */
-    cacheableFileAccessWhitelist?: FileAccessWhitelistEntry[];
+    cacheableFileAccessAllowlist?: FileAccessAllowlistEntry[];
+	cacheableFileAccessWhitelist?: FileAccessWhitelistEntry[]; // compatibility
 
     /** List of file access exception rules. */
-    fileAccessWhiteList?: FileAccessWhitelistEntry[];
+	fileAccessAllowList?: FileAccessAllowlistEntry[];
+    fileAccessWhiteList?: FileAccessWhitelistEntry[]; // compatibility
 
     /** List of rules for the directory membership fingerprinter to use */
     directoryMembershipFingerprinterRules?: DirectoryMembershipFingerprinterRule[];

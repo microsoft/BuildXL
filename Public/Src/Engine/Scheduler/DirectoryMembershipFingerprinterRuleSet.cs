@@ -36,7 +36,7 @@ namespace BuildXL.Scheduler
         private readonly ObjectCache<string, bool> m_searchPathEnumerationToolMatchCache = new ObjectCache<string, bool>(1103);
 
         /// <summary>
-        /// The parent whitelist
+        /// The parent allowlist
         /// If this is a module specific directory membership fingerprint rule set, parent is the root directory membership fingerprint rule set
         /// Otherwise, if this is the root directory membership fingerprint rule set, this is null
         /// This field is mutually exclusive with the <see cref="m_moduleRuleSets"/> field.
@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public DirectoryMembershipFingerprinterRuleSet GetModuleRule(ModuleId module)
         {
-            Contract.Assert(m_parent == null, "Only root whitelist can be queried for module whitelists");
+            Contract.Assert(m_parent == null, "Only root allowlist can be queried for module allowlists");
 
             DirectoryMembershipFingerprinterRuleSet rs;
             if (m_moduleRuleSets.TryGetValue(module, out rs))

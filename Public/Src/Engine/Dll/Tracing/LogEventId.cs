@@ -33,11 +33,11 @@ namespace BuildXL.Engine.Tracing
         CannotHonorLowPriority = 95,
         ErrorRelatedLocation = 110,
         BusyOrUnavailableOutputDirectoriesRetry = 214,
-        FileAccessWhitelistCouldNotCreateIdentifier = 270,
-        FileAccessWhitelistFailedToParsePath = 274,
-        WhitelistFileAccess = 278,
+        FileAccessAllowlistCouldNotCreateIdentifier = 270,
+        FileAccessAllowlistFailedToParsePath = 274,
+        AllowlistFileAccess = 278,
         FileAccessManifestSummary = 279,
-        FileAccessWhitelistEntryHasInvalidRegex = 287,
+        FileAccessAllowlistEntryHasInvalidRegex = 287,
         EnvFreezing = 402,
 
         StorageCacheStartupError = 712,
@@ -217,7 +217,7 @@ namespace BuildXL.Engine.Tracing
         // was PreserveOutputsRequiresTwoPhaseFingerprinting = 2875,
 
         FailedToDeserializeDueToFileNotFound = 2876,
-        FailedToInitalizeFileAccessWhitelist = 2877,
+        FailedToInitalizeFileAccessAllowlist = 2877,
         FailedToAcquireDirectoryDeletionLock = 2878,
 
         FetchedSerializedGraphFromCache = 2879,

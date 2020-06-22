@@ -39,7 +39,7 @@ namespace Test.BuildXL.TestUtilities
         public const string NonStandardOptions = "NonStandardOptions"; // Command line options that can affect how processes are run
         public const string UndeclaredAccess = "UndeclaredAccess";
         public const string UntrackedAccess = "UntrackedAccess";
-        public const string Whitelist = "Whitelist";
+        public const string Allowlist = "Allowlist";
         public const string WriteFilePip = "WriteFilePip";
 #pragma warning restore 1591
     }

@@ -34,7 +34,7 @@ namespace BuildXL.Scheduler
         AnalyzePipViolationsResult AnalyzePipViolations(
             Process pip,
             [CanBeNull] IReadOnlyCollection<ReportedFileAccess> violations,
-            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> whitelistedAccesses,
+            [CanBeNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
             [CanBeNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)> exclusiveOpaqueDirectoryContent,
             [CanBeNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             [CanBeNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,

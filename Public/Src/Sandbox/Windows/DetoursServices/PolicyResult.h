@@ -180,7 +180,7 @@ public:
     // Indicates if a file-open should have FILE_SHARE_READ implicitly added (as a hack to workaround tools accidentally
     // asking for exclusive read). We are conservative here:
     // - If the process is allowed to write the file, we leave it to their discretion (even if they did not ask for write access on a particular handle).
-    // - If the access result is Warn or Deny, we leave it to their discretion (maybe the access is whitelisted, and the policy should really have AllowWrite).
+    // - If the access result is Warn or Deny, we leave it to their discretion (maybe the access is allowlisted, and the policy should really have AllowWrite).
     bool ShouldForceReadSharing(AccessCheckResult const& accessCheck) {
         return !AllowWrite() && accessCheck.Result == ResultAction::Allow;
     }

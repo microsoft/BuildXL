@@ -1000,10 +1000,10 @@ namespace BuildXL.Pips.Graph
                 return false;
             }
 
-            if (!mutablePipState.HasPreserveOutputWhitelist())
+            if (!mutablePipState.HasPreserveOutputAllowlist())
             {
-                // If whitelist is not given, we preserve all outputs of the given pip.
-                // This is shortcut to avoid hydrating pip in order to get the whitelist.
+                // If allowlist is not given, we preserve all outputs of the given pip.
+                // This is shortcut to avoid hydrating pip in order to get the allowlist.
                 return true;
             }
 

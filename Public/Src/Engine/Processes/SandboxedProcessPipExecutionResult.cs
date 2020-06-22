@@ -290,8 +290,8 @@ namespace BuildXL.Processes
         public readonly long MaxDetoursHeapSizeInBytes;
 
         /// <summary>
-        /// Context containing counters for unexpected file accesses reported so far (whitelisted, cacheable-whitelisted, etc),
-        /// and a list of those unexpected file accesses which were not whitelisted (violations).
+        /// Context containing counters for unexpected file accesses reported so far (allowlisted, cacheable-allowlisted, etc),
+        /// and a list of those unexpected file accesses which were not allowlisted (violations).
         /// Note that these counts includes both error and warning level violations, depending on enforcement configuration.
         /// Additional unexpected accesses may be reported using this context (e.g. based on deferred validation of <see cref="ObservedFileAccesses"/>).
         /// Note that this field is present (non-null) even if there were no unexpected accesses.

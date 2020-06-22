@@ -12,22 +12,22 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 {
     internal sealed class EnforceAmbientAccessInConfig : LanguageRule
     {
-        private static readonly Dictionary<string, HashSet<string>> s_blacklistLookup = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, HashSet<string>> s_blocklistLookup = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
         static EnforceAmbientAccessInConfig()
         {
-            s_blacklistLookup.Add(
+            s_blocklistLookup.Add(
                 AmbientContext.ContextName,
-                new HashSet<string>(AmbientContext.ConfigBlacklist, StringComparer.OrdinalIgnoreCase));
+                new HashSet<string>(AmbientContext.ConfigBlocklist, StringComparer.OrdinalIgnoreCase));
 
-            s_blacklistLookup.Add(AmbientFile.FileName, AllMembers);
+            s_blocklistLookup.Add(AmbientFile.FileName, AllMembers);
 
-            s_blacklistLookup.Add(AmbientDirectory.Name, AllMembers);
+            s_blocklistLookup.Add(AmbientDirectory.Name, AllMembers);
 
-            s_blacklistLookup.Add(AmbientTransformerOriginal.Name, AllMembers);
-            s_blacklistLookup.Add(AmbientTransformerHack.Name, AllMembers);
+            s_blocklistLookup.Add(AmbientTransformerOriginal.Name, AllMembers);
+            s_blocklistLookup.Add(AmbientTransformerHack.Name, AllMembers);
 
-            s_blacklistLookup.Add(AmbientContract.ContractName, AllMembers);
+            s_blocklistLookup.Add(AmbientContract.ContractName, AllMembers);
         }
 
         private static HashSet<string> AllMembers { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -66,9 +66,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 
             if (lhsName != null && rhsName != null)
             {
-                // Check against blacklist
+                // Check against blocklist
                 // if the methods list is empty, then all the members are prohibited from using.
-                if (s_blacklistLookup.TryGetValue(lhsName, out var methods) && (methods.Count == 0 || methods.Contains(rhsName)))
+                if (s_blocklistLookup.TryGetValue(lhsName, out var methods) && (methods.Count == 0 || methods.Contains(rhsName)))
                 {
                     context.Logger.ReportAmbientAccessInConfig(
                         context.LoggingContext,

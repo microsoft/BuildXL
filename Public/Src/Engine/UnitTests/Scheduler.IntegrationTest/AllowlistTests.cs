@@ -19,9 +19,9 @@ using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
-    [Trait("Category", "WhitelistTests")]
-    [Feature(Features.Whitelist)]
-    public class WhitelistTests : SchedulerIntegrationTestBase
+    [Trait("Category", "AllowlistTests")]
+    [Feature(Features.Allowlist)]
+    public class AllowlistTests : SchedulerIntegrationTestBase
     {
         /// <summary>
         /// What type of mount the files and directories in the test are placed under
@@ -35,7 +35,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         private System.Collections.Generic.Dictionary<int, string> m_mounts;
 
-        public WhitelistTests(ITestOutputHelper output) : base(output)
+        public AllowlistTests(ITestOutputHelper output) : base(output)
         {
             m_mounts = new System.Collections.Generic.Dictionary<int, string>();
             m_mounts.Add(MountType.Readonly, ReadonlyRoot);
@@ -48,31 +48,31 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(MountType.Readonly)]
         [InlineData(MountType.NonHashable)]
         [InlineData(MountType.Undefined)]
-        public void ValidateCachingCacheableWhitelistFileInput(int mountType)
+        public void ValidateCachingCacheableAllowlistFileInput(int mountType)
         {
-            // start with absent /whitelistFile
+            // start with absent /allowlistFile
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(m_mounts[mountType]));
-            FileArtifact whitelistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
-            Process pip = CreateAndScheduleProcessUsingWhitelistFile(whitelistFile, fileIsInput: true, cacheableWhitelist: true);
+            FileArtifact allowlistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
+            Process pip = CreateAndScheduleProcessUsingAllowlistFile(allowlistFile, fileIsInput: true, cacheableAllowlist: true);
 
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Create absent /whitelistFile
-            File.WriteAllText(ArtifactToString(whitelistFile), "abc");
+            // Create absent /allowlistFile
+            File.WriteAllText(ArtifactToString(allowlistFile), "abc");
             switch (mountType)
             {
                 case MountType.Readonly:
-                    // Existence of whitelisted files is still tracked for absent file probes
-                    // This is consistent with including whitelisted files in directory fingerprints
+                    // Existence of allowlisted files is still tracked for absent file probes
+                    // This is consistent with including allowlisted files in directory fingerprints
                     RunScheduler().AssertCacheMiss(pip.PipId);
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedCacheable);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable);
                     break;
                 case MountType.NonHashable:
                     // Absent file probes are not tracked for nonhashable mounts
                     break;
                 case MountType.Undefined:
-                    // Bug #1134297: This is inconsistent with our tracking of directory enumerations for whitelisted
+                    // Bug #1134297: This is inconsistent with our tracking of directory enumerations for allowlisted
                     // files under undefined mounts
                     RunScheduler().AssertCacheMiss(pip.PipId);
                     break;
@@ -81,30 +81,32 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Modify /whitelistFile
-            File.WriteAllText(ArtifactToString(whitelistFile), "xyz");
+            // Modify /allowlistFile
+            File.WriteAllText(ArtifactToString(allowlistFile), "xyz");
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Delete /whitelistFile
-            File.Delete(ArtifactToString(whitelistFile));
+            // Delete /allowlistFile
+            File.Delete(ArtifactToString(allowlistFile));
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
-        [Fact]
-        public void ValidateCachingCacheableWhitelistFileOutput()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ValidateCachingCacheableAllowlistFileOutput(bool testCompatibility)
         {
-            FileArtifact whitelistFile = CreateOutputFileArtifact();
-            Process pip = CreateAndScheduleProcessUsingWhitelistFile(whitelistFile, fileIsInput: false, cacheableWhitelist: true);
+            FileArtifact allowlistFile = CreateOutputFileArtifact();
+            Process pip = CreateAndScheduleProcessUsingAllowlistFile(allowlistFile, fileIsInput: false, cacheableAllowlist: true, testCompatibility: testCompatibility);
 
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Delete /whitelistFile
-            File.Delete(ArtifactToString(whitelistFile));
+            // Delete /allowlistFile
+            File.Delete(ArtifactToString(allowlistFile));
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // Cache only replays declared outputs, so /whitelistFile remains deleted
-            XAssert.IsFalse(File.Exists(ArtifactToString(whitelistFile)));
+            // Cache only replays declared outputs, so /allowlistFile remains deleted
+            XAssert.IsFalse(File.Exists(ArtifactToString(allowlistFile)));
         }
 
         [Feature(Features.DirectoryEnumeration)]
@@ -116,14 +118,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false, MountType.Readonly)]
         [InlineData(false, MountType.NonHashable)]
         [InlineData(false, MountType.Undefined)]
-        public void ValidateCachingDirectoryEnumerationReadonlyMountWhitelistFile(bool cacheableWhitelist, int mountType)
+        public void ValidateCachingDirectoryEnumerationReadonlyMountAllowlistFile(bool cacheableAllowlist, int mountType)
         {
             // Read-only mounts are fingerprinted based on actual filesystem state
 
-            // Start with absent /whitelistFile under /dir
+            // Start with absent /allowlistFile under /dir
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(m_mounts[mountType]));
-            FileArtifact whitelistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
-            AddWhitelistEntry(whitelistFile, cacheableWhitelist: cacheableWhitelist);
+            FileArtifact allowlistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
+            AddAllowlistEntry(allowlistFile, cacheableAllowlist: cacheableAllowlist);
 
             FileArtifact outFile = CreateOutputFileArtifact();
             Process pip = CreateAndSchedulePipBuilder(new Operation[]
@@ -134,15 +136,15 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
-            string outputWithAbsentWhitelistFile = File.ReadAllText(ArtifactToString(outFile));
+            string outputWithAbsentAllowlistFile = File.ReadAllText(ArtifactToString(outFile));
 
-            // Create /whitelistFile
-            File.WriteAllText(ArtifactToString(whitelistFile), "abc");
+            // Create /allowlistFile
+            File.WriteAllText(ArtifactToString(allowlistFile), "abc");
             switch (mountType)
             {
                 case MountType.Readonly:
-                    // Whitelisted files still make it into directory fingerprints
-                    // This is consistent with tracking existence of whitelisted files for absent file probes
+                    // allowlisted files still make it into directory fingerprints
+                    // This is consistent with tracking existence of allowlisted files for absent file probes
                     RunScheduler().AssertCacheMiss(pip.PipId);
                     break;
                 case MountType.NonHashable:
@@ -150,54 +152,54 @@ namespace IntegrationTest.BuildXL.Scheduler
                     break;
                 case MountType.Undefined:
                     // Files in undefined mounts never make it into directory fingerprints
-                    // Bug 1134297: This is inconsistent with our tracking of absent file probes for whitelisted
+                    // Bug 1134297: This is inconsistent with our tracking of absent file probes for allowlisted
                     // files under undefined mounts
                     break;
                 default:
                     return;
             }
             RunScheduler().AssertCacheHit(pip.PipId);
-            string outputWithExistingWhitelistFile = File.ReadAllText(ArtifactToString(outFile));
+            string outputWithExistingAllowlistFile = File.ReadAllText(ArtifactToString(outFile));
 
-            // Delete /whitelistFile
-            File.Delete(ArtifactToString(whitelistFile));
+            // Delete /allowlistFile
+            File.Delete(ArtifactToString(allowlistFile));
             RunScheduler().AssertCacheHit(pip.PipId);
-            XAssert.AreEqual(File.ReadAllText(ArtifactToString(outFile)), outputWithAbsentWhitelistFile);
+            XAssert.AreEqual(File.ReadAllText(ArtifactToString(outFile)), outputWithAbsentAllowlistFile);
 
-            // Re-create /whitelistFile
-            File.WriteAllText(ArtifactToString(whitelistFile), "xyz");
+            // Re-create /allowlistFile
+            File.WriteAllText(ArtifactToString(allowlistFile), "xyz");
             RunScheduler().AssertCacheHit(pip.PipId);
-            XAssert.AreEqual(File.ReadAllText(ArtifactToString(outFile)), outputWithExistingWhitelistFile);
+            XAssert.AreEqual(File.ReadAllText(ArtifactToString(outFile)), outputWithExistingAllowlistFile);
         }
 
         [Feature(Features.DirectoryEnumeration)]
         [Feature(Features.Mount)]
         [Fact]
-        public void ValidateCachingDirectoryEnumerationReadWriteMountCacheableWhitelistFile()
+        public void ValidateCachingDirectoryEnumerationReadWriteMountCacheableAllowlistFile()
         {
             // Writable mounts are fingeprinted based on the static build graph. Examining the filesystem state under these mounts is not reliable since
             // it is expected to change concurrently with directory fingerprinting.
             
-            // Start with absent /whitelistFile under /dir
+            // Start with absent /allowlistFile under /dir
             DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(ObjectRoot));
-            FileArtifact whitelistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
-            AddWhitelistEntry(whitelistFile: whitelistFile, cacheableWhitelist: true);
+            FileArtifact allowlistFile = new FileArtifact(CreateUniquePath(SourceRootPrefix, ArtifactToString(dir)));
+            AddAllowlistEntry(allowlistFile: allowlistFile, cacheableAllowlist: true);
 
-            // PipA enumerates directory /dir, creates file /dir/outA and /dir/whitelistFile
+            // PipA enumerates directory /dir, creates file /dir/outA and /dir/allowlistFile
             // /outA is used to enforce pipA runs before pipB
             FileArtifact outA = CreateOutputFileArtifact();
             Process pipA = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.EnumerateDir(dir),
                 Operation.WriteFile(outA),
-                Operation.WriteFile(whitelistFile, doNotInfer: true),
+                Operation.WriteFile(allowlistFile, doNotInfer: true),
             }).Process;
 
-            // PipB consumes /dir/outA and /dir/whitelistFile, creates file /dir/outB
+            // PipB consumes /dir/outA and /dir/allowlistFile, creates file /dir/outB
             FileArtifact outB = CreateOutputFileArtifact(ArtifactToString(dir));
             Process pipB = CreateAndSchedulePipBuilder(new Operation[]
             {
-                Operation.ReadFile(whitelistFile, doNotInfer: true),
+                Operation.ReadFile(allowlistFile, doNotInfer: true),
                 Operation.ReadFile(outA),
                 Operation.WriteFile(outB)
             }).Process;
@@ -206,87 +208,87 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pipA.PipId, pipB.PipId);
 
             // Delete files in enumerated directory
-            File.Delete(ArtifactToString(whitelistFile));
+            File.Delete(ArtifactToString(allowlistFile));
             File.Delete(ArtifactToString(outA));
             File.Delete(ArtifactToString(outB));
 
             RunScheduler().AssertCacheHit(pipA.PipId, pipB.PipId);
 
-            // Cache only replays declared outputs, so /whitelistFile remains deleted
-            XAssert.IsFalse(File.Exists(ArtifactToString(whitelistFile)));
+            // Cache only replays declared outputs, so /allowlistFile remains deleted
+            XAssert.IsFalse(File.Exists(ArtifactToString(allowlistFile)));
             XAssert.IsTrue(File.Exists(ArtifactToString(outA)));
             XAssert.IsTrue(File.Exists(ArtifactToString(outB)));
         }
 
         /// <summary>
-        /// Checks that whitelist files are not cached by default
+        /// Checks that allowlist files are not cached by default
         /// </summary>
         /// <param name="fileIsInput">
-        /// When true, the pip consumes a cacheable whitelisted file. 
-        /// When false, the pip outputs a cacheable whitelisted file.
+        /// When true, the pip consumes a cacheable allowlisted file. 
+        /// When false, the pip outputs a cacheable allowlisted file.
         /// </param>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void ValidateNonCacheableWhitelist(bool fileIsInput)
+        public void ValidateNonCacheableAllowlist(bool fileIsInput)
         {
-            FileArtifact whitelistFile = fileIsInput ? CreateSourceFile() : CreateOutputFileArtifact();
-            Process pip = CreateAndScheduleProcessUsingWhitelistFile(whitelistFile, fileIsInput: fileIsInput);
+            FileArtifact allowlistFile = fileIsInput ? CreateSourceFile() : CreateOutputFileArtifact();
+            Process pip = CreateAndScheduleProcessUsingAllowlistFile(allowlistFile, fileIsInput: fileIsInput);
 
             // Pip should succeed despite undeclared file accesses
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            // Default whitelist files cannot be cached
+            // Default allowlist files cannot be cached
             RunScheduler().AssertCacheMiss(pip.PipId);
 
             // Each event logged once per scheduler run
-            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, count: 2, allowMore: OperatingSystemHelper.IsUnixOS);
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, count: 2, allowMore: OperatingSystemHelper.IsUnixOS);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 2);
         }
 
         /// <summary>
         /// Checks that caching policies for declared dependencies and outputs take priority
-        /// over caching policies for files that are also on a non-cacheable whitelist
+        /// over caching policies for files that are also on a non-cacheable allowlist
         /// </summary>
         /// <param name="fileIsInput">
-        /// When true, the pip consumes a non-cacheable whitelisted file. 
-        /// When false, the pip outputs a non-cacheable whitelisted file.
+        /// When true, the pip consumes a non-cacheable allowlisted file. 
+        /// When false, the pip outputs a non-cacheable allowlisted file.
         /// </param>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void IgnoreNonCacheableWhitelistIfFileDeclared(bool fileIsInput)
+        public void IgnoreNonCacheableAllowlistIfFileDeclared(bool fileIsInput)
         {
-            FileArtifact whitelistFile = fileIsInput ? CreateSourceFile() : CreateOutputFileArtifact();
-            Process pip = CreateAndScheduleProcessUsingWhitelistFile(whitelistFile, fileIsInput: fileIsInput, declareWhitelistFile: true);
+            FileArtifact allowlistFile = fileIsInput ? CreateSourceFile() : CreateOutputFileArtifact();
+            Process pip = CreateAndScheduleProcessUsingAllowlistFile(allowlistFile, fileIsInput: fileIsInput, declareAllowlistFile: true);
 
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            // Cache declared dependencies/outputs even if they are on non-cacheable whitelist
+            // Cache declared dependencies/outputs even if they are on non-cacheable allowlist
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            XAssert.IsTrue(File.Exists(ArtifactToString(whitelistFile)));
+            XAssert.IsTrue(File.Exists(ArtifactToString(allowlistFile)));
         }
 
         /// <summary>
-        /// Consuming a whitelisted file specified in a partially sealed directory should be allowed with no warning
+        /// Consuming a allowlisted file specified in a partially sealed directory should be allowed with no warning
         /// </summary>
         [Feature(Features.SealedDirectory)]
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void AllowConsumingWhitelistFilePartialSealedDirectory(bool cacheableWhitelist)
+        public void AllowConsumingAllowlistFilePartialSealedDirectory(bool cacheableAllowlist)
         {
-            // Create src/whitelistFile
-            FileArtifact whitelistFile = CreateSourceFile(SourceRoot);
-            AddWhitelistEntry(whitelistFile, cacheableWhitelist: cacheableWhitelist);
+            // Create src/allowlistFile
+            FileArtifact allowlistFile = CreateSourceFile(SourceRoot);
+            AddAllowlistEntry(allowlistFile, cacheableAllowlist: cacheableAllowlist);
 
             // Seal all of /src
-            DirectoryArtifact sealedDir = SealDirectory(SourceRootPath, SealDirectoryKind.Partial, whitelistFile);
+            DirectoryArtifact sealedDir = SealDirectory(SourceRootPath, SealDirectoryKind.Partial, allowlistFile);
 
             var pipBuilder = CreatePipBuilder(new Operation[]
             {
-                Operation.ReadFile(whitelistFile, doNotInfer: true),
+                Operation.ReadFile(allowlistFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
             pipBuilder.AddInputDirectory(sealedDir);
@@ -295,58 +297,58 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // No whitelist file access warnings logged
-            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, 0);
+            // No allowlist file access warnings logged
+            AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, 0);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 0);
         }
 
         /// <summary>
-        /// Checks that whitelist file access policies take priority over sealed directory file access policies
-        /// (i.e. a whitelist file can be produced as output even in a sealed directory)
+        /// Checks that allowlist file access policies take priority over sealed directory file access policies
+        /// (i.e. a allowlist file can be produced as output even in a sealed directory)
         /// </summary>
         [Feature(Features.SealedSourceDirectory)]
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void AllowWhitelistFileOutputInSealedSourceDirectory(bool cacheableWhitelist)
+        public void AllowAllowlistFileOutputInSealedSourceDirectory(bool cacheableAllowlist)
         {
             DirectoryArtifact sealedDir = SealDirectory(SourceRootPath, SealDirectoryKind.SourceAllDirectories);
-            FileArtifact whitelistFile = CreateOutputFileArtifact(ArtifactToString(sealedDir));
-            AddWhitelistEntry(whitelistFile, cacheableWhitelist: cacheableWhitelist);
+            FileArtifact allowlistFile = CreateOutputFileArtifact(ArtifactToString(sealedDir));
+            AddAllowlistEntry(allowlistFile, cacheableAllowlist: cacheableAllowlist);
 
             var pipBuilder = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFile(whitelistFile, doNotInfer: true),
+                Operation.WriteFile(allowlistFile, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
             pipBuilder.AddInputDirectory(sealedDir);
             SchedulePipBuilder(pipBuilder);
 
-            // Whitelist file access policy takes priority over sealed source directory file access policy
+            // allowlist file access policy takes priority over sealed source directory file access policy
             RunScheduler().AssertSuccess();
 
-            if (!cacheableWhitelist)
+            if (!cacheableAllowlist)
             {
-                // Whitelist file access warnings
-                AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessWhitelistedNonCacheable, allowMore: OperatingSystemHelper.IsUnixOS);
+                // allowlist file access warnings
+                AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedNonCacheable, allowMore: OperatingSystemHelper.IsUnixOS);
                 AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             }
         }
 
         [Fact]
-        public void ValidateCachingCacheableToNonCacheableWhitelist()
+        public void ValidateCachingCacheableToNonCacheableAllowlist()
         {
-            FileArtifact whitelistFile = CreateSourceFile();
-            Process pip = CreateAndScheduleProcessUsingWhitelistFile(whitelistFile, fileIsInput: true, cacheableWhitelist: true);
+            FileArtifact allowlistFile = CreateSourceFile();
+            Process pip = CreateAndScheduleProcessUsingAllowlistFile(allowlistFile, fileIsInput: true, cacheableAllowlist: true);
 
-            // \whitelistFile starts on a cacheable whitelist
+            // \allowlistFile starts on a cacheable allowlist
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            // remove from cacheable whitelist
-            Configuration.CacheableFileAccessWhitelist.Clear();
-            // add to non-cacheable whitelist
-            AddWhitelistEntry(whitelistFile, cacheableWhitelist: false);
+            // remove from cacheable allowlist
+            Configuration.CacheableFileAccessAllowlist.Clear();
+            // add to non-cacheable allowlist
+            AddAllowlistEntry(allowlistFile, cacheableAllowlist: false);
 
             RunScheduler().AssertCacheHit(pip.PipId);
         }
@@ -354,13 +356,13 @@ namespace IntegrationTest.BuildXL.Scheduler
         [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
-        public void WhitelistOnSpawnProcess(bool includeExecutableLink)
+        public void AllowlistOnSpawnProcess(bool includeExecutableLink)
         {
             FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
             FileArtifact exeLink = FileArtifact.CreateSourceFile(CreateUniqueSourcePath());
             XAssert.IsTrue(FileUtilities.TryCreateSymbolicLink(exeLink.Path.ToString(Context.PathTable), exe.Path.ToString(Context.PathTable), true).Succeeded);
 
-            Configuration.CacheableFileAccessWhitelist.Add(new Configuration.Mutable.FileAccessWhitelistEntry() { ToolPath = exeLink, PathRegex = ".*" });
+            Configuration.CacheableFileAccessAllowlist.Add(new Configuration.Mutable.FileAccessAllowlistEntry() { ToolPath = exeLink, PathRegex = ".*" });
 
             FileArtifact output = CreateOutputFileArtifact();
 
@@ -400,7 +402,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 RunScheduler().AssertFailure();
 
                 // DFA on exeLink because it is not specified as input.
-                // Although there's a cacheable whitelist entry for exeLink, that entry only holds for file accessed by exeLink.
+                // Although there's a cacheable allowlist entry for exeLink, that entry only holds for file accessed by exeLink.
                 // In this case, exeLink is accessed by the test process, so there's a read operation by the test process on exeLink, hence DFA.
                 AssertErrorEventLogged(LogEventId.FileMonitoringError, 1);
                 AssertLogContains(false, $"R  {exeLink.Path.ToString(Context.PathTable)}");
@@ -412,50 +414,64 @@ namespace IntegrationTest.BuildXL.Scheduler
 
 
         /// <summary>
-        /// Creates and schedules a pip that either consumes or outputs a (default) non-cacheable whitelist file
+        /// Creates and schedules a pip that either consumes or outputs a (default) non-cacheable allowlist file
         /// </summary>
         /// <param name="fileIsInput">
-        /// When true, the pip consumes a whitelisted file. 
-        /// When false, the pip outputs a whitelisted file.
+        /// When true, the pip consumes a allowlisted file. 
+        /// When false, the pip outputs a allowlisted file.
         /// </param>
-        /// <param name="cacheableWhitelist">
-        /// When true, the file is added to the cacheable whitelist.
-        /// When false, the file is added to the default non-cacheable whitelist.
+        /// <param name="cacheableAllowlist">
+        /// When true, the file is added to the cacheable allowlist.
+        /// When false, the file is added to the default non-cacheable allowlist.
         /// </param>
-        /// <param name="declareWhitelistFile">
-        /// When true, the pip declares the whitelisted file as a dependency or output. 
-        /// When false, the pip does not declare the whitelisted file.
+        /// <param name="declareAllowlistFile">
+        /// When true, the pip declares the allowlisted file as a dependency or output. 
+        /// When false, the pip does not declare the allowlisted file.
         /// </param>
-        protected Process CreateAndScheduleProcessUsingWhitelistFile(FileArtifact whitelistFile, bool fileIsInput, bool cacheableWhitelist = false, bool declareWhitelistFile = false)
+        protected Process CreateAndScheduleProcessUsingAllowlistFile(FileArtifact allowlistFile, bool fileIsInput, bool cacheableAllowlist = false, bool declareAllowlistFile = false, bool testCompatibility = false)
         {
-            Operation whitelistOp = fileIsInput ? 
-                Operation.ReadFile(whitelistFile, doNotInfer: !declareWhitelistFile) : 
-                Operation.WriteFile(whitelistFile, doNotInfer: !declareWhitelistFile);
+            Operation allowlistOp = fileIsInput ? 
+                Operation.ReadFile(allowlistFile, doNotInfer: !declareAllowlistFile) : 
+                Operation.WriteFile(allowlistFile, doNotInfer: !declareAllowlistFile);
 
-            AddWhitelistEntry(whitelistFile, cacheableWhitelist: cacheableWhitelist);
+            AddAllowlistEntry(allowlistFile, cacheableAllowlist: cacheableAllowlist, testCompatibility);
 
             return CreateAndSchedulePipBuilder(new Operation[]
             {
-                whitelistOp,
+                allowlistOp,
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
         }
 
-        protected void AddWhitelistEntry(FileArtifact whitelistFile, bool cacheableWhitelist = false)
+        protected void AddAllowlistEntry(FileArtifact allowlistFile, bool cacheableAllowlist = false, bool testCompatibility = false)
         {
-            var entry = new Configuration.Mutable.FileAccessWhitelistEntry()
+            var entry = new Configuration.Mutable.FileAccessAllowlistEntry()
             {
                 Value = "testValue",
-                PathFragment = ArtifactToString(whitelistFile),
+                PathFragment = ArtifactToString(allowlistFile),
             };
 
-            if (cacheableWhitelist)
+            if (testCompatibility)
             {
-                Configuration.CacheableFileAccessWhitelist.Add(entry);
+                if (cacheableAllowlist)
+                {
+                    Configuration.CacheableFileAccessWhitelist.Add(entry);
+                }
+                else
+                {
+                    Configuration.FileAccessWhiteList.Add(entry);
+                }
             }
             else
             {
-                Configuration.FileAccessWhiteList.Add(entry);
+                if (cacheableAllowlist)
+                {
+                    Configuration.CacheableFileAccessAllowlist.Add(entry);
+                }
+                else
+                {
+                    Configuration.FileAccessAllowList.Add(entry);
+                }
             }
         }
     }

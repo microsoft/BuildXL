@@ -1196,7 +1196,7 @@ namespace Test.BuildXL.Scheduler
                 config,
                 loggingContext,
                 cache: null,
-                fileAccessWhitelist: null,
+                fileAccessAllowlist: null,
                 directoryMembershipFingerprinter: fingerprinter,
                 pathExpander: mountExpander,
                 fileSystemView: null,

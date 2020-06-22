@@ -34,7 +34,7 @@ namespace BuildXL.Utilities.Configuration
     }
 
     /// <summary>
-    /// White List entry
+    /// Unsafe Sandbox Configuration
     /// </summary>
     public interface IUnsafeSandboxConfiguration
     {

@@ -51,13 +51,13 @@ interface Configuration {
      *
      * This is a separate list from the above, rather than a bool field on the exceptions, because
      * that makes it easier for a central build team to control the contents of the (relatively dangerous)
-     * cacheable whitelist.  It can be placed in a separate file in a locked-down area in source control,
-     * even while exposing the (safer) do-not-cache-but-also-do-not-error whitelist to users.
+     * cacheable allowlist.  It can be placed in a separate file in a locked-down area in source control,
+     * even while exposing the (safer) do-not-cache-but-also-do-not-error allowlist to users.
      */
-    cacheableFileAccessWhitelist?: FileAccessWhitelistEntry[];
+    cacheableFileAccessAllowlist?: FileAccessAllowlistEntry[];
 
     /** List of file access exception rules. */
-    fileAccessWhiteList?: FileAccessWhitelistEntry[];
+    fileAccessAllowList?: FileAccessAllowlistEntry[];
 
     /** List of rules for the directory membership fingerprinter to use */
     directoryMembershipFingerprinterRules?: DirectoryMembershipFingerprinterRule[];
@@ -167,21 +167,21 @@ interface NuGetResolver {
 }
 ``` 
 
-## File access whitelists
+## File access Allowlists
 It is best to specify all file accesses. This way BuildXL tracks those files can can provide correct caching. On rare occasion some files may need to be untracked. For example when a process consumes system files that are known to be inconsequential to the build and there may be some variability in the content of those files across machines which would prevent cross machine caching.
 
-On an even rarer occasion, it may not be possible to predict the path of files that you desire to untrack. They may be nondeterministic. Whitelists exist for this last resort. **Use of whitelists is untracked and unsafe. They should be reserved as a last resort.**  
-There are 2 types of whitelists:
-1. cacheableFileAccessWhitelist - BuildXL completely ignores accesses to these files and caches pips as though the access didn't happen. The state of the files is not checked on future cache checks.
-1. fileAccessWhitelist - BuildXL ignores the access to the file but does not add the pip to the cache. The cache will be a miss for future builds until it stops accessing the whitelisted files.
+On an even rarer occasion, it may not be possible to predict the path of files that you desire to untrack. They may be nondeterministic. Allowlists exist for this last resort. **Use of allowlists is untracked and unsafe. They should be reserved as a last resort.**  
+There are 2 types of allowlists:
+1. cacheableFileAccessAllowlist - BuildXL completely ignores accesses to these files and caches pips as though the access didn't happen. The state of the files is not checked on future cache checks.
+1. fileAccessAllowlist - BuildXL ignores the access to the file but does not add the pip to the cache. The cache will be a miss for future builds until it stops accessing the allowlisted files.
 
-Here is an example whitelist entry to allow accesses to vsjitdebugger.exe. There are 3 fields to set on the whitelist object:
-1. Name - this is a name for the whitelist entry. It is used for instrumentation to know which whitelist(s) were in use. It must be unique across all whitelist entries
-1. toolpath - the full path to the tool performing the file access. This is specific within the process tree. For example, if the parent pip of the process tree is cmd.exe, but the tool performing the access to the whitelisted file is cl.exe, you must specify cl.exe for the tool path.
+Here is an example allowlist entry to allow accesses to vsjitdebugger.exe. There are 3 fields to set on the allowlist object:
+1. Name - this is a name for the allowlist entry. It is used for instrumentation to know which allowlist(s) were in use. It must be unique across all allowlist entries
+1. toolpath - the full path to the tool performing the file access. This is specific within the process tree. For example, if the parent pip of the process tree is cmd.exe, but the tool performing the access to the allowlisted file is cl.exe, you must specify cl.exe for the tool path.
 1. pathRegex - A regular expression describing the path that should be allowed.
 
 ```ts
-    cacheableFileAccessWhitelist:
+    cacheableFileAccessAllowlist:
     [
         // Allow the debugger to be able to be launched from BuildXL Builds
         {

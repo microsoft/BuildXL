@@ -17,7 +17,7 @@ namespace BuildXL.Tracing
         public static void LogAsStatistics<TEnum>(
             this CounterCollection<TEnum> counterCollection,
             string namePrefix,
-            LoggingContext context) where TEnum : struct
+            LoggingContext context) where TEnum : System.Enum
         {
             Logger.Log.BulkStatistic(context, counterCollection.AsStatistics(namePrefix));
         }

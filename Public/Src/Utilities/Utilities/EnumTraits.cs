@@ -16,7 +16,7 @@ namespace BuildXL.Utilities
     /// value.
     /// </summary>
     public static class EnumTraits<TEnum>
-        where TEnum : struct
+        where TEnum : System.Enum
     {
         private static readonly Dictionary<ulong, TEnum> s_integerToValue;
         private static readonly Dictionary<TEnum, ulong> s_valueToInteger;

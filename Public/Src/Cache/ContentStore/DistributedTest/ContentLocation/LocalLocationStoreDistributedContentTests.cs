@@ -2306,7 +2306,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerRedisStore = lls0.CurrentRole == Role.Master ? ls1 : ls0;
 
                     static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
-                        where TEnum : struct => c1[name].Value - c2[name].Value;
+                        where TEnum : System.Enum => c1[name].Value - c2[name].Value;
 
                     for (int i = 0; i < 5; i++)
                     {
@@ -2429,7 +2429,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
 
             static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
-                where TEnum : struct => c1[name].Value - c2[name].Value;
+                where TEnum : System.Enum => c1[name].Value - c2[name].Value;
 
             await RunTestAsync(
                 new Context(Logger),

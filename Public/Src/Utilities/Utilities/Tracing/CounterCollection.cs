@@ -36,7 +36,6 @@ namespace BuildXL.Utilities.Tracing
     /// - Each cache line contains shards for C / sizeof(ulong) counters.
     /// - All of the cache lines for a single core are adjacent (maybe nice for prefetching).
     /// </remarks>
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     public class CounterCollection
     {
         private const int AssumedCacheLineSize = 64;
@@ -339,7 +338,7 @@ namespace BuildXL.Utilities.Tracing
     /// <summary>
     /// Info for <see cref="CounterCollection{TEnum}"/>.
     /// </summary>
-    public sealed class CounterCollectionInfo<TEnum> where TEnum : struct
+    public sealed class CounterCollectionInfo<TEnum> where TEnum : System.Enum
     {
         /// <summary>
         /// Offset to get counter index from <code>TEnum</code>.
@@ -405,7 +404,7 @@ namespace BuildXL.Utilities.Tracing
     [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix")]
     [DebuggerDisplay("{ToDebuggerDisplay(),nq}")]
     public sealed class CounterCollection<TEnum> : CounterCollection
-        where TEnum : struct
+        where TEnum : System.Enum
     {
         private static readonly CounterCollectionInfo<TEnum> s_info = new CounterCollectionInfo<TEnum>();
 

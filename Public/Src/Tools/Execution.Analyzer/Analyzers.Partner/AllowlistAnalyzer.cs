@@ -342,7 +342,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         private sealed class EnumCounter<TEnum>
-            where TEnum : struct
+            where TEnum : System.Enum
         {
             private readonly int[] m_counts;
 

@@ -9,12 +9,13 @@ namespace App {
     export declare const qualifier: {targetRuntime: "win-x64"};
 
     @@public
-    export const app = BuildXLSdk.Flags.excludeBuildXLExplorer ? undefined : Electron.publish({
-        name: "bxp",
-        winIcon: Branding.iconFile,
-        projectFolder: d`.`,
-        authenticatedPackageFeed: importFrom("Sdk.BuildXL").Flags.isMicrosoftInternal
-            ? "pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/npm/registry"
-            : undefined,
-    });
+    export const app = BuildXLSdk.Flags.buildBuildXLExplorer 
+        ? Electron.publish({
+            name: "bxp",
+            winIcon: Branding.iconFile,
+            projectFolder: d`.`,
+            authenticatedPackageFeed: importFrom("Sdk.BuildXL").Flags.isMicrosoftInternal
+                ? "pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/npm/registry"
+                : undefined,})
+        : undefined;
 }

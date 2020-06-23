@@ -84,16 +84,18 @@ namespace Tools {
             targetRuntime: "win-x64"
         };
 
-        export const deployment : Deployment.Definition = {
-            contents: addIf(!BuildXLSdk.Flags.excludeBuildXLExplorer,
-                {
-                    subfolder: r`app`,
-                    contents: [importFrom("BuildXL.Explorer").App.app.appFolder],
-                }
-            )
-        };
+        export const deployment : Deployment.Definition = BuildXLSdk.Flags.buildBuildXLExplorer 
+            ? {
+                contents: [
+                    {
+                        subfolder: r`app`,
+                        contents: [importFrom("BuildXL.Explorer").App.app.appFolder],
+                    },
+                ]
+              }
+            : undefined;
 
-        const deployed = !BuildXLSdk.Flags.excludeBuildXLExplorer
+        const deployed = BuildXLSdk.Flags.buildBuildXLExplorer
             ? BuildXLSdk.DeploymentHelpers.deploy({
                 definition: deployment,
                 targetLocation: r`${qualifier.configuration}/tools/bxp`

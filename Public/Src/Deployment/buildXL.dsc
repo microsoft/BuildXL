@@ -34,7 +34,7 @@ namespace BuildXL {
                 subfolder: r`tools`,
                 contents: [
                     // Temporarily excluding the viewer since we are reaching the nuget limit size
-                    // ...addIf(!BuildXLSdk.Flags.genVSSolution && !BuildXLSdk.Flags.excludeBuildXLExplorer,
+                    // ...addIf(!BuildXLSdk.Flags.genVSSolution && BuildXLSdk.Flags.buildBuildXLExplorer,
                     //     {
                     //         subfolder: r`bxp-server`,
                     //         contents: [

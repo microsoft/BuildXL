@@ -175,11 +175,12 @@ namespace Flags {
     export const genVSSolution = Environment.getFlag("[Sdk.BuildXL]GenerateVSSolution");
 
     /**
-     * Temporary flag to exclude building BuildXL.Explorer.
-     * BuildXL.Explorer is broken but building it can take a long time in CB environment.
+     * Whether to build BuildXL.Explorer during the build.
+     * BuildXL.Explorer is barely used, but building it can take a long time in CB environment and makes our rolling
+     * build unreliable currently. Thus, we make building BuildXL.Explorer optional based on the specified environment variable.
      */
     @@public
-    export const excludeBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]ExcludeBuildXLExplorer");
+    export const buildBuildXLExplorer = Environment.getFlag("[Sdk.BuildXL]BuildBuildXLExplorer");
 
     /**
      * Build tests that require admin privilege in VM.

@@ -29,7 +29,6 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
         {
-            var session = PreferredContentSession as IConfigurablePin;
             if (PreferredContentSession is IConfigurablePin configurablePin)
             {
                 return configurablePin.PinAsync(operationContext, contentHashes, pinOperationConfiguration);

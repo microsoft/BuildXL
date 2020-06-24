@@ -554,32 +554,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
                     using (Stream fileStream = await FileSystem.OpenSafeAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
-                    using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
-                    using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(fileStream.Length, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
-                        var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);
-                        copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
-
-                        if (copyFileResult.Succeeded)
+                        if (hashInfo.Size >= 0)
                         {
-                            var foundHash = hashingStream.GetContentHash();
-                            if (foundHash != hashInfo.ContentHash)
-                            {
-                                return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {hashingStream.Length}, expected size {hashInfo.Size}.");
-                            }
-
-                            // Expose the bytes that were copied, so that small files can be put into the ContentLocationStore even when trusted copy is done
-                            if (possiblyRecordingStream is RecordingStream recordingStream)
-                            {
-                                copyFileResult.BytesFromTrustedCopy = recordingStream.RecordedBytes;
-                            }
-
-                            return copyFileResult;
+                            // Setting file size makes the file system happy and is considered a best practice.
+                            fileStream.SetLength(hashInfo.Size);
                         }
-                        else
+
+                        using (Stream possiblyRecordingStream = _settings.AreBlobsSupported && hashInfo.Size <= _settings.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
+                        // Use hashInfo.Size since if it is -1 we will not have resized the stream and it will disable an optimization in dedup hashers which depends on file size.
+                        using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(hashInfo.Size, possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                         {
-                            // This result will be logged in the caller
-                            return copyFileResult;
+                            var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);
+                            copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
+
+                            if (copyFileResult.Succeeded)
+                            {
+                                var foundHash = hashingStream.GetContentHash();
+                                if (foundHash != hashInfo.ContentHash)
+                                {
+                                    return new CopyFileResult(CopyFileResult.ResultCode.InvalidHash, $"{nameof(CopyFileAsync)} unsuccessful with different hash. Found {foundHash.ToShortString()}, expected {hashInfo.ContentHash.ToShortString()}. Found size {copyFileResult.Size}, expected size {hashInfo.Size}.");
+                                }
+
+                                // Expose the bytes that were copied, so that small files can be put into the ContentLocationStore even when trusted copy is done
+                                if (possiblyRecordingStream is RecordingStream recordingStream)
+                                {
+                                    copyFileResult.BytesFromTrustedCopy = recordingStream.RecordedBytes;
+                                }
+
+                                return copyFileResult;
+                            }
+                            else
+                            {
+                                // This result will be logged in the caller
+                                return copyFileResult;
+                            }
                         }
                     }
                 }

@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using System.Threading;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Sessions
+namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>
     /// Configuration object for configurable pins.
@@ -18,6 +18,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <nodoc />
         public UrgencyHint UrgencyHint { get; set; }
 
+        /// <nodoc />
+        public CancellationToken CancellationToken { get; set; }
+
         /// <summary>
         /// Default configuration for pins.
         /// </summary>
@@ -26,7 +29,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return new PinOperationConfiguration()
             {
                 ReturnGlobalExistenceFast = false,
-                UrgencyHint = UrgencyHint.Nominal
+                UrgencyHint = UrgencyHint.Nominal,
+                CancellationToken = CancellationToken.None,
             };
         }
     }

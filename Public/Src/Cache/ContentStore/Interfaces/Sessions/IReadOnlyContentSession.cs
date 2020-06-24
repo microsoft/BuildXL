@@ -15,7 +15,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
     /// <summary>
     ///     A related set of read accesses to a content store.
     /// </summary>
-    public interface IReadOnlyContentSession : IName, IStartupShutdown
+    public interface IReadOnlyContentSession : IName, IStartupShutdown, IConfigurablePin
     {
         /// <summary>
         ///     Ensure content does not get deleted.

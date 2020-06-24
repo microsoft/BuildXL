@@ -252,6 +252,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
+        {
+            return PinAsync(context, contentHashes, config.CancellationToken, config.UrgencyHint);
+        }
+
+        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,

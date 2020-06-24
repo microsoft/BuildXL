@@ -60,6 +60,11 @@ namespace ContentStoreTest.Grpc
             throw new NotImplementedException();
         }
 
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<OpenStreamResult> OpenStreamAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             throw new NotImplementedException();

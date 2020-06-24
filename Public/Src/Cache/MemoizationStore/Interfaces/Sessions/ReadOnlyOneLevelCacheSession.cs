@@ -21,7 +21,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     An IReadOnlyCacheSession implemented with one level of content and memoization.
     /// </summary>
-    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession
+    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession, IConfigurablePin
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -197,6 +197,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint)
         {
             return _contentReadOnlySession.PinAsync(context, contentHash, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration configuration)
+        {
+            return _contentReadOnlySession.PinAsync(context, contentHashes, configuration);
         }
 
         /// <inheritdoc />

@@ -199,6 +199,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             return PreferredContentSession.PinAsync(context, contentHashes, cts, urgencyHint);
         }
 
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context, 
+            IReadOnlyList<ContentHash> contentHashes, 
+            PinOperationConfiguration config)
+        {
+            return PreferredContentSession.PinAsync(context, contentHashes, config);
+        }
+
         protected IReadOnlyContentSession GetCache(AbsolutePath path)
         {
             var drive = Path.GetPathRoot(path.Path);

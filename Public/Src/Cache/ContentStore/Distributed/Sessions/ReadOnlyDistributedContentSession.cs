@@ -298,9 +298,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
+        Task<IEnumerable<Task<Indexed<PinResult>>>> IConfigurablePin.PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
         {
-            return PinHelperAsync(operationContext, contentHashes, pinOperationConfiguration.UrgencyHint, pinOperationConfiguration);
+            return PinHelperAsync(new OperationContext(context, pinOperationConfiguration.CancellationToken), contentHashes, pinOperationConfiguration.UrgencyHint, pinOperationConfiguration);
         }
 
         /// <inheritdoc />
@@ -318,6 +318,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IEnumerable<Task<Indexed<PinResult>>>? intermediateResult = null;
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
+                Tracer.Debug(operationContext.TracingContext, $"Detected {nameof(PinOperationConfiguration.ReturnGlobalExistenceFast)}");
+
                 // Check globally for existence, but do not copy locally and do not update content tracker.
                 pinResults = await Workflows.RunWithFallback(
                     contentHashes,

@@ -106,6 +106,15 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Results
         }
 
         /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context, 
+            IReadOnlyList<ContentHash> contentHashes, 
+            PinOperationConfiguration config)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             throw new System.NotImplementedException();

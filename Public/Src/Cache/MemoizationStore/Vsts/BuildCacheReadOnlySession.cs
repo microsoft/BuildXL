@@ -719,6 +719,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         }
 
         /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
+        {
+            if (WriteThroughContentSession != null)
+            {
+                return Workflows.RunWithFallback(
+                    contentHashes,
+                    hashes => WriteThroughContentSession.PinAsync(context, hashes, config),
+                    hashes => BackingContentSession.PinAsync(context, hashes, config),
+                    result => result.Succeeded);
+            }
+
+            return BackingContentSession.PinAsync(context, contentHashes, config);
+        }
+
+        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             throw new NotImplementedException();

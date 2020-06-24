@@ -8,7 +8,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     Read-only cache session.
     /// </summary>
-    public interface IReadOnlyCacheSession : IReadOnlyMemoizationSession, IReadOnlyContentSession
+    public interface IReadOnlyCacheSession : IReadOnlyMemoizationSession, IReadOnlyContentSession, IConfigurablePin
     {
     }
 

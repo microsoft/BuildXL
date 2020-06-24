@@ -135,6 +135,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     counter: BaseCounters[ContentSessionBaseCounters.PinBulk]));
         }
 
+        /// <inheritdoc />
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(
+            Context context, 
+            IReadOnlyList<ContentHash> contentHashes, 
+            PinOperationConfiguration configuration)
+        {
+            // Pass through to the basic pin.
+            return PinAsync(context, contentHashes, configuration.CancellationToken, configuration.UrgencyHint);
+        }
+
         /// <nodoc />
         protected abstract Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(
             OperationContext operationContext,

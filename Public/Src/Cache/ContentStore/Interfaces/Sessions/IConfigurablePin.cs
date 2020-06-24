@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Sessions
+namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>
     /// Pin in a configurable way.
@@ -17,6 +17,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <summary>
         /// Pin in a configurable way.
         /// </summary>
-        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config);
+        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config);
     }
 }

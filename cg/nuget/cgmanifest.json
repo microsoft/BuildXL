@@ -132,7 +132,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTest",
-          "Version": "20.6.12.220844"
+          "Version": "20.6.23.220544"
         }
       }
     },

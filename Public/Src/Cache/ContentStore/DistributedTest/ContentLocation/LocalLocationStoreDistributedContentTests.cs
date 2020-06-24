@@ -248,7 +248,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                 IsContentLocationDatabaseEnabled = true,
                 UseDistributedCentralStorage = true,
-                ContentHashBumpTimeMinutes = 60,
+                RedisMemoizationExpiryTimeMinutes = 60,
                 MachineActiveToClosedIntervalMinutes = 5,
                 MachineActiveToExpiredIntervalMinutes = 10,
                 IsDistributedEvictionEnabled = true,

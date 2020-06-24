@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Host.Configuration.Test
             var dcs = DistributedContentSettings.CreateDisabled();
             TestSerializationRoundTrip(dcs);
 
-            dcs = DistributedContentSettings.CreateEnabled(new Dictionary<string, string>(), true);
+            dcs = DistributedContentSettings.CreateEnabled();
             TestSerializationRoundTrip(dcs);
         }
 

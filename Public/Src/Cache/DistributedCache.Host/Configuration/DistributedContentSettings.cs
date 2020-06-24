@@ -37,42 +37,20 @@ namespace BuildXL.Cache.Host.Configuration
                 120000,
             };
 
-        public DistributedContentSettings()
-        {
-        }
-
         public static DistributedContentSettings CreateDisabled()
         {
             return new DistributedContentSettings
             {
                 IsDistributedContentEnabled = false,
-                ConnectionSecretNameMap = new Dictionary<string, string>()
             };
         }
 
-        public static DistributedContentSettings CreateEnabled(IDictionary<string, string> connectionSecretNameMap, bool isGrpcCopierEnabled = false)
+        public static DistributedContentSettings CreateEnabled()
         {
-            return new DistributedContentSettings(connectionSecretNameMap)
+            return new DistributedContentSettings()
             {
                 IsDistributedContentEnabled = true,
-                IsGrpcCopierEnabled = isGrpcCopierEnabled
             };
-        }
-
-        public static DistributedContentSettings CreateForCloudBuildCacheCacheFactory(DistributedContentSettings distributedSettings)
-        {
-            return new DistributedContentSettings
-            {
-                IsBandwidthCheckEnabled = distributedSettings.IsBandwidthCheckEnabled,
-                IsDistributedEvictionEnabled = distributedSettings.IsDistributedEvictionEnabled,
-                AlternateDriveMap =
-                    distributedSettings.GetAutopilotAlternateDriveMap().ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
-            };
-        }
-
-        private DistributedContentSettings(IDictionary<string, string> connectionSecretNameMap)
-        {
-            ConnectionSecretNameMap = connectionSecretNameMap;
         }
 
         /// <summary>
@@ -111,36 +89,11 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseRingIsolation { get; set; } = false;
 
         /// <summary>
-        /// Bump content expiry times when adding replicas
-        /// </summary>
-        [DataMember]
-        [Validation.Range(1, int.MaxValue)]
-        // Obsolete: Used by old redis only.
-        public int ContentHashBumpTimeMinutes { get; set; } = 2880;
-
-        private int _redisMemoizationExpiryTimeMinutes;
-
-        /// <summary>
         /// TTL to be set in Redis for memoization entries.
         /// </summary>
         [DataMember]
-        public int RedisMemoizationExpiryTimeMinutes
-        {
-            get => _redisMemoizationExpiryTimeMinutes == 0 ? ContentHashBumpTimeMinutes : _redisMemoizationExpiryTimeMinutes;
-            set => _redisMemoizationExpiryTimeMinutes = value;
-        }
-
-        /// <summary>
-        /// The map of environment to connection secrets
-        /// </summary>
-        [DataMember]
-        private IDictionary<string, string> ConnectionSecretNameMap { get; set; }
-
-        /// <summary>
-        /// The map of drive paths to alternate paths to access them
-        /// </summary>
-        [DataMember]
-        private IDictionary<string, string> AlternateDriveMap { get; set; }
+        [Validation.Range(1, int.MaxValue)]
+        public int RedisMemoizationExpiryTimeMinutes { get; set; } = 1500;
 
         [DataMember]
         public string ContentAvailabilityGuarantee { get; set; }
@@ -385,12 +338,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaxRetryCount { get; set; } = 32;
 
         #region Grpc Copier
-        /// <summary>
-        /// Use GRPC for file copies between CASaaS.
-        /// </summary>
-        [DataMember]
-        public bool IsGrpcCopierEnabled { get; set; } = false;
-
         /// <summary>
         /// Whether or not GZip is enabled for GRPC copies.
         /// </summary>
@@ -836,17 +783,5 @@ namespace BuildXL.Cache.Host.Configuration
         public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
-        
-        public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
-        {
-            if (AlternateDriveMap != null)
-            {
-                return new ReadOnlyDictionary<string, string>(AlternateDriveMap);
-            }
-            else
-            {
-                return new Dictionary<string, string>();
-            }
-        }
     }
 }

@@ -34,6 +34,7 @@ namespace Test.BuildXL.Scheduler
         private readonly int m_individualPipInfoStringLength;
         private readonly IPipExecutionEnvironment m_executionEnvironment;
         private readonly Hashtable m_runnablePips;
+        private const int MaxNumPipTelemetryBatches = 10;
 
         public PerProcessPipPerformanceInformationStoreTests(ITestOutputHelper output)
             : base(output)
@@ -41,7 +42,7 @@ namespace Test.BuildXL.Scheduler
             m_context = BuildXLContext.CreateInstanceForTesting();
             m_loggingContext = CreateLoggingContextForTest();
             m_configuration = ConfigurationHelpers.GetDefaultForTesting(m_context.PathTable, AbsolutePath.Create(m_context.PathTable, Path.Combine(TemporaryDirectory, "config.ds")));
-            m_perPipPerformanceInformationStore = new PerProcessPipPerformanceInformationStore(m_configuration.Logging.MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
+            m_perPipPerformanceInformationStore = new PerProcessPipPerformanceInformationStore(MaxNumPipTelemetryBatches, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
             m_runnablePips = new Hashtable();
 
             var pipTable = new PipTable(
@@ -53,6 +54,17 @@ namespace Test.BuildXL.Scheduler
             m_executionEnvironment = new DummyPipExecutionEnvironment(m_loggingContext, m_context, m_configuration, pipTable: pipTable);
 
             m_individualPipInfoStringLength = PerProcessPipPerformanceInformationStore.SerializePipPerfInfo(CreateSamplePip(0)).Length;
+        }
+
+        [Fact]
+        public void TestZeroCapacityPerPipPerformanceInformation()
+        {
+            var perPipPerformanceInformationStore = new PerProcessPipPerformanceInformationStore(0, m_configuration.Logging.AriaIndividualMessageSizeLimitBytes);
+            perPipPerformanceInformationStore.AddPip(CreateSamplePip(1));
+            var resp = m_perPipPerformanceInformationStore.GenerateTopPipPerformanceInfoJsonArray();
+            Assert.Equal(0, resp.Length);
+            var perfArr = AssertMessageSizesAndParseJsonArray(resp);
+            Assert.Equal(0, perfArr.Length);
         }
 
         [Fact]
@@ -175,7 +187,7 @@ namespace Test.BuildXL.Scheduler
         private string[] AssertMessageSizesAndParseJsonArray(string[] arr)
         {
             List<object> resp = new List<object>();
-            Assert.True(arr.Length <= m_configuration.Logging.MaxNumPipTelemetryBatches);
+            Assert.True(arr.Length <= MaxNumPipTelemetryBatches);
             foreach (var message in arr)
             {
                 var jsonObj = JsonConvert.DeserializeObject<Dictionary<string, object[]>>(message);

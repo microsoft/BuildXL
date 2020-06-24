@@ -46,9 +46,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheMissAnalysisOption = CacheMissAnalysisOption.Disabled();
             CacheMissDiffFormat = CacheMissDiffFormat.CustomJsonDiff;
             AriaIndividualMessageSizeLimitBytes = (int)(0.8 * 1024 * 1024); // 0.8Mb out of Aria's current 1Mb max limit
-            MaxNumPipTelemetryBatches = 10;
+            MaxNumPipTelemetryBatches = 1;
             CacheMissBatch = true;
-            
             RedirectedLogsDirectory = AbsolutePath.Invalid;
         }
 

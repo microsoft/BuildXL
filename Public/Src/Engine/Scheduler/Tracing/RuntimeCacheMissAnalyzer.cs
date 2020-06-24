@@ -283,8 +283,7 @@ namespace BuildXL.Scheduler.Tracing
                     writer.WriteEndObject();
                     writer.WriteEndObject();
                     // Only log when has result in it.
-                    if (hasProperty &&
-                        Interlocked.Increment(ref s_numberOfBatchesLogged) <= configuration.Logging.MaxNumPipTelemetryBatches)
+                    if (hasProperty)
                     {
                         Logger.Log.CacheMissAnalysisBatchResults(loggingContext, sw.ToString());
                     }

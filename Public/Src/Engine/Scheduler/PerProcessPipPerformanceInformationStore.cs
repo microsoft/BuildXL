@@ -50,7 +50,7 @@ namespace BuildXL.Scheduler
         {
             m_ariaCharLimit = ariaLimitBytes;
             m_maxNumberOfBatches = maxNumberOfBatches;
-            int capacity = (m_ariaCharLimit / PerProcessPipMessageSizeBytes) * (maxNumberOfBatches + 1);  // maxNumberOfBatches + 1 avoids reporting fewer pips due to the approximation done by PerPipMessageSizeBytes
+            int capacity = maxNumberOfBatches == 0 ? 0 : (m_ariaCharLimit / PerProcessPipMessageSizeBytes) * (maxNumberOfBatches + 1);  // maxNumberOfBatches + 1 avoids reporting fewer pips due to the approximation done by PerPipMessageSizeBytes
             m_sortedTopPipPerformanceInfo = new ConcurrentBoundedSortedCollection<int, PerProcessPipPerformanceInformation>(capacity,
                 Comparer<int>.Create((a, b) => a.CompareTo(b)));  // To keep track of top N pips by execution times. ConcurrentBoundedSortedCollection only works with ascending order since it assumes the minimum is at index 0
         }

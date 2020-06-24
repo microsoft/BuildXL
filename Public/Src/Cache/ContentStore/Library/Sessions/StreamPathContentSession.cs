@@ -349,6 +349,19 @@ namespace BuildXL.Cache.ContentStore.Sessions
             }
         }
 
+        /// <inheritdoc />
+        public async Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            var sessionForStream = _sessionForStream as IHibernateContentSession;
+            var sessionForPath = _sessionForPath as IHibernateContentSession;
+
+            var result = sessionForStream != null
+                ? await sessionForStream.ShutdownEvictionAsync(context)
+                : BoolResult.Success;
+
+            return sessionForPath != null ? await sessionForPath.ShutdownEvictionAsync(context) & result : result;
+        }
+
         /// <summary>
         ///     Dispose pattern.
         /// </summary>

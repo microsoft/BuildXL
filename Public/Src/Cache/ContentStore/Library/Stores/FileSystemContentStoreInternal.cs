@@ -30,6 +30,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
@@ -133,6 +134,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         // Fields and properties that initialized in StartupCoreAsync
         /// <nodoc />
         public ContentStoreConfiguration? Configuration { get; private set; }
+
+        /// <summary>
+        /// Controls concurrency of shutting down quota keeper in a thread-safe manner
+        /// </summary>
+        private readonly SemaphoreSlim _stopEvictionGate = TaskUtilities.CreateMutex();
 
         /// <nodoc />
         protected QuotaKeeper? QuotaKeeper;
@@ -407,14 +413,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var statsResult = await GetStatsAsync(context);
 
-            if (QuotaKeeper != null)
-            {
-                _tracer.EndStats(context, QuotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
-
-                // NOTE: QuotaKeeper must be shut down before the content directory because it owns
-                // background operations which may be calling EvictAsync or GetLruOrderedContentListAsync
-                result &= await QuotaKeeper.ShutdownAsync(context);
-            }
+            result &= await ShutdownEvictionAsync(context);
 
             if (_pinSizeHistory != null)
             {
@@ -833,6 +832,27 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return new FileSystemContentStoreValidator(Tracer, FileSystem, _applyDenyWriteAttributesOnContent, ContentDirectory, Clock, EnumerateBlobPathsFromDisk)
                 .ValidateAsync(context);
+        }
+
+        /// <summary>
+        /// Shutdown of quota keeper to prevent further eviction of content.
+        /// Method is thread safe.
+        /// </summary>
+        public async Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            using (await _stopEvictionGate.AcquireAsync())
+            {
+                if (QuotaKeeper != null && !QuotaKeeper.ShutdownCompleted)
+                {
+                    _tracer.EndStats(context, QuotaKeeper.CurrentSize, await ContentDirectory.GetCountAsync());
+
+                    // NOTE: QuotaKeeper must be shut down before the content directory because it owns
+                    // background operations which may be calling EvictAsync or GetLruOrderedContentListAsync
+                    return await QuotaKeeper.ShutdownAsync(context);
+                }
+
+                return BoolResult.Success;
+            }
         }
 
         /// <inheritdoc />

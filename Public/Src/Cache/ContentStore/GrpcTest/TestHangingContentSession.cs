@@ -140,6 +140,8 @@ namespace ContentStoreTest.Grpc
             return Task.FromResult(0);
         }
 
+        public Task<BoolResult> ShutdownEvictionAsync(Context context) => BoolResult.SuccessTask;
+
         private async Task<BoolResult> UnresponsiveUntilCancelledAsync(Context context, string operationName, CancellationToken cts)
         {
             try

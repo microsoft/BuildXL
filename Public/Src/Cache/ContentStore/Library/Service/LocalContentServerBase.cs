@@ -568,6 +568,12 @@ namespace BuildXL.Cache.ContentStore.Service
 
                         if (session is IHibernateContentSession hibernateSession)
                         {
+                            if (Config.ShutdownEvictionBeforeHibernation)
+                            {
+                                // Calling shutdown of eviction before hibernating sessions to prevent possible race condition of evicting pinned content
+                                await hibernateSession.ShutdownEvictionAsync(context).ThrowIfFailure();
+                            }
+
                             var pinnedContentHashes = hibernateSession.EnumeratePinnedContentHashes().Select(x => x.Serialize()).ToList();
                             Tracer.Debug(context, $"Hibernating session {DescribeSession(sessionId, handle)}.");
                             sessionInfoList.Add(new HibernatedSessionInfo(

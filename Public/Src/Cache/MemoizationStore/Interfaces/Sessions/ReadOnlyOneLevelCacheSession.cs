@@ -253,5 +253,13 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 ? session.PinBulkAsync(context, contentHashes)
                 : Task.FromResult(0);
         }
+
+        /// <inheritdoc />
+        public Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            return _contentReadOnlySession is IHibernateContentSession session
+                ? session.ShutdownEvictionAsync(context)
+                : BoolResult.SuccessTask;
+        }
     }
 }

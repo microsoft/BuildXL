@@ -408,6 +408,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool UseUnsafeByteStringConstruction { get; set; } = false;
 
         /// <summary>
+        /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
+        /// </summary>
+        [DataMember]
+        public bool ShutdownEvictionBeforeHibernation { get; set; } = false;
+
+        /// <summary>
         /// Maximum cached age for GRPC clients.
         /// </summary>
         [DataMember]

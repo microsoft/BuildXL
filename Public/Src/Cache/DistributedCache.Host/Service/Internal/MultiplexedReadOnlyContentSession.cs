@@ -238,5 +238,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ? session.PinBulkAsync(context, contentHashes)
                 : BoolResult.SuccessTask;
         }
+
+        /// <inheritdoc />
+        public Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            return PreferredContentSession is IHibernateContentSession session
+                ? session.ShutdownEvictionAsync(context)
+                : BoolResult.SuccessTask;
+        }
     }
 }

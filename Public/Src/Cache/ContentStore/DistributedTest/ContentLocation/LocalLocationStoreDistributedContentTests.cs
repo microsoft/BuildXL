@@ -611,6 +611,49 @@ namespace ContentStoreTest.Distributed.Sessions
         }
         
         [Fact]
+        public async Task ServerHibernateSessionTests()
+        {
+            UseGrpcServer = true;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 2;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    // Create a session against LocalContentServerBase (i.e. ISessionHandler<IContentSession>)
+                    // NOTE: We don't shutdown so that session will be hibernated
+                    var server = (ISessionHandler<IContentSession>)context.Servers[0];
+                    var sessionInfo = await server.CreateSessionAsync(context, "TestHibernatedSession", "Default", ImplicitPin.PutAndGet, Capabilities.ContentOnly).ShouldBeSuccess();
+
+                    var session = server.GetSession(sessionInfo.Value.sessionId);
+
+                    if (context.Iteration == 0)
+                    {
+                        // Insert random file #1 into worker #0
+                        var putResult1 = await session.PutRandomAsync(context, HashType.Vso0, false, ContentByteCount, Token).ShouldBeSuccess();
+                        contentHashes.Add(putResult1.ContentHash);
+                    }
+                    else if (context.Iteration == 1)
+                    {
+                        // Verify that pinned content hashes were loaded for hibernated session
+                        var hibernatedContentSession = (IHibernateContentSession)session;
+                        var pinnedHashes = hibernatedContentSession.EnumeratePinnedContentHashes().ToList();
+
+                        pinnedHashes.Should().Contain(contentHashes);
+                    }
+                },
+                implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
         public async Task ProactiveCopyDistributedTest()
         {
             EnableProactiveCopy = true;

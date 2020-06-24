@@ -225,6 +225,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes, value => localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(value));
             ApplyIfNotNull(localCasServiceSettings.GrpcThreadPoolSize, value => localContentServerConfiguration.GrpcThreadPoolSize = value);
             ApplyIfNotNull(distributedSettings?.UseUnsafeByteStringConstruction, value => localContentServerConfiguration.UseUnsafeByteStringConstruction = value);
+            ApplyIfNotNull(distributedSettings?.ShutdownEvictionBeforeHibernation, value => localContentServerConfiguration.ShutdownEvictionBeforeHibernation = value);
 
             return localContentServerConfiguration;
         }

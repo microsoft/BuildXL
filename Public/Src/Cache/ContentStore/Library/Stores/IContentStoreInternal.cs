@@ -293,6 +293,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         Task<bool> Validate(Context context);
 
         /// <summary>
+        ///     Shuts down the quota keeper to prevent eviction
+        /// </summary>
+        Task<BoolResult> ShutdownEvictionAsync(Context context);
+
+        /// <summary>
         ///     Returns list of content hashes in the order by which they should be LRU-ed.
         /// </summary>
         Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync();

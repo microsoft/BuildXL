@@ -325,6 +325,11 @@ namespace ContentStoreTest.Stores
                 throw new NotImplementedException();
             }
 
+            public Task<BoolResult> ShutdownEvictionAsync(Context context)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task<IReadOnlyList<ContentHash>> GetLruOrderedContentListAsync()
             {
                 throw new NotImplementedException();

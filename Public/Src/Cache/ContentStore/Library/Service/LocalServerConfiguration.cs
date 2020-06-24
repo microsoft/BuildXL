@@ -155,6 +155,11 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         public IAbsFileSystem FileSystem { get; set; }
 
+        /// <summary>
+        /// When set to true, we will shut down the quota keeper before hibernating sessions to prevent a race condition of evicting pinned content
+        /// </summary>
+        public bool ShutdownEvictionBeforeHibernation { get; set; }
+
         /// <inheritdoc />
         public override string ToString()
         {

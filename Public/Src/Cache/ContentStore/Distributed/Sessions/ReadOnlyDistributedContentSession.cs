@@ -550,6 +550,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 : Task.FromResult(0);
         }
 
+        /// <inheritdoc />
+        public Task<BoolResult> ShutdownEvictionAsync(Context context)
+        {
+            return Inner is IHibernateContentSession session
+                ? session.ShutdownEvictionAsync(context)
+                : BoolResult.SuccessTask;
+        }
+
         private Task<PlaceBulkResult> FetchFromMultiLevelContentLocationStoreThenPutAsync(
             Context context,
             IReadOnlyList<ContentHashWithPath> hashesWithPaths,

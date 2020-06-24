@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
@@ -31,5 +32,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         ///     Collection of content hashes to be pinned.
         /// </param>
         Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes);
+
+        /// <summary>
+        ///     Shuts down quota keeper to prevent further eviction of content
+        /// </summary>
+        Task<BoolResult> ShutdownEvictionAsync(Context context);
     }
 }

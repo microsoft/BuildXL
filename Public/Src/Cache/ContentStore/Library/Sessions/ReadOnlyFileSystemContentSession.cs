@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -138,6 +139,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
             {
                 Tracer.Warning(context, $"Failed to pin contentHash=[{contentHashList[result.Index]}]");
             }
+        }
+
+        /// <inheritdoc />
+        Task<BoolResult> IHibernateContentSession.ShutdownEvictionAsync(Context context)
+        {
+            return Store.ShutdownEvictionAsync(context);
         }
 
         /// <summary>

@@ -137,5 +137,7 @@ namespace ContentStoreTest.Grpc
         {
             return Task.FromResult(0);
         }
+
+        public Task<BoolResult> ShutdownEvictionAsync(Context context) => BoolResult.SuccessTask;
     }
 }

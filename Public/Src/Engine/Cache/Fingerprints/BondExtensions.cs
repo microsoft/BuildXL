@@ -144,8 +144,12 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 case ReparsePointType.None:
                     return BondReparsePointType.None;
-                case ReparsePointType.SymLink:
-                    return BondReparsePointType.SymLink;
+                case ReparsePointType.FileSymlink:
+                    return BondReparsePointType.FileSymlink;
+                case ReparsePointType.DirectorySymlink:
+                    return BondReparsePointType.DirectorySymlink;
+                case ReparsePointType.UnixSymlink:
+                    return BondReparsePointType.UnixSymlink;
                 case ReparsePointType.MountPoint:
                     return BondReparsePointType.MountPoint;
                 case ReparsePointType.NonActionable:
@@ -162,8 +166,12 @@ namespace BuildXL.Engine.Cache.Fingerprints
             {
                 case BondReparsePointType.None:
                     return ReparsePointType.None;
-                case BondReparsePointType.SymLink:
-                    return ReparsePointType.SymLink;
+                case BondReparsePointType.FileSymlink:
+                    return ReparsePointType.FileSymlink;
+                case BondReparsePointType.DirectorySymlink:
+                    return ReparsePointType.DirectorySymlink;
+                case BondReparsePointType.UnixSymlink:
+                    return ReparsePointType.UnixSymlink;
                 case BondReparsePointType.MountPoint:
                     return ReparsePointType.MountPoint;
                 case BondReparsePointType.NonActionable:

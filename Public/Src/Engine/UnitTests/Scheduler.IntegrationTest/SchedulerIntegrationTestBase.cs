@@ -46,9 +46,9 @@ namespace Test.BuildXL.Scheduler
     public class SchedulerIntegrationTestBase : PipTestBase
     {
         public List<ScheduleRunResult> PriorResults = new List<ScheduleRunResult>();
-        public CommandLineConfiguration Configuration;
-        public EngineCache Cache;
-        public FileContentTable FileContentTable;
+        public CommandLineConfiguration Configuration { get; set; }
+        public EngineCache Cache { get; set; }
+        public FileContentTable FileContentTable { get; set; }
         public DirectoryTranslator DirectoryTranslator = new DirectoryTranslator();
 
         // Keep track of whether the graph was changed between runs of the scheduler for sake of passing the same graph and

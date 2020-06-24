@@ -20,7 +20,9 @@ struct BondFingerprint
 
 enum BondReparsePointType {
     None,
-    SymLink,
+    FileSymlink,
+    DirectorySymlink,
+    UnixSymlink,
     MountPoint,
     NonActionable
 }

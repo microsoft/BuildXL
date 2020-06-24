@@ -648,7 +648,7 @@ namespace BuildXL.Scheduler.Artifacts
                     handleEntry: (entry, attributes) =>
                     {
                         var path = currentDirectoryPath.Combine(pathTable, entry);
-                        // must treat directory symlinks as files: recursing on directory symlinks can lean to infinite loops
+                        // must treat directory symlinks as files: recursing on directory symlinks can lead to infinite loops
                         if (!FileUtilities.IsDirectoryNoFollow(attributes))
                         {
                             var fileArtifact = FileArtifact.CreateOutputFile(path);
@@ -1853,7 +1853,6 @@ namespace BuildXL.Scheduler.Artifacts
                         FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
                         ContentHash hash = materializationInfo.Hash;
                         PathAtom fileName = materializationInfo.FileName;
-                        AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
                         bool allowReadOnly = materializationFile.AllowReadOnly;
                         int materializationFileIndex = i;
 
@@ -1980,7 +1979,7 @@ namespace BuildXL.Scheduler.Artifacts
                 else
                 {
                     using (outerContext.StartOperation(
-                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
+                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.IsSymlink)
                             ? PipExecutorCounter.TryMaterializeSymlinkDuration
                             : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
                         file))
@@ -2571,7 +2570,7 @@ namespace BuildXL.Scheduler.Artifacts
                     // where source files declared inside output directories
                     state.MaterializedDirectoryContents.Contains(file.Path) ||
 
-                    // Don't verify if it a symlink creation
+                    // Don't verify if it is a symlink creation
                     createSymlink)
                 {
                     // Only source files should be verified

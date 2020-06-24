@@ -807,7 +807,13 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            return reparsePointType == ReparsePointType.SymLink;
+            return reparsePointType == ReparsePointType.UnixSymlink;
+        }
+
+        /// <inheritdoc />
+        public bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        {
+            return IsReparsePointActionable(reparsePointType);
         }
 
         /// <inheritdoc />
@@ -818,7 +824,12 @@ namespace BuildXL.Native.IO.Unix
 
         private static Possible<ReparsePointType> GetReparsePointType(string path)
         {
-            return IsSymlink(path) ? ReparsePointType.SymLink : ReparsePointType.None;
+            if (IsSymlink(path))
+            {
+                return ReparsePointType.UnixSymlink;
+            }
+            
+            return ReparsePointType.None;
         }
 
         /// <inheritdoc />
@@ -1234,7 +1245,7 @@ namespace BuildXL.Native.IO.Unix
         public bool IsDirectorySymlinkOrJunction(string path)
         {
             var reparsePointType = TryGetReparsePointType(path);
-            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink && Directory.Exists(path);
+            return reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.UnixSymlink;
         }
 
         /// <inheritdoc/>

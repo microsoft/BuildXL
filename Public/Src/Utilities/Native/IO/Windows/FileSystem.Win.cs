@@ -3488,7 +3488,15 @@ namespace BuildXL.Native.IO.Windows
         /// <inheritdoc />
         public bool IsReparsePointActionable(ReparsePointType reparsePointType)
         {
-            return reparsePointType == ReparsePointType.SymLink || reparsePointType == ReparsePointType.MountPoint;
+            return reparsePointType == ReparsePointType.FileSymlink 
+                || reparsePointType == ReparsePointType.DirectorySymlink 
+                || reparsePointType == ReparsePointType.MountPoint;
+        }
+
+        /// <inheritdoc />
+        public bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        {
+            return reparsePointType == ReparsePointType.FileSymlink || reparsePointType == ReparsePointType.DirectorySymlink;
         }
 
         /// <inheritdoc />
@@ -3522,7 +3530,7 @@ namespace BuildXL.Native.IO.Windows
                 findResult.DwReserved0 == (uint)DwReserved0Flag.IO_REPARSE_TAG_MOUNT_POINT)
             {
                 return findResult.DwReserved0 == (uint)DwReserved0Flag.IO_REPARSE_TAG_SYMLINK
-                    ? ReparsePointType.SymLink
+                    ? ((findResult.DwFileAttributes & FileAttributes.Directory) != 0) ? ReparsePointType.DirectorySymlink : ReparsePointType.FileSymlink
                     : ReparsePointType.MountPoint;
             }
 
@@ -4167,7 +4175,7 @@ namespace BuildXL.Native.IO.Windows
                         return maybeReparsePointType.Failure;
                     }
 
-                    if (maybeReparsePointType.Result == ReparsePointType.SymLink)
+                    if (IsReparsePointSymbolicLink(maybeReparsePointType.Result))
                     {
                         var maybeTarget = TryGetReparsePointTarget(null, resultSoFar);
 

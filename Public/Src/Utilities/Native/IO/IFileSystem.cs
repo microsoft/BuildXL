@@ -330,6 +330,13 @@ namespace BuildXL.Native.IO
         bool IsReparsePointActionable(ReparsePointType reparsePointType);
 
         /// <summary>
+        /// Returns whether the reparse point type is a symbolic link.
+        /// </summary>
+        /// <param name="reparsePointType">The type of the reparse point.</param>
+        /// <returns>true if this is an reparse point of symbolic link type, otherwise false.</returns>
+        bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType);
+
+        /// <summary>
         /// Returns <see cref="ReparsePointType"/> of a path.
         /// </summary>
         /// <param name="path">Path to check for reparse point.</param>

@@ -311,7 +311,8 @@ namespace BuildXL.Scheduler
                     var possiblyTracked = await environment.LocalDiskContentStore.TryTrackAsync(
                         FileArtifact.CreateSourceFile(chainElement),
                         environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
-                        ignoreKnownContentHashOnDiscoveringContent: true);
+                        ignoreKnownContentHashOnDiscoveringContent: true,
+                        isSymlink: true);
 
                     if (!possiblyTracked.Succeeded)
                     {
@@ -4095,7 +4096,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static bool CheckForAllowedDirectorySymlinkOrJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
+        private static bool CheckForAllowedJunctionProduction(AbsolutePath outputPath, OperationContext operationContext, string description, PathTable pathTable, ExecutionResult processExecutionResult)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -4103,12 +4104,13 @@ namespace BuildXL.Scheduler
             }
 
             var pathstring = outputPath.ToString(pathTable);
-            if (FileUtilities.IsDirectorySymlinkOrJunction(pathstring))
+            var possibleReparsePointType = FileUtilities.TryGetReparsePointType(pathstring);
+            if (possibleReparsePointType.Succeeded && possibleReparsePointType.Result == ReparsePointType.MountPoint)
             {
                 // We don't support storing directory symlinks/junctions to the cache in Windows right now.
                 // We won't fail the pip
                 // We won't cache it either
-                Logger.Log.StorageSymlinkDirInOutputDirectoryWarning(
+                Logger.Log.StorageJunctionInOutputDirectoryWarning(
                     operationContext,
                     description,
                     pathstring);
@@ -4212,7 +4214,7 @@ namespace BuildXL.Scheduler
                 {
                     FileOutputData.UpdateFileData(allOutputData, output.Path, OutputFlags.DeclaredFile);
 
-                    if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
+                    if (!CheckForAllowedJunctionProduction(output.Path, operationContext, description, pathTable, processExecutionResult))
                     {
                         enableCaching = false;
                         continue;
@@ -4246,7 +4248,7 @@ namespace BuildXL.Scheduler
                             directoryArtifact,
                             handleFile: fileArtifact =>
                             {
-                                if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
+                                if (!CheckForAllowedJunctionProduction(fileArtifact.Path, operationContext, description, pathTable, processExecutionResult))
                                 {
                                     enableCaching = false;
                                     return;
@@ -4288,12 +4290,6 @@ namespace BuildXL.Scheduler
 
                         foreach (var access in accesses)
                         {
-                            if (!CheckForAllowedDirectorySymlinkOrJunctionProduction(access.Path, operationContext, description, pathTable, processExecutionResult))
-                            {
-                                enableCaching = false;
-                                continue;
-                            }
-
                             fileList.Add(access.ToFileArtifact());
                             FileOutputData.UpdateFileData(allOutputData, access.Path, OutputFlags.DynamicFile, index);
 
@@ -4606,8 +4602,7 @@ namespace BuildXL.Scheduler
                     !isRewrittenOutputFile;
 
                 var reparsePointType = FileUtilities.TryGetReparsePointType(outputArtifact.Path.ToString(environment.Context.PathTable));
-
-                bool isSymlink = reparsePointType.Succeeded && reparsePointType.Result == ReparsePointType.SymLink;
+                bool isSymlink = reparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(reparsePointType.Result);
 
                 bool shouldStoreOutputToCache =
                     ((environment.Configuration.Schedule.StoreOutputsToCache && !shouldOutputBePreserved) ||
@@ -5066,7 +5061,8 @@ namespace BuildXL.Scheduler
                 // Moreover, FileContentTable can enable so-called path mapping optimization that allows one to avoid opening handles and by-passing checking
                 // of the USN. However, here we are tracking a produced output. Thus, the known content hash should be ignored.
                 ignoreKnownContentHashOnDiscoveringContent: true,
-                createHandleWithSequentialScan: createHandleWithSequentialScan);
+                createHandleWithSequentialScan: createHandleWithSequentialScan,
+                isSymlink: isSymlink);
 
             if (!possiblyTracked.Succeeded)
             {

@@ -564,7 +564,7 @@ namespace Test.BuildXL.Storage
 
             Possible<ReparsePointType> reparsePointType = FileUtilities.TryGetReparsePointType(symlinkPath);
             XAssert.IsTrue(reparsePointType.Succeeded);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
+            XAssert.IsTrue(FileUtilities.IsReparsePointActionable(reparsePointType.Result));
 
             using (var symlinkHandle = OpenHandleForReparsePoint(symlinkPath))
             {

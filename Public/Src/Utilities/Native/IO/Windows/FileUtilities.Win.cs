@@ -937,7 +937,7 @@ namespace BuildXL.Native.IO.Windows
                 FileDesiredAccess.FileWriteAttributes,
                 FileShare.ReadWrite | FileShare.Delete,
                 FileMode.Open,
-                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                 out handle);
 
             using (handle)
@@ -969,7 +969,7 @@ namespace BuildXL.Native.IO.Windows
                 FileDesiredAccess.FileReadAttributes,
                 FileShare.Read | FileShare.Delete,
                 FileMode.Open,
-                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                 out handle);
 
             using (handle)

@@ -124,6 +124,11 @@ namespace Test.BuildXL.Executables.TestProcess
             CopyFile,
 
             /// <summary>
+            /// Type for copying a symbolic link
+            /// </summary>
+            CopySymlink,
+
+            /// <summary>
             /// Type for probing a file
             /// </summary>
             Probe,
@@ -324,12 +329,12 @@ namespace Test.BuildXL.Executables.TestProcess
         public int RetriesOnWrite { get; }
 
         private Operation(
-            Type type, 
-            FileOrDirectoryArtifact? path = null, 
-            string content = null, 
-            FileOrDirectoryArtifact? linkPath = null, 
-            SymbolicLinkFlag? symLinkFlag = null, 
-            bool? doNotInfer = null, 
+            Type type,
+            FileOrDirectoryArtifact? path = null,
+            string content = null,
+            FileOrDirectoryArtifact? linkPath = null,
+            SymbolicLinkFlag? symLinkFlag = null,
+            bool? doNotInfer = null,
             string additionalArgs = null, 
             int retriesOnWrite = 5)
         {
@@ -410,6 +415,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.CopyFile:
                         DoCopyFile();
+                        return;
+                    case Type.CopySymlink:
+                        DoCopySymlink();
                         return;
                     case Type.MoveDir:
                         DoMoveDir();
@@ -627,6 +635,14 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Creates a copy symlink operation
+        /// </summary>
+        public static Operation CopySymlink(FileArtifact srcPath, FileArtifact destPath, SymbolicLinkFlag symLinkFlag, bool doNotInfer = false)
+        {
+            return new Operation(Type.CopySymlink, path: srcPath, linkPath: destPath, symLinkFlag: symLinkFlag, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
         /// Creates a move directory operation
         /// </summary>
         public static Operation MoveDir(DirectoryArtifact srcPath, DirectoryArtifact destPath)
@@ -644,8 +660,9 @@ namespace Test.BuildXL.Executables.TestProcess
 
         /// <summary>
         /// Creates a enumerate directory operation
+        /// The path is a FileOrDirectoryArtifact, because we can enumerate directories through directory symlinks - which are FileArtifacts.
         /// </summary>
-        public static Operation EnumerateDir(DirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
+        public static Operation EnumerateDir(FileOrDirectoryArtifact path, bool doNotInfer = false, string enumeratePattern = null)
         {
             return new Operation(Type.EnumerateDir, path, doNotInfer: doNotInfer, additionalArgs: enumeratePattern);
         }
@@ -900,7 +917,7 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private void DoDeleteFile()
         {
-            File.Delete(PathAsString);
+            FileUtilities.DeleteFile(PathAsString);
         }
 
         private void DoDeleteDir()
@@ -1071,6 +1088,24 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoCopyFile()
         {
             File.Copy(PathAsString, LinkPathAsString, overwrite: true);
+        }
+
+        private void DoCopySymlink()
+        {
+            var possibleTarget = FileUtilities.TryGetReparsePointTarget(null, PathAsString);
+            if (!possibleTarget.Succeeded)
+            {
+                possibleTarget.Failure.Throw();
+            }
+
+            var reparsepointTarget = possibleTarget.Result;
+            FileUtilities.DeleteFile(LinkPathAsString);
+
+            var maybeSymlink = FileUtilities.TryCreateSymbolicLink(LinkPathAsString, reparsepointTarget, isTargetFile: SymLinkFlag == SymbolicLinkFlag.FILE);
+            if (!maybeSymlink.Succeeded)
+            {
+                throw maybeSymlink.Failure.CreateException();
+            }
         }
 
         private void DoMoveDir()

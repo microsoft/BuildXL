@@ -1940,28 +1940,26 @@ namespace BuildXL.Processes
             private static List<Tuple<short, string>> GetNames()
             {
                 var names = new List<Tuple<short, string>>
-                            {
-                                Tuple.Create((short)FileAccessPolicy.Deny, "Deny"),
-                                Tuple.Create((short)FileAccessPolicy.AllowRead, "Read"),
-                                Tuple.Create((short)FileAccessPolicy.AllowWrite, "Write"),
-                                Tuple.Create((short)FileAccessPolicy.AllowReadIfNonexistent, "ReadIfNonexistent"),
-                                Tuple.Create((short)FileAccessPolicy.AllowCreateDirectory, "CreateDirectory"),
-                                Tuple.Create((short)FileAccessPolicy.AllowSymlinkCreation, "CreateSymlink"),
-                                Tuple.Create((short)FileAccessPolicy.AllowRealInputTimestamps, "RealInputTimestamps"),
-                                Tuple.Create((short)FileAccessPolicy.OverrideAllowWriteForExistingFiles, "OverrideAllowWriteForExistingFiles"),
-                                Tuple.Create((short)FileAccessPolicy.TreatDirectorySymlinkAsDirectory, "DirectorySymlinkAsDirectory"),
-
-                                Tuple.Create((short)FileAccessPolicy.ReportAccess, "ReportAccess"),                               
-
-                                // Note that composite values must appear before their parts.
-                                Tuple.Create((short)FileAccessPolicy.ReportAccessIfExistent, "ReportAccessIfExistent"),
-                                Tuple.Create(
-                                    (short)FileAccessPolicy.ReportAccessIfNonexistent,
-                                    "ReportAccessIfNonExistent"),
-                                Tuple.Create(
-                                    (short)FileAccessPolicy.ReportDirectoryEnumerationAccess,
-                                    "ReportDirectoryEnumerationAccess")
-                            };
+                {
+                    Tuple.Create((short)FileAccessPolicy.Deny, "Deny"),
+                    Tuple.Create((short)FileAccessPolicy.AllowRead, "Read"),
+                    Tuple.Create((short)FileAccessPolicy.AllowWrite, "Write"),
+                    Tuple.Create((short)FileAccessPolicy.AllowReadIfNonexistent, "ReadIfNonexistent"),
+                    Tuple.Create((short)FileAccessPolicy.AllowCreateDirectory, "CreateDirectory"),
+                    Tuple.Create((short)FileAccessPolicy.AllowSymlinkCreation, "CreateSymlink"),
+                    Tuple.Create((short)FileAccessPolicy.AllowRealInputTimestamps, "RealInputTimestamps"),
+                    Tuple.Create((short)FileAccessPolicy.OverrideAllowWriteForExistingFiles, "OverrideAllowWriteForExistingFiles"),
+                    Tuple.Create((short)FileAccessPolicy.TreatDirectorySymlinkAsDirectory, "DirectorySymlinkAsDirectory"),
+                    Tuple.Create((short)FileAccessPolicy.ReportAccess, "ReportAccess"),
+                    // Note that composite values must appear before their parts.
+                    Tuple.Create((short)FileAccessPolicy.ReportAccessIfExistent, "ReportAccessIfExistent"),
+                    Tuple.Create(
+                        (short)FileAccessPolicy.ReportAccessIfNonexistent,
+                        "ReportAccessIfNonExistent"),
+                    Tuple.Create(
+                        (short)FileAccessPolicy.ReportDirectoryEnumerationAccess,
+                        "ReportDirectoryEnumerationAccess")
+                };
 
                 return names;
             }

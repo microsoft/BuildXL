@@ -167,7 +167,7 @@ namespace BuildXL.Utilities
                 // TODO: But in the case of \\?\C:\foo\..\bar or \\?\C:\foo\\\bar we need to consider preserving the semantics that GetFullPathNameW canonicalization does not apply.
                 //       Otherwise, we could (a) lose this information in round-trips and (b) consider two paths equivalent when they do not give equivalent behavior (when handed to the kernel).
                 //       or (c) consider two paths not equivalent when they point to the same place (\\?\C:\foo\..\bar and \\?\C:\bar might be equivalent - are .. and . reified in the directory?)
-                //       (c) is perhaps the same issue as symlinks - when we ask the disk, it is always possible that two unequal paths point to the same final location.
+                //       (d) is perhaps the same issue as symlinks - when we ask the disk, it is always possible that two unequal paths point to the same final location.
                 AbsolutePathType pathTypeIgnoringPrefix = ClassifyPath(CharSpan.Skip(absolutePath, prefixLength), out int secondPrefixLength);
                 if (pathTypeIgnoringPrefix == AbsolutePathType.LocalDriveLetter)
                 {

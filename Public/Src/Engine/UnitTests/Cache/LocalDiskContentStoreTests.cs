@@ -614,7 +614,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;
@@ -673,7 +672,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;
@@ -729,7 +727,6 @@ namespace Test.BuildXL.Engine.Cache
             XAssert.IsTrue(reparsePointType.Succeeded);
             bool actReparsePoint = FileUtilities.IsReparsePointActionable(reparsePointType.Result);
             XAssert.IsTrue(actReparsePoint);
-            XAssert.IsTrue(reparsePointType.Result == ReparsePointType.SymLink);
 
             // Next make sure we correctly get the target path even when it doesn't exist
             Microsoft.Win32.SafeHandles.SafeFileHandle symlinkHandle;

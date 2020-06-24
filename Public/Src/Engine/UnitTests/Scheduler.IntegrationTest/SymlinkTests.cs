@@ -9,6 +9,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
+using Microsoft.VisualBasic;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
@@ -26,6 +27,8 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public SymlinkTests(ITestOutputHelper output) : base(output)
         {
+            // Enable full symbolic link resolving for testing 
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = false;
         }
 
         [Feature(Features.AbsentFileProbe)]
@@ -73,7 +76,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Point /symlinkFile to /differentAbsentFile
             FileArtifact differentAbsentFile = new FileArtifact(CreateUniqueSourcePath(SourceRootPrefix));
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(differentAbsentFile), isTargetFile: true));
 
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
@@ -83,7 +86,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(absentFile), "absentFile");
 
             // Point /symlinkFile back to /absentFile
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(absentFile), isTargetFile: true));
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertSuccess().AssertCacheHit(pip.PipId);
@@ -94,7 +97,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess().AssertCacheHit(pip.PipId);
 
             // Point /symlinkFile to /existingFile
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(existingFile), isTargetFile: true));
 
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
@@ -107,10 +110,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// When false, /readonly/symlinkDir -> /readwrite/targetDir
         /// </param>
         [Feature(Features.Mount)]
-        [Theory(Skip = "Bug #10959069")]
         [InlineData(true)]
         [InlineData(false)]
-        public void ValidateCachingSymlinkDirectoryEnumerationReadonlyMount_Bug1095069(bool readOnlyTargetDir)
+        public void ValidateCachingSymlinkDirectoryEnumerationReadonlyMount(bool readOnlyTargetDir)
         {
             DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath(SourceRootPrefix, readOnlyTargetDir ? ReadonlyRoot : ObjectRoot));
             DirectoryArtifact symlinkDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath(SourceRootPrefix, ReadonlyRoot));
@@ -126,6 +128,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.EnumerateDir(symlinkDir),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
+
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
@@ -151,7 +154,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Point /symlinkDir to /existingDir
             Directory.Delete(ArtifactToString(symlinkDir));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkDir), ArtifactToString(existingDir), isTargetFile: false));
-            RunScheduler().AssertCacheMiss(pip.PipId); // Bug 10959069, this line should pass, but currently fails
+            RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
@@ -214,18 +217,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             hit.AssertCacheHit(pipA.PipId);
             hit.AssertCacheHit(pipB.PipId);
 
-
             // Delete files in enumerated directory /symlinkDir
-            File.Delete(ArtifactToString(outA));
-            File.Delete(ArtifactToString(outB));
+            FileUtilities.DeleteFile(ArtifactToString(outA));
+            FileUtilities.DeleteFile(ArtifactToString(outB));
 
             var deleteFileHit = RunScheduler().AssertSuccess();
             deleteFileHit.AssertCacheHit(pipA.PipId);
             deleteFileHit.AssertCacheHit(pipB.PipId);
 
             // Double check that cache replay worked
-            XAssert.IsTrue(File.Exists(ArtifactToString(outA)));
-            XAssert.IsTrue(File.Exists(ArtifactToString(outB)));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(outA)));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(outB)));
 
             // Point /symlinkDir to /existingDir
             Directory.Delete(ArtifactToString(symlinkDir));
@@ -245,8 +247,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 Operation.CreateSymlink(symlinkFile, file, Operation.SymbolicLinkFlag.FILE)
             }).Process;
-            RunScheduler().AssertCacheMiss(pip.PipId);
 
+            RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // save symlink target to compare to later
@@ -256,12 +258,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             string output = File.ReadAllText(ArtifactToString(file));
             RunScheduler().AssertCacheHit(pip.PipId);
 
-            File.Delete(symlinkFilePath);
+            FileUtilities.DeleteFile(symlinkFilePath);
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Check that the symlinkFile was replayed as a symlink
-            XAssert.IsTrue(File.Exists(symlinkFilePath));
-            XAssert.IsTrue(IsSymlink(symlinkFile));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(symlinkFilePath));
+            XAssert.IsTrue(IsFileSymlink(symlinkFile));
 
             // Check that symlink still points to the same target (and also that the target's content was not changed)
             string cacheOutput = File.ReadAllText(symlinkFilePath);
@@ -272,18 +274,64 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ValidateCachingProducingRelativeSymlinkFile()
+        public void ValidateCachingProducingDirectorySymlink()
         {
-            string requestedTarget = R("..", "..", "NonExistent", "SomeFile");
+            DirectoryArtifact targetDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
+            FileArtifact directorySymlink = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.CreateSymlink(directorySymlink, targetDir, Operation.SymbolicLinkFlag.DIRECTORY)
+            });
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // save symlink target to compare to later
+            string directorySymlinkPath = ArtifactToString(directorySymlink);
+            string directorySymlinkTarget = GetReparsePointTarget(directorySymlinkPath);
+
+            FileUtilities.DeleteFile(directorySymlinkPath);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            // Check that the directory symlink was replayed as a proper directory symlink
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(directorySymlinkPath));
+            XAssert.IsTrue(IsDirectorySymlink(directorySymlink));
+
+            // Check that symlink still points to the same target and the target is a directory
+            string replayedDirectorySymlinkTarget = GetReparsePointTarget(directorySymlinkPath);
+            XAssert.AreEqual(directorySymlinkTarget, replayedDirectorySymlinkTarget);
+
+            var existenceCheck = FileUtilities.TryProbePathExistence(directorySymlinkPath, followSymlink: true);
+            XAssert.IsTrue(existenceCheck.Succeeded);
+            XAssert.IsTrue(existenceCheck.Result == PathExistence.ExistsAsDirectory);
+        }
+
+        [Theory]
+        [InlineData(Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(Operation.SymbolicLinkFlag.DIRECTORY)]
+        public void ValidateCachingProducingRelativeSymlinks(Operation.SymbolicLinkFlag flag)
+        {
+            bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
+
+            string requestedTarget = usingDirectorySymlinks 
+                ? R("..", "..", "NonExistentDirectory")
+                : R("..", "..", "NonExistentDirectory", "SomeFile");
+
             FileArtifact symlinkFile = CreateOutputFileArtifact(prefix: "sym-out");
+
             string symlinkFilePath = ArtifactToString(symlinkFile);
 
-            // Process creates file symlink
+            // Process creates directory / file symlink
             Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact(prefix: "regular-out")),
-                Operation.CreateSymlink(symlinkFile, requestedTarget, Operation.SymbolicLinkFlag.FILE)
+                Operation.CreateSymlink(symlinkFile, requestedTarget, flag)
             }).Process;
+
             RunScheduler().AssertSuccess();
 
             // save symlink target to compare to later
@@ -293,49 +341,63 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(requestedTarget, symlinkTarget);
 
             // delete the symlink and replay it from cache
-            File.Delete(symlinkFilePath);
+            FileUtilities.DeleteFile(symlinkFilePath);
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Check that the symlinkFile was replayed as a symlink
-            XAssert.IsTrue(File.Exists(symlinkFilePath));
-            XAssert.IsTrue(IsSymlink(symlinkFile));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(symlinkFilePath));
+            XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkFile) : IsFileSymlink(symlinkFile));
 
             // Check that the target path was replayed as a relative path
             string replayedSymlinkTarget = GetReparsePointTarget(symlinkFilePath);
             XAssert.AreEqual(symlinkTarget, replayedSymlinkTarget);
         }
 
-        [Fact]
-        public void ValidateCachingProcessProducingChainOfSymlinks()
+        [Theory]
+        [InlineData(Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(Operation.SymbolicLinkFlag.DIRECTORY)]
+        public void ValidateCachingProcessProducingChainOfSymlinks(Operation.SymbolicLinkFlag flag)
         {
-            FileArtifact targetFile = new FileArtifact(CreateSourceFile());
+            bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
+
+            FileOrDirectoryArtifact target = usingDirectorySymlinks
+                ? FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory()))
+                : FileOrDirectoryArtifact.Create(new FileArtifact(CreateSourceFile()));
 
             // Save content to compare to later
-            string targetContent = File.ReadAllText(ArtifactToString(targetFile)); // src_0
+            string targetContent = usingDirectorySymlinks ? string.Empty : File.ReadAllText(ArtifactToString(target)); // src_0
 
             FileArtifact symlinkA = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion(); // obj_1
             FileArtifact symlinkB = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion(); // obj_2
             FileArtifact symlinkC = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion(); // obj_3
 
-            // pip produces chain of symlinks /symlinkC -> /symlinkB -> symlinkA -> targetFile
+            // pip produces chain of symlinks /symlinkC -> /symlinkB -> symlinkA -> targetFile / targetDir
             var builder = CreatePipBuilder(new Operation[]
-                {
-                    Operation.CreateSymlink(symlinkA, targetFile, Operation.SymbolicLinkFlag.FILE, doNotInfer: true),
-                    Operation.CreateSymlink(symlinkB, symlinkA, Operation.SymbolicLinkFlag.FILE, doNotInfer: true),
-                    Operation.CreateSymlink(symlinkC, symlinkB, Operation.SymbolicLinkFlag.FILE, doNotInfer: true)
-                });
-            builder.AddInputFile(targetFile);
+            {
+                Operation.CreateSymlink(symlinkA, target, flag, doNotInfer: true),
+                Operation.CreateSymlink(symlinkB, symlinkA, flag, doNotInfer: true),
+                Operation.CreateSymlink(symlinkC, symlinkB, flag, doNotInfer: true)
+            });
+
+            if (!usingDirectorySymlinks)
+            {
+                builder.AddInputFile(target.FileArtifact);
+            }
+
             builder.AddOutputFile(symlinkA.Path);
             builder.AddOutputFile(symlinkB.Path);
             builder.AddOutputFile(symlinkC.Path);
-            Process pip = SchedulePipBuilder(builder).Process;
 
+            Process pip = SchedulePipBuilder(builder).Process;
             RunScheduler().AssertSuccess();
 
-            string symlinkContent = File.ReadAllText(ArtifactToString(symlinkC));
+            if (!usingDirectorySymlinks)
+            {
+                string symlinkContent = File.ReadAllText(ArtifactToString(symlinkC));
 
-            // Check symlink chain creation worked
-            XAssert.AreEqual(targetContent, symlinkContent);
+                // Check symlink chain creation worked
+                XAssert.AreEqual(targetContent, symlinkContent);
+            }
 
             // Delete /symlinkB from middle of chain
             // Before second run directory state: obj_1 (symlink), obj_3 (symlink), src_0
@@ -343,20 +405,28 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Validate each of the files are still there and contain the correct content
-            FileArtifact[] files = new FileArtifact[] { targetFile, symlinkA, symlinkB, symlinkC };
-            foreach (var file in files)
+
+            XAssert.IsTrue(usingDirectorySymlinks
+                ? FileUtilities.DirectoryExistsNoFollow(ArtifactToString(target))
+                : FileUtilities.FileExistsNoFollow(ArtifactToString(target)));
+
+            FileOrDirectoryArtifact[] artifacts = new FileOrDirectoryArtifact[] { symlinkA, symlinkB, symlinkC };
+            foreach (var entry in artifacts)
             {
-                XAssert.IsTrue(File.Exists(ArtifactToString(file)));
-                XAssert.AreEqual(targetContent, File.ReadAllText(ArtifactToString(file)));
+                XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(entry)));
+                if (!usingDirectorySymlinks)
+                {
+                    XAssert.AreEqual(targetContent, File.ReadAllText(ArtifactToString(entry)));
+                }
             }
 
             // /targetFile, /symlinkA, and /symlinkC should be in their original state
-            XAssert.IsFalse(IsSymlink(targetFile));
-            XAssert.IsTrue(IsSymlink(symlinkA));
-            XAssert.IsTrue(IsSymlink(symlinkC));
+            XAssert.IsFalse(IsSymlink(ArtifactToString(target)));
+            XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkA) : IsFileSymlink(symlinkA));
+            XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkC) : IsFileSymlink(symlinkC));
 
             // /symlinkB is replayed as a symlink
-            XAssert.IsTrue(IsSymlink(symlinkB));
+            XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkB) : IsFileSymlink(symlinkB));
         }
 
         [Feature(Features.RewrittenFile)]
@@ -403,7 +473,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(rewrittenContent.Length > targetContent.Length);
 
             // Delete /symlinkFile
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
             ScheduleRunResult hit = RunScheduler().AssertSuccess();
             hit.AssertCacheHit(pipInit.PipId);
             hit.AssertCacheHit(pipA.PipId);
@@ -414,83 +484,123 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(replayedContent, rewrittenContent);
         }
 
-        [Fact]
-        public void ValidateCachingProcessRewritingSymlink()
+        [Theory]
+        [InlineData(Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(Operation.SymbolicLinkFlag.DIRECTORY)]
+        public void ValidateCachingProcessRewritingSymlink(Operation.SymbolicLinkFlag flag)
         {
+            bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
+
             // pipA creates /symlinkFile that points to /targetA
             // pipB rewrites /symlinkFile so it now points to /targetB
-            FileArtifact targetA = CreateSourceFileWithPrefix(prefix: "targetA");
-            FileArtifact targetB = CreateSourceFileWithPrefix(prefix: "targetB");
+            FileOrDirectoryArtifact targetA = usingDirectorySymlinks
+                ? FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(prefix: "targetA")))
+                : FileOrDirectoryArtifact.Create(CreateSourceFileWithPrefix(prefix: "targetA"));
 
-            string targetBContent = File.ReadAllText(ArtifactToString(targetB));
+            FileOrDirectoryArtifact targetB = usingDirectorySymlinks
+                ? FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(prefix: "targetB")))
+                : FileOrDirectoryArtifact.Create(CreateSourceFileWithPrefix(prefix: "targetB"));
+
+            string targetBContent = usingDirectorySymlinks ? string.Empty : File.ReadAllText(ArtifactToString(targetB));
 
             FileArtifact symlinkFile = CreateOutputFileArtifact();
 
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
-               Operation.CreateSymlink(symlinkFile, targetA, Operation.SymbolicLinkFlag.FILE)
+               Operation.CreateSymlink(symlinkFile, targetA, flag)
             });
+
             var pipA = SchedulePipBuilder(pipBuilderA).Process;
 
             var pipBuilderB = CreatePipBuilder(new Operation[]
             {
                 Operation.DeleteFile(symlinkFile, doNotInfer: true),
-                Operation.CreateSymlink(symlinkFile, targetB, Operation.SymbolicLinkFlag.FILE, doNotInfer: true)
+                Operation.CreateSymlink(symlinkFile, targetB, flag, doNotInfer: true)
             });
+
+            if (!usingDirectorySymlinks)
+            {
+                pipBuilderB.AddInputFile(targetA.FileArtifact);
+            }
+
             pipBuilderB.AddRewrittenFileInPlace(symlinkFile);
             var pipB = SchedulePipBuilder(pipBuilderB).Process;
 
             RunScheduler().AssertSuccess();
+
             string symlinkPath = ArtifactToString(symlinkFile);
             var symlinkTarget = GetReparsePointTarget(symlinkPath);
-            XAssert.AreEqual(ArtifactToString(targetB), GetReparsePointTarget(symlinkPath));
+
+            XAssert.AreEqual(ArtifactToString(targetB), symlinkTarget);
 
             // check that symlink properly points to targetB
-            string symlinkTargetContent = File.ReadAllText(symlinkPath);
-            XAssert.AreEqual(targetBContent, symlinkTargetContent);
+            if (!usingDirectorySymlinks)
+            {
+                string symlinkTargetContent = File.ReadAllText(symlinkPath);
+                XAssert.AreEqual(targetBContent, symlinkTargetContent);
+            }
 
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
 
             var result = RunScheduler().AssertSuccess();
             result.AssertCacheHit(pipA.PipId);
             result.AssertCacheHit(pipB.PipId);
 
             // check that symlinkFile is a symlink and that it properly points to targetB
-            XAssert.IsTrue(IsSymlink(symlinkFile));
-            XAssert.AreEqual(ArtifactToString(targetB), GetReparsePointTarget(symlinkPath));
+            XAssert.IsTrue(usingDirectorySymlinks ? IsDirectorySymlink(symlinkFile) : IsFileSymlink(symlinkFile));
+            XAssert.AreEqual(ArtifactToString(targetB), symlinkTarget);
             var replayedSymlinkTarget = GetReparsePointTarget(ArtifactToString(symlinkFile));
+            
             XAssert.AreEqual(symlinkTarget, replayedSymlinkTarget);
-            symlinkTargetContent = File.ReadAllText(symlinkPath);
-            XAssert.AreEqual(targetBContent, symlinkTargetContent);
+
+            if (!usingDirectorySymlinks)
+            {
+                var symlinkTargetContent = File.ReadAllText(symlinkPath);
+                XAssert.AreEqual(targetBContent, symlinkTargetContent);
+            }
         }
 
         [Feature(Features.OpaqueDirectory)]
-        [Fact]
-        public void ValidateBehaviorProcessProducingSymlinkInOpaqueDirectory()
+        [Theory]
+        [InlineData(Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(Operation.SymbolicLinkFlag.DIRECTORY)]
+        public void ValidateBehaviorProcessProducingSymlinkInOpaqueDirectory(Operation.SymbolicLinkFlag flag)
         {
+            bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
+
             string opaqueDir = "opaqueDir";
             AbsolutePath opaqueDirPath = CreateUniquePath(opaqueDir, ObjectRoot);
             Directory.CreateDirectory(opaqueDirPath.ToString(Context.PathTable));
 
-            // /opaqueDir/symlinkFile -> /src/targetFile
+            // /opaqueDir/symlink -> /src/target
             FileArtifact symlinkFile = new FileArtifact(CreateUniquePath("symlink", opaqueDirPath.ToString(Context.PathTable))).CreateNextWrittenVersion();
-            FileArtifact targetFile = CreateSourceFile();
+            FileOrDirectoryArtifact target = usingDirectorySymlinks
+                ? FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory()))
+                : FileOrDirectoryArtifact.Create(CreateSourceFile());
+
+            var targetFile = CreateOutputFileArtifact(usingDirectorySymlinks ? target.Path : target.Path.GetParent(Context.PathTable));
 
             // pipA declares output of /opaqueDir and creates /opaqueDir/symlinkFile
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
-                Operation.CreateSymlink(symlinkFile, targetFile, Operation.SymbolicLinkFlag.FILE, doNotInfer: true)
+                Operation.CreateSymlink(symlinkFile, target, flag, doNotInfer: true),
+                Operation.WriteFile(targetFile),
             });
 
             // /symlinkFile does not need to be declared as an output since it is produced within the declared, produced opaque directory
             pipBuilderA.AddOutputDirectory(opaqueDirPath);
+
             var paoA = SchedulePipBuilder(pipBuilderA);
             Process pipA = paoA.Process;
 
-            // pipB declares dependency on /opaqueDir and consumes /opaqueDir/symlinkFile
+            // When using a directory symlink read a file in the target directory thorugh the symlink
+            var targetThroughSymlink = symlinkFile.Path.Combine(Context.PathTable, targetFile.Path.GetName(Context.PathTable));
+            var op = usingDirectorySymlinks ? Operation.ReadFile(new FileArtifact(targetThroughSymlink), doNotInfer: true) : Operation.ReadFile(symlinkFile, doNotInfer: true);
+
+            // pipB declares dependency on /opaqueDir and consumes /opaqueDir/symlinkFile or /opaqueDir/symlinkFile/targetOutput
             var pipBuilderB = CreatePipBuilder(new Operation[]
             {
-                Operation.ReadFile(symlinkFile, doNotInfer: true),
+                op,
                 Operation.WriteFile(CreateOutputFileArtifact())
             });
 
@@ -502,120 +612,136 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // pipA successfully creates the symlink
             XAssert.AreEqual(PipResultStatus.Succeeded, fail.PipResults[pipA.PipId]);
-            ValidateFilesExistProcessWithSymlinkOutput(targetFile, symlinkFile);
+            ValidateFilesExistProcessWithSymlinkOutput(target, symlinkFile, usingDirectorySymlinks);
 
-            // pipB fails on consuming /symlinkFile since it does not declare /targetFile as a dependency
+            // pipB fails on consuming symlink file or a file through a directory symlink since it does not declare /target as intermediate a dependency
             XAssert.AreEqual(PipResultStatus.Failed, fail.PipResults[pipB.PipId]);
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, ArtifactToString(targetFile));
-            AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, ArtifactToString(usingDirectorySymlinks ? targetFile : target));
+
+            if (!usingDirectorySymlinks)
+            {
+                AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
+            }
+
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
 
         [Fact]
-        public void AllowProducingSymlinkToExistingFile()
+        public void AllowProducingSymlinkToExistingEntries()
         {
             FileArtifact file = new FileArtifact(CreateSourceFile());
-            FileArtifact symlinkFile = new FileArtifact(CreateUniqueSourcePath("sym")).CreateNextWrittenVersion();
+            DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory());
 
-            // Process creates file symlink
+            FileArtifact fileSymlinkFile = new FileArtifact(CreateUniqueSourcePath("file_sym")).CreateNextWrittenVersion();
+            FileArtifact directorySymlink = new FileArtifact(CreateUniqueSourcePath("dir_sym")).CreateNextWrittenVersion();
+
+            // Process creates symlinks
             Process pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact(prefix: "out")),
-                Operation.CreateSymlink(symlinkFile, file, Operation.SymbolicLinkFlag.FILE)
+                Operation.CreateSymlink(fileSymlinkFile, file, Operation.SymbolicLinkFlag.FILE),
+                Operation.CreateSymlink(directorySymlink, dir, Operation.SymbolicLinkFlag.DIRECTORY)
             }).Process;
 
             RunScheduler().AssertSuccess();
 
-            ValidateFilesExistProcessWithSymlinkOutput(file, symlinkFile);
+            ValidateFilesExistProcessWithSymlinkOutput(file, fileSymlinkFile);
+            ValidateFilesExistProcessWithSymlinkOutput(dir, directorySymlink, true);
         }
 
         [Feature(Features.SealedSourceDirectory)]
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void AllowProcessCopyingSymlink(bool sourceSealedDirectory)
+        [InlineData(true, Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(false, Operation.SymbolicLinkFlag.FILE)]
+        [InlineData(true, Operation.SymbolicLinkFlag.DIRECTORY)]
+        public void AllowProcessCopyingSymlink(bool sourceSealedDirectory, Operation.SymbolicLinkFlag flag)
         {
-            // Create symlink from /symlinkFile to /targetFile
-            FileArtifact targetFile = CreateSourceFile();
+            bool usingDirectorySymlinks = flag != Operation.SymbolicLinkFlag.FILE;
+
+            // Create symlink from /symlinkFile to /target
+            FileOrDirectoryArtifact target = usingDirectorySymlinks
+                ? FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory()))
+                : FileOrDirectoryArtifact.Create(CreateSourceFile());
+
             FileArtifact symlinkFile = new FileArtifact(CreateUniqueSourcePath(SourceRootPrefix));
-            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(targetFile), isTargetFile: true));
+            XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(target), isTargetFile: !usingDirectorySymlinks));
 
             // Get content of /targetFile to compare later
-            string targetContent = File.ReadAllText(ArtifactToString(targetFile));
+            string targetContent = usingDirectorySymlinks ? string.Empty : File.ReadAllText(ArtifactToString(target));
 
             // Set up pip
-            FileArtifact copiedFile = CreateOutputFileArtifact();
+            FileArtifact copiedSymlink = CreateOutputFileArtifact();
 
             // Process copies a symlink
             Operation[] ops = new Operation[]
             {
-                Operation.CopyFile(symlinkFile, copiedFile, doNotInfer:true)
+                Operation.CopySymlink(symlinkFile, copiedSymlink, symLinkFlag: flag, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilder(ops);
-            builder.AddOutputFile(copiedFile.Path, FileExistence.Required);
-            builder.AddInputFile(symlinkFile);
-            builder.AddInputFile(targetFile);
 
-            if (sourceSealedDirectory)
+            var builder = CreatePipBuilder(ops);
+            builder.AddOutputFile(copiedSymlink.Path, FileExistence.Required);
+            builder.AddInputFile(symlinkFile);
+
+            if (!usingDirectorySymlinks)
+            {
+                builder.AddInputFile(target.FileArtifact);
+            }
+
+            if (usingDirectorySymlinks || sourceSealedDirectory)
             {
                 // Seal /src directory
                 DirectoryArtifact srcDir = SealDirectory(SourceRootPath, SealDirectoryKind.SourceAllDirectories);
                 builder.AddInputDirectory(srcDir);
             }
+
             Process pip = SchedulePipBuilder(builder).Process;
 
             RunScheduler().AssertSuccess();
 
-            string copiedContent = File.ReadAllText(ArtifactToString(copiedFile));
-            XAssert.AreEqual(targetContent, copiedContent);
-        }
-
-        /// <summary>
-        /// Producing symlinks to directories is never allowed and should always cause failures.
-        /// </summary>
-        [Fact]
-        public void AlwaysFailOnProducingSymlinkDirectory()
-        {
-            // Start with symlink to absent directory
-            DirectoryArtifact dir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(ObjectRootPrefix));
-            DirectoryArtifact symlinkDir = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(ObjectRootPrefix));
-
-            // Process creates directory symlinks
-            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            if (!usingDirectorySymlinks)
             {
-                Operation.WriteFile(CreateOutputFileArtifact()),
-                Operation.CreateSymlink(symlinkDir, dir, Operation.SymbolicLinkFlag.FILE)
-            }).Process;
-
-            FailOnProducingSymlink();
-
-            // Create previously absent driectory
-            Directory.CreateDirectory(ArtifactToString(dir));
-            FailOnProducingSymlink();
+                string copiedContent = File.ReadAllText(ArtifactToString(copiedSymlink));
+                XAssert.AreEqual(targetContent, copiedContent);
+            }
+            else
+            {
+                // Check that the copied symlink points to the original target and is a directory symlink
+                var copiedSymlinkTarget = GetReparsePointTarget(ArtifactToString(copiedSymlink));
+                XAssert.AreEqual(copiedSymlinkTarget, ArtifactToString(target));
+                XAssert.IsTrue(IsDirectorySymlink(copiedSymlink));
+            }
         }
 
         /// <summary>
-        /// Processes can produce symlinks to absent files because we cache the target paths of the symlink.
+        /// Processes can produce symlinks to absent directories / files because we cache the target paths of the symlink.
         /// </summary>
         [Fact]
-        public void AllowProducingSymlinkToAbsentFile()
+        public void AllowProducingSymlinksToAbsentEntries()
         {
             FileArtifact absentFile = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix));
-            FileArtifact symlinkFile = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
+            DirectoryArtifact absentDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueSourcePath(ObjectRootPrefix));
 
-            // Process creates file symlink
-            Process pip = CreateAndSchedulePipBuilder(new Operation[]
+            FileArtifact fileSymlink = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
+            FileArtifact directorySymlink = new FileArtifact(CreateUniqueSourcePath(ObjectRootPrefix)).CreateNextWrittenVersion();
+
+            // Process creates a directory and a file symlink
+            var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
-                Operation.CreateSymlink(symlinkFile, absentFile, Operation.SymbolicLinkFlag.FILE)
-            }).Process;
+                Operation.CreateSymlink(fileSymlink, absentFile, Operation.SymbolicLinkFlag.FILE),
+                Operation.CreateSymlink(directorySymlink, absentDirectory, Operation.SymbolicLinkFlag.DIRECTORY)
+            });
 
-            // Symlinks to absent files cause caching errors
+            var pip = SchedulePipBuilder(builder);
+
+            // Symlinks to absent files and directories should cause no errors
             RunScheduler().AssertSuccess();
 
-            // Validate symlink was created
-            XAssert.IsTrue(File.Exists(ArtifactToString(symlinkFile)));
+            // Validate symlinks were created
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(fileSymlink)));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(directorySymlink)));
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -636,6 +762,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.CopyFile(symlinkFile, copiedFile),
                 Operation.WriteFile(CreateOutputFileArtifact()),
             }).Process;
+
             RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
 
@@ -649,13 +776,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(checkpoint1, File.ReadAllText(ArtifactToString(copiedFile)));
 
             // Delete /targetSourceFile
-            File.Delete(ArtifactToString(targetFile));
+            FileUtilities.DeleteFile(ArtifactToString(targetFile));
             RunScheduler().AssertCacheHit(pip.PipId);
             XAssert.AreEqual(checkpoint1, File.ReadAllText(ArtifactToString(copiedFile)));
 
             // Redirect /symlinkFile to /newTargetFile
             FileArtifact newTargetFile = CreateSourceFile();
-            File.Delete(ArtifactToString(symlinkFile));
+            FileUtilities.DeleteFile(ArtifactToString(symlinkFile));
             XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(ArtifactToString(symlinkFile), ArtifactToString(newTargetFile), isTargetFile: true));
             RunScheduler().AssertCacheMiss(pip.PipId);
             XAssert.AreNotEqual(checkpoint1, File.ReadAllText(ArtifactToString(copiedFile)));
@@ -751,7 +878,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // run again --- BuildXL should detect that the file was replaced with a symlink to that file and should "undo" this
             RunScheduler().AssertSuccess();
-            XAssert.IsFalse(IsSymlink(originalLocation));
+            XAssert.IsFalse(IsFileSymlink(originalLocation));
             XAssert.AreEqual(fileContent, File.ReadAllText(ArtifactToString(originalLocation)));
         }
 
@@ -877,8 +1004,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact output = CopyFile(symlinkFile1, CreateOutputFileArtifact());
 
             RunScheduler().AssertSuccess();
-            XAssert.IsTrue(File.Exists(ArtifactToString(output)));
-            XAssert.IsFalse(IsSymlink(output));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(output)));
+            XAssert.IsFalse(IsFileSymlink(output));
             XAssert.AreEqual(File.ReadAllText(ArtifactToString(targetFile)), File.ReadAllText(ArtifactToString(output)));
         }
 
@@ -1042,6 +1169,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Turn on symlink processing
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.ProcessSymlinkedAccesses = true;
 
+            // TODO: This test can be deleted once we have validated and optimized Rush based scenarios
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullSymlinkResolving = true;
+
             // Create a source file via a directory symlink
             string symlinkDir = Path.Combine(SourceRoot, "symlinkDir");
             string targetDirectory = Path.Combine(SourceRoot, "targetDir");
@@ -1065,12 +1195,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Now delete the symlinked directory. Observe this operation does not remove the target directory.
             Directory.Delete(symlinkDir);
             // Let's make sure the target is still there
-            XAssert.IsTrue(File.Exists(Path.Combine(targetDirectory, symlinkFile.Path.GetName(Context.PathTable).ToString(Context.StringTable))));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(Path.Combine(targetDirectory, symlinkFile.Path.GetName(Context.PathTable).ToString(Context.StringTable))));
             
             // Next run should be a cache miss
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.PipId);
         }
-
 
         /// <summary>
         /// Pips delete their outputs before running. When a symlink is declared as output,
@@ -1079,36 +1208,34 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// </summary>
         /// <param name="targetFile">underlying target file symlinkFile points to</param>
         /// <param name="symlinkFile">symlinkFile that is declared as output of pip</param>
-        protected void ValidateFilesExistProcessWithSymlinkOutput(FileArtifact targetFile, FileArtifact symlinkFile)
+        protected void ValidateFilesExistProcessWithSymlinkOutput(FileOrDirectoryArtifact target, FileArtifact symlinkFile, bool isDirectorySymlink = false)
         {
             // Check that /targetFile still exists as a file, not a symlink
-            XAssert.IsTrue(File.Exists(ArtifactToString(targetFile)));
-            XAssert.IsFalse(new FileInfo(ArtifactToString(targetFile)).Attributes.HasFlag(FileAttributes.ReparsePoint));
+            XAssert.IsTrue(isDirectorySymlink ? FileUtilities.DirectoryExistsNoFollow(ArtifactToString(target)) : FileUtilities.FileExistsNoFollow(ArtifactToString(target)));
+            XAssert.IsFalse(new FileInfo(ArtifactToString(target)).Attributes.HasFlag(FileAttributes.ReparsePoint));
 
             // Sanity check that symlink path still exists. It's possible for this to be replaced with a copied file or remain a symlink.
-            XAssert.IsTrue(File.Exists(ArtifactToString(symlinkFile)));
-            XAssert.IsTrue(new FileInfo(ArtifactToString(symlinkFile)).Attributes.HasFlag(FileAttributes.ReparsePoint));
+            XAssert.IsTrue(FileUtilities.FileExistsNoFollow(ArtifactToString(symlinkFile)));
+
+            var attrs = new FileInfo(ArtifactToString(symlinkFile)).Attributes;
+            XAssert.IsTrue(attrs.HasFlag(FileAttributes.ReparsePoint));
+            XAssert.IsTrue(isDirectorySymlink ? attrs.HasFlag(FileAttributes.Directory) : !attrs.HasFlag(FileAttributes.Directory));
         }
 
-        public void FailOnProducingSymlink()
+        protected bool IsFileSymlink(FileArtifact file) => SymlinkTests.IsSymlink(ArtifactToString(file));
+        protected bool IsDirectorySymlink(FileArtifact dir) => SymlinkTests.IsSymlink(ArtifactToString(dir), true);
+
+        internal static bool IsSymlink(string file, bool isDirectorySymlink = false)
         {
-            // Producing symlinks is not allowed by default, so failure
-            RunScheduler().AssertFailure();
+            var attr = new FileInfo(file).Attributes;
 
-            // Block creating symlink
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, allowMore: true);
-            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                return attr.HasFlag(FileAttributes.ReparsePoint);
+            }
 
-            // Test process fails when an operation cannot be completed
-            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
-
-            // Expected symlink as output
-            AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOutput, allowMore: true);
+            return attr.HasFlag(FileAttributes.ReparsePoint) && (isDirectorySymlink ? attr.HasFlag(FileAttributes.Directory) : !attr.HasFlag(FileAttributes.Directory));
         }
-
-        protected bool IsSymlink(FileArtifact file) => IsSymlink(ArtifactToString(file));
-
-        internal static bool IsSymlink(string file) => new FileInfo(file).Attributes.HasFlag(FileAttributes.ReparsePoint);
 
         private string GetReparsePointTarget(string filePath)
         {
@@ -1117,7 +1244,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 FileDesiredAccess.GenericRead,
                 FileShare.Read | FileShare.Delete,
                 FileMode.Open,
-                FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                 out var handle);
 
             XAssert.IsTrue(result.Succeeded, $"Failed to create a handle to file '{filePath}'");

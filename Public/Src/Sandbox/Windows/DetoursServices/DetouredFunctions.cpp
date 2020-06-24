@@ -315,6 +315,17 @@ static bool ShouldResolveSymlinkChain(
         return AccessReparsePointTarget(lpFileName, dwDesiredAccess, dwFlagsAndAttributes); // Trying to access reparse point target.
     }
 
+    // BuildXL tries to delete files using the 'FILE_FLAG_DELETE_ON_CLOSE' attribute when opening a handle then closing it, before
+    // falling back to other strategies. If we try to delete a symbolic link, it's important to not do full resolving as only the link
+    // itself should be deleted, not its targets.
+    bool symbolicLinkDeletion = (dwFlagsAndAttributes & FILE_FLAG_DELETE_ON_CLOSE) != 0 &&
+        (dwFlagsAndAttributes & FILE_FLAG_OPEN_REPARSE_POINT) != 0;
+
+    if (symbolicLinkDeletion)
+    {
+        return false;
+    }
+
     CanonicalizedPath path = CanonicalizedPath::Canonicalize(lpFileName);
 
     auto drive = std::make_unique<wchar_t[]>(_MAX_DRIVE);
@@ -3797,6 +3808,14 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
         dwFlags);
 
     error = GetLastError();
+
+    if (!IgnoreFullSymlinkResolving() && (dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0)
+    {
+        // When running in full symlink resolving mode and creating a directory symlink with an approved write access,
+        // we need to adjust the report level to make sure we send the report to BuildXL. This normally does not happen,
+        // because file access reports regarding directories are skipped completely.
+        accessCheckSrc.Level = ReportLevel::Report;
+    }
 
     ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
 

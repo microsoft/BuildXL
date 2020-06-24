@@ -29,7 +29,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// Determines if this is a symlink or not.
         /// </summary>
-        public bool IsSymlink => ReparsePointType == ReparsePointType.SymLink;
+        public bool IsSymlink => FileUtilities.IsReparsePointSymbolicLink(ReparsePointType);
 
         private ReparsePointInfo(ReparsePointType reparsePointType, string targetPath)
         {

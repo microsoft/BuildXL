@@ -121,18 +121,14 @@ namespace IntegrationTest.BuildXL.Scheduler
                 ├── sym-A -> A
                 └── sym-sym-A -> sym-A
         */
-
-/*
-    TODO: Add back once new LKG with correct symlink directory deletion is deployed
-
-    Versions/A/sym-loop -> ../sym-A/
-*/      
+     
         private const string GeneralDirectoryLayout = @"
 sym-Versions_A_file -> Versions/A/file
 sym-Versions_sym-A_file -> Versions/sym-A/file
 Versions/
 Versions/A/
 Versions/A/file
+Versions/A/sym-loop -> ../sym-A/
 Versions/sym-A -> A/
 Versions/sym-sym-A -> sym-A/
 ";
@@ -228,22 +224,21 @@ Versions/sym-sym-A -> sym-A/
                 }
             ),
             
-            // TODO: Enable once new LKG with correct symlink directory deletion is deployed
-            // new LookupSpec(
-            //     "readViaSymLoop",
-            //     lookup: "Versions/A/sym-loop/file",
-            //     target: "Versions/A/file",
-            //     observations: new[]
-            //     {
-            //         "+ Versions/A/sym-loop",
-            //         "+ Versions/sym-A",
-            //         "+ Versions/A/file",
-            //         "- Versions/A/sym-loop/file",
-            //         "- Versions/sym-A/file",
-            //         "- Versions/sym-sym-A",
-            //         "- Versions/sym-sym-A/file"
-            //     }
-            // ),
+            new LookupSpec(
+                "readViaSymLoop",
+                lookup: "Versions/A/sym-loop/file",
+                target: "Versions/A/file",
+                observations: new[]
+                {
+                    "+ Versions/A/sym-loop",
+                    "+ Versions/sym-A",
+                    "+ Versions/A/file",
+                    "- Versions/A/sym-loop/file",
+                    "- Versions/sym-A/file",
+                    "- Versions/sym-sym-A",
+                    "- Versions/sym-sym-A/file"
+                }
+            ),
         };
 
         private static LookupSpec[] AbsentProbeSpecs { get; } = new[]
@@ -348,10 +343,9 @@ Versions/sym-sym-A -> sym-A/
                 expectedResult: true);
         }
 
-        // TODO: Re-enable this for all platforms once directory symlink caching / replay has been fully implemented
         [Feature(Features.Symlink)]
         [Feature(Features.OpaqueDirectory)]
-        [TheoryIfSupported(requiresSymlinkPermission: true, requiresUnixBasedOperatingSystem: true)]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(SealDirectoryKind.Full)]
         [InlineData(SealDirectoryKind.Partial)]
         [InlineData(SealDirectoryKind.Opaque)]
@@ -441,7 +435,7 @@ Versions/sym-sym-A -> sym-A/
                             ValidateDirectoryExists(ArtifactToString(op.Path));
                             break;
                         case Operation.Type.CreateSymlink:
-                            ValidateSymlinkExists(ArtifactToString(op.LinkPath));
+                            ValidateSymlinkExists(ArtifactToString(op.LinkPath), op.SymLinkFlag);
                             break;
                         case Operation.Type.WriteFile:
                             ValidateNonSymlinkFileExists(ArtifactToString(op.Path));
@@ -635,9 +629,8 @@ Versions/sym-sym-A -> sym-A/
                     Operation.ReadFile(hardlink2) * ReadCount));
             RunScheduler().AssertSuccess();
         }
-        
-        // TODO: Remove Unix only trait once the new LKG with proper reparse point deletion logic has been deployed
-        [FactIfSupported(requiresSymlinkPermission: true, requiresUnixBasedOperatingSystem: true)]
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void ConcurrentAccessToHardlinksPointingToSameFileViaSymlinkDirectory()
         {
             CreateHardLinks(out var hardlink1, out var hardlink2);
@@ -965,11 +958,14 @@ Versions/sym-sym-A -> sym-A/
         private FileArtifact OutFile(string path)
             => FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, path));
 
+        private DirectoryArtifact OutDir(string path)
+            => DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, path));
+
         private Operation OpReadDummySourceFile(string desc)
             => Operation.ReadFile(CreateSourceFileWithPrefix(prefix: InPrefix + desc));
 
         private Operation OpCreateDir(string dirPath)
-            => Operation.CreateDir(OutFile(dirPath), doNotInfer: true);
+            => Operation.CreateDir(OutDir(dirPath), doNotInfer: true);
 
         private Operation OpWriteFile(string filePath)
             => Operation.WriteFile(OutFile(filePath), doNotInfer: true);
@@ -989,20 +985,20 @@ Versions/sym-sym-A -> sym-A/
         private void ValidateDirectoryExists(string dir)
             => ValidateFileExists(dir, PathExistence.ExistsAsDirectory);
 
-        private void ValidateSymlinkExists(string file)
-            => ValidateFileExists(file, PathExistence.ExistsAsFile, isSymlink: true);
+        private void ValidateSymlinkExists(string file, Operation.SymbolicLinkFlag flag)
+            => ValidateFileExists(file, PathExistence.ExistsAsFile, isSymlink: true, isDirectorySymlink: flag == Operation.SymbolicLinkFlag.DIRECTORY);
 
         private void ValidateNonSymlinkFileExists(string file)
             => ValidateFileExists(file, PathExistence.ExistsAsFile, isSymlink: false);
 
-        private void ValidateFileExists(string file, PathExistence expected, bool? isSymlink = null)
+        private void ValidateFileExists(string file, PathExistence expected, bool? isSymlink = null, bool isDirectorySymlink = false)
         {
             var maybePathExistence = FileUtilities.TryProbePathExistence(file, followSymlink: false);
             XAssert.IsTrue(maybePathExistence.Succeeded, $"Failed to determine path existence for '{file}'");
             XAssert.AreEqual(expected, maybePathExistence.Result, $"Wrong file existence for file '{file}'");
             if (isSymlink.HasValue)
             {
-                XAssert.AreEqual(isSymlink.Value, SymlinkTests.IsSymlink(file), $"Wrong symlink attribute for file '{file}'");
+                XAssert.AreEqual(isSymlink.Value, SymlinkTests.IsSymlink(file, isDirectorySymlink), $"Wrong symlink attribute for file '{file}'");
             }
         }
     }

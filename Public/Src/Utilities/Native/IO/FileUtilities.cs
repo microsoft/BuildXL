@@ -696,6 +696,12 @@ namespace BuildXL.Native.IO
             return s_fileSystem.IsReparsePointActionable(reparsePointType);
         }
 
+        /// <see cref="IFileSystem.IsReparsePointSymbolicLink(ReparsePointType)"/>
+        public static bool IsReparsePointSymbolicLink(ReparsePointType reparsePointType)
+        {
+            return s_fileSystem.IsReparsePointSymbolicLink(reparsePointType);
+        }
+
         /// <see cref="IFileSystem.TryGetReparsePointType(string)"/>
         public static Possible<ReparsePointType> TryGetReparsePointType(string path)
         {

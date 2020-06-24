@@ -125,6 +125,29 @@ namespace BuildXL.Engine.Cache.Artifacts
             {
                 ExpandedAbsolutePath expandedPath = Expand(path);
 
+                var reparsePointType = ReparsePointType.None;
+                if (reparsePointInfo == null && symlinkTarget.IsValid)
+                {
+                    if (OperatingSystemHelper.IsUnixOS)
+                    {
+                        reparsePointType = ReparsePointType.UnixSymlink;
+                    }
+                    else
+                    {
+                        var existenceCheck = FileUtilities.TryProbePathExistence(symlinkTarget.ToString(m_pathTable), followSymlink: false);
+                        if (!existenceCheck.Succeeded)
+                        {
+                            return existenceCheck.Failure;
+                        }
+
+                        reparsePointType = existenceCheck.Result == PathExistence.ExistsAsFile 
+                            ? ReparsePointType.FileSymlink 
+                            : ReparsePointType.DirectorySymlink;
+                    }
+                    
+                    reparsePointInfo = ReparsePointInfo.Create(reparsePointType, symlinkTarget.ToString(m_pathTable));
+                }
+
                 // Note we have to establish existence or TryGetKnownContentHashAsync would throw.
                 if (FileUtilities.FileExistsNoFollow(expandedPath.ExpandedPath))
                 {
@@ -173,9 +196,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                                             handle,
                                             expandedPath,
                                             existingDestinationIdentityAndHash,
-                                            reparsePointInfo: reparsePointInfo ?? (symlinkTarget.IsValid
-                                                ? ReparsePointInfo.Create(ReparsePointType.SymLink, symlinkTarget.ToString(m_pathTable))
-                                                : (ReparsePointInfo?)null))
+                                            reparsePointInfo: reparsePointInfo)
                                         : TrackedFileContentInfo.CreateUntracked(existingDestinationIdentityAndHash.FileContentInfo);
 
                                     // If couldn't get file name or the file (failure in tracking) name does not match, we need to materialize from the cache
@@ -205,7 +226,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 }
 
                 Possible<Unit, Failure> possibleMaterialization;
-                if (!symlinkTarget.IsValid && (reparsePointInfo == null || !reparsePointInfo.Value.IsActionableReparsePoint))
+                if (reparsePointInfo == null || !reparsePointInfo.Value.IsActionableReparsePoint)
                 {
                     possibleMaterialization = await cache.TryMaterializeAsync(
                         fileRealizationModes,
@@ -219,16 +240,17 @@ namespace BuildXL.Engine.Cache.Artifacts
                 }
                 else
                 {
-                    possibleMaterialization = symlinkTarget.IsValid
-                        ? CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, symlinkTarget)
-                        : CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget());
+                    possibleMaterialization = CreateSymlinkIfNotExistsOrTargetMismatch(expandedPath.Path, reparsePointInfo.Value.GetReparsePointTarget(), reparsePointInfo.Value.ReparsePointType);
                 }
+
+                bool isSymlink = symlinkTarget.IsValid || (reparsePointInfo != null && reparsePointInfo.Value.IsSymlink);
 
                 Possible<TrackedFileContentInfo, Failure> possibleTrackedFile = await possibleMaterialization
                     .ThenAsync(p => TryOpenAndTrackPathAsync(
                         expandedPath,
                         contentHash,
                         fileName,
+                        isSymlink,
                         trackPath: trackPath,
                         recordPathInFileContentTable: recordPathInFileContentTable));
 
@@ -240,33 +262,16 @@ namespace BuildXL.Engine.Cache.Artifacts
         private string ExpandFileName(ref PathAtom fileName) => fileName.IsValid ? fileName.ToString(m_pathTable.StringTable) : default;
 
         /// <summary>
-        /// Creates a symlink
+        /// Creates a symlink. SymlinkTarget must be a non-empty string.
         /// </summary>
-        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, AbsolutePath symlinkTarget)
-        {
-            var source = Expand(symlink);
-            var target = Expand(symlinkTarget);
-            bool created;
-
-            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, target.ExpandedPath, true, out created);
-            if (!maybeSymbolicLink.Succeeded)
-            {
-                return new Failure<string>($"Failed to create symlink from '{source}' to '{target}'", maybeSymbolicLink.Failure);
-            }
-
-            return Unit.Void;
-        }
-
-        /// <summary>
-        /// Creates a symlink. SymlinkTarget can be any non-empty string.
-        /// </summary>
-        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, string symlinkTarget)
+        private Possible<Unit> CreateSymlinkIfNotExistsOrTargetMismatch(AbsolutePath symlink, string symlinkTarget, ReparsePointType type)
         {
             Contract.Requires(!string.IsNullOrEmpty(symlinkTarget));
+
             var source = Expand(symlink);
             bool created;
 
-            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, symlinkTarget, true, out created);
+            var maybeSymbolicLink = FileUtilities.TryCreateSymlinkIfNotExistsOrTargetsDoNotMatch(source.ExpandedPath, symlinkTarget, type != ReparsePointType.DirectorySymlink, out created);
             if (!maybeSymbolicLink.Succeeded)
             {
                 return new Failure<string>($"Failed to create symlink from '{source}' to '{symlinkTarget}'", maybeSymbolicLink.Failure);
@@ -779,8 +784,8 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (!isSymlink.HasValue)
             {
-                var possibleReparsePoint = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
-                isSymlink = possibleReparsePoint.Succeeded && possibleReparsePoint.Result == ReparsePointType.SymLink;
+                var possibleReparsePointType = FileUtilities.TryGetReparsePointType(expandedPath.ExpandedPath);
+                isSymlink = possibleReparsePointType.Succeeded && FileUtilities.IsReparsePointSymbolicLink(possibleReparsePointType.Result);
             }
 
             if (isSymlink == true)
@@ -803,7 +808,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 // TryStoreAsync possibly replaced the file (such as hardlinking out of the cache, if we already had identical content).
                 // So, we only track the file after TryStoreAsync is done (not earlier when we hashed it).
                 return await possiblyStored.ThenAsync(
-                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, trackPath: trackPath));
+                    p => TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink.Value, trackPath: trackPath));
             }
             else
             {
@@ -812,7 +817,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     expandedPath);
 
                 return await possiblyStored.ThenAsync(
-                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, trackPath: trackPath));
+                    contentHash => TryOpenAndTrackPathAsync(expandedPath, contentHash, fileName, isSymlink.Value, trackPath: trackPath));
             }
         }
 
@@ -824,7 +829,8 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool tryFlushPageCacheToFileSystem,
             ContentHash? knownContentHash = null,
             bool ignoreKnownContentHashOnDiscoveringContent = false,
-            bool createHandleWithSequentialScan = false)
+            bool createHandleWithSequentialScan = false,
+            bool isSymlink = false)
         {
             Contract.Requires(file.IsValid);
 
@@ -841,7 +847,7 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (knownContentHash.HasValue)
             {
-                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName);
+                return await TryOpenAndTrackPathAsync(expandedPath, knownContentHash.Value, fileName, isSymlink);
             }
 
             var possibleDiscover = await TryDiscoverAsync(
@@ -909,7 +915,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                     FileDesiredAccess.GenericWrite | FileDesiredAccess.GenericRead,
                     FileShare.Read | FileShare.Delete,
                     FileMode.Open,
-                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                    FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint | FileFlagsAndAttributes.FileFlagBackupSemantics,
                     out handle);
 
                 if (openResultForWriting.Succeeded)
@@ -952,6 +958,7 @@ namespace BuildXL.Engine.Cache.Artifacts
             ExpandedAbsolutePath path,
             ContentHash hash,
             PathAtom fileName,
+            bool isSymlink,
             bool trackPath = true,
             // For legacy reason, recordPathInFileContentTable is default to false because if trackPath is false,
             // then recordPathInFileContentTable used to automatically be false.
@@ -971,12 +978,19 @@ namespace BuildXL.Engine.Cache.Artifacts
             return Helpers.RetryOnFailure(
                     lastAttempt =>
                     {
+                        var flags = FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint;
+
+                        if (isSymlink)
+                        {
+                            flags |= FileFlagsAndAttributes.FileFlagBackupSemantics;
+                        }
+
                         var attempt = FileUtilities.UsingFileHandleAndFileLength(
                             path.ExpandedPath,
                             FileDesiredAccess.GenericRead,
                             FileShare.Read | FileShare.Delete,
                             FileMode.Open,
-                            FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                            flags,
                             (handle, length) =>
                             {
                                 VersionedFileIdentityAndContentInfo? identityAndContentInfo = default;

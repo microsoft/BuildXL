@@ -210,7 +210,7 @@ namespace BuildXL.Scheduler.Tracing
         PipInputVerificationUntrackedInput = 3613,
         StorageRemoveAbsentFileOutputWarning = 3614,
         StorageCacheCleanDirectoryOutputError = 3615,
-        StorageSymlinkDirInOutputDirectoryWarning = 3616,
+        StorageJunctionInOutputDirectoryWarning = 3616,
 
         PipInputVerificationMismatchRecovery = 3617,
         PipInputVerificationMismatchRecoveryExpectedExistence = 3618,

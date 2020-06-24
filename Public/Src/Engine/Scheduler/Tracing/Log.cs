@@ -611,16 +611,16 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Cleaning output directory '{destinationPath}' for pip {pipDescription} resulted in error: {errorMessage}")]
         public abstract void StorageCacheCleanDirectoryOutputError(LoggingContext loggingContext, string pipDescription, string destinationPath, string errorMessage);
-        
+
         [GeneratedEvent(
-            (ushort)LogEventId.StorageSymlinkDirInOutputDirectoryWarning,
+            (ushort)LogEventId.StorageJunctionInOutputDirectoryWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Pip produced a directory symlink or junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
-        public abstract void StorageSymlinkDirInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
-        
+            Message = "[{pipDescription}] Pip produced a junction'{symlinkPath}', which is not supported. The pip will not be cached.")]
+        public abstract void StorageJunctionInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string symlinkPath);
+
         [GeneratedEvent(
             (ushort)LogEventId.StorageRemoveAbsentFileOutputWarning,
             EventGenerators = EventGenerators.LocalOnly,

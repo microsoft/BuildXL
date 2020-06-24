@@ -131,7 +131,7 @@ namespace BuildXL.Cache.Host.Service
             Result<ServiceOfflineDurationTracker> trackerResult,
             TimeSpan startupDuration)
         {
-            var offlineTimeResult = trackerResult.Then(v => v.GetOfflineDuration(new OperationContext()));
+            var offlineTimeResult = trackerResult.Then(v => v.GetOfflineDuration(new OperationContext(context)));
             LifetimeTrackerTracer.ServiceStarted(context, offlineTimeResult, startupDuration);
             host.OnStartedService();
         }

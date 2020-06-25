@@ -155,7 +155,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = EventConstants.LabeledProvenancePrefix + "Failed to read the content of '{fileToRead}': {details}",
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportFailReadFileContent(LoggingContext context, Location location, string fileToRead, string details);
 
         [GeneratedEvent(

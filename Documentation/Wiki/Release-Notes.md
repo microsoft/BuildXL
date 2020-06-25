@@ -1,6 +1,13 @@
 This page is a curated list of the release notes for releases after 0.20170619.4.0 and a manual copy of notable changes from each build before that. See the repo's commit history full details for what is included in each build.
 
 =======
+# 0.1.0-20200619.6.2 (Release [68625](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=68625)).  Released 6/24/2020
+- [Rush] Various fixes on Rush frontend.
+- Retry Detours semaphore creation in VM
+- Fix on Aria reporting limit.
+- [Linux] Cache reads/writes in sandbox.
+- [QTest] Upgrade QTest version to 20.6.12.220844 that includes fix for DFA in code coverage.
+
 # 0.1.0-20200612.5.1 (Release [68123](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=68123)).  Released 6/18/2020
 - Refine the default value of disableDefaultSourceResolver to false.
 - Clarify the cache saving message.

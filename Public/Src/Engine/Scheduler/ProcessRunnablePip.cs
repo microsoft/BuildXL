@@ -20,7 +20,7 @@ namespace BuildXL.Scheduler
     {
         /// <nodoc/>
         public Process Process => (Process)Pip;
-       
+
         /// <summary>
         /// Process weight
         /// </summary>
@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler
         /// If process weight is defined as greater than the minimum weight in the specs, use it. 
         /// Otherwise, use the weight based on historic cpu usage.
         /// </remarks>
-        public int Weight => Process.Weight > Process.MinWeight ? Process.Weight : m_weightBasedOnHistoricCpuUsage;
+        public int Weight => Math.Max(Process.Weight, m_weightBasedOnHistoricCpuUsage);
 
         /// <nodoc/>
         public RunnableFromCacheResult CacheResult { get; private set; }

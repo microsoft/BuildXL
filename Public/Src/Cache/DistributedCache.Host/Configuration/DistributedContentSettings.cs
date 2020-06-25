@@ -520,7 +520,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         [Validation.Range(1, int.MaxValue)]
-        public int? FullRangeCompactionIntervalMinutes { get; set; }
+        public double? FullRangeCompactionIntervalMinutes { get; set; }
 
         [DataMember]
         public string FullRangeCompactionVariant { get; set; }

@@ -106,15 +106,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private const string EnvironmentVariablePrefix = "VSO_DROP_";
 
-        private const int DefaultMaxParallelSegmentDownloadsPerFile = 16;
-
-        private const int DefaultMaxSegmentDownloadRetries = 3;
-
-        private const int DefaultParallelDownloadSegmentSizeInBytes = 8 * 1024 * 1024;
-
         private const int DefaultReadSizeInBytes = 64 * 1024;
-
-        private const int DefaultSegmentDownloadTimeoutInMinutes = 10;
 
         private readonly ParallelHttpDownload.Configuration _parallelSegmentDownloadConfig;
 
@@ -146,21 +138,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             BlobStoreHttpClient = blobStoreHttpClient;
             TimeToKeepContent = timeToKeepContent;
             _downloadBlobsThroughBlobStore = downloadBlobsThroughBlobStore;
-            _parallelSegmentDownloadConfig = new ParallelHttpDownload
-                .Configuration(
-                segmentDownloadTimeout: TimeSpan.FromMinutes(int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "SegmentDownloadTimeoutInMinutes") ??
-                    DefaultSegmentDownloadTimeoutInMinutes.ToString())),
-                segmentSizeInBytes: int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "ParallelDownloadSegmentSizeInBytes") ??
-                    DefaultParallelDownloadSegmentSizeInBytes.ToString()),
-                maxParallelSegmentDownloadsPerFile: int.Parse(
-                    Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "MaxParallelSegmentDownloadsPerFile") ??
-                    DefaultMaxParallelSegmentDownloadsPerFile.ToString()),
-                maxSegmentDownloadRetries:
-                    int.Parse(
-                        Environment.GetEnvironmentVariable(EnvironmentVariablePrefix + "MaxSegmentDownloadRetries") ??
-                        DefaultMaxSegmentDownloadRetries.ToString()));
+            _parallelSegmentDownloadConfig = ParallelHttpDownload.Configuration.GetParallelSegmentDownloadConfig(EnvironmentVariablePrefix);
 
             TempDirectory = new DisposableDirectory(fileSystem);
 

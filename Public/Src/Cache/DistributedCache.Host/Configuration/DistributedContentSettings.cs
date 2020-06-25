@@ -782,6 +782,23 @@ namespace BuildXL.Cache.Host.Configuration
         [Validation.Range(1, int.MaxValue)]
         public double TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
-        #endregion
+        #endregion        
+        /// <summary>
+        /// The map of drive paths to alternate paths to access them
+        /// </summary>
+        [DataMember]
+        private IDictionary<string, string> AlternateDriveMap { get; set; }
+                
+        public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()
+        {
+            if (AlternateDriveMap != null)
+            {
+                return new ReadOnlyDictionary<string, string>(AlternateDriveMap);
+            }
+            else
+            {
+                return new Dictionary<string, string>();
+            }
+        }
     }
 }

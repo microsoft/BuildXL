@@ -185,6 +185,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             await Inner.ShutdownAsync(context).ThrowIfFailure();
 
+            _proactiveCopyGetBulkNagleQueue.Dispose();
             Tracer.TraceStatisticsAtShutdown(context, counterSet, prefix: "DistributedContentSessionStats");
 
             return BoolResult.Success;

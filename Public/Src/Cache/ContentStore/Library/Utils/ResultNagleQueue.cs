@@ -2,13 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 
@@ -35,14 +30,34 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             _innerQueue.Start(async items =>
             {
-                var bulkTask = execute(items.SelectList(b => b.item));
-                for (int i = 0; i < items.Length; i++)
+                // If the callback provided to a nagle queue fails,
+                // the overall processing stops and the queue itself changes its internal state to "faulted" state
+                // that can be observed when Dispose method is called.
+                //
+                // This is very problematic in this particular case,
+                // because it means that the new items added to the queue would never be finished
+                // and all 'await EnqueueAsync(item)' will be blocked forever.
+                //
+                // To avoid this problem this operation catches all the errors and sets the exceptions into
+                // the underlying task sources.
+                try
                 {
-                    var item = items[i];
-                    item.completion.LinkToTask(bulkTask, i, (bulkResult, index) => bulkResult[index]);
-                }
+                    var bulkTask = execute(items.SelectList(b => b.item));
+                    for (int i = 0; i < items.Length; i++)
+                    {
+                        var item = items[i];
+                        item.completion.LinkToTask(bulkTask, i, (bulkResult, index) => bulkResult[index]);
+                    }
 
-                await bulkTask;
+                    await bulkTask;
+                }
+                catch (Exception e)
+                {
+                    foreach (var item in items)
+                    {
+                        item.completion.TrySetException(e);
+                    }
+                }
             });
         }
 

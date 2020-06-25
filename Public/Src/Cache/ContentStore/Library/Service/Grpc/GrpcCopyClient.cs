@@ -309,7 +309,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 var responseStream = call.ResponseStream;
                 var responseMoveNext = responseStream.MoveNext(context.Token);
-                var responseCompletedTask = responseMoveNext.ContinueWith(t => serverIsDoneSource.Cancel());
+
+                var responseCompletedTask = responseMoveNext.ContinueWith(
+                    t =>
+                    {
+                        // It is possible that the next operation in this method will fail
+                        // causing stack unwinding that will dispose serverIsDoneSource.
+                        //
+                        // Then when responseMoveNext is done serverIsDoneSource is already disposed and
+                        // serverIsDoneSource.Cancel will throw ObjectDisposedException.
+                        // This exception is not observed because the stack could've been unwound before
+                        // the result of this method is awaited.
+                        IgnoreObjectDisposedException(() => serverIsDoneSource.Cancel());
+                    });
 
                 await StreamContentAsync(stream, new byte[_bufferSize], requestStream, pushCancellationToken);
 
@@ -335,6 +347,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             catch (RpcException r)
             {
                 return new PushFileResult(r);
+            }
+        }
+
+        private static void IgnoreObjectDisposedException(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (ObjectDisposedException)
+            {
             }
         }
 

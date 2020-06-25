@@ -18,8 +18,8 @@ static ProcessCallbackResult _process_event(Sandbox *sandbox, const IOEvent &eve
     
     bool isInterposedEvent = backing == IOEventBacking::Interposing;
     
-    bool ppid_found = sandbox->GetWhitelistedPidMap().find(event.GetParentPid()) != sandbox->GetWhitelistedPidMap().end();
-    bool original_ppid_found = sandbox->GetWhitelistedPidMap().find(event.GetOriginalParentPid()) != sandbox->GetWhitelistedPidMap().end();
+    bool ppid_found = sandbox->GetAllowlistedPidMap().find(event.GetParentPid()) != sandbox->GetAllowlistedPidMap().end();
+    bool original_ppid_found = sandbox->GetAllowlistedPidMap().find(event.GetOriginalParentPid()) != sandbox->GetAllowlistedPidMap().end();
     
     if (isInterposedEvent || (ppid_found || original_ppid_found))
     {
@@ -29,7 +29,7 @@ static ProcessCallbackResult _process_event(Sandbox *sandbox, const IOEvent &eve
         {
             // Some Apple tools use posix_spawn* family functions to execute other binaries - those binaries sometimes do
             // synchronous operations, blocking the caller until their execution finishes. This leads to fork events being reported
-            // after all other I/O events when interposing within the new bianry. Because there is no way to get the child pid before
+            // after all other I/O events when interposing within the new binary. Because there is no way to get the child pid before
             // the posix_spawn* call returns, we have to manually add a fork event here if the parent of the binary in question is
             // already being tracked.
             
@@ -84,11 +84,11 @@ static ProcessCallbackResult _process_event(Sandbox *sandbox, const IOEvent &eve
                 {
                     case ES_EVENT_TYPE_NOTIFY_FORK:
                     {
-                        sandbox->SetProcessPidPair(sandbox->GetWhitelistedPidMap(), pid, event.GetParentPid());
+                        sandbox->SetProcessPidPair(sandbox->GetAllowlistedPidMap(), pid, event.GetParentPid());
                         break;
                     }
                     case ES_EVENT_TYPE_NOTIFY_EXIT:
-                        sandbox->RemoveProcessPid(sandbox->GetWhitelistedPidMap(), pid);
+                        sandbox->RemoveProcessPid(sandbox->GetAllowlistedPidMap(), pid);
                         break;
                 }
             }

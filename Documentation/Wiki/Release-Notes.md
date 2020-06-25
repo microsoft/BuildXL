@@ -636,7 +636,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 # 0.20181021.2.0 (Release [17290](https://dev.azure.com/mseng/domino/_release_a=release-pipeline-progress&releaseId=17290)). Released 10/24/2018.
 - Fix false absent file probes under opaque directories with lazy materialization
-- Fix directory enumeration filters to handle whitespace file names
+- Fix directory enumeration filters to handle allowspace file names
 - Detour move/rename directory correctly
 - Multiple fixes around FingerprintStore
 - Fix cache miss diff when UnsafeOptions are cut off
@@ -932,7 +932,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 * Improve obsolete feature in DominoScript
 * Decrease amount of materialization for office builds
 * Improve local engine cache performance
-* Make whitelist regex matching case insensitive
+* Make allowlist regex matching case insensitive
 * More foundational work for BuildXL on Mac
 * Assorted bug fixes
 

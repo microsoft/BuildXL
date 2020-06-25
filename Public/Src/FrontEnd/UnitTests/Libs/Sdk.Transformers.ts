@@ -223,7 +223,7 @@ namespace Transformer {
             hasUntrackedChildProcesses?: boolean;
             allowPreservedOutputs?: boolean | number;
             passThroughEnvironmentVariables?: string[];
-            preserveOutputWhitelist?: (File | Directory)[];
+            preserveOutputAllowlist?: (File | Directory)[];
         }
 
         /**

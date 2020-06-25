@@ -278,7 +278,7 @@ namespace BuildXL.Execution.Analyzer
                         WritePropertyAndValue(writer, "NumberOfProcesses", pipPerformance.NumberOfProcesses.ToString());
                         WritePropertyAndValue(
                             writer,
-                            "FileMonitoringViolationsNotWhitelisted",
+                            "FileMonitoringViolationsNotAllowlisted",
                             pipPerformance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted.ToString());
 
                         if (isDiff)

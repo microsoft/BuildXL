@@ -1806,7 +1806,7 @@ namespace BuildXL.Scheduler
                 UnexpectedFileAccessCounters unexpectedFilesAccesses = fileAccessReportingContext.Counters;
                 processExecutionResult.ReportUnexpectedFileAccesses(unexpectedFilesAccesses);
 
-                // Set file access violations which were not whitelisted for use by file access violation analyzer
+                // Set file access violations which were not allowlisted for use by file access violation analyzer
                 processExecutionResult.FileAccessViolationsNotAllowlisted = fileAccessReportingContext.FileAccessViolationsNotAllowlisted;
                 processExecutionResult.AllowlistedFileAccessViolations = fileAccessReportingContext.AllowlistedFileAccessViolations;
 

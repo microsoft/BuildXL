@@ -74,7 +74,7 @@ namespace Tests.Linux {
                     "OpaqueDirectoryTests",
                     "SharedOpaqueDirectoryTests",
                     "StoreNoOutputsToCacheTests",
-                    "WhitelistTests"
+                    "AllowlistTests"
                 ]),
 
             // createDef(importFrom("BuildXL.Core.UnitTests").Engine.dll, true,

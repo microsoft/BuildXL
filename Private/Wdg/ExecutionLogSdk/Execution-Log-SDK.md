@@ -825,11 +825,11 @@ Counters for the classification of file monitoring violations encountered during
 Name | Type | Description
  --- | --- | ---
 **HasUncacheableFileAccesses** | bool | Indicates if this context has reported accesses which should mark the owning process as cache-ineligible.
-**NumFileAccessViolationsNotWhitelisted** | int | Count of accesses such that the access was not whitelisted at all, and should be reported as a violation.
-**NumFileAccessesWhitelistedAndCacheable** | int | Count of accesses such that the access was whitelisted, via the cache-friendly part of the whitelist. The pip may be cached.
-**NumFileAccessesWhitelistedButNotCacheable** | int | Count of accesses such that the access was whitelisted, but was not in the cache-friendly part of the whitelist. The pip should not be cached.
+**NumFileAccessViolationsNotAllowlisted** | int | Count of accesses such that the access was not allowlisted at all, and should be reported as a violation.
+**NumFileAccessesAllowlistedAndCacheable** | int | Count of accesses such that the access was allowlisted, via the cache-friendly part of the allowlist. The pip may be cached.
+**NumFileAccessesAllowlistedButNotCacheable** | int | Count of accesses such that the access was allowlisted, but was not in the cache-friendly part of the allowlist. The pip should not be cached.
 **Total** | int | The number of all file monitoring violations.
-**TotalWhitelisted** | int | Total violations whitelisted. This is the sum of cacheable and non-cacheable violations.
+**TotalAllowlisted** | int | Total violations allowlisted. This is the sum of cacheable and non-cacheable violations.
 
 ### <p id="IOCounters">IOCounters class</p>
 Contains I/O accounting information for a process or process tree.

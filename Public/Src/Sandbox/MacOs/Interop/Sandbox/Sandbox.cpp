@@ -91,9 +91,9 @@ Sandbox::Sandbox(pid_t host_pid, Configuration config)
     hostPid_ = host_pid;
     configuration_ = config;
     
-    if (!SetProcessPidPair(GetWhitelistedPidMap(), host_pid, getppid()))
+    if (!SetProcessPidPair(GetAllowlistedPidMap(), host_pid, getppid()))
     {
-        throw BuildXLException("Could not whitelist build host process id!");
+        throw BuildXLException("Could not allowlist build host process id!");
     }
     
     accessReportCallback_ = nullptr;

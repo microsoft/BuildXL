@@ -37,8 +37,8 @@ interface Mount {
 //=============================================================================
 //  Configuration
 //=============================================================================
-interface FileAccessWhitelistEntry {
-    /** Name of the whitelist exception rule. */
+interface FileAccessAllowlistEntry {
+    /** Name of the allowlist exception rule. */
     name?: string;
 
     /** Path to misbehaving tool allowed to have an exception.  Cannot be combined with Value. */
@@ -348,13 +348,13 @@ interface Configuration {
      *
      * This is a separate list from the above, rather than a bool field on the exceptions, because
      * that makes it easier for a central build team to control the contents of the (relatively dangerous)
-     * cacheable whitelist.  It can be placed in a separate file in a locked-down area in source control,
-     * even while exposing the (safer) do-not-cache-but-also-do-not-error whitelist to users.
+     * cacheable allowlist.  It can be placed in a separate file in a locked-down area in source control,
+     * even while exposing the (safer) do-not-cache-but-also-do-not-error allowlist to users.
      */
-    cacheableFileAccessWhitelist?: FileAccessWhitelistEntry[];
+    cacheableFileAccessAllowlist?: FileAccessAllowlistEntry[];
 
     /** List of file access exception rules. */
-    fileAccessWhiteList?: FileAccessWhitelistEntry[];
+    fileAccessAllowList?: FileAccessAllowlistEntry[];
 
     /** List of rules for the directory membership fingerprinter to use */
     directoryMembershipFingerprinterRules?: DirectoryMembershipFingerprinterRule[];

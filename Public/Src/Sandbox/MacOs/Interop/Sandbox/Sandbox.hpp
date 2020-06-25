@@ -56,7 +56,7 @@ private:
     std::mutex access_mutex;
 #endif
     
-    std::map<pid_t, pid_t> whitelistedPids_;
+    std::map<pid_t, pid_t> allowlistedPids_;
     std::map<pid_t, pid_t> forceForkedPids_;
     
     Trie<SandboxedProcess> *trackedProcesses_ = nullptr;
@@ -78,7 +78,7 @@ public:
     inline const dispatch_queue_t GetHybridQueue() const { return hybird_event_queue_; }
 #endif
     
-    inline std::map<pid_t, pid_t>& GetWhitelistedPidMap() { return whitelistedPids_; }
+    inline std::map<pid_t, pid_t>& GetAllowlistedPidMap() { return allowlistedPids_; }
     inline std::map<pid_t, pid_t>& GetForceForkedPidMap() { return forceForkedPids_; }
     
     inline const bool SetProcessPidPair(std::map<pid_t, pid_t>& map, pid_t pid, pid_t ppid)

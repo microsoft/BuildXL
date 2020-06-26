@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             SessionData? data = _data;
             if (data == null)
             {
-                using var holder = _sync.AcquireAsync();
+                using var holder = await _sync.AcquireAsync();
                 if (_data == null)
                 {
                     ObjectResult<SessionData> result = await _sessionFactory();

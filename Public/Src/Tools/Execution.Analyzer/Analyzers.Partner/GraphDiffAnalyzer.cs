@@ -793,7 +793,7 @@ namespace BuildXL.Execution.Analyzer
 
         private void DumpPip(Pip pip, AnalysisInput analysisInput, string dumpPath)
         {
-            var dumpPipAnalyzer = new DumpPipAnalyzer(analysisInput, dumpPath, pip.SemiStableHash, true, false);
+            var dumpPipAnalyzer = new DumpPipAnalyzer(analysisInput, dumpPath, pip.SemiStableHash, directory: default, true, false);
             var result = dumpPipAnalyzer.Analyze();
 
             if (result != 0)

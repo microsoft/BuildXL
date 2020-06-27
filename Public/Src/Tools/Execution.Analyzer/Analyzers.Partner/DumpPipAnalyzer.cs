@@ -26,6 +26,8 @@ namespace BuildXL.Execution.Analyzer
             string outputFilePath = null;
             long semiStableHash = 0;
             bool useOriginalPaths = false;
+            DirectoryArtifact outputDirectory = default;
+
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputFile", StringComparison.OrdinalIgnoreCase) ||
@@ -43,18 +45,33 @@ namespace BuildXL.Execution.Analyzer
                 {
                     useOriginalPaths = ParseBooleanOption(opt);
                 }
+                else if (opt.Name.Equals("directory", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("d", StringComparison.OrdinalIgnoreCase))
+                {
+                    outputDirectory = parseDirectoryArtifact(opt);
+                }
                 else
                 {
                     throw Error("Unknown option for dump pip analysis: {0}", opt.Name);
                 }
             }
 
-            if (semiStableHash == 0)
+            if ((semiStableHash == 0) == (!outputDirectory.IsValid))
             {
-                throw Error("/pip parameter is required");
+                throw Error("Either /pip or /directory parameter must be specified");
             }
 
-            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, semiStableHash, useOriginalPaths);
+            return new DumpPipAnalyzer(GetAnalysisInput(), outputFilePath, semiStableHash, outputDirectory, useOriginalPaths);
+
+            DirectoryArtifact parseDirectoryArtifact(Option opt)
+            {
+                if (!DumpPipAnalyzer.TryDeserializeDirectoryArtifact(opt.Value, out DirectoryArtifact directory) || !directory.IsValid)
+                {
+                    throw Error("Invalid directory artifact: {0}.", opt.Value);
+                }
+
+                return directory;
+            }
         }
 
         private static void WriteDumpPipAnalyzerHelp(HelpWriter writer)
@@ -83,10 +100,10 @@ namespace BuildXL.Execution.Analyzer
         private BxlInvocationEventData m_invocationData;
         private readonly bool m_useOriginalPaths;
 
-        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, bool useOriginalPaths, bool logProgress = false)
+        public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, DirectoryArtifact directory, bool useOriginalPaths, bool logProgress = false)
             : base(input)
         {
-             if (string.IsNullOrEmpty(outputFilePath))
+            if (string.IsNullOrEmpty(outputFilePath))
             {
                 outputFilePath = Path.Combine(Path.GetDirectoryName(input.ExecutionLogPath), $"Pip{semiStableHash:X16}.html");
                 Console.WriteLine($"Missing option /outputFilePath using: {outputFilePath}");
@@ -116,10 +133,31 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
+            if (directory.IsValid)
+            {
+                Console.WriteLine("Looking for a pip that produced the specified DirectoryArtifact.");
+
+                var directoryProducers = input.CachedGraph.PipGraph.AllOutputDirectoriesAndProducers.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                if (directoryProducers.TryGetValue(directory, out var pipId))
+                {
+                    m_pip = pipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer);
+                }
+                // This directory artifact does not have a registered producer. This might happen if it represents a composite SOD.
+                else if (directory.IsSharedOpaque)
+                {
+                    directoryProducers = input.CachedGraph.PipGraph.AllCompositeSharedOpaqueDirectoriesAndProducers.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                    if (directoryProducers.TryGetValue(directory, out pipId))
+                    {
+                        m_pip = pipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer);
+                    }
+                }
+            }
+
             m_html = new HtmlHelper(PathTable, StringTable, SymbolTable, CachedGraph.PipTable);
         }
 
-        public XDocument GetXDocument() {
+        public XDocument GetXDocument()
+        {
             if (m_pip == null)
             {
                 Console.Error.WriteLine("Did not find matching pip");
@@ -133,7 +171,8 @@ namespace BuildXL.Execution.Analyzer
             basicRows.Add(m_html.CreateRow("Tags", m_pip.Tags.IsValid ? m_pip.Tags.Select(tag => tag.ToString(StringTable)) : null));
 
             var provenance = m_pip.Provenance;
-            if (provenance != null) {
+            if (provenance != null)
+            {
                 basicRows.Add(m_html.CreateRow("Qualifier", PipGraph.Context.QualifierTable.GetCanonicalDisplayString(provenance.QualifierId)));
                 basicRows.Add(m_html.CreateRow("Usage", provenance.Usage));
                 basicRows.Add(m_html.CreateRow("Spec", provenance.Token.Path));
@@ -180,7 +219,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         public override int Analyze()
-        {          
+        {
             var doc = GetXDocument();
             if (doc == null)
             {
@@ -510,7 +549,7 @@ namespace BuildXL.Execution.Analyzer
 
                 m_html.CreateBlock(
                     "Global Dependencies",
-                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables != null ? 
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables != null ?
                         m_html.CreateRow("Passthrough Environment Variables", m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables) : null),
                     (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes != null ?
                         m_html.CreateRow("Untracked Scopes", m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes) : null)),
@@ -594,6 +633,7 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateEnumRow("Kind", pip.Kind),
                 m_html.CreateRow("Scrub", pip.Scrub),
                 m_html.CreateRow("DirectoryRoot", pip.Directory),
+                m_html.CreateRow("DirectoryArtifact", SerializeDirectoryArtifact(pip.Directory)),
                 m_html.CreateRow("ComposedDirectories", pip.ComposedDirectories),
                 pip.ContentFilter.HasValue ? m_html.CreateRow("ContentFilter", contentFilterToString(pip.ContentFilter.Value)) : null,
                 m_html.CreateRow("Contents", pip.Contents),
@@ -617,7 +657,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                outputs.Add(FormattableStringEx.I($"{directoryOutput.Path.ToString(PathTable)} (PartialSealId: {directoryOutput.PartialSealId}, IsSharedOpaque: {directoryOutput.IsSharedOpaque})"));
+                outputs.Add(FormattableStringEx.I($"{directoryOutput.Path.ToString(PathTable)} (DirectoryArtifact: {SerializeDirectoryArtifact(directoryOutput)}, IsSharedOpaque: {directoryOutput.IsSharedOpaque})"));
                 if (m_directoryContents.TryGetValue(directoryOutput, out var directoryContent))
                 {
                     foreach (var file in directoryContent)
@@ -645,8 +685,8 @@ namespace BuildXL.Execution.Analyzer
             {
                 var directory = directories.Pop();
                 result.Add(directory.tabCount == 0
-                    ? FormattableStringEx.I($"{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
-                    : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
+                    ? FormattableStringEx.I($"{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
+                    : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (DirectoryArtifact: {SerializeDirectoryArtifact(directory.artifact)}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
 
                 var sealPipId = CachedGraph.PipGraph.GetSealedDirectoryNode(directory.artifact).ToPipId();
 
@@ -661,6 +701,32 @@ namespace BuildXL.Execution.Analyzer
             }
 
             return result;
+        }
+
+        private static string SerializeDirectoryArtifact(DirectoryArtifact directoryArtifact)
+        {
+            return $"{directoryArtifact.Path.RawValue}:{directoryArtifact.PartialSealId}:{(directoryArtifact.IsSharedOpaque ? 1 : 0)}";
+        }
+
+        internal static bool TryDeserializeDirectoryArtifact(string input, out DirectoryArtifact directoryArtifact)
+        {
+            var components = input.Split(':');
+            if (components.Length != 3)
+            {
+                directoryArtifact = default;
+                return false;
+            }
+
+            if (!int.TryParse(components[0], out var pathId)
+                || !uint.TryParse(components[1], out var partialSealId)
+                || !int.TryParse(components[2], out var isSharedOpaque))
+            {
+                directoryArtifact = default;
+                return false;
+            }
+
+            directoryArtifact = new DirectoryArtifact(new AbsolutePath(pathId), partialSealId, isSharedOpaque == 1);
+            return true;
         }
     }
 }

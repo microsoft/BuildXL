@@ -839,6 +839,12 @@ namespace BuildXL.Pips.Graph
             => OutputDirectoryProducers.Select(kvp => new KeyValuePair<DirectoryArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
 
         /// <summary>
+        /// Gets all composite shared output directories and their corresponding producers.
+        /// </summary>
+        public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllCompositeSharedOpaqueDirectoriesAndProducers
+            => CompositeOutputDirectoryProducers.Select(kvp => new KeyValuePair<DirectoryArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
+
+        /// <summary>
         /// Gets the number of known files for the build
         /// </summary>
         public int FileCount => PipProducers.Count;

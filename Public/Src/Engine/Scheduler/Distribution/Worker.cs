@@ -585,7 +585,7 @@ namespace BuildXL.Scheduler.Distribution
                     return false;
                 }
 
-                if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots)
+                if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots && EngineEnvironmentSettings.DecoupleMaterializeSlotsFromProcessSlots)
                 {
                     limitingResource = WorkerResource.AvailableMaterializeInputSlots;
                     return false;

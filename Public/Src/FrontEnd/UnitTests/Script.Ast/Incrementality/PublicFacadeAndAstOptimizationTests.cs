@@ -13,6 +13,8 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities;
 
 namespace Test.DScript.Ast.Incrementality
 {
@@ -60,12 +62,14 @@ namespace Test.DScript.Ast.Incrementality
 
                 // We create a new public facade provider to verify everything was saved. A basic front end engine abstraction should be fine, since
                 // the retrieve method only relies on the engine abstraction to compute the proper hashes.
-                var publicFacadeProvider = GetPublicFacadeProvider(config);
-
-                foreach (var spec in specs)
+                using (var publicFacadeProvider = GetPublicFacadeProvider(config))
                 {
-                    var result = publicFacadeProvider.TryGetPublicFacadeWithAstAsync(spec);
-                    Assert.True(result != null);
+                    publicFacadeProvider.NotifySpecsCannotBeUsedAsFacades(CollectionUtilities.EmptyArray<AbsolutePath>());
+                    foreach (var spec in specs)
+                    {
+                        var result = publicFacadeProvider.TryGetPublicFacadeWithAstAsync(spec).GetAwaiter().GetResult();
+                        Assert.True(result != null);
+                    }
                 }
             }
         }

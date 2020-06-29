@@ -651,6 +651,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteJavaScriptDependencyFixerHelp(writer);
+
+            writer.WriteLine("");
+            WriteFileConsumptionAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

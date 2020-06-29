@@ -101,7 +101,7 @@ namespace Test.ProjectGraphBuilder
                             PipeOptions.Asynchronous))
                         using (var reader = new StreamReader(pipeClient, Encoding.UTF8))
                         {
-                            pipeClient.Connect(10000);
+                            pipeClient.Connect(50000);
                             while (!reader.EndOfStream)
                             {
                                 var line = reader.ReadLine();

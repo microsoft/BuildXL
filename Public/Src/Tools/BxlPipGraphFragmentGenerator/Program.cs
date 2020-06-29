@@ -25,7 +25,19 @@ namespace BuildXL.PipGraphFragmentGenerator
         }
 
         /// <nodoc />
-        public static int Main(string[] arguments) => new Program().MainHandler(arguments);
+        public static int Main(string[] arguments)
+        {
+            try
+            {
+                return new Program().MainHandler(arguments);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Unexpected exception: {e}");
+                return -1;
+            }
+        }
+
 
         /// <inheritdoc />
         public override bool TryParse(string[] rawArgs, out Args arguments)

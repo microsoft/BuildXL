@@ -1227,7 +1227,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Cancelled process execution due to {reason}. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Peak commit memory: {peakCommitMb} MB. Expected commit memory: {expectedCommitMb} MB. Cancel time (ms): {cancelMilliseconds}")]
@@ -1236,7 +1236,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Attempting to cancel process execution due to {reason}. ScopeId: {scopeId}. Elapsed execution time: {elapsedMs} ms. ExpectedPeakWorkingSet: {expectedPeakWorkingSetMb} MB, PeakWorkingSet: {peakWorkingSetMb} MB, LastWorkingSet: {lastWorkingSetMb} MB, LastCommitSize: {lastCommitSizeMb} MB.")]
@@ -3448,7 +3448,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, Weight: {weight}, " +
+                "DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
                 "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
                 "ExpectedPeakCommitSizeMb: {expectedPeakCommitSizeMb}, PeakCommitSizeMb: {peakCommitSizeMb}, " +
@@ -3460,6 +3461,7 @@ namespace BuildXL.Scheduler.Tracing
             double expectedDurationSec,
             double actualDurationSec,
             int processorUseInPercents,
+            int weight,
             int defaultWorkingSetMb,
             int expectedPeakWorkingSetMb,
             int peakWorkingSetMb,

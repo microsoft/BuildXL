@@ -1465,8 +1465,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             AllowErrorEventLoggedAtLeastOnce(global::BuildXL.App.Tracing.LogEventId.CancellationRequested);
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
-            AssertWarningEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
-            AssertWarningEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion);
+            AssertVerboseEventLogged(LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion);
 
             if (!allowLowMemoryRetry)
             {

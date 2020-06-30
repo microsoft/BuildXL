@@ -4275,6 +4275,7 @@ namespace BuildXL.Scheduler
                                 (processRunnable.HistoricPerfData?.DurationInMs ?? 0) / 1000.0,
                                 executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                 executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
+                                processRunnable.Weight,
                                 worker.DefaultWorkingSetMbPerProcess,
                                 expectedMemoryCounters.PeakWorkingSetMb,
                                 peakWorkingSetMb,

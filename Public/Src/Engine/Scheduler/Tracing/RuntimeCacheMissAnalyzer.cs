@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Serialization;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
@@ -51,6 +52,7 @@ namespace BuildXL.Scheduler.Tracing
             using (logTarget.Counters.StartStopwatch(FingerprintStoreCounters.InitializeCacheMissAnalysisDuration))
             {
                 var option = configuration.Logging.CacheMissAnalysisOption;
+                string downLoadedPriviousFingerprintStoreSavedPath = null;
                 if (option.Mode == CacheMissMode.Disabled)
                 {
                     return null;
@@ -82,6 +84,7 @@ namespace BuildXL.Scheduler.Tracing
                             if (result.Succeeded && result.Result)
                             {
                                 path = cacheSavePath.ToString(context.PathTable);
+                                downLoadedPriviousFingerprintStoreSavedPath = path;
                                 break;
                             }
                         }
@@ -112,6 +115,7 @@ namespace BuildXL.Scheduler.Tracing
                         graph,
                         runnablePipPerformance,
                         configuration,
+                        downLoadedPriviousFingerprintStoreSavedPath,
                         testHooks: testHooks);
                 }
 
@@ -130,6 +134,8 @@ namespace BuildXL.Scheduler.Tracing
 
         private int MaxCacheMissCanPerform => m_configuration.Logging.CacheMissBatch ? EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value * EngineEnvironmentSettings.MaxMessagesPerBatch : EngineEnvironmentSettings.MaxNumPipsForCacheMissAnalysis.Value;
         private int m_numCacheMissPerformed = 0;
+
+        private readonly string m_downLoadedPreviousFingerprintStoreSavedPath = null;
 
         /// <summary>
         /// Dictionary of cache misses for runtime cache miss analysis.
@@ -162,6 +168,7 @@ namespace BuildXL.Scheduler.Tracing
             IReadonlyDirectedGraph graph,
             IDictionary<PipId, RunnablePipPerformanceInfo> runnablePipPerformance,
             IConfiguration configuration,
+            string downLoadedPreviousFingerprintStoreSavedPath,
             FingerprintStoreTestHooks testHooks = null)
         {
             m_loggingContext = loggingContext;
@@ -183,6 +190,7 @@ namespace BuildXL.Scheduler.Tracing
             m_testHooks = testHooks;
             m_testHooks?.InitRuntimeCacheMisses();
             m_configuration = configuration;
+            m_downLoadedPreviousFingerprintStoreSavedPath = downLoadedPreviousFingerprintStoreSavedPath;
         }
 
         /// <summary>
@@ -459,13 +467,22 @@ namespace BuildXL.Scheduler.Tracing
             using (Counters.StartStopwatch(FingerprintStoreCounters.PreviousFingerprintStoreDisposeDuration))
             {
                 PreviousFingerprintStore.Dispose();
+                DeletePreviousFingerprintStoreDirectory();
             }
 
             using (Counters.StartStopwatch(FingerprintStoreCounters.RuntimeCacheMissBatchLoggingQueueDisposeDuration))
             {
                 m_batchLoggingQueue?.Dispose();
             }
-        }      
+        }
+
+        private void DeletePreviousFingerprintStoreDirectory()
+        {
+            if (!string.IsNullOrEmpty(m_downLoadedPreviousFingerprintStoreSavedPath) && FileUtilities.Exists(m_downLoadedPreviousFingerprintStoreSavedPath))
+            {
+                FileUtilities.DeleteDirectoryContents(m_downLoadedPreviousFingerprintStoreSavedPath, true);
+            }
+        }
 
         private struct CacheMissTimer : IDisposable
         {

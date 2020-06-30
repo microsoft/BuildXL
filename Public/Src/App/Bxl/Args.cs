@@ -507,6 +507,9 @@ namespace BuildXL
                             "filter",
                             "f",
                             opt => configuration.Filter = CommandLineUtilities.ParseStringOptionalOption(opt)),
+                        OptionHandlerFactory.CreateOption(
+                            "fingerprintStoreAnalysisMode",
+                            opt => loggingConfiguration.FingerprintStoreAnalysisMode = CommandLineUtilities.ParseEnumOption<FingerprintStoreAnalysisMode>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "fingerprintStoreBulkLoad",
                             sign => loggingConfiguration.FingerprintStoreBulkLoad = sign),

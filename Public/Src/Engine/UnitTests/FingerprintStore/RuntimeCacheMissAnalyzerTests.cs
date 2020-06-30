@@ -64,6 +64,38 @@ namespace Test.BuildXL.FingerprintStore
         };
 
         [Fact]
+        public void FingerprintStoresNotExistPostBuild()
+        {
+            var sourceFile1 = CreateSourceFile();
+            var outputFile1 = CreateOutputFileArtifact();
+            var process1 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile1),
+                Operation.WriteFile(outputFile1)
+            }).Process;
+
+            var sourceFile2 = CreateSourceFile();
+            var outputFile2 = CreateOutputFileArtifact();
+            var process2 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile2),
+                Operation.WriteFile(outputFile2),
+            }).Process;
+
+            var sourceFile3 = CreateSourceFile();
+            var outputFile3 = CreateOutputFileArtifact();
+            var process3 = CreateAndSchedulePipBuilder(new[]
+            {
+                Operation.ReadFile(sourceFile3),
+                Operation.WriteFile(outputFile3),
+            }).Process;
+
+            RunScheduler(m_testHooks).AssertCacheMiss(process1.PipId, process2.PipId, process3.PipId);
+
+            XAssert.DirectoryDoesNotExist(Configuration.Logging.FingerprintsLogDirectory.ToString(Context.PathTable), "FingerprintStores in Log dir should have been deleted after build.");
+        }
+
+        [Fact]
         public void BatchingCacheMissAnalysisResultEnqueueAndDequeueCounters()
         {
             var sourceFile1 = CreateSourceFile();
@@ -872,7 +904,7 @@ namespace Test.BuildXL.FingerprintStore
         {
             var storeDirectory = cacheLookupStore
                 ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable)
-                : result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable);
+                : result.Config.Layout.FingerprintStoreDirectory.ToString(Context.PathTable);
 
             using (var fingerprintStore = Open(storeDirectory, readOnly: readOnly, testHooks: testHooks).Result)
             {

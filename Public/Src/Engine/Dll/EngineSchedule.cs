@@ -607,7 +607,7 @@ namespace BuildXL.Engine
                 {
                     var storeResult = await m_cache.TrySaveFingerprintStoreAsync(
                         loggingContext,
-                        configuration.Logging.ExecutionFingerprintStoreLogDirectory,
+                        configuration.Layout.FingerprintStoreDirectory, // This is where the original execution fingerprint store locates. Save this to cache.
                         Context.PathTable,
                         storeKey,
                         configuration.Schedule.EnvironmentFingerprint);

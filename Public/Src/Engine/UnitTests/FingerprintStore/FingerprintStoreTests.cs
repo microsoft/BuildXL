@@ -42,6 +42,8 @@ namespace Test.BuildXL.FingerprintStore
 
             // Forces unique, time-stamped logs directory between different scheduler runs within the same test
             Configuration.Logging.LogsToRetain = int.MaxValue;
+
+            Configuration.Logging.FingerprintStoreAnalysisMode = FingerprintStoreAnalysisMode.Offline;
         }
 
         private readonly SchedulerTestHooks m_testHooks = new SchedulerTestHooks()
@@ -906,7 +908,7 @@ namespace Test.BuildXL.FingerprintStore
         public void OnlyWriteToCacheLookupStoreOnStrongFingerprintMiss(FingerprintStoreMode fingerprintStoreMode)
         {
             Configuration.Logging.FingerprintStoreMode = fingerprintStoreMode;
-            
+
             var srcFile = CreateSourceFile();
             var dir = CreateUniqueDirectoryArtifact(ReadonlyRoot);
             var pip = CreateAndSchedulePipBuilder(new Operation[]
@@ -1318,7 +1320,7 @@ namespace Test.BuildXL.FingerprintStore
         private string ResultToStoreDirectory(ScheduleRunResult result, bool cacheLookupStore = false) =>
             cacheLookupStore 
             ? result.Config.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(Context.PathTable)
-            : result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(Context.PathTable);
+            : result.Config.Layout.FingerprintStoreDirectory.ToString(Context.PathTable);
 
         /// <summary>
         /// Matches the string representation of <see cref="FileOrDirectoryArtifact"/> used by the fingerprint store
@@ -1357,7 +1359,7 @@ namespace Test.BuildXL.FingerprintStore
         public static ScheduleRunResult AssertCacheMissWithFingerprintStore(this ScheduleRunResult result, PathTable pathTable, PathExpander pathExpander, params PipId[] pipIds)
         {
             var misses = new HashSet<PipId>();
-            FingerprintStoreTests.FingerprintStoreSession(result.Config.Logging.ExecutionFingerprintStoreLogDirectory.ToString(pathTable), store =>
+            FingerprintStoreTests.FingerprintStoreSession(result.Config.Layout.FingerprintStoreDirectory.ToString(pathTable), store =>
             {
                 XAssert.IsTrue(store.TryGetCacheMissList(out var cacheMissList));
                 foreach (var miss in cacheMissList)

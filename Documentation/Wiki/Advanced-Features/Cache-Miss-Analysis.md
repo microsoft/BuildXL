@@ -16,7 +16,7 @@ To use this analyzer, set the mode to **/m:CacheMiss** and the **/xl:** paramete
 
 The `analysis.txt` file in the output directory shows the first pip in each dependency chain that was a cache miss as well as the reasons for the miss. Full fingerprint computation inputs for each analyzed pip are kept in the "old" and "new" subdirectories; there will be a file for each pip's `SemiStableHash`.
 
-**Note:** This analyzer will only work with logs from BuildXL builds with **/storeFingerprints** enabled. This is **enabled** by default on desktop builds, and can be disabled by passing /storeFingerprints-.
+**Note:** This analyzer will only work with logs from BuildXL builds with **/fingerprintStoreAnalysisMode:Offline** or **/fingerprintStoreAnalysisMode:OnlineAndOffline**. **fingerprintStoreAnalysisMode** is **Online** by default.
 
 ### Legacy Cache Miss Analyzer
 This method of analysis remains for builds without **/storeFingerprints** enabled. See Cache Miss Analyzer above for cache miss analysis with incremental scheduling and graph filtering. Use this analyzer to compare two distinct builds, to see which pips were cache misses in the second build, and why.

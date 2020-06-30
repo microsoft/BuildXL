@@ -89,6 +89,11 @@ namespace BuildXL.Utilities.Configuration
         FingerprintStoreMode FingerprintStoreMode { get; }
 
         /// <summary>
+        /// <see cref="FingerprintStoreAnalysisMode"/>.
+        /// </summary>
+        FingerprintStoreAnalysisMode FingerprintStoreAnalysisMode { get;}
+
+        /// <summary>
         /// The maximum entry age in minutes of an entry in the fingerprint store. Any entry older than this will
         /// be removed at the end of the build.
         /// </summary>

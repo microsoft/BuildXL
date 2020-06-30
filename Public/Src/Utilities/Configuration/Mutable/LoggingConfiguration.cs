@@ -26,6 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AnimateTaskbar = true;
             LogStats = true;
             LogExecution = true;
+            FingerprintStoreAnalysisMode = FingerprintStoreAnalysisMode.Online;
             FingerprintStoreMode = FingerprintStoreMode.Default;
             FingerprintStoreMaxEntryAgeMinutes = 4320; // 3 days
             FingerprintStoreBulkLoad = false;
@@ -67,6 +68,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogExecution = template.LogExecution;
             ExecutionLog = pathRemapper.Remap(template.ExecutionLog);
             StoreFingerprints = template.StoreFingerprints;
+            FingerprintStoreAnalysisMode = template.FingerprintStoreAnalysisMode;
             FingerprintStoreMode = template.FingerprintStoreMode;
             FingerprintStoreMaxEntryAgeMinutes = template.FingerprintStoreMaxEntryAgeMinutes;
             FingerprintStoreBulkLoad = template.FingerprintStoreBulkLoad;
@@ -182,6 +184,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public FingerprintStoreMode FingerprintStoreMode { get; set; }
+
+        /// <inheritdoc />
+        public FingerprintStoreAnalysisMode FingerprintStoreAnalysisMode { get; set; }
 
         /// <inheritdoc />
         public int FingerprintStoreMaxEntryAgeMinutes { get; set; }

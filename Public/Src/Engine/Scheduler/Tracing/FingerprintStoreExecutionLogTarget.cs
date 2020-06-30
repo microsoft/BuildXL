@@ -80,10 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public override bool CanHandleWorkerEvents => true;
 
-        /// <summary>
-        /// <see cref="FingerprintStoreMode"/>
-        /// </summary>
-        public FingerprintStoreMode FingerprintStoreMode { get; }
+        private IConfiguration m_configuration { get;  }
 
         /// <summary>
         /// Counters, shared with <see cref="Tracing.FingerprintStore"/>.
@@ -151,16 +148,6 @@ namespace BuildXL.Scheduler.Tracing
             var fingerprintStorePathString = configuration.Layout.FingerprintStoreDirectory.ToString(context.PathTable);
             var cacheLookupFingerprintStorePathString = configuration.Logging.CacheLookupFingerprintStoreLogDirectory.ToString(context.PathTable);
 
-            try
-            {
-                FileUtilities.CreateDirectoryWithRetry(fingerprintStorePathString);
-            }
-            catch (BuildXLException ex)
-            {
-                Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
-                throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
-            }
-
             var maxEntryAge = new TimeSpan(hours: 0, minutes: configuration.Logging.FingerprintStoreMaxEntryAgeMinutes, seconds: 0);
 
             // Most operations performed on the execution fingerprint store are writes.
@@ -177,16 +164,6 @@ namespace BuildXL.Scheduler.Tracing
             Possible<FingerprintStore> possibleCacheLookupStore = new Failure<string>("No attempt to create a cache lookup fingerprint store yet.");
             if (configuration.Logging.FingerprintStoreMode != FingerprintStoreMode.ExecutionFingerprintsOnly)
             {
-                try
-                {
-                    FileUtilities.CreateDirectoryWithRetry(cacheLookupFingerprintStorePathString);
-                }
-                catch (BuildXLException ex)
-                {
-                    Logger.Log.FingerprintStoreUnableToCreateDirectory(loggingContext, fingerprintStorePathString, ex.Message);
-                    throw new BuildXLException("Unable to create fingerprint store directory: ", ex);
-                }
-
                 // Most operations performed on the execution fingerprint store are writes.
                 // Speed up writes by opening the fingerprint store with bulk load; see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ
                 possibleCacheLookupStore = FingerprintStore.Open(
@@ -259,7 +236,7 @@ namespace BuildXL.Scheduler.Tracing
             CacheLookupFingerprintStore?.GarbageCollectCancellationToken.Cancel();
             m_pipCacheMissesQueue = new ConcurrentQueue<PipCacheMissInfo>();
             Counters = counters;
-            FingerprintStoreMode = configuration.Logging.FingerprintStoreMode;
+            m_configuration = configuration;
             m_runtimeCacheMissAnalyzerTask = RuntimeCacheMissAnalyzer.TryCreateAsync(
                 this,
                 loggingContext,
@@ -275,7 +252,7 @@ namespace BuildXL.Scheduler.Tracing
             m_augmentedWeakFingerprintsToOriginalWeakFingeprints = new ConcurrentDictionary<(PipId, WeakContentFingerprint), WeakContentFingerprint>();
 
             Contract.Assume(
-                FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, 
+                m_configuration.Logging.FingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly || CacheLookupFingerprintStore != null, 
                 "Unless /storeFingerprints flag is set to /storeFingerprints:ExecutionFingerprintsOnly, the cache lookup FingerprintStore must exist.");
         }
 
@@ -867,6 +844,11 @@ namespace BuildXL.Scheduler.Tracing
 
                 ExecutionFingerprintStore.Dispose();
                 CacheLookupFingerprintStore?.Dispose();
+
+                if ((m_configuration.Logging.FingerprintStoreAnalysisMode & FingerprintStoreAnalysisMode.Offline) == 0)
+                {
+                    FileUtilities.DeleteDirectoryContents(m_configuration.Logging.FingerprintsLogDirectory.ToString(m_context.PathTable), true);
+                }
             }
 
             base.Dispose();

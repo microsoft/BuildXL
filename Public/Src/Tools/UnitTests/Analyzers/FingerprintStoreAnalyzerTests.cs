@@ -40,6 +40,7 @@ namespace Test.Tool.Analyzers
         {
             Configuration.Logging.CacheMissAnalysisOption = BuildXLConfiguration.CacheMissAnalysisOption.LocalMode();
             Configuration.Logging.StoreFingerprints = true;
+            Configuration.Logging.FingerprintStoreAnalysisMode = FingerprintStoreAnalysisMode.OnlineAndOffline;
             RuntimeCacheMissAnalyzer.s_numberOfBatchesLogged = 0;
 
             AnalysisMode = AnalysisMode.CacheMiss;

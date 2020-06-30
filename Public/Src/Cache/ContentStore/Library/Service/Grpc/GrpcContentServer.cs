@@ -94,7 +94,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// A set of hashes currently handled by the server.
         /// </summary>
-        private readonly ConcurrentBigSet<ContentHash> _ongoingPushes = new ConcurrentBigSet<ContentHash>();
+        private readonly HashSet<ContentHash> _ongoingPushes = new HashSet<ContentHash>();
+
+        private readonly object _pushesLock = new object();
 
         /// <summary>
         /// The max number of push handlers running at the same time.
@@ -408,17 +410,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return false;
             }
 
-            var count = _ongoingPushes.Count;
-            if (count >= _ongoingPushCountLimit)
+            lock (_pushesLock)
             {
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because the max number of proactive pushes of '{_ongoingPushCountLimit}' is reached. OngoingPushes.Count={count}.");
-                return false;
-            }
+                if (_ongoingPushes.Count >= _ongoingPushCountLimit)
+                {
+                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because the max number of proactive pushes of '{_ongoingPushCountLimit}' is reached. OngoingPushes.Count={_ongoingPushes.Count}.");
+                    return false;
+                }
 
-            if (!_ongoingPushes.Add(hash))
-            {
-                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
-                return false;
+                if (!_ongoingPushes.Add(hash))
+                {
+                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
+                    return false;
+                }
             }
 
             return true;
@@ -502,7 +506,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             finally
             {
-                _ongoingPushes.Remove(hash);
+                lock (_pushesLock)
+                {
+                    _ongoingPushes.Remove(hash);
+                }
             }
         }
 

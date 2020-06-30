@@ -67,16 +67,16 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> Execute { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> Execute { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IExtraArgumentsRushScript> CustomCommands { get; set; }
+        public IReadOnlyList<IExtraArgumentsJavaScript> CustomCommands { get; set; }
 
         /// <inheritdoc/>
         public DirectoryArtifact? RushLibBaseLocation { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IRushExport> Exports { get; set; }
+        public IReadOnlyList<IJavaScriptExport> Exports { get; set; }
 
         /// <inheritdoc/>
         public bool? TrackDependenciesWithShrinkwrapDepsFile { get; set; }

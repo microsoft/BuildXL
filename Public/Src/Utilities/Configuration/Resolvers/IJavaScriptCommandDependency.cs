@@ -4,10 +4,10 @@
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
-    /// A Rush command can have 'local' dependencies, meaning dependencies on commands of the same project (e.g. test depends on build)
+    /// A JavaScript command can have 'local' dependencies, meaning dependencies on commands of the same project (e.g. test depends on build)
     /// or specify a dependency on a command from all its direct dependencies.
     /// </summary>
-    public interface IRushCommandDependency
+    public interface IJavaScriptCommandDependency
     {
         /// <summary>
         /// 'local' or 'package'

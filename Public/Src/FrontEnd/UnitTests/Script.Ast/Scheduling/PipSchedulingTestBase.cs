@@ -84,6 +84,11 @@ namespace Test.DScript.Ast.Scheduling
                 requestedQualifiers = new QualifierId[] { FrontEndContext.QualifierTable .EmptyQualifierId };
             }
 
+            if (resolverSettings.Name == null)
+            {
+                resolverSettings.SetName(resolverSettings.Kind ?? "test resolver");
+            }
+
             return new ProjectBuilder<TProject, TResolverSettings>(this, resolverSettings, currentQualifier, requestedQualifiers);
         }
 

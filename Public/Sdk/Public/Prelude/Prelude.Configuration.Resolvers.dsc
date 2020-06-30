@@ -265,26 +265,47 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
     useManagedSharedCompilation?: boolean;
 }
 
-
 /**
  * Resolver for Rush project-level build execution
  */
-interface RushResolver extends ResolverBase, UntrackingSettings {
+interface RushResolver extends JavaScriptResolver {
     kind: "Rush";
 
     /**
-     * The directory where 'rush.json' is supposed to be found.
+     * The base directory location to look for @microsoft/rush-lib module, used to build the project graph
+     * If not provided, BuildXL will try to look for a rush installation under PATH.
+     */
+    rushLibBaseLocation?: Directory;
+
+    /**
+     * Uses each project shrinkwrap-deps.json as a way to track changes in dependencies instead of tracking all actual file dependencies 
+     * under the Rush common temp folder.
+     * Setting this option improves the chances of cache hits when compatible dependencies are placed on disk, which may not be the same ones
+     * used by previous builds. It may also give some performance advantages since there are actually less files to hash and track for changes.
+     * However, it opens the door to underbuilds in the case any package.json is modified and BuildXL is executed without 
+     * running 'rush update/install' first, since shrinkwrap-deps.json files may be out of date.
+     * Defaults to false.
+     */
+    trackDependenciesWithShrinkwrapDepsFile?: boolean;
+}
+
+/**
+ * Base resolver for all JavaScript-like resolvers. E.g. Rush
+ */
+interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
+    /**
+     * The repo root
      */
     root: Directory;
 
     /**
-     * The name of the module exposed to other DScript projects that will include all Rush projects found under
+     * The name of the module exposed to other DScript projects that will include all projects found under
      * the enlistment
      */
     moduleName: string;
 
     /**
-     * Environment that is exposed to Rush. If not defined, the current process environment is exposed
+     * Environment that is exposed to JavaScript. If not defined, the current process environment is exposed
      * Note: if this field is not specified any change in an environment variable will potentially cause
      * cache misses for all pips. This is because there is no way to know which variables were actually used during the build.
      * Therefore, it is recommended to specify the environment explicitly.
@@ -300,16 +321,10 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
     keepProjectGraphFile?: boolean;
 
     /**
-     * The path to node.exe to use for discovering the Rush graph.
+     * The path to node.exe to use for discovering the graph.
      * If not provided, node.exe will be looked in PATH.
      */
     nodeExeLocation?: File;
-
-    /**
-     * The base directory location to look for @microsoft/rush-lib module, used to build the project graph
-     * If not provided, BuildXL will try to look for a rush installation under PATH.
-     */
-    rushLibBaseLocation?: Directory;
 
     /**
      * Collection of additional output directories pips may write to.
@@ -323,35 +338,24 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
      * on the command that precedes it on the list, or if it is the first one, on the same command of all its project dependencies.
      * For example: if project A defines commands: ["build", "test"] and project A declares B and C as project dependencies, then 
      * the build command of A will depend on the build command of both B and C. The test command of A will depend on the build command of A.
-     * Additionally, finer grained dependencies can be specified using a RushCommand. In this case, a list of dependencies for each command
+     * Additionally, finer grained dependencies can be specified using a JavaScriptCommand. In this case, a list of dependencies for each command
      * can be explicitly provided, indicating whether the dependency is on a command on the same project (local) or on a command on all the project 
-     * dependencies (project). The specified order in the list is irrelevant for RushCommands.
+     * dependencies (project). The specified order in the list is irrelevant for JavaScriptCommands.
      * If not provided, ["build"] is used.
      * Any command specified here that doesn't have a corresponding script is ignored.
      */
-    execute?: (string | RushCommand)[];
+    execute?: (string | JavaScriptCommand)[];
 
     /**
-     * Defines a collection of custom Rush commands that can later be used as part of 'execute'.
+     * Defines a collection of custom JavaScript commands that can later be used as part of 'execute'.
      */
-    customCommands?: RushCustomCommand[];
+    customCommands?: JavaScriptCustomCommand[];
 
     /**
      * Instructs the resolver to expose a collection of exported symbols that other resolvers can consume.
      * Each exported value will have type SharedOpaqueDirectory[], containing the output directories of the specified projects.
      */
-    exports?: RushExport[];
-
-    /**
-     * Uses each project shrinkwrap-deps.json as a way to track changes in dependencies instead of tracking all actual file dependencies 
-     * under the Rush common temp folder.
-     * Setting this option improves the chances of cache hits when compatible dependencies are placed on disk, which may not be the same ones
-     * used by previous builds. It may also give some performance advantages since there are actually less files to hash and track for changes.
-     * However, it opens the door to underbuilds in the case any package.json is modified and BuildXL is executed without 
-     * running 'rush update/install' first, since shrinkwrap-deps.json files may be out of date.
-     * Defaults to false.
-     */
-    trackDependenciesWithShrinkwrapDepsFile?: boolean;
+    exports?: JavaScriptExport[];
 }
 
 /**
@@ -360,22 +364,22 @@ interface RushResolver extends ResolverBase, UntrackingSettings {
  * The resolver will expose a 'symbolName' declaration whose value at runtime will be an array of StaticDirectory, with all the output directories 
  * from the projects specified as content.
  */
-interface RushExport {
+interface JavaScriptExport {
     symbolName: string;
-    content: RushProjectOutputSelector[];
+    content: JavaScriptProjectOutputSelector[];
 }
 
 /**
  * Project outputs are selected with a package name (a string that will be matched against names declared in package.json), in which case the exposed
- * outputs under a given symbol will be of all the commands in that project, or it can be a RushProjectOutputs, where specific script commands
+ * outputs under a given symbol will be of all the commands in that project, or it can be a JavaScriptProjectOutputs, where specific script commands
  * can be specified for a given package.
  */
-type RushProjectOutputSelector = string | RushProjectOutputs;
+type JavaScriptProjectOutputSelector = string | JavaScriptProjectOutputs;
 
 /**
  * A project with a name as specified in its corresponding package.json, together with a collection of script commmands
  */
-interface RushProjectOutputs {
+interface JavaScriptProjectOutputs {
     packageName: string;
     commands: string[];
 }
@@ -383,37 +387,37 @@ interface RushProjectOutputs {
 /**
  * Likely to be extended with other types of commands (e.g. a way to add commands as if they were specified in package.json)
  */
-type RushCustomCommand  = ExtraArgumentsRushScript;
+type JavaScriptCustomCommand  = ExtraArgumentsJavaScript;
 
 /**
- * Appends extra arguments to the corresponding script defined in package.json for every Rush project. 
+ * Appends extra arguments to the corresponding script defined in package.json for every JavaScript project. 
  * If a given project does not define the specified script it has not effect on it.
   */
-interface ExtraArgumentsRushScript {
+interface ExtraArgumentsJavaScript {
     command: string;
-    extraArguments: RushArgument | RushArgument[];
+    extraArguments: JavaScriptArgument | JavaScriptArgument[];
 }
 
-type RushArgument = string | PathAtom | RelativePath | Path;
+type JavaScriptArgument = string | PathAtom | RelativePath | Path;
 
 /**
- * A Rush command where depedencies on other commands can be explicitly provided
+ * A JavaScript command where depedencies on other commands can be explicitly provided
  * E.g. {command: "test", dependsOn: {kind: "local", command: "build"}} makes the 'test' script depend on the 'build' script
  * of the same project. 
  * Dependencies on other commands of direct dependencies can be specified as well. For example:
  * {command: "localize", dependsOn: {kind: "project", command: "build"}} makes the 'localize' script depend on the 'build' script
  * of all of the project declared dependencies
  */
-interface RushCommand {
+interface JavaScriptCommand {
     command: string;
-    dependsOn: RushCommandDependency[];
+    dependsOn: JavaScriptCommandDependency[];
 }
 
 /**
- * A Rush command can have 'local' dependencies, meaning dependencies on commands of the same project (e.g. test depends on build)
+ * A JavaScript command can have 'local' dependencies, meaning dependencies on commands of the same project (e.g. test depends on build)
  * or 'package' to specify a dependency on a command from all its direct dependencies.
  */
-interface RushCommandDependency {
+interface JavaScriptCommandDependency {
     kind: "local" | "package"; 
     command: string
 }

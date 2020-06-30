@@ -6,16 +6,17 @@ using System.Linq;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 
-namespace BuildXL.FrontEnd.Rush
+namespace BuildXL.FrontEnd.JavaScript
 {
     /// <summary>
-    /// Interprets the set of commands and its dependencies as specified in <see cref="IRushResolverSettings.Execute"/>
+    /// Interprets the set of commands and its dependencies to execute in a <see cref="JavaScriptProject"/>
     /// </summary>
-    public static class RushCommandsInterpreter
+    public static class JavaScriptCommandsInterpreter
     {
         /// <summary>
-        /// Computes the set of commands and dependencies requested for a rush build and performs all validations
+        /// Computes the set of commands and dependencies requested for a JavaScript build and performs all validations
         /// </summary>
         /// <remarks>
         /// All validation errors are logged here
@@ -23,8 +24,8 @@ namespace BuildXL.FrontEnd.Rush
         public static bool TryComputeAndValidateCommands(
             LoggingContext context,
             Location location,
-            IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> commands,
-            out IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> computedCommands)
+            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> commands,
+            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> computedCommands)
         {
             if (!ComputeCommands(context, location, commands, out computedCommands))
             {
@@ -38,32 +39,32 @@ namespace BuildXL.FrontEnd.Rush
         private static bool ComputeCommands(
             LoggingContext context,
             Location location,
-            IReadOnlyList<DiscriminatingUnion<string, IRushCommand>> commands,
-            out IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> resultingCommands)
+            IReadOnlyList<DiscriminatingUnion<string, IJavaScriptCommand>> commands,
+            out IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> resultingCommands)
         {
             if (commands == null)
             {
                 // If not defined, the default is ["build"]
-                commands = new[] { new DiscriminatingUnion<string, IRushCommand>("build") };
+                commands = new[] { new DiscriminatingUnion<string, IJavaScriptCommand>("build") };
             }
 
-            var computedCommands = new Dictionary<string, IReadOnlyList<IRushCommandDependency>>(commands.Count);
+            var computedCommands = new Dictionary<string, IReadOnlyList<IJavaScriptCommandDependency>>(commands.Count);
             resultingCommands = computedCommands;
 
             for (int i = 0; i < commands.Count; i++)
             {
-                DiscriminatingUnion<string, IRushCommand> command = commands[i];
+                DiscriminatingUnion<string, IJavaScriptCommand> command = commands[i];
                 string commandName = command.GetCommandName();
 
                 if (string.IsNullOrEmpty(commandName))
                 {
-                    Tracing.Logger.Log.RushCommandIsEmpty(context, location);
+                    Tracing.Logger.Log.JavaScriptCommandIsEmpty(context, location);
                     return false;
                 }
 
                 if (computedCommands.ContainsKey(commandName))
                 {
-                    Tracing.Logger.Log.RushCommandIsDuplicated(context, location, commandName);
+                    Tracing.Logger.Log.JavaScriptCommandIsDuplicated(context, location, commandName);
                     return false;
                 }
 
@@ -75,7 +76,7 @@ namespace BuildXL.FrontEnd.Rush
                     {
                         computedCommands.Add(
                             simpleCommand,
-                            new[] { new RushCommandDependency { Command = simpleCommand, Kind = RushCommandDependency.Package } });
+                            new[] { new JavaScriptCommandDependency { Command = simpleCommand, Kind = JavaScriptCommandDependency.Package } });
                     }
                     else
                     {
@@ -83,14 +84,14 @@ namespace BuildXL.FrontEnd.Rush
                         // Canonical example: 'build', 'test'
                         computedCommands.Add(
                             simpleCommand,
-                            new[] { new RushCommandDependency { Command = commands[i - 1].GetCommandName(), Kind = RushCommandDependency.Local } });
+                            new[] { new JavaScriptCommandDependency { Command = commands[i - 1].GetCommandName(), Kind = JavaScriptCommandDependency.Local } });
                     }
                 }
                 else
                 {
                     // Otherwise if a full fledge command is specified, then we honor it as is
-                    var rushCommand = (IRushCommand)command.GetValue();
-                    computedCommands.Add(commandName, rushCommand.DependsOn);
+                    var javaScriptCommand = (IJavaScriptCommand)command.GetValue();
+                    computedCommands.Add(commandName, javaScriptCommand.DependsOn);
                 }
             }
 
@@ -100,7 +101,7 @@ namespace BuildXL.FrontEnd.Rush
         private static bool ValidateNoCycles(
             LoggingContext context,
             Location location,
-            IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> commands)
+            IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> commands)
         {
             // Dependencies on 'package' commands can never form a cycle (cycles across projects is validated at pip scheduling level)
             // So we only need to make sure there is not a cycle across 'local' dependencies
@@ -113,14 +114,14 @@ namespace BuildXL.FrontEnd.Rush
                 if (HasCycleInCommands(command, commands, visited, visiting, cycle))
                 {
                     // The returned stack needs to be reversed so, when enumerating, the traversal goes from dependency to dependent
-                    Tracing.Logger.Log.CycleInRushCommands(context, location, string.Join(" -> ", cycle.Reverse()));
+                    Tracing.Logger.Log.CycleInJavaScriptCommands(context, location, string.Join(" -> ", cycle.Reverse()));
                     return false;
                 }
             }
             return true;
         }
 
-        private static bool HasCycleInCommands(string command, IReadOnlyDictionary<string, IReadOnlyList<IRushCommandDependency>> commands, HashSet<string> visited, HashSet<string> visiting, Stack<string> cycle)
+        private static bool HasCycleInCommands(string command, IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> commands, HashSet<string> visited, HashSet<string> visiting, Stack<string> cycle)
         {
             // We have already seen this command and know there are no cycles under it
             if (visited.Contains(command))
@@ -138,7 +139,7 @@ namespace BuildXL.FrontEnd.Rush
 
             visiting.Add(command);
 
-            if (commands.TryGetValue(command, out IReadOnlyList<IRushCommandDependency> dependencies))
+            if (commands.TryGetValue(command, out IReadOnlyList<IJavaScriptCommandDependency> dependencies))
             {
                 foreach (var dependency in dependencies)
                 {

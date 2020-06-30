@@ -6,21 +6,21 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.FrontEnd.Rush
+namespace BuildXL.FrontEnd.JavaScript
 {
     /// <summary>
-    /// General failure for constructing a pip graph using Rush
+    /// General failure for constructing a pip graph
     /// </summary>
     /// <remarks>
     /// Used by the corresponding workspace resolver to indicate a failure to the host.
     /// </remarks>
-    public class RushGraphConstructionFailure : Failure
+    public class JavaScriptGraphConstructionFailure : Failure
     {
-        private readonly IRushResolverSettings m_settings;
+        private readonly IProjectGraphResolverSettings m_settings;
         private readonly PathTable m_pathTable;
 
         /// <nodoc/>
-        public RushGraphConstructionFailure(IRushResolverSettings settings, PathTable pathTable)
+        public JavaScriptGraphConstructionFailure(IProjectGraphResolverSettings settings, PathTable pathTable)
         {
             Contract.Requires(settings != null);
             Contract.Requires(pathTable != null);

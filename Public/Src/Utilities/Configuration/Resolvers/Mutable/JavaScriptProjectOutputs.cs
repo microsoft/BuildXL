@@ -6,17 +6,17 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class RushProjectOutputs : IRushProjectOutputs
+    public class JavaScriptProjectOutputs : IJavaScriptProjectOutputs
     {
         /// <nodoc />
-        public RushProjectOutputs()
+        public JavaScriptProjectOutputs()
         {
             PackageName = string.Empty;
             Commands = new List<string>();
         }
 
         /// <nodoc />
-        public RushProjectOutputs(IRushProjectOutputs template)
+        public JavaScriptProjectOutputs(IJavaScriptProjectOutputs template)
         {
             PackageName = template.PackageName;
             Commands = template.Commands ?? new List<string>();

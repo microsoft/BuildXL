@@ -2,22 +2,22 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using BuildXL.FrontEnd.Rush.ProjectGraph;
+using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
-namespace BuildXL.FrontEnd.MsBuild
+namespace BuildXL.FrontEnd.JavaScript
 {
     /// <summary>
-    /// Failure when scheduling a given Rush project
+    /// Failure when scheduling a given JavaScript project
     /// </summary>
-    public class RushProjectSchedulingFailure : Failure
+    public class JavaScriptProjectSchedulingFailure : Failure
     {
-        private readonly RushProject m_project;
+        private readonly JavaScriptProject m_project;
         private readonly string m_failure;
 
         /// <nodoc/>
-        public RushProjectSchedulingFailure(RushProject project, string failure)
+        public JavaScriptProjectSchedulingFailure(JavaScriptProject project, string failure)
         {
             Contract.RequiresNotNull(project);
             Contract.RequiresNotNullOrEmpty(failure);

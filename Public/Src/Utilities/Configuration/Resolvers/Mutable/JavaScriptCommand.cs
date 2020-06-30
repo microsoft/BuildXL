@@ -6,26 +6,26 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class RushCommand : IRushCommand
+    public class JavaScriptCommand : IJavaScriptCommand
     {
         /// <nodoc />
-        public RushCommand()
+        public JavaScriptCommand()
         {
             Command = string.Empty;
-            DependsOn = new List<IRushCommandDependency>();
+            DependsOn = new List<IJavaScriptCommandDependency>();
         }
 
         /// <nodoc />
-        public RushCommand(IRushCommand template)
+        public JavaScriptCommand(IJavaScriptCommand template)
         {
             Command = template.Command;
-            DependsOn = template.DependsOn ?? new List<IRushCommandDependency>();
+            DependsOn = template.DependsOn ?? new List<IJavaScriptCommandDependency>();
         }
 
         /// <inheritdoc/>
         public string Command { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<IRushCommandDependency> DependsOn { get; set; }
+        public IReadOnlyList<IJavaScriptCommandDependency> DependsOn { get; set; }
     }
 }

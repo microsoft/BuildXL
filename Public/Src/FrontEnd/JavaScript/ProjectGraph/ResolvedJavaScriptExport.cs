@@ -5,15 +5,15 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 
-namespace BuildXL.FrontEnd.Rush.ProjectGraph
+namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
     /// <summary>
     /// A value that is exposed to other resolvers to consume
     /// </summary>
-    public readonly struct ResolvedRushExport
+    public readonly struct ResolvedJavaScriptExport
     {
         /// <nodoc/>
-        public ResolvedRushExport(FullSymbol fullSymbol, IReadOnlyList<RushProject> exportedProjects)
+        public ResolvedJavaScriptExport(FullSymbol fullSymbol, IReadOnlyList<JavaScriptProject> exportedProjects)
         {
             Contract.RequiresNotNull(exportedProjects);
             
@@ -27,8 +27,8 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         public FullSymbol FullSymbol {get;}
         
         /// <summary>
-        /// The collection of rush project that are part of <see cref="FullSymbol"/>
+        /// The collection of projects that are part of <see cref="FullSymbol"/>
         /// </summary>
-        public IReadOnlyCollection<RushProject> ExportedProjects { get; }
+        public IReadOnlyCollection<JavaScriptProject> ExportedProjects { get; }
     }
 }

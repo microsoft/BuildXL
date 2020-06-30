@@ -70,6 +70,7 @@ namespace BuildXL.FrontEnd.Factory
                 global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
                 global::BuildXL.FrontEnd.CMake.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Rush.ETWLogger.Log,
+                global::BuildXL.FrontEnd.JavaScript.ETWLogger.Log,
 #endif
             };
 

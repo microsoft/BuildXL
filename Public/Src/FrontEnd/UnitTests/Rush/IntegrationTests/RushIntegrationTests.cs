@@ -198,7 +198,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
             Assert.False(engineResult.IsSuccess);
 
-            AssertErrorEventLogged(global::BuildXL.FrontEnd.Rush.Tracing.LogEventId.ProjectGraphConstructionError);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
 

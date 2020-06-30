@@ -6,14 +6,14 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class ExtraArgumentsRushScript : IExtraArgumentsRushScript
+    public class ExtraArgumentsJavaScript : IExtraArgumentsJavaScript
     {
         /// <nodoc />
-        public ExtraArgumentsRushScript()
+        public ExtraArgumentsJavaScript()
         {}
 
         /// <nodoc />
-        public ExtraArgumentsRushScript(IExtraArgumentsRushScript template)
+        public ExtraArgumentsJavaScript(IExtraArgumentsJavaScript template)
         {
             Command = template.Command;
             ExtraArguments = template.ExtraArguments;
@@ -22,6 +22,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public string Command { get; set; }
 
         /// <inheritdoc/>
-        public DiscriminatingUnion<RushArgument, IReadOnlyList<RushArgument>> ExtraArguments { get; set; }
+        public DiscriminatingUnion<JavaScriptArgument, IReadOnlyList<JavaScriptArgument>> ExtraArguments { get; set; }
     }
 }

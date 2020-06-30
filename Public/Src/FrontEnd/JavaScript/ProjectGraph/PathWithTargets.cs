@@ -5,10 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
 
-namespace BuildXL.FrontEnd.Rush.ProjectGraph
+namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
     /// <summary>
     /// A path (an output directory or a source file) that applies to a given collection of target scripts

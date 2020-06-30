@@ -4,7 +4,7 @@
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class RushCommandDependency : IRushCommandDependency
+    public class JavaScriptCommandDependency : IJavaScriptCommandDependency
     {
         /// <summary>
         /// Keep in sync with DScript definition
@@ -17,14 +17,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public const string Package = "package";
 
         /// <nodoc />
-        public RushCommandDependency()
+        public JavaScriptCommandDependency()
         {
             Command = string.Empty;
             Kind = string.Empty;
         }
 
         /// <nodoc />
-        public RushCommandDependency(IRushCommandDependency template)
+        public JavaScriptCommandDependency(IJavaScriptCommandDependency template)
         {
             Command = template.Command;
             Kind = template.Kind;

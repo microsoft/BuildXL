@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
-using BuildXL.FrontEnd.Rush.Tracing;
+using BuildXL.FrontEnd.JavaScript.Tracing;
 using BuildXL.Utilities.Configuration;
 using Xunit;
 using Xunit.Abstractions;
@@ -77,7 +77,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             });
 
             Assert.False(engineResult.IsSuccess);
-            AssertErrorEventLogged(LogEventId.CannotFindRushLib);
+            AssertErrorEventLogged(LogEventId.CannotFindGraphBuilderTool);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
     }

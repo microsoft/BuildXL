@@ -57,6 +57,7 @@ namespace Script {
             "Test.BuildXL.FrontEnd.Script",
             "Test.BuildXL.FrontEnd.Core",
             "BuildXL.FrontEnd.Rush",
+            "BuildXL.FrontEnd.JavaScript",
         ],
     });
 }

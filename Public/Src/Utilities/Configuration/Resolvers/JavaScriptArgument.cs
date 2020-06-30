@@ -9,10 +9,10 @@ namespace BuildXL.Utilities.Configuration
     /// <remarks>
     /// Keep in sync with DScript definition in Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc
     /// </remarks>
-    public class RushArgument : DiscriminatingUnion
+    public class JavaScriptArgument : DiscriminatingUnion
     {
         /// <nodoc/>
-        public RushArgument() : base(typeof(string), typeof(AbsolutePath), typeof(RelativePath), typeof(PathAtom))
+        public JavaScriptArgument() : base(typeof(string), typeof(AbsolutePath), typeof(RelativePath), typeof(PathAtom))
         { }
     }
 }

@@ -3,6 +3,7 @@
 
 using System.Linq;
 using BuildXL.FrontEnd.Rush;
+using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -108,7 +109,10 @@ namespace Test.BuildXL.FrontEnd.Rush
                 
             // None of the dependencies should be under the log directory
             XAssert.IsTrue(dependencies.All(dep => 
-                !dep.Path.IsWithin(PathTable, RushPipConstructor.LogDirectoryBase(result.Configuration, PathTable))));
+                !dep.Path.IsWithin(PathTable, RushPipConstructor.LogDirectoryBase(
+                    result.Configuration, 
+                    PathTable, 
+                    KnownResolverKind.RushResolverKind))));
         }
 
         [Fact]

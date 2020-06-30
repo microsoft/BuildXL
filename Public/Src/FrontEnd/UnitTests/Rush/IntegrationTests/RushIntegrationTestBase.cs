@@ -72,6 +72,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             RegisterEventSource(global::BuildXL.FrontEnd.Core.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Script.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.FrontEnd.Rush.ETWLogger.Log);
+            RegisterEventSource(global::BuildXL.FrontEnd.JavaScript.ETWLogger.Log);
 
             SourceRoot = Path.Combine(TestRoot, RelativeSourceRoot);
             OutDir = "target";

@@ -14,23 +14,7 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         None = 0,
 
         // reserved 11700 .. 11800 for Rush front-end
-        InvalidResolverSettings = 11700,
-        ProjectGraphConstructionError = 11701,
-        ProjectIsIgnoredScriptIsMissing = 11702,
-        CannotDeleteSerializedGraphFile = 11703,
-        DependencyIsIgnoredScriptIsMissing = 11704,
-        SchedulingPipFailure = 11705,
-        UnexpectedPipBuilderException = 11706,
-        GraphConstructionFinishedSuccessfullyButWithWarnings = 11707,
-        GraphBuilderFilesAreNotRemoved = 11708,
-        RushCommandIsEmpty = 11709,
-        RushCommandIsDuplicated = 11710,
-        CycleInRushCommands = 11711,
-        CannotFindRushLib = 11712,
-        UsingRushLibBaseAt = 11713,
-        SpecifiedCommandForExportDoesNotExist = 11714,
-        SpecifiedPackageForExportDoesNotExist = 11715,
-        RequestedExportIsNotPresent = 11716,
-        SpecifiedExportIsAReservedName = 11717,
+        InvalidRushResolverSettings = 11700,
+        UsingRushLibBaseAt = 11701,
     }
 }

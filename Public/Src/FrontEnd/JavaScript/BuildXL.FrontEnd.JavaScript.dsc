@@ -7,10 +7,10 @@ import * as Managed from "Sdk.Managed";
 import { NetFx } from "Sdk.BuildXL";
 import {Transformer} from "Sdk.Transformers";
 
-namespace Rush {
+namespace JavaScript {
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "BuildXL.FrontEnd.Rush",
+        assemblyName: "BuildXL.FrontEnd.JavaScript",
         generateLogs: true,
         sources: globR(d`.`, "*.cs"),
         references: [
@@ -32,10 +32,6 @@ namespace Rush {
             Script.dll,
             Core.dll,
             Sdk.dll,
-            JavaScript.dll
-        ],
-        runtimeContent:[
-            importFrom("BuildXL.Tools").RushGraphBuilder.deployment
         ],
         internalsVisibleTo: [
             "Test.BuildXL.FrontEnd.Rush",

@@ -6,26 +6,26 @@ using System.Collections.Generic;
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <inheritdoc/>
-    public class RushExport : IRushExport
+    public class JavaScriptExport : IJavaScriptExport
     {
         /// <nodoc />
-        public RushExport()
+        public JavaScriptExport()
         {
             SymbolName = FullSymbol.Invalid;
-            Content = new List<DiscriminatingUnion<string, IRushProjectOutputs>>();
+            Content = new List<DiscriminatingUnion<string, IJavaScriptProjectOutputs>>();
         }
 
         /// <nodoc />
-        public RushExport(IRushExport template)
+        public JavaScriptExport(IJavaScriptExport template)
         {
             SymbolName = template.SymbolName;
-            Content = template.Content ?? new List<DiscriminatingUnion<string, IRushProjectOutputs>>();
+            Content = template.Content ?? new List<DiscriminatingUnion<string, IJavaScriptProjectOutputs>>();
         }
 
         /// <inheritdoc/>
         public FullSymbol SymbolName { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<string, IRushProjectOutputs>> Content { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectOutputs>> Content { get; set; }
     }
 }

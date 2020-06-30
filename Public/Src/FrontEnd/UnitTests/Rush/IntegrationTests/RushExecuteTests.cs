@@ -7,7 +7,7 @@ using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Rush.IntegrationTests;
 using Xunit;
 using Xunit.Abstractions;
-using LogEventId = global::BuildXL.FrontEnd.Rush.Tracing.LogEventId;
+using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
@@ -23,11 +23,11 @@ namespace Test.BuildXL.FrontEnd.Rush
         protected override EnginePhases Phase => EnginePhases.Schedule;
 
         [Theory]
-        [InlineData("['build', 'build']", LogEventId.RushCommandIsDuplicated)]
-        [InlineData("['']", LogEventId.RushCommandIsEmpty)]
-        [InlineData("[{command: 'build', dependsOn: [{kind: 'local', command: 'build'}]}]", LogEventId.CycleInRushCommands)]
+        [InlineData("['build', 'build']", LogEventId.JavaScriptCommandIsDuplicated)]
+        [InlineData("['']", LogEventId.JavaScriptCommandIsEmpty)]
+        [InlineData("[{command: 'build', dependsOn: [{kind: 'local', command: 'build'}]}]", LogEventId.CycleInJavaScriptCommands)]
         [InlineData(@"[{command: 'build', dependsOn: [{kind: 'local', command: 'test'}]}, 
-                       {command: 'test', dependsOn: [{kind: 'local', command: 'build'}]}]", LogEventId.CycleInRushCommands)]
+                       {command: 'test', dependsOn: [{kind: 'local', command: 'build'}]}]", LogEventId.CycleInJavaScriptCommands)]
         public void InvalidRushCommands(string commands, LogEventId expectedLogEventId)
         {
             var engineResult = BuildDummyWithCommands(commands);

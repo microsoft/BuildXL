@@ -8,12 +8,12 @@ namespace BuildXL.Utilities.Configuration
     /// <summary>
     ///  Appends arguments to an existing script defined in package.json
     /// </summary>
-    public interface IExtraArgumentsRushScript
+    public interface IExtraArgumentsJavaScript
     {
         /// <nodoc/>
         string Command { get; }
 
         /// <nodoc/>
-        DiscriminatingUnion<RushArgument, IReadOnlyList<RushArgument>> ExtraArguments { get; }
+        DiscriminatingUnion<JavaScriptArgument, IReadOnlyList<JavaScriptArgument>> ExtraArguments { get; }
     }
 }

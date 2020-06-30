@@ -8,16 +8,16 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 
-namespace BuildXL.FrontEnd.Rush.ProjectGraph
+namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
     /// <summary>
-    /// A version of a rush project where the collection of dependencies is generic.
+    /// A version of a JavaScript project where the collection of dependencies is generic.
     /// </summary>
     [DebuggerDisplay("{Name}")]
-    public class GenericRushProject<TDependency>
+    public class GenericJavaScriptProject<TDependency>
     {
         /// <nodoc/>
-        public GenericRushProject(
+        public GenericJavaScriptProject(
             string name,
             AbsolutePath projectFolder,
             [CanBeNull] IReadOnlyCollection<TDependency> dependencies,
@@ -25,7 +25,6 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         {   
             Contract.RequiresNotNullOrEmpty(name);
             Contract.Requires(projectFolder.IsValid);
-            Contract.Requires(tempFolder.IsValid);
 
             Name = name;
             ProjectFolder = projectFolder;
@@ -43,15 +42,13 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         public AbsolutePath PackageJsonFile(PathTable pathTable) => ProjectFolder.Combine(pathTable, "package.json");
 
         /// <nodoc/>
-        public AbsolutePath ShrinkwrapDepsFile(PathTable pathTable) => TempFolder.Combine(pathTable, "shrinkwrap-deps.json");
-
-        /// <nodoc/>
         public AbsolutePath NodeModulesFolder(PathTable pathTable) => ProjectFolder.Combine(pathTable, "node_modules");
 
         /// <nodoc/>
         public IReadOnlyCollection<TDependency> Dependencies { get; internal set; }
 
         /// <nodoc/>
+        /// <remarks>Can be invalid</remarks>
         public AbsolutePath TempFolder { get; }
     }
 }

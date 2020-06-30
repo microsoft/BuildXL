@@ -9,20 +9,16 @@ using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
 
-namespace BuildXL.FrontEnd.Rush.ProjectGraph
+namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 {
     /// <summary>
-    /// A Rush project is a projection of a RushConfigurationProject (defined in rush-core-lib) with enough 
-    /// information to schedule a pip from it
+    /// There is a 1:1 relationship between a JavaScript project and a tuple (package.json, requested script command name)
     /// </summary>
-    /// <remarks>
-    /// There is a 1:1 relationship between a Rush project and a tuple (package.json, requested script command name)
-    /// </remarks>
     [DebuggerDisplay("{Name}")]
-    public sealed class RushProject : GenericRushProject<RushProject>, IProjectWithDependencies<RushProject>
+    public sealed class JavaScriptProject : GenericJavaScriptProject<JavaScriptProject>, IProjectWithDependencies<JavaScriptProject>
     {
         /// <nodoc/>
-        public RushProject(
+        public JavaScriptProject(
             string name,
             AbsolutePath projectFolder,
             string scriptCommandName,
@@ -42,27 +38,25 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         }
 
         /// <nodoc/>
-        public static RushProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedRushProject deserializedRushProject, PathTable pathTable)
+        public static JavaScriptProject FromDeserializedProject(string scriptCommandName, string scriptCommand, DeserializedJavaScriptProject deserializedJavaScriptProject, PathTable pathTable)
         {
             // Filter the output directories and source files that apply to this particular script command name
-            var outputDirectories = ExtractRelevantPaths(scriptCommandName, deserializedRushProject.ProjectFolder, deserializedRushProject.OutputDirectories, pathTable);
-            var sourceFiles = ExtractRelevantPaths(scriptCommandName, deserializedRushProject.ProjectFolder, deserializedRushProject.SourceFiles, pathTable);
+            var outputDirectories = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.OutputDirectories);
+            var sourceFiles = ExtractRelevantPaths(scriptCommandName, deserializedJavaScriptProject.SourceFiles);
 
-            return new RushProject(
-                deserializedRushProject.Name,
-                deserializedRushProject.ProjectFolder,
+            return new JavaScriptProject(
+                deserializedJavaScriptProject.Name,
+                deserializedJavaScriptProject.ProjectFolder,
                 scriptCommandName,
                 scriptCommand,
-                deserializedRushProject.TempFolder,
+                deserializedJavaScriptProject.TempFolder,
                 outputDirectories,
                 sourceFiles);
         }
 
         private static List<AbsolutePath> ExtractRelevantPaths(
             string scriptCommandName, 
-            AbsolutePath projectFolder,
-            IReadOnlyCollection<PathWithTargets> paths, 
-            PathTable pathTable)
+            IReadOnlyCollection<PathWithTargets> paths)
         {
             return paths
                 .Where(pathWithTargets => pathWithTargets.AppliesToScript(scriptCommandName))
@@ -71,23 +65,23 @@ namespace BuildXL.FrontEnd.Rush.ProjectGraph
         }
 
         /// <nodoc/>
-        public void SetDependencies(IReadOnlyCollection<RushProject> dependencies)
+        public void SetDependencies(IReadOnlyCollection<JavaScriptProject> dependencies)
         {
             Dependencies = dependencies;
         }
 
         /// <summary>
-        /// A rush project can be scheduled is the script command is not empty
+        /// A JavaScript project can be scheduled is the script command is not empty
         /// </summary>
         public bool CanBeScheduled() => !string.IsNullOrEmpty(ScriptCommand);
 
         /// <summary>
-        /// The script command to execute for this particular rush project (e.g. 'node ./main.js')
+        /// The script command to execute for this particular project (e.g. 'node ./main.js')
         /// </summary>
         public string ScriptCommand { get; }
 
         /// <summary>
-        /// The script command name to execute for this particular rush project (e.g. 'build' or 'test')
+        /// The script command name to execute for this particular project (e.g. 'build' or 'test')
         /// </summary>
         public string ScriptCommandName { get; }
 

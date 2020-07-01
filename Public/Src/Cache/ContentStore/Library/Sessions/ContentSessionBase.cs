@@ -141,8 +141,13 @@ namespace BuildXL.Cache.ContentStore.Sessions
             IReadOnlyList<ContentHash> contentHashes, 
             PinOperationConfiguration configuration)
         {
-            // Pass through to the basic pin.
-            return PinAsync(context, contentHashes, configuration.CancellationToken, configuration.UrgencyHint);
+            return WithOperationContext(
+                context,
+                configuration.CancellationToken,
+                operationContext => operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => PinAsync(operationContext, contentHashes, configuration.CancellationToken, configuration.UrgencyHint),
+                    extraStartMessage: $"{nameof(ContentSessionBase)} subtype {GetType().FullName} does not implement its own {nameof(IConfigurablePin)}.{nameof(IConfigurablePin.PinAsync)}. Falling back on {nameof(ContentSessionBase)}.{nameof(ContentSessionBase.PinAsync)}"));
         }
 
         /// <nodoc />

@@ -353,7 +353,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
                 // Fire off the default pin action, but do not await the result.
-                pinTask.FireAndForget(operationContext);
+                operationContext.PerformNonResultOperationAsync(
+                    Tracer,
+                    () => pinTask,
+                    extraEndMessage: results =>
+                    {
+                        var resultString = string.Join(",", results.Select(async task =>
+                        {
+                            // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
+                            Indexed<PinResult>? result = await task;
+                            return result != null ? $"{contentHashes[result.Index].ToShortString()}:{result.Item}" : string.Empty;
+                        }));
+
+                        return $"ConfigurablePin Count={contentHashes.Count}, Hashes=[{resultString}]";
+                    },
+                    traceErrorsOnly: TraceErrorsOnly,
+                    traceOperationStarted: TraceOperationStarted,
+                    traceOperationFinished: true,
+                    isCritical: false).FireAndForget(operationContext);
             }
             else
             {

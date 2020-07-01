@@ -97,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         {
             using Stream file = fileSystem.OpenSafeAsync(absolutePath, FileAccess.Write, FileMode.Create, fileShare).GetAwaiter().GetResult();
             using var writer = new StreamWriter(file);
-            writer.WriteLine(contents);
+            writer.Write(contents);
         }
 
         /// <summary>

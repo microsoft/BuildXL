@@ -98,6 +98,9 @@ export interface TestResult extends Managed.TestResult {
 export const isDotNetCoreBuild : boolean = qualifier.targetFramework === "netcoreapp3.1" || qualifier.targetFramework === "netstandard2.0";
 
 @@public
+export const isDotNetCoreApp : boolean = qualifier.targetFramework === "netcoreapp3.1";
+
+@@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472" || qualifier.targetFramework === "net462";
 
 @@public

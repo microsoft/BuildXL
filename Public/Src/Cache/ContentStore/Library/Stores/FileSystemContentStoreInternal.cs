@@ -1349,9 +1349,17 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="contentHash">Content hash to get path for</param>
         /// <returns>Path for the hash</returns>
         /// <remarks>Does not guarantee anything is at the returned path</remarks>
-        protected internal AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
+        public AbsolutePath GetPrimaryPathFor(ContentHash contentHash)
         {
             return GetReplicaPathFor(contentHash, 0);
+        }
+
+        /// <summary>
+        /// Gets the relative path to the primary replica from the CAS root
+        /// </summary>
+        public static RelativePath GetPrimaryRelativePath(ContentHash contentHash)
+        {
+            return new RelativePath(Path.Combine(Constants.SharedDirectoryName, contentHash.HashType.Serialize(), GetRelativePathFor(contentHash, 0).Path));
         }
 
         private static RelativePath GetRelativePathFor(ContentHash contentHash, int replicaIndex)

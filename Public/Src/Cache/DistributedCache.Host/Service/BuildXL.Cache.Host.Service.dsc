@@ -31,6 +31,7 @@ namespace Service {
             importFrom("WindowsAzure.Storage").pkg,
             importFrom("NLog").pkg,
             ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Web.dll,
                 NetFx.System.Xml.dll
             ),
         ],

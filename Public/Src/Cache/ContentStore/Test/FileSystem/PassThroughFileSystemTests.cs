@@ -42,7 +42,7 @@ namespace ContentStoreTest.FileSystem
                 // CopyFileAsync should truncate the existing content.
                 await FileSystem.CopyFileAsync(sourcePath, destinationPath, true);
                 var destinationContent = FileSystem.ReadAllText(destinationPath);
-                Assert.Equal(sourceContent + Environment.NewLine, destinationContent);
+                Assert.Equal(sourceContent, destinationContent);
             }
         }
 

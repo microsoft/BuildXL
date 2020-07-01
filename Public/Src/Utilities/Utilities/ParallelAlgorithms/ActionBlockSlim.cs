@@ -17,7 +17,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
     /// </summary>
     public sealed class ActionBlockSlim<T>
     {
-        private readonly Action<T> m_processItemAction;
+        private readonly Func<T, Task> m_processItemAction;
         private readonly ConcurrentQueue<T> m_queue;
 
         private bool m_schedulingCompleted;
@@ -35,6 +35,22 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
         /// <nodoc />
         public ActionBlockSlim(int degreeOfParallelism, Action<T> processItemAction)
+            : this(degreeOfParallelism, t =>
+            {
+                processItemAction(t);
+                return Task.CompletedTask;
+            })
+        {
+        }
+
+        /// <nodoc />
+        public static ActionBlockSlim<T> CreateWithAsyncAction(int degreeOfParallelism, Func<T, Task> processItemAction)
+        {
+            return new ActionBlockSlim<T>(degreeOfParallelism, processItemAction);
+        }
+
+        /// <nodoc />
+        private ActionBlockSlim(int degreeOfParallelism, Func<T, Task> processItemAction)
         {
             Contract.Requires(degreeOfParallelism >= -1);
             Contract.RequiresNotNull(processItemAction);
@@ -142,7 +158,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
 
                         if (m_queue.TryDequeue(out var item))
                         {
-                            m_processItemAction(item);
+                            await m_processItemAction(item);
                         }
 
                         // Could be -1 if the number of pending items is already 0 and the task was awakened for graceful finish.

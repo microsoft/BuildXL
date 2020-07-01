@@ -61,6 +61,7 @@ namespace DistributedTest {
                 importFrom("System.IdentityModel.Tokens.Jwt").pkg
             ),
             ...redisPackages,
+            ...getSerializationPackages(true),
             Distributed.dll,
             ...Distributed.eventHubPackagages,
             UtilitiesCore.dll,

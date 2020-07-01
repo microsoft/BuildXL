@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
+import * as Deployment from "Sdk.Deployment";
 
 namespace Node {
 
@@ -127,5 +128,71 @@ namespace Node {
         });
 
         return <SharedOpaqueDirectory>result.getOutputDirectory(outPath);
+    }
+
+    @@public 
+    export interface Arguments {
+        /** A static directory containing all the TypeScript files that required building. */
+        sources: StaticDirectory;
+
+        /** Dependencies needed for running npm install */
+        npmDependencies?: Transformer.InputArtifact[];
+
+        /** Dependencies needed for compiling TypeScript sources */
+        dependencies?: Transformer.InputArtifact[];
+    }
+
+    /**
+     * Builds a collection of TypeScript files and produces a self-contained opaque directory that includes the compilation
+     * result and all the required node_modules dependencies
+     */
+    @@public
+    export function tscBuild(args: Arguments) : OpaqueDirectory {
+        // Copy the sources to an output directory so we don't polute the source tree with outputs
+        const srcRoot = args.sources.root;
+
+        const outputDir = Context.getNewOutputDirectory(a`node-build-${srcRoot.name}`);
+        const srcCopy: SharedOpaqueDirectory = Deployment.copyDirectory(
+            srcRoot, 
+            outputDir, 
+            args.sources);
+
+        // Install required npm packages
+        const npmInstall = Npm.npmInstall(srcCopy, args.npmDependencies || []);
+
+        // Compile
+        const compileOutDir: SharedOpaqueDirectory = Node.tscCompile(
+            srcCopy.root, 
+            [ srcCopy, npmInstall, ...(args.dependencies || []) ]);
+
+        const outDir = Transformer.composeSharedOpaqueDirectories(
+            outputDir, 
+            [compileOutDir]);
+
+        const nodeModules = Deployment.createDeployableOpaqueSubDirectory(npmInstall, r`node_modules`);
+        const out = Deployment.createDeployableOpaqueSubDirectory(outDir, r`out`);
+
+        // The deployment also needs all node_modules folder that npm installed
+        // This is the final layout the tool needs
+        const privateDeployment : Deployment.Definition = {
+            contents: [
+                out,
+                {
+                    contents: [{subfolder: `node_modules`, contents: [nodeModules]}]
+                }
+            ]
+        };
+        
+        // We need to create a single shared opaque that contains the full layout
+        const sourceDeployment : Directory = Context.getNewOutputDirectory(a`private-deployment-${srcRoot.name}`);
+        const onDiskDeployment = Deployment.deployToDisk({definition: privateDeployment, targetDirectory: sourceDeployment, sealPartialWithoutScrubbing: true});
+
+        const finalOutput : SharedOpaqueDirectory = Deployment.copyDirectory(
+            sourceDeployment, 
+            Context.getNewOutputDirectory(a`output-${srcRoot.name}`),
+            onDiskDeployment.contents,
+            onDiskDeployment.targetOpaques);
+
+        return finalOutput;
     }
 }

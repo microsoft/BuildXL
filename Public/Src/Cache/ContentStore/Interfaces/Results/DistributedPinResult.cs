@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL.Cache.ContentStore.Interfaces.Results;
-
-namespace BuildXL.Cache.ContentStore.Distributed.Sessions
+namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <nodoc />
     public sealed class DistributedPinResult : PinResult
     {
-        private readonly string _extraSuccessMessage;
+        private readonly string? _extraSuccessMessage;
 
         /// <summary>
         /// True when the remote pin succeeded after the content was copied locally.

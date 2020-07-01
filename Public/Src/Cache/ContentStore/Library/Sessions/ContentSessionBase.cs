@@ -121,14 +121,24 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     () => PinCoreAsync(operationContext, contentHashes, urgencyHint, retryCounter: BaseCounters[ContentSessionBaseCounters.PinBulkRetries], fileCounter: BaseCounters[ContentSessionBaseCounters.PinBulkFileCount]),
                     extraEndMessage: results =>
                     {
+                        var copies = 0;
                         var resultString = string.Join(",", results.Select(task =>
                         {
                             // Since all bulk operations are constructed with Task.FromResult, it is safe to just access the result;
                             var result = task.Result;
+
+                            if (result.Item is DistributedPinResult distributedPinResult)
+                            {
+                                if (distributedPinResult.CopyLocally)
+                                {
+                                    copies++;
+                                }
+                            }
+
                             return $"{contentHashes[result.Index].ToShortString()}:{result.Item}";
                         }));
 
-                        return $"Count={contentHashes.Count}, Hashes=[{resultString}]";
+                        return $"Count={contentHashes.Count}, Copies={copies}, Hashes=[{resultString}]";
                     },
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,

@@ -468,7 +468,7 @@ namespace BuildXL.Processes
         private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
             string redirectedStdin = processStdinFileName != null ? $" < {ToPathInsideRootJail(processStdinFileName)}" : string.Empty;
-            string escapedArguments = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string escapedArguments = (info.Arguments ?? string.Empty).Replace(Environment.NewLine, "\\" + Environment.NewLine);
             string cmdLine = $"{info.FileName} {escapedArguments} {redirectedStdin}";
 
             LogProcessState("Feeding stdin");
@@ -500,6 +500,7 @@ namespace BuildXL.Processes
                 lines.Add(EofDelim);
             }
 
+            SetExecutePermissionIfNeeded(info.FileName, throwIfNotFound: false);
             foreach (string line in lines)
             {
                 await Process.StandardInput.WriteLineAsync(line);

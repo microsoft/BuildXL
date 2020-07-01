@@ -1014,12 +1014,24 @@ namespace Test.BuildXL.Processes
         [Fact]
         public async Task StartFileDoesNotExist()
         {
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // On Linux we don't require that the process exists ahead of time.  Instead,
+                // we run a shell (e.g., /bin/sh) and then exec that process from the shell.
+                // The actual process executable may be a path relative to a virtual filesystem
+                // root in which the process will be executing, so the executable need not exist
+                // now and it can still be fetched dynamically (by the virtual file system) once
+                // the shell starts executing.
+                return;
+            }
+
             var pt = new PathTable();
             var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
             };
+            info.FileAccessManifest.PipId = 1;
 
             try
             {

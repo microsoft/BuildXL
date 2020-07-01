@@ -229,7 +229,8 @@ export function copyDirectory(sourceDir: Directory, targetDir: Directory, source
                 Cmd.argument(Artifact.none(targetDir)),
             ],
             dependencies: [
-                sourceDirDep
+                sourceDirDep,
+                ...(opaqueDirDeps || [])
             ],
             outputs: [
                 { directory: targetDir, kind: "shared" }

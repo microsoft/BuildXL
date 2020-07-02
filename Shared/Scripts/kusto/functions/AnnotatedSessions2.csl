@@ -1,13 +1,13 @@
 .create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", stamp:string="", bucketGroup:string="") {
-//let startDate=datetime(2019-11-01 00:00:00.0000000); 
-//let endDate=datetime(2019-12-01 00:00:00.0000000);
-//let infra = "CB";
-//let mSRReportable = "";
-//let customer = "";
-//let buildQueue = "";
-//let buildInfo_Build = "";
-//let stamp = "";
-//let bucketGroup = "";
+// let startDate=datetime(2020-06-28 00:00:00.0000000); 
+// let endDate=datetime(2020-07-01 00:00:00.0000000);
+// let infra = "CB";
+// let mSRReportable = "";
+// let customer = "Office";
+// let buildQueue = "";
+// let buildInfo_Build = "";
+// let stamp = "";
+// let bucketGroup = "";
 // ************** Exception regexes **************
 // The goal of the following regexes is parse enough information out of the crash exception and stack trace that a single line can be created that uniquely identifies the crash, this can be used as a "SuggestedBugName".
 // The SuggestedBugName should be unique enough to differentiate conceptually different crashes, but generic enough that slight variations in the exception or crash stack still results in the same SuggestedBugName.
@@ -81,15 +81,25 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
 | where EventInfo_Time between (startDate .. endDate)
 | project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
 ) on SessionId 
+//
+// 4. Join against the CB data
+//
+| join kind = leftouter (
+    cluster('cbuild').database("CloudBuildProd").BuildInfo
+    | where EndTime between (startDate .. endDate)
+    | project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType, Stamp = OwnerStampId, CBQueue = BuildQueue, BuildControllerMachineName, ReturnCode
+) on $left.RelatedSessionIdentifier == $right.BuildId
 // This determines whether we classify the invocation as an internal error or not.
-// Crashes are always internal errors. InfrastructureErrors are treated as internal errors
-// if TSE owns the infrastructure the build was run on (CloudBuild based builds)
 | extend InternalError = case(
+    // Crashes are always internal errors
     isnotempty(Exception), 1,
+    // InfrastructureError sare treated as internal errors if 1ES owns the infrastructure the build was run on (CloudBuild)
     ExitKind == "InternalError" or (Infra == "CB" and ExitKind == "InfrastructureError"), 1,
+    // Builds in CloudBuild should always have a corresponding dominocompletion event with a valid ExitKind. If they don't consider them an internal error (Unless CB has it marked as success)
+    ReturnCode != "" and ExitKind == "" and ReturnType != "Cancellation" and ReturnCode != "ExceededMaxBuildTime" and ReturnType != "Success", 1,
     0)
-    // Correlates all domino.exe invocations in the wider build session. Don't confuse this with "SessionId" which
-    // is per domino.exe invocation.
+    // Correlates all bxl.exe invocations in the wider build session. Don't confuse this with "SessionId" which
+    // is per bxl.exe invocation.
     | extend UniqueSession = case(
     isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier,
         SessionId)
@@ -108,14 +118,6 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
 | extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)
 | extend FunctionName = iff(isnull(BuildXlFunctionName) or isempty(BuildXlFunctionName), extract(anyFuncNameRegex, 1, Exception), BuildXlFunctionName)
 | extend SuggestedBugName = substring(strcat(FunctionName, ": ", ExceptionDescription), 0, 255)
-//
-// 4. Join against the CB data
-//
-| join kind = leftouter (
-    cluster('cbuild').database("CloudBuildProd").BuildInfo
-    | where EndTime between (startDate .. endDate)
-    | project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType, Stamp = OwnerStampId, CBQueue = BuildQueue, BuildControllerMachineName
-) on $left.UniqueSession == $right.BuildId
 | extend MasterInternalError = iff(isempty(BuildControllerMachineName) or BuildControllerMachineName == MachineName, InternalError, 0)
 //
 // 5. Merge all domino.exe invocations into a single overall session
@@ -123,7 +125,7 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
 | summarize SessionId = any(SessionId), 
     EventInfo_Time = min(EventInfo_Time), 
     BuildInfo_Build = any(BuildInfo_Build),
-    BucketGroup = min(Bucket),
+    BucketGroup = iff(isnotnull(anyif(Bucket, MasterInternalError != 0)), anyif(Bucket, MasterInternalError != 0), min(Bucket)),
     BucketMessage = min(ErrorMessage_InternalErrorOnly),
     RootCause = max(RootCause), 
     Exception = max(Exception),
@@ -133,7 +135,8 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
     NonFatalInternalError = iff(sum(MasterInternalError) == 0 and sum(InternalError) > 0, 1, 0),
     BuildQueue = any(BuildQueue), 
     CBCanRetry = max(InternalRetryCount), 
-    CBReturnType = any(ReturnType), 
+    CBReturnType = any(ReturnType),
+    CBReturnCode = any(ReturnCode),
     BuildInfo_CommitId = any(BuildInfo_CommitId),
     SuggestedBugName = max(SuggestedBugName),
     MachineName = max(iff(InternalError > 0, MachineName, ""))
@@ -152,7 +155,7 @@ cluster('cbuild').database('Domino').dominocatastrophicfailure
 // 
 // 7. Collapse together non-internal error sessions to limit the number of records returned by the query
 | extend TimeBucket = iff(InternalError == 1 or NonFatalInternalError == 1, EventInfo_Time, startofday(EventInfo_Time))
-| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BucketGroup, RootCause, Exception, InternalError, NonFatalInternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, Stamp, SuggestedBugName, MachineName, BucketMessage
+| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BucketGroup, RootCause, Exception, InternalError, NonFatalInternalError, BuildQueue, CBCanRetry, CBReturnType, CBReturnCode, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, Stamp, SuggestedBugName, MachineName, BucketMessage
 | extend week = startofweek(TimeBucket)
 | extend BuildUrl = iff(Stamp != "",  strcat("http://b/build/", UniqueSession), "");
 annotatedSessions

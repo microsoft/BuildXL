@@ -276,10 +276,10 @@
   <data name="Counter_ProcessMaximumWorkingSetPrivateMB" xml:space="preserve">
     <value>ProcessMaximumWorkingSetMB</value>
   </data>
-    <data name="Counter_ProcessAverageWorkingSetPrivateMB" xml:space="preserve">
+  <data name="Counter_ProcessAverageWorkingSetPrivateMB" xml:space="preserve">
     <value>ProcessAverageWorkingSetPrivateMB</value>
   </data>
-    <data name="MachineAverageDiskQueueDepth" xml:space="preserve">
+  <data name="MachineAverageDiskQueueDepth" xml:space="preserve">
     <value>MachineAverageDiskQueueDepth</value>
   </data>
   <data name="AppHostInitializationDurationMs" xml:space="preserve">
@@ -287,5 +287,11 @@
   </data>
   <data name="ApiTotalLogMessageCalls" xml:space="preserve">
     <value>BuildXLApiTotalLogMessageCalls</value>
+  </data>
+  <data name="TotalMaterializedInputsSize" xml:space="preserve">
+    <value>TotalMaterializedInputsSize</value>
+  </data>
+  <data name="TotalMaterializedOutputsSize" xml:space="preserve">
+    <value>TotalMaterializedOutputsSize</value>
   </data>
 </root>

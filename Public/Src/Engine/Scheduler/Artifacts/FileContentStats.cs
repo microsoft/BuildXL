@@ -83,8 +83,18 @@ namespace BuildXL.Scheduler
         public long FileRecoveryAttempts;
 
         /// <summary>
-        /// Number of times we successfully recovered a file file that was not in the cache when requested. 
+        /// Number of times we successfully recovered a file that was not in the cache when requested. 
         /// </summary>
         public long FileRecoverySuccesses;
+
+        /// <summary>
+        /// The total size of materialized inputs.
+        /// </summary>
+        public long TotalMaterializedInputsSize;
+
+        /// <summary>
+        /// The total size of materialized outputs.
+        /// </summary>
+        public long TotalMaterializedOutputsSize;
     }
 }

@@ -2021,6 +2021,19 @@ namespace BuildXL.Scheduler.Artifacts
                                 fileName: fileName,
                                 symlinkTarget: symlinkTarget,
                                 reparsePointInfo: materializationInfo.ReparsePointInfo);
+
+                            if (possiblyPlaced.Succeeded)
+                            {
+                                if (state.MaterializingOutputs)
+                                {
+                                    Interlocked.Add(ref m_stats.TotalMaterializedOutputsSize, materializationInfo.Length);
+                                }
+                                else
+                                {
+                                    Interlocked.Add(ref m_stats.TotalMaterializedInputsSize, materializationInfo.Length);
+                                }
+                            }
+
                             return WithLineInfo(possiblyPlaced);
                         }
                     }
@@ -3338,6 +3351,9 @@ namespace BuildXL.Scheduler.Artifacts
 
             statistics.Add("FileContentManager_SealContents_NumDirectoryArtifacts", numDirectoryArtifacts);
             statistics.Add("FileContentManager_SealContents_NumFileArtifacts", numFileArtifacts);
+
+            statistics.Add(Statistics.TotalMaterializedInputsSize, m_stats.TotalMaterializedInputsSize);
+            statistics.Add(Statistics.TotalMaterializedOutputsSize, m_stats.TotalMaterializedOutputsSize);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
         }

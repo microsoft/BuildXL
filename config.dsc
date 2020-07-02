@@ -587,7 +587,7 @@ config({
         dotSettingsFile: f`Public/Sdk/SelfHost/BuildXL/BuildXL.sln.DotSettings`,
     },
 
-    cacheableFileAccessWhitelist: Context.getCurrentHost().os !== "win" ? [] : [
+    cacheableFileAccessAllowlist: Context.getCurrentHost().os !== "win" ? [] : [
         // Allow the debugger to be able to be launched from BuildXL Builds
         {
             name: "JitDebugger",

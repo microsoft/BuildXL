@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 /**
- * The name of the configuration that decorates a rush project with
+ * The name of the configuration that decorates a JavaScript project with
  * bxl-specific information
  */
 const bxlConfigurationFilename = "bxlconfig.json";
@@ -13,7 +13,7 @@ const bxlConfigurationFilename = "bxlconfig.json";
 const workspaceDirStartToken = "<workspaceDir>/";
 
 /**
- * The object that represents a BuildXL Rush configuration file for an associated Rush project
+ * The object that represents a BuildXL JavaScript configuration file for an associated JavaScript project
  */
 export interface BuildXLConfiguration {
     /** Each path is interpreted as an output directory */
@@ -33,7 +33,7 @@ export interface PathWithTargets {
 }
 
 /**
- * Reads an optional Bxl Rush configuration file for a given project  and returns it
+ * Reads an optional Bxl JavaScript configuration file for a given project  and returns it
  * @param repoFolder The root of the repo
  * @param projectFolder The root of the project
  */

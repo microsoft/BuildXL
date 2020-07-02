@@ -132,8 +132,8 @@ namespace Node {
 
     @@public 
     export interface Arguments {
-        /** A static directory containing all the TypeScript files that required building. */
-        sources: StaticDirectory;
+        /** Static directories containing all the TypeScript files that need to be built. */
+        sources: StaticDirectory[];
 
         /** Dependencies needed for running npm install */
         npmDependencies?: Transformer.InputArtifact[];
@@ -148,14 +148,22 @@ namespace Node {
      */
     @@public
     export function tscBuild(args: Arguments) : OpaqueDirectory {
-        // Copy the sources to an output directory so we don't polute the source tree with outputs
-        const srcRoot = args.sources.root;
+        
+        const sources = args.sources || [];
 
-        const outputDir = Context.getNewOutputDirectory(a`node-build-${srcRoot.name}`);
-        const srcCopy: SharedOpaqueDirectory = Deployment.copyDirectory(
-            srcRoot, 
+        let displayName : PathAtom = sources.length === 0 ?
+            // Unlikely this will be an empty array, but let's be conservative
+            a`${Context.getLastActiveUseModuleName()}` :
+            sources[0].root.name;
+
+        // Copy all the sources to an output directory so we don't polute the source tree with outputs
+        const outputDir = Context.getNewOutputDirectory(a`node-build-${displayName}`);
+        const srcCopies = sources.map(source => Deployment.copyDirectory(
+            source.root, 
             outputDir, 
-            args.sources);
+            source));
+
+        const srcCopy: SharedOpaqueDirectory = Transformer.composeSharedOpaqueDirectories(outputDir, srcCopies);
 
         // Install required npm packages
         const npmInstall = Npm.npmInstall(srcCopy, args.npmDependencies || []);
@@ -184,12 +192,12 @@ namespace Node {
         };
         
         // We need to create a single shared opaque that contains the full layout
-        const sourceDeployment : Directory = Context.getNewOutputDirectory(a`private-deployment-${srcRoot.name}`);
+        const sourceDeployment : Directory = Context.getNewOutputDirectory(a`private-deployment-${displayName}`);
         const onDiskDeployment = Deployment.deployToDisk({definition: privateDeployment, targetDirectory: sourceDeployment, sealPartialWithoutScrubbing: true});
 
         const finalOutput : SharedOpaqueDirectory = Deployment.copyDirectory(
             sourceDeployment, 
-            Context.getNewOutputDirectory(a`output-${srcRoot.name}`),
+            Context.getNewOutputDirectory(a`output-${displayName}`),
             onDiskDeployment.contents,
             onDiskDeployment.targetOpaques);
 

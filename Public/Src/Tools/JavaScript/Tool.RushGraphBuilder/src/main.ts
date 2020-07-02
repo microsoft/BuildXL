@@ -1,5 +1,5 @@
 import { buildGraph } from "./RushGraphBuilder";
-import { serializeGraph } from "./RushGraphSerializer";
+import { serializeGraph } from "./GraphSerializer";
 
 if (process.argv.length < 5) {
     console.log("Expected arguments: <path-to-rush.json> <path-to-output-graph> <path-to-rush-lib>");

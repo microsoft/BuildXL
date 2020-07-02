@@ -290,6 +290,18 @@ interface RushResolver extends JavaScriptResolver {
 }
 
 /**
+ * Resolver for Yarn project-level build execution
+ */
+interface YarnResolver extends JavaScriptResolver {
+    kind: "Yarn";
+
+    /**
+     * The location of yarn. If not provided, BuildXL will try to look for it under PATH.
+     */
+    yarnLocation?: File;
+}
+
+/**
  * Base resolver for all JavaScript-like resolvers. E.g. Rush
  */
 interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
@@ -576,4 +588,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | CMakeResolver | RushResolver | YarnResolver;

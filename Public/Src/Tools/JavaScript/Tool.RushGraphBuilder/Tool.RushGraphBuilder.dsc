@@ -5,11 +5,11 @@ import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import {Node, Npm} from "Sdk.NodeJs";
 
-namespace RushGraphBuilder {
+namespace JavaScript.RushGraphBuilder {
     export declare const qualifier: {};
 
     const rushToolSrc = Transformer.sealDirectory(d`src`, globR(d`src`));
-    const output = Node.tscBuild({sources: rushToolSrc});
+    const output = Node.tscBuild({sources: [rushToolSrc, Common.commonSources]});
 
     @@public export const deployment : Deployment.Definition = {
         contents: [{

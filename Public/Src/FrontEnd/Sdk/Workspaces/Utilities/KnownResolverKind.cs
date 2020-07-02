@@ -29,6 +29,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public const string RushResolverKind = "Rush";
 
         /// <nodoc/>
+        public const string YarnResolverKind = "Yarn";
+
+        /// <nodoc/>
         public const string NinjaResolverKind = "Ninja";
 
         /// <nodoc/>
@@ -39,7 +42,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc />
         public static string[] KnownResolvers { get; } =
-            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind};
+            {SourceResolverKind, DScriptResolverKind, NugetResolverKind, DefaultSourceResolverKind, DownloadResolverKind, MsBuildResolverKind, NinjaResolverKind, YarnResolverKind};
 
         /// <summary>
         /// Returns whether a given string is a valid resolver kind.
@@ -56,7 +59,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 value == MsBuildResolverKind ||
                 value == NinjaResolverKind ||
                 value == CMakeResolverKind ||
-                value == RushResolverKind;
+                value == RushResolverKind ||
+                value == YarnResolverKind;
         }
     }
 }

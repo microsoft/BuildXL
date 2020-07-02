@@ -29,7 +29,8 @@ namespace Factory {
                 Ninja.dll,
                 CMake.dll,
                 Rush.dll,
-                JavaScript.dll
+                JavaScript.dll,
+                Yarn.dll
             ]),
         ],
         internalsVisibleTo: [

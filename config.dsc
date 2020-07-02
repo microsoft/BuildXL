@@ -442,13 +442,6 @@ config({
                     url: "https://nodejs.org/dist/v12.16.1/node-v12.16.1-darwin-x64.tar.gz",
                     hash: "VSO0:A3DEEC9D7C133120F255195146072452C6D06D24E7F97754F342627C53A5008000",
                     archiveType: "tgz",
-                },
-                // Electron
-                {
-                    moduleName: "Electron.win-x64",
-                    url: "https://github.com/electron/electron/releases/download/v2.0.10/electron-v2.0.10-win32-x64.zip",
-                    hash: "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00",
-                    archiveType: "zip",
                 }
             ],
         },

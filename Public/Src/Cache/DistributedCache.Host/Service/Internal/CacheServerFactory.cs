@@ -136,6 +136,12 @@ namespace BuildXL.Cache.Host.Service.Internal
                     drivesWithContentStore[resolvedCacheSettings.Drive] = factory.CreateContentStore(resolvedCacheSettings);
                 }
 
+                if (string.IsNullOrEmpty(cacheConfig.LocalCasSettings.PreferredCacheDrive))
+                {
+                    var knownDrives = string.Join(",", factory.OrderedResolvedCacheSettings.Select(cacheSetting => cacheSetting.Drive));
+                    throw new ArgumentException($"Preferred cache drive is missing, which can indicate an invalid configuration. Known drives={knownDrives}");
+                }
+
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 

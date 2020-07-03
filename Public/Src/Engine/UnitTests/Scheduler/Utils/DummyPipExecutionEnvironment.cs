@@ -374,6 +374,9 @@ namespace Test.BuildXL.Scheduler.Utils
         public bool IsTerminating => false;
 
         /// <inheritdoc />
+        public bool InputsLazilyMaterialized => false;
+
+        /// <inheritdoc />
         public DirectoryFingerprint? TryQueryDirectoryFingerprint(AbsolutePath directoryPath)
         {
             try

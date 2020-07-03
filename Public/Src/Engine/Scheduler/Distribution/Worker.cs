@@ -585,7 +585,7 @@ namespace BuildXL.Scheduler.Distribution
                     return false;
                 }
 
-                if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots && EngineEnvironmentSettings.DecoupleMaterializeSlotsFromProcessSlots)
+                if (AcquiredMaterializeInputSlots >= TotalMaterializeInputSlots)
                 {
                     limitingResource = WorkerResource.AvailableMaterializeInputSlots;
                     return false;
@@ -597,11 +597,21 @@ namespace BuildXL.Scheduler.Distribution
                 {
                     Interlocked.Add(ref m_acquiredProcessSlots, processRunnablePip.Weight);
                     OnWorkerResourcesChanged(WorkerResource.AvailableProcessSlots, increased: false);
-                    Interlocked.Add(ref m_acquiredMaterializeInputSlots, 1);
                     Interlocked.Add(ref m_acquiredPostProcessSlots, 1);
                     runnablePip.AcquiredResourceWorker = this;
                     processRunnablePip.ExpectedMemoryCounters = expectedMemoryCounters;
                     limitingResource = null;
+
+                    if (runnablePip.Environment.InputsLazilyMaterialized)
+                    {
+                        // If inputs are lazily materialized, we need to acquire MaterializeInput slots.
+                        // Then, we can stop ChooseWorkerCpu queue when the materialize slots are full.
+                        // If inputs are not lazily materialized, there is no need to acquire MaterializeInput slots
+                        // because we do not execute MaterializeInput step for those builds such as single-machine builds.
+                        // Otherwise, the hang occurs for single machine builds where we do not lazily materialize inputs.
+                        Interlocked.Add(ref m_acquiredMaterializeInputSlots, 1);
+                    }
+
                     return true;
                 }
 

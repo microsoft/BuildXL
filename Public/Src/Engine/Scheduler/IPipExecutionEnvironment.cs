@@ -223,6 +223,11 @@ namespace BuildXL.Scheduler
         /// Not null only when <see cref="IUnsafeSandboxConfiguration.ProcessSymlinkedAccesses"/> is true
         /// </remarks>
         [CanBeNull] SymlinkedAccessResolver SymlinkedAccessResolver { get; }
+
+        /// <summary>
+        /// Indicates if inputs are lazily materialized via MaterializeInput step.
+        /// </summary>
+        bool InputsLazilyMaterialized { get; }
     }
 
     /// <summary>

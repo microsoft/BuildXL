@@ -145,11 +145,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DoNotInlineWhenNewPipRunInSameQueue = CreateSetting("BuildXLDoNotInlineWhenNewPipRunInSameQueue", value => value == "1");
 
         /// <summary>
-        /// Specifies to decouple the materialize slots from process slots.
-        /// </summary>
-        public static readonly Setting<bool> DecoupleMaterializeSlotsFromProcessSlots = CreateSetting("BuildXLDecoupleMaterializeSlotsFromProcessSlots", value => value == "1");
-
-        /// <summary>
         /// Specifies to disable load balance among workers.
         /// </summary>
         public static readonly Setting<double?> DisableLoadBalanceMultiplier = CreateSetting("BuildXLDisableLoadBalanceMultiplier", value => ParseDouble(value));

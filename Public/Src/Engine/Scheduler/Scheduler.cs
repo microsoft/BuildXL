@@ -4867,6 +4867,10 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IPipExecutionEnvironment.InputsLazilyMaterialized => InputsLazilyMaterialized;
+
+        /// <inheritdoc />
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         PipTable IPipExecutionEnvironment.PipTable => m_pipTable;
 
         /// <inheritdoc />

@@ -292,6 +292,11 @@ namespace BuildXL.Execution.Analyzer
             m_writerFiles.WriteLine($"Path,Size,Producer,Consumers(max {MaxConsumers})");
             foreach (var path in m_producedFiles.Keys.ToListSorted(PathTable.ExpandedPathComparer))
             {
+                if (!m_producedFiles[path].Producer.IsValid)
+                {
+                    continue;
+                }
+
                 m_fileSizes.TryGetValue(path, out var size);
 
                 m_writerFiles.WriteLine("{0},{1},{2},{3}",
@@ -301,12 +306,13 @@ namespace BuildXL.Execution.Analyzer
                     string.Join(";", m_producedFiles[path].Consumers.Take(MaxConsumers).Select(pipId => PipTable.GetFormattedSemiStableHash(pipId))));
             }
 
-            m_writerPips.WriteLine($"Pip,ConsumedBytes,TotalInputSize");
+            m_writerPips.WriteLine($"Pip,Description,ConsumedBytes,TotalInputSize");
             foreach (var pipId in m_executedProcessPips.Keys)
             {
                 var pip = m_executedProcessPips[pipId];
-                m_writerPips.WriteLine("{0},{1},{2}",
+                m_writerPips.WriteLine("{0},\"{1}\",{2},{3}",
                     PipTable.GetFormattedSemiStableHash(pipId),
+                    pip.Description.Replace("\"", "\"\""),
                     pip.ConsumedInputSize,
                     pip.DeclaredInputSize);
             }
@@ -337,6 +343,7 @@ namespace BuildXL.Execution.Analyzer
         {
             public readonly PipId PipId;
             public readonly long SemiStableHash;
+            public readonly string Description;
 
             /// <summary>
             /// Statically declared input files
@@ -361,10 +368,11 @@ namespace BuildXL.Execution.Analyzer
             public long DeclaredInputSize;
             public long ConsumedInputSize;
 
-            public ProcessPip(PipId pipId, long semiStableHash)
+            public ProcessPip(PipId pipId, long semiStableHash, string description)
             {
                 PipId = pipId;
                 SemiStableHash = semiStableHash;
+                Description = description ?? string.Empty;
             }
         }
 
@@ -534,7 +542,7 @@ namespace BuildXL.Execution.Analyzer
 
                 m_analyzer.m_executedProcessPips.AddOrUpdate(
                     data.PipId,
-                    new ProcessPip(data.PipId, pip.SemiStableHash)
+                    new ProcessPip(data.PipId, pip.SemiStableHash, getPipDescription(pip, m_analyzer.CachedGraph.Context))
                     {
                         DeclaredInputFiles = declaredInputFiles,
                         DeclaredInputDirectories = declaredInputsDirs,
@@ -555,6 +563,37 @@ namespace BuildXL.Execution.Analyzer
                 foreach (var path in declaredInputFiles.Concat(consumedPaths))
                 {
                     AddFlag(path, ContentFlag.Consumed);
+                }
+
+                string getPipDescription(Process pip, PipExecutionContext context)
+                {
+                    using (var wrapper = Pools.GetStringBuilder())
+                    {
+                        var sb = wrapper.Instance;
+
+                        if (pip.Provenance != null)
+                        {
+                            if (pip.Provenance.ModuleName.IsValid)
+                            {
+                                sb.Append(pip.Provenance.ModuleName.ToString(context.StringTable));
+                            }
+
+                            if (context.SymbolTable != null)
+                            {
+                                if (pip.Provenance.OutputValueSymbol.IsValid)
+                                {
+                                    if (sb.Length > 0)
+                                    {
+                                        sb.Append(", ");
+                                    }
+
+                                    sb.Append(pip.Provenance.OutputValueSymbol, context.SymbolTable);
+                                }
+                            }
+                        }
+
+                        return sb.ToString();
+                    }
                 }
             }
 
